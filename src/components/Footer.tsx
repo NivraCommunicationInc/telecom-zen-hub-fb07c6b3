@@ -39,7 +39,7 @@ const Footer = () => {
               <span className="font-display font-bold text-xl">Nivra</span>
             </div>
             <p className="text-cyan-100/60 mb-6 max-w-xs">
-              Votre courtier télécom indépendant au Québec. Nous simplifions et sécurisons vos services de télécommunication.
+              Votre courtier télécom 100% indépendant au Québec. Payé par vous, sans aucune affiliation aux fournisseurs.
             </p>
             <div className="space-y-3">
               <a href="tel:1-800-NIVRA" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
