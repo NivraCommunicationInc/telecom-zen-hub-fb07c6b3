@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { format, subDays } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const AdminDashboard = () => {
   const { data: stats, isLoading } = useQuery({
@@ -120,7 +121,7 @@ const AdminDashboard = () => {
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">Tableau de bord</h1>
           <p className="text-muted-foreground mt-1">
-            Bienvenue dans l'administration Nivra • {format(new Date(), "EEEE d MMMM yyyy", { locale: require("date-fns/locale/fr").fr })}
+            Bienvenue dans l'administration Nivra • {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
           </p>
         </div>
 
