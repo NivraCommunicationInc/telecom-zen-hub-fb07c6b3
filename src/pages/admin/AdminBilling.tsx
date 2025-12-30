@@ -49,6 +49,16 @@ const AdminBilling = () => {
   const { logActivity } = useActivityLog();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentBill, setPaymentBill] = useState<any>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"credit" | "etransfer" | "">("");
+  const [cardDetails, setCardDetails] = useState({
+    cardNumber: "",
+    cardName: "",
+    expiry: "",
+    cvv: "",
+  });
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [newInvoice, setNewInvoice] = useState({
@@ -202,9 +212,54 @@ const AdminBilling = () => {
     },
   });
 
-  const markAsPaid = (bill: any) => {
-    updateBillingMutation.mutate({ ...bill, status: "paid" });
-    setDetailsDialogOpen(false);
+  const openPaymentDialog = (bill: any) => {
+    setPaymentBill(bill);
+    setPaymentMethod("");
+    setCardDetails({ cardNumber: "", cardName: "", expiry: "", cvv: "" });
+    setPaymentDialogOpen(true);
+  };
+
+  const processPayment = async () => {
+    if (!paymentBill || !paymentMethod) return;
+    
+    if (paymentMethod === "credit") {
+      if (!cardDetails.cardNumber || !cardDetails.cardName || !cardDetails.expiry || !cardDetails.cvv) {
+        toast({ title: "Veuillez remplir tous les champs de carte", variant: "destructive" });
+        return;
+      }
+    }
+
+    setIsProcessingPayment(true);
+    
+    try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const { error } = await supabase
+        .from("billing")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          notes: `${paymentBill.notes || ""}\n[Paiement reçu via ${paymentMethod === "credit" ? "Carte de crédit" : "Virement Interac"}]`.trim(),
+        })
+        .eq("id", paymentBill.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+      logActivity("payment", "invoice", paymentBill.id, { 
+        method: paymentMethod,
+        amount: calculateTotal(paymentBill)
+      });
+      
+      toast({ title: "Paiement enregistré avec succès" });
+      setPaymentDialogOpen(false);
+      setDetailsDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Erreur lors du traitement du paiement", variant: "destructive" });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleViewDetails = (bill: any) => {
@@ -554,7 +609,7 @@ const AdminBilling = () => {
                               <Button
                                 size="sm"
                                 variant="hero"
-                                onClick={() => markAsPaid(bill)}
+                                onClick={() => openPaymentDialog(bill)}
                               >
                                 <DollarSign className="w-4 h-4" />
                               </Button>
@@ -697,12 +752,137 @@ const AdminBilling = () => {
                     PDF
                   </Button>
                   {selectedBill.status !== "paid" && (
-                    <Button variant="hero" onClick={() => markAsPaid(selectedBill)}>
+                    <Button variant="hero" onClick={() => openPaymentDialog(selectedBill)}>
                       <DollarSign className="w-4 h-4 mr-2" />
-                      Marquer payé
+                      Enregistrer paiement
                     </Button>
                   )}
                 </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enregistrer un paiement</DialogTitle>
+            </DialogHeader>
+            {paymentBill && (
+              <div className="space-y-4 mt-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span>Facture:</span>
+                    <span className="font-mono">{paymentBill.invoice_number || paymentBill.id.slice(0, 8)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Client:</span>
+                    <span>{paymentBill.profiles?.full_name || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t border-border">
+                    <span>Total à payer:</span>
+                    <span>
+                      {calculateTotal(paymentBill).toLocaleString("fr-CA", {
+                        style: "currency",
+                        currency: "CAD",
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Méthode de paiement</Label>
+                  <Select
+                    value={paymentMethod}
+                    onValueChange={(v: "credit" | "etransfer") => setPaymentMethod(v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner une méthode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="credit">Carte de crédit</SelectItem>
+                      <SelectItem value="etransfer">Virement Interac (e-Transfer)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {paymentMethod === "credit" && (
+                  <div className="space-y-4 p-4 border border-border rounded-lg">
+                    <div>
+                      <Label>Numéro de carte</Label>
+                      <Input
+                        placeholder="1234 5678 9012 3456"
+                        value={cardDetails.cardNumber}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "").slice(0, 16);
+                          const formatted = value.replace(/(\d{4})(?=\d)/g, "$1 ");
+                          setCardDetails({ ...cardDetails, cardNumber: formatted });
+                        }}
+                        maxLength={19}
+                      />
+                    </div>
+                    <div>
+                      <Label>Nom sur la carte</Label>
+                      <Input
+                        placeholder="NOM COMPLET"
+                        value={cardDetails.cardName}
+                        onChange={(e) => setCardDetails({ ...cardDetails, cardName: e.target.value.toUpperCase() })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Expiration</Label>
+                        <Input
+                          placeholder="MM/AA"
+                          value={cardDetails.expiry}
+                          onChange={(e) => {
+                            let value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            if (value.length >= 2) {
+                              value = value.slice(0, 2) + "/" + value.slice(2);
+                            }
+                            setCardDetails({ ...cardDetails, expiry: value });
+                          }}
+                          maxLength={5}
+                        />
+                      </div>
+                      <div>
+                        <Label>CVV</Label>
+                        <Input
+                          type="password"
+                          placeholder="***"
+                          value={cardDetails.cvv}
+                          onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+                          maxLength={4}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === "etransfer" && (
+                  <div className="p-4 border border-border rounded-lg bg-cyan-500/10">
+                    <p className="text-sm text-foreground">
+                      Confirmez que le virement Interac a été reçu. Le paiement sera marqué comme complété.
+                    </p>
+                  </div>
+                )}
+
+                <Button
+                  className="w-full"
+                  variant="hero"
+                  onClick={processPayment}
+                  disabled={!paymentMethod || isProcessingPayment}
+                >
+                  {isProcessingPayment ? (
+                    "Traitement en cours..."
+                  ) : (
+                    <>
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Confirmer le paiement
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </DialogContent>
