@@ -275,113 +275,598 @@ const AdminBilling = () => {
   };
 
   const exportInvoicePDF = (bill: any) => {
-    const total = calculateTotal(bill);
+    const subtotal = Number(bill.amount) || 0;
+    const fees = Number(bill.fees) || 0;
+    const credits = Number(bill.credits) || 0;
+    const taxRate = 0.14975; // QST + GST combined
+    const taxAmount = subtotal * taxRate;
+    const totalBeforeCredits = subtotal + fees + taxAmount;
+    const total = totalBeforeCredits - credits;
+    const remainingBalance = bill.status === "paid" ? 0 : total;
+    
     const clientName = bill.profiles?.full_name || "Client";
-    const clientEmail = bill.profiles?.email || "";
-    const invoiceNum = bill.invoice_number || bill.id.slice(0, 8);
-    const dueDate = bill.due_date ? format(new Date(bill.due_date), "d MMMM yyyy", { locale: fr }) : "N/A";
+    const clientEmail = bill.profiles?.email || bill.client_email || "";
+    const invoiceNum = bill.invoice_number || `INV-${bill.id.slice(0, 8).toUpperCase()}`;
+    const dueDate = bill.due_date ? format(new Date(bill.due_date), "d MMMM yyyy", { locale: fr }) : "Sur réception";
     const createdDate = format(new Date(bill.created_at), "d MMMM yyyy", { locale: fr });
+    const paidDate = bill.paid_at ? format(new Date(bill.paid_at), "d MMMM yyyy", { locale: fr }) : null;
+    
+    // Extract payment method from notes if available
+    const paymentMethodMatch = bill.notes?.match(/\[Paiement reçu via (.*?)\]/);
+    const paymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : null;
+    
+    // Mock last 4 digits (in real app, would come from payment records)
+    const cardLast4 = paymentMethod?.includes("Carte") ? "•••• 4242" : null;
+
+    const formatCurrency = (amount: number) => 
+      amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 
     const htmlContent = `
       <!DOCTYPE html>
-      <html>
+      <html lang="fr">
       <head>
         <meta charset="UTF-8">
         <title>Facture ${invoiceNum}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-          .logo { font-size: 24px; font-weight: bold; color: #0891b2; }
-          .invoice-title { font-size: 28px; font-weight: bold; text-align: right; }
-          .invoice-num { color: #666; text-align: right; }
-          .section { margin-bottom: 30px; }
-          .label { color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
-          .value { font-size: 14px; }
-          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          th { background: #f5f5f5; text-align: left; padding: 12px; border-bottom: 2px solid #ddd; }
-          td { padding: 12px; border-bottom: 1px solid #eee; }
-          .amount { text-align: right; }
-          .total-row { font-weight: bold; background: #f9f9f9; }
-          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
-          .status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+          
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          
+          body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            padding: 0;
+            color: #1e293b;
+            background: #fff;
+            font-size: 13px;
+            line-height: 1.5;
+          }
+          
+          .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+          }
+          
+          /* Header */
+          .header {
+            text-align: center;
+            padding-bottom: 30px;
+            border-bottom: 3px solid #0891b2;
+            margin-bottom: 30px;
+          }
+          
+          .logo {
+            font-size: 36px;
+            font-weight: 700;
+            color: #0891b2;
+            letter-spacing: 4px;
+            margin-bottom: 8px;
+          }
+          
+          .tagline {
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+          }
+          
+          .company-info {
+            margin-top: 15px;
+            color: #475569;
+            font-size: 11px;
+          }
+          
+          .company-info p { margin: 2px 0; }
+          
+          /* Invoice Title */
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+          }
+          
+          .invoice-title-section h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 5px;
+          }
+          
+          .invoice-number {
+            font-size: 14px;
+            color: #0891b2;
+            font-weight: 600;
+          }
+          
+          .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          
           .status-paid { background: #d1fae5; color: #059669; }
           .status-pending { background: #fef3c7; color: #d97706; }
           .status-overdue { background: #fee2e2; color: #dc2626; }
+          
+          /* Two Column Layout */
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 35px;
+          }
+          
+          .info-section h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            font-weight: 600;
+          }
+          
+          .info-section .client-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 5px;
+          }
+          
+          .info-section p {
+            color: #475569;
+            margin: 3px 0;
+          }
+          
+          .dates-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+          }
+          
+          .date-item label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+          }
+          
+          .date-item span {
+            font-weight: 500;
+            color: #0f172a;
+          }
+          
+          /* Invoice Table */
+          .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+          }
+          
+          .invoice-table thead {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+          }
+          
+          .invoice-table th {
+            color: #fff;
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+          }
+          
+          .invoice-table th:last-child {
+            text-align: right;
+          }
+          
+          .invoice-table td {
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+          }
+          
+          .invoice-table td:last-child {
+            text-align: right;
+            font-weight: 500;
+          }
+          
+          .invoice-table tr:hover {
+            background: #f8fafc;
+          }
+          
+          .item-description {
+            font-weight: 500;
+            color: #0f172a;
+          }
+          
+          .item-detail {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 3px;
+          }
+          
+          /* Totals Section */
+          .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 30px;
+          }
+          
+          .totals-table {
+            width: 320px;
+          }
+          
+          .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          
+          .totals-row.subtotal {
+            color: #64748b;
+          }
+          
+          .totals-row.fees {
+            color: #dc2626;
+          }
+          
+          .totals-row.credits {
+            color: #059669;
+          }
+          
+          .totals-row.tax {
+            color: #64748b;
+          }
+          
+          .totals-row.total {
+            border-bottom: none;
+            border-top: 2px solid #0f172a;
+            padding-top: 15px;
+            margin-top: 5px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+          }
+          
+          .totals-row.balance {
+            background: ${remainingBalance > 0 ? '#fef2f2' : '#f0fdf4'};
+            margin: 10px -15px -10px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            color: ${remainingBalance > 0 ? '#dc2626' : '#059669'};
+          }
+          
+          /* Payment Info */
+          .payment-info {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+          }
+          
+          .payment-info h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            margin-bottom: 12px;
+          }
+          
+          .payment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+          }
+          
+          .payment-item label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 4px;
+          }
+          
+          .payment-item span {
+            font-weight: 600;
+            color: #0f172a;
+          }
+          
+          /* Notes Section */
+          .notes-section {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            border-radius: 0 8px 8px 0;
+          }
+          
+          .notes-section h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+          }
+          
+          .notes-section p {
+            color: #78350f;
+            font-size: 12px;
+          }
+          
+          /* Policies */
+          .policies {
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+          }
+          
+          .policies h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          
+          .policies ul {
+            list-style: none;
+            padding: 0;
+          }
+          
+          .policies li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 8px;
+            color: #475569;
+            font-size: 11px;
+          }
+          
+          .policies li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #0891b2;
+            font-weight: bold;
+          }
+          
+          .late-fee-warning {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          
+          .late-fee-warning .icon {
+            color: #dc2626;
+            font-size: 18px;
+          }
+          
+          .late-fee-warning p {
+            color: #991b1b;
+            font-size: 11px;
+            font-weight: 500;
+          }
+          
+          /* Footer */
+          .footer {
+            text-align: center;
+            padding-top: 25px;
+            border-top: 1px solid #e2e8f0;
+          }
+          
+          .footer p {
+            color: #94a3b8;
+            font-size: 11px;
+            margin: 3px 0;
+          }
+          
+          .footer .thank-you {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0891b2;
+            margin-bottom: 10px;
+          }
+          
+          @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .invoice-container { padding: 20px; }
+          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="logo">NIVRA</div>
-          <div>
-            <div class="invoice-title">FACTURE</div>
-            <div class="invoice-num">${invoiceNum}</div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="label">Facturer à</div>
-          <div class="value"><strong>${clientName}</strong></div>
-          <div class="value">${clientEmail}</div>
-        </div>
-        
-        <div style="display: flex; gap: 60px;">
-          <div class="section">
-            <div class="label">Date de création</div>
-            <div class="value">${createdDate}</div>
-          </div>
-          <div class="section">
-            <div class="label">Date d'échéance</div>
-            <div class="value">${dueDate}</div>
-          </div>
-          <div class="section">
-            <div class="label">Statut</div>
-            <div class="value">
-              <span class="status status-${bill.status}">${statusLabels[bill.status] || bill.status}</span>
+        <div class="invoice-container">
+          <!-- Header with Company Info -->
+          <div class="header">
+            <div class="logo">NIVRA</div>
+            <div class="tagline">Courtier Télécom Indépendant</div>
+            <div class="company-info">
+              <p>5000, rue d'Iberville, bureau 100</p>
+              <p>Montréal, Québec H2H 2S6</p>
+              <p>Tél: 438-544-2233 | info@nivra.ca</p>
+              <p>TPS: 123456789 RT0001 | TVQ: 1234567890 TQ0001</p>
             </div>
           </div>
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th class="amount">Montant</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Montant de base</td>
-              <td class="amount">${Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
-            </tr>
-            ${Number(bill.fees) > 0 ? `
-            <tr>
-              <td>Frais supplémentaires ${bill.late_fee_applied ? "(incluant frais de retard 5%)" : ""}</td>
-              <td class="amount">+${Number(bill.fees).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
-            </tr>
-            ` : ""}
-            ${Number(bill.credits) > 0 ? `
-            <tr>
-              <td>Crédits appliqués</td>
-              <td class="amount">-${Number(bill.credits).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
-            </tr>
-            ` : ""}
-            <tr class="total-row">
-              <td>Total</td>
-              <td class="amount">${total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
-            </tr>
-          </tbody>
-        </table>
-        
-        ${bill.notes ? `
-        <div class="section">
-          <div class="label">Notes</div>
-          <div class="value">${bill.notes}</div>
-        </div>
-        ` : ""}
-        
-        <div class="footer">
-          <p>Nivra Inc. • Courtier télécom indépendant</p>
-          <p>Cette facture a été générée automatiquement.</p>
+          
+          <!-- Invoice Header with Status -->
+          <div class="invoice-header">
+            <div class="invoice-title-section">
+              <h1>FACTURE</h1>
+              <div class="invoice-number">${invoiceNum}</div>
+            </div>
+            <span class="status-badge status-${bill.status}">
+              ${statusLabels[bill.status] || bill.status}
+            </span>
+          </div>
+          
+          <!-- Client & Dates Info -->
+          <div class="info-grid">
+            <div class="info-section">
+              <h3>Facturer à</h3>
+              <div class="client-name">${clientName}</div>
+              <p>${clientEmail}</p>
+              ${bill.profiles?.phone ? `<p>Tél: ${bill.profiles.phone}</p>` : ''}
+            </div>
+            <div class="info-section">
+              <div class="dates-grid">
+                <div class="date-item">
+                  <label>Date d'émission</label>
+                  <span>${createdDate}</span>
+                </div>
+                <div class="date-item">
+                  <label>Date d'échéance</label>
+                  <span>${dueDate}</span>
+                </div>
+                ${paidDate ? `
+                <div class="date-item">
+                  <label>Date de paiement</label>
+                  <span>${paidDate}</span>
+                </div>
+                ` : ''}
+                <div class="date-item">
+                  <label>Période</label>
+                  <span>${format(new Date(bill.created_at), "MMMM yyyy", { locale: fr })}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Invoice Items Table -->
+          <table class="invoice-table">
+            <thead>
+              <tr>
+                <th style="width: 60%;">Description</th>
+                <th style="width: 15%;">Qté</th>
+                <th style="width: 25%;">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="item-description">Services télécom</div>
+                  <div class="item-detail">${bill.notes?.split('\n')[0] || 'Services et frais mensuels'}</div>
+                </td>
+                <td>1</td>
+                <td>${formatCurrency(subtotal)}</td>
+              </tr>
+              ${fees > 0 ? `
+              <tr>
+                <td>
+                  <div class="item-description">Frais supplémentaires</div>
+                  <div class="item-detail">${bill.late_fee_applied ? 'Incluant frais de retard (5%)' : 'Frais administratifs'}</div>
+                </td>
+                <td>—</td>
+                <td style="color: #dc2626;">+${formatCurrency(fees)}</td>
+              </tr>
+              ` : ''}
+            </tbody>
+          </table>
+          
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="totals-table">
+              <div class="totals-row subtotal">
+                <span>Sous-total</span>
+                <span>${formatCurrency(subtotal)}</span>
+              </div>
+              ${fees > 0 ? `
+              <div class="totals-row fees">
+                <span>Frais</span>
+                <span>+${formatCurrency(fees)}</span>
+              </div>
+              ` : ''}
+              <div class="totals-row tax">
+                <span>TPS (5%) + TVQ (9.975%)</span>
+                <span>${formatCurrency(taxAmount)}</span>
+              </div>
+              ${credits > 0 ? `
+              <div class="totals-row credits">
+                <span>Crédits / Rabais</span>
+                <span>-${formatCurrency(credits)}</span>
+              </div>
+              ` : ''}
+              <div class="totals-row total">
+                <span>Total</span>
+                <span>${formatCurrency(total)}</span>
+              </div>
+              <div class="totals-row balance">
+                <span>Solde ${remainingBalance > 0 ? 'dû' : ''}</span>
+                <span>${formatCurrency(remainingBalance)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Payment Information -->
+          ${bill.status === "paid" ? `
+          <div class="payment-info">
+            <h3>Informations de paiement</h3>
+            <div class="payment-grid">
+              <div class="payment-item">
+                <label>Méthode</label>
+                <span>${paymentMethod || 'Paiement reçu'}</span>
+              </div>
+              ${cardLast4 ? `
+              <div class="payment-item">
+                <label>Carte</label>
+                <span>${cardLast4}</span>
+              </div>
+              ` : ''}
+              <div class="payment-item">
+                <label>Montant payé</label>
+                <span>${formatCurrency(total)}</span>
+              </div>
+            </div>
+          </div>
+          ` : ''}
+          
+          <!-- Notes -->
+          ${bill.notes ? `
+          <div class="notes-section">
+            <h3>Notes</h3>
+            <p>${bill.notes.replace(/\[Paiement.*?\]/g, '').trim() || 'Aucune note'}</p>
+          </div>
+          ` : ''}
+          
+          <!-- Payment Policies -->
+          <div class="policies">
+            <h3>Conditions de paiement</h3>
+            <ul>
+              <li>Le paiement est dû à la date d'échéance indiquée sur cette facture.</li>
+              <li>Modes de paiement acceptés: Carte de crédit (Visa, Mastercard), Virement Interac.</li>
+              <li>Un frais de retard de <strong>5% par mois</strong> sera appliqué sur tout solde impayé après la date d'échéance.</li>
+              <li>Les intérêts sur les comptes en souffrance sont composés mensuellement.</li>
+              <li>Pour toute question concernant cette facture, contactez-nous à facturation@nivra.ca</li>
+            </ul>
+            
+            ${bill.status !== "paid" ? `
+            <div class="late-fee-warning">
+              <span class="icon">⚠️</span>
+              <p>Important: Des frais de retard de 5% seront automatiquement ajoutés à tout solde impayé après la date d'échéance. Veuillez effectuer votre paiement dans les délais pour éviter ces frais supplémentaires.</p>
+            </div>
+            ` : ''}
+          </div>
+          
+          <!-- Footer -->
+          <div class="footer">
+            <p class="thank-you">Merci de votre confiance!</p>
+            <p>Nivra Inc. — Courtier télécom indépendant payé uniquement par ses clients</p>
+            <p>Nous ne recevons aucune rémunération des opérateurs télécom.</p>
+            <p style="margin-top: 10px;">Cette facture a été générée électroniquement et est valide sans signature.</p>
+          </div>
         </div>
       </body>
       </html>
