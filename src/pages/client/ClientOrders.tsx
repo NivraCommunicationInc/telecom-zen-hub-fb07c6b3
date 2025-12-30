@@ -12,12 +12,12 @@ const ClientOrders = () => {
   const { user } = useAuth();
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ["client-orders-all", user?.id],
+    queryKey: ["client-orders-all", user?.id, user?.email],
     queryFn: async () => {
+      // RLS policy handles email matching automatically
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

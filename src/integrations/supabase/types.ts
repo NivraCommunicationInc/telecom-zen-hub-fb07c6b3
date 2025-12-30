@@ -47,6 +47,7 @@ export type Database = {
       appointments: {
         Row: {
           admin_id: string | null
+          client_email: string | null
           client_id: string
           created_at: string
           description: string | null
@@ -57,6 +58,7 @@ export type Database = {
         }
         Insert: {
           admin_id?: string | null
+          client_email?: string | null
           client_id: string
           created_at?: string
           description?: string | null
@@ -67,6 +69,7 @@ export type Database = {
         }
         Update: {
           admin_id?: string | null
+          client_email?: string | null
           client_id?: string
           created_at?: string
           description?: string | null
@@ -80,6 +83,7 @@ export type Database = {
       billing: {
         Row: {
           amount: number
+          client_email: string | null
           created_at: string
           credits: number | null
           due_date: string | null
@@ -95,6 +99,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_email?: string | null
           created_at?: string
           credits?: number | null
           due_date?: string | null
@@ -110,6 +115,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_email?: string | null
           created_at?: string
           credits?: number | null
           due_date?: string | null
@@ -371,6 +377,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          client_email: string | null
           created_at: string
           id: string
           imei_number: string | null
@@ -385,6 +392,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          client_email?: string | null
           created_at?: string
           id?: string
           imei_number?: string | null
@@ -399,6 +407,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          client_email?: string | null
           created_at?: string
           id?: string
           imei_number?: string | null
@@ -560,6 +569,7 @@ export type Database = {
       }
       support_tickets: {
         Row: {
+          client_email: string | null
           created_at: string
           description: string
           id: string
@@ -570,6 +580,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          client_email?: string | null
           created_at?: string
           description: string
           id?: string
@@ -580,6 +591,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          client_email?: string | null
           created_at?: string
           description?: string
           id?: string

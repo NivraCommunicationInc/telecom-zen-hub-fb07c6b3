@@ -14,12 +14,12 @@ const ClientAppointments = () => {
   const { user } = useAuth();
 
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ["client-appointments-all", user?.id],
+    queryKey: ["client-appointments-all", user?.id, user?.email],
     queryFn: async () => {
+      // Fetch appointments by user_id OR by matching email
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
-        .eq("client_id", user?.id)
         .order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data || [];
