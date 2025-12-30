@@ -44,13 +44,33 @@ const AdminAppointments = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, appointment }: { id: string; status: string; appointment?: any }) => {
       const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
       if (error) throw error;
+      
+      // Send email notification if we have client email
+      if (appointment?.client_email || appointment?.profiles?.email) {
+        const clientEmail = appointment.client_email || appointment.profiles?.email;
+        const clientName = appointment.profiles?.full_name || appointment.client_email?.split('@')[0] || "Client";
+        
+        try {
+          await supabase.functions.invoke("send-appointment-notification", {
+            body: {
+              email: clientEmail,
+              name: clientName,
+              appointmentTitle: appointment.title,
+              appointmentDate: appointment.scheduled_at,
+              status: status === "completed" ? "completed" : "confirmed",
+            },
+          });
+        } catch (emailError) {
+          console.error("Error sending notification:", emailError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments"] });
-      toast({ title: "Rendez-vous mis à jour" });
+      toast({ title: "Rendez-vous mis à jour", description: "Une notification a été envoyée au client." });
     },
   });
 
@@ -108,7 +128,7 @@ const AdminAppointments = () => {
                             <Phone className="w-4 h-4" />
                           </Button>
                           {apt.status !== "completed" && (
-                            <Button size="sm" variant="hero" onClick={() => updateMutation.mutate({ id: apt.id, status: "completed" })}>
+                            <Button size="sm" variant="hero" onClick={() => updateMutation.mutate({ id: apt.id, status: "completed", appointment: apt })}>
                               <Check className="w-4 h-4" />
                             </Button>
                           )}
