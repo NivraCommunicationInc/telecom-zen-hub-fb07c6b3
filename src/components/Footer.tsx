@@ -105,13 +105,13 @@ const Footer = () => {
           <p className="text-cyan-100/40 text-sm">
             © {currentYear} Nivra. Tous droits réservés.
           </p>
-          <div className="flex items-center gap-6">
-            <a href="#" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+          <div className="flex flex-wrap items-center gap-4 md:gap-6">
+            <Link to="/privacy" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
               Politique de confidentialité
-            </a>
-            <a href="#" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+            </Link>
+            <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
               Conditions d'utilisation
-            </a>
+            </Link>
             <div className="flex items-center gap-2">
               <button className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm font-medium">
                 FR
