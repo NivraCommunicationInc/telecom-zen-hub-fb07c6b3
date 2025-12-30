@@ -14,12 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          admin_id: string | null
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          scheduled_at: string
+          status: string | null
+          title: string
+        }
+        Insert: {
+          admin_id?: string | null
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          scheduled_at: string
+          status?: string | null
+          title: string
+        }
+        Update: {
+          admin_id?: string | null
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          scheduled_at?: string
+          status?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       billing: {
         Row: {
           amount: number
           created_at: string
+          credits: number | null
           due_date: string | null
+          fees: number | null
           id: string
+          invoice_number: string | null
+          late_fee_applied: boolean | null
+          notes: string | null
           order_id: string | null
           paid_at: string | null
           status: string
@@ -28,8 +96,13 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          credits?: number | null
           due_date?: string | null
+          fees?: number | null
           id?: string
+          invoice_number?: string | null
+          late_fee_applied?: boolean | null
+          notes?: string | null
           order_id?: string | null
           paid_at?: string | null
           status?: string
@@ -38,8 +111,13 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          credits?: number | null
           due_date?: string | null
+          fees?: number | null
           id?: string
+          invoice_number?: string | null
+          late_fee_applied?: boolean | null
+          notes?: string | null
           order_id?: string | null
           paid_at?: string | null
           status?: string
@@ -55,64 +133,193 @@ export type Database = {
           },
         ]
       }
+      client_documents: {
+        Row: {
+          created_at: string
+          document_name: string
+          document_type: string | null
+          document_url: string
+          id: string
+          uploaded_by: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_name: string
+          document_type?: string | null
+          document_url: string
+          id?: string
+          uploaded_by: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_name?: string
+          document_type?: string | null
+          document_url?: string
+          id?: string
+          uploaded_by?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contact_requests: {
         Row: {
           created_at: string
           email: string
           id: string
+          internal_notes: string | null
           name: string
           notes: string | null
           phone: string
+          priority: string | null
           status: string
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
+          internal_notes?: string | null
           name: string
           notes?: string | null
           phone: string
+          priority?: string | null
           status?: string
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          internal_notes?: string | null
           name?: string
           notes?: string | null
           phone?: string
+          priority?: string | null
           status?: string
         }
         Relationships: []
+      }
+      contracts: {
+        Row: {
+          contract_name: string
+          contract_url: string
+          created_at: string
+          id: string
+          is_signed: boolean | null
+          signed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          contract_name: string
+          contract_url: string
+          created_at?: string
+          id?: string
+          is_signed?: boolean | null
+          signed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          contract_name?: string
+          contract_url?: string
+          created_at?: string
+          id?: string
+          is_signed?: boolean | null
+          signed_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          recipient_id: string
+          related_order_id: string | null
+          related_request_id: string | null
+          sender_id: string
+          subject: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          recipient_id: string
+          related_order_id?: string | null
+          related_request_id?: string | null
+          sender_id: string
+          subject?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          recipient_id?: string
+          related_order_id?: string | null
+          related_request_id?: string | null
+          sender_id?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_related_request_id_fkey"
+            columns: ["related_request_id"]
+            isOneToOne: false
+            referencedRelation: "contact_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders: {
         Row: {
           created_at: string
           id: string
+          imei_number: string | null
           notes: string | null
+          serial_number: string | null
           service_type: string
+          sim_number: string | null
           status: string
           total_amount: number | null
+          tracking_number: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          imei_number?: string | null
           notes?: string | null
+          serial_number?: string | null
           service_type: string
+          sim_number?: string | null
           status?: string
           total_amount?: number | null
+          tracking_number?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          imei_number?: string | null
           notes?: string | null
+          serial_number?: string | null
           service_type?: string
+          sim_number?: string | null
           status?: string
           total_amount?: number | null
+          tracking_number?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -122,27 +329,36 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          employer_discount: string | null
           full_name: string | null
           id: string
+          internal_notes: string | null
           phone: string | null
+          sector_tags: string[] | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           email?: string | null
+          employer_discount?: string | null
           full_name?: string | null
           id?: string
+          internal_notes?: string | null
           phone?: string | null
+          sector_tags?: string[] | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           email?: string | null
+          employer_discount?: string | null
           full_name?: string | null
           id?: string
+          internal_notes?: string | null
           phone?: string | null
+          sector_tags?: string[] | null
           updated_at?: string
           user_id?: string
         }
@@ -178,6 +394,36 @@ export type Database = {
           name?: string
           price?: number | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      telecom_analytics: {
+        Row: {
+          activations_count: number | null
+          contract_savings: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activations_count?: number | null
+          contract_savings?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activations_count?: number | null
+          contract_savings?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
