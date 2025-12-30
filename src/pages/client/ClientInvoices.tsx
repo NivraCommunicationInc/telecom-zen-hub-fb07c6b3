@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote } from "lucide-react";
+import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { format } from "date-fns";
+import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +27,7 @@ type PaymentMethod = "etransfer" | "credit_card";
 
 const ClientInvoices = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("invoices");
   const [filterTab, setFilterTab] = useState("all");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -58,7 +59,7 @@ const ClientInvoices = () => {
     enabled: !!user?.id,
   });
 
-  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+  const { data: invoices, isLoading: invoicesLoading, refetch: refetchInvoices } = useQuery({
     queryKey: ["client-invoices-all", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -66,12 +67,22 @@ const ClientInvoices = () => {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      
+      // Check for overdue invoices and apply late fees
+      const now = new Date();
+      const processedData = data?.map((inv: any) => {
+        if (inv.status === "pending" && inv.due_date && isPast(parseISO(inv.due_date)) && !inv.late_fee_applied) {
+          return { ...inv, needsLateFee: true };
+        }
+        return inv;
+      });
+      
+      return processedData || [];
     },
     enabled: !!user?.id,
   });
 
-  const { data: payments, isLoading: paymentsLoading } = useQuery({
+  const { data: payments, isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
     queryKey: ["client-payments", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -83,6 +94,160 @@ const ClientInvoices = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Process payment mutation
+  const processPaymentMutation = useMutation({
+    mutationFn: async ({ 
+      invoiceId, 
+      amount, 
+      method, 
+      cardDetails,
+      isGeneralPayment 
+    }: { 
+      invoiceId?: string; 
+      amount: number; 
+      method: PaymentMethod; 
+      cardDetails?: { name: string; lastFour: string; type: string };
+      isGeneralPayment?: boolean;
+    }) => {
+      if (!user?.id) throw new Error("Not authenticated");
+
+      const referenceNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+      
+      // Create payment record
+      const paymentData: any = {
+        user_id: user.id,
+        billing_id: invoiceId || null,
+        amount,
+        payment_method: method === "credit_card" ? "credit_card" : "etransfer",
+        reference_number: referenceNumber,
+        status: "completed",
+      };
+
+      if (method === "credit_card" && cardDetails) {
+        paymentData.card_last_four = cardDetails.lastFour;
+        paymentData.card_type = cardDetails.type;
+      }
+
+      const { error: paymentError } = await supabase
+        .from("payments")
+        .insert(paymentData);
+
+      if (paymentError) throw paymentError;
+
+      // Get current profile
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("balance, store_credit")
+        .eq("user_id", user.id)
+        .single();
+
+      const currentBalance = Number(currentProfile?.balance || 0);
+      const currentCredit = Number(currentProfile?.store_credit || 0);
+
+      // If paying an invoice
+      if (invoiceId && !isGeneralPayment) {
+        const { data: invoice } = await supabase
+          .from("billing")
+          .select("*")
+          .eq("id", invoiceId)
+          .single();
+
+        if (invoice) {
+          const invoiceTotal = calculateTotal(invoice);
+          
+          if (amount >= invoiceTotal) {
+            // Full payment - mark as paid
+            await supabase
+              .from("billing")
+              .update({
+                status: "paid",
+                paid_at: new Date().toISOString(),
+                notes: `${invoice.notes || ""}\n[Paiement reçu - ${method === "credit_card" ? `Carte ****${cardDetails?.lastFour}` : "Virement Interac"}] Réf: ${referenceNumber}`.trim(),
+              })
+              .eq("id", invoiceId);
+
+            // If overpayment, add to store credit
+            if (amount > invoiceTotal) {
+              const surplus = amount - invoiceTotal;
+              await supabase
+                .from("profiles")
+                .update({ 
+                  store_credit: currentCredit + surplus,
+                  balance: Math.max(0, currentBalance - invoiceTotal)
+                })
+                .eq("user_id", user.id);
+            } else {
+              await supabase
+                .from("profiles")
+                .update({ balance: Math.max(0, currentBalance - invoiceTotal) })
+                .eq("user_id", user.id);
+            }
+          } else {
+            // Partial payment - update credits on invoice
+            const currentCredits = Number(invoice.credits) || 0;
+            await supabase
+              .from("billing")
+              .update({
+                credits: currentCredits + amount,
+                notes: `${invoice.notes || ""}\n[Paiement partiel: $${amount.toFixed(2)} - ${method === "credit_card" ? `Carte ****${cardDetails?.lastFour}` : "Virement Interac"}] Réf: ${referenceNumber}`.trim(),
+              })
+              .eq("id", invoiceId);
+
+            await supabase
+              .from("profiles")
+              .update({ balance: Math.max(0, currentBalance - amount) })
+              .eq("user_id", user.id);
+          }
+        }
+      } else {
+        // General payment - reduce balance, excess goes to credit
+        if (amount <= currentBalance) {
+          await supabase
+            .from("profiles")
+            .update({ balance: currentBalance - amount })
+            .eq("user_id", user.id);
+        } else {
+          const surplus = amount - currentBalance;
+          await supabase
+            .from("profiles")
+            .update({ 
+              balance: 0,
+              store_credit: currentCredit + surplus
+            })
+            .eq("user_id", user.id);
+        }
+      }
+
+      return { referenceNumber, amount };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["client-profile"] });
+      refetchInvoices();
+      refetchPayments();
+      refetchProfile();
+      toast.success("Paiement effectué avec succès!");
+      setPaymentInfoOpen(false);
+      setGeneralPaymentOpen(false);
+      resetPaymentForm();
+    },
+    onError: (error) => {
+      console.error("Payment error:", error);
+      toast.error("Erreur lors du paiement");
+    },
+  });
+
+  const resetPaymentForm = () => {
+    setPaymentMethod("etransfer");
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvc("");
+    setCardName("");
+    setCustomAmount("");
+    setGeneralAmount("");
+  };
 
   const filteredInvoices = invoices?.filter((inv: any) => {
     if (filterTab === "all") return true;
@@ -105,7 +270,14 @@ const ClientInvoices = () => {
     const base = Number(inv.amount) || 0;
     const fees = Number(inv.fees) || 0;
     const credits = Number(inv.credits) || 0;
-    return base + fees - credits;
+    // Add 5% late fee if overdue and not already applied
+    let lateFee = 0;
+    if (inv.status === "overdue" || (inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid")) {
+      if (!inv.late_fee_applied) {
+        lateFee = base * 0.05;
+      }
+    }
+    return base + fees + lateFee - credits;
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -122,6 +294,41 @@ const ClientInvoices = () => {
   const handleViewPayment = (payment: any) => {
     setSelectedPayment(payment);
     setPaymentDetailsOpen(true);
+  };
+
+  const handleProcessPayment = async (isInvoicePayment: boolean) => {
+    setIsProcessing(true);
+    try {
+      const amount = Number(isInvoicePayment ? customAmount : generalAmount);
+      if (amount <= 0) {
+        toast.error("Montant invalide");
+        return;
+      }
+
+      let cardDetails;
+      if (paymentMethod === "credit_card") {
+        if (!cardName || !cardNumber || !cardExpiry || !cardCvc) {
+          toast.error("Veuillez remplir tous les champs de carte");
+          return;
+        }
+        const cardNum = cardNumber.replace(/\s/g, "");
+        cardDetails = {
+          name: cardName,
+          lastFour: cardNum.slice(-4),
+          type: cardNum.startsWith("4") ? "Visa" : cardNum.startsWith("5") ? "Mastercard" : "Card",
+        };
+      }
+
+      await processPaymentMutation.mutateAsync({
+        invoiceId: isInvoicePayment ? selectedInvoice?.id : undefined,
+        amount,
+        method: paymentMethod,
+        cardDetails,
+        isGeneralPayment: !isInvoicePayment,
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -229,6 +436,7 @@ const ClientInvoices = () => {
                       <TabsTrigger value="all">Toutes</TabsTrigger>
                       <TabsTrigger value="pending">En attente</TabsTrigger>
                       <TabsTrigger value="paid">Payées</TabsTrigger>
+                      <TabsTrigger value="overdue">En retard</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -247,6 +455,9 @@ const ClientInvoices = () => {
                         <tr className="border-b border-border">
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nº</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Montant</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Frais</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédits</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Échéance</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
@@ -254,40 +465,73 @@ const ClientInvoices = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredInvoices.map((inv: any) => (
-                          <tr key={inv.id} className="border-b border-border/50 hover:bg-accent/50">
-                            <td className="py-3 px-4 text-sm font-mono text-foreground">
-                              {inv.invoice_number || inv.id.slice(0, 8)}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-muted-foreground">
-                              {format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}
-                            </td>
-                            <td className="py-3 px-4 text-sm font-medium text-foreground">
-                              {calculateTotal(inv).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-muted-foreground">
-                              {inv.due_date ? format(new Date(inv.due_date), "d MMM yyyy", { locale: fr }) : "—"}
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge className={statusColors[inv.status] || "bg-muted"}>
-                                {statusLabels[inv.status] || inv.status}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="outline">
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                                {inv.status !== "paid" && (
-                                  <Button size="sm" variant="hero" onClick={() => handlePayClick(inv)}>
-                                    <DollarSign className="w-4 h-4 mr-1" />
-                                    Payer
-                                  </Button>
+                        {filteredInvoices.map((inv: any) => {
+                          const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
+                          const total = calculateTotal(inv);
+                          const lateFeeAmount = isOverdue && !inv.late_fee_applied ? Number(inv.amount) * 0.05 : 0;
+                          
+                          return (
+                            <tr key={inv.id} className="border-b border-border/50 hover:bg-accent/50">
+                              <td className="py-3 px-4 text-sm font-mono text-foreground">
+                                {inv.invoice_number || inv.id.slice(0, 8)}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-muted-foreground">
+                                {format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-foreground">
+                                {Number(inv.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                              </td>
+                              <td className="py-3 px-4 text-sm">
+                                {(Number(inv.fees || 0) + lateFeeAmount) > 0 ? (
+                                  <span className="text-amber-500">
+                                    +{(Number(inv.fees || 0) + lateFeeAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                    {lateFeeAmount > 0 && (
+                                      <span className="text-xs block text-red-500">(+5% retard)</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="py-3 px-4 text-sm">
+                                {Number(inv.credits || 0) > 0 ? (
+                                  <span className="text-emerald-500">
+                                    -{Number(inv.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-sm font-medium text-foreground">
+                                {total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-muted-foreground">
+                                <span className={isOverdue ? "text-red-500 font-medium" : ""}>
+                                  {inv.due_date ? format(new Date(inv.due_date), "d MMM yyyy", { locale: fr }) : "—"}
+                                  {isOverdue && <AlertTriangle className="w-3 h-3 inline ml-1" />}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-muted"}>
+                                  {isOverdue && inv.status !== "paid" ? "En retard" : statusLabels[inv.status] || inv.status}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline">
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                  {inv.status !== "paid" && (
+                                    <Button size="sm" variant="hero" onClick={() => handlePayClick(inv)}>
+                                      <DollarSign className="w-4 h-4 mr-1" />
+                                      Payer
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -329,7 +573,7 @@ const ClientInvoices = () => {
                           </div>
                           <div>
                             <p className="font-medium text-foreground">
-                              {payment.amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                              {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {payment.payment_method === "credit_card" ? "Carte de crédit" : "Virement Interac"}
@@ -362,16 +606,10 @@ const ClientInvoices = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Payment Dialog */}
+        {/* Invoice Payment Dialog */}
         <Dialog open={paymentInfoOpen} onOpenChange={(open) => {
           setPaymentInfoOpen(open);
-          if (!open) {
-            setPaymentMethod("etransfer");
-            setCardNumber("");
-            setCardExpiry("");
-            setCardCvc("");
-            setCardName("");
-          }
+          if (!open) resetPaymentForm();
         }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -503,31 +741,12 @@ const ClientInvoices = () => {
                       </div>
                     </div>
 
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
-                      <p className="text-sm text-amber-700 dark:text-amber-300">
-                        <strong>Note:</strong> Le paiement par carte de crédit sera traité de manière sécurisée. 
-                        Vous recevrez une confirmation par courriel.
-                      </p>
-                    </div>
-
                     <Button 
                       className="w-full" 
-                      disabled={isProcessing || !cardName || !cardNumber || !cardExpiry || !cardCvc}
-                      onClick={async () => {
-                        setIsProcessing(true);
-                        try {
-                          // Simulate processing - in production, integrate with payment gateway
-                          await new Promise(resolve => setTimeout(resolve, 1500));
-                          toast.success("Paiement effectué avec succès!");
-                          setPaymentInfoOpen(false);
-                        } catch (error) {
-                          toast.error("Erreur lors du paiement");
-                        } finally {
-                          setIsProcessing(false);
-                        }
-                      }}
+                      disabled={isProcessing || !cardName || !cardNumber || !cardExpiry || !cardCvc || Number(customAmount) <= 0}
+                      onClick={() => handleProcessPayment(true)}
                     >
-                      {isProcessing ? "Traitement en cours..." : "Payer maintenant"}
+                      {isProcessing ? "Traitement en cours..." : `Payer ${Number(customAmount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`}
                     </Button>
                   </div>
                 ) : (
@@ -553,16 +772,12 @@ const ClientInvoices = () => {
                       <div className="border-t border-border pt-4">
                         <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
                         <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
-                        <p className="text-xs text-muted-foreground mt-2 italic">
-                          (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
-                        </p>
                       </div>
                     </div>
 
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
                       <p className="text-sm text-amber-700 dark:text-amber-300">
-                        <strong>Important:</strong> Votre paiement sera traité dans les 24-48 heures ouvrables après réception. 
-                        Vous recevrez une confirmation par courriel une fois le paiement enregistré.
+                        <strong>Important:</strong> Votre paiement sera traité dans les 24-48 heures ouvrables après réception.
                       </p>
                     </div>
 
@@ -636,16 +851,10 @@ const ClientInvoices = () => {
           </DialogContent>
         </Dialog>
 
-        {/* General Payment Dialog (for $0 balance or advance payments) */}
+        {/* General Payment Dialog */}
         <Dialog open={generalPaymentOpen} onOpenChange={(open) => {
           setGeneralPaymentOpen(open);
-          if (!open) {
-            setPaymentMethod("etransfer");
-            setCardNumber("");
-            setCardExpiry("");
-            setCardCvc("");
-            setCardName("");
-          }
+          if (!open) resetPaymentForm();
         }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -656,7 +865,7 @@ const ClientInvoices = () => {
                 <div className="flex items-center gap-3 mb-3">
                   <DollarSign className="w-6 h-6 text-cyan-500" />
                   <p className="text-sm text-muted-foreground">
-                    Effectuez un paiement anticipé, un dépôt ou réglez un solde
+                    Effectuez un paiement anticipé ou réglez un solde
                   </p>
                 </div>
                 {Number(profile?.balance || 0) > 0 && (
@@ -677,7 +886,7 @@ const ClientInvoices = () => {
                 )}
               </div>
 
-              {/* Custom Amount Input */}
+              {/* Amount Input */}
               <div className="space-y-2">
                 <Label htmlFor="generalAmount">Montant à payer</Label>
                 <div className="relative">
@@ -776,31 +985,12 @@ const ClientInvoices = () => {
                     </div>
                   </div>
 
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      <strong>Note:</strong> Le paiement par carte de crédit sera traité de manière sécurisée. 
-                      Vous recevrez une confirmation par courriel.
-                    </p>
-                  </div>
-
                   <Button 
                     className="w-full" 
-                    disabled={isProcessing || !cardName || !cardNumber || !cardExpiry || !cardCvc}
-                    onClick={async () => {
-                      setIsProcessing(true);
-                      try {
-                        // Simulate processing - in production, integrate with payment gateway
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                        toast.success("Paiement effectué avec succès!");
-                        setGeneralPaymentOpen(false);
-                      } catch (error) {
-                        toast.error("Erreur lors du paiement");
-                      } finally {
-                        setIsProcessing(false);
-                      }
-                    }}
+                    disabled={isProcessing || !cardName || !cardNumber || !cardExpiry || !cardCvc || Number(generalAmount) <= 0}
+                    onClick={() => handleProcessPayment(false)}
                   >
-                    {isProcessing ? "Traitement en cours..." : "Payer maintenant"}
+                    {isProcessing ? "Traitement en cours..." : `Payer ${Number(generalAmount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`}
                   </Button>
                 </div>
               ) : (
@@ -826,16 +1016,12 @@ const ClientInvoices = () => {
                     <div className="border-t border-border pt-4">
                       <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
                       <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
-                      <p className="text-xs text-muted-foreground mt-2 italic">
-                        (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
-                      </p>
                     </div>
                   </div>
 
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
                     <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                      <strong>Note:</strong> Les paiements reçus seront appliqués à votre compte dans les 24-48 heures ouvrables. 
-                      Vous recevrez une confirmation par courriel.
+                      <strong>Note:</strong> Les paiements reçus seront appliqués à votre compte dans les 24-48 heures.
                     </p>
                   </div>
 

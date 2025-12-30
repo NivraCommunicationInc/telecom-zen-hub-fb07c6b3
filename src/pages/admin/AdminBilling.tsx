@@ -253,12 +253,13 @@ const AdminBilling = () => {
       
       const referenceNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
       const totalAmount = calculateTotal(paymentBill);
+      const paymentAmount = paymentMethod === "etransfer" ? parseFloat(etransferDetails.amount) : totalAmount;
       
       // Create payment record
       const paymentData: any = {
         billing_id: paymentBill.id,
         user_id: paymentBill.user_id,
-        amount: totalAmount,
+        amount: paymentAmount,
         payment_method: paymentMethod === "credit" ? "credit_card" : "etransfer",
         reference_number: referenceNumber,
         status: "completed",
@@ -279,35 +280,82 @@ const AdminBilling = () => {
         .insert(paymentData);
       
       if (paymentError) throw paymentError;
+
+      // Get current client profile
+      const { data: clientProfile } = await supabase
+        .from("profiles")
+        .select("balance, store_credit")
+        .eq("user_id", paymentBill.user_id)
+        .single();
+
+      const currentBalance = Number(clientProfile?.balance || 0);
+      const currentCredit = Number(clientProfile?.store_credit || 0);
       
-      // Update billing status
+      // Update billing status based on payment
       const paymentNote = paymentMethod === "credit" 
         ? `[Paiement reçu via Carte de crédit - ****${paymentData.card_last_four}]`
         : `[Paiement reçu via Virement Interac - ${etransferDetails.senderName}]`;
-      
-      const { error } = await supabase
-        .from("billing")
-        .update({
-          status: "paid",
-          paid_at: new Date().toISOString(),
-          notes: `${paymentBill.notes || ""}\n${paymentNote}\nRéférence: ${referenceNumber}`.trim(),
-        })
-        .eq("id", paymentBill.id);
 
-      if (error) throw error;
+      if (paymentAmount >= totalAmount) {
+        // Full payment or overpayment - mark as paid
+        const { error } = await supabase
+          .from("billing")
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            notes: `${paymentBill.notes || ""}\n${paymentNote}\nRéférence: ${referenceNumber}`.trim(),
+          })
+          .eq("id", paymentBill.id);
+
+        if (error) throw error;
+
+        // Update client balance - reduce by invoice amount
+        let newBalance = Math.max(0, currentBalance - totalAmount);
+        let newCredit = currentCredit;
+
+        // If overpayment, add surplus to store credit
+        if (paymentAmount > totalAmount) {
+          const surplus = paymentAmount - totalAmount;
+          newCredit = currentCredit + surplus;
+        }
+
+        await supabase
+          .from("profiles")
+          .update({ balance: newBalance, store_credit: newCredit })
+          .eq("user_id", paymentBill.user_id);
+      } else {
+        // Partial payment - add to credits on invoice
+        const currentCredits = Number(paymentBill.credits) || 0;
+        const { error } = await supabase
+          .from("billing")
+          .update({
+            credits: currentCredits + paymentAmount,
+            notes: `${paymentBill.notes || ""}\n[Paiement partiel: $${paymentAmount.toFixed(2)}] ${paymentNote}\nRéférence: ${referenceNumber}`.trim(),
+          })
+          .eq("id", paymentBill.id);
+
+        if (error) throw error;
+
+        // Update client balance - reduce by payment amount
+        await supabase
+          .from("profiles")
+          .update({ balance: Math.max(0, currentBalance - paymentAmount) })
+          .eq("user_id", paymentBill.user_id);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
       queryClient.invalidateQueries({ queryKey: ["admin-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       logActivity("payment", "invoice", paymentBill.id, { 
         method: paymentMethod,
-        amount: totalAmount,
+        amount: paymentAmount,
         reference: referenceNumber
       });
       
       // Show confirmation
       setPaymentConfirmation({
         referenceNumber,
-        amount: totalAmount,
+        amount: paymentAmount,
         method: paymentMethod,
         clientName: paymentBill.profiles?.full_name || "Client",
         invoiceNumber: paymentBill.invoice_number || paymentBill.id.slice(0, 8),
