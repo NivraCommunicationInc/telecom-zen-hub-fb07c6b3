@@ -21,6 +21,7 @@ const Footer = () => {
       { label: "Contact", href: "#contact" },
       { label: "Portail client", href: "#" },
       { label: "Documentation", href: "#" },
+      { label: "Administration", href: "/admin/login" },
     ],
   };
 
