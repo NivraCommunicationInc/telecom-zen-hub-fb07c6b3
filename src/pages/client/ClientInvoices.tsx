@@ -40,6 +40,23 @@ const ClientInvoices = () => {
   const [cardCvc, setCardCvc] = useState("");
   const [cardName, setCardName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
+  const [generalAmount, setGeneralAmount] = useState("");
+
+  // Fetch client profile for balance/credit info
+  const { data: profile, refetch: refetchProfile } = useQuery({
+    queryKey: ["client-profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("balance, store_credit, account_status")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["client-invoices-all", user?.id],
@@ -98,6 +115,7 @@ const ClientInvoices = () => {
 
   const handlePayClick = (invoice: any) => {
     setSelectedInvoice(invoice);
+    setCustomAmount(calculateTotal(invoice).toString());
     setPaymentInfoOpen(true);
   };
 
@@ -114,10 +132,76 @@ const ClientInvoices = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Facturation & Paiements</h1>
             <p className="text-muted-foreground mt-1">Consultez vos factures et historique de paiements</p>
           </div>
-          <Button variant="hero" onClick={() => setGeneralPaymentOpen(true)}>
+          <Button variant="hero" onClick={() => {
+            setGeneralAmount("");
+            setGeneralPaymentOpen(true);
+          }}>
             <DollarSign className="w-4 h-4 mr-2" />
             Envoyer un paiement
           </Button>
+        </div>
+
+        {/* Balance Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="bg-card border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Solde dû</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {Number(profile?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Crédit disponible</p>
+                  <p className="text-xl font-bold text-emerald-500">
+                    {Number(profile?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  profile?.account_status === 'active' ? 'bg-emerald-500/20' :
+                  profile?.account_status === 'frozen' ? 'bg-blue-500/20' :
+                  profile?.account_status === 'hold' ? 'bg-amber-500/20' : 'bg-red-500/20'
+                }`}>
+                  <CheckCircle className={`w-5 h-5 ${
+                    profile?.account_status === 'active' ? 'text-emerald-500' :
+                    profile?.account_status === 'frozen' ? 'text-blue-500' :
+                    profile?.account_status === 'hold' ? 'text-amber-500' : 'text-red-500'
+                  }`} />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Statut du compte</p>
+                  <p className={`text-xl font-bold ${
+                    profile?.account_status === 'active' ? 'text-emerald-500' :
+                    profile?.account_status === 'frozen' ? 'text-blue-500' :
+                    profile?.account_status === 'hold' ? 'text-amber-500' : 'text-red-500'
+                  }`}>
+                    {profile?.account_status === 'active' ? 'Actif' :
+                     profile?.account_status === 'frozen' ? 'Gelé' :
+                     profile?.account_status === 'hold' ? 'En attente' : 'Désactivé'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -295,14 +379,52 @@ const ClientInvoices = () => {
             </DialogHeader>
             {selectedInvoice && (
               <div className="space-y-6 mt-4">
-                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Montant à payer</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {calculateTotal(selectedInvoice).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-muted-foreground">Solde de la facture</p>
+                    <p className="font-bold text-foreground">
+                      {calculateTotal(selectedInvoice).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
                     Facture: {selectedInvoice.invoice_number || selectedInvoice.id.slice(0, 8)}
                   </p>
+                  {Number(profile?.store_credit || 0) > 0 && (
+                    <div className="mt-2 pt-2 border-t border-cyan-500/30 flex items-center justify-between">
+                      <p className="text-sm text-emerald-500">Crédit disponible</p>
+                      <p className="font-medium text-emerald-500">
+                        {Number(profile?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom Amount Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="customAmount">Montant à payer</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="customAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="pl-8"
+                      value={customAmount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {Number(customAmount) > calculateTotal(selectedInvoice) && (
+                    <p className="text-xs text-emerald-500">
+                      💰 Le surplus de {(Number(customAmount) - calculateTotal(selectedInvoice)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} sera ajouté à votre crédit.
+                    </p>
+                  )}
+                  {Number(customAmount) < calculateTotal(selectedInvoice) && Number(customAmount) > 0 && (
+                    <p className="text-xs text-amber-500">
+                      ⚠️ Paiement partiel. Solde restant: {(calculateTotal(selectedInvoice) - Number(customAmount)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                  )}
                 </div>
 
                 {/* Payment Method Selection */}
@@ -530,11 +652,52 @@ const ClientInvoices = () => {
               <DialogTitle>Envoyer un paiement</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 mt-4">
-              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 text-center">
-                <DollarSign className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Effectuez un paiement anticipé, un dépôt ou réglez un solde
-                </p>
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <DollarSign className="w-6 h-6 text-cyan-500" />
+                  <p className="text-sm text-muted-foreground">
+                    Effectuez un paiement anticipé, un dépôt ou réglez un solde
+                  </p>
+                </div>
+                {Number(profile?.balance || 0) > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-cyan-500/30">
+                    <p className="text-sm text-amber-500">Solde actuel</p>
+                    <p className="font-bold text-amber-500">
+                      {Number(profile?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                  </div>
+                )}
+                {Number(profile?.store_credit || 0) > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-cyan-500/30 mt-2">
+                    <p className="text-sm text-emerald-500">Crédit disponible</p>
+                    <p className="font-medium text-emerald-500">
+                      {Number(profile?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Amount Input */}
+              <div className="space-y-2">
+                <Label htmlFor="generalAmount">Montant à payer</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="generalAmount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="pl-8"
+                    value={generalAmount}
+                    onChange={(e) => setGeneralAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                {Number(profile?.balance || 0) > 0 && Number(generalAmount) > Number(profile?.balance || 0) && (
+                  <p className="text-xs text-emerald-500">
+                    💰 Le surplus de {(Number(generalAmount) - Number(profile?.balance || 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} sera ajouté à votre crédit.
+                  </p>
+                )}
               </div>
 
               {/* Payment Method Selection */}

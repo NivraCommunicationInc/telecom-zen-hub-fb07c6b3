@@ -517,6 +517,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string | null
+          balance: number | null
           created_at: string
           email: string | null
           employer_discount: string | null
@@ -525,10 +527,13 @@ export type Database = {
           internal_notes: string | null
           phone: string | null
           sector_tags: string[] | null
+          store_credit: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          account_status?: string | null
+          balance?: number | null
           created_at?: string
           email?: string | null
           employer_discount?: string | null
@@ -537,10 +542,13 @@ export type Database = {
           internal_notes?: string | null
           phone?: string | null
           sector_tags?: string[] | null
+          store_credit?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          account_status?: string | null
+          balance?: number | null
           created_at?: string
           email?: string | null
           employer_discount?: string | null
@@ -549,6 +557,7 @@ export type Database = {
           internal_notes?: string | null
           phone?: string | null
           sector_tags?: string[] | null
+          store_credit?: number | null
           updated_at?: string
           user_id?: string
         }
