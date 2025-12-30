@@ -16,15 +16,19 @@ const ClientAppointments = () => {
   const { data: appointments, isLoading } = useQuery({
     queryKey: ["client-appointments-all", user?.id, user?.email],
     queryFn: async () => {
-      // Fetch appointments by user_id OR by matching email
+      // RLS handles filtering - appointments are visible if:
+      // - client_id matches user's id, OR
+      // - client_email matches user's email in their profile
+      // We fetch all and RLS will filter automatically
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
+        .or(`client_id.eq.${user?.id},client_email.ilike.${user?.email}`)
         .order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !!user?.email,
   });
 
   const statusColors: Record<string, string> = {
