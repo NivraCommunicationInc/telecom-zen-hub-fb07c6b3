@@ -16,12 +16,12 @@ const ClientInvoices = () => {
   const [activeTab, setActiveTab] = useState("all");
 
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ["client-invoices-all", user?.id],
+    queryKey: ["client-invoices-all", user?.id, user?.email],
     queryFn: async () => {
+      // RLS policy handles email matching automatically
       const { data, error } = await supabase
         .from("billing")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

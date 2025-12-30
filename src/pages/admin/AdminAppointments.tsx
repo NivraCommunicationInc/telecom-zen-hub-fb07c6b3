@@ -18,12 +18,28 @@ const AdminAppointments = () => {
   const { data: appointments, isLoading } = useQuery({
     queryKey: ["admin-appointments"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: appointmentsData, error } = await supabase
         .from("appointments")
-        .select("*, profiles:client_id(email, full_name, phone)")
+        .select("*")
         .order("scheduled_at", { ascending: true });
       if (error) throw error;
-      return data;
+      
+      // Fetch profiles separately to avoid foreign key issues
+      if (appointmentsData && appointmentsData.length > 0) {
+        const clientIds = [...new Set(appointmentsData.filter(a => a.client_id).map(a => a.client_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name, phone")
+          .in("user_id", clientIds);
+        
+        return appointmentsData.map(apt => ({
+          ...apt,
+          profiles: profilesData?.find(p => p.user_id === apt.client_id) || 
+                   (apt.client_email ? { email: apt.client_email, full_name: apt.client_email.split('@')[0] } : null)
+        }));
+      }
+      
+      return appointmentsData || [];
     },
   });
 
@@ -77,7 +93,11 @@ const AdminAppointments = () => {
                       <div key={apt.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
                         <div>
                           <p className="font-medium text-foreground">{apt.title}</p>
-                          <p className="text-sm text-muted-foreground">{apt.profiles?.full_name} • {apt.profiles?.phone}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {apt.profiles?.full_name || apt.client_email || "Client"} 
+                            {apt.profiles?.phone && ` • ${apt.profiles.phone}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{apt.profiles?.email || apt.client_email}</p>
                           <p className="text-xs text-cyan-400">{format(new Date(apt.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}</p>
                         </div>
                         <div className="flex items-center gap-2">

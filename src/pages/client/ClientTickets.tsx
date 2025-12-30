@@ -38,12 +38,12 @@ const ClientTickets = () => {
   const [replyContent, setReplyContent] = useState("");
 
   const { data: tickets, isLoading } = useQuery({
-    queryKey: ["client-tickets-all", user?.id],
+    queryKey: ["client-tickets-all", user?.id, user?.email],
     queryFn: async () => {
+      // RLS policy handles email matching automatically
       const { data, error } = await supabase
         .from("support_tickets")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

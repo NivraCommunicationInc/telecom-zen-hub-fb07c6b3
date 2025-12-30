@@ -13,12 +13,12 @@ const ClientDashboard = () => {
   const { user } = useAuth();
 
   const { data: appointments } = useQuery({
-    queryKey: ["client-appointments", user?.id],
+    queryKey: ["client-appointments", user?.id, user?.email],
     queryFn: async () => {
+      // RLS policy handles email matching automatically
       const { data } = await supabase
         .from("appointments")
         .select("*")
-        .eq("client_id", user?.id)
         .order("scheduled_at", { ascending: true })
         .limit(3);
       return data || [];
@@ -27,12 +27,11 @@ const ClientDashboard = () => {
   });
 
   const { data: orders } = useQuery({
-    queryKey: ["client-orders", user?.id],
+    queryKey: ["client-orders", user?.id, user?.email],
     queryFn: async () => {
       const { data } = await supabase
         .from("orders")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
         .limit(3);
       return data || [];
@@ -41,12 +40,11 @@ const ClientDashboard = () => {
   });
 
   const { data: invoices } = useQuery({
-    queryKey: ["client-invoices", user?.id],
+    queryKey: ["client-invoices", user?.id, user?.email],
     queryFn: async () => {
       const { data } = await supabase
         .from("billing")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
         .limit(3);
       return data || [];
@@ -55,12 +53,11 @@ const ClientDashboard = () => {
   });
 
   const { data: tickets } = useQuery({
-    queryKey: ["client-tickets", user?.id],
+    queryKey: ["client-tickets", user?.id, user?.email],
     queryFn: async () => {
       const { data } = await supabase
         .from("support_tickets")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
         .limit(3);
       return data || [];
