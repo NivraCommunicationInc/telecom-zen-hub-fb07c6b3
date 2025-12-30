@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +14,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Users, Plus, Search, Eye, Upload, FileText, Trash2 } from "lucide-react";
+import { 
+  Users, Plus, Search, Eye, Upload, FileText, Trash2, 
+  ShoppingBag, CreditCard, Ticket, Calendar, Bell, Package,
+  DollarSign, Clock, AlertCircle
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, differenceInDays, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -28,7 +33,6 @@ const AdminClients = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [newClient, setNewClient] = useState({
     email: "",
@@ -38,6 +42,7 @@ const AdminClients = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch all clients
   const { data: clients, isLoading } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: async () => {
@@ -51,6 +56,82 @@ const AdminClients = () => {
     },
   });
 
+  // Fetch client-specific data when a client is selected
+  const { data: clientOrders } = useQuery({
+    queryKey: ["client-orders", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .or(`user_id.eq.${selectedClient.user_id},client_email.eq.${selectedClient.email}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  const { data: clientBilling } = useQuery({
+    queryKey: ["client-billing", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("billing")
+        .select("*")
+        .or(`user_id.eq.${selectedClient.user_id},client_email.eq.${selectedClient.email}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  const { data: clientTickets } = useQuery({
+    queryKey: ["client-tickets", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .or(`user_id.eq.${selectedClient.user_id},client_email.eq.${selectedClient.email}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  const { data: clientSubscriptions } = useQuery({
+    queryKey: ["client-subscriptions", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", selectedClient.user_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  const { data: clientAppointments } = useQuery({
+    queryKey: ["client-appointments", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .or(`client_id.eq.${selectedClient.user_id},client_email.eq.${selectedClient.email}`)
+        .order("scheduled_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
   const { data: clientDocuments } = useQuery({
     queryKey: ["client-documents", selectedClient?.user_id],
     queryFn: async () => {
@@ -60,7 +141,6 @@ const AdminClients = () => {
         .select("*")
         .eq("user_id", selectedClient.user_id)
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       return data;
     },
@@ -83,12 +163,9 @@ const AdminClients = () => {
         email: client.email,
         password: client.password,
         options: {
-          data: {
-            full_name: client.full_name,
-          },
+          data: { full_name: client.full_name },
         },
       });
-
       if (authError) throw authError;
 
       if (authData.user) {
@@ -96,10 +173,8 @@ const AdminClients = () => {
           .from("profiles")
           .update({ phone: client.phone })
           .eq("user_id", authData.user.id);
-
         if (profileError) throw profileError;
       }
-
       return authData;
     },
     onSuccess: () => {
@@ -110,11 +185,7 @@ const AdminClients = () => {
       setNewClient({ email: "", password: "", full_name: "", phone: "" });
     },
     onError: (error: any) => {
-      toast({
-        title: "Erreur lors de la création",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erreur lors de la création", description: error.message, variant: "destructive" });
     },
   });
 
@@ -130,7 +201,6 @@ const AdminClients = () => {
           employer_discount: client.employer_discount,
         })
         .eq("id", client.id);
-
       if (error) throw error;
     },
     onSuccess: () => {
@@ -146,14 +216,10 @@ const AdminClients = () => {
   const uploadDocumentMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!selectedClient?.user_id) throw new Error("No client selected");
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // For now, store as a placeholder URL since we don't have storage bucket set up
-      // In production, you would upload to Supabase Storage
       const documentUrl = `document://${file.name}`;
-
       const { error } = await supabase.from("client_documents").insert({
         user_id: selectedClient.user_id,
         uploaded_by: user.id,
@@ -161,7 +227,6 @@ const AdminClients = () => {
         document_type: file.type.includes("pdf") ? "contract" : "general",
         document_url: documentUrl,
       });
-
       if (error) throw error;
     },
     onSuccess: () => {
@@ -183,32 +248,18 @@ const AdminClients = () => {
       queryClient.invalidateQueries({ queryKey: ["client-documents"] });
       toast({ title: "Document supprimé" });
     },
-    onError: () => {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
-    },
   });
 
   const handleViewDetails = (client: any) => {
-    setSelectedClient({
-      ...client,
-      sector_tags: client.sector_tags || [],
-    });
+    setSelectedClient({ ...client, sector_tags: client.sector_tags || [] });
     setDetailsDialogOpen(true);
-  };
-
-  const handleOpenDocuments = (client: any) => {
-    setSelectedClient(client);
-    setDocumentsDialogOpen(true);
   };
 
   const handleAddTag = (tag: string) => {
     if (!tag.trim()) return;
     const currentTags = selectedClient.sector_tags || [];
     if (!currentTags.includes(tag)) {
-      setSelectedClient({
-        ...selectedClient,
-        sector_tags: [...currentTags, tag],
-      });
+      setSelectedClient({ ...selectedClient, sector_tags: [...currentTags, tag] });
     }
   };
 
@@ -221,9 +272,30 @@ const AdminClients = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      uploadDocumentMutation.mutate(file);
-    }
+    if (file) uploadDocumentMutation.mutate(file);
+  };
+
+  // Calculate renewal reminders
+  const getSubscriptionStatus = (sub: any) => {
+    if (!sub.next_billing_date) return null;
+    const daysUntil = differenceInDays(new Date(sub.next_billing_date), new Date());
+    if (daysUntil < 0) return { status: "overdue", color: "bg-red-500", text: "En retard" };
+    if (daysUntil <= 7) return { status: "soon", color: "bg-amber-500", text: `${daysUntil}j` };
+    if (daysUntil <= 30) return { status: "upcoming", color: "bg-cyan-500", text: `${daysUntil}j` };
+    return { status: "ok", color: "bg-emerald-500", text: `${daysUntil}j` };
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: "bg-amber-500/20 text-amber-400",
+    processing: "bg-cyan-500/20 text-cyan-400",
+    completed: "bg-emerald-500/20 text-emerald-400",
+    cancelled: "bg-red-500/20 text-red-400",
+    paid: "bg-emerald-500/20 text-emerald-400",
+    overdue: "bg-red-500/20 text-red-400",
+    open: "bg-cyan-500/20 text-cyan-400",
+    closed: "bg-muted text-muted-foreground",
+    active: "bg-emerald-500/20 text-emerald-400",
+    inactive: "bg-muted text-muted-foreground",
   };
 
   return (
@@ -325,7 +397,6 @@ const AdminClients = () => {
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nom</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Courriel</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Téléphone</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Secteur</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rôle</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Inscrit le</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
@@ -339,20 +410,6 @@ const AdminClients = () => {
                         </td>
                         <td className="py-3 px-4 text-sm text-foreground">{client.email || "—"}</td>
                         <td className="py-3 px-4 text-sm text-foreground">{client.phone || "—"}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            {client.sector_tags?.slice(0, 2).map((tag: string) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {client.sector_tags?.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{client.sector_tags.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
                         <td className="py-3 px-4">
                           <Badge
                             className={
@@ -368,14 +425,10 @@ const AdminClients = () => {
                           {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
                         </td>
                         <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleViewDetails(client)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleOpenDocuments(client)}>
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Button size="sm" variant="outline" onClick={() => handleViewDetails(client)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Gérer
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -393,168 +446,288 @@ const AdminClients = () => {
           </CardContent>
         </Card>
 
-        {/* Client Details Dialog */}
+        {/* Client Management Dialog */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Détails du client</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-400" />
+                {selectedClient?.full_name || selectedClient?.email}
+              </DialogTitle>
             </DialogHeader>
             {selectedClient && (
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
+              <Tabs defaultValue="profile" className="mt-4">
+                <TabsList className="grid grid-cols-6 w-full">
+                  <TabsTrigger value="profile">Profil</TabsTrigger>
+                  <TabsTrigger value="orders">Commandes</TabsTrigger>
+                  <TabsTrigger value="billing">Paiements</TabsTrigger>
+                  <TabsTrigger value="subscriptions">Abonnements</TabsTrigger>
+                  <TabsTrigger value="tickets">Tickets</TabsTrigger>
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
+                </TabsList>
+
+                {/* Profile Tab */}
+                <TabsContent value="profile" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Nom complet</Label>
+                      <Input
+                        value={selectedClient.full_name || ""}
+                        onChange={(e) => setSelectedClient({ ...selectedClient, full_name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Téléphone</Label>
+                      <Input
+                        value={selectedClient.phone || ""}
+                        onChange={(e) => setSelectedClient({ ...selectedClient, phone: e.target.value })}
+                      />
+                    </div>
+                  </div>
                   <div>
-                    <Label>Nom complet</Label>
+                    <Label>Courriel</Label>
+                    <Input value={selectedClient.email || ""} disabled className="bg-muted" />
+                  </div>
+                  <div>
+                    <Label>Rabais employeur</Label>
                     <Input
-                      value={selectedClient.full_name || ""}
-                      onChange={(e) =>
-                        setSelectedClient({ ...selectedClient, full_name: e.target.value })
-                      }
+                      value={selectedClient.employer_discount || ""}
+                      onChange={(e) => setSelectedClient({ ...selectedClient, employer_discount: e.target.value })}
+                      placeholder="Ex: 15% Entreprise XYZ"
                     />
                   </div>
                   <div>
-                    <Label>Téléphone</Label>
+                    <Label>Tags secteur</Label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {selectedClient.sector_tags?.map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => handleRemoveTag(tag)}>
+                          {tag} ×
+                        </Badge>
+                      ))}
+                    </div>
                     <Input
-                      value={selectedClient.phone || ""}
-                      onChange={(e) =>
-                        setSelectedClient({ ...selectedClient, phone: e.target.value })
-                      }
+                      placeholder="Ajouter un tag (Entrée pour confirmer)"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleAddTag(e.currentTarget.value);
+                          e.currentTarget.value = "";
+                        }
+                      }}
                     />
                   </div>
-                </div>
-                <div>
-                  <Label>Courriel</Label>
-                  <Input value={selectedClient.email || ""} disabled className="bg-muted" />
-                </div>
-                <div>
-                  <Label>Rabais employeur</Label>
-                  <Input
-                    value={selectedClient.employer_discount || ""}
-                    onChange={(e) =>
-                      setSelectedClient({ ...selectedClient, employer_discount: e.target.value })
-                    }
-                    placeholder="Ex: 15% Entreprise XYZ"
-                  />
-                </div>
-                <div>
-                  <Label>Tags secteur</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {selectedClient.sector_tags?.map((tag: string) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => handleRemoveTag(tag)}
-                      >
-                        {tag} ×
-                      </Badge>
-                    ))}
+                  <div>
+                    <Label>Notes internes</Label>
+                    <Textarea
+                      value={selectedClient.internal_notes || ""}
+                      onChange={(e) => setSelectedClient({ ...selectedClient, internal_notes: e.target.value })}
+                      placeholder="Notes privées..."
+                      rows={4}
+                    />
                   </div>
-                  <Input
-                    placeholder="Ajouter un tag (Entrée pour confirmer)"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleAddTag(e.currentTarget.value);
-                        e.currentTarget.value = "";
-                      }
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label>Notes internes</Label>
-                  <Textarea
-                    value={selectedClient.internal_notes || ""}
-                    onChange={(e) =>
-                      setSelectedClient({ ...selectedClient, internal_notes: e.target.value })
-                    }
-                    placeholder="Notes privées..."
-                    rows={4}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    onClick={() => {
-                      updateClientMutation.mutate(selectedClient);
-                      setDetailsDialogOpen(false);
-                    }}
-                  >
-                    Enregistrer
+                  <Button onClick={() => updateClientMutation.mutate(selectedClient)}>
+                    Enregistrer les modifications
                   </Button>
-                  <Button variant="outline" onClick={() => {
-                    setDetailsDialogOpen(false);
-                    handleOpenDocuments(selectedClient);
-                  }}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Documents
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                </TabsContent>
 
-        {/* Documents Dialog */}
-        <Dialog open={documentsDialogOpen} onOpenChange={setDocumentsDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Documents - {selectedClient?.full_name || selectedClient?.email}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="flex gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  onChange={handleFileUpload}
-                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                />
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Téléverser un document
-                </Button>
-              </div>
-
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {clientDocuments && clientDocuments.length > 0 ? (
-                  clientDocuments.map((doc: any) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-3 border border-border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-cyan-400" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{doc.document_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
-                          </p>
+                {/* Orders Tab */}
+                <TabsContent value="orders" className="mt-4">
+                  <div className="space-y-3">
+                    {clientOrders && clientOrders.length > 0 ? (
+                      clientOrders.map((order: any) => (
+                        <div key={order.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <Package className="w-8 h-8 text-cyan-400" />
+                            <div>
+                              <p className="font-medium text-foreground">{order.service_type}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {order.total_amount && (
+                              <span className="font-medium">${order.total_amount}</span>
+                            )}
+                            <Badge className={statusColors[order.status] || statusColors.pending}>
+                              {order.status}
+                            </Badge>
+                          </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Aucune commande</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm("Supprimer ce document ?")) {
-                            deleteDocumentMutation.mutate(doc.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Billing Tab */}
+                <TabsContent value="billing" className="mt-4">
+                  <div className="space-y-3">
+                    {clientBilling && clientBilling.length > 0 ? (
+                      clientBilling.map((bill: any) => (
+                        <div key={bill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <DollarSign className="w-8 h-8 text-cyan-400" />
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
+                                {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="font-medium">${bill.amount}</span>
+                            <Badge className={statusColors[bill.status] || statusColors.pending}>
+                              {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Aucun paiement</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Subscriptions Tab */}
+                <TabsContent value="subscriptions" className="mt-4">
+                  <div className="space-y-3">
+                    {clientSubscriptions && clientSubscriptions.length > 0 ? (
+                      clientSubscriptions.map((sub: any) => {
+                        const renewalStatus = getSubscriptionStatus(sub);
+                        return (
+                          <div key={sub.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                            <div className="flex items-center gap-4">
+                              <Calendar className="w-8 h-8 text-cyan-400" />
+                              <div>
+                                <p className="font-medium text-foreground">{sub.plan_name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  ${sub.amount}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              {renewalStatus && (
+                                <div className="flex items-center gap-2">
+                                  <Bell className={`w-4 h-4 ${renewalStatus.status === "overdue" ? "text-red-400" : renewalStatus.status === "soon" ? "text-amber-400" : "text-muted-foreground"}`} />
+                                  <span className="text-sm text-muted-foreground">
+                                    Renouvellement: {renewalStatus.text}
+                                  </span>
+                                </div>
+                              )}
+                              <Badge className={statusColors[sub.status] || statusColors.active}>
+                                {sub.status === "active" ? "Actif" : "Inactif"}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8">
+                        <Calendar className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Aucun abonnement</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Tickets Tab */}
+                <TabsContent value="tickets" className="mt-4">
+                  <div className="space-y-3">
+                    {clientTickets && clientTickets.length > 0 ? (
+                      clientTickets.map((ticket: any) => (
+                        <div key={ticket.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <Ticket className="w-8 h-8 text-cyan-400" />
+                            <div>
+                              <p className="font-medium text-foreground">{ticket.subject}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Badge className={ticket.priority === "high" ? "bg-red-500/20 text-red-400" : ticket.priority === "normal" ? "bg-amber-500/20 text-amber-400" : "bg-muted text-muted-foreground"}>
+                              {ticket.priority === "high" ? "Urgent" : ticket.priority === "normal" ? "Normal" : "Bas"}
+                            </Badge>
+                            <Badge className={statusColors[ticket.status] || statusColors.open}>
+                              {ticket.status === "open" ? "Ouvert" : ticket.status === "in_progress" ? "En cours" : "Fermé"}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Ticket className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Aucun ticket</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Documents Tab */}
+                <TabsContent value="documents" className="mt-4">
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      />
+                      <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Téléverser un document
                       </Button>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Aucun document</p>
+
+                    <div className="space-y-2">
+                      {clientDocuments && clientDocuments.length > 0 ? (
+                        clientDocuments.map((doc: any) => (
+                          <div key={doc.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-5 h-5 text-cyan-400" />
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{doc.document_name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm("Supprimer ce document ?")) {
+                                  deleteDocumentMutation.mutate(doc.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">Aucun document</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </DialogContent>
         </Dialog>
       </div>
