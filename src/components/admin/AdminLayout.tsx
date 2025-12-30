@@ -12,7 +12,8 @@ import {
   MessageSquare,
   FileText,
   Activity,
-  Calendar
+  Calendar,
+  Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +33,7 @@ const navItems = [
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
+  { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
   { icon: Activity, label: "Activité", href: "/admin/activity" },
 ];
 

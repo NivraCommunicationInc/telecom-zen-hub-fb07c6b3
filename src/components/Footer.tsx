@@ -20,8 +20,7 @@ const Footer = () => {
     support: [
       { label: "FAQ", href: "/faq", isExternal: false },
       { label: "Contact", href: "/#contact", isExternal: false },
-      { label: "Portail client", href: "/#contact", isExternal: false },
-      { label: "Documentation", href: "/faq", isExternal: false },
+      { label: "Portail client", href: "/admin/login", isExternal: false },
       { label: "Administration", href: "/admin/login", isExternal: false },
     ],
   };
@@ -112,15 +111,6 @@ const Footer = () => {
             <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
               Conditions d'utilisation
             </Link>
-            <div className="flex items-center gap-2">
-              <button className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm font-medium">
-                FR
-              </button>
-              <span className="text-cyan-100/20">|</span>
-              <button className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
-                EN
-              </button>
-            </div>
           </div>
         </div>
       </div>
