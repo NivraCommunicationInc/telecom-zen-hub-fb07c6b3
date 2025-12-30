@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -13,12 +13,18 @@ const loginSchema = z.object({
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 });
 
+const signupSchema = loginSchema.extend({
+  fullName: z.string().min(1, "Le nom est requis"),
+});
+
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { signIn, user, isAdmin, isLoading } = useAuth();
+  const { signIn, signUp, user, isAdmin, isLoading } = useAuth();
   const { toast } = useToast();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -33,37 +39,72 @@ const AdminLogin = () => {
     e.preventDefault();
     setErrors({});
 
-    const result = loginSchema.safeParse({ email, password });
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0] as string] = err.message;
-        }
-      });
-      setErrors(fieldErrors);
-      return;
-    }
+    if (isSignUp) {
+      const result = signupSchema.safeParse({ email, password, fullName });
+      if (!result.success) {
+        const fieldErrors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+        return;
+      }
 
-    setIsSubmitting(true);
-    const { error } = await signIn(email, password);
+      setIsSubmitting(true);
+      const { error } = await signUp(email, password, fullName);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Erreur d'inscription",
+          description: error.message === "User already registered" 
+            ? "Cet utilisateur existe déjà" 
+            : error.message,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       toast({
-        title: "Erreur de connexion",
-        description: error.message === "Invalid login credentials" 
-          ? "Identifiants invalides" 
-          : error.message,
-        variant: "destructive",
+        title: "Compte créé!",
+        description: "Votre compte a été créé. Connectez-vous maintenant.",
       });
+      setIsSignUp(false);
       setIsSubmitting(false);
-      return;
-    }
+    } else {
+      const result = loginSchema.safeParse({ email, password });
+      if (!result.success) {
+        const fieldErrors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+        return;
+      }
 
-    // Wait a moment for role to be fetched, then redirect
-    setTimeout(() => {
-      setIsSubmitting(false);
-    }, 500);
+      setIsSubmitting(true);
+      const { error } = await signIn(email, password);
+
+      if (error) {
+        toast({
+          title: "Erreur de connexion",
+          description: error.message === "Invalid login credentials" 
+            ? "Identifiants invalides" 
+            : error.message,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 500);
+    }
   };
 
   if (isLoading) {
@@ -86,13 +127,31 @@ const AdminLogin = () => {
             Administration Nivra
           </h1>
           <p className="text-muted-foreground mt-2">
-            Connectez-vous pour accéder au tableau de bord
+            {isSignUp ? "Créez votre compte administrateur" : "Connectez-vous pour accéder au tableau de bord"}
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
           <div className="space-y-5">
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-foreground flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Nom complet
+                </Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Jean Tremblay"
+                  className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
+                />
+                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground flex items-center gap-2">
                 <Mail className="w-4 h-4" />
@@ -141,8 +200,25 @@ const AdminLogin = () => {
               className="w-full"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Connexion..." : "Se connecter"}
+              {isSubmitting 
+                ? (isSignUp ? "Création..." : "Connexion...") 
+                : (isSignUp ? "Créer le compte" : "Se connecter")}
             </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setErrors({});
+                }}
+                className="text-sm text-muted-foreground hover:text-cyan-400 transition-colors"
+              >
+                {isSignUp 
+                  ? "Déjà un compte? Se connecter" 
+                  : "Pas de compte? Créer un compte"}
+              </button>
+            </div>
           </div>
         </form>
 
