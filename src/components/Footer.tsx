@@ -20,7 +20,7 @@ const Footer = () => {
     support: [
       { label: "FAQ", href: "/faq", isExternal: false },
       { label: "Contact", href: "/#contact", isExternal: false },
-      { label: "Portail client", href: "/admin/login", isExternal: false },
+      { label: "Portail client", href: "/portal/auth", isExternal: false },
       { label: "Administration", href: "/admin/login", isExternal: false },
     ],
   };
