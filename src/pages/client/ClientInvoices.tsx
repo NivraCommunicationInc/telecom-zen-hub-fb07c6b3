@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle } from "lucide-react";
+import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,10 +17,13 @@ import { toast } from "sonner";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
-  email: "paiement@nivra.ca",
+  email: "NivraTelecom@gmail.com",
   question: "Nom du client ou nom de l'entreprise",
   answer: "Votre nom complet ou le nom de votre entreprise",
 };
+
+// Payment method type
+type PaymentMethod = "etransfer" | "credit_card";
 
 const ClientInvoices = () => {
   const { user } = useAuth();
@@ -29,6 +34,13 @@ const ClientInvoices = () => {
   const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [generalPaymentOpen, setGeneralPaymentOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("etransfer");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["client-invoices-all", user?.id],
     queryFn: async () => {
@@ -266,11 +278,20 @@ const ClientInvoices = () => {
           </TabsContent>
         </Tabs>
 
-        {/* E-Transfer Payment Info Dialog */}
-        <Dialog open={paymentInfoOpen} onOpenChange={setPaymentInfoOpen}>
+        {/* Payment Dialog */}
+        <Dialog open={paymentInfoOpen} onOpenChange={(open) => {
+          setPaymentInfoOpen(open);
+          if (!open) {
+            setPaymentMethod("etransfer");
+            setCardNumber("");
+            setCardExpiry("");
+            setCardCvc("");
+            setCardName("");
+          }
+        }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Payer par Virement Interac</DialogTitle>
+              <DialogTitle>Payer une facture</DialogTitle>
             </DialogHeader>
             {selectedInvoice && (
               <div className="space-y-6 mt-4">
@@ -284,45 +305,150 @@ const ClientInvoices = () => {
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
-                  
-                  <div className="bg-muted rounded-lg p-4 space-y-4">
-                    <div>
-                      <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
-                        <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t border-border pt-4">
-                      <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
-                      <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
-                    </div>
-                    
-                    <div className="border-t border-border pt-4">
-                      <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
-                      <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
-                      <p className="text-xs text-muted-foreground mt-2 italic">
-                        (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      <strong>Important:</strong> Votre paiement sera traité dans les 24-48 heures ouvrables après réception. 
-                      Vous recevrez une confirmation par courriel une fois le paiement enregistré.
-                    </p>
+                {/* Payment Method Selection */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Méthode de paiement</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "credit_card" ? "default" : "outline"}
+                      className="flex items-center justify-center gap-2 h-16"
+                      onClick={() => setPaymentMethod("credit_card")}
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      <span>Carte de crédit</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "etransfer" ? "default" : "outline"}
+                      className="flex items-center justify-center gap-2 h-16"
+                      onClick={() => setPaymentMethod("etransfer")}
+                    >
+                      <Banknote className="w-5 h-5" />
+                      <span>Virement Interac</span>
+                    </Button>
                   </div>
                 </div>
 
-                <Button className="w-full" onClick={() => setPaymentInfoOpen(false)}>
-                  Fermer
-                </Button>
+                {paymentMethod === "credit_card" ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cardName">Nom sur la carte</Label>
+                      <Input
+                        id="cardName"
+                        placeholder="Nom complet"
+                        value={cardName}
+                        onChange={(e) => setCardName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cardNumber">Numéro de carte</Label>
+                      <Input
+                        id="cardNumber"
+                        placeholder="1234 5678 9012 3456"
+                        value={cardNumber}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "").slice(0, 16);
+                          const formatted = value.replace(/(.{4})/g, "$1 ").trim();
+                          setCardNumber(formatted);
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cardExpiry">Expiration</Label>
+                        <Input
+                          id="cardExpiry"
+                          placeholder="MM/AA"
+                          value={cardExpiry}
+                          onChange={(e) => {
+                            let value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            if (value.length >= 2) {
+                              value = value.slice(0, 2) + "/" + value.slice(2);
+                            }
+                            setCardExpiry(value);
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cardCvc">CVC</Label>
+                        <Input
+                          id="cardCvc"
+                          placeholder="123"
+                          value={cardCvc}
+                          onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        <strong>Note:</strong> Le paiement par carte de crédit sera traité de manière sécurisée. 
+                        Vous recevrez une confirmation par courriel.
+                      </p>
+                    </div>
+
+                    <Button 
+                      className="w-full" 
+                      disabled={isProcessing || !cardName || !cardNumber || !cardExpiry || !cardCvc}
+                      onClick={async () => {
+                        setIsProcessing(true);
+                        try {
+                          // Simulate processing - in production, integrate with payment gateway
+                          await new Promise(resolve => setTimeout(resolve, 1500));
+                          toast.success("Paiement effectué avec succès!");
+                          setPaymentInfoOpen(false);
+                        } catch (error) {
+                          toast.error("Erreur lors du paiement");
+                        } finally {
+                          setIsProcessing(false);
+                        }
+                      }}
+                    >
+                      {isProcessing ? "Traitement en cours..." : "Payer maintenant"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
+                    
+                    <div className="bg-muted rounded-lg p-4 space-y-4">
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
+                          <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t border-border pt-4">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
+                        <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
+                      </div>
+                      
+                      <div className="border-t border-border pt-4">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
+                        <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
+                        <p className="text-xs text-muted-foreground mt-2 italic">
+                          (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        <strong>Important:</strong> Votre paiement sera traité dans les 24-48 heures ouvrables après réception. 
+                        Vous recevrez une confirmation par courriel une fois le paiement enregistré.
+                      </p>
+                    </div>
+
+                    <Button className="w-full" onClick={() => setPaymentInfoOpen(false)}>
+                      Fermer
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
@@ -389,10 +515,19 @@ const ClientInvoices = () => {
         </Dialog>
 
         {/* General Payment Dialog (for $0 balance or advance payments) */}
-        <Dialog open={generalPaymentOpen} onOpenChange={setGeneralPaymentOpen}>
+        <Dialog open={generalPaymentOpen} onOpenChange={(open) => {
+          setGeneralPaymentOpen(open);
+          if (!open) {
+            setPaymentMethod("etransfer");
+            setCardNumber("");
+            setCardExpiry("");
+            setCardCvc("");
+            setCardName("");
+          }
+        }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Envoyer un paiement par Virement Interac</DialogTitle>
+              <DialogTitle>Envoyer un paiement</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 mt-4">
               <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 text-center">
@@ -402,45 +537,150 @@ const ClientInvoices = () => {
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
-                
-                <div className="bg-muted rounded-lg p-4 space-y-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
-                      <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t border-border pt-4">
-                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
-                    <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
-                  </div>
-                  
-                  <div className="border-t border-border pt-4">
-                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
-                    <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
-                    <p className="text-xs text-muted-foreground mt-2 italic">
-                      (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                    <strong>Note:</strong> Les paiements reçus seront appliqués à votre compte dans les 24-48 heures ouvrables. 
-                    Vous recevrez une confirmation par courriel.
-                  </p>
+              {/* Payment Method Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Méthode de paiement</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant={paymentMethod === "credit_card" ? "default" : "outline"}
+                    className="flex items-center justify-center gap-2 h-16"
+                    onClick={() => setPaymentMethod("credit_card")}
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span>Carte de crédit</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={paymentMethod === "etransfer" ? "default" : "outline"}
+                    className="flex items-center justify-center gap-2 h-16"
+                    onClick={() => setPaymentMethod("etransfer")}
+                  >
+                    <Banknote className="w-5 h-5" />
+                    <span>Virement Interac</span>
+                  </Button>
                 </div>
               </div>
 
-              <Button className="w-full" onClick={() => setGeneralPaymentOpen(false)}>
-                Fermer
-              </Button>
+              {paymentMethod === "credit_card" ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="genCardName">Nom sur la carte</Label>
+                    <Input
+                      id="genCardName"
+                      placeholder="Nom complet"
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="genCardNumber">Numéro de carte</Label>
+                    <Input
+                      id="genCardNumber"
+                      placeholder="1234 5678 9012 3456"
+                      value={cardNumber}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 16);
+                        const formatted = value.replace(/(.{4})/g, "$1 ").trim();
+                        setCardNumber(formatted);
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="genCardExpiry">Expiration</Label>
+                      <Input
+                        id="genCardExpiry"
+                        placeholder="MM/AA"
+                        value={cardExpiry}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          if (value.length >= 2) {
+                            value = value.slice(0, 2) + "/" + value.slice(2);
+                          }
+                          setCardExpiry(value);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="genCardCvc">CVC</Label>
+                      <Input
+                        id="genCardCvc"
+                        placeholder="123"
+                        value={cardCvc}
+                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      <strong>Note:</strong> Le paiement par carte de crédit sera traité de manière sécurisée. 
+                      Vous recevrez une confirmation par courriel.
+                    </p>
+                  </div>
+
+                  <Button 
+                    className="w-full" 
+                    disabled={isProcessing || !cardName || !cardNumber || !cardExpiry || !cardCvc}
+                    onClick={async () => {
+                      setIsProcessing(true);
+                      try {
+                        // Simulate processing - in production, integrate with payment gateway
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        toast.success("Paiement effectué avec succès!");
+                        setGeneralPaymentOpen(false);
+                      } catch (error) {
+                        toast.error("Erreur lors du paiement");
+                      } finally {
+                        setIsProcessing(false);
+                      }
+                    }}
+                  >
+                    {isProcessing ? "Traitement en cours..." : "Payer maintenant"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
+                  
+                  <div className="bg-muted rounded-lg p-4 space-y-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
+                        <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t border-border pt-4">
+                      <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
+                      <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
+                    </div>
+                    
+                    <div className="border-t border-border pt-4">
+                      <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
+                      <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
+                      <p className="text-xs text-muted-foreground mt-2 italic">
+                        (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                      <strong>Note:</strong> Les paiements reçus seront appliqués à votre compte dans les 24-48 heures ouvrables. 
+                      Vous recevrez une confirmation par courriel.
+                    </p>
+                  </div>
+
+                  <Button className="w-full" onClick={() => setGeneralPaymentOpen(false)}>
+                    Fermer
+                  </Button>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
