@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Phone } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "Services", href: "#services" },
-    { label: "Comment ça fonctionne", href: "#how-it-works" },
-    { label: "Avantages", href: "#benefits" },
-    { label: "Contact", href: "#contact" },
+    { label: "Services", href: "/#services" },
+    { label: "Comment ça fonctionne", href: "/#how-it-works" },
+    { label: "Avantages", href: "/#benefits" },
+    { label: "Contact", href: "/#contact" },
   ];
 
   return (
@@ -17,34 +18,36 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
               <span className="font-display font-bold text-navy-900 text-xl">N</span>
             </div>
             <span className="font-display font-bold text-xl text-foreground">Nivra</span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.label}
-                href={link.href}
+                to={link.href}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <Phone className="w-4 h-4" />
-              <span>1-800-NIVRA</span>
+            <Button variant="ghost" size="sm" className="gap-2" asChild>
+              <a href="tel:1-800-NIVRA">
+                <Phone className="w-4 h-4" />
+                <span>1-800-NIVRA</span>
+              </a>
             </Button>
-            <Button variant="accent" size="sm">
-              Consultation gratuite
+            <Button variant="accent" size="sm" asChild>
+              <Link to="/book">Consultation gratuite</Link>
             </Button>
           </div>
 
@@ -67,22 +70,24 @@ const Header = () => {
           <div className="md:hidden py-4 border-t border-border animate-fade-in">
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.label}
-                  href={link.href}
+                  to={link.href}
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {link.label}
-                </a>
+                </Link>
               ))}
               <div className="pt-4 border-t border-border flex flex-col gap-3">
-                <Button variant="ghost" size="sm" className="justify-start gap-2">
-                  <Phone className="w-4 h-4" />
-                  <span>1-800-NIVRA</span>
+                <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
+                  <a href="tel:1-800-NIVRA">
+                    <Phone className="w-4 h-4" />
+                    <span>1-800-NIVRA</span>
+                  </a>
                 </Button>
-                <Button variant="accent" size="sm">
-                  Consultation gratuite
+                <Button variant="accent" size="sm" asChild>
+                  <Link to="/book">Consultation gratuite</Link>
                 </Button>
               </div>
             </nav>
