@@ -22,8 +22,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRoleLoading, setIsRoleLoading] = useState(false);
 
   const fetchUserRole = async (userId: string) => {
+    setIsRoleLoading(true);
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
@@ -35,20 +37,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setRole("client");
     }
+    setIsRoleLoading(false);
   };
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Defer role fetch to avoid deadlock
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
+          // Fetch role immediately but don't block
+          await fetchUserRole(session.user.id);
         } else {
           setRole(null);
         }
@@ -57,16 +62,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        await fetchUserRole(session.user.id);
       }
       setIsLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -99,13 +113,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRole(null);
   };
 
+  // Consider loading if either auth or role is loading
+  const combinedLoading = isLoading || isRoleLoading;
+
   return (
     <AuthContext.Provider
       value={{
         user,
         session,
         role,
-        isLoading,
+        isLoading: combinedLoading,
         isAdmin: role === "admin",
         signIn,
         signUp,
