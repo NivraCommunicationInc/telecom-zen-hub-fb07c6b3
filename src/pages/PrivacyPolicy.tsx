@@ -100,8 +100,8 @@ const PrivacyPolicy = () => {
                 veuillez nous contacter :
               </p>
               <ul className="list-none space-y-2">
-                <li><strong>Courriel :</strong> info@nivra.ca</li>
-                <li><strong>Téléphone :</strong> 1-800-NIVRA</li>
+                <li><strong>Courriel :</strong> Nivratelecom@gmail.com</li>
+                <li><strong>Téléphone :</strong> 438-544-2233</li>
               </ul>
             </section>
           </div>

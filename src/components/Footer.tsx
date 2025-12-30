@@ -41,17 +41,22 @@ const Footer = () => {
               Votre courtier télécom 100% indépendant au Québec. Payé par vous, sans aucune affiliation aux fournisseurs.
             </p>
             <div className="space-y-3">
-              <a href="tel:1-800-NIVRA" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
+              <a href="tel:+14385442233" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
                 <Phone className="w-4 h-4" />
-                <span>1-800-NIVRA</span>
+                <span>438-544-2233</span>
               </a>
-              <a href="mailto:info@nivra.ca" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
+              <a href="mailto:Nivratelecom@gmail.com" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
                 <Mail className="w-4 h-4" />
-                <span>info@nivra.ca</span>
+                <span>Nivratelecom@gmail.com</span>
               </a>
               <div className="flex items-center gap-3 text-cyan-100/60">
                 <MapPin className="w-4 h-4" />
-                <span>Québec, Canada</span>
+                <span>Montréal, QC</span>
+              </div>
+              <div className="text-cyan-100/60 text-sm mt-2">
+                <p className="font-medium text-cyan-100/80">Heures d'ouverture</p>
+                <p>Lun - Ven: 9h00 - 17h00</p>
+                <p>Sam - Dim: Fermé</p>
               </div>
             </div>
           </div>
