@@ -17,8 +17,15 @@ import {
 import { 
   Users, Plus, Search, Eye, Upload, FileText, Trash2, 
   ShoppingBag, CreditCard, Ticket, Calendar, Bell, Package,
-  DollarSign, Clock, AlertCircle
+  DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays, addDays } from "date-fns";
@@ -199,6 +206,9 @@ const AdminClients = () => {
           internal_notes: client.internal_notes,
           sector_tags: client.sector_tags,
           employer_discount: client.employer_discount,
+          balance: client.balance,
+          store_credit: client.store_credit,
+          account_status: client.account_status,
         })
         .eq("id", client.id);
       if (error) throw error;
@@ -210,6 +220,37 @@ const AdminClients = () => {
     },
     onError: () => {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+  });
+
+  const adjustBalanceMutation = useMutation({
+    mutationFn: async ({ clientId, field, amount, operation }: { clientId: string; field: 'balance' | 'store_credit'; amount: number; operation: 'add' | 'remove' }) => {
+      const { data: current, error: fetchError } = await supabase
+        .from("profiles")
+        .select(field)
+        .eq("id", clientId)
+        .single();
+      if (fetchError) throw fetchError;
+      
+      const currentValue = Number(current?.[field] || 0);
+      const newValue = operation === 'add' ? currentValue + amount : Math.max(0, currentValue - amount);
+      
+      const { error } = await supabase
+        .from("profiles")
+        .update({ [field]: newValue })
+        .eq("id", clientId);
+      if (error) throw error;
+      
+      return newValue;
+    },
+    onSuccess: (newValue, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      setSelectedClient((prev: any) => prev ? { ...prev, [variables.field]: newValue } : prev);
+      logActivity("update", "client", selectedClient?.id, { field: variables.field, operation: variables.operation });
+      toast({ title: variables.operation === 'add' ? "Montant ajouté" : "Montant retiré" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la modification", variant: "destructive" });
     },
   });
 
@@ -396,8 +437,9 @@ const AdminClients = () => {
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nom</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Courriel</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Téléphone</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rôle</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédit</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Inscrit le</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                     </tr>
@@ -409,16 +451,29 @@ const AdminClients = () => {
                           {client.full_name || "—"}
                         </td>
                         <td className="py-3 px-4 text-sm text-foreground">{client.email || "—"}</td>
-                        <td className="py-3 px-4 text-sm text-foreground">{client.phone || "—"}</td>
+                        <td className="py-3 px-4 text-sm">
+                          <span className={Number(client.balance || 0) > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}>
+                            {Number(client.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          <span className={Number(client.store_credit || 0) > 0 ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
+                            {Number(client.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </td>
                         <td className="py-3 px-4">
                           <Badge
                             className={
-                              client.user_roles?.[0]?.role === "admin"
-                                ? "bg-cyan-500/20 text-cyan-400"
-                                : "bg-muted text-muted-foreground"
+                              client.account_status === 'active' ? "bg-emerald-500/20 text-emerald-400" :
+                              client.account_status === 'frozen' ? "bg-blue-500/20 text-blue-400" :
+                              client.account_status === 'hold' ? "bg-amber-500/20 text-amber-400" :
+                              client.account_status === 'deactivated' ? "bg-red-500/20 text-red-400" :
+                              "bg-emerald-500/20 text-emerald-400"
                             }
                           >
-                            {client.user_roles?.[0]?.role === "admin" ? "Admin" : "Client"}
+                            {client.account_status === 'active' || !client.account_status ? 'Actif' :
+                             client.account_status === 'frozen' ? 'Gelé' :
+                             client.account_status === 'hold' ? 'Attente' : 'Désactivé'}
                           </Badge>
                         </td>
                         <td className="py-3 px-4 text-sm text-muted-foreground">
@@ -468,6 +523,123 @@ const AdminClients = () => {
 
                 {/* Profile Tab */}
                 <TabsContent value="profile" className="space-y-4 mt-4">
+                  {/* Account Status Banner */}
+                  {selectedClient.account_status && selectedClient.account_status !== 'active' && (
+                    <div className={`p-4 rounded-lg border ${
+                      selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
+                      selectedClient.account_status === 'hold' ? 'bg-amber-500/10 border-amber-500/30' :
+                      'bg-red-500/10 border-red-500/30'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {selectedClient.account_status === 'frozen' && <Pause className="w-5 h-5 text-blue-500" />}
+                        {selectedClient.account_status === 'hold' && <Clock className="w-5 h-5 text-amber-500" />}
+                        {selectedClient.account_status === 'deactivated' && <Ban className="w-5 h-5 text-red-500" />}
+                        <span className={`font-medium ${
+                          selectedClient.account_status === 'frozen' ? 'text-blue-500' :
+                          selectedClient.account_status === 'hold' ? 'text-amber-500' : 'text-red-500'
+                        }`}>
+                          Compte {selectedClient.account_status === 'frozen' ? 'gelé' : 
+                                  selectedClient.account_status === 'hold' ? 'en attente' : 'désactivé'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Balance & Credit Management */}
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase">Solde dû</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-2xl font-bold text-amber-500">
+                          {Number(selectedClient.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const amount = prompt("Montant à ajouter au solde:");
+                          if (amount && !isNaN(Number(amount))) {
+                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'add' });
+                          }
+                        }}>
+                          <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const amount = prompt("Montant à retirer du solde:");
+                          if (amount && !isNaN(Number(amount))) {
+                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'remove' });
+                          }
+                        }}>
+                          <MinusCircle className="w-4 h-4 mr-1" /> Retirer
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase">Crédit disponible</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-2xl font-bold text-emerald-500">
+                          {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const amount = prompt("Montant à ajouter au crédit:");
+                          if (amount && !isNaN(Number(amount))) {
+                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'add' });
+                          }
+                        }}>
+                          <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const amount = prompt("Montant à retirer du crédit:");
+                          if (amount && !isNaN(Number(amount))) {
+                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'remove' });
+                          }
+                        }}>
+                          <MinusCircle className="w-4 h-4 mr-1" /> Retirer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Status Management */}
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                    <Label className="text-sm font-medium mb-3 block">Statut du compte</Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      <Button 
+                        size="sm" 
+                        variant={selectedClient.account_status === 'active' ? 'default' : 'outline'}
+                        className={selectedClient.account_status === 'active' ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
+                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'active' })}
+                      >
+                        <Play className="w-4 h-4 mr-1" /> Actif
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedClient.account_status === 'frozen' ? 'default' : 'outline'}
+                        className={selectedClient.account_status === 'frozen' ? 'bg-blue-500 hover:bg-blue-600' : ''}
+                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'frozen' })}
+                      >
+                        <Pause className="w-4 h-4 mr-1" /> Gelé
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedClient.account_status === 'hold' ? 'default' : 'outline'}
+                        className={selectedClient.account_status === 'hold' ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'hold' })}
+                      >
+                        <Clock className="w-4 h-4 mr-1" /> Attente
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedClient.account_status === 'deactivated' ? 'default' : 'outline'}
+                        className={selectedClient.account_status === 'deactivated' ? 'bg-red-500 hover:bg-red-600' : ''}
+                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'deactivated' })}
+                      >
+                        <Ban className="w-4 h-4 mr-1" /> Désactivé
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Nom complet</Label>
