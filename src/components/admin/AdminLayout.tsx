@@ -9,7 +9,10 @@ import {
   LogOut,
   Menu,
   X,
-  MessageSquare
+  MessageSquare,
+  FileText,
+  Activity,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +30,9 @@ const navItems = [
   { icon: Settings, label: "Services", href: "/admin/services" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
+  { icon: FileText, label: "Contrats", href: "/admin/contracts" },
+  { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
+  { icon: Activity, label: "Activité", href: "/admin/activity" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
