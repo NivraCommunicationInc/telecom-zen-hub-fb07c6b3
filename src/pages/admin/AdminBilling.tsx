@@ -58,16 +58,33 @@ const AdminBilling = () => {
     notes: "",
   });
 
-  const { data: billing, isLoading } = useQuery({
+  const { data: billing, isLoading, error: billingError } = useQuery({
     queryKey: ["admin-billing"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get billing records
+      const { data: billingData, error: billingErr } = await supabase
         .from("billing")
-        .select("*, profiles!billing_user_id_fkey(email, full_name)")
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (billingErr) throw billingErr;
+
+      // Then get profiles for each billing record
+      if (billingData && billingData.length > 0) {
+        const userIds = [...new Set(billingData.map((b: any) => b.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name")
+          .in("user_id", userIds);
+
+        // Merge profiles into billing data
+        return billingData.map((bill: any) => ({
+          ...bill,
+          profiles: profilesData?.find((p: any) => p.user_id === bill.user_id) || null,
+        }));
+      }
+
+      return billingData || [];
     },
   });
 

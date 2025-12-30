@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Careers from "./pages/Careers";
+import JobApplication from "./pages/JobApplication";
 import FAQ from "./pages/FAQ";
 import BookConsultation from "./pages/BookConsultation";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -39,6 +40,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/about" element={<About />} />
             <Route path="/careers" element={<Careers />} />
+            <Route path="/apply" element={<JobApplication />} />
+            <Route path="/apply/:jobId" element={<JobApplication />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/book" element={<BookConsultation />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />

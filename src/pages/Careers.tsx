@@ -107,7 +107,7 @@ const Careers = () => {
                         </div>
                       </div>
                       <Button variant="hero" size="sm" asChild>
-                        <Link to="/#contact">Postuler</Link>
+                        <Link to={`/apply/${position.id}`}>Postuler</Link>
                       </Button>
                     </div>
                   </CardContent>
@@ -134,7 +134,7 @@ const Careers = () => {
             Envoyez-nous votre CV et nous vous contacterons si une opportunité correspondant à votre profil se présente.
           </p>
           <Button variant="outline" size="lg" asChild>
-            <Link to="/#contact">Candidature spontanée</Link>
+            <Link to="/apply">Candidature spontanée</Link>
           </Button>
         </div>
       </section>
