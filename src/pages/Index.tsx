@@ -4,6 +4,7 @@ import Services from "@/components/Services";
 import HowItWorks from "@/components/HowItWorks";
 import Benefits from "@/components/Benefits";
 import CTA from "@/components/CTA";
+import ContactForm from "@/components/ContactForm";
 import Footer from "@/components/Footer";
 
 const Index = () => {
@@ -16,6 +17,11 @@ const Index = () => {
         <HowItWorks />
         <Benefits />
         <CTA />
+        <section id="contact" className="py-20 bg-navy-900">
+          <div className="container mx-auto px-4 max-w-lg">
+            <ContactForm />
+          </div>
+        </section>
       </main>
       <Footer />
     </div>
