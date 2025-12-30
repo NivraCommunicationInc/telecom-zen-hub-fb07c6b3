@@ -55,8 +55,7 @@ const Footer = () => {
               </div>
               <div className="text-cyan-100/60 text-sm mt-2">
                 <p className="font-medium text-cyan-100/80">Heures d'ouverture</p>
-                <p>Lun - Ven: 9h00 - 17h00</p>
-                <p>Sam - Dim: Fermé</p>
+                <p>7 jours sur 7: 9h00 - 17h00</p>
               </div>
             </div>
           </div>
