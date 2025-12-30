@@ -3,6 +3,18 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Briefcase, MapPin, Clock, DollarSign, Heart, Zap } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+
+interface Job {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  description: string | null;
+}
 
 const Careers = () => {
   const benefits = [
@@ -12,36 +24,18 @@ const Careers = () => {
     { icon: Zap, title: "Formation continue", description: "Budget annuel de développement" },
   ];
 
-  const positions = [
-    {
-      title: "Conseiller(ère) télécom",
-      department: "Ventes",
-      location: "Montréal, QC",
-      type: "Temps plein",
-      description: "Accompagner nos clients dans le choix de leurs services télécoms et négocier les meilleures offres.",
+  const { data: jobs, isLoading } = useQuery({
+    queryKey: ["public-jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("id, title, department, location, type, description")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Job[];
     },
-    {
-      title: "Spécialiste support technique",
-      department: "Service client",
-      location: "Québec, QC",
-      type: "Temps plein",
-      description: "Fournir un support technique de premier niveau et résoudre les problèmes de nos clients.",
-    },
-    {
-      title: "Gestionnaire de comptes entreprises",
-      department: "B2B",
-      location: "Télétravail",
-      type: "Temps plein",
-      description: "Gérer un portefeuille de clients entreprises et développer de nouvelles opportunités.",
-    },
-    {
-      title: "Analyste données télécom",
-      department: "Analytique",
-      location: "Montréal, QC",
-      type: "Temps plein",
-      description: "Analyser les tendances du marché et optimiser nos offres grâce aux données.",
-    },
-  ];
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,35 +79,47 @@ const Careers = () => {
             Nous recherchons des talents passionnés pour rejoindre notre équipe en pleine croissance.
           </p>
           <div className="space-y-4 max-w-3xl mx-auto">
-            {positions.map((position) => (
-              <Card key={position.title} className="bg-card border-border hover:border-cyan-400/30 transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="font-display font-bold text-lg text-foreground mb-1">{position.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{position.description}</p>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" />
-                          {position.department}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {position.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {position.type}
-                        </span>
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">Chargement...</div>
+            ) : jobs && jobs.length > 0 ? (
+              jobs.map((position) => (
+                <Card key={position.id} className="bg-card border-border hover:border-cyan-400/30 transition-colors">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-display font-bold text-lg text-foreground mb-1">{position.title}</h3>
+                        {position.description && (
+                          <p className="text-sm text-muted-foreground mb-2">{position.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="w-3 h-3" />
+                            {position.department}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {position.location}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {position.type}
+                          </span>
+                        </div>
                       </div>
+                      <Button variant="hero" size="sm" asChild>
+                        <Link to="/#contact">Postuler</Link>
+                      </Button>
                     </div>
-                    <Button variant="hero" size="sm">
-                      Postuler
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Aucun poste ouvert pour le moment.</p>
+                <p className="text-sm text-muted-foreground mt-2">Envoyez-nous une candidature spontanée!</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -127,8 +133,8 @@ const Careers = () => {
           <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
             Envoyez-nous votre CV et nous vous contacterons si une opportunité correspondant à votre profil se présente.
           </p>
-          <Button variant="outline" size="lg">
-            Candidature spontanée
+          <Button variant="outline" size="lg" asChild>
+            <Link to="/#contact">Candidature spontanée</Link>
           </Button>
         </div>
       </section>
