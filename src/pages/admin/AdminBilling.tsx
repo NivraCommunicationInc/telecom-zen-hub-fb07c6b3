@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plus, Eye, DollarSign, AlertTriangle } from "lucide-react";
+import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast, parseISO } from "date-fns";
@@ -200,6 +200,131 @@ const AdminBilling = () => {
     const fees = Number(bill.fees) || 0;
     const credits = Number(bill.credits) || 0;
     return base + fees - credits;
+  };
+
+  const exportInvoicePDF = (bill: any) => {
+    const total = calculateTotal(bill);
+    const clientName = bill.profiles?.full_name || "Client";
+    const clientEmail = bill.profiles?.email || "";
+    const invoiceNum = bill.invoice_number || bill.id.slice(0, 8);
+    const dueDate = bill.due_date ? format(new Date(bill.due_date), "d MMMM yyyy", { locale: fr }) : "N/A";
+    const createdDate = format(new Date(bill.created_at), "d MMMM yyyy", { locale: fr });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Facture ${invoiceNum}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
+          .logo { font-size: 24px; font-weight: bold; color: #0891b2; }
+          .invoice-title { font-size: 28px; font-weight: bold; text-align: right; }
+          .invoice-num { color: #666; text-align: right; }
+          .section { margin-bottom: 30px; }
+          .label { color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
+          .value { font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th { background: #f5f5f5; text-align: left; padding: 12px; border-bottom: 2px solid #ddd; }
+          td { padding: 12px; border-bottom: 1px solid #eee; }
+          .amount { text-align: right; }
+          .total-row { font-weight: bold; background: #f9f9f9; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
+          .status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+          .status-paid { background: #d1fae5; color: #059669; }
+          .status-pending { background: #fef3c7; color: #d97706; }
+          .status-overdue { background: #fee2e2; color: #dc2626; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">NIVRA</div>
+          <div>
+            <div class="invoice-title">FACTURE</div>
+            <div class="invoice-num">${invoiceNum}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="label">Facturer à</div>
+          <div class="value"><strong>${clientName}</strong></div>
+          <div class="value">${clientEmail}</div>
+        </div>
+        
+        <div style="display: flex; gap: 60px;">
+          <div class="section">
+            <div class="label">Date de création</div>
+            <div class="value">${createdDate}</div>
+          </div>
+          <div class="section">
+            <div class="label">Date d'échéance</div>
+            <div class="value">${dueDate}</div>
+          </div>
+          <div class="section">
+            <div class="label">Statut</div>
+            <div class="value">
+              <span class="status status-${bill.status}">${statusLabels[bill.status] || bill.status}</span>
+            </div>
+          </div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="amount">Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Montant de base</td>
+              <td class="amount">${Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
+            </tr>
+            ${Number(bill.fees) > 0 ? `
+            <tr>
+              <td>Frais supplémentaires ${bill.late_fee_applied ? "(incluant frais de retard 5%)" : ""}</td>
+              <td class="amount">+${Number(bill.fees).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
+            </tr>
+            ` : ""}
+            ${Number(bill.credits) > 0 ? `
+            <tr>
+              <td>Crédits appliqués</td>
+              <td class="amount">-${Number(bill.credits).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
+            </tr>
+            ` : ""}
+            <tr class="total-row">
+              <td>Total</td>
+              <td class="amount">${total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        ${bill.notes ? `
+        <div class="section">
+          <div class="label">Notes</div>
+          <div class="value">${bill.notes}</div>
+        </div>
+        ` : ""}
+        
+        <div class="footer">
+          <p>Nivra Inc. • Courtier télécom indépendant</p>
+          <p>Cette facture a été générée automatiquement.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+
+    toast({ title: "Facture PDF prête à imprimer" });
   };
 
   return (
@@ -405,6 +530,9 @@ const AdminBilling = () => {
                             <Button size="sm" variant="outline" onClick={() => handleViewDetails(bill)}>
                               <Eye className="w-4 h-4" />
                             </Button>
+                            <Button size="sm" variant="outline" onClick={() => exportInvoicePDF(bill)}>
+                              <FileDown className="w-4 h-4" />
+                            </Button>
                             {bill.status !== "paid" && (
                               <Button
                                 size="sm"
@@ -546,6 +674,10 @@ const AdminBilling = () => {
                     }}
                   >
                     Enregistrer
+                  </Button>
+                  <Button variant="outline" onClick={() => exportInvoicePDF(selectedBill)}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    PDF
                   </Button>
                   {selectedBill.status !== "paid" && (
                     <Button variant="hero" onClick={() => markAsPaid(selectedBill)}>
