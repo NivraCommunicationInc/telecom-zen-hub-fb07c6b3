@@ -17,19 +17,19 @@ const FAQ = () => {
       questions: [
         {
           q: "Qu'est-ce qu'un courtier télécom?",
-          a: "Un courtier télécom est un intermédiaire indépendant qui compare et négocie les offres de plusieurs fournisseurs de télécommunications pour vous obtenir les meilleures conditions. Contrairement à un vendeur de fournisseur, nous travaillons pour vous, pas pour les compagnies.",
+          a: "Un courtier télécom est un expert indépendant qui analyse vos besoins en télécommunications et vous conseille objectivement sur les meilleures options disponibles sur le marché. Contrairement aux vendeurs de fournisseurs, nous travaillons exclusivement pour vous et sommes payés directement par nos clients.",
         },
         {
-          q: "Les services de Nivra sont-ils gratuits?",
-          a: "Oui, nos services de consultation et de négociation sont entièrement gratuits pour les particuliers. Nous sommes rémunérés par les fournisseurs sous forme de commission, ce qui n'affecte pas le prix que vous payez.",
+          q: "Comment Nivra est-il rémunéré?",
+          a: "Nivra facture ses clients directement selon un tarif fixe ou un abonnement, en fonction des services demandés. Nous ne recevons aucune commission, compensation ou rémunération de la part des fournisseurs de télécommunications. Cette indépendance totale nous permet de vous conseiller en toute objectivité.",
         },
         {
-          q: "Avec quels fournisseurs travaillez-vous?",
-          a: "Nous travaillons avec tous les grands fournisseurs au Québec : Bell, Vidéotron, Rogers, Telus, Fizz, Virgin, Koodo, et plusieurs autres. Cela nous permet de vous offrir un choix complet et impartial.",
+          q: "Travaillez-vous avec des fournisseurs comme Bell, Rogers ou TELUS?",
+          a: "Non. Nivra ne représente, ne promeut et ne vend les services d'aucun fournisseur de télécommunications. Nous sommes entièrement indépendants et n'avons aucun accord, partenariat ou entente commerciale avec les compagnies de télécom. Notre rôle est de vous conseiller de manière impartiale.",
         },
         {
-          q: "Combien de temps prend le processus?",
-          a: "En général, nous pouvons vous proposer une offre personnalisée en 24 à 48 heures après notre première consultation. Le changement de fournisseur lui-même peut prendre de 1 à 2 semaines selon les cas.",
+          q: "Combien coûtent vos services?",
+          a: "Nos tarifs varient selon la complexité de vos besoins et le type de service demandé (consultation ponctuelle, accompagnement complet, abonnement mensuel). Contactez-nous pour obtenir un devis personnalisé adapté à votre situation.",
         },
       ],
     },
@@ -38,15 +38,15 @@ const FAQ = () => {
       questions: [
         {
           q: "Puis-je garder mon numéro de téléphone actuel?",
-          a: "Absolument! La portabilité du numéro est un droit protégé par le CRTC. Nous nous occupons de tout le processus de transfert de votre numéro vers votre nouveau fournisseur.",
+          a: "Absolument! La portabilité du numéro est un droit protégé par le CRTC. Nous pouvons vous guider dans le processus de transfert de votre numéro vers un nouveau fournisseur de votre choix.",
         },
         {
           q: "Que se passe-t-il avec mon téléphone actuel?",
-          a: "Si votre téléphone est déverrouillé, vous pouvez le garder avec n'importe quel fournisseur. S'il est verrouillé, nous pouvons vous aider à le faire déverrouiller ou vous proposer des offres avec un nouvel appareil.",
+          a: "Si votre téléphone est déverrouillé, vous pouvez le garder avec n'importe quel fournisseur. S'il est verrouillé, nous pouvons vous conseiller sur les démarches pour le faire déverrouiller.",
         },
         {
-          q: "Y a-t-il des frais de résiliation avec mon fournisseur actuel?",
-          a: "Cela dépend de votre contrat actuel. Nous analysons votre situation et calculons si les économies réalisées compensent les frais de résiliation éventuels.",
+          q: "Comment évaluez-vous les offres du marché?",
+          a: "Nous analysons objectivement les offres publiques de tous les fournisseurs selon vos critères : prix, couverture, données, appels, qualité du service client, etc. Notre indépendance nous permet de vous donner une recommandation impartiale.",
         },
       ],
     },
@@ -55,15 +55,15 @@ const FAQ = () => {
       questions: [
         {
           q: "Quelle vitesse Internet me recommandez-vous?",
-          a: "Cela dépend de votre utilisation. Pour un usage basique (navigation, streaming HD), 50-100 Mbps suffisent. Pour le télétravail, gaming ou streaming 4K, nous recommandons 300 Mbps ou plus.",
+          a: "Cela dépend de votre utilisation. Pour un usage basique (navigation, streaming HD), 50-100 Mbps suffisent. Pour le télétravail, gaming ou streaming 4K, nous recommandons 300 Mbps ou plus. Nous analysons vos besoins pour vous orienter vers la meilleure option.",
         },
         {
           q: "Puis-je avoir Internet et TV de fournisseurs différents?",
-          a: "Oui, c'est tout à fait possible. Parfois, combiner les services d'un seul fournisseur offre des rabais, mais pas toujours. Nous analysons toutes les options pour vous.",
+          a: "Oui, c'est tout à fait possible. Nous pouvons analyser si combiner les services ou les séparer est plus avantageux pour votre situation spécifique.",
         },
         {
-          q: "L'installation est-elle incluse?",
-          a: "La plupart des fournisseurs offrent l'installation gratuite ou à prix réduit. Nous négocions toujours pour inclure l'installation dans votre forfait.",
+          q: "Pouvez-vous m'aider à comparer les offres?",
+          a: "C'est notre spécialité! Nous comparons objectivement toutes les offres disponibles selon vos critères et vous présentons les meilleures options avec leurs avantages et inconvénients.",
         },
       ],
     },
@@ -72,15 +72,15 @@ const FAQ = () => {
       questions: [
         {
           q: "Offrez-vous des services aux entreprises?",
-          a: "Oui! Nous avons une équipe dédiée aux entreprises qui peut gérer des flottes de lignes mobiles, des connexions Internet dédiées, des systèmes téléphoniques VoIP et plus encore.",
+          a: "Oui! Nous avons une équipe dédiée aux entreprises qui peut analyser vos besoins en téléphonie, Internet, et systèmes de communication. Nous vous conseillons sur les meilleures solutions adaptées à votre entreprise.",
         },
         {
           q: "Pouvez-vous gérer plusieurs succursales?",
-          a: "Absolument. Nous pouvons coordonner les services pour plusieurs emplacements et négocier des tarifs de volume avantageux pour votre entreprise.",
+          a: "Absolument. Nous pouvons analyser les besoins de plusieurs emplacements et vous conseiller sur les stratégies pour optimiser vos coûts de télécommunications à travers toute votre organisation.",
         },
         {
           q: "Offrez-vous un support continu?",
-          a: "Oui, nous restons votre point de contact unique pour tous vos besoins télécoms. Pas besoin d'appeler le fournisseur directement - nous gérons tout pour vous.",
+          a: "Oui, nous offrons des forfaits d'accompagnement continu pour les entreprises qui souhaitent avoir un conseiller télécom dédié. Vous bénéficiez de notre expertise pour toutes vos décisions télécom.",
         },
       ],
     },

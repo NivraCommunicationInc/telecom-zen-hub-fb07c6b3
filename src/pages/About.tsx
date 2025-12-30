@@ -9,17 +9,17 @@ const About = () => {
     {
       icon: Users,
       title: "Client d'abord",
-      description: "Votre satisfaction est notre priorité. Nous travaillons pour vous, pas pour les fournisseurs.",
+      description: "Vous nous payez directement. Nous travaillons exclusivement pour vous, jamais pour les fournisseurs.",
     },
     {
       icon: Target,
       title: "Transparence",
-      description: "Aucuns frais cachés. Nous vous expliquons clairement toutes vos options.",
+      description: "Tarification claire et directe. Aucune commission cachée des compagnies de télécom.",
     },
     {
       icon: Shield,
-      title: "Indépendance",
-      description: "Nous ne sommes liés à aucun fournisseur, ce qui nous permet de vous offrir les meilleures offres.",
+      title: "Indépendance totale",
+      description: "Aucun partenariat ni accord avec les fournisseurs. Conseils 100% objectifs et impartiaux.",
     },
     {
       icon: Award,
@@ -58,12 +58,12 @@ const About = () => {
             <div>
               <h2 className="font-display text-3xl font-bold text-foreground mb-6">Notre mission</h2>
               <p className="text-muted-foreground mb-4">
-                Chez Nivra, nous croyons que chaque Québécois mérite d'avoir accès aux meilleurs services de télécommunication 
-                au meilleur prix, sans avoir à naviguer dans un labyrinthe d'offres complexes.
+                Chez Nivra, nous croyons que chaque Québécois mérite d'avoir accès à des conseils objectifs et transparents 
+                en matière de télécommunications, sans être influencé par les intérêts des fournisseurs.
               </p>
               <p className="text-muted-foreground mb-6">
-                En tant que courtier indépendant, nous négocions directement avec tous les grands fournisseurs pour vous 
-                obtenir des tarifs exclusifs et des conditions avantageuses que vous ne trouverez nulle part ailleurs.
+                En tant que courtier 100% indépendant, nous ne recevons aucune commission ni rémunération des compagnies de télécom. 
+                Nous sommes payés directement par nos clients, ce qui garantit notre impartialité totale dans nos recommandations.
               </p>
               <Link to="/#contact">
                 <Button variant="hero" size="lg">Nous contacter</Button>

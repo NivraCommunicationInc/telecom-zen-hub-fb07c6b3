@@ -37,8 +37,8 @@ const Hero = () => {
 
           {/* Subheading */}
           <p className="text-lg md:text-xl text-cyan-100/70 max-w-2xl mx-auto mb-10 animate-fade-in text-balance" style={{ animationDelay: "0.2s" }}>
-            Nivra négocie pour vous les meilleures offres en téléphonie, internet, télévision et sécurité. 
-            Transparence totale, sans pression commerciale.
+            Nivra vous conseille objectivement sur vos services télécom. 
+            Payé par vous, indépendant des fournisseurs, pour des recommandations 100% impartiales.
           </p>
 
           {/* CTA Buttons */}
@@ -70,7 +70,7 @@ const Hero = () => {
               <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                 <BadgeCheck className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/70">Rabais exclusifs</span>
+              <span className="text-sm text-cyan-100/70">Conseils objectifs</span>
             </div>
           </div>
         </div>
