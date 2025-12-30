@@ -1,17 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Phone } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Menu, X, Phone, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
-    { label: "Services", href: "/#services" },
-    { label: "Comment ça fonctionne", href: "/#how-it-works" },
-    { label: "Avantages", href: "/#benefits" },
-    { label: "Contact", href: "/#contact" },
+    { label: "Services", href: "services" },
+    { label: "Comment ça fonctionne", href: "how-it-works" },
+    { label: "Avantages", href: "benefits" },
+    { label: "Contact", href: "contact" },
   ];
+
+  const scrollToSection = (sectionId: string) => {
+    setIsMenuOpen(false);
+    
+    // If we're not on the home page, navigate there first
+    if (location.pathname !== "/") {
+      navigate("/");
+      // Wait for navigation, then scroll
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    } else {
+      // Already on home page, just scroll
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
+
+  // Handle hash on page load
+  useEffect(() => {
+    if (location.hash) {
+      const sectionId = location.hash.replace("#", "");
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [location]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass">
@@ -28,25 +65,31 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <Link
+              <button
                 key={link.label}
-                to={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => scrollToSection(link.href)}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 {link.label}
-              </Link>
+              </button>
             ))}
           </nav>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             <Button variant="ghost" size="sm" className="gap-2" asChild>
               <a href="tel:+14385442233">
                 <Phone className="w-4 h-4" />
                 <span>438-544-2233</span>
               </a>
             </Button>
-            <Button variant="accent" size="sm" asChild>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/portal/auth">
+                <User className="w-4 h-4 mr-2" />
+                Espace client
+              </Link>
+            </Button>
+            <Button variant="hero" size="sm" asChild>
               <Link to="/book">Consultation gratuite</Link>
             </Button>
           </div>
@@ -70,14 +113,13 @@ const Header = () => {
           <div className="md:hidden py-4 border-t border-border animate-fade-in">
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
-                <Link
+                <button
                   key={link.label}
-                  to={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={() => scrollToSection(link.href)}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 text-left"
                 >
                   {link.label}
-                </Link>
+                </button>
               ))}
               <div className="pt-4 border-t border-border flex flex-col gap-3">
                 <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
@@ -86,7 +128,13 @@ const Header = () => {
                     <span>438-544-2233</span>
                   </a>
                 </Button>
-                <Button variant="accent" size="sm" asChild>
+                <Button variant="outline" size="sm" className="justify-start" asChild>
+                  <Link to="/portal/auth">
+                    <User className="w-4 h-4 mr-2" />
+                    Espace client
+                  </Link>
+                </Button>
+                <Button variant="hero" size="sm" asChild>
                   <Link to="/book">Consultation gratuite</Link>
                 </Button>
               </div>
