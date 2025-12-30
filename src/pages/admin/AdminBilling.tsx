@@ -45,7 +45,7 @@ const statusLabels: Record<string, string> = {
 
 // E-transfer payment info for clients
 const ETRANSFER_INFO = {
-  email: "paiement@nivra.ca",
+  email: "NivraTelecom@gmail.com",
   question: "Nom du client ou nom de l'entreprise",
   answer: "Le nom complet du client ou le nom de l'entreprise",
 };
