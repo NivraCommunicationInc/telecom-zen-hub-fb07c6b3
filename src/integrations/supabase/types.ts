@@ -456,6 +456,65 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          billing_id: string | null
+          card_last_four: string | null
+          card_type: string | null
+          created_at: string
+          etransfer_amount: number | null
+          etransfer_sender_name: string | null
+          id: string
+          notes: string | null
+          payment_method: string
+          received_by: string | null
+          reference_number: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          billing_id?: string | null
+          card_last_four?: string | null
+          card_type?: string | null
+          created_at?: string
+          etransfer_amount?: number | null
+          etransfer_sender_name?: string | null
+          id?: string
+          notes?: string | null
+          payment_method: string
+          received_by?: string | null
+          reference_number: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          billing_id?: string | null
+          card_last_four?: string | null
+          card_type?: string | null
+          created_at?: string
+          etransfer_amount?: number | null
+          etransfer_sender_name?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          received_by?: string | null
+          reference_number?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
