@@ -48,7 +48,7 @@ export type Database = {
         Row: {
           admin_id: string | null
           client_email: string | null
-          client_id: string
+          client_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -59,7 +59,7 @@ export type Database = {
         Insert: {
           admin_id?: string | null
           client_email?: string | null
-          client_id: string
+          client_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -70,7 +70,7 @@ export type Database = {
         Update: {
           admin_id?: string | null
           client_email?: string | null
-          client_id?: string
+          client_id?: string | null
           created_at?: string
           description?: string | null
           id?: string

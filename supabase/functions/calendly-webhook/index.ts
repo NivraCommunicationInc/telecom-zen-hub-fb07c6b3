@@ -65,15 +65,15 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("email", invitee.email)
         .single();
 
-      // Create appointment record
+      // Create appointment record - client_id is nullable, will be linked when user creates account
       const { data: appointment, error: insertError } = await supabase
         .from("appointments")
         .insert({
           title: scheduledEvent.name || "Consultation",
           scheduled_at: scheduledEvent.start_time,
           status: "scheduled",
-          client_email: invitee.email,
-          client_id: existingProfile?.user_id || "00000000-0000-0000-0000-000000000000",
+          client_email: invitee.email.toLowerCase(),
+          client_id: existingProfile?.user_id || null,
           description: `Rendez-vous pris par ${invitee.name} via Calendly`,
         })
         .select()
