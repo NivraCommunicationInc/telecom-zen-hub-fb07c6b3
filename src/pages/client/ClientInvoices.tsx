@@ -28,7 +28,7 @@ const ClientInvoices = () => {
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
   const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
-
+  const [generalPaymentOpen, setGeneralPaymentOpen] = useState(false);
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["client-invoices-all", user?.id],
     queryFn: async () => {
@@ -97,9 +97,15 @@ const ClientInvoices = () => {
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Facturation & Paiements</h1>
-          <p className="text-muted-foreground mt-1">Consultez vos factures et historique de paiements</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-foreground">Facturation & Paiements</h1>
+            <p className="text-muted-foreground mt-1">Consultez vos factures et historique de paiements</p>
+          </div>
+          <Button variant="hero" onClick={() => setGeneralPaymentOpen(true)}>
+            <DollarSign className="w-4 h-4 mr-2" />
+            Envoyer un paiement
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -379,6 +385,63 @@ const ClientInvoices = () => {
                 </Button>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* General Payment Dialog (for $0 balance or advance payments) */}
+        <Dialog open={generalPaymentOpen} onOpenChange={setGeneralPaymentOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Envoyer un paiement par Virement Interac</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 mt-4">
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 text-center">
+                <DollarSign className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Effectuez un paiement anticipé, un dépôt ou réglez un solde
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
+                
+                <div className="bg-muted rounded-lg p-4 space-y-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
+                      <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-border pt-4">
+                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
+                    <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
+                  </div>
+                  
+                  <div className="border-t border-border pt-4">
+                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
+                    <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
+                    <p className="text-xs text-muted-foreground mt-2 italic">
+                      (Utilisez votre nom complet tel qu'il apparaît sur votre compte)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                  <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                    <strong>Note:</strong> Les paiements reçus seront appliqués à votre compte dans les 24-48 heures ouvrables. 
+                    Vous recevrez une confirmation par courriel.
+                  </p>
+                </div>
+              </div>
+
+              <Button className="w-full" onClick={() => setGeneralPaymentOpen(false)}>
+                Fermer
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
