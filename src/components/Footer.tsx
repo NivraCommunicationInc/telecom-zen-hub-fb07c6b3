@@ -1,27 +1,28 @@
 import { Phone, Mail, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   const links = {
     services: [
-      { label: "Téléphonie mobile", href: "#services" },
-      { label: "Internet", href: "#services" },
-      { label: "Télévision", href: "#services" },
-      { label: "Sécurité", href: "#services" },
+      { label: "Téléphonie mobile", href: "/#services", isExternal: false },
+      { label: "Internet", href: "/#services", isExternal: false },
+      { label: "Télévision", href: "/#services", isExternal: false },
+      { label: "Sécurité", href: "/#services", isExternal: false },
     ],
     company: [
-      { label: "À propos", href: "#benefits" },
-      { label: "Notre équipe", href: "#benefits" },
-      { label: "Carrières", href: "#contact" },
-      { label: "Presse", href: "#contact" },
+      { label: "À propos", href: "/about", isExternal: false },
+      { label: "Notre équipe", href: "/about", isExternal: false },
+      { label: "Carrières", href: "/careers", isExternal: false },
+      { label: "Presse", href: "/#contact", isExternal: false },
     ],
     support: [
-      { label: "FAQ", href: "#how-it-works" },
-      { label: "Contact", href: "#contact" },
-      { label: "Portail client", href: "#contact" },
-      { label: "Documentation", href: "#how-it-works" },
-      { label: "Administration", href: "/admin/login" },
+      { label: "FAQ", href: "/faq", isExternal: false },
+      { label: "Contact", href: "/#contact", isExternal: false },
+      { label: "Portail client", href: "/#contact", isExternal: false },
+      { label: "Documentation", href: "/faq", isExternal: false },
+      { label: "Administration", href: "/admin/login", isExternal: false },
     ],
   };
 
@@ -62,9 +63,9 @@ const Footer = () => {
             <ul className="space-y-3">
               {links.services.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -76,9 +77,9 @@ const Footer = () => {
             <ul className="space-y-3">
               {links.company.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -90,9 +91,9 @@ const Footer = () => {
             <ul className="space-y-3">
               {links.support.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
