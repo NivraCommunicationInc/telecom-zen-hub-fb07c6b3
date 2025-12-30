@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +11,35 @@ import { Loader2, ArrowLeft } from "lucide-react";
 
 const ClientAuth = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", confirmPassword: "", fullName: "" });
 
-  // Redirect if already logged in
+  // Redirect if already logged in - use useEffect to avoid render-time navigation
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate("/portal", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    );
+  }
+
+  // If user is logged in, show loading while redirecting
   if (user) {
-    navigate("/portal");
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    );
   }
 
   const handleLogin = async (e: React.FormEvent) => {
