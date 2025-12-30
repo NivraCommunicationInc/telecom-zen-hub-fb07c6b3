@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Users, Plus, Search, Eye, Upload } from "lucide-react";
+import { Users, Plus, Search, Eye, Upload, FileText, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -28,6 +28,7 @@ const AdminClients = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [newClient, setNewClient] = useState({
     email: "",
@@ -35,6 +36,7 @@ const AdminClients = () => {
     full_name: "",
     phone: "",
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["admin-clients"],
@@ -49,6 +51,22 @@ const AdminClients = () => {
     },
   });
 
+  const { data: clientDocuments } = useQuery({
+    queryKey: ["client-documents", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("client_documents")
+        .select("*")
+        .eq("user_id", selectedClient.user_id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
   const filteredClients = clients?.filter((client: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -61,7 +79,6 @@ const AdminClients = () => {
 
   const createClientMutation = useMutation({
     mutationFn: async (client: typeof newClient) => {
-      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: client.email,
         password: client.password,
@@ -74,7 +91,6 @@ const AdminClients = () => {
 
       if (authError) throw authError;
 
-      // Update profile with phone
       if (authData.user) {
         const { error: profileError } = await supabase
           .from("profiles")
@@ -127,12 +143,62 @@ const AdminClients = () => {
     },
   });
 
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!selectedClient?.user_id) throw new Error("No client selected");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // For now, store as a placeholder URL since we don't have storage bucket set up
+      // In production, you would upload to Supabase Storage
+      const documentUrl = `document://${file.name}`;
+
+      const { error } = await supabase.from("client_documents").insert({
+        user_id: selectedClient.user_id,
+        uploaded_by: user.id,
+        document_name: file.name,
+        document_type: file.type.includes("pdf") ? "contract" : "general",
+        document_url: documentUrl,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-documents"] });
+      logActivity("upload", "document", selectedClient?.id);
+      toast({ title: "Document ajouté" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de l'upload", variant: "destructive" });
+    },
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      const { error } = await supabase.from("client_documents").delete().eq("id", docId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-documents"] });
+      toast({ title: "Document supprimé" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    },
+  });
+
   const handleViewDetails = (client: any) => {
     setSelectedClient({
       ...client,
       sector_tags: client.sector_tags || [],
     });
     setDetailsDialogOpen(true);
+  };
+
+  const handleOpenDocuments = (client: any) => {
+    setSelectedClient(client);
+    setDocumentsDialogOpen(true);
   };
 
   const handleAddTag = (tag: string) => {
@@ -151,6 +217,13 @@ const AdminClients = () => {
       ...selectedClient,
       sector_tags: selectedClient.sector_tags.filter((t: string) => t !== tagToRemove),
     });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadDocumentMutation.mutate(file);
+    }
   };
 
   return (
@@ -295,9 +368,14 @@ const AdminClients = () => {
                           {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
                         </td>
                         <td className="py-3 px-4">
-                          <Button size="sm" variant="outline" onClick={() => handleViewDetails(client)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleViewDetails(client)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleOpenDocuments(client)}>
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -402,13 +480,81 @@ const AdminClients = () => {
                   >
                     Enregistrer
                   </Button>
-                  <Button variant="outline">
-                    <Upload className="w-4 h-4 mr-2" />
+                  <Button variant="outline" onClick={() => {
+                    setDetailsDialogOpen(false);
+                    handleOpenDocuments(selectedClient);
+                  }}>
+                    <FileText className="w-4 h-4 mr-2" />
                     Documents
                   </Button>
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Documents Dialog */}
+        <Dialog open={documentsDialogOpen} onOpenChange={setDocumentsDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Documents - {selectedClient?.full_name || selectedClient?.email}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                />
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Téléverser un document
+                </Button>
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {clientDocuments && clientDocuments.length > 0 ? (
+                  clientDocuments.map((doc: any) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 border border-border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-cyan-400" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{doc.document_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm("Supprimer ce document ?")) {
+                            deleteDocumentMutation.mutate(doc.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Aucun document</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
