@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -223,9 +223,9 @@ const AdminLogin = () => {
         </form>
 
         <p className="text-center text-muted-foreground text-sm mt-6">
-          <a href="/" className="hover:text-cyan-400 transition-colors">
+          <Link to="/" className="hover:text-cyan-400 transition-colors">
             ← Retour au site
-          </a>
+          </Link>
         </p>
       </div>
     </div>

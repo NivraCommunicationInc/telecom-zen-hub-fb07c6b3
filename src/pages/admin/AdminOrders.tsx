@@ -75,13 +75,29 @@ const AdminOrders = () => {
   const { data: orders, isLoading } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get orders
+      const { data: ordersData, error: ordersErr } = await supabase
         .from("orders")
-        .select("*, profiles!orders_user_id_fkey(id, email, full_name)")
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (ordersErr) throw ordersErr;
+
+      // Get profiles for user info
+      if (ordersData && ordersData.length > 0) {
+        const userIds = [...new Set(ordersData.map((o: any) => o.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name")
+          .in("user_id", userIds);
+
+        return ordersData.map((order: any) => ({
+          ...order,
+          profiles: profilesData?.find((p: any) => p.user_id === order.user_id) || null,
+        }));
+      }
+
+      return ordersData || [];
     },
   });
 
