@@ -5,22 +5,22 @@ const Footer = () => {
 
   const links = {
     services: [
-      { label: "Téléphonie mobile", href: "#" },
-      { label: "Internet", href: "#" },
-      { label: "Télévision", href: "#" },
-      { label: "Sécurité", href: "#" },
+      { label: "Téléphonie mobile", href: "#services" },
+      { label: "Internet", href: "#services" },
+      { label: "Télévision", href: "#services" },
+      { label: "Sécurité", href: "#services" },
     ],
     company: [
-      { label: "À propos", href: "#" },
-      { label: "Notre équipe", href: "#" },
-      { label: "Carrières", href: "#" },
-      { label: "Presse", href: "#" },
+      { label: "À propos", href: "#benefits" },
+      { label: "Notre équipe", href: "#benefits" },
+      { label: "Carrières", href: "#contact" },
+      { label: "Presse", href: "#contact" },
     ],
     support: [
-      { label: "FAQ", href: "#" },
+      { label: "FAQ", href: "#how-it-works" },
       { label: "Contact", href: "#contact" },
-      { label: "Portail client", href: "#" },
-      { label: "Documentation", href: "#" },
+      { label: "Portail client", href: "#contact" },
+      { label: "Documentation", href: "#how-it-works" },
       { label: "Administration", href: "/admin/login" },
     ],
   };
