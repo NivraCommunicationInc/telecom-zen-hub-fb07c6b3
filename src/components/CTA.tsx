@@ -32,9 +32,11 @@ const CTA = () => {
 
             {/* Phone CTA */}
             <div className="flex items-center justify-center lg:justify-start gap-4 mb-6">
-              <Button variant="heroOutline" size="lg" className="gap-2">
-                <Phone className="w-5 h-5" />
-                1-800-NIVRA
+              <Button variant="heroOutline" size="lg" className="gap-2" asChild>
+                <a href="tel:+14385442233">
+                  <Phone className="w-5 h-5" />
+                  438-544-2233
+                </a>
               </Button>
             </div>
 
