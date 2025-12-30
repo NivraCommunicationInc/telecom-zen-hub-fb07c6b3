@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, CheckCircle, User, Mail, Phone } from "lucide-react";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Le nom est requis").max(100, "Le nom est trop long"),
@@ -49,10 +50,23 @@ const ContactForm = () => {
 
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const { error } = await supabase.from("contact_requests").insert({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+    });
     
     setIsLoading(false);
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue. Veuillez réessayer.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitted(true);
     toast({
       title: "Demande envoyée!",
