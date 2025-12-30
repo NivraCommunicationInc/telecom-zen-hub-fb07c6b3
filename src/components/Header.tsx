@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Phone, User } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
 
   const navLinks = [
     { label: "Services", href: "services" },
@@ -14,6 +16,9 @@ const Header = () => {
     { label: "Avantages", href: "benefits" },
     { label: "Contact", href: "contact" },
   ];
+
+  // Determine the portal link based on auth status
+  const portalLink = user ? "/portal" : "/portal/auth";
 
   const scrollToSection = (sectionId: string) => {
     setIsMenuOpen(false);
@@ -84,9 +89,9 @@ const Header = () => {
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/portal/auth">
+              <Link to={portalLink}>
                 <User className="w-4 h-4 mr-2" />
-                Espace client
+                {user ? "Mon espace" : "Espace client"}
               </Link>
             </Button>
             <Button variant="hero" size="sm" asChild>
@@ -129,9 +134,9 @@ const Header = () => {
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" className="justify-start" asChild>
-                  <Link to="/portal/auth">
+                  <Link to={portalLink}>
                     <User className="w-4 h-4 mr-2" />
-                    Espace client
+                    {user ? "Mon espace" : "Espace client"}
                   </Link>
                 </Button>
                 <Button variant="hero" size="sm" asChild>
