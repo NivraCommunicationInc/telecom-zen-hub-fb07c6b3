@@ -13,74 +13,74 @@ import { MessageSquare } from "lucide-react";
 const FAQ = () => {
   const categories = [
     {
-      title: "Services généraux",
+      title: "À propos de Nivra",
       questions: [
         {
-          q: "Qu'est-ce qu'un courtier télécom?",
-          a: "Un courtier télécom est un expert indépendant qui analyse vos besoins en télécommunications et vous conseille objectivement sur les meilleures options disponibles sur le marché. Contrairement aux vendeurs de fournisseurs, nous travaillons exclusivement pour vous et sommes payés directement par nos clients.",
+          q: "Qu'est-ce que Nivra?",
+          a: "Nivra est un courtier télécom entièrement indépendant basé au Québec. Nous conseillons les particuliers et les entreprises sur leurs besoins en télécommunications sans représenter aucun fournisseur.",
+        },
+        {
+          q: "Travaillez-vous avec les fournisseurs de télécommunications?",
+          a: "Non. Nivra n'a aucune affiliation, partenariat ou entente commerciale avec les compagnies de télécommunications comme Bell, Rogers, TELUS ou autres. Nous ne recevons aucune rémunération de leur part.",
         },
         {
           q: "Comment Nivra est-il rémunéré?",
-          a: "Nivra facture ses clients directement selon un tarif fixe ou un abonnement, en fonction des services demandés. Nous ne recevons aucune commission, compensation ou rémunération de la part des fournisseurs de télécommunications. Cette indépendance totale nous permet de vous conseiller en toute objectivité.",
+          a: "Nivra est payé exclusivement par ses clients, soit par des frais de consultation ponctuels, soit par des abonnements mensuels. Cette indépendance totale garantit des conseils 100% objectifs.",
         },
         {
-          q: "Travaillez-vous avec des fournisseurs comme Bell, Rogers ou TELUS?",
-          a: "Non. Nivra ne représente, ne promeut et ne vend les services d'aucun fournisseur de télécommunications. Nous sommes entièrement indépendants et n'avons aucun accord, partenariat ou entente commerciale avec les compagnies de télécom. Notre rôle est de vous conseiller de manière impartiale.",
-        },
-        {
-          q: "Combien coûtent vos services?",
-          a: "Nos tarifs varient selon la complexité de vos besoins et le type de service demandé (consultation ponctuelle, accompagnement complet, abonnement mensuel). Contactez-nous pour obtenir un devis personnalisé adapté à votre situation.",
+          q: "Quelles régions desservez-vous?",
+          a: "Pour le moment, Nivra offre ses services uniquement au Québec. Nous prévoyons élargir notre couverture dans le futur.",
         },
       ],
     },
     {
-      title: "Téléphonie mobile",
+      title: "Consultations et rendez-vous",
       questions: [
         {
-          q: "Puis-je garder mon numéro de téléphone actuel?",
-          a: "Absolument! La portabilité du numéro est un droit protégé par le CRTC. Nous pouvons vous guider dans le processus de transfert de votre numéro vers un nouveau fournisseur de votre choix.",
+          q: "Offrez-vous une consultation gratuite?",
+          a: "Oui! Nous offrons une première consultation téléphonique gratuite de 30 minutes pour évaluer vos besoins et vous expliquer comment nous pouvons vous aider.",
         },
         {
-          q: "Que se passe-t-il avec mon téléphone actuel?",
-          a: "Si votre téléphone est déverrouillé, vous pouvez le garder avec n'importe quel fournisseur. S'il est verrouillé, nous pouvons vous conseiller sur les démarches pour le faire déverrouiller.",
+          q: "Comment prendre rendez-vous?",
+          a: "Vous pouvez réserver directement via notre calendrier intégré sur la page de prise de rendez-vous. Tout se fait en ligne, sans quitter notre site.",
         },
         {
-          q: "Comment évaluez-vous les offres du marché?",
-          a: "Nous analysons objectivement les offres publiques de tous les fournisseurs selon vos critères : prix, couverture, données, appels, qualité du service client, etc. Notre indépendance nous permet de vous donner une recommandation impartiale.",
+          q: "Proposez-vous des rabais ou promotions?",
+          a: "Nivra identifie uniquement les avantages employeur auxquels vous pourriez avoir droit. Nous ne faisons pas la promotion d'offres de fournisseurs et ne négocions pas de rabais de leur part.",
         },
       ],
     },
     {
-      title: "Internet et télévision",
+      title: "Paiements et facturation",
       questions: [
         {
-          q: "Quelle vitesse Internet me recommandez-vous?",
-          a: "Cela dépend de votre utilisation. Pour un usage basique (navigation, streaming HD), 50-100 Mbps suffisent. Pour le télétravail, gaming ou streaming 4K, nous recommandons 300 Mbps ou plus. Nous analysons vos besoins pour vous orienter vers la meilleure option.",
+          q: "Comment puis-je voir mes factures et paiements?",
+          a: "Toutes vos factures, paiements et crédits sont visibles en temps réel dans votre portail client. L'administrateur voit également les mêmes informations de son côté.",
         },
         {
-          q: "Puis-je avoir Internet et TV de fournisseurs différents?",
-          a: "Oui, c'est tout à fait possible. Nous pouvons analyser si combiner les services ou les séparer est plus avantageux pour votre situation spécifique.",
+          q: "Qu'arrive-t-il si je paie en retard?",
+          a: "Des frais de retard de 5% sont automatiquement ajoutés aux factures en souffrance. Le montant total incluant les frais est clairement affiché avant de confirmer votre paiement.",
         },
         {
-          q: "Pouvez-vous m'aider à comparer les offres?",
-          a: "C'est notre spécialité! Nous comparons objectivement toutes les offres disponibles selon vos critères et vous présentons les meilleures options avec leurs avantages et inconvénients.",
+          q: "Comment fonctionnent les crédits?",
+          a: "Les crédits sont appliqués automatiquement à vos prochaines factures. Votre solde de crédits est visible dans votre portail client et se met à jour instantanément.",
         },
       ],
     },
     {
-      title: "Entreprises",
+      title: "Sécurité et confidentialité",
       questions: [
         {
-          q: "Offrez-vous des services aux entreprises?",
-          a: "Oui! Nous avons une équipe dédiée aux entreprises qui peut analyser vos besoins en téléphonie, Internet, et systèmes de communication. Nous vous conseillons sur les meilleures solutions adaptées à votre entreprise.",
+          q: "Mes données sont-elles protégées?",
+          a: "Absolument. Vos informations personnelles et de compte sont strictement privées. Aucun accès public n'est possible et chaque client ne voit que ses propres données.",
         },
         {
-          q: "Pouvez-vous gérer plusieurs succursales?",
-          a: "Absolument. Nous pouvons analyser les besoins de plusieurs emplacements et vous conseiller sur les stratégies pour optimiser vos coûts de télécommunications à travers toute votre organisation.",
+          q: "Comment accéder à mon compte client?",
+          a: "Connectez-vous via le portail client sécurisé. Votre compte affiche vos factures, commandes, abonnements, contrats et historique de paiements.",
         },
         {
-          q: "Offrez-vous un support continu?",
-          a: "Oui, nous offrons des forfaits d'accompagnement continu pour les entreprises qui souhaitent avoir un conseiller télécom dédié. Vous bénéficiez de notre expertise pour toutes vos décisions télécom.",
+          q: "Qui peut voir mes informations?",
+          a: "Seuls vous et les administrateurs autorisés de Nivra peuvent accéder à vos données. Aucune information n'est partagée avec des tiers ou des fournisseurs de télécommunications.",
         },
       ],
     },
