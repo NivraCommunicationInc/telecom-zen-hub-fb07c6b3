@@ -3,18 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, Phone, User } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSelector from "./LanguageSelector";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const { t } = useLanguage();
 
   const navLinks = [
-    { label: "Services", href: "services" },
-    { label: "Comment ça fonctionne", href: "how-it-works" },
-    { label: "Avantages", href: "benefits" },
-    { label: "Contact", href: "contact" },
+    { label: t('nav.services'), href: "services" },
+    { label: t('howitworks.badge'), href: "how-it-works" },
+    { label: t('benefits.badge'), href: "benefits" },
+    { label: t('nav.contact'), href: "contact" },
   ];
 
   // Determine the portal link based on auth status
@@ -71,7 +74,7 @@ const Header = () => {
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <button
-                key={link.label}
+                key={link.href}
                 onClick={() => scrollToSection(link.href)}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
@@ -82,6 +85,7 @@ const Header = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSelector />
             <Button variant="ghost" size="sm" className="gap-2" asChild>
               <a href="tel:+14385442233">
                 <Phone className="w-4 h-4" />
@@ -91,11 +95,11 @@ const Header = () => {
             <Button variant="outline" size="sm" asChild>
               <Link to={portalLink}>
                 <User className="w-4 h-4 mr-2" />
-                {user ? "Mon espace" : "Espace client"}
+                {user ? t('nav.portal') : t('nav.portal')}
               </Link>
             </Button>
             <Button variant="hero" size="sm" asChild>
-              <Link to="/book">Consultation gratuite</Link>
+              <Link to="/book">{t('hero.cta.book')}</Link>
             </Button>
           </div>
 
@@ -119,7 +123,7 @@ const Header = () => {
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <button
-                  key={link.label}
+                  key={link.href}
                   onClick={() => scrollToSection(link.href)}
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 text-left"
                 >
@@ -127,6 +131,7 @@ const Header = () => {
                 </button>
               ))}
               <div className="pt-4 border-t border-border flex flex-col gap-3">
+                <LanguageSelector />
                 <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
                   <a href="tel:+14385442233">
                     <Phone className="w-4 h-4" />
@@ -136,11 +141,11 @@ const Header = () => {
                 <Button variant="outline" size="sm" className="justify-start" asChild>
                   <Link to={portalLink}>
                     <User className="w-4 h-4 mr-2" />
-                    {user ? "Mon espace" : "Espace client"}
+                    {user ? t('nav.portal') : t('nav.portal')}
                   </Link>
                 </Button>
                 <Button variant="hero" size="sm" asChild>
-                  <Link to="/book">Consultation gratuite</Link>
+                  <Link to="/book">{t('hero.cta.book')}</Link>
                 </Button>
               </div>
             </nav>

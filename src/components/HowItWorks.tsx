@@ -1,33 +1,36 @@
 import { MessageSquare, Search, FileCheck, Headphones } from "lucide-react";
-
-const steps = [
-  {
-    icon: MessageSquare,
-    step: "01",
-    title: "Consultation gratuite",
-    description: "Prenez rendez-vous pour une consultation téléphonique de 30 minutes. Nous analysons vos besoins actuels et vos objectifs.",
-  },
-  {
-    icon: Search,
-    step: "02",
-    title: "Analyse du marché",
-    description: "Nous comparons toutes les offres disponibles au Québec et identifions les meilleures options pour votre situation.",
-  },
-  {
-    icon: FileCheck,
-    step: "03",
-    title: "Négociation & contrat",
-    description: "Nous négocions en votre nom pour obtenir les meilleurs tarifs et conditions, sans clauses cachées.",
-  },
-  {
-    icon: Headphones,
-    step: "04",
-    title: "Suivi continu",
-    description: "Nous surveillons votre facturation et intervenons en cas de problème. Vous êtes protégé tout au long du contrat.",
-  },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const HowItWorks = () => {
+  const { t } = useLanguage();
+
+  const steps = [
+    {
+      icon: MessageSquare,
+      step: "01",
+      titleKey: 'howitworks.step1.title',
+      descKey: 'howitworks.step1.desc',
+    },
+    {
+      icon: Search,
+      step: "02",
+      titleKey: 'howitworks.step2.title',
+      descKey: 'howitworks.step2.desc',
+    },
+    {
+      icon: FileCheck,
+      step: "03",
+      titleKey: 'howitworks.step3.title',
+      descKey: 'howitworks.step3.desc',
+    },
+    {
+      icon: Headphones,
+      step: "04",
+      titleKey: 'howitworks.step4.title',
+      descKey: 'howitworks.step4.desc',
+    },
+  ];
+
   return (
     <section id="how-it-works" className="py-20 md:py-32 bg-secondary/30 relative overflow-hidden">
       {/* 3D Background Elements */}
@@ -40,13 +43,13 @@ const HowItWorks = () => {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4 card-3d">
-            Notre Processus
+            {t('howitworks.badge')}
           </span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-            Comment ça <span className="text-gradient">fonctionne</span>
+            {t('howitworks.title')}
           </h2>
           <p className="text-lg text-muted-foreground">
-            Un processus simple et transparent pour vous garantir les meilleurs services télécoms au Québec.
+            {t('howitworks.subtitle')}
           </p>
         </div>
 
@@ -76,10 +79,10 @@ const HowItWorks = () => {
 
                   {/* Content */}
                   <h3 className="font-display text-xl font-bold text-foreground mb-3">
-                    {step.title}
+                    {t(step.titleKey)}
                   </h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    {step.description}
+                    {t(step.descKey)}
                   </p>
                 </div>
 

@@ -1,27 +1,28 @@
 import { Phone, Mail, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Footer = () => {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
   const links = {
     services: [
-      { label: "Téléphonie mobile", href: "/#services", isExternal: false },
-      { label: "Internet", href: "/#services", isExternal: false },
-      { label: "Télévision", href: "/#services", isExternal: false },
-      { label: "Sécurité", href: "/#services", isExternal: false },
+      { labelKey: "services.mobile.title", href: "/#services" },
+      { labelKey: "services.internet.title", href: "/#services" },
+      { labelKey: "services.tv.title", href: "/#services" },
+      { labelKey: "services.business.title", href: "/#services" },
     ],
     company: [
-      { label: "À propos", href: "/about", isExternal: false },
-      { label: "Notre équipe", href: "/about", isExternal: false },
-      { label: "Carrières", href: "/careers", isExternal: false },
-      { label: "Presse", href: "/#contact", isExternal: false },
+      { labelKey: "nav.about", href: "/about" },
+      { labelKey: "nav.careers", href: "/careers" },
+      { labelKey: "nav.faq", href: "/faq" },
+      { labelKey: "nav.contact", href: "/#contact" },
     ],
     support: [
-      { label: "FAQ", href: "/faq", isExternal: false },
-      { label: "Contact", href: "/#contact", isExternal: false },
-      { label: "Portail client", href: "/portal/auth", isExternal: false },
-      { label: "Administration", href: "/admin/login", isExternal: false },
+      { labelKey: "nav.faq", href: "/faq" },
+      { labelKey: "nav.contact", href: "/#contact" },
+      { labelKey: "nav.portal", href: "/portal/auth" },
     ],
   };
 
@@ -38,7 +39,7 @@ const Footer = () => {
               <span className="font-display font-bold text-xl">Nivra</span>
             </div>
             <p className="text-cyan-100/60 mb-6 max-w-xs">
-              Votre courtier télécom 100% indépendant au Québec. Payé par vous, sans aucune affiliation aux fournisseurs.
+              {t('footer.description')}
             </p>
             <div className="space-y-3">
               <a href="tel:+14385442233" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
@@ -53,21 +54,17 @@ const Footer = () => {
                 <MapPin className="w-4 h-4" />
                 <span>Montréal, QC</span>
               </div>
-              <div className="text-cyan-100/60 text-sm mt-2">
-                <p className="font-medium text-cyan-100/80">Heures d'ouverture</p>
-                <p>7 jours sur 7: 9h00 - 17h00</p>
-              </div>
             </div>
           </div>
 
           {/* Services */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">Services</h4>
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.services')}</h4>
             <ul className="space-y-3">
               {links.services.map((link) => (
-                <li key={link.label}>
+                <li key={link.labelKey}>
                   <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
-                    {link.label}
+                    {t(link.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -76,12 +73,12 @@ const Footer = () => {
 
           {/* Company */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">Entreprise</h4>
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.company')}</h4>
             <ul className="space-y-3">
               {links.company.map((link) => (
-                <li key={link.label}>
+                <li key={link.labelKey}>
                   <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
-                    {link.label}
+                    {t(link.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -90,12 +87,12 @@ const Footer = () => {
 
           {/* Support */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">Support</h4>
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.legal')}</h4>
             <ul className="space-y-3">
               {links.support.map((link) => (
-                <li key={link.label}>
+                <li key={link.labelKey}>
                   <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
-                    {link.label}
+                    {t(link.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -106,14 +103,14 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="border-t border-cyan-100/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-cyan-100/40 text-sm">
-            © {currentYear} Nivra. Tous droits réservés.
+            © {currentYear} Nivra. {t('footer.rights')}
           </p>
           <div className="flex flex-wrap items-center gap-4 md:gap-6">
             <Link to="/privacy" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
-              Politique de confidentialité
+              {t('footer.privacy')}
             </Link>
             <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
-              Conditions d'utilisation
+              {t('footer.terms')}
             </Link>
           </div>
         </div>
