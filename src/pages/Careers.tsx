@@ -6,6 +6,7 @@ import { Briefcase, MapPin, Clock, DollarSign, Heart, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Job {
   id: string;
@@ -17,6 +18,8 @@ interface Job {
 }
 
 const Careers = () => {
+  const { t } = useLanguage();
+
   const benefits = [
     { icon: DollarSign, title: "Salaire compétitif", description: "Rémunération au-dessus du marché" },
     { icon: Heart, title: "Assurance complète", description: "Santé, dentaire et vision" },
@@ -80,7 +83,7 @@ const Careers = () => {
           </p>
           <div className="space-y-4 max-w-3xl mx-auto">
             {isLoading ? (
-              <div className="text-center py-12 text-muted-foreground">Chargement...</div>
+              <div className="text-center py-12 text-muted-foreground">{t('common.loading')}</div>
             ) : jobs && jobs.length > 0 ? (
               jobs.map((position) => (
                 <Card key={position.id} className="bg-card border-border hover:border-cyan-400/30 transition-colors">

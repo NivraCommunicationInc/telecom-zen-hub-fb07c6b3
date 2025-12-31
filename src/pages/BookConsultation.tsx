@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Calendar, Clock, CheckCircle } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 declare global {
   interface Window {
@@ -52,11 +53,13 @@ const CalendlyEmbed = ({ url, prefillName, prefillEmail, className }: CalendlyEm
 };
 
 const BookConsultation = () => {
+  const { t } = useLanguage();
+
   const benefits = [
-    "Analyse gratuite de vos besoins télécom",
-    "Conseils 100% objectifs et impartiaux",
-    "Aucune obligation ni pression commerciale",
-    "Recommandations personnalisées",
+    t('howitworks.step1.desc'),
+    t('benefits.independent.desc'),
+    t('benefits.simple.desc'),
+    t('benefits.savings.desc'),
   ];
 
   return (
@@ -68,16 +71,16 @@ const BookConsultation = () => {
         <div className="container mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-6">
             <Clock className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm font-medium text-cyan-300">30 minutes de consultation</span>
+            <span className="text-sm font-medium text-cyan-300">{t('cta.badge')}</span>
           </div>
           <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-6">
-            Réservez votre{" "}
+            {t('booking.title')}{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-300">
-              consultation
+              {t('booking.title2')}
             </span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Prenez rendez-vous avec un expert Nivra pour analyser vos besoins télécom et recevoir des conseils personnalisés.
+            {t('booking.subtitle')}
           </p>
         </div>
       </section>
@@ -94,8 +97,8 @@ const BookConsultation = () => {
                     <Calendar className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-foreground">Consultation gratuite</h3>
-                    <p className="text-sm text-muted-foreground">30 minutes avec un expert</p>
+                    <h3 className="font-display font-bold text-foreground">{t('hero.cta.book')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('cta.badge')}</p>
                   </div>
                 </div>
 
@@ -109,19 +112,19 @@ const BookConsultation = () => {
                 </div>
 
                 <div className="border-t border-border pt-6">
-                  <h4 className="font-medium text-foreground mb-3">Comment ça fonctionne?</h4>
+                  <h4 className="font-medium text-foreground mb-3">{t('howitworks.badge')}</h4>
                   <ol className="space-y-3 text-sm text-muted-foreground">
                     <li className="flex items-start gap-3">
                       <span className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
-                      <span>Choisissez un créneau disponible</span>
+                      <span>{t('howitworks.step1.title')}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
-                      <span>Recevez une confirmation par courriel</span>
+                      <span>{t('howitworks.step2.title')}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
-                      <span>Participez à votre consultation en ligne ou par téléphone</span>
+                      <span>{t('howitworks.step3.title')}</span>
                     </li>
                   </ol>
                 </div>
