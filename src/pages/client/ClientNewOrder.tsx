@@ -104,6 +104,14 @@ const TERMINAL_CONFIG = {
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
 };
 
+// SIM configuration for Mobile orders
+const SIM_CONFIG = {
+  name: "Nivra eSIM / Physical SIM",
+  price: 25,
+  warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
+  notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise",
+};
+
 const categoryColors: Record<string, string> = {
   Mobile: "bg-blue-500/20 text-blue-500 border-blue-500/30",
   Internet: "bg-purple-500/20 text-purple-500 border-purple-500/30",
@@ -188,6 +196,9 @@ const ClientNewOrder = () => {
   // Check if TV service is selected
   const hasTVService = selectedServices.some(s => s.category === "TV");
   
+  // Check if Mobile service is selected
+  const hasMobileService = selectedServices.some(s => s.category === "Mobile");
+  
   // Get selected TV service to determine free channel limit
   const selectedTVService = selectedServices.find(s => s.category === "TV");
   const freeChannelLimit = selectedTVService ? (
@@ -253,13 +264,18 @@ const ClientNewOrder = () => {
       const equipmentInfo = hasTVService 
         ? `\n\n**Équipement TV:**\n${TERMINAL_CONFIG.name} x${terminalQuantity} = ${(terminalQuantity * TERMINAL_CONFIG.price).toFixed(2)}$\n${TERMINAL_CONFIG.warranty}`
         : '';
+      
+      // Prepare SIM info for notes
+      const simInfo = hasMobileService
+        ? `\n\n**Carte SIM:**\n${SIM_CONFIG.name} = ${SIM_CONFIG.price.toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
+        : '';
 
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
         service_type: serviceNames,
         category: categories,
-        subtotal: subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0),
+        subtotal: subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + (hasMobileService ? SIM_CONFIG.price : 0),
         delivery_fee: 30,
         activation_fee: 25,
         installation_fee: 50,
@@ -267,7 +283,7 @@ const ClientNewOrder = () => {
         discount_code: discountCode || null,
         status: "pending",
         created_by: "client",
-        notes: (notes || '') + equipmentInfo,
+        notes: (notes || '') + equipmentInfo + simInfo,
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
@@ -389,10 +405,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
+  const simFee = hasMobileService ? SIM_CONFIG.price : 0;
   const deliveryFee = 30;
   const activationFee = 25;
   const installationFee = Math.max(0, 50 - installationCredit);
-  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee;
+  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + simFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
@@ -540,6 +557,9 @@ END:VCALENDAR`;
                           <h2 className="text-xl font-bold text-foreground">{category}</h2>
                           {category === "TV" && (
                             <p className="text-xs text-amber-500">Requiert Internet • Inclut 34 chaînes de base gratuites</p>
+                          )}
+                          {category === "Mobile" && (
+                            <p className="text-xs text-blue-500">Nivra Communications • Aucune vérification de crédit • ID gouvernemental requis</p>
                           )}
                         </div>
                       </div>
@@ -1071,6 +1091,12 @@ END:VCALENDAR`;
                         {installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
+                    {hasMobileService && simFee > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-blue-500">{SIM_CONFIG.name}</span>
+                        <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-border pt-3 space-y-2">
@@ -1186,6 +1212,38 @@ END:VCALENDAR`;
                     <p className="text-xs text-muted-foreground">
                       {TERMINAL_CONFIG.warranty}
                     </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Mobile SIM Equipment Summary */}
+              {hasMobileService && (
+                <Card className="bg-card border-blue-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Smartphone className="w-5 h-5 text-blue-500" />
+                      Équipement Mobile
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                          <Smartphone className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{SIM_CONFIG.name}</p>
+                          <p className="text-sm text-muted-foreground">Frais unique (payé à la commande)</p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-blue-500">
+                        {SIM_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </p>
+                    </div>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <p>• {SIM_CONFIG.warranty}</p>
+                      <p>• {SIM_CONFIG.notes}</p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1321,6 +1379,12 @@ END:VCALENDAR`;
                       <span className="text-muted-foreground">Installation</span>
                       <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
+                    {hasMobileService && simFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-blue-500">{SIM_CONFIG.name}</span>
+                        <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">TPS + TVQ</span>
                       <span>{(tpsAmount + tvqAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
