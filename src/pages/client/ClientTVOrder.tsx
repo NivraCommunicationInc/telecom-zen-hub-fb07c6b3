@@ -304,13 +304,13 @@ const ClientTVOrder = () => {
     }
   };
 
-  // Calculate totals
+  // Calculate totals - fee logic based on installation method
   const planPrice = selectedPlan?.price || 0;
   const terminalFee = TERMINAL_DETAILS.price * terminalCount;
   const routerFee = ROUTER_DETAILS.price;
-  const deliveryFee = 30;
+  const deliveryFee = installationMethod === "auto" ? 30 : 0; // Only charge delivery for auto-installation
   const activationFee = 25;
-  const installationFee = installationMethod === "technician" ? Math.max(0, 50 - installationCredit) : 0;
+  const installationFee = installationMethod === "technician" ? Math.max(0, 50 - installationCredit) : 0; // Only charge installation for technician
   const oneTimeTotal = terminalFee + routerFee + deliveryFee + activationFee + installationFee;
   const tpsAmount = Math.round((oneTimeTotal) * 0.05 * 100) / 100;
   const tvqAmount = Math.round((oneTimeTotal) * 0.09975 * 100) / 100;
@@ -327,7 +327,7 @@ const ClientTVOrder = () => {
         service_type: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
         category: "TV + Internet",
         subtotal: planPrice,
-        delivery_fee: deliveryFee,
+        delivery_fee: installationMethod === "auto" ? 30 : 0,
         activation_fee: activationFee,
         installation_fee: installationMethod === "technician" ? 50 : 0,
         installation_credit: installationCredit,
@@ -958,17 +958,19 @@ ${notes || ""}`.trim(),
                       <span>Nivra Born Wifi Router</span>
                       <span>${routerFee}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>{isFrench ? "Livraison" : "Delivery"}</span>
-                      <span>${deliveryFee}</span>
-                    </div>
+                    {installationMethod === "auto" && (
+                      <div className="flex justify-between">
+                        <span>{isFrench ? "Livraison" : "Delivery"}</span>
+                        <span>${deliveryFee}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span>{isFrench ? "Activation" : "Activation"}</span>
                       <span>${activationFee}</span>
                     </div>
                     {installationMethod === "technician" && (
                       <div className="flex justify-between">
-                        <span>{isFrench ? "Installation" : "Installation"}</span>
+                        <span>{isFrench ? "Installation technicien" : "Technician Installation"}</span>
                         <span>${installationFee}</span>
                       </div>
                     )}
