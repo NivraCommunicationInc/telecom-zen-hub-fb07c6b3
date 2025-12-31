@@ -156,9 +156,17 @@ const ClientNewOrder = () => {
   const [notes, setNotes] = useState("");
   const [discountCode, setDiscountCode] = useState("");
   const [installationCredit, setInstallationCredit] = useState(0);
-  const [identityConfirmed, setIdentityConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null);
+  
+  // ID verification state
+  const [idType, setIdType] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [idExpiration, setIdExpiration] = useState("");
+  const [idProvince, setIdProvince] = useState("");
+  
+  // Installation choice state
+  const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>(null);
   
   // Appointment scheduling state
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -410,7 +418,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
       setCreatedOrder(data as CreatedOrder);
-      setStep(5); // Go to confirmation step
+      // Go to completed step (dynamic based on service selection)
+      if (hasTVService && hasMobileService) setStep(6);
+      else if (hasTVService || hasMobileService) setStep(5);
+      else setStep(4);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -476,18 +487,45 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const isSelected = (serviceId: string) => selectedServices.some(s => s.id === serviceId);
 
-  // Calculate totals with fees and taxes
+  // Calculate totals with fees and taxes based on installation choice
   const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const simFee = hasMobileService ? SIM_CONFIG.price : 0;
-  const deliveryFee = 30;
+  
+  // Fee logic based on installation choice
+  const deliveryFee = installationChoice === "auto" ? 30 : 0;
   const activationFee = 25;
-  const installationFee = Math.max(0, 50 - installationCredit);
+  const installationFee = installationChoice === "technician" ? Math.max(0, 50 - installationCredit) : 0;
   const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + simFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
+
+  // Canadian provinces for ID
+  const CANADIAN_PROVINCES = [
+    { value: "AB", label: "Alberta" },
+    { value: "BC", label: "Colombie-Britannique" },
+    { value: "MB", label: "Manitoba" },
+    { value: "NB", label: "Nouveau-Brunswick" },
+    { value: "NL", label: "Terre-Neuve-et-Labrador" },
+    { value: "NS", label: "Nouvelle-Écosse" },
+    { value: "NT", label: "Territoires du Nord-Ouest" },
+    { value: "NU", label: "Nunavut" },
+    { value: "ON", label: "Ontario" },
+    { value: "PE", label: "Île-du-Prince-Édouard" },
+    { value: "QC", label: "Québec" },
+    { value: "SK", label: "Saskatchewan" },
+    { value: "YT", label: "Yukon" },
+  ];
+
+  // ID types
+  const ID_TYPES = [
+    { value: "drivers_license", label: "Permis de conduire" },
+    { value: "health_card", label: "Carte d'assurance maladie" },
+    { value: "passport", label: "Passeport" },
+    { value: "residency_card", label: "Carte de résidence permanente" },
+  ];
 
   // Group services by category
   const groupedServices = services?.reduce((acc, service) => {
@@ -498,16 +536,23 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     return acc;
   }, {} as Record<string, Service[]>);
 
-  // Check if installation appointment is required
-  const requiresInstallation = selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category));
+  // Check if installation appointment is required (only for technician installation)
+  const requiresInstallation = installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category));
+  
+  // Check if ID details are complete
+  const isIdComplete = idType && idNumber && idExpiration && idProvince;
 
   const handleSubmit = () => {
     if (selectedServices.length === 0) {
       toast.error("Veuillez sélectionner au moins un service");
       return;
     }
-    if (!identityConfirmed) {
-      toast.error("Veuillez confirmer que vous fournirez une pièce d'identité");
+    if (!isIdComplete) {
+      toast.error("Veuillez remplir tous les champs d'identification");
+      return;
+    }
+    if (!installationChoice) {
+      toast.error("Veuillez choisir un type d'installation");
       return;
     }
     if (requiresInstallation && (!selectedDate || !selectedTime)) {
@@ -1295,29 +1340,169 @@ END:VCALENDAR`;
                       <div className="text-sm">
                         <p className="font-medium text-foreground mb-1">Important</p>
                         <p className="text-muted-foreground">
-                          Nous n'effectuons aucune vérification de crédit. Une pièce d'identité valide (permis de conduire, passeport, 
-                          carte d'assurance maladie) sera demandée lors de la confirmation de votre commande.
+                          Nous n'effectuons aucune vérification de crédit. Une pièce d'identité valide sera vérifiée lors de la confirmation de votre commande.
                         </p>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <div className="flex items-start gap-3 p-4 bg-accent/50 rounded-lg">
-                    <Checkbox 
-                      id="identity-confirm" 
-                      checked={identityConfirmed}
-                      onCheckedChange={(checked) => setIdentityConfirmed(checked === true)}
-                    />
-                    <Label htmlFor="identity-confirm" className="text-sm leading-relaxed cursor-pointer">
-                      Je confirme que je fournirai une pièce d'identité valide avec photo pour compléter ma commande.
-                      Je comprends que mon service ne sera pas activé sans cette vérification.
-                    </Label>
+                  {/* ID Details Form */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="id-type">Type de pièce d'identité *</Label>
+                      <select
+                        id="id-type"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                        value={idType}
+                        onChange={(e) => setIdType(e.target.value)}
+                      >
+                        <option value="">Sélectionner un type</option>
+                        {ID_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="id-number">Numéro de pièce d'identité *</Label>
+                      <Input
+                        id="id-number"
+                        placeholder="Ex: A1234567"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="id-expiration">Date d'expiration *</Label>
+                      <Input
+                        id="id-expiration"
+                        type="date"
+                        value={idExpiration}
+                        onChange={(e) => setIdExpiration(e.target.value)}
+                        min={format(new Date(), "yyyy-MM-dd")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="id-province">Province d'émission *</Label>
+                      <select
+                        id="id-province"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                        value={idProvince}
+                        onChange={(e) => setIdProvince(e.target.value)}
+                      >
+                        <option value="">Sélectionner une province</option>
+                        {CANADIAN_PROVINCES.map((province) => (
+                          <option key={province.value} value={province.value}>
+                            {province.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+
+                  {isIdComplete && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Informations d'identité complétées
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Appointment Scheduling - for installation services */}
-              {selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && (
+              {/* Installation Choice Selector */}
+              <Card className="bg-card border-purple-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-purple-500" />
+                    Type d'installation
+                  </CardTitle>
+                  <CardDescription>
+                    Choisissez comment vous souhaitez installer vos services
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        installationChoice === "auto"
+                          ? "border-cyan-500 bg-cyan-500/10"
+                          : "border-border hover:border-cyan-500/50"
+                      }`}
+                      onClick={() => setInstallationChoice("auto")}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          installationChoice === "auto" ? "bg-cyan-500" : "bg-muted"
+                        }`}>
+                          <Truck className={`w-5 h-5 ${installationChoice === "auto" ? "text-white" : "text-muted-foreground"}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium text-foreground">Auto-installation</p>
+                            <Badge variant="secondary" className="text-xs">30,00 $</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Équipement livré à domicile. Vous installez vous-même avec nos instructions.
+                          </p>
+                          <p className="text-xs text-cyan-500 mt-2">
+                            Frais de livraison: 30,00 $
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        installationChoice === "technician"
+                          ? "border-purple-500 bg-purple-500/10"
+                          : "border-border hover:border-purple-500/50"
+                      }`}
+                      onClick={() => setInstallationChoice("technician")}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          installationChoice === "technician" ? "bg-purple-500" : "bg-muted"
+                        }`}>
+                          <Wrench className={`w-5 h-5 ${installationChoice === "technician" ? "text-white" : "text-muted-foreground"}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium text-foreground">Technicien Nivra</p>
+                            <Badge variant="secondary" className="text-xs">{installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Un technicien se déplace pour installer et configurer vos services.
+                          </p>
+                          <p className="text-xs text-purple-500 mt-2">
+                            Frais d'installation: {installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!installationChoice && (
+                    <p className="text-sm text-amber-500 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Veuillez sélectionner un type d'installation
+                    </p>
+                  )}
+
+                  {/* Quebec address validation notice */}
+                  <Card className="bg-blue-500/10 border-blue-500/30">
+                    <CardContent className="py-3 flex items-start gap-2">
+                      <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-muted-foreground">
+                        L'installation par technicien est disponible uniquement pour les adresses au Québec.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </CardContent>
+              </Card>
+
+              {/* Appointment Scheduling - only for technician installation */}
+              {installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && (
                 <Card className="bg-card border-purple-500/30">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1331,7 +1516,7 @@ END:VCALENDAR`;
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Date préférée</Label>
+                        <Label>Date préférée *</Label>
                         <select
                           className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
                           value={selectedDate}
@@ -1351,7 +1536,7 @@ END:VCALENDAR`;
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Plage horaire</Label>
+                        <Label>Plage horaire *</Label>
                         <select
                           className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
                           value={selectedTime}
@@ -1449,21 +1634,31 @@ END:VCALENDAR`;
                       <span className="text-muted-foreground">Sous-total services</span>
                       <span className="text-foreground">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Frais de livraison (QC)</span>
-                      <span className="text-foreground">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                    </div>
+                    {installationChoice === "auto" && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-cyan-500">Frais de livraison (QC)</span>
+                        <span className="text-cyan-500">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Frais d'activation</span>
                       <span className="text-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Frais d'installation</span>
-                      <span className={installationCredit > 0 ? "text-emerald-500" : "text-foreground"}>
-                        {installationCredit > 0 && <span className="line-through text-muted-foreground mr-1">50,00 $</span>}
-                        {installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </span>
-                    </div>
+                    {installationChoice === "technician" && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-500">Frais d'installation</span>
+                        <span className={installationCredit > 0 ? "text-emerald-500" : "text-purple-500"}>
+                          {installationCredit > 0 && <span className="line-through text-muted-foreground mr-1">50,00 $</span>}
+                          {installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </span>
+                      </div>
+                    )}
+                    {!installationChoice && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground italic">Sélectionnez un type d'installation</span>
+                        <span className="text-muted-foreground">—</span>
+                      </div>
+                    )}
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-blue-500">{SIM_CONFIG.name}</span>
@@ -1498,8 +1693,15 @@ END:VCALENDAR`;
                       variant="hero"
                       className="w-full"
                       size="lg"
-                      onClick={() => setStep(4)}
-                      disabled={!identityConfirmed}
+                      onClick={() => {
+                        // Dynamic step calculation for final confirmation
+                        let nextStep = 4;
+                        if (hasTVService && hasMobileService) nextStep = 5;
+                        else if (hasTVService || hasMobileService) nextStep = 4;
+                        else nextStep = 3;
+                        setStep(nextStep);
+                      }}
+                      disabled={!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime))}
                     >
                       Réviser et confirmer
                       <ArrowRight className="w-4 h-4 ml-2" />
@@ -1507,10 +1709,15 @@ END:VCALENDAR`;
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => setStep(hasTVService ? 2 : 1)}
+                      onClick={() => {
+                        if (hasMobileService && !hasTVService) setStep(2);
+                        else if (hasTVService && !hasMobileService) setStep(2);
+                        else if (hasTVService && hasMobileService) setStep(3);
+                        else setStep(1);
+                      }}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
-                      {hasTVService ? "Modifier les chaînes" : "Modifier la sélection"}
+                      Retour
                     </Button>
                   </div>
                 </CardContent>
@@ -1519,8 +1726,10 @@ END:VCALENDAR`;
           </div>
         )}
 
-        {/* Step 4: Final Confirmation */}
-        {step === 4 && (
+        {/* Final Confirmation Step - Dynamic based on service selection */}
+        {((step === 3 && !hasTVService && !hasMobileService) ||
+          (step === 4 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
+          (step === 5 && hasTVService && hasMobileService)) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card className="bg-card border-border">
@@ -1802,8 +2011,10 @@ END:VCALENDAR`;
           </div>
         )}
 
-        {/* Step 5: Professional Order Confirmation */}
-        {step === 5 && createdOrder && (
+        {/* Completed Step - Dynamic based on service selection */}
+        {((step === 4 && !hasTVService && !hasMobileService) ||
+          (step === 5 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
+          (step === 6 && hasTVService && hasMobileService)) && createdOrder && (
           <div className="space-y-6 max-w-4xl mx-auto">
             {/* Success Banner */}
             <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
