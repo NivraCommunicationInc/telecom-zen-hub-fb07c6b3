@@ -27,7 +27,7 @@ const ClientProfile = () => {
         .from("profiles")
         .select("*")
         .eq("user_id", user?.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
