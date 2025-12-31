@@ -169,6 +169,48 @@ export type Database = {
           },
         ]
       }
+      channel_packages: {
+        Row: {
+          category: string
+          channels: Json
+          created_at: string
+          description: string | null
+          discounted_price: number
+          id: string
+          is_active: boolean | null
+          name: string
+          original_price: number
+          savings_percent: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          channels?: Json
+          created_at?: string
+          description?: string | null
+          discounted_price?: number
+          id?: string
+          is_active?: boolean | null
+          name: string
+          original_price?: number
+          savings_percent?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          channels?: Json
+          created_at?: string
+          description?: string | null
+          discounted_price?: number
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          original_price?: number
+          savings_percent?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       channel_selections: {
         Row: {
           channels: Json
