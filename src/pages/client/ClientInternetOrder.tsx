@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Wifi, 
   Check, 
@@ -30,7 +31,9 @@ import {
   Package, 
   Info,
   XCircle,
-  Sparkles
+  Sparkles,
+  Truck,
+  Wrench
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -165,6 +168,9 @@ const ClientInternetOrder = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [routerAcknowledged, setRouterAcknowledged] = useState(false);
   
+  // Installation method
+  const [installationMethod, setInstallationMethod] = useState<"auto" | "technician">("auto");
+  
   // Installation scheduling
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
@@ -241,12 +247,12 @@ const ClientInternetOrder = () => {
     }
   };
 
-  // Calculate totals
+  // Calculate totals - fee logic based on installation method
   const planPrice = selectedPlan?.price || 0;
   const routerFee = ROUTER_DETAILS.price;
-  const deliveryFee = 30;
+  const deliveryFee = installationMethod === "auto" ? 30 : 0; // Only charge delivery for auto-installation
   const activationFee = 25;
-  const installationFee = Math.max(0, 50 - installationCredit);
+  const installationFee = installationMethod === "technician" ? Math.max(0, 50 - installationCredit) : 0; // Only charge installation for technician
   const monthlySubtotal = planPrice;
   const oneTimeTotal = routerFee + deliveryFee + activationFee + installationFee;
   const tpsAmount = Math.round((oneTimeTotal) * 0.05 * 100) / 100;
@@ -264,9 +270,9 @@ const ClientInternetOrder = () => {
         service_type: selectedPlan.name,
         category: "Internet",
         subtotal: planPrice,
-        delivery_fee: deliveryFee,
+        delivery_fee: installationMethod === "auto" ? 30 : 0,
         activation_fee: activationFee,
-        installation_fee: 50,
+        installation_fee: installationMethod === "technician" ? 50 : 0,
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
@@ -640,7 +646,56 @@ const ClientInternetOrder = () => {
                 </CardContent>
               </Card>
 
-              {/* Identity Verification */}
+              {/* Installation Method */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-amber-500" />
+                    {isFrench ? "Méthode d'installation" : "Installation Method"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup value={installationMethod} onValueChange={(v) => setInstallationMethod(v as "auto" | "technician")}>
+                    <div className="space-y-4">
+                      <div className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        installationMethod === "auto" ? "border-emerald-500 bg-emerald-500/5" : "border-border"
+                      }`} onClick={() => setInstallationMethod("auto")}>
+                        <RadioGroupItem value="auto" id="auto" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="auto" className="text-base font-medium cursor-pointer flex items-center gap-2">
+                            <Truck className="w-4 h-4 text-emerald-500" />
+                            {isFrench ? "Auto-installation" : "Self-installation"}
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {isFrench 
+                              ? "Recevez votre équipement par la poste et installez-le vous-même. Frais de livraison: $30"
+                              : "Receive your equipment by mail and install it yourself. Delivery fee: $30"}
+                          </p>
+                        </div>
+                        <Badge className="bg-emerald-500">{isFrench ? "Économique" : "Economical"}</Badge>
+                      </div>
+
+                      <div className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        installationMethod === "technician" ? "border-cyan-500 bg-cyan-500/5" : "border-border"
+                      }`} onClick={() => setInstallationMethod("technician")}>
+                        <RadioGroupItem value="technician" id="technician" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="technician" className="text-base font-medium cursor-pointer flex items-center gap-2">
+                            <Wrench className="w-4 h-4 text-cyan-500" />
+                            {isFrench ? "Installation par technicien Nivra" : "Nivra Technician Installation"}
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {isFrench 
+                              ? "Un technicien Nivra se déplace chez vous pour l'installation. Frais d'installation: $50"
+                              : "A Nivra technician comes to your home for installation. Installation fee: $50"}
+                          </p>
+                        </div>
+                        <Badge className="bg-cyan-500">{isFrench ? "Recommandé" : "Recommended"}</Badge>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </CardContent>
+              </Card>
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -805,25 +860,31 @@ const ClientInternetOrder = () => {
                       <span className="text-muted-foreground">{ROUTER_DETAILS.name}</span>
                       <span>${ROUTER_DETAILS.price}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{isFrench ? "Livraison" : "Delivery"}</span>
-                      <span>${deliveryFee}</span>
-                    </div>
+                    {installationMethod === "auto" && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{isFrench ? "Livraison" : "Delivery"}</span>
+                        <span>${deliveryFee}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{isFrench ? "Activation" : "Activation"}</span>
                       <span>${activationFee}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{isFrench ? "Installation" : "Installation"}</span>
-                      <span className={installationCredit > 0 ? "line-through text-muted-foreground" : ""}>
-                        $50
-                      </span>
-                    </div>
-                    {installationCredit > 0 && (
-                      <div className="flex justify-between text-sm text-emerald-500">
-                        <span>{isFrench ? "Rabais installation" : "Installation discount"}</span>
-                        <span>-${installationCredit}</span>
-                      </div>
+                    {installationMethod === "technician" && (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{isFrench ? "Installation technicien" : "Technician Installation"}</span>
+                          <span className={installationCredit > 0 ? "line-through text-muted-foreground" : ""}>
+                            $50
+                          </span>
+                        </div>
+                        {installationCredit > 0 && (
+                          <div className="flex justify-between text-sm text-emerald-500">
+                            <span>{isFrench ? "Rabais installation" : "Installation discount"}</span>
+                            <span>-${installationCredit}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
