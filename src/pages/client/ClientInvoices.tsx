@@ -36,6 +36,8 @@ const ClientInvoices = () => {
   const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [generalPaymentOpen, setGeneralPaymentOpen] = useState(false);
+  const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("etransfer");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -519,6 +521,16 @@ const ClientInvoices = () => {
                               </td>
                               <td className="py-3 px-4">
                                 <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      setPreviewInvoice(inv);
+                                      setInvoicePreviewOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
                                   <Button 
                                     size="sm" 
                                     variant="outline"
@@ -1052,6 +1064,201 @@ const ClientInvoices = () => {
                 </div>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Invoice Preview Dialog */}
+        <Dialog open={invoicePreviewOpen} onOpenChange={setInvoicePreviewOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-cyan-400" />
+                Aperçu de la facture
+              </DialogTitle>
+            </DialogHeader>
+            {previewInvoice && (() => {
+              const isOverdue = previewInvoice.due_date && isPast(parseISO(previewInvoice.due_date)) && previewInvoice.status !== "paid";
+              const lateFeeAmount = isOverdue && !previewInvoice.late_fee_applied ? Number(previewInvoice.amount) * 0.05 : 0;
+              const total = Number(previewInvoice.amount || 0) + Number(previewInvoice.fees || 0) + lateFeeAmount - Number(previewInvoice.credits || 0);
+              
+              return (
+                <div className="space-y-6 py-4">
+                  {/* Header */}
+                  <div className="bg-cyan-500 text-white rounded-lg p-6 text-center">
+                    <h2 className="text-2xl font-bold">NIVRA</h2>
+                    <p className="text-sm opacity-90">Courtier Télécom Indépendant</p>
+                    <p className="text-xs opacity-75 mt-1">514-757-5162 | info@nivra.ca</p>
+                  </div>
+
+                  {/* Invoice Info */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold">FACTURE</h3>
+                      <p className="text-sm text-muted-foreground">
+                        N° {previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase()}
+                      </p>
+                    </div>
+                    <Badge className={`${
+                      isOverdue && previewInvoice.status !== "paid" 
+                        ? "bg-red-500/20 text-red-500" 
+                        : previewInvoice.status === "paid" 
+                          ? "bg-emerald-500/20 text-emerald-500" 
+                          : "bg-amber-500/20 text-amber-500"
+                    } text-sm px-3 py-1`}>
+                      {isOverdue && previewInvoice.status !== "paid" ? "En retard" : 
+                       previewInvoice.status === "paid" ? "Payée" : "En attente"}
+                    </Badge>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-4 bg-muted rounded-lg p-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Date d'émission</p>
+                      <p className="font-medium">{format(new Date(previewInvoice.created_at), "d MMMM yyyy", { locale: fr })}</p>
+                    </div>
+                    {previewInvoice.due_date && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase">Date d'échéance</p>
+                        <p className={`font-medium ${isOverdue ? "text-red-500" : ""}`}>
+                          {format(new Date(previewInvoice.due_date), "d MMMM yyyy", { locale: fr })}
+                          {isOverdue && <AlertTriangle className="w-4 h-4 inline ml-1" />}
+                        </p>
+                      </div>
+                    )}
+                    {previewInvoice.paid_at && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase">Payé le</p>
+                        <p className="font-medium text-emerald-500">
+                          {format(new Date(previewInvoice.paid_at), "d MMMM yyyy", { locale: fr })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Client Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border border-cyan-500/30 rounded-lg p-4">
+                      <h4 className="font-bold text-cyan-500 mb-2 text-sm">DE</h4>
+                      <p className="text-sm font-medium">Nivra Télécommunications</p>
+                      <p className="text-xs text-muted-foreground">Montréal, QC</p>
+                      <p className="text-xs text-muted-foreground">514-757-5162</p>
+                      <p className="text-xs text-muted-foreground">info@nivra.ca</p>
+                    </div>
+                    <div className="border border-cyan-500/30 rounded-lg p-4">
+                      <h4 className="font-bold text-cyan-500 mb-2 text-sm">À</h4>
+                      <p className="text-sm font-medium">{profile?.full_name || "Client"}</p>
+                      <p className="text-xs text-muted-foreground">{profile?.email || user?.email}</p>
+                      {profile?.phone && <p className="text-xs text-muted-foreground">{profile.phone}</p>}
+                    </div>
+                  </div>
+
+                  {/* Line Items */}
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="bg-cyan-500 text-white px-4 py-2 grid grid-cols-2">
+                      <span className="font-medium text-sm">Description</span>
+                      <span className="font-medium text-sm text-right">Montant</span>
+                    </div>
+                    <div className="divide-y divide-border">
+                      <div className="px-4 py-3 grid grid-cols-2">
+                        <span className="text-sm">Services de courtage télécom</span>
+                        <span className="text-sm text-right">
+                          {Number(previewInvoice.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </span>
+                      </div>
+                      {Number(previewInvoice.fees || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm">Frais additionnels</span>
+                          <span className="text-sm text-right text-amber-500">
+                            +{Number(previewInvoice.fees || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {lateFeeAmount > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2 bg-red-50 dark:bg-red-950/20">
+                          <span className="text-sm text-red-600 dark:text-red-400">Frais de retard (5%)</span>
+                          <span className="text-sm text-right text-red-600 dark:text-red-400">
+                            +{lateFeeAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {Number(previewInvoice.credits || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2 bg-emerald-50 dark:bg-emerald-950/20">
+                          <span className="text-sm text-emerald-600 dark:text-emerald-400">Crédits appliqués</span>
+                          <span className="text-sm text-right text-emerald-600 dark:text-emerald-400">
+                            -{Number(previewInvoice.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-muted px-4 py-3 grid grid-cols-2">
+                      <span className="font-bold">TOTAL À PAYER</span>
+                      <span className="font-bold text-right text-cyan-500">
+                        {total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {previewInvoice.notes && (
+                    <div className="bg-muted rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground uppercase mb-1">Notes</p>
+                      <p className="text-sm">{previewInvoice.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Payment Info */}
+                  <div className="bg-muted rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground uppercase mb-2">Informations de paiement</p>
+                    <p className="text-sm"><strong>Virement Interac :</strong> NivraTelecom@gmail.com</p>
+                    <p className="text-sm"><strong>Question :</strong> Nom du client ou nom de l'entreprise</p>
+                    <p className="text-sm"><strong>Réponse :</strong> Votre nom complet ou le nom de votre entreprise</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-4 border-t">
+                    <Button variant="outline" className="flex-1" onClick={() => setInvoicePreviewOpen(false)}>
+                      Fermer
+                    </Button>
+                    <Button 
+                      variant="hero" 
+                      className="flex-1"
+                      onClick={() => {
+                        downloadInvoicePDF({
+                          invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
+                          clientName: profile?.full_name || "Client",
+                          clientEmail: profile?.email || user?.email || "",
+                          clientPhone: profile?.phone,
+                          amount: Number(previewInvoice.amount) || 0,
+                          fees: Number(previewInvoice.fees) || 0,
+                          credits: Number(previewInvoice.credits) || 0,
+                          dueDate: previewInvoice.due_date,
+                          createdAt: previewInvoice.created_at,
+                          status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
+                          paidAt: previewInvoice.paid_at,
+                          notes: previewInvoice.notes,
+                        });
+                        toast.success("Facture téléchargée");
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Télécharger PDF
+                    </Button>
+                    {previewInvoice.status !== "paid" && (
+                      <Button 
+                        className="flex-1"
+                        onClick={() => {
+                          setInvoicePreviewOpen(false);
+                          handlePayClick(previewInvoice);
+                        }}
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Payer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       </div>
