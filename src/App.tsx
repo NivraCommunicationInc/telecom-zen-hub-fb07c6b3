@@ -27,6 +27,7 @@ import AdminActivityLogs from "./pages/admin/AdminActivityLogs";
 import AdminAppointments from "./pages/admin/AdminAppointments";
 import AdminCareers from "./pages/admin/AdminCareers";
 import AdminApplications from "./pages/admin/AdminApplications";
+import AdminTickets from "./pages/admin/AdminTickets";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 import ClientProtectedRoute from "./components/client/ClientProtectedRoute";
 import ClientAuth from "./pages/client/ClientAuth";
@@ -38,6 +39,7 @@ import ClientSubscriptions from "./pages/client/ClientSubscriptions";
 import ClientProfile from "./pages/client/ClientProfile";
 import ClientPayments from "./pages/client/ClientPayments";
 import ClientOrders from "./pages/client/ClientOrders";
+import ClientContracts from "./pages/client/ClientContracts";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +73,7 @@ const App = () => (
               <Route path="/admin/appointments" element={<ProtectedRoute requireAdmin><AdminAppointments /></ProtectedRoute>} />
               <Route path="/admin/careers" element={<ProtectedRoute requireAdmin><AdminCareers /></ProtectedRoute>} />
               <Route path="/admin/applications" element={<ProtectedRoute requireAdmin><AdminApplications /></ProtectedRoute>} />
+              <Route path="/admin/tickets" element={<ProtectedRoute requireAdmin><AdminTickets /></ProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
@@ -81,6 +84,7 @@ const App = () => (
               <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
               <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
               <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
+              <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientContracts /></ClientProtectedRoute>} />
               <Route path="/not-authorized" element={<NotAuthorized />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
