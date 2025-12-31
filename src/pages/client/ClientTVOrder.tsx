@@ -45,6 +45,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 
 // TV + Internet plan configurations
 const TV_PLANS = [
@@ -212,7 +213,6 @@ const ClientTVOrder = () => {
   const [notes, setNotes] = useState("");
   const [discountCode, setDiscountCode] = useState("");
   const [installationCredit, setInstallationCredit] = useState(0);
-  const [identityConfirmed, setIdentityConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   
   // Installation scheduling
@@ -221,6 +221,23 @@ const ClientTVOrder = () => {
   
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
+
+  // ID verification data
+  const [clientIdData, setClientIdData] = useState<ClientIDData>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    serviceAddress: "",
+    serviceCity: "",
+    serviceProvince: "QC",
+    servicePostalCode: "",
+    idType: "",
+    idNumber: "",
+    idExpiration: "",
+    idProvince: ""
+  });
 
   // Fetch client profile
   const { data: profile } = useQuery({
@@ -236,6 +253,29 @@ const ClientTVOrder = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Initialize client ID data from profile when available
+  useEffect(() => {
+    if (profile) {
+      const nameParts = profile.full_name?.split(' ') || [];
+      setClientIdData(prev => ({
+        ...prev,
+        firstName: profile.first_name || nameParts[0] || prev.firstName,
+        lastName: profile.last_name || nameParts.slice(1).join(' ') || prev.lastName,
+        email: profile.email || user?.email || prev.email,
+        phone: profile.phone || prev.phone,
+        dateOfBirth: profile.date_of_birth || prev.dateOfBirth,
+        serviceAddress: profile.service_address || address || prev.serviceAddress,
+        serviceCity: profile.service_city || prev.serviceCity,
+        serviceProvince: profile.service_province || "QC",
+        servicePostalCode: profile.service_postal_code || prev.servicePostalCode,
+        idType: profile.id_type || prev.idType,
+        idNumber: profile.id_number || prev.idNumber,
+        idExpiration: profile.id_expiration || prev.idExpiration,
+        idProvince: profile.id_province || prev.idProvince
+      }));
+    }
+  }, [profile, user?.email, address]);
 
   // Fetch available channels for selection
   const { data: availableChannels = [] } = useQuery({
@@ -321,9 +361,32 @@ const ClientTVOrder = () => {
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
 
+      // First, update the profile with ID information
+      const { error: profileError } = await supabase.from("profiles").update({
+        first_name: clientIdData.firstName,
+        last_name: clientIdData.lastName,
+        full_name: `${clientIdData.firstName} ${clientIdData.lastName}`,
+        email: clientIdData.email,
+        phone: clientIdData.phone,
+        date_of_birth: clientIdData.dateOfBirth || null,
+        service_address: address,
+        service_city: addressValidation?.city || null,
+        service_province: addressValidation?.province || "QC",
+        service_postal_code: addressValidation?.postalCode || null,
+        id_type: clientIdData.idType,
+        id_number: clientIdData.idNumber,
+        id_expiration: clientIdData.idExpiration || null,
+        id_province: clientIdData.idProvince
+      }).eq("user_id", user.id);
+
+      if (profileError) {
+        console.error("Profile update error:", profileError);
+      }
+
+      // Create the order (DO NOT include ID data or channel selections in visible order notes)
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
-        client_email: profile?.email || user.email,
+        client_email: clientIdData.email || profile?.email || user.email,
         service_type: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
         category: "TV + Internet",
         subtotal: planPrice,
@@ -336,6 +399,7 @@ const ClientTVOrder = () => {
         created_by: "client",
         notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
+${isFrench ? "Date préférée" : "Preferred date"}: ${selectedDate ? format(new Date(selectedDate), "d MMMM yyyy", { locale: isFrench ? fr : undefined }) : "N/A"} ${selectedTime}
 ${isFrench ? "Nombre de terminaux" : "Number of terminals"}: ${terminalCount}
 ${notes || ""}`.trim(),
         internal_notes: `Equipment: Nivra Born Wifi Router ($60) + ${terminalCount}x Nivra 4K Smart Terminal ($${terminalFee})`,
@@ -346,6 +410,7 @@ ${notes || ""}`.trim(),
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-profile"] });
       setCreatedOrder(data);
       setStep(5);
     },
@@ -360,10 +425,14 @@ ${notes || ""}`.trim(),
       toast.error(isFrench ? "Veuillez sélectionner un forfait" : "Please select a plan");
       return;
     }
-    if (!identityConfirmed) {
-      toast.error(isFrench ? "Veuillez confirmer que vous fournirez une pièce d'identité" : "Please confirm you will provide a government ID");
+    
+    // Validate ID data
+    const idValidation = validateIDData(clientIdData, false);
+    if (!idValidation.valid) {
+      toast.error(isFrench ? "Veuillez compléter toutes les informations d'identité" : "Please complete all identity information");
       return;
     }
+    
     if (!routerAcknowledged) {
       toast.error(isFrench ? "Veuillez confirmer l'achat de l'équipement" : "Please confirm equipment purchase");
       return;
@@ -1033,7 +1102,7 @@ ${notes || ""}`.trim(),
                   size="lg" 
                   className="w-full"
                   onClick={handleSubmit}
-                  disabled={createOrderMutation.isPending || !routerAcknowledged || !identityConfirmed || !termsAccepted || !selectedDate || !selectedTime}
+                  disabled={createOrderMutation.isPending || !routerAcknowledged || !validateIDData(clientIdData, false).valid || !termsAccepted || !selectedDate || !selectedTime}
                 >
                   {createOrderMutation.isPending ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

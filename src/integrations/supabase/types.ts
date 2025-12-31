@@ -734,14 +734,25 @@ export type Database = {
           client_number: string | null
           client_type: string | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
           employer_discount: string | null
           employer_sector: string | null
+          first_name: string | null
           full_name: string | null
           id: string
+          id_expiration: string | null
+          id_number: string | null
+          id_province: string | null
+          id_type: string | null
           internal_notes: string | null
+          last_name: string | null
           phone: string | null
           sector_tags: string[] | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          service_province: string | null
           store_credit: number | null
           updated_at: string
           user_id: string
@@ -752,14 +763,25 @@ export type Database = {
           client_number?: string | null
           client_type?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          id_expiration?: string | null
+          id_number?: string | null
+          id_province?: string | null
+          id_type?: string | null
           internal_notes?: string | null
+          last_name?: string | null
           phone?: string | null
           sector_tags?: string[] | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
           store_credit?: number | null
           updated_at?: string
           user_id: string
@@ -770,14 +792,25 @@ export type Database = {
           client_number?: string | null
           client_type?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          id_expiration?: string | null
+          id_number?: string | null
+          id_province?: string | null
+          id_type?: string | null
           internal_notes?: string | null
+          last_name?: string | null
           phone?: string | null
           sector_tags?: string[] | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
           store_credit?: number | null
           updated_at?: string
           user_id?: string

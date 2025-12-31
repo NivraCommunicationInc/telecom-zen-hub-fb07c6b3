@@ -41,6 +41,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -164,7 +165,6 @@ const ClientInternetOrder = () => {
   const [notes, setNotes] = useState("");
   const [discountCode, setDiscountCode] = useState("");
   const [installationCredit, setInstallationCredit] = useState(0);
-  const [identityConfirmed, setIdentityConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [routerAcknowledged, setRouterAcknowledged] = useState(false);
   
@@ -177,6 +177,24 @@ const ClientInternetOrder = () => {
   
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
+  
+  // ID verification data
+  const [clientIdData, setClientIdData] = useState<ClientIDData>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    serviceAddress: "",
+    serviceCity: "",
+    serviceProvince: "QC",
+    servicePostalCode: "",
+    idType: "",
+    idNumber: "",
+    idExpiration: "",
+    idProvince: ""
+  });
+  const [idAddressValid, setIdAddressValid] = useState(false);
 
   // Fetch client profile
   const { data: profile } = useQuery({
@@ -186,12 +204,35 @@ const ClientInternetOrder = () => {
         .from("profiles")
         .select("*")
         .eq("user_id", user?.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
   });
+
+  // Initialize client ID data from profile when available
+  useEffect(() => {
+    if (profile) {
+      const nameParts = profile.full_name?.split(' ') || [];
+      setClientIdData(prev => ({
+        ...prev,
+        firstName: profile.first_name || nameParts[0] || prev.firstName,
+        lastName: profile.last_name || nameParts.slice(1).join(' ') || prev.lastName,
+        email: profile.email || user?.email || prev.email,
+        phone: profile.phone || prev.phone,
+        dateOfBirth: profile.date_of_birth || prev.dateOfBirth,
+        serviceAddress: profile.service_address || address || prev.serviceAddress,
+        serviceCity: profile.service_city || prev.serviceCity,
+        serviceProvince: profile.service_province || "QC",
+        servicePostalCode: profile.service_postal_code || prev.servicePostalCode,
+        idType: profile.id_type || prev.idType,
+        idNumber: profile.id_number || prev.idNumber,
+        idExpiration: profile.id_expiration || prev.idExpiration,
+        idProvince: profile.id_province || prev.idProvince
+      }));
+    }
+  }, [profile, user?.email, address]);
 
   // Handle address selection from autocomplete
   const handleAddressSelect = useCallback((details: { 
@@ -264,9 +305,32 @@ const ClientInternetOrder = () => {
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
 
+      // First, update the profile with ID information
+      const { error: profileError } = await supabase.from("profiles").update({
+        first_name: clientIdData.firstName,
+        last_name: clientIdData.lastName,
+        full_name: `${clientIdData.firstName} ${clientIdData.lastName}`,
+        email: clientIdData.email,
+        phone: clientIdData.phone,
+        date_of_birth: clientIdData.dateOfBirth || null,
+        service_address: address,
+        service_city: addressValidation?.city || null,
+        service_province: addressValidation?.province || "QC",
+        service_postal_code: addressValidation?.postalCode || null,
+        id_type: clientIdData.idType,
+        id_number: clientIdData.idNumber,
+        id_expiration: clientIdData.idExpiration || null,
+        id_province: clientIdData.idProvince
+      }).eq("user_id", user.id);
+
+      if (profileError) {
+        console.error("Profile update error:", profileError);
+      }
+
+      // Create the order (DO NOT include ID data in order notes for privacy)
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
-        client_email: profile?.email || user.email,
+        client_email: clientIdData.email || profile?.email || user.email,
         service_type: selectedPlan.name,
         category: "Internet",
         subtotal: planPrice,
@@ -277,7 +341,10 @@ const ClientInternetOrder = () => {
         discount_code: discountCode || null,
         status: "pending",
         created_by: "client",
-        notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}\n${notes || ""}`.trim(),
+        notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
+${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
+${isFrench ? "Date préférée" : "Preferred date"}: ${selectedDate ? format(new Date(selectedDate), "d MMMM yyyy", { locale: isFrench ? fr : undefined }) : "N/A"} ${selectedTime}
+${notes || ""}`.trim(),
         internal_notes: `Router: Nivra Born Wifi ($60 paid upfront)`,
       }).select().single();
 
@@ -286,6 +353,7 @@ const ClientInternetOrder = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-profile"] });
       setCreatedOrder(data);
       setStep(5);
     },
@@ -300,10 +368,14 @@ const ClientInternetOrder = () => {
       toast.error(isFrench ? "Veuillez sélectionner un forfait" : "Please select a plan");
       return;
     }
-    if (!identityConfirmed) {
-      toast.error(isFrench ? "Veuillez confirmer que vous fournirez une pièce d'identité" : "Please confirm you will provide a government ID");
+    
+    // Validate ID data
+    const idValidation = validateIDData(clientIdData, false);
+    if (!idValidation.valid) {
+      toast.error(isFrench ? "Veuillez compléter toutes les informations d'identité" : "Please complete all identity information");
       return;
     }
+    
     if (!routerAcknowledged) {
       toast.error(isFrench ? "Veuillez confirmer l'achat du routeur" : "Please confirm router purchase");
       return;
@@ -696,44 +768,14 @@ const ClientInternetOrder = () => {
                   </RadioGroup>
                 </CardContent>
               </Card>
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Vérification d'identité" : "Identity Verification"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Card className="bg-amber-500/10 border-amber-500/30">
-                    <CardContent className="py-4 flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {isFrench ? "Pièce d'identité gouvernementale requise" : "Government ID required"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {isFrench 
-                            ? "Une pièce d'identité avec photo est requise pour valider toute commande."
-                            : "A photo ID is required to validate any order."}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="identity-confirmed"
-                      checked={identityConfirmed}
-                      onCheckedChange={(checked) => setIdentityConfirmed(checked as boolean)}
-                    />
-                    <Label htmlFor="identity-confirmed" className="text-sm text-muted-foreground cursor-pointer">
-                      {isFrench 
-                        ? "Je confirme que je fournirai une pièce d'identité gouvernementale valide avec photo."
-                        : "I confirm that I will provide a valid government-issued photo ID."}
-                    </Label>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Client ID Verification Form */}
+              <ClientIDVerificationForm
+                isFrench={isFrench}
+                data={clientIdData}
+                onChange={setClientIdData}
+                showServiceAddress={false}
+                existingProfile={profile}
+              />
 
               {/* Installation Scheduling */}
               <Card className="bg-card border-border">
@@ -916,7 +958,7 @@ const ClientInternetOrder = () => {
                       className="w-full"
                       size="lg"
                       onClick={() => setStep(4)}
-                      disabled={!routerAcknowledged || !identityConfirmed || !selectedDate || !selectedTime}
+                      disabled={!routerAcknowledged || !validateIDData(clientIdData, false).valid || !selectedDate || !selectedTime}
                     >
                       {isFrench ? "Continuer" : "Continue"}
                       <ArrowRight className="w-4 h-4 ml-2" />
