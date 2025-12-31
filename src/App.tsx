@@ -40,7 +40,7 @@ import ClientProfile from "./pages/client/ClientProfile";
 import ClientPayments from "./pages/client/ClientPayments";
 import ClientOrders from "./pages/client/ClientOrders";
 import ClientContracts from "./pages/client/ClientContracts";
-
+import ClientNewOrder from "./pages/client/ClientNewOrder";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -79,6 +79,7 @@ const App = () => (
               <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
               <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientAppointments /></ClientProtectedRoute>} />
               <Route path="/portal/orders" element={<ClientProtectedRoute><ClientOrders /></ClientProtectedRoute>} />
+              <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientNewOrder /></ClientProtectedRoute>} />
               <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientInvoices /></ClientProtectedRoute>} />
               <Route path="/portal/subscriptions" element={<ClientProtectedRoute><ClientSubscriptions /></ClientProtectedRoute>} />
               <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />

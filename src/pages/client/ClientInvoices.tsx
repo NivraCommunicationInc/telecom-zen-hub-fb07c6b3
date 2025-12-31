@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle } from "lucide-react";
+import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, isPast, parseISO } from "date-fns";
@@ -14,7 +14,7 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { downloadInvoicePDF, viewInvoicePDF } from "@/lib/invoicePdfGenerator";
+import { downloadInvoicePDF, generateInvoicePDF } from "@/lib/invoicePdfGenerator";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -1215,13 +1215,44 @@ const ClientInvoices = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-3 pt-4 border-t">
-                    <Button variant="outline" className="flex-1" onClick={() => setInvoicePreviewOpen(false)}>
+                  <div className="flex flex-wrap gap-3 pt-4 border-t">
+                    <Button variant="outline" onClick={() => setInvoicePreviewOpen(false)}>
                       Fermer
                     </Button>
                     <Button 
-                      variant="hero" 
-                      className="flex-1"
+                      variant="outline"
+                      onClick={() => {
+                        const invoiceData = {
+                          invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
+                          clientName: profile?.full_name || "Client",
+                          clientEmail: profile?.email || user?.email || "",
+                          clientPhone: profile?.phone,
+                          amount: Number(previewInvoice.amount) || 0,
+                          fees: Number(previewInvoice.fees) || 0,
+                          credits: Number(previewInvoice.credits) || 0,
+                          dueDate: previewInvoice.due_date,
+                          createdAt: previewInvoice.created_at,
+                          status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
+                          paidAt: previewInvoice.paid_at,
+                          notes: previewInvoice.notes,
+                        };
+                        const doc = generateInvoicePDF(invoiceData);
+                        const pdfBlob = doc.output("blob");
+                        const url = URL.createObjectURL(pdfBlob);
+                        const printWindow = window.open(url, "_blank");
+                        if (printWindow) {
+                          printWindow.onload = () => {
+                            printWindow.print();
+                          };
+                        }
+                        toast.success("Ouverture pour impression...");
+                      }}
+                    >
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimer
+                    </Button>
+                    <Button 
+                      variant="hero"
                       onClick={() => {
                         downloadInvoicePDF({
                           invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
@@ -1245,7 +1276,6 @@ const ClientInvoices = () => {
                     </Button>
                     {previewInvoice.status !== "paid" && (
                       <Button 
-                        className="flex-1"
                         onClick={() => {
                           setInvoicePreviewOpen(false);
                           handlePayClick(previewInvoice);
