@@ -15,6 +15,7 @@ const Header = () => {
 
   const navLinks = [
     { label: t('nav.services'), href: "/services", isPage: true },
+    { label: "Internet", href: "/internet", isPage: true },
     { label: t('howitworks.badge'), href: "how-it-works", isPage: false },
     { label: t('benefits.badge'), href: "benefits", isPage: false },
     { label: t('nav.contact'), href: "contact", isPage: false },
