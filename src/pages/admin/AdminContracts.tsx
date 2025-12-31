@@ -157,9 +157,31 @@ const AdminContracts = () => {
     setIsPreviewDialogOpen(true);
   };
 
-  const handleSendContract = (contract: any) => {
-    // TODO: Implement email sending
-    toast.info("Fonctionnalité d'envoi par courriel à venir");
+  const handleSendContract = async (contract: any) => {
+    const client = contract.profiles;
+    if (!client?.email) {
+      toast.error("Aucun courriel client disponible");
+      return;
+    }
+
+    try {
+      const portalUrl = `${window.location.origin}/portal/contracts`;
+      
+      await supabase.functions.invoke("send-contract-notification", {
+        body: {
+          email: client.email,
+          name: client.full_name || "Client",
+          contractName: contract.contract_name,
+          contractNumber: contract.contract_url || `NIVRA-${contract.id.slice(0, 8).toUpperCase()}`,
+          portalUrl,
+        },
+      });
+
+      toast.success("Notification envoyée au client");
+    } catch (error) {
+      console.error("Failed to send contract notification:", error);
+      toast.error("Erreur lors de l'envoi de la notification");
+    }
   };
 
   const handleCreateContract = () => {
