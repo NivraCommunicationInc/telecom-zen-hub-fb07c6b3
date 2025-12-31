@@ -14,10 +14,10 @@ const Header = () => {
   const { t } = useLanguage();
 
   const navLinks = [
-    { label: t('nav.services'), href: "services" },
-    { label: t('howitworks.badge'), href: "how-it-works" },
-    { label: t('benefits.badge'), href: "benefits" },
-    { label: t('nav.contact'), href: "contact" },
+    { label: t('nav.services'), href: "/services", isPage: true },
+    { label: t('howitworks.badge'), href: "how-it-works", isPage: false },
+    { label: t('benefits.badge'), href: "benefits", isPage: false },
+    { label: t('nav.contact'), href: "contact", isPage: false },
   ];
 
   // Determine the portal link based on auth status
@@ -73,13 +73,23 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <button
-                key={link.href}
-                onClick={() => scrollToSection(link.href)}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                {link.label}
-              </button>
+              link.isPage ? (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <button
+                  key={link.href}
+                  onClick={() => scrollToSection(link.href)}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  {link.label}
+                </button>
+              )
             ))}
           </nav>
 

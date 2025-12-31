@@ -13,6 +13,7 @@ import FAQ from "./pages/FAQ";
 import BookConsultation from "./pages/BookConsultation";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
+import ServicesDetail from "./pages/ServicesDetail";
 import NotFound from "./pages/NotFound";
 import NotAuthorized from "./pages/NotAuthorized";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -54,6 +55,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/about" element={<About />} />
+              <Route path="/services" element={<ServicesDetail />} />
               <Route path="/careers" element={<Careers />} />
               <Route path="/apply" element={<JobApplication />} />
               <Route path="/apply/:jobId" element={<JobApplication />} />
