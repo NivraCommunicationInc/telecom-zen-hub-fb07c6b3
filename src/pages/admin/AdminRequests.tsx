@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MessageSquare, Eye, Send, Flag } from "lucide-react";
+import { MessageSquare, Eye, Send, Flag, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -66,7 +67,6 @@ const AdminRequests = () => {
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [replyContent, setReplyContent] = useState("");
 
@@ -81,6 +81,23 @@ const AdminRequests = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch replies for the selected request
+  const { data: replies, refetch: refetchReplies } = useQuery({
+    queryKey: ["request-replies", selectedRequest?.id],
+    queryFn: async () => {
+      if (!selectedRequest?.id) return [];
+      const { data, error } = await supabase
+        .from("request_replies")
+        .select("*")
+        .eq("request_id", selectedRequest.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedRequest?.id,
   });
 
   const updateRequestMutation = useMutation({
@@ -108,26 +125,22 @@ const AdminRequests = () => {
 
   const sendReplyMutation = useMutation({
     mutationFn: async ({ requestId, content }: { requestId: string; content: string }) => {
-      const request = requests?.find((r: any) => r.id === requestId);
-      if (!request) throw new Error("Request not found");
-
-      // Create a message (for in-app viewing)
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // Store the reply in messages table - using request.email as a lookup since contact_requests 
-      // may not have a user_id (anonymous submissions)
-      const { error } = await supabase.from("messages").insert({
-        sender_id: user?.id,
-        recipient_id: user?.id, // Self-reference since we don't have client user_id
-        subject: `Réponse à votre demande du ${format(new Date(request.created_at), "d MMMM yyyy", { locale: fr })}`,
+      if (!user) throw new Error("Not authenticated");
+
+      // Save reply to request_replies table
+      const { error } = await supabase.from("request_replies").insert({
+        request_id: requestId,
+        user_id: user.id,
         content: content,
-        related_request_id: requestId,
+        is_admin: true,
       });
 
       if (error) throw error;
 
       // Update request status to in_progress if it was new
-      if (request.status === "new" || request.status === "open") {
+      const request = requests?.find((r: any) => r.id === requestId);
+      if (request && (request.status === "new" || request.status === "open")) {
         await supabase
           .from("contact_requests")
           .update({ status: "in_progress" })
@@ -136,8 +149,8 @@ const AdminRequests = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-requests"] });
+      refetchReplies();
       toast({ title: "Réponse envoyée" });
-      setReplyDialogOpen(false);
       setReplyContent("");
     },
     onError: () => {
@@ -147,12 +160,8 @@ const AdminRequests = () => {
 
   const handleViewDetails = (request: any) => {
     setSelectedRequest({ ...request });
+    setReplyContent("");
     setDetailsDialogOpen(true);
-  };
-
-  const handleReply = (request: any) => {
-    setSelectedRequest(request);
-    setReplyDialogOpen(true);
   };
 
   return (
@@ -228,11 +237,7 @@ const AdminRequests = () => {
                       <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                         <Button size="sm" variant="outline" onClick={() => handleViewDetails(request)}>
                           <Eye className="w-4 h-4 mr-1" />
-                          Détails
-                        </Button>
-                        <Button size="sm" variant="hero" onClick={() => handleReply(request)}>
-                          <Send className="w-4 h-4 mr-1" />
-                          Répondre
+                          Voir
                         </Button>
                       </div>
                     </div>
@@ -248,141 +253,177 @@ const AdminRequests = () => {
           </CardContent>
         </Card>
 
-        {/* Request Details Dialog */}
+        {/* Request Details Dialog with Conversation */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Détails de la demande</DialogTitle>
             </DialogHeader>
             {selectedRequest && (
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Nom</Label>
-                    <Input value={selectedRequest.name} disabled className="bg-muted" />
+              <div className="flex flex-col flex-1 overflow-hidden">
+                {/* Client Info Section */}
+                <div className="space-y-4 pb-4 border-b border-border">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Nom</Label>
+                      <Input value={selectedRequest.name} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Téléphone</Label>
+                      <Input value={selectedRequest.phone} disabled className="bg-muted" />
+                    </div>
                   </div>
                   <div>
-                    <Label>Téléphone</Label>
-                    <Input value={selectedRequest.phone} disabled className="bg-muted" />
+                    <Label>Courriel</Label>
+                    <Input value={selectedRequest.email} disabled className="bg-muted" />
                   </div>
-                </div>
-                <div>
-                  <Label>Courriel</Label>
-                  <Input value={selectedRequest.email} disabled className="bg-muted" />
-                </div>
-                {selectedRequest.notes && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Statut</Label>
+                      <Select
+                        value={selectedRequest.status}
+                        onValueChange={(v) => setSelectedRequest({ ...selectedRequest, status: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">Nouveau</SelectItem>
+                          <SelectItem value="open">Ouvert</SelectItem>
+                          <SelectItem value="in_progress">En cours</SelectItem>
+                          <SelectItem value="resolved">Résolu</SelectItem>
+                          <SelectItem value="closed">Fermé</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Priorité</Label>
+                      <Select
+                        value={selectedRequest.priority || "normal"}
+                        onValueChange={(v) => setSelectedRequest({ ...selectedRequest, priority: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Basse</SelectItem>
+                          <SelectItem value="normal">Normale</SelectItem>
+                          <SelectItem value="high">Haute</SelectItem>
+                          <SelectItem value="urgent">Urgente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <div>
-                    <Label>Message du client</Label>
-                    <Textarea value={selectedRequest.notes} disabled className="bg-muted" rows={3} />
+                    <Label>Notes internes</Label>
+                    <Textarea
+                      value={selectedRequest.internal_notes || ""}
+                      onChange={(e) =>
+                        setSelectedRequest({ ...selectedRequest, internal_notes: e.target.value })
+                      }
+                      placeholder="Notes privées pour l'équipe..."
+                      rows={2}
+                    />
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Statut</Label>
-                    <Select
-                      value={selectedRequest.status}
-                      onValueChange={(v) => setSelectedRequest({ ...selectedRequest, status: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="new">Nouveau</SelectItem>
-                        <SelectItem value="open">Ouvert</SelectItem>
-                        <SelectItem value="in_progress">En cours</SelectItem>
-                        <SelectItem value="resolved">Résolu</SelectItem>
-                        <SelectItem value="closed">Fermé</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Priorité</Label>
-                    <Select
-                      value={selectedRequest.priority || "normal"}
-                      onValueChange={(v) => setSelectedRequest({ ...selectedRequest, priority: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Basse</SelectItem>
-                        <SelectItem value="normal">Normale</SelectItem>
-                        <SelectItem value="high">Haute</SelectItem>
-                        <SelectItem value="urgent">Urgente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label>Notes internes</Label>
-                  <Textarea
-                    value={selectedRequest.internal_notes || ""}
-                    onChange={(e) =>
-                      setSelectedRequest({ ...selectedRequest, internal_notes: e.target.value })
-                    }
-                    placeholder="Notes privées pour l'équipe..."
-                    rows={4}
-                  />
-                </div>
-                <div className="flex gap-2">
                   <Button
-                    className="flex-1"
                     onClick={() => {
                       updateRequestMutation.mutate(selectedRequest);
-                      setDetailsDialogOpen(false);
                     }}
+                    disabled={updateRequestMutation.isPending}
                   >
-                    Enregistrer
+                    Enregistrer les modifications
                   </Button>
-                  <Button variant="hero" onClick={() => {
-                    setDetailsDialogOpen(false);
-                    handleReply(selectedRequest);
-                  }}>
-                    <Send className="w-4 h-4 mr-2" />
-                    Répondre
-                  </Button>
+                </div>
+
+                {/* Conversation Section */}
+                <div className="flex-1 flex flex-col overflow-hidden pt-4">
+                  <Label className="mb-2">Historique de la conversation</Label>
+                  <ScrollArea className="flex-1 max-h-[300px] border border-border rounded-lg p-4 mb-4">
+                    <div className="space-y-4">
+                      {/* Original message from client */}
+                      {selectedRequest.notes && (
+                        <div className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">{selectedRequest.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(selectedRequest.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                              </span>
+                            </div>
+                            <div className="bg-muted rounded-lg p-3 text-sm">
+                              {selectedRequest.notes}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Replies */}
+                      {replies?.map((reply: any) => (
+                        <div key={reply.id} className={`flex gap-3 ${reply.is_admin ? "flex-row-reverse" : ""}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            reply.is_admin ? "bg-cyan-500/20" : "bg-muted"
+                          }`}>
+                            <User className={`w-4 h-4 ${reply.is_admin ? "text-cyan-400" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`flex items-center gap-2 mb-1 ${reply.is_admin ? "justify-end" : ""}`}>
+                              <span className="font-medium text-sm">
+                                {reply.is_admin ? "Admin" : selectedRequest.name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(reply.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                              </span>
+                            </div>
+                            <div className={`rounded-lg p-3 text-sm ${
+                              reply.is_admin 
+                                ? "bg-cyan-500/10 border border-cyan-500/20" 
+                                : "bg-muted"
+                            }`}>
+                              {reply.content}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {!selectedRequest.notes && (!replies || replies.length === 0) && (
+                        <p className="text-center text-muted-foreground text-sm py-4">
+                          Aucun message dans cette conversation
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
+
+                  {/* Reply input */}
+                  <div className="space-y-2">
+                    <Label>Votre réponse</Label>
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder="Tapez votre réponse..."
+                        rows={2}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="hero"
+                        onClick={() => {
+                          if (selectedRequest && replyContent.trim()) {
+                            sendReplyMutation.mutate({ requestId: selectedRequest.id, content: replyContent });
+                          }
+                        }}
+                        disabled={!replyContent.trim() || sendReplyMutation.isPending}
+                        className="self-end"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Reply Dialog */}
-        <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Répondre à {selectedRequest?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="bg-muted p-3 rounded-lg text-sm">
-                <p className="font-medium">{selectedRequest?.email}</p>
-                <p className="text-muted-foreground">{selectedRequest?.phone}</p>
-              </div>
-              <div>
-                <Label>Votre message</Label>
-                <Textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Tapez votre réponse..."
-                  rows={6}
-                />
-              </div>
-              <Button
-                className="w-full"
-                onClick={() => {
-                  if (selectedRequest && replyContent) {
-                    sendReplyMutation.mutate({ requestId: selectedRequest.id, content: replyContent });
-                  }
-                }}
-                disabled={!replyContent.trim()}
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Envoyer la réponse
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Le message sera visible dans le centre de messages du client
-              </p>
-            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -563,6 +563,41 @@ export type Database = {
         }
         Relationships: []
       }
+      request_replies: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_admin: boolean
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_replies_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "contact_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           category: string
