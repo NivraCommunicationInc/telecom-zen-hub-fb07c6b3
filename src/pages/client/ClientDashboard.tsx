@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Calendar, FileText, Package, MessageSquare, CreditCard, ArrowRight, Tv, Plus, MonitorPlay, Star } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import TVOrderStatusTracker from "@/components/client/TVOrderStatusTracker";
 
 const ClientDashboard = () => {
   const { user } = useAuth();
@@ -134,6 +135,11 @@ const ClientDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* TV Order Status Tracker */}
+        {orders && orders.length > 0 && (
+          <TVOrderStatusTracker orders={orders} />
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
