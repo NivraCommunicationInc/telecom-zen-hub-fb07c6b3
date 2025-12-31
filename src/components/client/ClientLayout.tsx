@@ -15,6 +15,7 @@ import {
   Home,
   Package,
   ShoppingCart,
+  Tv,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     { path: "/portal/appointments", label: "Rendez-vous", icon: Calendar },
     { path: "/portal/new-order", label: "Nouvelle commande", icon: ShoppingCart },
     { path: "/portal/orders", label: "Mes commandes", icon: Package },
+    { path: "/portal/channels", label: "Chaînes TV", icon: Tv },
     { path: "/portal/invoices", label: "Factures", icon: FileText },
     { path: "/portal/contracts", label: "Contrats", icon: FileText },
     { path: "/portal/subscriptions", label: "Abonnements", icon: CreditCard },

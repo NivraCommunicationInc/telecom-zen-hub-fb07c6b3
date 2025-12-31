@@ -15,7 +15,8 @@ import {
   Calendar,
   Briefcase,
   UserPlus,
-  Ticket
+  Ticket,
+  Tv
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +32,7 @@ const navItems = [
   { icon: Package, label: "Commandes", href: "/admin/orders" },
   { icon: Users, label: "Clients", href: "/admin/clients" },
   { icon: Settings, label: "Services", href: "/admin/services" },
+  { icon: Tv, label: "Chaînes TV", href: "/admin/channels" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: Ticket, label: "Tickets", href: "/admin/tickets" },
