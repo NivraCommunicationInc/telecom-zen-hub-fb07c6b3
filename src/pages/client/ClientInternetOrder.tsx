@@ -954,8 +954,8 @@ const ClientInternetOrder = () => {
                     <ul className="space-y-2 text-muted-foreground">
                       <li>• <strong>Aucune vérification de crédit:</strong> Nivra n'effectue aucune vérification de crédit.</li>
                       <li>• <strong>Pièce d'identité gouvernementale requise:</strong> Une pièce d'identité avec photo est obligatoire pour valider toute commande.</li>
-                      <li>• <strong>100% indépendant:</strong> Nivra est un courtier télécom indépendant. Nous ne recevons aucune commission des fournisseurs de télécommunications.</li>
-                      <li>• <strong>Paiement direct:</strong> Vous payez directement à Nivra Communications. Aucun intermédiaire.</li>
+                      <li>• <strong>100% indépendant:</strong> Nivra est une compagnie de télécommunications indépendante vendant des services Nivra internes. Aucune affiliation carrier.</li>
+                      <li>• <strong>Paiement direct:</strong> Modèle client-payeur. Vous payez directement à Nivra Communications. Aucun intermédiaire.</li>
                       <li>• <strong>Équipement:</strong> Le routeur {ROUTER_DETAILS.name} ({ROUTER_DETAILS.price}$) est requis et doit être payé avant l'installation. Garantie de 1 an couvrant les défauts de fabrication uniquement.</li>
                       <li>• <strong>Annulation:</strong> Vous pouvez annuler en tout temps. Après l'installation: 1 mois de facturation s'applique. Avant 1 mois d'utilisation: frais d'installation de 50$ s'appliquent.</li>
                     </ul>
@@ -969,8 +969,8 @@ const ClientInternetOrder = () => {
                     <ul className="space-y-2 text-muted-foreground">
                       <li>• <strong>No credit check:</strong> Nivra does not perform any credit check.</li>
                       <li>• <strong>Government ID required:</strong> A photo ID is mandatory to validate any order.</li>
-                      <li>• <strong>100% independent:</strong> Nivra is an independent telecom broker. We do not receive any commission from telecommunications providers.</li>
-                      <li>• <strong>Direct payment:</strong> You pay directly to Nivra Communications. No intermediary.</li>
+                      <li>• <strong>100% independent:</strong> Nivra is an independent telecommunications company selling internal Nivra services. No carrier affiliation.</li>
+                      <li>• <strong>Direct payment:</strong> Client-paid model. You pay directly to Nivra Communications. No intermediary.</li>
                       <li>• <strong>Equipment:</strong> The {ROUTER_DETAILS.name} router (${ROUTER_DETAILS.price}) is required and must be paid before installation. 1-year warranty covering manufacturer defects only.</li>
                       <li>• <strong>Cancellation:</strong> You can cancel at any time. After installation: 1 month of billing applies. Before 1 month of use: $50 installation fees apply.</li>
                     </ul>

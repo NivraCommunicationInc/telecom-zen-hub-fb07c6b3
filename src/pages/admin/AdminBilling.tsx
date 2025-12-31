@@ -646,7 +646,7 @@ const AdminBilling = () => {
         <div class="page">
           <div class="header">
             <div class="logo">NIVRA</div>
-            <div class="tagline">Courtier Télécom Indépendant</div>
+            <div class="tagline">Compagnie Télécom Indépendante</div>
             <div class="company-info">
               <p>Montréal, QC, Canada | Tél: 438-544-2233 | Nivratelecom@gmail.com</p>
               <p>TPS: 123456789 RT0001 | TVQ: 1234567890 TQ0001</p>
@@ -743,7 +743,7 @@ const AdminBilling = () => {
           
           <div class="footer">
             <p class="thank-you">Merci de votre confiance!</p>
-            <p>Nivra Inc. — Courtier télécom indépendant payé uniquement par ses clients</p>
+            <p>Nivra Inc. — Compagnie télécom indépendante, modèle client-payeur, aucune affiliation carrier</p>
             <p>Facture générée électroniquement • Valide sans signature</p>
           </div>
         </div>

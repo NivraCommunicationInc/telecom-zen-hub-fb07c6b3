@@ -196,6 +196,8 @@
       0 4px 0 hsl(192 95% 20%),
       0 5px 10px rgba(0, 0, 0, 0.4),
       0 10px 20px rgba(0, 0, 0, 0.2);
+    transform: perspective(500px) translateZ(10px);
+    transform-style: preserve-3d;
   }
   
   .text-3d-dark {
@@ -206,6 +208,27 @@
       0 4px 0 hsl(222 47% 2%),
       0 5px 10px rgba(0, 0, 0, 0.5),
       0 10px 20px rgba(0, 0, 0, 0.3);
+    transform: perspective(500px) translateZ(5px);
+    transform-style: preserve-3d;
+  }
+
+  /* Enhanced 3D Headline Effect */
+  .headline-3d {
+    position: relative;
+    transform-style: preserve-3d;
+    perspective: 1000px;
+  }
+
+  .headline-3d::before {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translateZ(-20px) scale(1.02);
+    opacity: 0.15;
+    filter: blur(4px);
+    z-index: -1;
+    color: hsl(192 95% 45%);
   }
 
   /* 3D Card Effects */
@@ -254,9 +277,10 @@
     pointer-events: none;
   }
 
-  /* Layered Background Effect */
+  /* Layered Background Effect - Enhanced 3D Parallax */
   .bg-layered {
     position: relative;
+    transform-style: preserve-3d;
   }
 
   .bg-layered::before {
@@ -267,6 +291,53 @@
       radial-gradient(ellipse 80% 50% at 50% -20%, hsl(192 95% 45% / 0.15), transparent),
       radial-gradient(ellipse 60% 40% at 80% 80%, hsl(192 90% 40% / 0.1), transparent);
     pointer-events: none;
+    transform: translateZ(-50px) scale(1.1);
+  }
+
+  .bg-layered::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(circle at 20% 30%, hsl(192 95% 45% / 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, hsl(180 90% 40% / 0.06) 0%, transparent 35%);
+    pointer-events: none;
+    transform: translateZ(-100px) scale(1.2);
+    animation: parallax-float 20s ease-in-out infinite;
+  }
+
+  /* Parallax Floating Animation */
+  @keyframes parallax-float {
+    0%, 100% {
+      transform: translateZ(-100px) scale(1.2) translateY(0);
+    }
+    50% {
+      transform: translateZ(-100px) scale(1.2) translateY(-20px);
+    }
+  }
+
+  /* Depth Layers for Sections */
+  .section-depth {
+    position: relative;
+    transform-style: preserve-3d;
+    perspective: 1500px;
+  }
+
+  .section-depth > * {
+    transform: translateZ(0);
+    transition: transform 0.3s ease;
+  }
+
+  .depth-layer-1 {
+    transform: translateZ(20px);
+  }
+
+  .depth-layer-2 {
+    transform: translateZ(40px);
+  }
+
+  .depth-layer-3 {
+    transform: translateZ(60px);
   }
 
   /* Premium Button 3D */

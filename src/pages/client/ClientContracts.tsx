@@ -209,7 +209,7 @@ const ClientContracts = () => {
                   {/* Header */}
                   <div className="bg-cyan-500 text-white rounded-lg p-6 text-center">
                     <h2 className="text-2xl font-bold">{BUSINESS_INFO.name.toUpperCase()}</h2>
-                    <p className="text-sm opacity-90">Courtier Télécom Indépendant</p>
+                    <p className="text-sm opacity-90">Compagnie Télécom Indépendante</p>
                     <p className="text-xs opacity-75 mt-1">
                       {BUSINESS_INFO.phone} | {BUSINESS_INFO.email}
                     </p>

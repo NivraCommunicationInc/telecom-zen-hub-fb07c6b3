@@ -678,8 +678,8 @@ const TVPlans = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {isFrench 
-                      ? "Aucune affiliation, partenariat ou commission carrier"
-                      : "No carrier affiliation, partnership or commission"}
+                      ? "Aucune affiliation carrier, modèle client-payeur"
+                      : "No carrier affiliation, client-paid model"}
                   </p>
                 </CardContent>
               </Card>
