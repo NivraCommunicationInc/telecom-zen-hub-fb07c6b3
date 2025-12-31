@@ -68,17 +68,21 @@ const ClientContracts = () => {
           is_signed: true,
           signed_at: new Date().toISOString(),
         })
-        .eq("id", contractId);
+        .eq("id", contractId)
+        .eq("user_id", user?.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-contracts"] });
+      // Invalidate with exact key used in query
+      queryClient.invalidateQueries({ queryKey: ["client-contracts", user?.id] });
       toast({ title: "Contrat signé avec succès", description: "Vous pouvez maintenant télécharger votre contrat signé." });
       setSignDialogOpen(false);
+      setSelectedContract(null);
       setIsAgreed(false);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Contract sign error:", error);
       toast({ title: "Erreur lors de la signature", variant: "destructive" });
     },
   });
