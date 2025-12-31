@@ -113,7 +113,7 @@ const SIM_CONFIG = {
 };
 
 // Quebec phone prefixes (area codes)
-const QUEBEC_PREFIXES = ["418", "367", "514", "263", "450", "579", "354", "819", "873", "468"];
+const QUEBEC_PREFIXES = ["514", "450", "418", "438", "819", "367", "263", "579", "354", "873", "468"];
 
 // Quebec carriers for transfer selection
 const QUEBEC_CARRIERS = [
