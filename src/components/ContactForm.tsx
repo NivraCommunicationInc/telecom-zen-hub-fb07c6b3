@@ -2,31 +2,34 @@ import { useState, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, CheckCircle, User, Mail, Phone } from "lucide-react";
+import { ArrowRight, CheckCircle, User, Mail, Phone, MessageSquare } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
+    message: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const contactSchema = z.object({
-    name: z.string().trim().min(1, t('contact.name')).max(100),
-    email: z.string().trim().email(t('contact.email')).max(255),
-    phone: z.string().trim().min(10, t('contact.phone')).max(20),
+    name: z.string().trim().min(1, language === 'fr' ? "Nom requis" : "Name required").max(100),
+    email: z.string().trim().email(language === 'fr' ? "Courriel invalide" : "Invalid email").max(255),
+    phone: z.string().trim().min(10, language === 'fr' ? "Téléphone invalide" : "Invalid phone").max(20),
+    message: z.string().trim().max(1000).optional(),
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
@@ -56,6 +59,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
+      notes: formData.message || null,
     });
     
     setIsLoading(false);
@@ -102,13 +106,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         <div className="space-y-2">
           <Label htmlFor="name" className="text-cyan-100/80 flex items-center gap-2">
             <User className="w-4 h-4" />
-            {t('contact.name')}
+            {language === 'fr' ? "Nom complet" : "Full Name"}
           </Label>
           <Input
             id="name"
             name="name"
             type="text"
-            placeholder={t('contact.name.placeholder')}
+            placeholder={language === 'fr' ? "Votre nom" : "Your name"}
             value={formData.name}
             onChange={handleChange}
             className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
@@ -119,13 +123,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         <div className="space-y-2">
           <Label htmlFor="email" className="text-cyan-100/80 flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            {t('contact.email')}
+            {language === 'fr' ? "Courriel" : "Email"}
           </Label>
           <Input
             id="email"
             name="email"
             type="email"
-            placeholder={t('contact.email.placeholder')}
+            placeholder="votre@courriel.com"
             value={formData.email}
             onChange={handleChange}
             className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
@@ -136,7 +140,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-cyan-100/80 flex items-center gap-2">
             <Phone className="w-4 h-4" />
-            {t('contact.phone')}
+            {language === 'fr' ? "Téléphone" : "Phone"}
           </Label>
           <Input
             id="phone"
@@ -148,6 +152,23 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
           />
           {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="message" className="text-cyan-100/80 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            {language === 'fr' ? "Commentaire / Message" : "Comment / Message"}
+          </Label>
+          <Textarea
+            id="message"
+            name="message"
+            placeholder={language === 'fr' ? "Écrivez votre message ici..." : "Write your message here..."}
+            value={formData.message}
+            onChange={handleChange}
+            rows={4}
+            className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 resize-none"
+          />
+          {errors.message && <p className="text-sm text-destructive">{errors.message}</p>}
         </div>
 
         <Button 
