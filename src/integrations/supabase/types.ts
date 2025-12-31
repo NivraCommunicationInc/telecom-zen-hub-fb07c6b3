@@ -82,51 +82,81 @@ export type Database = {
       }
       billing: {
         Row: {
+          activation_fee: number | null
           amount: number
           client_email: string | null
           created_at: string
           credits: number | null
+          delivery_fee: number | null
+          discount_amount: number | null
           due_date: string | null
+          equipment_id: string | null
           fees: number | null
           id: string
+          installation_fee: number | null
           invoice_number: string | null
+          late_fee_amount: number | null
           late_fee_applied: boolean | null
           notes: string | null
           order_id: string | null
           paid_at: string | null
+          related_order_number: string | null
           status: string
+          subtotal: number | null
+          tps_amount: number | null
+          tvq_amount: number | null
           user_id: string
         }
         Insert: {
+          activation_fee?: number | null
           amount: number
           client_email?: string | null
           created_at?: string
           credits?: number | null
+          delivery_fee?: number | null
+          discount_amount?: number | null
           due_date?: string | null
+          equipment_id?: string | null
           fees?: number | null
           id?: string
+          installation_fee?: number | null
           invoice_number?: string | null
+          late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          related_order_number?: string | null
           status?: string
+          subtotal?: number | null
+          tps_amount?: number | null
+          tvq_amount?: number | null
           user_id: string
         }
         Update: {
+          activation_fee?: number | null
           amount?: number
           client_email?: string | null
           created_at?: string
           credits?: number | null
+          delivery_fee?: number | null
+          discount_amount?: number | null
           due_date?: string | null
+          equipment_id?: string | null
           fees?: number | null
           id?: string
+          installation_fee?: number | null
           invoice_number?: string | null
+          late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          related_order_number?: string | null
           status?: string
+          subtotal?: number | null
+          tps_amount?: number | null
+          tvq_amount?: number | null
           user_id?: string
         }
         Relationships: [
@@ -179,6 +209,7 @@ export type Database = {
           notes: string | null
           phone: string
           priority: string | null
+          request_number: string | null
           status: string
         }
         Insert: {
@@ -190,6 +221,7 @@ export type Database = {
           notes?: string | null
           phone: string
           priority?: string | null
+          request_number?: string | null
           status?: string
         }
         Update: {
@@ -201,6 +233,7 @@ export type Database = {
           notes?: string | null
           phone?: string
           priority?: string | null
+          request_number?: string | null
           status?: string
         }
         Relationships: []
@@ -208,6 +241,7 @@ export type Database = {
       contracts: {
         Row: {
           contract_name: string
+          contract_number: string | null
           contract_url: string
           created_at: string
           id: string
@@ -217,6 +251,7 @@ export type Database = {
         }
         Insert: {
           contract_name: string
+          contract_number?: string | null
           contract_url: string
           created_at?: string
           id?: string
@@ -226,6 +261,7 @@ export type Database = {
         }
         Update: {
           contract_name?: string
+          contract_number?: string | null
           contract_url?: string
           created_at?: string
           id?: string
@@ -377,47 +413,122 @@ export type Database = {
       }
       orders: {
         Row: {
+          activation_fee: number | null
+          amount_paid: number | null
+          category: string | null
           client_email: string | null
           created_at: string
+          created_by: string | null
+          credits_applied: number | null
+          delivery_fee: number | null
+          discount_amount: number | null
+          discount_code: string | null
+          equipment_id: string | null
           id: string
           imei_number: string | null
+          installation_credit: number | null
+          installation_fee: number | null
+          internal_notes: string | null
+          late_fee_amount: number | null
+          late_fee_applied: boolean | null
           notes: string | null
+          order_number: string | null
+          payment_status: string | null
+          related_contract_id: string | null
+          related_ticket_id: string | null
+          savings_estimated: number | null
           serial_number: string | null
           service_type: string
           sim_number: string | null
           status: string
+          subtotal: number | null
           total_amount: number | null
+          tps_amount: number | null
+          tps_rate: number | null
           tracking_number: string | null
+          tracking_url: string | null
+          tvq_amount: number | null
+          tvq_rate: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          activation_fee?: number | null
+          amount_paid?: number | null
+          category?: string | null
           client_email?: string | null
           created_at?: string
+          created_by?: string | null
+          credits_applied?: number | null
+          delivery_fee?: number | null
+          discount_amount?: number | null
+          discount_code?: string | null
+          equipment_id?: string | null
           id?: string
           imei_number?: string | null
+          installation_credit?: number | null
+          installation_fee?: number | null
+          internal_notes?: string | null
+          late_fee_amount?: number | null
+          late_fee_applied?: boolean | null
           notes?: string | null
+          order_number?: string | null
+          payment_status?: string | null
+          related_contract_id?: string | null
+          related_ticket_id?: string | null
+          savings_estimated?: number | null
           serial_number?: string | null
           service_type: string
           sim_number?: string | null
           status?: string
+          subtotal?: number | null
           total_amount?: number | null
+          tps_amount?: number | null
+          tps_rate?: number | null
           tracking_number?: string | null
+          tracking_url?: string | null
+          tvq_amount?: number | null
+          tvq_rate?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          activation_fee?: number | null
+          amount_paid?: number | null
+          category?: string | null
           client_email?: string | null
           created_at?: string
+          created_by?: string | null
+          credits_applied?: number | null
+          delivery_fee?: number | null
+          discount_amount?: number | null
+          discount_code?: string | null
+          equipment_id?: string | null
           id?: string
           imei_number?: string | null
+          installation_credit?: number | null
+          installation_fee?: number | null
+          internal_notes?: string | null
+          late_fee_amount?: number | null
+          late_fee_applied?: boolean | null
           notes?: string | null
+          order_number?: string | null
+          payment_status?: string | null
+          related_contract_id?: string | null
+          related_ticket_id?: string | null
+          savings_estimated?: number | null
           serial_number?: string | null
           service_type?: string
           sim_number?: string | null
           status?: string
+          subtotal?: number | null
           total_amount?: number | null
+          tps_amount?: number | null
+          tps_rate?: number | null
           tracking_number?: string | null
+          tracking_url?: string | null
+          tvq_amount?: number | null
+          tvq_rate?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -519,9 +630,12 @@ export type Database = {
         Row: {
           account_status: string | null
           balance: number | null
+          client_number: string | null
+          client_type: string | null
           created_at: string
           email: string | null
           employer_discount: string | null
+          employer_sector: string | null
           full_name: string | null
           id: string
           internal_notes: string | null
@@ -534,9 +648,12 @@ export type Database = {
         Insert: {
           account_status?: string | null
           balance?: number | null
+          client_number?: string | null
+          client_type?: string | null
           created_at?: string
           email?: string | null
           employer_discount?: string | null
+          employer_sector?: string | null
           full_name?: string | null
           id?: string
           internal_notes?: string | null
@@ -549,9 +666,12 @@ export type Database = {
         Update: {
           account_status?: string | null
           balance?: number | null
+          client_number?: string | null
+          client_type?: string | null
           created_at?: string
           email?: string | null
           employer_discount?: string | null
+          employer_sector?: string | null
           full_name?: string | null
           id?: string
           internal_notes?: string | null
@@ -679,6 +799,7 @@ export type Database = {
           priority: string
           status: string
           subject: string
+          ticket_number: string | null
           updated_at: string
           user_id: string
         }
@@ -690,6 +811,7 @@ export type Database = {
           priority?: string
           status?: string
           subject: string
+          ticket_number?: string | null
           updated_at?: string
           user_id: string
         }
@@ -701,6 +823,7 @@ export type Database = {
           priority?: string
           status?: string
           subject?: string
+          ticket_number?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -797,6 +920,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_client_number: { Args: never; Returns: string }
+      generate_contract_number: { Args: never; Returns: string }
+      generate_invoice_number: { Args: never; Returns: string }
+      generate_order_number: { Args: never; Returns: string }
+      generate_payment_number: { Args: never; Returns: string }
+      generate_request_number: { Args: never; Returns: string }
+      generate_ticket_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -88,15 +88,21 @@ const ClientNewOrder = () => {
     mutationFn: async () => {
       if (!user?.id) throw new Error("Not authenticated");
 
-      const totalAmount = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+      const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
       const serviceNames = selectedServices.map(s => s.name).join(", ");
+      const categories = [...new Set(selectedServices.map(s => s.category))].join(", ");
 
       const { error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
         service_type: serviceNames,
-        total_amount: totalAmount,
+        category: categories,
+        subtotal: subtotal,
+        delivery_fee: 30,
+        activation_fee: 25,
+        installation_fee: 50,
         status: "pending",
+        created_by: "client",
         notes: notes || null,
       });
 
@@ -127,7 +133,15 @@ const ClientNewOrder = () => {
 
   const isSelected = (serviceId: string) => selectedServices.some(s => s.id === serviceId);
 
-  const totalAmount = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+  // Calculate totals with fees and taxes
+  const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+  const deliveryFee = 30;
+  const activationFee = 25;
+  const installationFee = 50;
+  const baseAmount = subtotal + deliveryFee + activationFee + installationFee;
+  const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
+  const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
+  const totalAmount = baseAmount + tpsAmount + tvqAmount;
 
   // Group services by category
   const groupedServices = services?.reduce((acc, service) => {
@@ -337,13 +351,45 @@ const ClientNewOrder = () => {
                       </div>
                     ))}
                   </div>
+                  
+                  <div className="border-t border-border pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Sous-total services</span>
+                      <span className="text-foreground">{subtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Frais de livraison (QC)</span>
+                      <span className="text-foreground">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Frais d'activation</span>
+                      <span className="text-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Frais d'installation</span>
+                      <span className="text-foreground">{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">TPS (5%)</span>
+                      <span className="text-foreground">{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">TVQ (9.975%)</span>
+                      <span className="text-foreground">{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  </div>
+
                   <div className="border-t border-border pt-4">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">Total mensuel</span>
+                      <span className="font-medium text-foreground">Total</span>
                       <span className="text-2xl font-bold text-cyan-500">
                         {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">Taxes incluses</p>
                   </div>
 
                   <div className="pt-4 space-y-3">
