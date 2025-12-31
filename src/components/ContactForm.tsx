@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const ContactForm = () => {
+const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -93,7 +93,7 @@ const ContactForm = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8 md:p-10">
+    <form ref={ref} onSubmit={handleSubmit} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8 md:p-10">
       <h3 className="font-display text-xl md:text-2xl font-bold text-primary-foreground mb-6 text-center">
         {t('contact.title')}
       </h3>
@@ -167,6 +167,8 @@ const ContactForm = () => {
       </div>
     </form>
   );
-};
+});
+
+ContactForm.displayName = "ContactForm";
 
 export default ContactForm;

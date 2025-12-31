@@ -183,15 +183,21 @@ const AdminBilling = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+    onSuccess: async (data) => {
+      // Force immediate refetch to ensure the new invoice appears
+      await queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+      await queryClient.refetchQueries({ queryKey: ["admin-billing"] });
       logActivity("create", "invoice", data.id, { amount: data.amount });
-      toast({ title: "Facture créée avec succès" });
+      toast({ 
+        title: "Facture créée avec succès",
+        description: `Facture ${data.invoice_number} créée pour ${Number(data.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
+      });
       setCreateDialogOpen(false);
       setNewInvoice({ user_id: "", amount: "", due_date: "", notes: "" });
     },
-    onError: () => {
-      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Invoice creation error:", error);
+      toast({ title: "Erreur lors de la création", description: error?.message, variant: "destructive" });
     },
   });
 

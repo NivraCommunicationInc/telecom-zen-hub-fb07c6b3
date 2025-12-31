@@ -54,7 +54,7 @@ const Hero = () => {
           </div>
 
           {/* Main Heading with 3D Text Effect */}
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary-foreground leading-tight mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary-foreground leading-tight mb-6 animate-fade-in text-3d-dark" style={{ animationDelay: "0.1s" }}>
             {t('hero.title1')}
             <br />
             <span className="text-gradient text-3d">{t('hero.title2')}</span>
