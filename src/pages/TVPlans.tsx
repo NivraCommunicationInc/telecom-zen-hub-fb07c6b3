@@ -138,6 +138,109 @@ const TVPlans = () => {
     },
   ];
 
+  const gigaPlans = [
+    {
+      id: "giga-tv-basic",
+      name: isFrench ? "GIGA + TV Basic" : "GIGA + TV Basic",
+      internetSpeed: "1 Gbps",
+      price: 85,
+      badge: isFrench ? "GIGA" : "GIGA",
+      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
+      channels: 26,
+      channelType: isFrench ? "chaînes générales" : "general channels",
+      description: isFrench 
+        ? "Internet ultra-rapide avec les chaînes essentielles." 
+        : "Ultra-fast internet with essential channels.",
+      features: [
+        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
+        isFrench ? "26 chaînes générales" : "26 general channels",
+        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
+        isFrench ? "Tableau de bord streaming (navigateur)" : "Browser-based streaming dashboard",
+      ],
+    },
+    {
+      id: "giga-tv-5choices",
+      name: isFrench ? "GIGA + TV 5 choix" : "GIGA + TV 5 choices",
+      internetSpeed: "1 Gbps",
+      price: 95,
+      badge: isFrench ? "GIGA POPULAIRE" : "GIGA POPULAR",
+      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
+      channels: 32,
+      channelType: isFrench ? "chaînes populaires" : "popular channels",
+      description: isFrench 
+        ? "Vitesse GIGA avec une sélection de chaînes populaires." 
+        : "GIGA speed with a selection of popular channels.",
+      features: [
+        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
+        isFrench ? "32 chaînes populaires" : "32 popular channels",
+        isFrench ? "5 chaînes au choix" : "5 channels of your choice",
+        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
+      ],
+    },
+    {
+      id: "giga-tv-10choices",
+      name: isFrench ? "GIGA + TV 10 choix" : "GIGA + TV 10 choices",
+      internetSpeed: "1 Gbps",
+      price: 105,
+      badge: isFrench ? "GIGA VEDETTE" : "GIGA STAR",
+      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
+      featured: true,
+      channels: 37,
+      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
+      description: isFrench 
+        ? "La combinaison parfaite: vitesse GIGA et divertissement complet." 
+        : "The perfect combination: GIGA speed and complete entertainment.",
+      features: [
+        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
+        isFrench ? "37 chaînes populaires + sports" : "37 popular + sports channels",
+        isFrench ? "10 chaînes au choix" : "10 channels of your choice",
+        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
+        isFrench ? "Télécommande vocale" : "Voice control remote",
+      ],
+    },
+    {
+      id: "giga-tv-15choices",
+      name: isFrench ? "GIGA + TV 15 choix" : "GIGA + TV 15 choices",
+      internetSpeed: "1 Gbps",
+      price: 110,
+      badge: isFrench ? "GIGA FAMILLE" : "GIGA FAMILY",
+      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
+      channels: 42,
+      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
+      description: isFrench 
+        ? "Parfait pour les grandes familles connectées." 
+        : "Perfect for large connected families.",
+      features: [
+        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
+        isFrench ? "42 chaînes populaires + sports" : "42 popular + sports channels",
+        isFrench ? "15 chaînes au choix" : "15 channels of your choice",
+        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
+        isFrench ? "Télécommande vocale" : "Voice control remote",
+      ],
+    },
+    {
+      id: "giga-tv-25choices",
+      name: isFrench ? "GIGA + TV 25 choix" : "GIGA + TV 25 choices",
+      internetSpeed: "1 Gbps",
+      price: 120,
+      badge: isFrench ? "GIGA ULTIME" : "GIGA ULTIMATE",
+      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
+      channels: 52,
+      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
+      description: isFrench 
+        ? "L'expérience ultime: vitesse maximale et divertissement premium." 
+        : "The ultimate experience: maximum speed and premium entertainment.",
+      features: [
+        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
+        isFrench ? "52 chaînes populaires + sports" : "52 popular + sports channels",
+        isFrench ? "25 chaînes au choix" : "25 channels of your choice",
+        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
+        isFrench ? "Télécommande vocale" : "Voice control remote",
+        isFrench ? "Support prioritaire VIP" : "VIP priority support",
+      ],
+    },
+  ];
+
   const handleAddressSelect = (details: AddressDetails) => {
     setAddressDetails(details);
     
@@ -343,6 +446,100 @@ const TVPlans = () => {
                     onClick={() => handleGetStarted(plan.id)}
                     variant={plan.featured ? "hero" : "outline"} 
                     className="w-full mt-6"
+                    disabled={!addressValidated}
+                  >
+                    {isFrench ? "Commencer" : "Get Started"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {!addressValidated && (
+            <p className="text-center text-muted-foreground mt-6">
+              {isFrench 
+                ? "Vérifiez d'abord la disponibilité à votre adresse pour continuer"
+                : "First verify availability at your address to continue"}
+            </p>
+          )}
+        </section>
+
+        {/* GIGA Internet + TV Bundles Section */}
+        <section className="container mx-auto px-4 mb-16 relative">
+          <div className="text-center mb-12">
+            <Badge className="mb-6 bg-gradient-to-r from-orange-500 to-red-500 text-white border-0 px-4 py-1.5">
+              <Zap className="w-3.5 h-3.5 mr-1.5" />
+              {isFrench ? "GIGA Vitesse" : "GIGA Speed"}
+            </Badge>
+            <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4">
+              {isFrench ? "Forfaits GIGA Internet + TV" : "GIGA Internet + TV Bundles"}
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              {isFrench 
+                ? "Internet ultra-rapide 1 Gbps combiné avec nos forfaits TV premium. L'expérience ultime."
+                : "Ultra-fast 1 Gbps internet combined with our premium TV plans. The ultimate experience."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-7xl mx-auto">
+            {gigaPlans.map((plan, index) => (
+              <Card 
+                key={index}
+                className={`relative bg-card/80 backdrop-blur-sm border-border transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/10 ${
+                  plan.featured ? 'ring-2 ring-orange-500 shadow-lg scale-105' : ''
+                }`}
+              >
+                <div className={`absolute -top-3 left-1/2 -translate-x-1/2`}>
+                  <Badge className={`${plan.badgeColor} text-white px-4 py-1`}>
+                    {plan.badge}
+                  </Badge>
+                </div>
+                
+                <CardHeader className="text-center pt-8">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                      <Tv className="w-6 h-6 text-purple-500" />
+                    </div>
+                    <span className="text-muted-foreground">+</span>
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
+                      <Zap className="w-6 h-6 text-orange-500" />
+                    </div>
+                  </div>
+                  <CardTitle className="text-xl font-bold text-foreground">
+                    {plan.name}
+                  </CardTitle>
+                  <div className="mt-2">
+                    <Badge variant="outline" className="text-orange-500 border-orange-500/30">
+                      {plan.internetSpeed}
+                    </Badge>
+                  </div>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-foreground">${plan.price}</span>
+                    <span className="text-muted-foreground">/{isFrench ? "mois" : "month"}</span>
+                  </div>
+                  <div className="mt-2">
+                    <Badge variant="outline" className="text-purple-500 border-purple-500/30">
+                      {plan.channels} {plan.channelType}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <ul className="space-y-3">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-3 text-sm">
+                        <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-foreground">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <Button 
+                    onClick={() => handleGetStarted(plan.id)}
+                    variant={plan.featured ? "hero" : "outline"} 
+                    className={`w-full mt-6 ${!plan.featured ? 'hover:border-orange-500 hover:text-orange-500' : ''}`}
                     disabled={!addressValidated}
                   >
                     {isFrench ? "Commencer" : "Get Started"}
