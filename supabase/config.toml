@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.send-billing-notification]
 verify_jwt = false
+
+[functions.check-overdue-invoices]
+verify_jwt = false
