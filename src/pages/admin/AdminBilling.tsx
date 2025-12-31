@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown, CheckCircle } from "lucide-react";
+import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown, CheckCircle, Send, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast, parseISO } from "date-fns";
@@ -73,6 +73,7 @@ const AdminBilling = () => {
     receivedBy: "",
   });
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isResendingNotification, setIsResendingNotification] = useState(false);
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [newInvoice, setNewInvoice] = useState({
@@ -177,6 +178,47 @@ const AdminBilling = () => {
       console.log("Billing notification sent:", type);
     } catch (error) {
       console.error("Failed to send billing notification:", error);
+      throw error;
+    }
+  };
+
+  const resendNotification = async (bill: any) => {
+    const clientEmail = bill.profiles?.email || bill.client_email;
+    if (!clientEmail) {
+      toast({ title: "Aucun courriel client disponible", variant: "destructive" });
+      return;
+    }
+
+    setIsResendingNotification(true);
+    try {
+      const notificationType = bill.status === "paid" 
+        ? "payment_received" 
+        : bill.status === "overdue" 
+          ? "invoice_overdue" 
+          : "invoice_created";
+
+      await sendBillingNotification(
+        clientEmail,
+        bill.profiles?.full_name || "Client",
+        notificationType,
+        {
+          invoiceNumber: bill.invoice_number,
+          amount: calculateTotal(bill),
+          dueDate: bill.due_date,
+          paidAt: bill.paid_at,
+          notes: bill.notes,
+        }
+      );
+      
+      toast({ 
+        title: "Notification envoyée", 
+        description: `Courriel envoyé à ${clientEmail}` 
+      });
+      logActivity("notification_resent", "invoice", bill.id, { email: clientEmail, type: notificationType });
+    } catch (error) {
+      toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
+    } finally {
+      setIsResendingNotification(false);
     }
   };
 
@@ -906,9 +948,21 @@ const AdminBilling = () => {
                   <div className="flex justify-between font-bold mt-2 pt-2 border-t"><span>Total:</span><span>{calculateTotal(selectedBill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
                 </div>
                 <div><Label>Notes</Label><Textarea value={selectedBill.notes || ""} onChange={(e) => setSelectedBill({ ...selectedBill, notes: e.target.value })} /></div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button className="flex-1" onClick={() => { updateBillingMutation.mutate(selectedBill); setDetailsDialogOpen(false); }}>Enregistrer</Button>
                   <Button variant="outline" onClick={() => exportInvoicePDF(selectedBill)}><FileDown className="w-4 h-4 mr-2" />PDF</Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => resendNotification(selectedBill)}
+                    disabled={isResendingNotification}
+                  >
+                    {isResendingNotification ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-2" />
+                    )}
+                    Renvoyer
+                  </Button>
                   {selectedBill.status !== "paid" && <Button variant="hero" onClick={() => openPaymentDialog(selectedBill)}><DollarSign className="w-4 h-4 mr-2" />Paiement</Button>}
                 </div>
               </div>
