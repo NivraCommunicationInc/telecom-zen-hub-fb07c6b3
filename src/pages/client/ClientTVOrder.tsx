@@ -897,18 +897,11 @@ ${notes || ""}`.trim(),
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="identity-confirm" 
-                      checked={identityConfirmed}
-                      onCheckedChange={(checked) => setIdentityConfirmed(checked === true)}
-                    />
-                    <Label htmlFor="identity-confirm" className="text-sm">
-                      {isFrench 
-                        ? "Je confirme que je fournirai une pièce d'identité gouvernementale valide lors de la vérification"
-                        : "I confirm that I will provide a valid government ID during verification"}
-                    </Label>
-                  </div>
+                  <ClientIDVerificationForm
+                    data={clientIdData}
+                    onChange={setClientIdData}
+                    isFrench={isFrench}
+                  />
                 </CardContent>
               </Card>
 
