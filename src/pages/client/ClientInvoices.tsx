@@ -537,17 +537,26 @@ const ClientInvoices = () => {
                                     onClick={() => {
                                       downloadInvoicePDF({
                                         invoiceNumber: inv.invoice_number || inv.id.slice(0, 8).toUpperCase(),
+                                        orderNumber: inv.related_order_number,
                                         clientName: profile?.full_name || "Client",
                                         clientEmail: profile?.email || user?.email || "",
                                         clientPhone: profile?.phone,
-                                        amount: Number(inv.amount) || 0,
+                                        subtotal: Number(inv.subtotal || inv.amount) || 0,
                                         fees: Number(inv.fees) || 0,
                                         credits: Number(inv.credits) || 0,
+                                        deliveryFee: Number(inv.delivery_fee) || 0,
+                                        activationFee: Number(inv.activation_fee) || 0,
+                                        installationFee: Number(inv.installation_fee) || 0,
+                                        discountAmount: Number(inv.discount_amount) || 0,
+                                        tpsAmount: Number(inv.tps_amount) || 0,
+                                        tvqAmount: Number(inv.tvq_amount) || 0,
+                                        lateFeeAmount: Number(inv.late_fee_amount) || 0,
                                         dueDate: inv.due_date,
                                         createdAt: inv.created_at,
                                         status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
                                         paidAt: inv.paid_at,
                                         notes: inv.notes,
+                                        equipmentId: inv.equipment_id,
                                       });
                                       toast.success("Facture téléchargée");
                                     }}
@@ -1224,17 +1233,26 @@ const ClientInvoices = () => {
                       onClick={() => {
                         const invoiceData = {
                           invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
+                          orderNumber: previewInvoice.related_order_number,
                           clientName: profile?.full_name || "Client",
                           clientEmail: profile?.email || user?.email || "",
                           clientPhone: profile?.phone,
-                          amount: Number(previewInvoice.amount) || 0,
+                          subtotal: Number(previewInvoice.subtotal || previewInvoice.amount) || 0,
                           fees: Number(previewInvoice.fees) || 0,
                           credits: Number(previewInvoice.credits) || 0,
+                          deliveryFee: Number(previewInvoice.delivery_fee) || 0,
+                          activationFee: Number(previewInvoice.activation_fee) || 0,
+                          installationFee: Number(previewInvoice.installation_fee) || 0,
+                          discountAmount: Number(previewInvoice.discount_amount) || 0,
+                          tpsAmount: Number(previewInvoice.tps_amount) || 0,
+                          tvqAmount: Number(previewInvoice.tvq_amount) || 0,
+                          lateFeeAmount: Number(previewInvoice.late_fee_amount) || 0,
                           dueDate: previewInvoice.due_date,
                           createdAt: previewInvoice.created_at,
                           status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
                           paidAt: previewInvoice.paid_at,
                           notes: previewInvoice.notes,
+                          equipmentId: previewInvoice.equipment_id,
                         };
                         const doc = generateInvoicePDF(invoiceData);
                         const pdfBlob = doc.output("blob");
@@ -1256,17 +1274,26 @@ const ClientInvoices = () => {
                       onClick={() => {
                         downloadInvoicePDF({
                           invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
+                          orderNumber: previewInvoice.related_order_number,
                           clientName: profile?.full_name || "Client",
                           clientEmail: profile?.email || user?.email || "",
                           clientPhone: profile?.phone,
-                          amount: Number(previewInvoice.amount) || 0,
+                          subtotal: Number(previewInvoice.subtotal || previewInvoice.amount) || 0,
                           fees: Number(previewInvoice.fees) || 0,
                           credits: Number(previewInvoice.credits) || 0,
+                          deliveryFee: Number(previewInvoice.delivery_fee) || 0,
+                          activationFee: Number(previewInvoice.activation_fee) || 0,
+                          installationFee: Number(previewInvoice.installation_fee) || 0,
+                          discountAmount: Number(previewInvoice.discount_amount) || 0,
+                          tpsAmount: Number(previewInvoice.tps_amount) || 0,
+                          tvqAmount: Number(previewInvoice.tvq_amount) || 0,
+                          lateFeeAmount: Number(previewInvoice.late_fee_amount) || 0,
                           dueDate: previewInvoice.due_date,
                           createdAt: previewInvoice.created_at,
                           status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
                           paidAt: previewInvoice.paid_at,
                           notes: previewInvoice.notes,
+                          equipmentId: previewInvoice.equipment_id,
                         });
                         toast.success("Facture téléchargée");
                       }}
