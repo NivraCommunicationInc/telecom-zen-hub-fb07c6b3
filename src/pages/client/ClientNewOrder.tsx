@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,6 @@ import {
   CheckCircle2,
   Calendar,
   Clock,
-  MapPin,
   CreditCard,
   FileText,
   Receipt,
@@ -41,7 +41,11 @@ import {
   Zap,
   ScrollText,
   Download,
-  Printer
+  Printer,
+  Star,
+  MonitorPlay,
+  Plus,
+  CalendarPlus
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -84,17 +88,6 @@ interface Channel {
   is_4k: boolean;
 }
 
-interface ChannelPackage {
-  id: string;
-  name: string;
-  description: string | null;
-  channels: any;
-  original_price: number;
-  discounted_price: number;
-  savings_percent: number | null;
-  category: string;
-}
-
 const categoryIcons: Record<string, any> = {
   Mobile: Smartphone,
   Internet: Wifi,
@@ -127,8 +120,8 @@ const ClientNewOrder = () => {
   const [selectedTime, setSelectedTime] = useState<string>("");
 
   // Channel selection state (for TV orders)
-  const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
-  const [selectedPackages, setSelectedPackages] = useState<ChannelPackage[]>([]);
+  const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
+  const [selectedPaidChannels, setSelectedPaidChannels] = useState<Channel[]>([]);
 
   // Fetch available services
   const { data: services, isLoading } = useQuery({
@@ -159,20 +152,6 @@ const ClientNewOrder = () => {
     },
   });
 
-  // Fetch channel packages
-  const { data: channelPackages = [] } = useQuery({
-    queryKey: ["channel-packages-order"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("channel_packages")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data as ChannelPackage[];
-    },
-  });
-
   // Fetch client profile
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
@@ -188,6 +167,21 @@ const ClientNewOrder = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Categorize channels
+  const baseChannels = tvChannels.filter(ch => ch.category === 'base');
+  const freeChoiceChannels = tvChannels.filter(ch => ch.category === 'free_choice');
+  const paidChannels = tvChannels.filter(ch => ch.category === 'paid');
+
+  // Check if TV service is selected
+  const hasTVService = selectedServices.some(s => s.category === "TV");
+  
+  // Get selected TV service to determine free channel limit
+  const selectedTVService = selectedServices.find(s => s.category === "TV");
+  const freeChannelLimit = selectedTVService ? (
+    selectedTVService.name.toLowerCase().includes('premium') ? 20 :
+    selectedTVService.name.toLowerCase().includes('standard') ? 10 : 5
+  ) : 5;
 
   // Apply discount code
   const applyDiscountCode = () => {
@@ -208,28 +202,38 @@ const ClientNewOrder = () => {
       if (!user?.id) throw new Error("Not authenticated");
 
       const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+      const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
       const serviceNames = selectedServices.map(s => s.name).join(", ");
       const categories = [...new Set(selectedServices.map(s => s.category))].join(", ");
 
       // Prepare channel data for TV orders
       const channelData = hasTVService ? [
-        ...selectedChannels.map(ch => ({
+        // All base channels are automatically included
+        ...baseChannels.map(ch => ({
           id: ch.id,
           name: ch.name,
-          category: ch.category,
+          category: 'base',
+          price: 0,
+          is_hd: ch.is_hd,
+          type: 'base_included',
+        })),
+        // Selected free-choice channels
+        ...selectedFreeChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          category: 'free_choice',
+          price: 0,
+          is_hd: ch.is_hd,
+          type: 'free_choice',
+        })),
+        // Selected paid channels
+        ...selectedPaidChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          category: 'paid',
           price: ch.price,
           is_hd: ch.is_hd,
-          is_4k: ch.is_4k,
-          type: 'channel',
-        })),
-        ...selectedPackages.map(pkg => ({
-          id: pkg.id,
-          name: pkg.name,
-          category: pkg.category,
-          price: pkg.discounted_price,
-          original_price: pkg.original_price,
-          savings_percent: pkg.savings_percent,
-          type: 'package',
+          type: 'paid_addon',
         })),
       ] : [];
 
@@ -238,7 +242,7 @@ const ClientNewOrder = () => {
         client_email: profile?.email || user.email,
         service_type: serviceNames,
         category: categories,
-        subtotal: subtotal,
+        subtotal: subtotal + paidChannelTotal,
         delivery_fee: 30,
         activation_fee: 25,
         installation_fee: 50,
@@ -258,7 +262,7 @@ const ClientNewOrder = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       setCreatedOrder(data as CreatedOrder);
-      setStep(4); // Go to confirmation step
+      setStep(5); // Go to confirmation step
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -270,6 +274,11 @@ const ClientNewOrder = () => {
     setSelectedServices(prev => {
       const exists = prev.find(s => s.id === service.id);
       if (exists) {
+        // If removing TV service, clear channel selections
+        if (service.category === "TV") {
+          setSelectedFreeChannels([]);
+          setSelectedPaidChannels([]);
+        }
         return prev.filter(s => s.id !== service.id);
       }
       // Check if TV is selected without Internet
@@ -284,14 +293,39 @@ const ClientNewOrder = () => {
     });
   };
 
+  const toggleFreeChannel = (channel: Channel) => {
+    setSelectedFreeChannels(prev => {
+      const exists = prev.find(ch => ch.id === channel.id);
+      if (exists) {
+        return prev.filter(ch => ch.id !== channel.id);
+      }
+      if (prev.length >= freeChannelLimit) {
+        toast.error(`Vous avez atteint la limite de ${freeChannelLimit} chaînes gratuites pour votre forfait`);
+        return prev;
+      }
+      return [...prev, channel];
+    });
+  };
+
+  const togglePaidChannel = (channel: Channel) => {
+    setSelectedPaidChannels(prev => {
+      const exists = prev.find(ch => ch.id === channel.id);
+      if (exists) {
+        return prev.filter(ch => ch.id !== channel.id);
+      }
+      return [...prev, channel];
+    });
+  };
+
   const isSelected = (serviceId: string) => selectedServices.some(s => s.id === serviceId);
 
   // Calculate totals with fees and taxes
   const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+  const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const deliveryFee = 30;
   const activationFee = 25;
   const installationFee = Math.max(0, 50 - installationCredit);
-  const baseAmount = subtotal + deliveryFee + activationFee + installationFee;
+  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
@@ -307,9 +341,6 @@ const ClientNewOrder = () => {
 
   // Check if installation appointment is required
   const requiresInstallation = selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category));
-  
-  // Check if TV service is selected
-  const hasTVService = selectedServices.some(s => s.category === "TV");
 
   const handleSubmit = () => {
     if (selectedServices.length === 0) {
@@ -331,6 +362,48 @@ const ClientNewOrder = () => {
     createOrderMutation.mutate();
   };
 
+  // Generate ICS calendar file
+  const generateICSFile = () => {
+    if (!selectedDate || !selectedTime || !createdOrder) return;
+    
+    const startDate = new Date();
+    const [startHour] = selectedTime.split(' - ')[0].split('h');
+    startDate.setHours(parseInt(startHour), 0, 0, 0);
+    
+    const endDate = new Date(startDate);
+    endDate.setHours(endDate.getHours() + 2);
+
+    const formatICSDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Nivra//TV Installation//FR
+BEGIN:VEVENT
+UID:${createdOrder.order_number}@nivra.ca
+DTSTAMP:${formatICSDate(new Date())}
+DTSTART:${formatICSDate(startDate)}
+DTEND:${formatICSDate(endDate)}
+SUMMARY:Installation Nivra TV - ${createdOrder.order_number}
+DESCRIPTION:Installation de vos services Nivra.\\nCommande: ${createdOrder.order_number}\\nServices: ${createdOrder.service_type}
+LOCATION:Votre domicile
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `nivra-installation-${createdOrder.order_number}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Événement ajouté à votre calendrier");
+  };
+
   return (
     <ClientLayout>
       <div className="space-y-6">
@@ -342,11 +415,12 @@ const ClientNewOrder = () => {
         {/* Progress Steps */}
         <div className="flex items-center gap-2 sm:gap-4">
           {[
-            { num: 1, label: "Sélection" },
-            { num: 2, label: "Vérification" },
-            { num: 3, label: "Confirmation" },
-            { num: 4, label: "Terminé" },
-          ].map((s, i) => (
+            { num: 1, label: "Services" },
+            { num: 2, label: hasTVService ? "Chaînes TV" : "Vérification" },
+            { num: 3, label: hasTVService ? "Vérification" : "Confirmation" },
+            { num: 4, label: hasTVService ? "Confirmation" : "Terminé" },
+            ...(hasTVService ? [{ num: 5, label: "Terminé" }] : []),
+          ].map((s, i, arr) => (
             <React.Fragment key={s.num}>
               <div className={`flex items-center gap-2 ${step >= s.num ? "text-cyan-500" : "text-muted-foreground"}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -356,7 +430,7 @@ const ClientNewOrder = () => {
                 </div>
                 <span className="text-xs font-medium hidden md:inline">{s.label}</span>
               </div>
-              {i < 3 && (
+              {i < arr.length - 1 && (
                 <div className="flex-1 h-0.5 bg-muted">
                   <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : step === s.num ? "bg-cyan-500 w-1/2" : "w-0"}`} />
                 </div>
@@ -398,7 +472,7 @@ const ClientNewOrder = () => {
                         <div>
                           <h2 className="text-xl font-bold text-foreground">{category}</h2>
                           {category === "TV" && (
-                            <p className="text-xs text-amber-500">Requiert Internet</p>
+                            <p className="text-xs text-amber-500">Requiert Internet • Inclut 34 chaînes de base gratuites</p>
                           )}
                         </div>
                       </div>
@@ -467,8 +541,8 @@ const ClientNewOrder = () => {
                         <span className="text-sm text-muted-foreground font-normal"> total</span>
                       </p>
                     </div>
-                    <Button variant="hero" size="lg" onClick={() => setStep(2)}>
-                      Continuer
+                    <Button variant="hero" size="lg" onClick={() => setStep(hasTVService ? 2 : 3)}>
+                      {hasTVService ? "Choisir vos chaînes" : "Continuer"}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
@@ -478,8 +552,209 @@ const ClientNewOrder = () => {
           </>
         )}
 
-        {/* Step 2: Identity Verification & Discount Code */}
-        {step === 2 && (
+        {/* Step 2: Channel Selection (Only for TV orders) */}
+        {step === 2 && hasTVService && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Base Channels - Always Included */}
+              <Card className="bg-emerald-500/10 border-emerald-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MonitorPlay className="w-5 h-5 text-emerald-500" />
+                    Chaînes de base incluses ({baseChannels.length} chaînes)
+                  </CardTitle>
+                  <CardDescription>
+                    Ces chaînes sont automatiquement incluses avec votre forfait TV - GRATUITES
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-48">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {baseChannels.map((channel) => (
+                        <div key={channel.id} className="flex items-center gap-2 p-2 bg-accent/30 rounded text-sm">
+                          <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          <span className="truncate">{channel.name}</span>
+                          {channel.is_hd && <Badge variant="outline" className="text-xs px-1">HD</Badge>}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Free-Choice Channels */}
+              <Card className="bg-card border-cyan-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-cyan-500" />
+                    Chaînes au choix ({selectedFreeChannels.length}/{freeChannelLimit} sélectionnées)
+                  </CardTitle>
+                  <CardDescription>
+                    Choisissez jusqu'à {freeChannelLimit} chaînes supplémentaires incluses avec votre forfait
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-72">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {freeChoiceChannels.map((channel) => {
+                        const isChannelSelected = selectedFreeChannels.some(ch => ch.id === channel.id);
+                        return (
+                          <div
+                            key={channel.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                              isChannelSelected
+                                ? "bg-cyan-500/20 border border-cyan-500"
+                                : "bg-accent/30 hover:bg-accent/50 border border-transparent"
+                            }`}
+                            onClick={() => toggleFreeChannel(channel)}
+                          >
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              isChannelSelected ? "bg-cyan-500 text-white" : "border-2 border-muted-foreground/30"
+                            }`}>
+                              {isChannelSelected && <Check className="w-3 h-3" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{channel.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {channel.is_hd && <Badge variant="outline" className="text-xs px-1">HD</Badge>}
+                              <Badge className="bg-emerald-500/20 text-emerald-500 border-0">Gratuit</Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Paid Premium Channels */}
+              <Card className="bg-card border-amber-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-amber-500" />
+                    Chaînes premium / Sports (en option)
+                  </CardTitle>
+                  <CardDescription>
+                    Ajoutez des chaînes premium pour un abonnement mensuel additionnel
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-64">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {paidChannels.map((channel) => {
+                        const isChannelSelected = selectedPaidChannels.some(ch => ch.id === channel.id);
+                        return (
+                          <div
+                            key={channel.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                              isChannelSelected
+                                ? "bg-amber-500/20 border border-amber-500"
+                                : "bg-accent/30 hover:bg-accent/50 border border-transparent"
+                            }`}
+                            onClick={() => togglePaidChannel(channel)}
+                          >
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              isChannelSelected ? "bg-amber-500 text-white" : "border-2 border-muted-foreground/30"
+                            }`}>
+                              {isChannelSelected && <Check className="w-3 h-3" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{channel.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {channel.is_hd && <Badge variant="outline" className="text-xs px-1">HD</Badge>}
+                              <Badge className="bg-amber-500/20 text-amber-500 border-0">
+                                {Number(channel.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Channel Selection Summary */}
+            <div className="lg:col-span-1">
+              <Card className="bg-card border-cyan-500/30 sticky top-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tv className="w-5 h-5 text-cyan-500" />
+                    Résumé des chaînes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Chaînes de base</span>
+                      <span className="text-emerald-500">{baseChannels.length} incluses</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Chaînes au choix</span>
+                      <span className="text-cyan-500">{selectedFreeChannels.length}/{freeChannelLimit}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Chaînes premium</span>
+                      <span className="text-amber-500">{selectedPaidChannels.length} sélectionnées</span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between font-medium">
+                      <span>Total chaînes</span>
+                      <span>{baseChannels.length + selectedFreeChannels.length + selectedPaidChannels.length}</span>
+                    </div>
+                    {paidChannelTotal > 0 && (
+                      <div className="flex justify-between text-amber-500">
+                        <span>Chaînes premium</span>
+                        <span>+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-foreground">Total mensuel</span>
+                    <span className="text-xl font-bold text-cyan-500">
+                      {(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </div>
+
+                  <div className="pt-4 space-y-3">
+                    <Button
+                      variant="hero"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => setStep(3)}
+                    >
+                      Continuer
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setStep(1)}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Modifier les services
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Identity Verification & Discount Code */}
+        {step === 3 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card className="bg-card border-border">
@@ -640,12 +915,18 @@ const ClientNewOrder = () => {
                         <span className="text-foreground">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     ))}
+                    {paidChannelTotal > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-amber-500">Chaînes premium ({selectedPaidChannels.length})</span>
+                        <span className="text-amber-500">+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="border-t border-border pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Sous-total services</span>
-                      <span className="text-foreground">{subtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Frais de livraison (QC)</span>
@@ -690,7 +971,7 @@ const ClientNewOrder = () => {
                       variant="hero"
                       className="w-full"
                       size="lg"
-                      onClick={() => setStep(3)}
+                      onClick={() => setStep(4)}
                       disabled={!identityConfirmed}
                     >
                       Réviser et confirmer
@@ -699,10 +980,10 @@ const ClientNewOrder = () => {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => setStep(1)}
+                      onClick={() => setStep(hasTVService ? 2 : 1)}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
-                      Modifier la sélection
+                      {hasTVService ? "Modifier les chaînes" : "Modifier la sélection"}
                     </Button>
                   </div>
                 </CardContent>
@@ -711,8 +992,8 @@ const ClientNewOrder = () => {
           </div>
         )}
 
-        {/* Step 3: Final Confirmation */}
-        {step === 3 && (
+        {/* Step 4: Final Confirmation */}
+        {step === 4 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card className="bg-card border-border">
@@ -749,6 +1030,55 @@ const ClientNewOrder = () => {
                   })}
                 </CardContent>
               </Card>
+
+              {/* Channel Summary for TV Orders */}
+              {hasTVService && (
+                <Card className="bg-card border-cyan-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Tv className="w-5 h-5 text-cyan-500" />
+                      Chaînes TV sélectionnées
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="p-3 bg-emerald-500/10 rounded-lg">
+                      <p className="text-sm font-medium text-emerald-500 mb-2">
+                        ✓ {baseChannels.length} chaînes de base incluses
+                      </p>
+                    </div>
+                    
+                    {selectedFreeChannels.length > 0 && (
+                      <div className="p-3 bg-cyan-500/10 rounded-lg">
+                        <p className="text-sm font-medium text-cyan-500 mb-2">
+                          Chaînes au choix ({selectedFreeChannels.length})
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedFreeChannels.map(ch => (
+                            <Badge key={ch.id} variant="outline" className="text-xs">
+                              {ch.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedPaidChannels.length > 0 && (
+                      <div className="p-3 bg-amber-500/10 rounded-lg">
+                        <p className="text-sm font-medium text-amber-500 mb-2">
+                          Chaînes premium (+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois)
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedPaidChannels.map(ch => (
+                            <Badge key={ch.id} variant="outline" className="text-xs border-amber-500/50">
+                              {ch.name} - {Number(ch.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="bg-card border-border">
                 <CardHeader>
@@ -861,7 +1191,7 @@ const ClientNewOrder = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sous-total</span>
-                      <span>{subtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Livraison</span>
@@ -903,7 +1233,7 @@ const ClientNewOrder = () => {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => setStep(2)}
+                      onClick={() => setStep(3)}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Retour
@@ -919,8 +1249,8 @@ const ClientNewOrder = () => {
           </div>
         )}
 
-        {/* Step 4: Professional Order Confirmation */}
-        {step === 4 && createdOrder && (
+        {/* Step 5: Professional Order Confirmation */}
+        {step === 5 && createdOrder && (
           <div className="space-y-6 max-w-4xl mx-auto">
             {/* Success Banner */}
             <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
@@ -991,6 +1321,69 @@ const ClientNewOrder = () => {
               </CardContent>
             </Card>
 
+            {/* Channel Summary for TV Orders in Confirmation */}
+            {hasTVService && (
+              <Card className="bg-card border-cyan-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tv className="w-5 h-5 text-cyan-500" />
+                    Vos chaînes TV ({baseChannels.length + selectedFreeChannels.length + selectedPaidChannels.length} chaînes)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 bg-emerald-500/10 rounded-lg">
+                    <p className="text-sm font-medium text-emerald-500 mb-2">
+                      ✓ {baseChannels.length} chaînes de base incluses (gratuites)
+                    </p>
+                    <ScrollArea className="h-24">
+                      <div className="flex flex-wrap gap-1">
+                        {baseChannels.slice(0, 20).map(ch => (
+                          <Badge key={ch.id} variant="outline" className="text-xs bg-emerald-500/10">
+                            {ch.name}
+                          </Badge>
+                        ))}
+                        {baseChannels.length > 20 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{baseChannels.length - 20} autres
+                          </Badge>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                  
+                  {selectedFreeChannels.length > 0 && (
+                    <div className="p-3 bg-cyan-500/10 rounded-lg">
+                      <p className="text-sm font-medium text-cyan-500 mb-2">
+                        Chaînes au choix ({selectedFreeChannels.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedFreeChannels.map(ch => (
+                          <Badge key={ch.id} variant="outline" className="text-xs">
+                            {ch.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPaidChannels.length > 0 && (
+                    <div className="p-3 bg-amber-500/10 rounded-lg">
+                      <p className="text-sm font-medium text-amber-500 mb-2">
+                        Chaînes premium (+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois)
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedPaidChannels.map(ch => (
+                          <Badge key={ch.id} variant="outline" className="text-xs border-amber-500/50">
+                            {ch.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Appointment Details - if applicable */}
             {(selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && selectedDate && selectedTime) && (
               <Card className="bg-card border-purple-500/30">
@@ -1023,6 +1416,12 @@ const ClientNewOrder = () => {
                         <p className="font-medium text-foreground">Confirmé</p>
                       </div>
                     </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button variant="outline" className="gap-2" onClick={generateICSFile}>
+                      <CalendarPlus className="w-4 h-4" />
+                      Ajouter à mon calendrier
+                    </Button>
                   </div>
                   <p className="text-sm text-muted-foreground mt-4">
                     <Info className="w-4 h-4 inline mr-1" />
@@ -1159,24 +1558,30 @@ const ClientNewOrder = () => {
                       <span className="font-medium">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                   ))}
+                  {paidChannelTotal > 0 && (
+                    <div className="flex justify-between py-2">
+                      <span className="text-amber-500">Chaînes premium ({selectedPaidChannels.length})</span>
+                      <span className="font-medium text-amber-500">{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between py-2">
                     <span className="text-muted-foreground">Sous-total mensuel</span>
-                    <span className="font-medium">{subtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span className="font-medium">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-muted-foreground">TPS (5%)</span>
-                    <span className="font-medium">{(subtotal * 0.05).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span className="font-medium">{((subtotal + paidChannelTotal) * 0.05).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-muted-foreground">TVQ (9.975%)</span>
-                    <span className="font-medium">{(subtotal * 0.09975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span className="font-medium">{((subtotal + paidChannelTotal) * 0.09975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between py-3 bg-emerald-500/10 rounded-lg px-4 -mx-4">
                     <span className="font-semibold text-foreground">Total mensuel estimé</span>
                     <span className="text-xl font-bold text-emerald-500">
-                      {(subtotal * 1.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      {((subtotal + paidChannelTotal) * 1.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                     </span>
                   </div>
                 </div>
@@ -1185,61 +1590,6 @@ const ClientNewOrder = () => {
                   <Calendar className="w-4 h-4" />
                   <span>Prochaine facturation estimée: {format(addMonths(new Date(), 1), "d MMMM yyyy", { locale: fr })}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Terms, Conditions & Policies */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ScrollText className="w-5 h-5 text-cyan-500" />
-                  Termes, conditions et politiques
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-accent/50 rounded-lg">
-                    <h4 className="font-medium text-foreground mb-2">Politique d'annulation</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Annulation possible en tout temps</li>
-                      <li>• Après installation: 1 mois de frais</li>
-                      <li>• Avant 1 mois d'utilisation: frais d'installation dus</li>
-                    </ul>
-                  </div>
-                  <div className="p-4 bg-accent/50 rounded-lg">
-                    <h4 className="font-medium text-foreground mb-2">Équipement</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Location d'équipement gratuite</li>
-                      <li>• Retour à vos frais en cas d'annulation</li>
-                      <li>• Équipement endommagé: frais applicables</li>
-                    </ul>
-                  </div>
-                  <div className="p-4 bg-accent/50 rounded-lg">
-                    <h4 className="font-medium text-foreground mb-2">Vérification d'identité</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Pièce d'identité avec photo requise</li>
-                      <li>• Aucune vérification de crédit</li>
-                      <li>• Aucun bureau de crédit consulté</li>
-                    </ul>
-                  </div>
-                  <div className="p-4 bg-accent/50 rounded-lg">
-                    <h4 className="font-medium text-foreground mb-2">Paiement</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Paiement direct à Nivra uniquement</li>
-                      <li>• Retard de paiement: 5% de frais</li>
-                      <li>• Aucun engagement à long terme</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <Card className="bg-blue-500/10 border-blue-500/30">
-                  <CardContent className="py-3 flex items-start gap-2">
-                    <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground">
-                      En passant cette commande, vous acceptez nos <a href="/terms" className="text-cyan-500 underline">Conditions d'utilisation</a> et notre <a href="/privacy" className="text-cyan-500 underline">Politique de confidentialité</a>.
-                    </p>
-                  </CardContent>
-                </Card>
               </CardContent>
             </Card>
 
@@ -1299,6 +1649,12 @@ const ClientNewOrder = () => {
                 <Printer className="w-4 h-4" />
                 Imprimer la confirmation
               </Button>
+              {selectedDate && selectedTime && (
+                <Button variant="outline" size="lg" className="gap-2" onClick={generateICSFile}>
+                  <CalendarPlus className="w-4 h-4" />
+                  Ajouter au calendrier
+                </Button>
+              )}
               <Button variant="hero" size="lg" onClick={() => navigate("/portal/orders")} className="gap-2">
                 Voir mes commandes
                 <ArrowRight className="w-4 h-4" />
