@@ -196,7 +196,8 @@ const AdminRequests = () => {
                 {requests.map((request: any) => (
                   <div
                     key={request.id}
-                    className="p-4 rounded-lg border border-border hover:border-cyan-400/30 transition-colors"
+                    className="p-4 rounded-lg border border-border hover:border-cyan-400/30 transition-colors cursor-pointer"
+                    onClick={() => handleViewDetails(request)}
                   >
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                       <div className="flex-1">
@@ -216,7 +217,7 @@ const AdminRequests = () => {
                           {request.email} • {request.phone}
                         </p>
                         {request.notes && (
-                          <p className="text-sm text-foreground mt-2 bg-muted p-2 rounded">
+                          <p className="text-sm text-foreground mt-2 bg-muted p-2 rounded line-clamp-2">
                             {request.notes}
                           </p>
                         )}
@@ -224,7 +225,7 @@ const AdminRequests = () => {
                           Reçu le {format(new Date(request.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                         <Button size="sm" variant="outline" onClick={() => handleViewDetails(request)}>
                           <Eye className="w-4 h-4 mr-1" />
                           Détails

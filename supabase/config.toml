@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.check-overdue-invoices]
 verify_jwt = false
+
+[functions.send-contract-notification]
+verify_jwt = false
