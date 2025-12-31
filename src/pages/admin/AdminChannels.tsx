@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -24,11 +27,15 @@ import {
   Package,
   AlertCircle,
   Search,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  Edit,
+  Trash2,
+  Gift,
+  Percent
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Input } from "@/components/ui/input";
 
 interface ChannelSelection {
   id: string;
@@ -52,6 +59,18 @@ interface Profile {
   phone: string | null;
 }
 
+interface ChannelPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  channels: any;
+  original_price: number;
+  discounted_price: number;
+  savings_percent: number | null;
+  category: string;
+  is_active: boolean;
+}
+
 const AdminChannels = () => {
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
@@ -60,6 +79,18 @@ const AdminChannels = () => {
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [actionNotes, setActionNotes] = useState("");
   const [actionDialog, setActionDialog] = useState<"confirm" | "cancel" | null>(null);
+  
+  // Package management state
+  const [packageDialogOpen, setPackageDialogOpen] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<ChannelPackage | null>(null);
+  const [packageForm, setPackageForm] = useState({
+    name: "",
+    description: "",
+    category: "theme_pack",
+    original_price: "",
+    discounted_price: "",
+    is_active: true,
+  });
 
   // Fetch all channel selections
   const { data: selections = [], isLoading } = useQuery({
@@ -97,6 +128,19 @@ const AdminChannels = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch channel packages
+  const { data: packages = [] } = useQuery({
+    queryKey: ["admin-channel-packages"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("channel_packages")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      return data as ChannelPackage[];
     },
   });
 
@@ -244,6 +288,107 @@ const AdminChannels = () => {
     },
   });
 
+  // Create/Update package mutation
+  const savePackageMutation = useMutation({
+    mutationFn: async (pkg: typeof packageForm & { id?: string }) => {
+      const savingsPercent = pkg.original_price && pkg.discounted_price
+        ? Math.round(((parseFloat(pkg.original_price) - parseFloat(pkg.discounted_price)) / parseFloat(pkg.original_price)) * 100)
+        : 0;
+
+      if (editingPackage) {
+        const { error } = await supabase
+          .from("channel_packages")
+          .update({
+            name: pkg.name,
+            description: pkg.description || null,
+            category: pkg.category,
+            original_price: parseFloat(pkg.original_price) || 0,
+            discounted_price: parseFloat(pkg.discounted_price) || 0,
+            savings_percent: savingsPercent,
+            is_active: pkg.is_active,
+          })
+          .eq("id", editingPackage.id);
+        if (error) throw error;
+        await logActivity("package_updated", "channel_package", editingPackage.id);
+      } else {
+        const { error } = await supabase
+          .from("channel_packages")
+          .insert({
+            name: pkg.name,
+            description: pkg.description || null,
+            category: pkg.category,
+            channels: [],
+            original_price: parseFloat(pkg.original_price) || 0,
+            discounted_price: parseFloat(pkg.discounted_price) || 0,
+            savings_percent: savingsPercent,
+            is_active: pkg.is_active,
+          });
+        if (error) throw error;
+        await logActivity("package_created", "channel_package", null);
+      }
+    },
+    onSuccess: () => {
+      toast.success(editingPackage ? "Forfait mis à jour" : "Forfait créé");
+      queryClient.invalidateQueries({ queryKey: ["admin-channel-packages"] });
+      setPackageDialogOpen(false);
+      setEditingPackage(null);
+      setPackageForm({ name: "", description: "", category: "theme_pack", original_price: "", discounted_price: "", is_active: true });
+    },
+    onError: (error: any) => {
+      toast.error("Erreur: " + error.message);
+    },
+  });
+
+  // Toggle package active status
+  const togglePackageMutation = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase
+        .from("channel_packages")
+        .update({ is_active })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Statut du forfait mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["admin-channel-packages"] });
+    },
+  });
+
+  // Delete package mutation
+  const deletePackageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("channel_packages")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      await logActivity("package_deleted", "channel_package", id);
+    },
+    onSuccess: () => {
+      toast.success("Forfait supprimé");
+      queryClient.invalidateQueries({ queryKey: ["admin-channel-packages"] });
+    },
+  });
+
+  const openEditPackage = (pkg: ChannelPackage) => {
+    setEditingPackage(pkg);
+    setPackageForm({
+      name: pkg.name,
+      description: pkg.description || "",
+      category: pkg.category,
+      original_price: String(pkg.original_price),
+      discounted_price: String(pkg.discounted_price),
+      is_active: pkg.is_active,
+    });
+    setPackageDialogOpen(true);
+  };
+
+  const openCreatePackage = () => {
+    setEditingPackage(null);
+    setPackageForm({ name: "", description: "", category: "theme_pack", original_price: "", discounted_price: "", is_active: true });
+    setPackageDialogOpen(true);
+  };
+
   const pendingSelections = selections.filter(s => s.status === "pending");
   const confirmedSelections = selections.filter(s => s.status === "confirmed");
   const cancelledSelections = selections.filter(s => s.status === "cancelled");
@@ -364,13 +509,17 @@ const AdminChannels = () => {
         </div>
 
         <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="pending" className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               En attente ({pendingSelections.length})
             </TabsTrigger>
             <TabsTrigger value="all">Toutes les sélections</TabsTrigger>
             <TabsTrigger value="tickets">Tickets associés</TabsTrigger>
+            <TabsTrigger value="packages" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Forfaits ({packages.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4">
@@ -573,6 +722,100 @@ const AdminChannels = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Packages Tab */}
+          <TabsContent value="packages" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold">Gestion des Forfaits Thématiques</h3>
+                <p className="text-sm text-muted-foreground">Créez et gérez les forfaits de chaînes avec réductions</p>
+              </div>
+              <Button onClick={openCreatePackage}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau Forfait
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {packages.map(pkg => {
+                const channelsList = Array.isArray(pkg.channels) ? pkg.channels : [];
+                return (
+                  <Card key={pkg.id} className={`${!pkg.is_active ? 'opacity-60' : ''}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            {pkg.name}
+                            {!pkg.is_active && <Badge variant="secondary">Inactif</Badge>}
+                          </CardTitle>
+                          <CardDescription>{pkg.description}</CardDescription>
+                        </div>
+                        {pkg.savings_percent && (
+                          <Badge className="bg-green-500">
+                            <Percent className="w-3 h-3 mr-1" />
+                            -{pkg.savings_percent}%
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Prix original:</span>
+                        <span className="line-through">${pkg.original_price}/mois</span>
+                      </div>
+                      <div className="flex justify-between font-semibold">
+                        <span>Prix réduit:</span>
+                        <span className="text-green-600">${pkg.discounted_price}/mois</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {channelsList.length} chaînes incluses
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={pkg.is_active}
+                            onCheckedChange={(checked) => togglePackageMutation.mutate({ id: pkg.id, is_active: checked })}
+                          />
+                          <span className="text-sm">{pkg.is_active ? 'Actif' : 'Inactif'}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => openEditPackage(pkg)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-destructive"
+                            onClick={() => {
+                              if (confirm("Supprimer ce forfait?")) {
+                                deletePackageMutation.mutate(pkg.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {packages.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Gift className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Aucun forfait thématique</p>
+                  <Button className="mt-4" onClick={openCreatePackage}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer un forfait
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -626,6 +869,75 @@ const AdminChannels = () => {
               disabled={confirmMutation.isPending || cancelMutation.isPending}
             >
               {actionDialog === "confirm" ? "Confirmer" : "Annuler la sélection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Package Create/Edit Dialog */}
+      <Dialog open={packageDialogOpen} onOpenChange={setPackageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingPackage ? "Modifier le forfait" : "Créer un forfait"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Nom du forfait</Label>
+              <Input
+                value={packageForm.name}
+                onChange={(e) => setPackageForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Pack Sports Complet"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={packageForm.description}
+                onChange={(e) => setPackageForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Description du forfait..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Prix original ($/mois)</Label>
+                <Input
+                  type="number"
+                  value={packageForm.original_price}
+                  onChange={(e) => setPackageForm(prev => ({ ...prev, original_price: e.target.value }))}
+                  placeholder="99.99"
+                />
+              </div>
+              <div>
+                <Label>Prix réduit ($/mois)</Label>
+                <Input
+                  type="number"
+                  value={packageForm.discounted_price}
+                  onChange={(e) => setPackageForm(prev => ({ ...prev, discounted_price: e.target.value }))}
+                  placeholder="79.99"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={packageForm.is_active}
+                onCheckedChange={(checked) => setPackageForm(prev => ({ ...prev, is_active: checked }))}
+              />
+              <Label>Forfait actif</Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPackageDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => savePackageMutation.mutate(packageForm)}
+              disabled={!packageForm.name || savePackageMutation.isPending}
+            >
+              {editingPackage ? "Mettre à jour" : "Créer"}
             </Button>
           </DialogFooter>
         </DialogContent>
