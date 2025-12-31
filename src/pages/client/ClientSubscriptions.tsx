@@ -417,7 +417,7 @@ const ClientSubscriptions = () => {
                   Contactez-nous pour souscrire à un forfait télécom avantageux
                 </p>
                 <Button variant="hero" asChild>
-                  <a href="/book">Prendre rendez-vous</a>
+                  <a href="/portal/new-order">Passer une commande</a>
                 </Button>
               </div>
             )}

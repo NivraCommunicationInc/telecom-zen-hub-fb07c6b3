@@ -86,9 +86,9 @@ const Services = () => {
                 ))}
               </ul>
 
-              {/* Link - Navigate to contact */}
+              {/* Link - Navigate to order */}
               <Button variant="ghost" size="sm" className="group/btn text-accent p-0 h-auto font-semibold" asChild>
-                <Link to="/book">
+                <Link to="/portal/new-order">
                   {t('services.cta')}
                   <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
                 </Link>

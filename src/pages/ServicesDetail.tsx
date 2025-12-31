@@ -1,4 +1,4 @@
-import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Phone, XCircle, Building2, User, Clock, Calendar, Receipt, ChevronRight, Layers, Sparkles } from "lucide-react";
+import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Phone, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -146,10 +146,10 @@ const ServicesDetail = () => {
     },
     {
       icon: MapPin,
-      title: isFrench ? "Équipement gratuit" : "Free equipment",
+      title: isFrench ? "Frais d'équipement unique" : "One-time equipment fee",
       description: isFrench 
-        ? "Location gratuite d'équipement. Retours à la charge du client."
-        : "Free equipment rental. Returns at client's expense.",
+        ? "Frais uniques pour équipement, payés à la commande. Garantie 1 an couvrant défauts d'usine. Retours aux frais du client."
+        : "One-time equipment fee, paid at order. 1-year warranty covering factory defects. Returns at client's expense.",
       color: "text-blue-500",
     },
     {
@@ -233,15 +233,15 @@ const ServicesDetail = () => {
             
             <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
               {isFrench 
-                ? "Courtier télécom 100% indépendant. Nous sommes payés uniquement par nos clients — jamais par les fournisseurs. Conseils objectifs garantis."
-                : "100% independent telecom broker. We are paid only by our clients — never by providers. Objective advice guaranteed."}
+                ? "Fournisseur télécom 100% indépendant au Québec. Modèle client-payeur, aucune affiliation carrier."
+                : "100% independent telecom provider in Quebec. Client-paid model, no carrier affiliation."}
             </p>
             
             <div className="flex flex-wrap justify-center gap-4">
               <Button variant="hero" size="xl" className="btn-3d" asChild>
-                <Link to="/book">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  {isFrench ? "Consultation gratuite 30 min" : "Free 30-min Consultation"}
+                <Link to="/portal/new-order">
+                  <ArrowRight className="w-5 h-5 mr-2" />
+                  {isFrench ? "Commander maintenant" : "Order Now"}
                 </Link>
               </Button>
               <Button variant="outline" size="lg" asChild>
@@ -313,8 +313,8 @@ const ServicesDetail = () => {
                       ))}
                     </ul>
                     <Button variant="ghost" size="sm" className={`group/btn ${colors.text} p-0 h-auto font-semibold`} asChild>
-                      <Link to="/book">
-                        {isFrench ? "Réserver une consultation" : "Book a consultation"}
+                      <Link to="/portal/new-order">
+                        {isFrench ? "Commander maintenant" : "Order Now"}
                         <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-1" />
                       </Link>
                     </Button>
@@ -446,8 +446,8 @@ const ServicesDetail = () => {
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-5">
                   {isFrench 
-                    ? "L'équipement (modem, routeur, décodeur) est fourni en location gratuite. Lors de l'annulation, les frais de retour sont à votre charge."
-                    : "Equipment (modem, router, decoder) is provided as free rental. Upon cancellation, return shipping is at your expense."}
+                    ? "L'équipement (modem, routeur, décodeur) est facturé avec frais unique à la commande. Garantie fabricant 1 an incluse couvrant les défauts d'usine. Les retours sont aux frais du client."
+                    : "Equipment (modem, router, decoder) is charged with a one-time fee at order. 1-year manufacturer warranty included covering factory defects. Returns are at client's expense."}
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-4" className="bg-card/80 backdrop-blur-sm border border-border rounded-xl px-5 overflow-hidden">
@@ -474,7 +474,7 @@ const ServicesDetail = () => {
           </div>
         </section>
 
-        {/* Inline CTA - Book Consultation */}
+        {/* Inline CTA - Order Now */}
         <section className="container mx-auto px-4 mb-20 relative">
           <Card className="bg-gradient-to-br from-accent/15 via-cyan-500/10 to-accent/5 border-accent/20 overflow-hidden relative">
             {/* Decorative elements */}
@@ -484,23 +484,23 @@ const ServicesDetail = () => {
             <CardContent className="py-14 px-8 relative">
               <div className="max-w-2xl mx-auto text-center">
                 <div className="w-16 h-16 rounded-2xl bg-accent/20 flex items-center justify-center mx-auto mb-6 shadow-glow">
-                  <Calendar className="w-8 h-8 text-accent" />
+                  <ArrowRight className="w-8 h-8 text-accent" />
                 </div>
                 
                 <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-                  {isFrench ? "Consultation gratuite de 30 minutes" : "Free 30-minute Consultation"}
+                  {isFrench ? "Passez votre commande maintenant" : "Place Your Order Now"}
                 </h2>
                 <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
                   {isFrench 
-                    ? "Parlez avec un conseiller Nivra pour évaluer vos besoins et découvrir les meilleures options pour vous."
-                    : "Speak with a Nivra advisor to assess your needs and discover the best options for you."}
+                    ? "Créez votre compte et commandez vos services Nivra en ligne. Pièce d'identité requise."
+                    : "Create your account and order your Nivra services online. ID required."}
                 </p>
                 
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
                   <Button variant="hero" size="xl" className="btn-3d" asChild>
-                    <Link to="/book">
-                      <Calendar className="w-5 h-5 mr-2" />
-                      {isFrench ? "Réserver maintenant" : "Book Now"}
+                    <Link to="/portal/new-order">
+                      <ArrowRight className="w-5 h-5 mr-2" />
+                      {isFrench ? "Commander maintenant" : "Order Now"}
                     </Link>
                   </Button>
                   <Button variant="outline" size="lg" className="gap-2" asChild>
