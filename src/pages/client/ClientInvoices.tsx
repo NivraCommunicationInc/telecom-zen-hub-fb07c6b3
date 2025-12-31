@@ -14,6 +14,7 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { downloadInvoicePDF, viewInvoicePDF } from "@/lib/invoicePdfGenerator";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -50,7 +51,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("balance, store_credit, account_status")
+        .select("balance, store_credit, account_status, full_name, email, phone")
         .eq("user_id", user?.id)
         .maybeSingle();
       if (error) throw error;
@@ -518,7 +519,27 @@ const ClientInvoices = () => {
                               </td>
                               <td className="py-3 px-4">
                                 <div className="flex gap-2">
-                                  <Button size="sm" variant="outline">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      downloadInvoicePDF({
+                                        invoiceNumber: inv.invoice_number || inv.id.slice(0, 8).toUpperCase(),
+                                        clientName: profile?.full_name || "Client",
+                                        clientEmail: profile?.email || user?.email || "",
+                                        clientPhone: profile?.phone,
+                                        amount: Number(inv.amount) || 0,
+                                        fees: Number(inv.fees) || 0,
+                                        credits: Number(inv.credits) || 0,
+                                        dueDate: inv.due_date,
+                                        createdAt: inv.created_at,
+                                        status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
+                                        paidAt: inv.paid_at,
+                                        notes: inv.notes,
+                                      });
+                                      toast.success("Facture téléchargée");
+                                    }}
+                                  >
                                     <Download className="w-4 h-4" />
                                   </Button>
                                   {inv.status !== "paid" && (
