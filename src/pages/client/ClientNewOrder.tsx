@@ -71,6 +71,28 @@ interface CreatedOrder {
   total_amount: number;
   status: string;
   created_at: string;
+  selected_channels?: any[];
+}
+
+interface Channel {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string;
+  is_hd: boolean;
+  is_4k: boolean;
+}
+
+interface ChannelPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  channels: any;
+  original_price: number;
+  discounted_price: number;
+  savings_percent: number | null;
+  category: string;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -104,6 +126,10 @@ const ClientNewOrder = () => {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
 
+  // Channel selection state (for TV orders)
+  const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
+  const [selectedPackages, setSelectedPackages] = useState<ChannelPackage[]>([]);
+
   // Fetch available services
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
@@ -116,6 +142,34 @@ const ClientNewOrder = () => {
 
       if (error) throw error;
       return data as Service[];
+    },
+  });
+
+  // Fetch TV channels for selection
+  const { data: tvChannels = [] } = useQuery({
+    queryKey: ["tv-channels-order"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tv_channels")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data as Channel[];
+    },
+  });
+
+  // Fetch channel packages
+  const { data: channelPackages = [] } = useQuery({
+    queryKey: ["channel-packages-order"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("channel_packages")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data as ChannelPackage[];
     },
   });
 
@@ -157,6 +211,28 @@ const ClientNewOrder = () => {
       const serviceNames = selectedServices.map(s => s.name).join(", ");
       const categories = [...new Set(selectedServices.map(s => s.category))].join(", ");
 
+      // Prepare channel data for TV orders
+      const channelData = hasTVService ? [
+        ...selectedChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          category: ch.category,
+          price: ch.price,
+          is_hd: ch.is_hd,
+          is_4k: ch.is_4k,
+          type: 'channel',
+        })),
+        ...selectedPackages.map(pkg => ({
+          id: pkg.id,
+          name: pkg.name,
+          category: pkg.category,
+          price: pkg.discounted_price,
+          original_price: pkg.original_price,
+          savings_percent: pkg.savings_percent,
+          type: 'package',
+        })),
+      ] : [];
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
@@ -171,6 +247,9 @@ const ClientNewOrder = () => {
         status: "pending",
         created_by: "client",
         notes: notes || null,
+        selected_channels: channelData,
+        channel_selection_locked: false,
+        channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
       }).select().single();
 
       if (error) throw error;
@@ -228,6 +307,9 @@ const ClientNewOrder = () => {
 
   // Check if installation appointment is required
   const requiresInstallation = selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category));
+  
+  // Check if TV service is selected
+  const hasTVService = selectedServices.some(s => s.category === "TV");
 
   const handleSubmit = () => {
     if (selectedServices.length === 0) {

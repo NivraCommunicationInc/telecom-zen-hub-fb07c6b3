@@ -508,6 +508,8 @@ export type Database = {
           activation_fee: number | null
           amount_paid: number | null
           category: string | null
+          channel_assigned_by: string | null
+          channel_selection_locked: boolean | null
           client_email: string | null
           created_at: string
           created_by: string | null
@@ -529,6 +531,7 @@ export type Database = {
           related_contract_id: string | null
           related_ticket_id: string | null
           savings_estimated: number | null
+          selected_channels: Json | null
           serial_number: string | null
           service_type: string
           sim_number: string | null
@@ -548,6 +551,8 @@ export type Database = {
           activation_fee?: number | null
           amount_paid?: number | null
           category?: string | null
+          channel_assigned_by?: string | null
+          channel_selection_locked?: boolean | null
           client_email?: string | null
           created_at?: string
           created_by?: string | null
@@ -569,6 +574,7 @@ export type Database = {
           related_contract_id?: string | null
           related_ticket_id?: string | null
           savings_estimated?: number | null
+          selected_channels?: Json | null
           serial_number?: string | null
           service_type: string
           sim_number?: string | null
@@ -588,6 +594,8 @@ export type Database = {
           activation_fee?: number | null
           amount_paid?: number | null
           category?: string | null
+          channel_assigned_by?: string | null
+          channel_selection_locked?: boolean | null
           client_email?: string | null
           created_at?: string
           created_by?: string | null
@@ -609,6 +617,7 @@ export type Database = {
           related_contract_id?: string | null
           related_ticket_id?: string | null
           savings_estimated?: number | null
+          selected_channels?: Json | null
           serial_number?: string | null
           service_type?: string
           sim_number?: string | null
