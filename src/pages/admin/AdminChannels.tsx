@@ -131,6 +131,24 @@ const AdminChannels = () => {
         if (ticketError) throw ticketError;
       }
 
+      // Send email notification
+      if (selectedProfile?.email) {
+        try {
+          await supabase.functions.invoke("send-channel-notification", {
+            body: {
+              email: selectedProfile.email,
+              name: selectedProfile.full_name || "Client",
+              type: "confirmed",
+              channels: selectedSelection?.channels || [],
+              totalPrice: selectedSelection?.total_price || 0,
+              notes: notes,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send email notification:", emailError);
+        }
+      }
+
       await logActivity("channel_selection_confirmed", "channel_selection", selectionId, { notes });
 
       return { success: true };
@@ -171,6 +189,24 @@ const AdminChannels = () => {
           .eq("id", selectedSelection.related_ticket_id);
 
         if (ticketError) throw ticketError;
+      }
+
+      // Send email notification
+      if (selectedProfile?.email) {
+        try {
+          await supabase.functions.invoke("send-channel-notification", {
+            body: {
+              email: selectedProfile.email,
+              name: selectedProfile.full_name || "Client",
+              type: "cancelled",
+              channels: selectedSelection?.channels || [],
+              totalPrice: selectedSelection?.total_price || 0,
+              notes: notes,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send email notification:", emailError);
+        }
       }
 
       await logActivity("channel_selection_cancelled", "channel_selection", selectionId, { notes });

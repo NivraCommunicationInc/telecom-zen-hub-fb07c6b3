@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.send-contract-notification]
 verify_jwt = false
+
+[functions.send-channel-notification]
+verify_jwt = false

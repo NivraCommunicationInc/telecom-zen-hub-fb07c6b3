@@ -22,7 +22,9 @@ import {
   ArrowRight,
   Sparkles,
   Calendar,
-  Download
+  Download,
+  Gift,
+  Percent
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -35,6 +37,17 @@ interface Channel {
   description: string;
   is_hd: boolean;
   is_4k: boolean;
+}
+
+interface ChannelPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  channels: any;
+  original_price: number;
+  discounted_price: number;
+  savings_percent: number | null;
+  category: string;
 }
 
 interface ChannelSelection {
@@ -51,6 +64,7 @@ const ClientChannels = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
+  const [selectedPackages, setSelectedPackages] = useState<ChannelPackage[]>([]);
   const [activeTab, setActiveTab] = useState("browse");
 
   // Fetch all channels
@@ -64,6 +78,20 @@ const ClientChannels = () => {
         .order("name");
       if (error) throw error;
       return data as Channel[];
+    },
+  });
+
+  // Fetch channel packages
+  const { data: packages = [] } = useQuery({
+    queryKey: ["channel-packages"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("channel_packages")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data as ChannelPackage[];
     },
   });
 
@@ -121,31 +149,63 @@ const ClientChannels = () => {
     mutationFn: async () => {
       if (!user?.id) throw new Error("User not authenticated");
       
-      const totalPrice = selectedChannels.reduce((sum, ch) => sum + (ch.price || 0), 0);
-      const channelData = selectedChannels.map(ch => ({
-        id: ch.id,
-        name: ch.name,
-        category: ch.category,
-        price: ch.price,
-        is_hd: ch.is_hd,
-        is_4k: ch.is_4k,
-      }));
+      // Combine channels and packages
+      const channelPrice = selectedChannels.reduce((sum, ch) => sum + (ch.price || 0), 0);
+      const packagePrice = selectedPackages.reduce((sum, pkg) => sum + (pkg.discounted_price || 0), 0);
+      const totalPrice = channelPrice + packagePrice;
+      
+      const channelData = [
+        ...selectedChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          category: ch.category,
+          price: ch.price,
+          is_hd: ch.is_hd,
+          is_4k: ch.is_4k,
+          type: 'channel',
+        })),
+        ...selectedPackages.map(pkg => ({
+          id: pkg.id,
+          name: pkg.name,
+          category: pkg.category,
+          price: pkg.discounted_price,
+          original_price: pkg.original_price,
+          savings_percent: pkg.savings_percent,
+          included_channels: pkg.channels,
+          type: 'package',
+        })),
+      ];
+
+      const totalItems = selectedChannels.length + selectedPackages.length;
 
       // Create support ticket first
       const etaHours = Math.floor(Math.random() * 22) + 2; // 2-24 hours
       const etaDate = new Date();
       etaDate.setHours(etaDate.getHours() + etaHours);
 
-      const ticketDescription = `
+      let ticketDescription = `
 **Demande de sélection de chaînes TV**
 
 **Client:** ${profile?.full_name || "N/A"}
 **Email:** ${profile?.email || user.email}
 **Numéro client:** ${profile?.client_number || "N/A"}
+`;
 
+      if (selectedChannels.length > 0) {
+        ticketDescription += `
 **Chaînes sélectionnées (${selectedChannels.length}):**
 ${selectedChannels.map(ch => `- ${ch.name} (${ch.category === 'basic' ? 'Inclus' : `$${ch.price}/mois`})`).join('\n')}
+`;
+      }
 
+      if (selectedPackages.length > 0) {
+        ticketDescription += `
+**Forfaits thématiques (${selectedPackages.length}):**
+${selectedPackages.map(pkg => `- ${pkg.name} ($${pkg.discounted_price}/mois - Économie de ${pkg.savings_percent}%)`).join('\n')}
+`;
+      }
+
+      ticketDescription += `
 **Total mensuel estimé:** $${totalPrice.toFixed(2)}/mois
 
 **ETA:** ${format(etaDate, "d MMMM yyyy à HH:mm", { locale: fr })}
@@ -157,7 +217,7 @@ Cette demande est en attente de confirmation par un administrateur.
         .from("support_tickets")
         .insert({
           user_id: user.id,
-          subject: `Channel Selection Request - ${selectedChannels.length} chaînes`,
+          subject: `Channel Selection Request - ${totalItems} items`,
           description: ticketDescription,
           priority: "normal",
           status: "open",
@@ -188,6 +248,7 @@ Cette demande est en attente de confirmation par un administrateur.
     onSuccess: () => {
       toast.success("Sélection de chaînes soumise avec succès!");
       setSelectedChannels([]);
+      setSelectedPackages([]);
       setActiveTab("history");
       queryClient.invalidateQueries({ queryKey: ["channel-selections"] });
       queryClient.invalidateQueries({ queryKey: ["channel-tickets"] });
@@ -211,7 +272,19 @@ Cette demande est en attente de confirmation par un administrateur.
     });
   };
 
-  const totalPrice = selectedChannels.reduce((sum, ch) => sum + (ch.price || 0), 0);
+  const togglePackage = (pkg: ChannelPackage) => {
+    setSelectedPackages(prev => {
+      const exists = prev.find(p => p.id === pkg.id);
+      if (exists) {
+        return prev.filter(p => p.id !== pkg.id);
+      }
+      return [...prev, pkg];
+    });
+  };
+
+  const channelPrice = selectedChannels.reduce((sum, ch) => sum + (ch.price || 0), 0);
+  const packagePrice = selectedPackages.reduce((sum, pkg) => sum + (pkg.discounted_price || 0), 0);
+  const totalPrice = channelPrice + packagePrice;
   const selectedPremium = selectedChannels.filter(ch => ch.category === "premium");
   const selectedBundles = selectedChannels.filter(ch => ch.category === "bundle");
 
@@ -311,6 +384,61 @@ END:VCALENDAR`;
     );
   };
 
+  const PackageCard = ({ pkg }: { pkg: ChannelPackage }) => {
+    const isSelected = selectedPackages.some(p => p.id === pkg.id);
+    const channelsList = Array.isArray(pkg.channels) ? pkg.channels : [];
+    
+    return (
+      <div 
+        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+          isSelected 
+            ? 'border-green-500 bg-green-50 shadow-md' 
+            : 'border-border hover:border-green-500/50 hover:bg-green-50/30'
+        }`}
+        onClick={() => togglePackage(pkg)}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Checkbox checked={isSelected} className="pointer-events-none" />
+              <span className="font-semibold text-lg">{pkg.name}</span>
+              {pkg.savings_percent && (
+                <Badge className="bg-green-500 text-white">
+                  <Percent className="w-3 h-3 mr-1" />
+                  -{pkg.savings_percent}%
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">{pkg.description}</p>
+            <div className="mt-3">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Chaînes incluses ({channelsList.length}):</p>
+              <div className="flex flex-wrap gap-1">
+                {channelsList.slice(0, 4).map((ch: any, idx: number) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {ch.name}
+                  </Badge>
+                ))}
+                {channelsList.length > 4 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{channelsList.length - 4} autres
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-muted-foreground line-through">
+              ${pkg.original_price}/mois
+            </div>
+            <div className="text-xl font-bold text-green-600">
+              ${pkg.discounted_price}/mois
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ClientLayout>
       <div className="space-y-6">
@@ -397,6 +525,25 @@ END:VCALENDAR`;
                     ))}
                   </CardContent>
                 </Card>
+
+                {/* Theme Packs */}
+                <Card className="border-green-200 bg-gradient-to-br from-green-50 to-white">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Gift className="h-5 w-5 text-green-500" />
+                      Forfaits Thématiques
+                      <Badge className="bg-green-500 text-white ml-2">Économies!</Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Économisez jusqu'à 31% avec nos forfaits thématiques prédéfinis
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {packages.map(pkg => (
+                      <PackageCard key={pkg.id} pkg={pkg} />
+                    ))}
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Cart Summary */}
@@ -409,11 +556,11 @@ END:VCALENDAR`;
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {selectedChannels.length === 0 ? (
+                    {selectedChannels.length === 0 && selectedPackages.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Tv className="h-12 w-12 mx-auto mb-3 opacity-50" />
                         <p>Aucune chaîne sélectionnée</p>
-                        <p className="text-sm">Cliquez sur une chaîne pour l'ajouter</p>
+                        <p className="text-sm">Cliquez sur une chaîne ou forfait pour l'ajouter</p>
                       </div>
                     ) : (
                       <>
@@ -440,6 +587,23 @@ END:VCALENDAR`;
                               ))}
                             </div>
                           )}
+                          {selectedPackages.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-green-600 mb-1 flex items-center gap-1">
+                                <Gift className="h-3 w-3" />
+                                Forfaits Thématiques ({selectedPackages.length})
+                              </p>
+                              {selectedPackages.map(pkg => (
+                                <div key={pkg.id} className="flex justify-between text-sm py-1">
+                                  <span className="flex items-center gap-1">
+                                    {pkg.name}
+                                    <Badge className="bg-green-500 text-white text-xs px-1 py-0">-{pkg.savings_percent}%</Badge>
+                                  </span>
+                                  <span className="text-green-600 font-medium">${pkg.discounted_price}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <Separator />
@@ -458,7 +622,7 @@ END:VCALENDAR`;
                           className="w-full" 
                           size="lg"
                           onClick={() => submitSelectionMutation.mutate()}
-                          disabled={submitSelectionMutation.isPending || selectedChannels.length === 0}
+                          disabled={submitSelectionMutation.isPending || (selectedChannels.length === 0 && selectedPackages.length === 0)}
                         >
                           {submitSelectionMutation.isPending ? (
                             "Traitement..."
