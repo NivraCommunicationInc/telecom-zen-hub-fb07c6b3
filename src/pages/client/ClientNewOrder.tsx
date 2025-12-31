@@ -45,6 +45,7 @@ import {
   Star,
   MonitorPlay,
   Plus,
+  Minus,
   CalendarPlus
 } from "lucide-react";
 import { toast } from "sonner";
@@ -95,6 +96,14 @@ const categoryIcons: Record<string, any> = {
   Sécurité: Shield,
 };
 
+// Terminal equipment configuration
+const TERMINAL_CONFIG = {
+  name: "Nivra 4K Smart Terminal",
+  price: 50,
+  maxQuantity: 4,
+  warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
+};
+
 const categoryColors: Record<string, string> = {
   Mobile: "bg-blue-500/20 text-blue-500 border-blue-500/30",
   Internet: "bg-purple-500/20 text-purple-500 border-purple-500/30",
@@ -122,6 +131,9 @@ const ClientNewOrder = () => {
   // Channel selection state (for TV orders)
   const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
   const [selectedPaidChannels, setSelectedPaidChannels] = useState<Channel[]>([]);
+  
+  // TV Terminal equipment state
+  const [terminalQuantity, setTerminalQuantity] = useState<number>(1);
 
   // Fetch available services
   const { data: services, isLoading } = useQuery({
@@ -237,12 +249,17 @@ const ClientNewOrder = () => {
         })),
       ] : [];
 
+      // Prepare equipment info for notes
+      const equipmentInfo = hasTVService 
+        ? `\n\n**Équipement TV:**\n${TERMINAL_CONFIG.name} x${terminalQuantity} = ${(terminalQuantity * TERMINAL_CONFIG.price).toFixed(2)}$\n${TERMINAL_CONFIG.warranty}`
+        : '';
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
         service_type: serviceNames,
         category: categories,
-        subtotal: subtotal + paidChannelTotal,
+        subtotal: subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0),
         delivery_fee: 30,
         activation_fee: 25,
         installation_fee: 50,
@@ -250,10 +267,11 @@ const ClientNewOrder = () => {
         discount_code: discountCode || null,
         status: "pending",
         created_by: "client",
-        notes: notes || null,
+        notes: (notes || '') + equipmentInfo,
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
+        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : null,
       }).select().single();
 
       if (error) throw error;
@@ -324,8 +342,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       if (service.category === "TV") {
         const hasInternet = prev.some(s => s.category === "Internet");
         if (!hasInternet) {
-          toast.error("Les forfaits TV nécessitent un service Internet actif");
+          toast.error("Les forfaits TV nécessitent un service Internet actif. Veuillez d'abord sélectionner un forfait Internet.");
           return prev;
+        }
+        // Reset terminal quantity when adding TV
+        setTerminalQuantity(1);
+      }
+      // If removing Internet, also remove TV
+      if (service.category === "Internet") {
+        const hasTVinSelection = prev.some(s => s.category === "TV");
+        if (!hasTVinSelection) {
+          return [...prev, service];
         }
       }
       return [...prev, service];
@@ -361,10 +388,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // Calculate totals with fees and taxes
   const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
+  const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const deliveryFee = 30;
   const activationFee = 25;
   const installationFee = Math.max(0, 50 - installationCredit);
-  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee;
+  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
@@ -718,6 +746,63 @@ END:VCALENDAR`;
               </Card>
             </div>
 
+            {/* TV Terminal Equipment Selection */}
+            <div className="lg:col-span-2">
+              <Card className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MonitorPlay className="w-5 h-5 text-cyan-500" />
+                    Équipement TV - {TERMINAL_CONFIG.name}
+                  </CardTitle>
+                  <CardDescription>
+                    Terminal requis pour chaque téléviseur. Maximum {TERMINAL_CONFIG.maxQuantity} terminaux.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                        <MonitorPlay className="w-6 h-6 text-cyan-500" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{TERMINAL_CONFIG.name}</p>
+                        <p className="text-sm text-muted-foreground">{TERMINAL_CONFIG.warranty}</p>
+                        <p className="text-lg font-bold text-cyan-500 mt-1">
+                          {TERMINAL_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} 
+                          <span className="text-xs font-normal text-muted-foreground"> / terminal (frais unique)</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setTerminalQuantity(Math.max(1, terminalQuantity - 1))}
+                        disabled={terminalQuantity <= 1}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="text-xl font-bold w-8 text-center">{terminalQuantity}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setTerminalQuantity(Math.min(TERMINAL_CONFIG.maxQuantity, terminalQuantity + 1))}
+                        disabled={terminalQuantity >= TERMINAL_CONFIG.maxQuantity}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-cyan-500/10 rounded-lg">
+                    <span className="text-sm font-medium">Total équipement</span>
+                    <span className="font-bold text-cyan-500">
+                      {(terminalQuantity * TERMINAL_CONFIG.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Channel Selection Summary */}
             <div className="lg:col-span-1">
               <Card className="bg-card border-cyan-500/30 sticky top-4">
@@ -756,6 +841,10 @@ END:VCALENDAR`;
                         <span>+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     )}
+                    <div className="flex justify-between text-cyan-500">
+                      <span>{TERMINAL_CONFIG.name} (×{terminalQuantity})</span>
+                      <span>{(terminalQuantity * TERMINAL_CONFIG.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
                   </div>
 
                   <Separator />
@@ -1070,51 +1159,33 @@ END:VCALENDAR`;
                 </CardContent>
               </Card>
 
-              {/* Channel Summary for TV Orders */}
+              {/* TV Equipment Summary (without channel details per user request) */}
               {hasTVService && (
                 <Card className="bg-card border-cyan-500/30">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Tv className="w-5 h-5 text-cyan-500" />
-                      Chaînes TV sélectionnées
+                      <MonitorPlay className="w-5 h-5 text-cyan-500" />
+                      Équipement TV
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="p-3 bg-emerald-500/10 rounded-lg">
-                      <p className="text-sm font-medium text-emerald-500 mb-2">
-                        ✓ {baseChannels.length} chaînes de base incluses
+                    <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                          <MonitorPlay className="w-5 h-5 text-cyan-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{TERMINAL_CONFIG.name}</p>
+                          <p className="text-sm text-muted-foreground">Quantité: {terminalQuantity}</p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-cyan-500">
+                        {(terminalQuantity * TERMINAL_CONFIG.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </p>
                     </div>
-                    
-                    {selectedFreeChannels.length > 0 && (
-                      <div className="p-3 bg-cyan-500/10 rounded-lg">
-                        <p className="text-sm font-medium text-cyan-500 mb-2">
-                          Chaînes au choix ({selectedFreeChannels.length})
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedFreeChannels.map(ch => (
-                            <Badge key={ch.id} variant="outline" className="text-xs">
-                              {ch.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedPaidChannels.length > 0 && (
-                      <div className="p-3 bg-amber-500/10 rounded-lg">
-                        <p className="text-sm font-medium text-amber-500 mb-2">
-                          Chaînes premium (+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois)
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedPaidChannels.map(ch => (
-                            <Badge key={ch.id} variant="outline" className="text-xs border-amber-500/50">
-                              {ch.name} - {Number(ch.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {TERMINAL_CONFIG.warranty}
+                    </p>
                   </CardContent>
                 </Card>
               )}
@@ -1232,6 +1303,12 @@ END:VCALENDAR`;
                       <span className="text-muted-foreground">Sous-total</span>
                       <span>{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
+                    {hasTVService && terminalFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{TERMINAL_CONFIG.name} (×{terminalQuantity})</span>
+                        <span>{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Livraison</span>
                       <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
