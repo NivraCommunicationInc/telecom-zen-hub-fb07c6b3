@@ -119,10 +119,10 @@ const ClientAppointments = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Mes rendez-vous</h1>
             <p className="text-muted-foreground mt-1">Gérez vos rendez-vous avec Nivra</p>
           </div>
-          <Link to="/book">
+          <Link to="/portal/new-order">
             <Button variant="hero">
               <Plus className="w-4 h-4 mr-2" />
-              Prendre rendez-vous
+              Nouvelle commande
             </Button>
           </Link>
         </div>
@@ -277,8 +277,8 @@ const ClientAppointments = () => {
               <div className="text-center py-12">
                 <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-4">Vous n'avez pas encore de rendez-vous</p>
-                <Link to="/book">
-                  <Button variant="hero">Prendre rendez-vous</Button>
+                <Link to="/portal/new-order">
+                  <Button variant="hero">Passer une commande</Button>
                 </Link>
               </div>
             )}

@@ -1,7 +1,7 @@
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Phone, Check, ExternalLink } from "lucide-react";
+import { Calendar, Phone, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import CalendlyWidget from "@/components/CalendlyWidget";
 
 const AdminAppointments = () => {
   const { toast } = useToast();
@@ -83,9 +82,9 @@ const AdminAppointments = () => {
             <p className="text-muted-foreground mt-1">Gérer les consultations planifiées</p>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <a href="https://calendly.com/nivratelecom" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Ouvrir Calendly
+            <a href="tel:+14385442233">
+              <Phone className="w-4 h-4 mr-2" />
+              Appeler Nivra
             </a>
           </Button>
         </div>
@@ -93,7 +92,6 @@ const AdminAppointments = () => {
         <Tabs defaultValue="list" className="space-y-6">
           <TabsList>
             <TabsTrigger value="list">Liste des rendez-vous</TabsTrigger>
-            <TabsTrigger value="book">Réserver pour un client</TabsTrigger>
           </TabsList>
 
           <TabsContent value="list">
@@ -139,27 +137,10 @@ const AdminAppointments = () => {
                 ) : (
                   <div className="text-center py-12">
                     <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Aucun rendez-vous</p>
-                    <p className="text-sm text-muted-foreground mt-2">Les rendez-vous pris via Calendly apparaîtront ici</p>
+                    <p className="text-muted-foreground">Aucun rendez-vous programmé</p>
+                    <p className="text-sm text-muted-foreground mt-2">Les rendez-vous clients apparaîtront ici</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="book">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-cyan-400" />
-                  Réserver un rendez-vous pour un client
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CalendlyWidget
-                  url="https://calendly.com/nivratelecom/30min"
-                  minHeight="700px"
-                />
               </CardContent>
             </Card>
           </TabsContent>

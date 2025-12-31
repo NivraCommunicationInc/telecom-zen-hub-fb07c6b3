@@ -30,10 +30,10 @@ const CTA = () => {
 
             {/* Heading with 3D Text */}
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 text-3d-dark">
-              {t('cta.title')}
+              {t('cta.title.order')}
             </h2>
             <p className="text-lg md:text-xl text-cyan-100/70 mb-8">
-              {t('cta.subtitle')}
+              {t('cta.subtitle.order')}
             </p>
 
             {/* Phone CTA with 3D Button */}

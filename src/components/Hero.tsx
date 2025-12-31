@@ -68,8 +68,8 @@ const Hero = () => {
           {/* CTA Buttons with 3D Effect */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <Button variant="hero" size="xl" className="group btn-3d" asChild>
-              <Link to="/book">
-                {t('hero.cta.book')}
+              <Link to="/portal/new-order">
+                {t('hero.cta.order')}
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
@@ -89,19 +89,19 @@ const Hero = () => {
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
                 <Shield className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.independent')}</span>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.satisfied')}</span>
             </div>
             <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
                 <Clock className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.cta.book')}</span>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.clients')}</span>
             </div>
             <div className="flex items-center gap-3 justify-center sm:justify-end p-4 rounded-xl glass-premium card-3d">
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
                 <BadgeCheck className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.nocommission')}</span>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.quebec')}</span>
             </div>
           </div>
         </div>
