@@ -30,14 +30,14 @@ import {
   Package, 
   Info,
   XCircle,
-  Search,
   Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -93,9 +93,6 @@ const ROUTER_DETAILS = {
   }
 };
 
-// Quebec postal code pattern (starts with G, H, J)
-const QUEBEC_POSTAL_PATTERN = /^[GHJ]\d[A-Z]\s?\d[A-Z]\d$/i;
-
 interface AddressValidation {
   isValid: boolean;
   isQuebec: boolean;
@@ -105,24 +102,60 @@ interface AddressValidation {
   postalCode: string;
 }
 
+interface LocationState {
+  validatedAddress?: string;
+  addressDetails?: {
+    formattedAddress: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+  };
+  selectedPlanId?: string;
+}
+
 const ClientInternetOrder = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
 
-  // Step management
-  const [step, setStep] = useState(1);
+  // Get pre-validated data from navigation state
+  const locationState = location.state as LocationState | null;
+
+  // Step management - skip to step 2 if address is pre-validated
+  const [step, setStep] = useState(() => {
+    if (locationState?.validatedAddress && locationState?.addressDetails) {
+      return 2; // Skip address validation
+    }
+    return 1;
+  });
   
-  // Address validation state
-  const [address, setAddress] = useState("");
-  const [addressValidation, setAddressValidation] = useState<AddressValidation | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
+  // Address validation state - initialize from location state if available
+  const [address, setAddress] = useState(locationState?.validatedAddress || "");
+  const [addressValidation, setAddressValidation] = useState<AddressValidation | null>(() => {
+    if (locationState?.addressDetails) {
+      return {
+        isValid: true,
+        isQuebec: true,
+        formattedAddress: locationState.addressDetails.formattedAddress,
+        city: locationState.addressDetails.city || "",
+        province: locationState.addressDetails.province || "QC",
+        postalCode: locationState.addressDetails.postalCode || ""
+      };
+    }
+    return null;
+  });
   const [addressBlocked, setAddressBlocked] = useState(false);
   
-  // Plan selection
-  const [selectedPlan, setSelectedPlan] = useState<typeof INTERNET_PLANS[0] | null>(null);
+  // Plan selection - initialize from location state if available
+  const [selectedPlan, setSelectedPlan] = useState<typeof INTERNET_PLANS[0] | null>(() => {
+    if (locationState?.selectedPlanId) {
+      return INTERNET_PLANS.find(p => p.id === locationState.selectedPlanId) || null;
+    }
+    return null;
+  });
   
   // Order details
   const [notes, setNotes] = useState("");
@@ -154,80 +187,45 @@ const ClientInternetOrder = () => {
     enabled: !!user?.id,
   });
 
-  // Validate Quebec address
-  const validateAddress = useCallback(() => {
-    if (!address.trim()) {
-      toast.error(isFrench ? "Veuillez entrer une adresse" : "Please enter an address");
-      return;
-    }
-
-    setIsValidating(true);
-    setAddressBlocked(false);
-
-    // Check for Quebec postal code pattern
-    const addressUpper = address.toUpperCase();
-    const postalCodeMatch = addressUpper.match(/[A-Z]\d[A-Z]\s?\d[A-Z]\d/);
+  // Handle address selection from autocomplete
+  const handleAddressSelect = useCallback((details: { 
+    formattedAddress: string; 
+    city?: string; 
+    province?: string; 
+    postalCode?: string;
+  }) => {
+    const postalCode = details.postalCode || "";
+    const province = details.province || "";
     
-    setTimeout(() => {
-      if (postalCodeMatch) {
-        const postalCode = postalCodeMatch[0];
-        const isQuebecPostal = QUEBEC_POSTAL_PATTERN.test(postalCode);
-        
-        if (isQuebecPostal) {
-          setAddressValidation({
-            isValid: true,
-            isQuebec: true,
-            formattedAddress: address,
-            city: isFrench ? "Ville au Québec" : "City in Quebec",
-            province: "QC",
-            postalCode: postalCode
-          });
-          setAddressBlocked(false);
-          toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
-        } else {
-          setAddressValidation({
-            isValid: true,
-            isQuebec: false,
-            formattedAddress: address,
-            city: "",
-            province: "",
-            postalCode: postalCode
-          });
-          setAddressBlocked(true);
-          toast.error(isFrench ? "Désolé, nos services Internet sont disponibles uniquement au Québec." : "Sorry, our Internet services are only available in Quebec.");
-        }
-      } else {
-        // Check for Quebec cities or keywords
-        const quebecKeywords = ['quebec', 'québec', 'montreal', 'montréal', 'laval', 'gatineau', 'longueuil', 'sherbrooke', 'saguenay', 'trois-rivières', 'lévis', 'terrebonne', 'qc'];
-        const hasQuebecKeyword = quebecKeywords.some(kw => addressUpper.toLowerCase().includes(kw.toLowerCase()));
-        
-        if (hasQuebecKeyword) {
-          setAddressValidation({
-            isValid: true,
-            isQuebec: true,
-            formattedAddress: address,
-            city: isFrench ? "Ville au Québec" : "City in Quebec",
-            province: "QC",
-            postalCode: ""
-          });
-          setAddressBlocked(false);
-          toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
-        } else {
-          setAddressValidation({
-            isValid: false,
-            isQuebec: false,
-            formattedAddress: address,
-            city: "",
-            province: "",
-            postalCode: ""
-          });
-          setAddressBlocked(true);
-          toast.error(isFrench ? "Veuillez entrer une adresse au Québec avec un code postal valide (ex: H2X 1Y4)." : "Please enter a Quebec address with a valid postal code (e.g., H2X 1Y4).");
-        }
-      }
-      setIsValidating(false);
-    }, 1000);
-  }, [address, isFrench]);
+    // Check if it's a Quebec address
+    const isQuebecPostal = /^[GHJ]/i.test(postalCode);
+    const isQuebecProvince = province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
+    const isQuebec = isQuebecPostal || isQuebecProvince;
+    
+    if (isQuebec) {
+      setAddressValidation({
+        isValid: true,
+        isQuebec: true,
+        formattedAddress: details.formattedAddress,
+        city: details.city || "",
+        province: "QC",
+        postalCode: postalCode
+      });
+      setAddressBlocked(false);
+      toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
+    } else {
+      setAddressValidation({
+        isValid: true,
+        isQuebec: false,
+        formattedAddress: details.formattedAddress,
+        city: details.city || "",
+        province: province,
+        postalCode: postalCode
+      });
+      setAddressBlocked(true);
+      toast.error(isFrench ? "Désolé, nos services Internet sont disponibles uniquement au Québec." : "Sorry, our Internet services are only available in Quebec.");
+    }
+  }, [isFrench]);
 
   // Apply discount code
   const applyDiscountCode = () => {
@@ -396,32 +394,22 @@ const ClientInternetOrder = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address">
+                  <Label>
                     {isFrench ? "Adresse complète (incluant le code postal)" : "Full address (including postal code)"}
                   </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="address"
-                      placeholder={isFrench ? "Ex: 123 rue Exemple, Montréal, QC H2X 1Y4" : "E.g., 123 Example St, Montreal, QC H2X 1Y4"}
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={validateAddress} 
-                      disabled={isValidating || !address.trim()}
-                      variant="hero"
-                    >
-                      {isValidating ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Search className="w-4 h-4 mr-2" />
-                          {isFrench ? "Vérifier" : "Check"}
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={(value) => {
+                      setAddress(value);
+                      if (!value) {
+                        setAddressValidation(null);
+                        setAddressBlocked(false);
+                      }
+                    }}
+                    onAddressSelect={handleAddressSelect}
+                    placeholder={isFrench ? "Ex: 123 rue Exemple, Montréal, QC H2X 1Y4" : "E.g., 123 Example St, Montreal, QC H2X 1Y4"}
+                    restrictToQuebec={true}
+                  />
                 </div>
 
                 {/* Quebec Only Notice */}

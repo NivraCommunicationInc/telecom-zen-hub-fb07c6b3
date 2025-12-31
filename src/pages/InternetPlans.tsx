@@ -3,14 +3,23 @@ import { Wifi, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Rout
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+
+interface AddressDetails {
+  formattedAddress: string;
+  streetNumber?: string;
+  street?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  country?: string;
+}
 
 const InternetPlans = () => {
   const { language } = useLanguage();
@@ -19,12 +28,13 @@ const InternetPlans = () => {
   const isFrench = language === 'fr';
   
   const [address, setAddress] = useState("");
+  const [addressDetails, setAddressDetails] = useState<AddressDetails | null>(null);
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
-  const [isValidating, setIsValidating] = useState(false);
 
   const plans = [
     {
+      id: "internet-100",
       speed: "100 Mbps",
       price: 55,
       badge: isFrench ? "OFFRE POPULAIRE" : "POPULAR OFFER",
@@ -40,6 +50,7 @@ const InternetPlans = () => {
       ],
     },
     {
+      id: "internet-500",
       speed: "500 Mbps",
       price: 60,
       badge: isFrench ? "MEILLEUR VENDEUR" : "BEST SELLER",
@@ -57,6 +68,7 @@ const InternetPlans = () => {
       ],
     },
     {
+      id: "internet-940",
       speed: "940 Mbps",
       price: 70,
       badge: isFrench ? "VITESSE GIGA" : "GIGA SPEED",
@@ -75,41 +87,40 @@ const InternetPlans = () => {
     },
   ];
 
-  const validateAddress = () => {
-    setIsValidating(true);
-    setAddressError("");
+  const handleAddressSelect = (details: AddressDetails) => {
+    setAddressDetails(details);
     
-    setTimeout(() => {
-      const upperAddress = address.toUpperCase();
-      
-      // Check for Quebec postal codes (G, H, J prefixes)
-      const quebecPostalPattern = /[GHJ]\d[A-Z]\s?\d[A-Z]\d/i;
-      const hasQuebecPostal = quebecPostalPattern.test(upperAddress);
-      
-      // Check for Quebec keywords
-      const quebecKeywords = ['QUEBEC', 'QUÉBEC', 'QC', 'MONTREAL', 'MONTRÉAL', 'LAVAL', 'GATINEAU', 'SHERBROOKE', 'TROIS-RIVIÈRES', 'SAGUENAY'];
-      const hasQuebecKeyword = quebecKeywords.some(keyword => upperAddress.includes(keyword));
-      
-      if (hasQuebecPostal || hasQuebecKeyword) {
-        setAddressValidated(true);
-        setAddressError("");
-      } else {
-        setAddressError(
-          isFrench 
-            ? "Service disponible uniquement au Québec. Veuillez entrer une adresse québécoise valide."
-            : "Service available only in Quebec. Please enter a valid Quebec address."
-        );
-        setAddressValidated(false);
-      }
-      setIsValidating(false);
-    }, 1000);
+    // Check if it's a Quebec address
+    const postalCode = details.postalCode || "";
+    const province = details.province || "";
+    const isQuebec = /^[GHJ]/i.test(postalCode) || province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
+    
+    if (isQuebec) {
+      setAddressValidated(true);
+      setAddressError("");
+    } else {
+      setAddressValidated(false);
+      setAddressError(
+        isFrench 
+          ? "Service disponible uniquement au Québec. Veuillez entrer une adresse québécoise valide."
+          : "Service available only in Quebec. Please enter a valid Quebec address."
+      );
+    }
   };
 
-  const handleGetStarted = () => {
+  const handleGetStarted = (planId: string) => {
+    // Navigate with address and plan info in state
+    const state = {
+      validatedAddress: address,
+      addressDetails,
+      selectedPlanId: planId,
+      redirectTo: '/portal/internet'
+    };
+    
     if (user) {
-      navigate('/portal/internet');
+      navigate('/portal/internet', { state });
     } else {
-      navigate('/portal/auth', { state: { redirectTo: '/portal/internet' } });
+      navigate('/portal/auth', { state });
     }
   };
 
@@ -167,31 +178,20 @@ const InternetPlans = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="address">
-                  {isFrench ? "Adresse complète" : "Full Address"}
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="address"
-                    placeholder={isFrench ? "123 rue Exemple, Montréal, QC H1A 1A1" : "123 Example St, Montreal, QC H1A 1A1"}
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
+                <AddressAutocomplete
+                  value={address}
+                  onChange={(value) => {
+                    setAddress(value);
+                    if (!value) {
                       setAddressValidated(false);
+                      setAddressDetails(null);
                       setAddressError("");
-                    }}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={validateAddress} 
-                    disabled={!address.trim() || isValidating}
-                    variant="hero"
-                  >
-                    {isValidating 
-                      ? (isFrench ? "Vérification..." : "Checking...") 
-                      : (isFrench ? "Vérifier" : "Check")}
-                  </Button>
-                </div>
+                    }
+                  }}
+                  onAddressSelect={handleAddressSelect}
+                  placeholder={isFrench ? "123 rue Exemple, Montréal, QC H1A 1A1" : "123 Example St, Montreal, QC H1A 1A1"}
+                  restrictToQuebec={true}
+                />
               </div>
               
               {addressError && (
@@ -201,7 +201,7 @@ const InternetPlans = () => {
                 </Alert>
               )}
               
-              {addressValidated && (
+              {addressValidated && addressDetails && (
                 <Alert className="border-emerald-500/30 bg-emerald-500/10">
                   <Check className="h-4 w-4 text-emerald-500" />
                   <AlertDescription className="text-emerald-500">
@@ -267,7 +267,7 @@ const InternetPlans = () => {
                   </ul>
                   
                   <Button 
-                    onClick={handleGetStarted}
+                    onClick={() => handleGetStarted(plan.id)}
                     variant={plan.featured ? "hero" : "outline"} 
                     className="w-full mt-6"
                     disabled={!addressValidated}
@@ -381,7 +381,7 @@ const InternetPlans = () => {
                   <p className="text-sm text-muted-foreground">
                     {isFrench 
                       ? "Vérification d'identité gouvernementale"
-                      : "Government ID verification"}
+                      : "Government ID verification required"}
                   </p>
                 </CardContent>
               </Card>
@@ -392,49 +392,45 @@ const InternetPlans = () => {
         {/* Terms & Conditions */}
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="max-w-4xl mx-auto">
-            <Card className="bg-muted/30 border-border">
-              <CardContent className="p-6 md:p-8">
-                <h3 className="font-semibold text-foreground mb-4">
+            <Card className="bg-card/50 border-border">
+              <CardHeader>
+                <CardTitle className="text-lg">
                   {isFrench ? "Termes et conditions : Contrats de service Nivra Communications" : "Terms and conditions: Nivra Communications Service Contracts"}
-                </h3>
-                
-                {/* French first for Quebec compliance */}
-                <div className="text-sm text-muted-foreground space-y-3 mb-6">
-                  <p className="font-medium text-foreground">Français :</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>Aucune vérification de crédit requise.</li>
-                    <li>Pièce d'identité gouvernementale requise pour valider toute commande.</li>
-                    <li>Nivra Communications est 100% indépendant. Aucune affiliation, partenariat ou commission des fournisseurs de télécommunications.</li>
-                    <li>Le client paie directement à Nivra Communications.</li>
-                  </ul>
-                </div>
-                
-                <div className="text-sm text-muted-foreground space-y-3">
-                  <p className="font-medium text-foreground">English:</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>No credit check required.</li>
-                    <li>Government ID required to validate any order.</li>
-                    <li>Nivra Communications is 100% independent. No affiliations, partnerships or commissions from telecom providers.</li>
-                    <li>Client pays directly to Nivra Communications.</li>
-                  </ul>
-                </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                {isFrench ? (
+                  <>
+                    <p>• Les contrats doivent être affichés en français en premier pour la conformité au Québec.</p>
+                    <p>• Aucun partenariat ni commission avec les fournisseurs de télécommunications.</p>
+                    <p>• Aucune vérification de crédit requise.</p>
+                    <p>• Une pièce d'identité gouvernementale est requise pour valider toute commande.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>• Contracts must be shown in French first for Quebec compliance.</p>
+                    <p>• No carrier partnerships or commissions.</p>
+                    <p>• No credit check required.</p>
+                    <p>• Government ID required to validate any order.</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
         </section>
 
-        {/* Delivery Notice - Always visible before footer */}
-        <section className="container mx-auto px-4 relative">
+        {/* Delivery Notice */}
+        <section className="container mx-auto px-4 mb-8 relative">
           <div className="max-w-4xl mx-auto text-center">
-            <p className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-4 border border-border">
+            <p className="text-sm text-muted-foreground italic">
               {isFrench 
-                ? "Livraison : L'équipement Nivra est normalement livré dans les 48 heures ouvrables en zone urbaine et 72 heures ouvrables en zone rurale après la commande. Des retards peuvent survenir pendant les jours fériés."
+                ? "Livraison : L'équipement Nivra est normalement livré dans les 48 heures ouvrables en zone urbaine et 72 heures ouvrables en zone rurale après la commande. Des délais peuvent survenir pendant les jours fériés."
                 : "Delivery: Nivra equipment is normally delivered within 48 working hours in urban areas and 72 working hours in rural areas after the order. Delays may occur during holidays."}
             </p>
           </div>
         </section>
       </main>
-      
+
       <Footer />
     </div>
   );
