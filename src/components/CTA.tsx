@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Phone, Clock } from "lucide-react";
 import ContactForm from "./ContactForm";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const CTA = () => {
+  const { t } = useLanguage();
+
   return (
     <section id="contact" className="py-20 md:py-32 bg-hero relative overflow-hidden bg-layered">
       {/* 3D Background Elements */}
@@ -22,16 +25,15 @@ const CTA = () => {
             {/* Badge with 3D Effect */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-premium mb-8 card-3d">
               <Clock className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm font-medium text-cyan-300">30 minutes de consultation gratuite</span>
+              <span className="text-sm font-medium text-cyan-300">{t('cta.badge')}</span>
             </div>
 
             {/* Heading with 3D Text */}
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6">
-              Prêt à optimiser vos{" "}
-              <span className="text-gradient text-3d">télécoms</span>?
+              {t('cta.title')}
             </h2>
             <p className="text-lg md:text-xl text-cyan-100/70 mb-8">
-              Réservez votre consultation gratuite dès maintenant. Nos experts analyseront vos besoins et vous proposeront les meilleures solutions du marché.
+              {t('cta.subtitle')}
             </p>
 
             {/* Phone CTA with 3D Button */}
@@ -46,7 +48,7 @@ const CTA = () => {
 
             {/* Trust Note */}
             <p className="text-sm text-cyan-100/50">
-              Sans engagement • 100% gratuit • Réponse en 24h
+              {t('contact.success.text')}
             </p>
           </div>
 

@@ -1,35 +1,38 @@
 import { Smartphone, Wifi, Tv, ShieldCheck, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-
-const services = [
-  {
-    icon: Smartphone,
-    title: "Téléphonie mobile",
-    description: "Forfaits cellulaires et contrats d'appareils négociés au meilleur prix pour particuliers et entreprises.",
-    features: ["Forfaits sur mesure", "Négociation de contrats", "Rabais employeur"],
-  },
-  {
-    icon: Wifi,
-    title: "Internet",
-    description: "Services internet résidentiels et commerciaux optimisés selon vos besoins réels de connexion.",
-    features: ["Haute vitesse", "Fibre optique", "Solutions affaires"],
-  },
-  {
-    icon: Tv,
-    title: "Télévision",
-    description: "Forfaits TV pour la maison et les entreprises avec accès aux meilleures chaînes et contenus.",
-    features: ["Chaînes HD", "Forfaits flexibles", "Multi-écrans"],
-  },
-  {
-    icon: ShieldCheck,
-    title: "Sécurité",
-    description: "Systèmes de sécurité résidentiels et commerciaux pour protéger ce qui compte le plus.",
-    features: ["Surveillance 24/7", "Domotique", "Alarmes intelligentes"],
-  },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Services = () => {
+  const { t } = useLanguage();
+
+  const services = [
+    {
+      icon: Smartphone,
+      titleKey: 'services.mobile.title',
+      descKey: 'services.mobile.desc',
+      features: ['services.mobile.feature1', 'services.mobile.feature2', 'services.mobile.feature3'],
+    },
+    {
+      icon: Wifi,
+      titleKey: 'services.internet.title',
+      descKey: 'services.internet.desc',
+      features: ['services.internet.feature1', 'services.internet.feature2', 'services.internet.feature3'],
+    },
+    {
+      icon: Tv,
+      titleKey: 'services.tv.title',
+      descKey: 'services.tv.desc',
+      features: ['services.tv.feature1', 'services.tv.feature2', 'services.tv.feature3'],
+    },
+    {
+      icon: ShieldCheck,
+      titleKey: 'services.business.title',
+      descKey: 'services.business.desc',
+      features: ['services.business.feature1', 'services.business.feature2', 'services.business.feature3'],
+    },
+  ];
+
   return (
     <section id="services" className="py-20 md:py-32 bg-background relative overflow-hidden">
       {/* Subtle 3D Background */}
@@ -42,14 +45,13 @@ const Services = () => {
         {/* Section Header with 3D Text */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4 card-3d">
-            Nos Services
+            {t('services.badge')}
           </span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-            Tous vos services télécoms,{" "}
-            <span className="text-gradient">optimisés</span>
+            {t('services.title')}
           </h2>
           <p className="text-lg text-muted-foreground">
-            Nous comparons, négocions et sécurisons les meilleures offres du marché québécois pour chacun de vos besoins.
+            {t('services.subtitle')}
           </p>
         </div>
 
@@ -57,7 +59,7 @@ const Services = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {services.map((service, index) => (
             <div
-              key={service.title}
+              key={service.titleKey}
               className="group relative bg-card rounded-2xl p-6 shadow-card hover:shadow-xl transition-all duration-500 border border-border hover:border-accent/30 animate-fade-in card-3d"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -68,18 +70,18 @@ const Services = () => {
 
               {/* Content */}
               <h3 className="font-display text-xl font-bold text-foreground mb-3">
-                {service.title}
+                {t(service.titleKey)}
               </h3>
               <p className="text-muted-foreground text-sm mb-5 leading-relaxed">
-                {service.description}
+                {t(service.descKey)}
               </p>
 
               {/* Features */}
               <ul className="space-y-2 mb-6">
-                {service.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-muted-foreground">
+                {service.features.map((featureKey) => (
+                  <li key={featureKey} className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-glow" />
-                    {feature}
+                    {t(featureKey)}
                   </li>
                 ))}
               </ul>
@@ -87,7 +89,7 @@ const Services = () => {
               {/* Link - Navigate to contact */}
               <Button variant="ghost" size="sm" className="group/btn text-accent p-0 h-auto font-semibold" asChild>
                 <Link to="/book">
-                  En savoir plus
+                  {t('services.cta')}
                   <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
                 </Link>
               </Button>

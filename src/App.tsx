@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Careers from "./pages/Careers";
@@ -42,49 +43,51 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/careers" element={<Careers />} />
-            <Route path="/apply" element={<JobApplication />} />
-            <Route path="/apply/:jobId" element={<JobApplication />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/book" element={<BookConsultation />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<TermsOfUse />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
-            <Route path="/admin/clients" element={<ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute>} />
-            <Route path="/admin/services" element={<ProtectedRoute requireAdmin><AdminServices /></ProtectedRoute>} />
-            <Route path="/admin/billing" element={<ProtectedRoute requireAdmin><AdminBilling /></ProtectedRoute>} />
-            <Route path="/admin/requests" element={<ProtectedRoute requireAdmin><AdminRequests /></ProtectedRoute>} />
-            <Route path="/admin/contracts" element={<ProtectedRoute requireAdmin><AdminContracts /></ProtectedRoute>} />
-            <Route path="/admin/activity" element={<ProtectedRoute requireAdmin><AdminActivityLogs /></ProtectedRoute>} />
-            <Route path="/admin/appointments" element={<ProtectedRoute requireAdmin><AdminAppointments /></ProtectedRoute>} />
-            <Route path="/admin/careers" element={<ProtectedRoute requireAdmin><AdminCareers /></ProtectedRoute>} />
-            <Route path="/admin/applications" element={<ProtectedRoute requireAdmin><AdminApplications /></ProtectedRoute>} />
-            {/* Client Portal Routes */}
-            <Route path="/portal/auth" element={<ClientAuth />} />
-            <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
-            <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientAppointments /></ClientProtectedRoute>} />
-            <Route path="/portal/orders" element={<ClientProtectedRoute><ClientOrders /></ClientProtectedRoute>} />
-            <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientInvoices /></ClientProtectedRoute>} />
-            <Route path="/portal/subscriptions" element={<ClientProtectedRoute><ClientSubscriptions /></ClientProtectedRoute>} />
-            <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
-            <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
-            <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
-            <Route path="/not-authorized" element={<NotAuthorized />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <LanguageProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/careers" element={<Careers />} />
+              <Route path="/apply" element={<JobApplication />} />
+              <Route path="/apply/:jobId" element={<JobApplication />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/book" element={<BookConsultation />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfUse />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
+              <Route path="/admin/clients" element={<ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute>} />
+              <Route path="/admin/services" element={<ProtectedRoute requireAdmin><AdminServices /></ProtectedRoute>} />
+              <Route path="/admin/billing" element={<ProtectedRoute requireAdmin><AdminBilling /></ProtectedRoute>} />
+              <Route path="/admin/requests" element={<ProtectedRoute requireAdmin><AdminRequests /></ProtectedRoute>} />
+              <Route path="/admin/contracts" element={<ProtectedRoute requireAdmin><AdminContracts /></ProtectedRoute>} />
+              <Route path="/admin/activity" element={<ProtectedRoute requireAdmin><AdminActivityLogs /></ProtectedRoute>} />
+              <Route path="/admin/appointments" element={<ProtectedRoute requireAdmin><AdminAppointments /></ProtectedRoute>} />
+              <Route path="/admin/careers" element={<ProtectedRoute requireAdmin><AdminCareers /></ProtectedRoute>} />
+              <Route path="/admin/applications" element={<ProtectedRoute requireAdmin><AdminApplications /></ProtectedRoute>} />
+              {/* Client Portal Routes */}
+              <Route path="/portal/auth" element={<ClientAuth />} />
+              <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
+              <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientAppointments /></ClientProtectedRoute>} />
+              <Route path="/portal/orders" element={<ClientProtectedRoute><ClientOrders /></ClientProtectedRoute>} />
+              <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientInvoices /></ClientProtectedRoute>} />
+              <Route path="/portal/subscriptions" element={<ClientProtectedRoute><ClientSubscriptions /></ClientProtectedRoute>} />
+              <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
+              <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
+              <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
+              <Route path="/not-authorized" element={<NotAuthorized />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 
