@@ -164,6 +164,22 @@ const AdminBilling = () => {
     return true;
   });
 
+  const sendBillingNotification = async (
+    email: string,
+    name: string,
+    type: "invoice_created" | "payment_received" | "payment_failed" | "invoice_overdue",
+    data: { invoiceNumber?: string; amount: number; dueDate?: string; paidAt?: string; paymentMethod?: string; notes?: string }
+  ) => {
+    try {
+      await supabase.functions.invoke("send-billing-notification", {
+        body: { email, name, type, ...data },
+      });
+      console.log("Billing notification sent:", type);
+    } catch (error) {
+      console.error("Failed to send billing notification:", error);
+    }
+  };
+
   const createInvoiceMutation = useMutation({
     mutationFn: async (invoice: typeof newInvoice) => {
       const invoiceNumber = `INV-${Date.now().toString(36).toUpperCase()}`;
@@ -181,6 +197,23 @@ const AdminBilling = () => {
         .single();
 
       if (error) throw error;
+      
+      // Get client info for notification
+      const selectedClient = clients?.find(c => c.user_id === invoice.user_id);
+      if (selectedClient?.email) {
+        sendBillingNotification(
+          selectedClient.email,
+          selectedClient.full_name || "Client",
+          "invoice_created",
+          {
+            invoiceNumber,
+            amount: parseFloat(invoice.amount),
+            dueDate: invoice.due_date,
+            notes: invoice.notes,
+          }
+        );
+      }
+      
       return data;
     },
     onSuccess: async (data) => {
@@ -357,6 +390,22 @@ const AdminBilling = () => {
         amount: paymentAmount,
         reference: referenceNumber
       });
+
+      // Send payment received notification
+      const clientEmail = paymentBill.profiles?.email || paymentBill.client_email;
+      if (clientEmail) {
+        sendBillingNotification(
+          clientEmail,
+          paymentBill.profiles?.full_name || "Client",
+          "payment_received",
+          {
+            invoiceNumber: paymentBill.invoice_number,
+            amount: paymentAmount,
+            paidAt: new Date().toISOString(),
+            paymentMethod: paymentMethod === "credit" ? `Carte de crédit (****${paymentData.card_last_four})` : "Virement Interac",
+          }
+        );
+      }
       
       // Show confirmation
       setPaymentConfirmation({

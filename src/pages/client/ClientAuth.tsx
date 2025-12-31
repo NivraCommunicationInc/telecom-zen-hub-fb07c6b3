@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,22 +7,36 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Mail, CheckCircle } from "lucide-react";
 
 const ClientAuth = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user, isLoading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { signIn, signUp, resetPassword, updatePassword, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", confirmPassword: "", fullName: "" });
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
-  // Redirect if already logged in - use useEffect to avoid render-time navigation
+  // Check if coming from password reset link
   useEffect(() => {
-    if (user && !authLoading) {
+    if (searchParams.get("reset") === "true") {
+      setIsResetMode(true);
+    }
+  }, [searchParams]);
+
+  // Redirect if already logged in (and not in reset mode)
+  useEffect(() => {
+    if (user && !authLoading && !isResetMode) {
       navigate("/portal", { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, isResetMode]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -33,8 +47,8 @@ const ClientAuth = () => {
     );
   }
 
-  // If user is logged in, show loading while redirecting
-  if (user) {
+  // If user is logged in and not in reset mode, show loading while redirecting
+  if (user && !isResetMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
@@ -88,6 +102,176 @@ const ClientAuth = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) {
+      toast({ title: "Veuillez entrer votre email", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await resetPassword(forgotPasswordEmail);
+    setIsLoading(false);
+    if (error) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } else {
+      setResetEmailSent(true);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || !confirmNewPassword) {
+      toast({ title: "Veuillez remplir tous les champs", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: "Les mots de passe ne correspondent pas", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "Le mot de passe doit contenir au moins 6 caractères", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await updatePassword(newPassword);
+    setIsLoading(false);
+    if (error) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Mot de passe mis à jour", description: "Vous pouvez maintenant vous connecter avec votre nouveau mot de passe" });
+      setIsResetMode(false);
+      navigate("/auth", { replace: true });
+    }
+  };
+
+  // Password reset mode (user clicked link in email)
+  if (isResetMode) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+            <ArrowLeft className="w-4 h-4" />
+            Retour à l'accueil
+          </Link>
+          
+          <Card className="bg-card border-border">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
+                  <span className="font-display font-bold text-navy-900 text-xl">N</span>
+                </div>
+                <span className="font-display font-bold text-xl text-foreground">Nivra</span>
+              </div>
+              <CardTitle className="text-2xl">Nouveau mot de passe</CardTitle>
+              <CardDescription>Entrez votre nouveau mot de passe</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div>
+                  <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirm-new-password">Confirmer le mot de passe</Label>
+                  <Input
+                    id="confirm-new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Mettre à jour le mot de passe
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Forgot password view
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <button 
+            onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour à la connexion
+          </button>
+          
+          <Card className="bg-card border-border">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
+                  <span className="font-display font-bold text-navy-900 text-xl">N</span>
+                </div>
+                <span className="font-display font-bold text-xl text-foreground">Nivra</span>
+              </div>
+              <CardTitle className="text-2xl">Mot de passe oublié</CardTitle>
+              <CardDescription>
+                {resetEmailSent 
+                  ? "Un email vous a été envoyé" 
+                  : "Entrez votre email pour réinitialiser votre mot de passe"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resetEmailSent ? (
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mx-auto flex items-center justify-center">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-foreground font-medium">Email envoyé!</p>
+                    <p className="text-muted-foreground text-sm">
+                      Vérifiez votre boîte de réception et cliquez sur le lien pour réinitialiser votre mot de passe.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-4"
+                    onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
+                  >
+                    Retour à la connexion
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="votre@email.com"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+                    Envoyer le lien de réinitialisation
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -135,6 +319,15 @@ const ClientAuth = () => {
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     />
+                  </div>
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-cyan-500 hover:text-cyan-400 underline"
+                    >
+                      Mot de passe oublié?
+                    </button>
                   </div>
                   <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
