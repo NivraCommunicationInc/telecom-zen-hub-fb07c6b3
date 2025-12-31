@@ -1,20 +1,30 @@
+import { useState } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Package } from "lucide-react";
+import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 
 const ClientOrders = () => {
   const { user } = useAuth();
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["client-orders-all", user?.id, user?.email],
     queryFn: async () => {
-      // RLS policy handles email matching automatically
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -27,17 +37,49 @@ const ClientOrders = () => {
 
   const statusColors: Record<string, string> = {
     pending: "bg-amber-500/20 text-amber-500",
-    processing: "bg-cyan-500/20 text-cyan-500",
+    verification: "bg-blue-500/20 text-blue-500",
+    hold: "bg-purple-500/20 text-purple-500",
+    backorder: "bg-orange-500/20 text-orange-500",
+    cancel: "bg-red-500/20 text-red-500",
+    shipped: "bg-cyan-500/20 text-cyan-500",
     completed: "bg-emerald-500/20 text-emerald-500",
-    cancelled: "bg-red-500/20 text-red-500",
   };
 
   const statusLabels: Record<string, string> = {
     pending: "En attente",
-    processing: "En cours",
+    verification: "Vérification",
+    hold: "En attente",
+    backorder: "Rupture de stock",
+    cancel: "Annulé",
+    shipped: "Expédié",
     completed: "Terminé",
-    cancelled: "Annulé",
   };
+
+  const statusIcons: Record<string, any> = {
+    pending: Clock,
+    verification: AlertCircle,
+    hold: Clock,
+    backorder: AlertCircle,
+    cancel: XCircle,
+    shipped: Truck,
+    completed: CheckCircle,
+  };
+
+  const handleViewDetails = (order: any) => {
+    setSelectedOrder(order);
+    setDetailsOpen(true);
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copié`);
+  };
+
+  // Calculate stats
+  const activeOrders = orders?.filter((o: any) => !["completed", "cancel"].includes(o.status)).length || 0;
+  const completedOrders = orders?.filter((o: any) => o.status === "completed").length || 0;
+  const totalSpent = orders?.filter((o: any) => o.status === "completed")
+    .reduce((acc: number, o: any) => acc + (Number(o.total_amount) || 0), 0) || 0;
 
   return (
     <ClientLayout>
@@ -45,6 +87,45 @@ const ClientOrders = () => {
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">Mes commandes</h1>
           <p className="text-muted-foreground mt-1">Suivez vos commandes et services</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-cyan-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{activeOrders}</p>
+                <p className="text-xs text-muted-foreground">En cours</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{completedOrders}</p>
+                <p className="text-xs text-muted-foreground">Terminées</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                <Package className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {totalSpent.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+                <p className="text-xs text-muted-foreground">Total dépensé</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Card className="bg-card border-border">
@@ -63,49 +144,86 @@ const ClientOrders = () => {
               </div>
             ) : orders && orders.length > 0 ? (
               <div className="space-y-4">
-                {orders.map((order: any) => (
-                  <div
-                    key={order.id}
-                    className="p-4 bg-accent/50 rounded-lg border border-border"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-medium text-foreground">{order.service_type}</h3>
-                          <Badge className={statusColors[order.status] || "bg-muted"}>
-                            {statusLabels[order.status] || order.status}
-                          </Badge>
+                {orders.map((order: any) => {
+                  const StatusIcon = statusIcons[order.status] || Clock;
+                  return (
+                    <div
+                      key={order.id}
+                      className="p-4 bg-accent/50 rounded-lg border border-border hover:border-cyan-500/30 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              order.status === "completed" ? "bg-emerald-500/20" :
+                              order.status === "shipped" ? "bg-cyan-500/20" :
+                              order.status === "cancel" ? "bg-red-500/20" : "bg-amber-500/20"
+                            }`}>
+                              <StatusIcon className={`w-4 h-4 ${
+                                order.status === "completed" ? "text-emerald-500" :
+                                order.status === "shipped" ? "text-cyan-500" :
+                                order.status === "cancel" ? "text-red-500" : "text-amber-500"
+                              }`} />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-foreground">{order.service_type}</h3>
+                              <p className="text-sm text-muted-foreground font-mono">
+                                #{order.id.slice(0, 8)}
+                              </p>
+                            </div>
+                            <Badge className={statusColors[order.status] || "bg-muted"}>
+                              {statusLabels[order.status] || order.status}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm mt-3">
+                            <div>
+                              <p className="text-muted-foreground">Date</p>
+                              <p className="text-foreground">
+                                {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                              </p>
+                            </div>
+                            {order.total_amount && (
+                              <div>
+                                <p className="text-muted-foreground">Montant</p>
+                                <p className="text-foreground font-medium">
+                                  {Number(order.total_amount).toLocaleString("fr-CA", {
+                                    style: "currency",
+                                    currency: "CAD",
+                                  })}
+                                </p>
+                              </div>
+                            )}
+                            {order.tracking_number && (
+                              <div className="col-span-2">
+                                <p className="text-muted-foreground">Suivi</p>
+                                <p className="text-cyan-500 font-mono text-sm flex items-center gap-2">
+                                  {order.tracking_number}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => copyToClipboard(order.tracking_number, "Numéro de suivi")}
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </Button>
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Commande #{order.id.slice(0, 8)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(order.created_at), "d MMMM yyyy", { locale: fr })}
-                        </p>
-                        {order.tracking_number && (
-                          <p className="text-sm text-cyan-500 mt-2">
-                            Suivi: {order.tracking_number}
-                          </p>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(order)}
+                          className="shrink-0"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Détails
+                        </Button>
                       </div>
-                      {order.total_amount && (
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-foreground">
-                            {Number(order.total_amount).toLocaleString("fr-CA", {
-                              style: "currency",
-                              currency: "CAD",
-                            })}
-                          </p>
-                        </div>
-                      )}
                     </div>
-                    {order.notes && (
-                      <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border">
-                        {order.notes}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -116,6 +234,104 @@ const ClientOrders = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Détails de la commande</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Commande</span>
+                <span className="font-mono text-foreground">#{selectedOrder.id.slice(0, 8)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Service</span>
+                <span className="text-foreground font-medium">{selectedOrder.service_type}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Statut</span>
+                <Badge className={statusColors[selectedOrder.status] || "bg-muted"}>
+                  {statusLabels[selectedOrder.status] || selectedOrder.status}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Date</span>
+                <span className="text-foreground">
+                  {format(new Date(selectedOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                </span>
+              </div>
+              {selectedOrder.total_amount && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Montant</span>
+                  <span className="text-foreground font-bold">
+                    {Number(selectedOrder.total_amount).toLocaleString("fr-CA", {
+                      style: "currency",
+                      currency: "CAD",
+                    })}
+                  </span>
+                </div>
+              )}
+              
+              {/* Device Info */}
+              {(selectedOrder.sim_number || selectedOrder.imei_number || selectedOrder.serial_number) && (
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-medium text-foreground mb-3">Informations appareil</h4>
+                  <div className="space-y-2">
+                    {selectedOrder.sim_number && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Numéro SIM</span>
+                        <span className="font-mono text-foreground">{selectedOrder.sim_number}</span>
+                      </div>
+                    )}
+                    {selectedOrder.imei_number && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">IMEI</span>
+                        <span className="font-mono text-foreground">{selectedOrder.imei_number}</span>
+                      </div>
+                    )}
+                    {selectedOrder.serial_number && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Numéro de série</span>
+                        <span className="font-mono text-foreground">{selectedOrder.serial_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tracking Info */}
+              {selectedOrder.tracking_number && (
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-medium text-foreground mb-3">Suivi d'expédition</h4>
+                  <div className="flex items-center justify-between bg-cyan-500/10 p-3 rounded-lg">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Numéro de suivi</p>
+                      <p className="font-mono text-cyan-500">{selectedOrder.tracking_number}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(selectedOrder.tracking_number, "Numéro de suivi")}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedOrder.notes && (
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-medium text-foreground mb-2">Notes</h4>
+                  <p className="text-sm text-muted-foreground">{selectedOrder.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </ClientLayout>
   );
 };
