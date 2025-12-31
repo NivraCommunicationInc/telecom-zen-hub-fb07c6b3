@@ -17,7 +17,6 @@ const Header = () => {
     { label: t('nav.services'), href: "/services", isPage: true },
     { label: "Internet", href: "/internet", isPage: true },
     { label: "TV", href: "/tv", isPage: true },
-    { label: t('howitworks.badge'), href: "how-it-works", isPage: false },
     { label: t('nav.contact'), href: "contact", isPage: false },
   ];
 
@@ -109,9 +108,6 @@ const Header = () => {
                 {user ? t('nav.portal') : t('nav.portal')}
               </Link>
             </Button>
-            <Button variant="hero" size="sm" asChild>
-              <Link to="/book">{t('hero.cta.book')}</Link>
-            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -165,9 +161,6 @@ const Header = () => {
                     <User className="w-4 h-4 mr-2" />
                     {user ? t('nav.portal') : t('nav.portal')}
                   </Link>
-                </Button>
-                <Button variant="hero" size="sm" asChild>
-                  <Link to="/book">{t('hero.cta.book')}</Link>
                 </Button>
               </div>
             </nav>
