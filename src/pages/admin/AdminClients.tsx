@@ -184,14 +184,20 @@ const AdminClients = () => {
       }
       return authData;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+    onSuccess: async () => {
+      // Force immediate refetch to ensure the new client appears
+      await queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      await queryClient.refetchQueries({ queryKey: ["admin-clients"] });
       logActivity("create", "client", undefined, { email: newClient.email });
-      toast({ title: "Client créé avec succès" });
+      toast({ 
+        title: "Client créé avec succès",
+        description: `${newClient.full_name} a été ajouté au système`
+      });
       setCreateDialogOpen(false);
       setNewClient({ email: "", password: "", full_name: "", phone: "" });
     },
     onError: (error: any) => {
+      console.error("Client creation error:", error);
       toast({ title: "Erreur lors de la création", description: error.message, variant: "destructive" });
     },
   });

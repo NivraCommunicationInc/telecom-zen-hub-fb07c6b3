@@ -127,15 +127,21 @@ const AdminOrders = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+    onSuccess: async (data) => {
+      // Force immediate refetch to ensure the new order appears
+      await queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      await queryClient.refetchQueries({ queryKey: ["admin-orders"] });
       logActivity("create", "order", data.id, { service_type: data.service_type });
-      toast({ title: "Commande créée avec succès" });
+      toast({ 
+        title: "Commande créée avec succès",
+        description: `Commande #${data.id.slice(0, 8)} créée`
+      });
       setCreateDialogOpen(false);
       setNewOrder({ user_id: "", service_type: "", total_amount: "", notes: "" });
     },
-    onError: () => {
-      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Order creation error:", error);
+      toast({ title: "Erreur lors de la création", description: error?.message, variant: "destructive" });
     },
   });
 

@@ -1,8 +1,9 @@
+import { forwardRef } from "react";
 import { Phone, Mail, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const Footer = () => {
+const Footer = forwardRef<HTMLElement>((_, ref) => {
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
@@ -27,7 +28,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="bg-navy-900 text-primary-foreground">
+    <footer ref={ref} className="bg-navy-900 text-primary-foreground">
       <div className="container mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8">
           {/* Brand */}
@@ -117,6 +118,8 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
+
+Footer.displayName = "Footer";
 
 export default Footer;
