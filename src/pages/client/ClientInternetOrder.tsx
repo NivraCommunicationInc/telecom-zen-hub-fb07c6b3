@@ -991,64 +991,281 @@ const ClientInternetOrder = () => {
           </div>
         )}
 
-        {/* Step 5: Confirmation */}
+        {/* Step 5: Professional Order Confirmation */}
         {step === 5 && createdOrder && (
-          <div className="space-y-6 max-w-2xl mx-auto text-center">
-            <Card className="bg-emerald-500/10 border-emerald-500/30">
-              <CardContent className="py-12">
-                <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-white" />
+          <div className="space-y-6 max-w-3xl mx-auto">
+            {/* Success Header */}
+            <Card className="bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-cyan-500/10 border-emerald-500/30 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-radial from-emerald-500/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <CardContent className="py-10 relative">
+                <div className="text-center space-y-4">
+                  <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30 animate-pulse">
+                    <CheckCircle2 className="w-12 h-12 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-foreground mb-2">
+                      {isFrench ? "Commande confirmée!" : "Order Confirmed!"}
+                    </h2>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      {isFrench 
+                        ? "Merci pour votre confiance. Votre commande Internet a été reçue et est en cours de traitement."
+                        : "Thank you for your trust. Your Internet order has been received and is being processed."}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      {isFrench ? "Numéro de commande" : "Order Number"}
+                    </p>
+                    <Badge className="bg-foreground text-background text-xl px-6 py-2 font-mono">
+                      {createdOrder.order_number}
+                    </Badge>
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold text-foreground mb-2">
-                  {isFrench ? "Commande confirmée!" : "Order Confirmed!"}
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  {isFrench 
-                    ? "Votre commande Internet a été soumise avec succès."
-                    : "Your Internet order has been successfully submitted."}
-                </p>
-                <Badge className="bg-emerald-500/20 text-emerald-500 text-lg px-4 py-2">
-                  {createdOrder.order_number}
-                </Badge>
               </CardContent>
             </Card>
 
-            <Card className="bg-card border-border text-left">
-              <CardContent className="py-6 space-y-4">
-                <h3 className="font-semibold text-foreground">
+            {/* Order Summary */}
+            <Card className="bg-card border-border">
+              <CardHeader className="border-b border-border">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="w-5 h-5 text-cyan-500" />
+                  {isFrench ? "Récapitulatif de votre commande" : "Your Order Summary"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Service Details */}
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Wifi className="w-4 h-4 text-cyan-500" />
+                      {isFrench ? "Service commandé" : "Service Ordered"}
+                    </h4>
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-foreground font-medium">{selectedPlan?.name}</span>
+                        <Badge className="bg-cyan-500/20 text-cyan-500">{selectedPlan?.speed}</Badge>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{isFrench ? "Abonnement mensuel" : "Monthly subscription"}</span>
+                        <span className="text-foreground font-medium">${selectedPlan?.price}/mois</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Equipment */}
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Router className="w-4 h-4 text-cyan-500" />
+                      {isFrench ? "Équipement inclus" : "Included Equipment"}
+                    </h4>
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-foreground font-medium">Nivra Born Wifi</span>
+                        <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                          <Shield className="w-3 h-3 mr-1" />
+                          {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
+                        </Badge>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{isFrench ? "Frais unique (payé)" : "One-time fee (paid)"}</span>
+                        <span className="text-foreground font-medium">$60.00</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Installation Address */}
+                <div className="mt-6 space-y-4">
+                  <h4 className="font-semibold text-foreground flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-cyan-500" />
+                    {isFrench ? "Adresse d'installation" : "Installation Address"}
+                  </h4>
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <p className="text-foreground">{address}</p>
+                  </div>
+                </div>
+
+                {/* Installation Schedule */}
+                {selectedDate && selectedTime && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-cyan-500" />
+                      {isFrench ? "Date d'installation préférée" : "Preferred Installation Date"}
+                    </h4>
+                    <div className="bg-muted/50 rounded-lg p-4 flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground">{selectedDate}</span>
+                      </div>
+                      <Separator orientation="vertical" className="h-6" />
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground">{selectedTime}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Summary */}
+                <div className="mt-6 space-y-4">
+                  <h4 className="font-semibold text-foreground flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-cyan-500" />
+                    {isFrench ? "Montant payé" : "Amount Paid"}
+                  </h4>
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{isFrench ? "Routeur Nivra Born Wifi" : "Nivra Born Wifi Router"}</span>
+                        <span className="text-foreground">$60.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{isFrench ? "Livraison" : "Delivery"}</span>
+                        <span className="text-foreground">$30.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{isFrench ? "Activation" : "Activation"}</span>
+                        <span className="text-foreground">$25.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{isFrench ? "Installation" : "Installation"}</span>
+                        <span className="text-foreground">${installationFee.toFixed(2)}</span>
+                      </div>
+                      {installationCredit > 0 && (
+                        <div className="flex justify-between text-emerald-500">
+                          <span>{isFrench ? "Crédit promo" : "Promo credit"}</span>
+                          <span>-${installationCredit.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <Separator />
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">TPS (5%)</span>
+                        <span className="text-foreground">${tpsAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">TVQ (9.975%)</span>
+                        <span className="text-foreground">${tvqAmount.toFixed(2)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between text-lg font-bold">
+                        <span className="text-foreground">{isFrench ? "Total payé" : "Total Paid"}</span>
+                        <span className="text-emerald-500">${totalDueNow.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Next Steps */}
+            <Card className="bg-card border-border">
+              <CardHeader className="border-b border-border">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ArrowRight className="w-5 h-5 text-cyan-500" />
                   {isFrench ? "Prochaines étapes" : "Next Steps"}
-                </h3>
-                <ul className="space-y-3 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    {isFrench 
-                      ? "Un courriel de confirmation sera envoyé à votre adresse."
-                      : "A confirmation email will be sent to your address."}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    {isFrench 
-                      ? "Un agent Nivra vous contactera pour confirmer les détails."
-                      : "A Nivra agent will contact you to confirm the details."}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    {isFrench 
-                      ? "Préparez votre pièce d'identité gouvernementale avec photo."
-                      : "Prepare your government-issued photo ID."}
-                  </li>
-                </ul>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-6">
+                <div className="space-y-4">
+                  {[
+                    {
+                      icon: FileText,
+                      title: isFrench ? "Confirmation par courriel" : "Email Confirmation",
+                      desc: isFrench 
+                        ? "Un courriel de confirmation avec tous les détails de votre commande sera envoyé à votre adresse."
+                        : "A confirmation email with all order details will be sent to your email address.",
+                      time: isFrench ? "Immédiat" : "Immediate"
+                    },
+                    {
+                      icon: User,
+                      title: isFrench ? "Appel de vérification" : "Verification Call",
+                      desc: isFrench 
+                        ? "Un agent Nivra vous contactera pour confirmer votre commande et vos informations."
+                        : "A Nivra agent will contact you to confirm your order and information.",
+                      time: isFrench ? "Sous 24h" : "Within 24h"
+                    },
+                    {
+                      icon: Shield,
+                      title: isFrench ? "Vérification d'identité" : "Identity Verification",
+                      desc: isFrench 
+                        ? "Préparez votre pièce d'identité gouvernementale avec photo pour la vérification."
+                        : "Prepare your government-issued photo ID for verification.",
+                      time: isFrench ? "Lors de l'appel" : "During call"
+                    },
+                    {
+                      icon: Package,
+                      title: isFrench ? "Livraison de l'équipement" : "Equipment Delivery",
+                      desc: isFrench 
+                        ? "Votre routeur Nivra Born Wifi sera livré à votre adresse dans les délais indiqués."
+                        : "Your Nivra Born Wifi router will be delivered to your address within the indicated timeframe.",
+                      time: isFrench ? "48-72h ouvrables" : "48-72 business hours"
+                    },
+                    {
+                      icon: Wifi,
+                      title: isFrench ? "Installation du service" : "Service Installation",
+                      desc: isFrench 
+                        ? "Un technicien se présentera à la date et l'heure convenues pour installer votre service."
+                        : "A technician will arrive at the agreed date and time to install your service.",
+                      time: selectedDate || (isFrench ? "À confirmer" : "To confirm")
+                    }
+                  ].map((item, index) => (
+                    <div key={index} className="flex gap-4 items-start">
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                          <item.icon className="w-5 h-5 text-cyan-500" />
+                        </div>
+                        {index < 4 && <div className="w-0.5 h-8 bg-border mt-2" />}
+                      </div>
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-foreground">{item.title}</h4>
+                          <Badge variant="outline" className="text-xs">{item.time}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
+            {/* Contact Info */}
+            <Card className="bg-muted/30 border-border">
+              <CardContent className="py-6">
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {isFrench ? "Des questions? Contactez-nous:" : "Questions? Contact us:"}
+                  </p>
+                  <div className="flex justify-center gap-6">
+                    <a href="tel:+14385442233" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
+                      <span className="font-medium">438-544-2233</span>
+                    </a>
+                    <a href="mailto:support@nivra.ca" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
+                      <span className="font-medium">support@nivra.ca</span>
+                    </a>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Button variant="hero" onClick={() => navigate("/portal/orders")}>
+              <Button variant="hero" size="lg" onClick={() => navigate("/portal/orders")}>
+                <FileText className="w-4 h-4 mr-2" />
                 {isFrench ? "Voir mes commandes" : "View My Orders"}
               </Button>
-              <Button variant="outline" onClick={() => navigate("/portal")}>
+              <Button variant="outline" size="lg" onClick={() => navigate("/portal")}>
                 {isFrench ? "Retour au tableau de bord" : "Back to Dashboard"}
               </Button>
             </div>
+
+            {/* Print/Save Note */}
+            <p className="text-center text-xs text-muted-foreground">
+              {isFrench 
+                ? "Conservez votre numéro de commande pour référence. Un courriel de confirmation vous sera envoyé sous peu."
+                : "Keep your order number for reference. A confirmation email will be sent to you shortly."}
+            </p>
           </div>
         )}
 
