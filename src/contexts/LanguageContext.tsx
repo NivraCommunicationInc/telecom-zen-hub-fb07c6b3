@@ -36,15 +36,15 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.logout': 'Déconnexion',
     
     // Hero
-    'hero.badge': 'Courtier télécom indépendant au Québec',
+    'hero.badge': 'Compagnie télécom indépendante au Québec',
     'hero.title1': 'Économisez sur vos',
     'hero.title2': 'télécommunications',
-    'hero.subtitle': 'Nivra est un courtier télécom 100% indépendant. Nous sommes payés uniquement par nos clients — jamais par les fournisseurs. Conseils objectifs garantis.',
+    'hero.subtitle': 'Nivra est une compagnie de télécommunications 100% indépendante. Nous sommes payés uniquement par nos clients — jamais par les fournisseurs. Conseils objectifs garantis.',
     'hero.cta.book': 'Consultation gratuite',
     'hero.cta.services': 'Découvrir nos services',
     'hero.trust.independent': 'Indépendant',
     'hero.trust.quebec': 'Basé au Québec',
-    'hero.trust.nocommission': 'Sans commission',
+    'hero.trust.nocommission': 'Client payeur',
     
     // Services
     'services.badge': 'Nos services',
@@ -74,10 +74,10 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Benefits
     'benefits.badge': 'Pourquoi Nivra',
-    'benefits.title': 'L\'avantage d\'un courtier indépendant',
+    'benefits.title': 'L\'avantage d\'une compagnie indépendante',
     'benefits.subtitle': 'Contrairement aux vendeurs de fournisseurs, nous travaillons exclusivement pour vous.',
     'benefits.independent.title': 'Totalement indépendant',
-    'benefits.independent.desc': 'Aucune affiliation avec les fournisseurs de télécommunications. Conseils 100% objectifs.',
+    'benefits.independent.desc': 'Aucune affiliation avec les fournisseurs de télécommunications. Conseils 100% objectifs, modèle client-payeur.',
     'benefits.savings.title': 'Économies garanties',
     'benefits.savings.desc': 'Nous identifions les meilleures options selon votre profil et vos besoins réels.',
     'benefits.simple.title': 'Processus simplifié',
@@ -123,7 +123,7 @@ const translations: Record<Language, Record<string, string>> = {
     'contact.success.text': 'Nous vous répondrons dans les plus brefs délais.',
     
     // Footer
-    'footer.description': 'Courtier télécom indépendant au Québec. Conseils objectifs, payés uniquement par nos clients.',
+    'footer.description': 'Compagnie de télécommunications indépendante au Québec. Services Nivra internes, modèle client-payeur, aucune affiliation carrier.',
     'footer.services': 'Services',
     'footer.company': 'Entreprise',
     'footer.legal': 'Légal',
@@ -147,11 +147,11 @@ const translations: Record<Language, Record<string, string>> = {
     
     // FAQ Questions - About
     'faq.about.q1': 'Qu\'est-ce que Nivra?',
-    'faq.about.a1': 'Nivra est un courtier télécom entièrement indépendant basé au Québec. Nous conseillons les particuliers et les entreprises sur leurs besoins en télécommunications sans représenter aucun fournisseur.',
-    'faq.about.q2': 'Travaillez-vous avec les fournisseurs de télécommunications?',
-    'faq.about.a2': 'Non. Nivra n\'a aucune affiliation, partenariat ou entente commerciale avec les compagnies de télécommunications comme Bell, Rogers, TELUS ou autres. Nous ne recevons aucune rémunération de leur part.',
+    'faq.about.a1': 'Nivra est une compagnie de télécommunications entièrement indépendante basée au Québec. Nous vendons des services Nivra internes aux particuliers et entreprises. Aucune affiliation avec des carriers externes.',
+    'faq.about.q2': 'Travaillez-vous avec des fournisseurs externes?',
+    'faq.about.a2': 'Non. Nivra n\'a aucune affiliation, partenariat ou entente commerciale avec les compagnies de télécommunications externes. Nous vendons nos propres services Nivra, modèle client-payeur.',
     'faq.about.q3': 'Comment Nivra est-il rémunéré?',
-    'faq.about.a3': 'Nivra est payé exclusivement par ses clients, soit par des frais de consultation ponctuels, soit par des abonnements mensuels. Cette indépendance totale garantit des conseils 100% objectifs.',
+    'faq.about.a3': 'Nivra est payé exclusivement par ses clients, soit par des frais de consultation ponctuels, soit par des abonnements mensuels. Modèle client-payeur à 100%, aucune commission carrier.',
     'faq.about.q4': 'Quelles régions desservez-vous?',
     'faq.about.a4': 'Pour le moment, Nivra offre ses services uniquement au Québec. Nous prévoyons élargir notre couverture dans le futur.',
     
@@ -182,9 +182,9 @@ const translations: Record<Language, Record<string, string>> = {
     // About page
     'about.title': 'À propos de',
     'about.title2': 'Nivra',
-    'about.subtitle': 'Un courtier télécom indépendant, dévoué à servir exclusivement les intérêts de ses clients au Québec.',
+    'about.subtitle': 'Une compagnie de télécommunications indépendante, vendant des services Nivra internes, dédiée aux clients du Québec. Modèle client-payeur.',
     'about.mission.title': 'Notre mission',
-    'about.mission.text': 'Offrir des conseils télécom 100% objectifs aux Québécois, sans aucune influence des fournisseurs.',
+    'about.mission.text': 'Offrir des services télécom Nivra internes 100% indépendants aux Québécois, aucune affiliation carrier.',
     'about.values.title': 'Nos valeurs',
     'about.values.independence': 'Indépendance totale',
     'about.values.transparency': 'Transparence absolue',
@@ -242,15 +242,15 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.logout': 'Logout',
     
     // Hero
-    'hero.badge': 'Independent Telecom Broker in Quebec',
+    'hero.badge': 'Independent Telecommunications Company in Quebec',
     'hero.title1': 'Save on your',
     'hero.title2': 'telecommunications',
-    'hero.subtitle': 'Nivra is a 100% independent telecom broker. We are paid only by our clients — never by providers. Objective advice guaranteed.',
+    'hero.subtitle': 'Nivra is a 100% independent telecommunications company. We are paid only by our clients — never by carriers. Client-paid model guaranteed.',
     'hero.cta.book': 'Free Consultation',
     'hero.cta.services': 'Discover our services',
     'hero.trust.independent': 'Independent',
     'hero.trust.quebec': 'Based in Quebec',
-    'hero.trust.nocommission': 'No Commission',
+    'hero.trust.nocommission': 'Client-Paid',
     
     // Services
     'services.badge': 'Our Services',
@@ -280,10 +280,10 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Benefits
     'benefits.badge': 'Why Nivra',
-    'benefits.title': 'The advantage of an independent broker',
-    'benefits.subtitle': 'Unlike provider salespeople, we work exclusively for you.',
+    'benefits.title': 'The advantage of an independent company',
+    'benefits.subtitle': 'Unlike carrier salespeople, we work exclusively for you.',
     'benefits.independent.title': 'Fully Independent',
-    'benefits.independent.desc': 'No affiliation with telecom providers. 100% objective advice.',
+    'benefits.independent.desc': 'No carrier affiliation. 100% objective advice, client-paid model.',
     'benefits.savings.title': 'Guaranteed Savings',
     'benefits.savings.desc': 'We identify the best options based on your profile and real needs.',
     'benefits.simple.title': 'Simplified Process',
@@ -329,7 +329,7 @@ const translations: Record<Language, Record<string, string>> = {
     'contact.success.text': 'We will get back to you as soon as possible.',
     
     // Footer
-    'footer.description': 'Independent telecom broker in Quebec. Objective advice, paid only by our clients.',
+    'footer.description': 'Independent telecommunications company in Quebec. Internal Nivra services, client-paid model, no carrier affiliation.',
     'footer.services': 'Services',
     'footer.company': 'Company',
     'footer.legal': 'Legal',
@@ -353,11 +353,11 @@ const translations: Record<Language, Record<string, string>> = {
     
     // FAQ Questions - About
     'faq.about.q1': 'What is Nivra?',
-    'faq.about.a1': 'Nivra is a fully independent telecom broker based in Quebec. We advise individuals and businesses on their telecommunications needs without representing any provider.',
-    'faq.about.q2': 'Do you work with telecom providers?',
-    'faq.about.a2': 'No. Nivra has no affiliation, partnership or commercial agreement with telecom companies like Bell, Rogers, TELUS or others. We receive no compensation from them.',
+    'faq.about.a1': 'Nivra is a fully independent telecommunications company based in Quebec. We sell internal Nivra services to individuals and businesses. No external carrier affiliation.',
+    'faq.about.q2': 'Do you work with external carriers?',
+    'faq.about.a2': 'No. Nivra has no affiliation, partnership or commercial agreement with external telecommunications companies. We sell our own Nivra services, client-paid model.',
     'faq.about.q3': 'How is Nivra compensated?',
-    'faq.about.a3': 'Nivra is paid exclusively by its clients, either through one-time consultation fees or monthly subscriptions. This total independence guarantees 100% objective advice.',
+    'faq.about.a3': 'Nivra is paid exclusively by its clients, either through one-time consultation fees or monthly subscriptions. 100% client-paid model, no carrier commission.',
     'faq.about.q4': 'Which regions do you serve?',
     'faq.about.a4': 'Currently, Nivra offers its services only in Quebec. We plan to expand our coverage in the future.',
     
@@ -388,9 +388,9 @@ const translations: Record<Language, Record<string, string>> = {
     // About page
     'about.title': 'About',
     'about.title2': 'Nivra',
-    'about.subtitle': 'An independent telecom broker, dedicated to serving exclusively the interests of its clients in Quebec.',
+    'about.subtitle': 'An independent telecommunications company, selling internal Nivra services, dedicated to Quebec clients. Client-paid model.',
     'about.mission.title': 'Our Mission',
-    'about.mission.text': 'Provide 100% objective telecom advice to Quebecers, without any provider influence.',
+    'about.mission.text': 'Provide 100% independent internal Nivra telecom services to Quebecers, no carrier affiliation.',
     'about.values.title': 'Our Values',
     'about.values.independence': 'Total Independence',
     'about.values.transparency': 'Absolute Transparency',

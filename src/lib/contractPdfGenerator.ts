@@ -182,7 +182,7 @@ export const generateContractPDF = (data: ContractData): jsPDF => {
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...cyanAccent);
-  doc.text("COURTIER TÉLÉCOM INDÉPENDANT", pageWidth / 2, 38, { align: "center" });
+  doc.text("COMPAGNIE TÉLÉCOM INDÉPENDANTE", pageWidth / 2, 38, { align: "center" });
   
   // Contact info
   doc.setFontSize(9);
