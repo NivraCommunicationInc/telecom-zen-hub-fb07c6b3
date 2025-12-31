@@ -257,10 +257,49 @@ const ClientNewOrder = () => {
       }).select().single();
 
       if (error) throw error;
+
+      // Create support ticket for TV channel configuration if TV service is included
+      if (hasTVService && channelData.length > 0) {
+        const baseChannelsList = baseChannels.map(ch => ch.name).join(', ');
+        const freeChannelsList = selectedFreeChannels.map(ch => ch.name).join(', ') || 'Aucune';
+        const paidChannelsList = selectedPaidChannels.map(ch => `${ch.name} ($${ch.price}/mois)`).join(', ') || 'Aucune';
+
+        const ticketDescription = `
+**Nouvelle commande TV - Configuration des chaînes requise**
+
+**Client:** ${profile?.full_name || user?.email}
+**Courriel:** ${profile?.email || user?.email}
+**Commande:** ${data.order_number}
+
+**Chaînes de base (incluses automatiquement):**
+${baseChannelsList}
+
+**Chaînes au choix sélectionnées (${selectedFreeChannels.length}/${freeChannelLimit}):**
+${freeChannelsList}
+
+**Chaînes payantes sélectionnées:**
+${paidChannelsList}
+
+**Délai estimé:** 2 à 24 heures
+
+Veuillez confirmer les chaînes et procéder à l'activation du service.
+        `.trim();
+
+        await supabase.from("support_tickets").insert({
+          user_id: user.id,
+          client_email: profile?.email || user.email,
+          subject: `Configuration TV - Commande ${data.order_number}`,
+          description: ticketDescription,
+          priority: "high",
+          status: "open",
+        });
+      }
+
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
       setCreatedOrder(data as CreatedOrder);
       setStep(5); // Go to confirmation step
     },
