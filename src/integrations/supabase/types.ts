@@ -169,6 +169,56 @@ export type Database = {
           },
         ]
       }
+      channel_selections: {
+        Row: {
+          channels: Json
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          related_ticket_id: string | null
+          status: string
+          total_price: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channels?: Json
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          related_ticket_id?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channels?: Json
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          related_ticket_id?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_selections_related_ticket_id_fkey"
+            columns: ["related_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_documents: {
         Row: {
           created_at: string
@@ -893,6 +943,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tv_channels: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_4k: boolean | null
+          is_active: boolean | null
+          is_hd: boolean | null
+          name: string
+          price: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_4k?: boolean | null
+          is_active?: boolean | null
+          is_hd?: boolean | null
+          name: string
+          price?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_4k?: boolean | null
+          is_active?: boolean | null
+          is_hd?: boolean | null
+          name?: string
+          price?: number | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
