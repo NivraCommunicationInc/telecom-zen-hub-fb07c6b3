@@ -113,6 +113,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
               {t('footer.terms')}
             </Link>
+            <Link to="/admin" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+              Admin
+            </Link>
           </div>
         </div>
       </div>
