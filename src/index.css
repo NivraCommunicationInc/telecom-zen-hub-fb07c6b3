@@ -328,6 +328,11 @@
   .text-balance {
     text-wrap: balance;
   }
+  
+  /* Radial gradients for 3D effects */
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
 }
 
 @keyframes float {
