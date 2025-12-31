@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tv, AlertCircle, ArrowRight, User, Clock, CheckCircle, X, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Tv, AlertCircle, ArrowRight, User, Clock, CheckCircle, X, Loader2, Pencil, Search, Plus, Minus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +20,15 @@ interface ChannelSelection {
   name: string;
   type: "base" | "free_choice" | "paid";
   price?: number;
+  category?: string;
+}
+
+interface TVChannel {
+  id: string;
+  name: string;
+  category: string;
+  price: number | null;
+  is_active: boolean;
 }
 
 interface PendingTVOrder {
@@ -37,23 +49,32 @@ interface PendingTVOrder {
 const PendingTVOrdersNotification = () => {
   const [selectedOrder, setSelectedOrder] = useState<PendingTVOrder | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedChannels, setEditedChannels] = useState<ChannelSelection[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
+
+  // Fetch available channels from tv_channels table
+  const { data: availableChannels } = useQuery({
+    queryKey: ["available-tv-channels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tv_channels")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data as TVChannel[];
+    },
+    enabled: confirmDialogOpen,
+  });
 
   const { data: pendingOrders, isLoading } = useQuery({
     queryKey: ["admin-pending-tv-orders"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select(`
-          id,
-          order_number,
-          service_type,
-          status,
-          created_at,
-          client_email,
-          selected_channels,
-          user_id
-        `)
+        .select(`id, order_number, service_type, status, created_at, client_email, selected_channels, user_id`)
         .or("service_type.ilike.%tv%,service_type.ilike.%télé%,service_type.ilike.%iptv%")
         .in("status", ["pending", "processing"])
         .order("created_at", { ascending: false })
@@ -68,14 +89,9 @@ const PendingTVOrdersNotification = () => {
             .select("full_name, email")
             .eq("user_id", order.user_id)
             .maybeSingle();
-          
-          return {
-            ...order,
-            profiles: profile,
-          };
+          return { ...order, profiles: profile };
         })
       );
-
       return ordersWithProfiles as PendingTVOrder[];
     },
     refetchInterval: 30000,
@@ -89,28 +105,38 @@ const PendingTVOrdersNotification = () => {
         .select("*", { count: "exact", head: true })
         .or("service_type.ilike.%tv%,service_type.ilike.%télé%,service_type.ilike.%iptv%")
         .in("status", ["pending", "processing"]);
-
       if (error) throw error;
       return count || 0;
     },
     refetchInterval: 30000,
   });
 
+  // Initialize edited channels when order is selected
+  useEffect(() => {
+    if (selectedOrder && confirmDialogOpen) {
+      const channels = Array.isArray(selectedOrder.selected_channels) 
+        ? (selectedOrder.selected_channels as ChannelSelection[])
+        : [];
+      setEditedChannels(channels);
+      setIsEditMode(false);
+      setSearchQuery("");
+    }
+  }, [selectedOrder, confirmDialogOpen]);
+
   const confirmChannelsMutation = useMutation({
-    mutationFn: async (order: PendingTVOrder) => {
-      // Update order status to confirmed
+    mutationFn: async ({ order, channels }: { order: PendingTVOrder; channels: ChannelSelection[] }) => {
       const { error: orderError } = await supabase
         .from("orders")
         .update({
           status: "confirmed",
           channel_selection_locked: false,
+          selected_channels: JSON.parse(JSON.stringify(channels)),
           updated_at: new Date().toISOString(),
         })
         .eq("id", order.id);
 
       if (orderError) throw orderError;
 
-      // Update related support ticket if exists
       const { data: tickets } = await supabase
         .from("support_tickets")
         .select("id")
@@ -155,20 +181,64 @@ const PendingTVOrdersNotification = () => {
 
   const handleConfirmChannels = () => {
     if (selectedOrder) {
-      confirmChannelsMutation.mutate(selectedOrder);
+      confirmChannelsMutation.mutate({ order: selectedOrder, channels: editedChannels });
     }
   };
 
-  const getChannelsByType = (channels: unknown) => {
-    if (!channels || !Array.isArray(channels)) return { base: [] as ChannelSelection[], free: [] as ChannelSelection[], paid: [] as ChannelSelection[] };
-    
-    const typedChannels = channels as ChannelSelection[];
+  const getChannelsByType = (channels: ChannelSelection[]) => {
     return {
-      base: typedChannels.filter((ch) => ch.type === "base"),
-      free: typedChannels.filter((ch) => ch.type === "free_choice"),
-      paid: typedChannels.filter((ch) => ch.type === "paid"),
+      base: channels.filter((ch) => ch.type === "base"),
+      free: channels.filter((ch) => ch.type === "free_choice"),
+      paid: channels.filter((ch) => ch.type === "paid"),
     };
   };
+
+  const isChannelSelected = (channelName: string) => {
+    return editedChannels.some((ch) => ch.name === channelName);
+  };
+
+  const getChannelType = (category: string): "base" | "free_choice" | "paid" => {
+    const baseCategories = ["base", "basic", "inclus"];
+    const paidCategories = ["premium", "sports", "paid", "payant"];
+    
+    if (baseCategories.some(c => category.toLowerCase().includes(c))) return "base";
+    if (paidCategories.some(c => category.toLowerCase().includes(c))) return "paid";
+    return "free_choice";
+  };
+
+  const toggleChannel = (channel: TVChannel) => {
+    const channelType = getChannelType(channel.category);
+    
+    if (isChannelSelected(channel.name)) {
+      setEditedChannels(prev => prev.filter(ch => ch.name !== channel.name));
+    } else {
+      setEditedChannels(prev => [
+        ...prev,
+        {
+          id: channel.id,
+          name: channel.name,
+          type: channelType,
+          price: channel.price || 0,
+          category: channel.category,
+        },
+      ]);
+    }
+  };
+
+  const removeChannel = (channelName: string) => {
+    setEditedChannels(prev => prev.filter(ch => ch.name !== channelName));
+  };
+
+  const filteredChannels = availableChannels?.filter(ch => 
+    ch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ch.category.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const groupedAvailableChannels = filteredChannels.reduce((acc, ch) => {
+    if (!acc[ch.category]) acc[ch.category] = [];
+    acc[ch.category].push(ch);
+    return acc;
+  }, {} as Record<string, TVChannel[]>);
 
   if (isLoading) {
     return (
@@ -186,6 +256,9 @@ const PendingTVOrdersNotification = () => {
   if (!pendingOrders || pendingOrders.length === 0) {
     return null;
   }
+
+  const { base, free, paid } = getChannelsByType(editedChannels);
+  const totalPaidPrice = paid.reduce((sum, ch) => sum + (ch.price || 0), 0);
 
   return (
     <>
@@ -213,10 +286,7 @@ const PendingTVOrdersNotification = () => {
           </p>
           
           {pendingOrders.map((order) => {
-            const channelCount = Array.isArray(order.selected_channels) 
-              ? order.selected_channels.length 
-              : 0;
-
+            const channelCount = Array.isArray(order.selected_channels) ? order.selected_channels.length : 0;
             return (
               <div
                 key={order.id}
@@ -265,13 +335,24 @@ const PendingTVOrdersNotification = () => {
         </CardContent>
       </Card>
 
-      {/* Quick Confirm Dialog */}
+      {/* Edit & Confirm Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Tv className="w-5 h-5 text-cyan-400" />
-              Confirmer les chaînes - {selectedOrder?.order_number}
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Tv className="w-5 h-5 text-cyan-400" />
+                {isEditMode ? "Modifier les chaînes" : "Confirmer les chaînes"} - {selectedOrder?.order_number}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="text-cyan-400"
+              >
+                {isEditMode ? <X className="w-4 h-4 mr-1" /> : <Pencil className="w-4 h-4 mr-1" />}
+                {isEditMode ? "Annuler modif." : "Modifier"}
+              </Button>
             </DialogTitle>
             <DialogDescription>
               Client: {selectedOrder?.profiles?.full_name || selectedOrder?.client_email || "N/A"}
@@ -279,96 +360,212 @@ const PendingTVOrdersNotification = () => {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4">
-              {(() => {
-                const { base, free, paid } = getChannelsByType(selectedOrder.selected_channels);
-                const totalPaidPrice = paid.reduce((sum, ch) => sum + (ch.price || 0), 0);
+            <div className="space-y-4 overflow-hidden">
+              {isEditMode ? (
+                /* Edit Mode - Show available channels */
+                <Tabs defaultValue="current" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="current">Sélection actuelle ({editedChannels.length})</TabsTrigger>
+                    <TabsTrigger value="available">Ajouter des chaînes</TabsTrigger>
+                  </TabsList>
 
-                return (
-                  <>
-                    {/* Base Channels */}
+                  <TabsContent value="current" className="space-y-4">
+                    {/* Current Selection with Remove Buttons */}
                     {base.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400">
-                            Chaînes de base ({base.length})
-                          </Badge>
+                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <Badge className="bg-emerald-500/20 text-emerald-400">Base ({base.length})</Badge>
                         </h4>
-                        <ScrollArea className="h-24 rounded-md border border-border p-2">
-                          <div className="flex flex-wrap gap-1">
-                            {base.map((ch, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {ch.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        </ScrollArea>
+                        <div className="flex flex-wrap gap-2">
+                          {base.map((ch, idx) => (
+                            <Badge key={idx} variant="outline" className="pr-1 flex items-center gap-1">
+                              {ch.name}
+                              <button
+                                onClick={() => removeChannel(ch.name)}
+                                className="ml-1 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Free Choice Channels */}
                     {free.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">
-                            Chaînes au choix ({free.length})
-                          </Badge>
+                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <Badge className="bg-cyan-500/20 text-cyan-400">Au choix ({free.length})</Badge>
                         </h4>
-                        <ScrollArea className="h-24 rounded-md border border-border p-2">
-                          <div className="flex flex-wrap gap-1">
-                            {free.map((ch, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs border-cyan-500/30">
-                                {ch.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        </ScrollArea>
+                        <div className="flex flex-wrap gap-2">
+                          {free.map((ch, idx) => (
+                            <Badge key={idx} variant="outline" className="border-cyan-500/30 pr-1 flex items-center gap-1">
+                              {ch.name}
+                              <button
+                                onClick={() => removeChannel(ch.name)}
+                                className="ml-1 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Paid Channels */}
                     {paid.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
-                            Chaînes payantes ({paid.length})
-                          </Badge>
-                          <span className="text-xs text-purple-400">
-                            +${totalPaidPrice.toFixed(2)}/mois
-                          </span>
+                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <Badge className="bg-purple-500/20 text-purple-400">Payantes ({paid.length})</Badge>
+                          <span className="text-xs text-purple-400">+${totalPaidPrice.toFixed(2)}/mois</span>
                         </h4>
-                        <ScrollArea className="h-24 rounded-md border border-border p-2">
-                          <div className="flex flex-wrap gap-1">
-                            {paid.map((ch, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs border-purple-500/30">
-                                {ch.name} {ch.price && `($${ch.price})`}
-                              </Badge>
-                            ))}
-                          </div>
-                        </ScrollArea>
+                        <div className="flex flex-wrap gap-2">
+                          {paid.map((ch, idx) => (
+                            <Badge key={idx} variant="outline" className="border-purple-500/30 pr-1 flex items-center gap-1">
+                              {ch.name} {ch.price ? `($${ch.price})` : ""}
+                              <button
+                                onClick={() => removeChannel(ch.name)}
+                                className="ml-1 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Summary */}
-                    <div className="bg-accent/50 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Total chaînes</span>
-                        <span className="font-medium">
-                          {base.length + free.length + paid.length} chaînes
-                        </span>
-                      </div>
-                      {totalPaidPrice > 0 && (
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-sm text-muted-foreground">Frais mensuels supplémentaires</span>
-                          <span className="font-medium text-purple-400">
-                            +${totalPaidPrice.toFixed(2)}/mois
-                          </span>
-                        </div>
-                      )}
+                    {editedChannels.length === 0 && (
+                      <p className="text-center text-muted-foreground py-4">
+                        Aucune chaîne sélectionnée. Utilisez l'onglet "Ajouter des chaînes".
+                      </p>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="available" className="space-y-4">
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher une chaîne..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
                     </div>
-                  </>
-                );
-              })()}
+
+                    <ScrollArea className="h-[300px] pr-4">
+                      {Object.entries(groupedAvailableChannels).map(([category, channels]) => (
+                        <div key={category} className="mb-4">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background py-1">
+                            {category} ({channels.length})
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {channels.map((ch) => {
+                              const isSelected = isChannelSelected(ch.name);
+                              return (
+                                <div
+                                  key={ch.id}
+                                  className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                                    isSelected
+                                      ? "border-cyan-500 bg-cyan-500/10"
+                                      : "border-border hover:border-muted-foreground"
+                                  }`}
+                                  onClick={() => toggleChannel(ch)}
+                                >
+                                  <Checkbox checked={isSelected} />
+                                  <span className="text-sm flex-1 truncate">{ch.name}</span>
+                                  {ch.price && ch.price > 0 && (
+                                    <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-400">
+                                      ${ch.price}
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      {filteredChannels.length === 0 && (
+                        <p className="text-center text-muted-foreground py-8">
+                          Aucune chaîne trouvée
+                        </p>
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                /* View Mode - Show current selection */
+                <>
+                  {base.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400">
+                          Chaînes de base ({base.length})
+                        </Badge>
+                      </h4>
+                      <ScrollArea className="h-24 rounded-md border border-border p-2">
+                        <div className="flex flex-wrap gap-1">
+                          {base.map((ch, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">{ch.name}</Badge>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+
+                  {free.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400">
+                          Chaînes au choix ({free.length})
+                        </Badge>
+                      </h4>
+                      <ScrollArea className="h-24 rounded-md border border-border p-2">
+                        <div className="flex flex-wrap gap-1">
+                          {free.map((ch, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs border-cyan-500/30">{ch.name}</Badge>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+
+                  {paid.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+                          Chaînes payantes ({paid.length})
+                        </Badge>
+                        <span className="text-xs text-purple-400">+${totalPaidPrice.toFixed(2)}/mois</span>
+                      </h4>
+                      <ScrollArea className="h-24 rounded-md border border-border p-2">
+                        <div className="flex flex-wrap gap-1">
+                          {paid.map((ch, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs border-purple-500/30">
+                              {ch.name} {ch.price && `($${ch.price})`}
+                            </Badge>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Summary */}
+              <div className="bg-accent/50 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Total chaînes</span>
+                  <span className="font-medium">{editedChannels.length} chaînes</span>
+                </div>
+                {totalPaidPrice > 0 && (
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-sm text-muted-foreground">Frais mensuels supplémentaires</span>
+                    <span className="font-medium text-purple-400">+${totalPaidPrice.toFixed(2)}/mois</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
