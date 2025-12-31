@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown, CheckCircle, Send, Loader2 } from "lucide-react";
+import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown, CheckCircle, Send, Loader2, User, Wallet, PlusCircle, MinusCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast, parseISO } from "date-fns";
@@ -76,6 +76,9 @@ const AdminBilling = () => {
   const [isResendingNotification, setIsResendingNotification] = useState(false);
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [clientProfileDialogOpen, setClientProfileDialogOpen] = useState(false);
+  const [selectedClientProfile, setSelectedClientProfile] = useState<any>(null);
+  const [adjustAmount, setAdjustAmount] = useState("");
   const [newInvoice, setNewInvoice] = useState({
     user_id: "",
     amount: "",
@@ -886,8 +889,23 @@ const AdminBilling = () => {
                       <tr key={bill.id} className="border-b border-border/50 hover:bg-accent/50">
                         <td className="py-3 px-4 text-sm text-foreground font-mono">{bill.invoice_number || bill.id.slice(0, 8)}</td>
                         <td className="py-3 px-4">
-                          <p className="text-sm text-foreground">{bill.profiles?.full_name || "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">{bill.profiles?.email}</p>
+                          <button 
+                            className="text-left hover:text-cyan-400 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (bill.profiles) {
+                                setSelectedClientProfile({ ...bill.profiles, user_id: bill.user_id });
+                                setAdjustAmount("");
+                                setClientProfileDialogOpen(true);
+                              }
+                            }}
+                          >
+                            <p className="text-sm text-foreground flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {bill.profiles?.full_name || "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{bill.profiles?.email}</p>
+                          </button>
                         </td>
                         <td className="py-3 px-4 text-sm text-foreground font-medium">{calculateTotal(bill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
                         <td className="py-3 px-4 text-sm text-muted-foreground">{bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "—"}</td>
@@ -1044,6 +1062,92 @@ const AdminBilling = () => {
                   <div className="flex justify-between"><span className="text-muted-foreground">Date:</span><span>{format(new Date(paymentConfirmation.date), "d MMM yyyy HH:mm", { locale: fr })}</span></div>
                 </div>
                 <Button className="w-full" onClick={() => setConfirmationDialogOpen(false)}>Fermer</Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Client Profile Dialog */}
+        <Dialog open={clientProfileDialogOpen} onOpenChange={setClientProfileDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <User className="w-5 h-5 text-cyan-400" />
+                Profil client
+              </DialogTitle>
+            </DialogHeader>
+            {selectedClientProfile && (
+              <div className="space-y-4 mt-4">
+                <div className="text-center pb-4 border-b">
+                  <p className="text-lg font-bold text-foreground">{selectedClientProfile.full_name || "Client"}</p>
+                  <p className="text-sm text-muted-foreground">{selectedClientProfile.email}</p>
+                  {selectedClientProfile.phone && <p className="text-sm text-muted-foreground">{selectedClientProfile.phone}</p>}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-red-500/10 rounded-lg text-center">
+                    <Wallet className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Solde dû</p>
+                    <p className="text-xl font-bold text-red-500">
+                      {Number(selectedClientProfile.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-emerald-500/10 rounded-lg text-center">
+                    <DollarSign className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Crédit magasin</p>
+                    <p className="text-xl font-bold text-emerald-500">
+                      {Number(selectedClientProfile.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Ajuster le solde</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="number" 
+                      placeholder="Montant" 
+                      value={adjustAmount}
+                      onChange={(e) => setAdjustAmount(e.target.value)}
+                    />
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={async () => {
+                        if (!adjustAmount) return;
+                        const newBalance = Math.max(0, Number(selectedClientProfile.balance || 0) + Number(adjustAmount));
+                        await supabase.from("profiles").update({ balance: newBalance }).eq("user_id", selectedClientProfile.user_id);
+                        logActivity("adjust_balance", "client", selectedClientProfile.user_id, { amount: adjustAmount, type: "add" });
+                        setSelectedClientProfile({ ...selectedClientProfile, balance: newBalance });
+                        queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+                        toast({ title: "Solde ajusté" });
+                        setAdjustAmount("");
+                      }}
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={async () => {
+                        if (!adjustAmount) return;
+                        const newBalance = Math.max(0, Number(selectedClientProfile.balance || 0) - Number(adjustAmount));
+                        await supabase.from("profiles").update({ balance: newBalance }).eq("user_id", selectedClientProfile.user_id);
+                        logActivity("adjust_balance", "client", selectedClientProfile.user_id, { amount: adjustAmount, type: "remove" });
+                        setSelectedClientProfile({ ...selectedClientProfile, balance: newBalance });
+                        queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+                        toast({ title: "Solde réduit" });
+                        setAdjustAmount("");
+                      }}
+                    >
+                      <MinusCircle className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <Button className="w-full" variant="outline" onClick={() => setClientProfileDialogOpen(false)}>
+                  Fermer
+                </Button>
               </div>
             )}
           </DialogContent>
