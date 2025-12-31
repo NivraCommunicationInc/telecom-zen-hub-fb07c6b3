@@ -112,11 +112,39 @@ const SIM_CONFIG = {
   notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise",
 };
 
+// Quebec phone prefixes (area codes)
+const QUEBEC_PREFIXES = ["418", "367", "514", "263", "450", "579", "354", "819", "873", "468"];
+
+// Quebec carriers for transfer selection
+const QUEBEC_CARRIERS = [
+  "Bell",
+  "Rogers",
+  "Vidéotron",
+  "Telus",
+  "Fido",
+  "Koodo",
+  "Virgin Plus",
+  "Chatr",
+  "Freedom Mobile",
+  "Lucky Mobile",
+  "Public Mobile",
+  "Fizz",
+  "Autre",
+];
+
 const categoryColors: Record<string, string> = {
   Mobile: "bg-blue-500/20 text-blue-500 border-blue-500/30",
   Internet: "bg-purple-500/20 text-purple-500 border-purple-500/30",
   TV: "bg-pink-500/20 text-pink-500 border-pink-500/30",
   Sécurité: "bg-emerald-500/20 text-emerald-500 border-emerald-500/30",
+};
+
+// Generate a random Quebec phone number
+const generateQuebecPhoneNumber = (): string => {
+  const prefix = QUEBEC_PREFIXES[Math.floor(Math.random() * QUEBEC_PREFIXES.length)];
+  const middle = String(Math.floor(Math.random() * 900) + 100);
+  const end = String(Math.floor(Math.random() * 9000) + 1000);
+  return `${prefix}-${middle}-${end}`;
 };
 
 const ClientNewOrder = () => {
@@ -142,6 +170,16 @@ const ClientNewOrder = () => {
   
   // TV Terminal equipment state
   const [terminalQuantity, setTerminalQuantity] = useState<number>(1);
+  
+  // Mobile transfer state
+  const [mobileTransferChoice, setMobileTransferChoice] = useState<"transfer" | "new" | null>(null);
+  const [transferPhoneNumber, setTransferPhoneNumber] = useState("");
+  const [transferCarrier, setTransferCarrier] = useState("");
+  const [transferAccountNumber, setTransferAccountNumber] = useState("");
+  const [transferServiceAccount, setTransferServiceAccount] = useState("");
+  const [transferImei, setTransferImei] = useState("");
+  const [transferValidationResult, setTransferValidationResult] = useState<"valid" | "invalid" | null>(null);
+  const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string>("");
 
   // Fetch available services
   const { data: services, isLoading } = useQuery({
@@ -205,6 +243,43 @@ const ClientNewOrder = () => {
     selectedTVService.name.toLowerCase().includes('premium') ? 20 :
     selectedTVService.name.toLowerCase().includes('standard') ? 10 : 5
   ) : 5;
+
+  // Validate Quebec phone number for transfer
+  const validateQuebecPhoneNumber = (phone: string): boolean => {
+    const cleanNumber = phone.replace(/\D/g, '');
+    if (cleanNumber.length !== 10) return false;
+    const prefix = cleanNumber.substring(0, 3);
+    return QUEBEC_PREFIXES.includes(prefix);
+  };
+
+  // Handle transfer phone validation
+  const handleTransferPhoneValidation = () => {
+    const isValid = validateQuebecPhoneNumber(transferPhoneNumber);
+    setTransferValidationResult(isValid ? "valid" : "invalid");
+    if (isValid) {
+      toast.success("Numéro québécois valide! Veuillez compléter les informations de transfert.");
+    } else {
+      toast.error("Ce numéro n'est pas un numéro québécois valide ou n'est pas éligible au transfert.");
+    }
+  };
+
+  // Handle new number assignment
+  const handleNewNumberSelection = () => {
+    setMobileTransferChoice("new");
+    const newNumber = generateQuebecPhoneNumber();
+    setAssignedPhoneNumber(newNumber);
+    toast.success("Un numéro québécois vous sera attribué après confirmation de la commande.");
+  };
+
+  // Check if mobile transfer step is complete
+  const isMobileTransferComplete = (): boolean => {
+    if (!hasMobileService) return true;
+    if (mobileTransferChoice === "new") return true;
+    if (mobileTransferChoice === "transfer" && transferValidationResult === "valid" && transferCarrier && transferAccountNumber && transferServiceAccount) {
+      return true;
+    }
+    return false;
+  };
 
   // Apply discount code
   const applyDiscountCode = () => {
@@ -498,29 +573,39 @@ END:VCALENDAR`;
 
         {/* Progress Steps */}
         <div className="flex items-center gap-2 sm:gap-4">
-          {[
-            { num: 1, label: "Services" },
-            { num: 2, label: hasTVService ? "Chaînes TV" : "Vérification" },
-            { num: 3, label: hasTVService ? "Vérification" : "Confirmation" },
-            { num: 4, label: hasTVService ? "Confirmation" : "Terminé" },
-            ...(hasTVService ? [{ num: 5, label: "Terminé" }] : []),
-          ].map((s, i, arr) => (
-            <React.Fragment key={s.num}>
-              <div className={`flex items-center gap-2 ${step >= s.num ? "text-cyan-500" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step > s.num ? "bg-emerald-500 text-white" : step === s.num ? "bg-cyan-500 text-white" : "bg-muted"
-                }`}>
-                  {step > s.num ? <Check className="w-4 h-4" /> : s.num}
+          {(() => {
+            // Determine steps based on selected services
+            const steps = [{ num: 1, label: "Services" }];
+            let stepNum = 2;
+            
+            if (hasTVService) {
+              steps.push({ num: stepNum++, label: "Chaînes TV" });
+            }
+            if (hasMobileService) {
+              steps.push({ num: stepNum++, label: "Transfert" });
+            }
+            steps.push({ num: stepNum++, label: "Vérification" });
+            steps.push({ num: stepNum++, label: "Confirmation" });
+            steps.push({ num: stepNum++, label: "Terminé" });
+            
+            return steps.map((s, i, arr) => (
+              <React.Fragment key={s.num}>
+                <div className={`flex items-center gap-2 ${step >= s.num ? "text-cyan-500" : "text-muted-foreground"}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step > s.num ? "bg-emerald-500 text-white" : step === s.num ? "bg-cyan-500 text-white" : "bg-muted"
+                  }`}>
+                    {step > s.num ? <Check className="w-4 h-4" /> : s.num}
+                  </div>
+                  <span className="text-xs font-medium hidden md:inline">{s.label}</span>
                 </div>
-                <span className="text-xs font-medium hidden md:inline">{s.label}</span>
-              </div>
-              {i < arr.length - 1 && (
-                <div className="flex-1 h-0.5 bg-muted">
-                  <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : step === s.num ? "bg-cyan-500 w-1/2" : "w-0"}`} />
-                </div>
-              )}
-            </React.Fragment>
-          ))}
+                {i < arr.length - 1 && (
+                  <div className="flex-1 h-0.5 bg-muted">
+                    <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : step === s.num ? "bg-cyan-500 w-1/2" : "w-0"}`} />
+                  </div>
+                )}
+              </React.Fragment>
+            ));
+          })()}
         </div>
 
         {/* Step 1: Service Selection */}
@@ -628,8 +713,8 @@ END:VCALENDAR`;
                         <span className="text-sm text-muted-foreground font-normal"> total</span>
                       </p>
                     </div>
-                    <Button variant="hero" size="lg" onClick={() => setStep(hasTVService ? 2 : 3)}>
-                      {hasTVService ? "Choisir vos chaînes" : "Continuer"}
+                    <Button variant="hero" size="lg" onClick={() => setStep(2)}>
+                      Continuer
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
@@ -881,7 +966,7 @@ END:VCALENDAR`;
                       variant="hero"
                       className="w-full"
                       size="lg"
-                      onClick={() => setStep(3)}
+                      onClick={() => setStep(hasMobileService ? 3 : 4)}
                     >
                       Continuer
                       <ArrowRight className="w-4 h-4 ml-2" />
@@ -901,10 +986,298 @@ END:VCALENDAR`;
           </div>
         )}
 
-        {/* Step 3: Identity Verification & Discount Code */}
-        {step === 3 && (
+        {/* Step 2 (no TV) or Step 3 (with TV): Mobile Transfer Eligibility */}
+        {((step === 2 && !hasTVService && hasMobileService) || (step === 3 && hasTVService && hasMobileService)) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              <Card className="bg-card border-blue-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-blue-500" />
+                    Transfert de numéro mobile
+                  </CardTitle>
+                  <CardDescription>
+                    Souhaitez-vous transférer votre numéro actuel ou obtenir un nouveau numéro québécois?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Choice selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card
+                      className={`cursor-pointer transition-all ${
+                        mobileTransferChoice === "transfer"
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => {
+                        setMobileTransferChoice("transfer");
+                        setTransferValidationResult(null);
+                      }}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${
+                          mobileTransferChoice === "transfer" ? "bg-blue-500 text-white" : "bg-muted"
+                        }`}>
+                          <ArrowRight className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-semibold text-foreground">Transférer mon numéro</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Garder votre numéro québécois actuel
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card
+                      className={`cursor-pointer transition-all ${
+                        mobileTransferChoice === "new"
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-border hover:border-emerald-500/50"
+                      }`}
+                      onClick={handleNewNumberSelection}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${
+                          mobileTransferChoice === "new" ? "bg-emerald-500 text-white" : "bg-muted"
+                        }`}>
+                          <Plus className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-semibold text-foreground">Nouveau numéro</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Obtenir un nouveau numéro québécois
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Transfer flow */}
+                  {mobileTransferChoice === "transfer" && (
+                    <div className="space-y-4 pt-4 border-t border-border">
+                      <div className="space-y-2">
+                        <Label>Numéro à transférer</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Ex: 514-555-1234"
+                            value={transferPhoneNumber}
+                            onChange={(e) => {
+                              setTransferPhoneNumber(e.target.value);
+                              setTransferValidationResult(null);
+                            }}
+                          />
+                          <Button variant="outline" onClick={handleTransferPhoneValidation}>
+                            Vérifier
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Seuls les numéros québécois sont acceptés (418, 367, 514, 263, 450, 579, 354, 819, 873, 468)
+                        </p>
+                      </div>
+
+                      {transferValidationResult === "invalid" && (
+                        <Card className="bg-destructive/10 border-destructive/30">
+                          <CardContent className="py-3 flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-destructive">
+                              Ce numéro n'est pas un numéro québécois valide ou n'est pas éligible au transfert. 
+                              Veuillez vérifier le numéro ou choisir un nouveau numéro.
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {transferValidationResult === "valid" && (
+                        <div className="space-y-4">
+                          <Card className="bg-emerald-500/10 border-emerald-500/30">
+                            <CardContent className="py-3 flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                              <p className="text-sm text-emerald-500">
+                                Numéro québécois valide! Veuillez compléter les informations de transfert.
+                              </p>
+                            </CardContent>
+                          </Card>
+
+                          <div className="space-y-2">
+                            <Label>Fournisseur actuel</Label>
+                            <select
+                              className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                              value={transferCarrier}
+                              onChange={(e) => setTransferCarrier(e.target.value)}
+                            >
+                              <option value="">Sélectionner votre fournisseur</option>
+                              {QUEBEC_CARRIERS.map((carrier) => (
+                                <option key={carrier} value={carrier}>{carrier}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Numéro de compte télécommunications</Label>
+                              <Input
+                                placeholder="Ex: 123456789"
+                                value={transferAccountNumber}
+                                onChange={(e) => setTransferAccountNumber(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Numéro de compte de service</Label>
+                              <Input
+                                placeholder="Ex: 987654321"
+                                value={transferServiceAccount}
+                                onChange={(e) => setTransferServiceAccount(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>IMEI / Numéro de série (optionnel)</Label>
+                            <Input
+                              placeholder="Ex: 123456789012345"
+                              value={transferImei}
+                              onChange={(e) => setTransferImei(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Composez *#06# sur votre téléphone pour obtenir votre IMEI
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* New number confirmation */}
+                  {mobileTransferChoice === "new" && (
+                    <Card className="bg-emerald-500/10 border-emerald-500/30">
+                      <CardContent className="py-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                          <p className="font-medium text-emerald-500">Nouveau numéro québécois</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Un nouveau numéro québécois vous sera attribué automatiquement après la confirmation de votre commande. 
+                          Vous ne pouvez pas choisir ou réserver un numéro spécifique.
+                        </p>
+                        <p className="text-xs text-muted-foreground italic">
+                          Le numéro sera actif uniquement après validation de la commande.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* SIM Card Info */}
+              <Card className="bg-card border-blue-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-blue-500" />
+                    Carte SIM - {SIM_CONFIG.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <Smartphone className="w-6 h-6 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{SIM_CONFIG.name}</p>
+                        <p className="text-sm text-muted-foreground">{SIM_CONFIG.warranty}</p>
+                      </div>
+                    </div>
+                    <p className="font-bold text-blue-500">
+                      {SIM_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      <span className="text-xs font-normal text-muted-foreground"> (frais unique)</span>
+                    </p>
+                  </div>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>• {SIM_CONFIG.notes}</p>
+                    <p>• Plusieurs services peuvent être commandés sous un seul compte client et une seule facture</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Mobile Transfer Summary */}
+            <div className="lg:col-span-1">
+              <Card className="bg-card border-blue-500/30 sticky top-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-blue-500" />
+                    Résumé Mobile
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type</span>
+                      <span className="text-foreground">
+                        {mobileTransferChoice === "transfer" ? "Transfert" : mobileTransferChoice === "new" ? "Nouveau numéro" : "Non sélectionné"}
+                      </span>
+                    </div>
+                    {mobileTransferChoice === "transfer" && transferValidationResult === "valid" && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Numéro</span>
+                          <span className="text-foreground">{transferPhoneNumber}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Fournisseur</span>
+                          <span className="text-foreground">{transferCarrier || "Non sélectionné"}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-blue-500">{SIM_CONFIG.name}</span>
+                      <span className="text-blue-500">{SIM_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="pt-4 space-y-3">
+                    <Button
+                      variant="hero"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => setStep(hasTVService ? 4 : 3)}
+                      disabled={!isMobileTransferComplete()}
+                    >
+                      Continuer
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setStep(hasTVService ? 2 : 1)}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Retour
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Verification Step */}
+        {((step === 2 && !hasTVService && !hasMobileService) || 
+          (step === 3 && hasMobileService && !hasTVService) ||
+          (step === 3 && hasTVService && !hasMobileService) ||
+          (step === 4 && hasTVService && hasMobileService)) && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Fee Explanation Notice - Only in checkout, not in confirmation */}
+              <Card className="bg-blue-500/10 border-blue-500/30">
+                <CardContent className="py-4 flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">Frais applicables:</strong> Les frais de livraison s'appliquent à tout équipement expédié. 
+                    Les frais d'installation s'appliquent à toute configuration par un technicien.
+                  </p>
+                </CardContent>
+              </Card>
+
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
