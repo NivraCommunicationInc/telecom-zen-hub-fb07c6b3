@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import PendingTVOrdersNotification from "@/components/admin/PendingTVOrdersNotification";
 
 const AdminDashboard = () => {
   const { data: stats, isLoading } = useQuery({
@@ -149,6 +150,9 @@ const AdminDashboard = () => {
             </Link>
           ))}
         </div>
+
+        {/* Pending TV Orders Notification */}
+        <PendingTVOrdersNotification />
 
         {/* Secondary Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
