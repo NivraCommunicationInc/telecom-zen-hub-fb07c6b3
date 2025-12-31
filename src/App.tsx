@@ -15,6 +15,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import ServicesDetail from "./pages/ServicesDetail";
 import InternetPlans from "./pages/InternetPlans";
+import TVPlans from "./pages/TVPlans";
 import NotFound from "./pages/NotFound";
 import NotAuthorized from "./pages/NotAuthorized";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -46,6 +47,8 @@ import ClientContracts from "./pages/client/ClientContracts";
 import ClientNewOrder from "./pages/client/ClientNewOrder";
 import ClientChannels from "./pages/client/ClientChannels";
 import ClientInternetOrder from "./pages/client/ClientInternetOrder";
+import ClientTVOrder from "./pages/client/ClientTVOrder";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -61,6 +64,7 @@ const App = () => (
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<ServicesDetail />} />
               <Route path="/internet" element={<InternetPlans />} />
+              <Route path="/tv" element={<TVPlans />} />
               <Route path="/careers" element={<Careers />} />
               <Route path="/apply" element={<JobApplication />} />
               <Route path="/apply/:jobId" element={<JobApplication />} />
@@ -93,6 +97,7 @@ const App = () => (
               <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
               <Route path="/portal/channels" element={<ClientProtectedRoute><ClientChannels /></ClientProtectedRoute>} />
               <Route path="/portal/internet" element={<ClientProtectedRoute><ClientInternetOrder /></ClientProtectedRoute>} />
+              <Route path="/portal/tv-order" element={<ClientProtectedRoute><ClientTVOrder /></ClientProtectedRoute>} />
               <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
               <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
               <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientContracts /></ClientProtectedRoute>} />
