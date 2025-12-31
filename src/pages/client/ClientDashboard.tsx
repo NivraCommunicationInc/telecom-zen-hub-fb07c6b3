@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, FileText, Package, MessageSquare, CreditCard, ArrowRight, Tv, Plus, MonitorPlay, Star } from "lucide-react";
+import { Calendar, FileText, Package, MessageSquare, CreditCard, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import TVOrderStatusTracker from "@/components/client/TVOrderStatusTracker";
@@ -100,41 +100,6 @@ const ClientDashboard = () => {
           <p className="text-muted-foreground mt-1">Bienvenue dans votre espace client</p>
         </div>
 
-        {/* Place New TV Order - Premium Call to Action */}
-        <Card className="bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 border-cyan-500/50 shadow-lg shadow-cyan-500/10">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center shadow-lg">
-                  <Tv className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <MonitorPlay className="w-5 h-5 text-cyan-400" />
-                    Commander la Télévision
-                  </h2>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    34+ chaînes de base incluses • Aucune vérification de crédit • Pièce d'identité requise
-                  </p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full flex items-center gap-1">
-                      <Star className="w-3 h-3" /> Chaînes gratuites incluses
-                    </span>
-                    <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded-full">
-                      + Chaînes premium disponibles
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <Link to="/portal/orders/new">
-                <Button size="lg" className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white shadow-lg gap-2 px-8">
-                  <Plus className="w-5 h-5" />
-                  Commander TV
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* TV Order Status Tracker */}
         {orders && orders.length > 0 && (
