@@ -52,23 +52,29 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useActivityLog } from "@/hooks/useActivityLog";
 
-// Plans matching website exactly
+// Plans matching website exactly - DO NOT modify
 const AVAILABLE_PLANS = {
   internet: [
-    { id: "internet-100", name: "Internet Résidentiel 100", price: 49.99, speed: "100 Mbps haute vitesse" },
-    { id: "internet-500", name: "Internet Résidentiel 500", price: 69.99, speed: "500 Mbps ultra-rapide" },
-    { id: "internet-1gbps", name: "Internet Fibre 1Gbps", price: 89.99, speed: "1 Gbps fibre optique" },
+    { id: "internet-100", name: "Internet 100 Mbps", price: 55, speed: "100 Mbps haute vitesse" },
+    { id: "internet-500", name: "Internet 500 Mbps", price: 60, speed: "500 Mbps ultra-rapide" },
+    { id: "internet-940", name: "Internet 940 Mbps", price: 70, speed: "940 Mbps fibre" },
   ],
   tv_bundles: [
-    { id: "giga-tv-basic", name: "GIGA + TV Basic", price: 85, description: "Internet + TV de base" },
-    { id: "tv-5-int-500", name: "TV 5 chaînes + Internet 500", price: 80, description: "5 chaînes au choix + 500 Mbps" },
-    { id: "tv-10-int-500", name: "TV 10 chaînes + Internet 500", price: 90, description: "10 chaînes au choix + 500 Mbps" },
-    { id: "tv-15-int-500", name: "TV 15 chaînes + Internet 500", price: 95, description: "15 chaînes au choix + 500 Mbps" },
-    { id: "tv-25-int-500", name: "TV 25 chaînes + Internet 500", price: 110, description: "25 chaînes au choix + 500 Mbps" },
+    { id: "tv-basic", name: "Internet 100 + TV Basic", price: 75, description: "26 chaînes générales" },
+    { id: "tv-5choices", name: "Internet 500 + TV 5 choix", price: 80, description: "32 chaînes populaires" },
+    { id: "tv-10choices", name: "Internet 500 + TV 10 choix", price: 90, description: "37 chaînes + sports" },
+    { id: "tv-15choices", name: "Internet 500 + TV 15 choix", price: 95, description: "42 chaînes + sports" },
+    { id: "tv-25choices", name: "Internet 500 + TV 25 choix", price: 110, description: "52 chaînes + sports" },
+    { id: "giga-tv-basic", name: "GIGA + TV Basic", price: 85, description: "Internet 1Gbps + 26 chaînes" },
+    { id: "giga-tv-5choices", name: "GIGA + TV 5 choix", price: 95, description: "Internet 1Gbps + 32 chaînes" },
+    { id: "giga-tv-10choices", name: "GIGA + TV 10 choix", price: 105, description: "Internet 1Gbps + 37 chaînes" },
+    { id: "giga-tv-15choices", name: "GIGA + TV 15 choix", price: 110, description: "Internet 1Gbps + 42 chaînes" },
+    { id: "giga-tv-25choices", name: "GIGA + TV 25 choix", price: 120, description: "Internet 1Gbps + 52 chaînes" },
   ],
+  // Mobile plans - EXACTLY matching public website MobilePlans.tsx
   mobile: [
-    { id: "mobile-50", name: "Mobile 50$/30 jours", price: 50, data: "50-55 GB 4G" },
-    { id: "mobile-60", name: "Mobile 60$/30 jours", price: 60, data: "75-80 GB 4G" },
+    { id: "mobile-50", name: "Forfait Mobile 50$/30 jours", price: 50, data: "50-55 GB 4G (avec/sans Auto Top-Up)" },
+    { id: "mobile-60", name: "Forfait Mobile 60$/30 jours", price: 60, data: "75-80 GB 4G (avec/sans Auto Top-Up)" },
   ],
 };
 
