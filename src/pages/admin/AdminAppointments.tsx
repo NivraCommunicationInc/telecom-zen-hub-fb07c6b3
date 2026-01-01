@@ -233,64 +233,92 @@ const AdminAppointments = () => {
     };
   }, [queryClient]);
 
-  // Create appointment mutation
+  // Create appointment mutation with enhanced error handling
   const createAppointmentMutation = useMutation({
     mutationFn: async (formData: typeof appointmentForm) => {
-      const [startTime] = formData.scheduled_time.split(' - ');
-      const [hours] = startTime.replace('h', ':').split(':');
-      const scheduledDate = new Date(formData.scheduled_date);
-      scheduledDate.setHours(parseInt(hours), 0, 0, 0);
+      try {
+        // Validate required fields with fallbacks
+        if (!formData.scheduled_time || !formData.scheduled_date || !formData.service_type) {
+          throw new Error("Champs requis manquants");
+        }
 
-      const { data, error } = await supabase
-        .from("appointments")
-        .insert({
+        // Safely parse time slot
+        const timeSlotParts = (formData.scheduled_time || "08h00 - 10h00").split(' - ');
+        const startTime = timeSlotParts[0] || "08h00";
+        const hoursPart = startTime.replace('h', ':').split(':')[0] || "08";
+        const hours = parseInt(hoursPart, 10) || 8;
+        
+        const scheduledDate = new Date(formData.scheduled_date);
+        if (isNaN(scheduledDate.getTime())) {
+          throw new Error("Date invalide");
+        }
+        scheduledDate.setHours(hours, 0, 0, 0);
+
+        // Prepare payload with safe fallbacks
+        const payload = {
           title: formData.title || `Installation ${SERVICE_TYPES.find(s => s.value === formData.service_type)?.label || 'Service'}`,
           client_id: formData.client_id || null,
-          client_email: formData.client_email,
-          client_phone: formData.client_phone,
-          service_address: formData.service_address,
-          service_city: formData.service_city,
-          service_postal_code: formData.service_postal_code,
-          service_type: formData.service_type,
-          installation_method: formData.installation_method,
+          client_email: formData.client_email || "",
+          client_phone: formData.client_phone || "",
+          service_address: formData.service_address || "",
+          service_city: formData.service_city || "",
+          service_postal_code: formData.service_postal_code || "",
+          service_type: formData.service_type || "internet",
+          installation_method: formData.installation_method || "auto",
           scheduled_at: scheduledDate.toISOString(),
           order_id: formData.order_id || null,
           technician_id: formData.technician_id || null,
-          delivery_fee: formData.installation_method === 'auto' ? formData.delivery_fee : 0,
-          installation_fee: formData.installation_method === 'technician' ? (formData.installation_fee || 50) : 0,
-          description: formData.description,
+          delivery_fee: formData.installation_method === 'auto' ? (formData.delivery_fee ?? 30) : 0,
+          installation_fee: formData.installation_method === 'technician' ? (formData.installation_fee ?? 50) : 0,
+          description: formData.description || "",
           status: formData.technician_id ? "technician_assigned" : "scheduled",
-          created_by: user?.id,
-        })
-        .select()
-        .single();
+          created_by: user?.id || null,
+        };
 
-      if (error) throw error;
+        const { data, error } = await supabase
+          .from("appointments")
+          .insert(payload)
+          .select()
+          .single();
 
-      // Log activity
-      if (user?.id) {
-        await supabase.from("activity_logs").insert({
-          user_id: user.id,
-          entity_type: "appointment",
-          entity_id: data.id,
-          action: "create",
-          new_value: JSON.stringify(data),
-          reason: "Nouveau rendez-vous créé manuellement",
-          actor_email: user.email,
-          actor_role: isAdmin ? "admin" : "employee",
-        });
+        if (error) throw error;
+        if (!data) throw new Error("Aucune donnée retournée");
+
+        // Log activity (non-blocking)
+        if (user?.id) {
+          try {
+            await supabase.from("activity_logs").insert({
+              user_id: user.id,
+              entity_type: "appointment",
+              entity_id: data.id,
+              action: "create",
+              new_value: JSON.stringify(data),
+              reason: "Nouveau rendez-vous créé manuellement",
+              actor_email: user.email || "",
+              actor_role: isAdmin ? "admin" : "employee",
+            });
+          } catch (logError) {
+            console.error("Activity log error:", logError);
+          }
+        }
+
+        return data;
+      } catch (err: any) {
+        console.error("Appointment creation error:", err);
+        throw err;
       }
-
-      return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
-      toast.success(`Rendez-vous créé: ${data.appointment_number}`);
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      }
+      toast.success(`Rendez-vous créé: ${data?.appointment_number || 'ID généré'}`);
       setCreateDialogOpen(false);
       resetAppointmentForm();
     },
     onError: (error: any) => {
-      toast.error("Erreur lors de la création: " + error.message);
+      console.error("Mutation error:", error);
+      toast.error("Erreur lors de la création: " + (error?.message || "Erreur inconnue"));
     },
   });
 
@@ -1405,11 +1433,22 @@ const AdminAppointments = () => {
               </Button>
               <Button 
                 variant="hero" 
-                onClick={() => createAppointmentMutation.mutate(appointmentForm)}
+                onClick={async () => {
+                  try {
+                    if (!appointmentForm.scheduled_date || !appointmentForm.scheduled_time || !appointmentForm.service_type) {
+                      toast.error("Veuillez remplir tous les champs requis");
+                      return;
+                    }
+                    createAppointmentMutation.mutate(appointmentForm);
+                  } catch (err: any) {
+                    console.error("Submit error:", err);
+                    toast.error("Erreur lors de la soumission");
+                  }
+                }}
                 disabled={!appointmentForm.scheduled_date || !appointmentForm.scheduled_time || !appointmentForm.service_type || createAppointmentMutation.isPending}
               >
                 <Save className="w-4 h-4 mr-2" />
-                Créer le rendez-vous
+                {createAppointmentMutation.isPending ? "Création..." : "Créer le rendez-vous"}
               </Button>
             </DialogFooter>
           </DialogContent>
