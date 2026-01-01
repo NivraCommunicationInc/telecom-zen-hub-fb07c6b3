@@ -299,7 +299,42 @@ serve(async (req) => {
         result = { order: newOrder };
         break;
 
-      // ==================== APPOINTMENT OPERATIONS ====================
+      case "assign_technician_to_order":
+        if (!permissions?.can_manage_appointments) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: assignTechOrderError } = await supabase
+          .from("orders")
+          .update({
+            technician_id: params.technician_id || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", params.orderId);
+        if (assignTechOrderError) throw assignTechOrderError;
+        
+        // Also create/update work order if technician is assigned
+        if (params.technician_id) {
+          const { data: existingWO } = await supabase
+            .from("work_orders")
+            .select("id")
+            .eq("linked_order_id", params.orderId)
+            .maybeSingle();
+          
+          if (existingWO) {
+            await supabase
+              .from("work_orders")
+              .update({
+                assigned_technician_id: params.technician_id,
+                status: "assigned",
+                assigned_at: new Date().toISOString(),
+                assigned_by: employeeName,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", existingWO.id);
+          }
+        }
+        result = { success: true };
+        break;
       case "update_appointment":
         if (!permissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
