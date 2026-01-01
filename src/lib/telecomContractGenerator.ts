@@ -9,37 +9,66 @@ import {
   PRIVACY_ACCESS_TERMS,
 } from "./contractPolicies";
 
+export interface ServiceItem {
+  type: string;
+  planName: string;
+  inclusions?: string;
+  termMonths?: number;
+  monthlyPrice: number;
+}
+
+export interface CreditItem {
+  description: string;
+  startDate?: string;
+  endDate?: string;
+  amount: number;
+}
+
+export interface EquipmentItem {
+  name: string;
+  quantity: number;
+  serialOrId?: string;
+  warrantyTerm?: string;
+  priceType: string; // "One-Time" | "Monthly"
+  amount: number;
+}
+
+export interface OneTimeFeeItem {
+  type: string;
+  description: string;
+  amount: number;
+}
+
 export interface TelecomContractData {
+  // A) Agreement Identification
   contractNumber: string;
   orderReference?: string;
-  paymentReference?: string;
+  accountKey?: string;
+  contractVersion?: string;
+  issueDate?: string;
+  effectiveDate?: string;
+  orderChannel?: string; // "Client Portal" | "Admin Assisted"
+  contractStatus?: string; // "Pending" | "Active" | "Cancelled"
   
-  // Client Info
+  // B) Customer Information
+  clientName: string;
   clientFirstName: string;
   clientLastName: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone?: string;
-  clientDOB?: string;
-  clientAccountNumber?: string;
-  
-  // Service Address
+  clientType?: string; // "Individual" | "Business"
+  billingAddress?: string;
   serviceAddress?: string;
   serviceCity?: string;
   serviceProvince?: string;
   servicePostalCode?: string;
+  clientEmail: string;
+  clientPhone?: string;
+  authorizedUser?: string;
   
-  // Identity Validation
-  idType?: string;
-  idNumber?: string;
-  idProvince?: string;
-  idExpiration?: string;
+  // C) Services Subscribed
+  services?: ServiceItem[];
+  credits?: CreditItem[];
   
-  // Order Info
-  orderNumber?: string;
-  orderDate: string;
-  
-  // Services Subscribed (dynamic bindings)
+  // Legacy service fields for backwards compatibility
   internetPlan?: string;
   tvBundle?: string;
   mobilePlan?: string;
@@ -50,7 +79,17 @@ export interface TelecomContractData {
   bundleName?: string;
   category?: string;
   
-  // Equipment Assigned
+  // D) Equipment & Device Financing
+  equipment?: EquipmentItem[];
+  deviceFinancing?: {
+    deviceName?: string;
+    financeTermMonths?: number;
+    monthlyPayment?: number;
+    gst?: number;
+    qst?: number;
+  };
+  
+  // Legacy equipment fields
   routerSerial?: string;
   terminalSerial?: string;
   terminalCount?: number;
@@ -59,54 +98,90 @@ export interface TelecomContractData {
   imeiNumber?: string;
   warrantyStatus?: string;
   
-  // Tracking & Delivery
+  // E) One-Time Fees, Delivery & Installation
+  oneTimeFees?: OneTimeFeeItem[];
   deliveryMethod?: string;
+  deliveryFee?: number;
   trackingNumber?: string;
+  fulfillmentTimeline?: string;
+  installationSelected?: boolean;
+  installationFee?: number;
+  technicianETA?: string;
   
-  // Pricing
-  subtotal: number;
+  // Legacy fee fields
   simFee?: number;
   routerFee?: number;
   terminalFee?: number;
-  deliveryFee?: number;
   uberExpressFee?: number;
-  installationFee?: number;
   activationFee?: number;
   equipmentFee?: number;
-  discountAmount?: number;
+  
+  // F) Billing Summary
+  mrc?: number; // Monthly Recurring Charges
+  otc?: number; // One-Time Charges
+  subtotal: number;
   tpsAmount: number;
   tvqAmount: number;
+  totalDueToday?: number;
   totalAmount: number;
+  estimatedNextMonthTotal?: number;
+  billingCycleStart?: string;
+  billingCycleEnd?: string;
+  invoiceNumber?: string;
+  discountAmount?: number;
   lateFee?: number;
   
-  // Status
-  internalStatus?: string;
+  // G) Payment Terms
+  paymentStatus?: string; // "Unpaid" | "Pre-Authorized" | "Paid"
+  paymentDueDate?: string;
+  paymentReference?: string;
+  
+  // H) Security Deposit
+  depositAmount?: number;
+  depositReason?: string;
+  
+  // Status & Signatures
   isSigned: boolean;
   signedAt?: string;
+  signTime?: string;
+  signatureMethod?: string; // "Electronic" | "Manual"
   
-  // Employee who processed
+  // Provider Representatives
+  providerRepName?: string;
+  providerRepSignature?: string;
+  
+  // Legacy processor fields
   employeeName?: string;
   employeeRole?: string;
   employeeEmail?: string;
-  
-  // Additional processors
   adminName?: string;
   adminEmail?: string;
   technicianName?: string;
   technicianEmail?: string;
+  
+  // Legacy fields
+  orderNumber?: string;
+  orderDate: string;
+  clientDOB?: string;
+  clientAccountNumber?: string;
+  idType?: string;
+  idNumber?: string;
+  idProvince?: string;
+  idExpiration?: string;
+  internalStatus?: string;
 }
 
 export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const marginLeft = 20;
-  const marginRight = 20;
+  const marginLeft = 15;
+  const marginRight = 15;
   const contentWidth = pageWidth - marginLeft - marginRight;
-  let currentY = 20;
+  let currentY = 15;
   let pageNumber = 1;
   
-  // Premium color palette
+  // Color palette
   const primaryNavy: [number, number, number] = [15, 23, 42];
   const accentTeal: [number, number, number] = [20, 184, 166];
   const textDark: [number, number, number] = [30, 41, 59];
@@ -118,589 +193,561 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   // ========== HELPER FUNCTIONS ==========
   
   const addNewPage = () => {
-    addLegalFooter();
+    addFooter();
     doc.addPage();
     pageNumber++;
-    currentY = 25;
+    currentY = 20;
     addPageHeader();
   };
   
   const checkPageBreak = (neededHeight: number) => {
-    if (currentY + neededHeight > pageHeight - 30) {
+    if (currentY + neededHeight > pageHeight - 25) {
       addNewPage();
     }
   };
   
   const addPageHeader = () => {
     if (pageNumber > 1) {
-      // Top accent line
       doc.setFillColor(...accentTeal);
       doc.rect(0, 0, pageWidth, 2, "F");
       
-      // Header bar
       doc.setFillColor(...primaryNavy);
-      doc.rect(0, 2, pageWidth, 12, "F");
+      doc.rect(0, 2, pageWidth, 10, "F");
       
-      // Company name
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...white);
-      doc.text("NIVRA COMMUNICATIONS INC.", marginLeft, 10);
+      doc.text("NIVRA COMMUNICATIONS INC. — Telecommunications Service Agreement", marginLeft, 9);
       
-      // Contract reference
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       doc.setFont("helvetica", "normal");
-      doc.text(`CSA ${data.contractNumber}`, pageWidth - marginRight, 10, { align: "right" });
+      doc.text(`Contract: ${data.contractNumber}`, pageWidth - marginRight, 9, { align: "right" });
       
-      currentY = 22;
+      currentY = 18;
     }
   };
   
-  const addLegalFooter = () => {
-    // Legal divider line
+  const addFooter = () => {
     doc.setDrawColor(...borderLight);
-    doc.setLineWidth(0.5);
-    doc.line(marginLeft, pageHeight - 22, pageWidth - marginRight, pageHeight - 22);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft, pageHeight - 18, pageWidth - marginRight, pageHeight - 18);
     
-    // Footer content
-    doc.setFontSize(6);
+    doc.setFontSize(5);
     doc.setTextColor(...textMuted);
-    doc.setFont("helvetica", "normal");
     doc.text(
-      `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address}`,
+      `${BUSINESS_INFO.legalName} — Head Office: ${BUSINESS_INFO.address} — Service Territory: ${BUSINESS_INFO.serviceTerritory}`,
       pageWidth / 2,
-      pageHeight - 16,
+      pageHeight - 13,
       { align: "center" }
     );
-    doc.text(
-      `Telecommunications & Digital Services Provider — ${BUSINESS_INFO.serviceTerritory}`,
-      pageWidth / 2,
-      pageHeight - 12,
-      { align: "center" }
-    );
-    
-    // Page number
     doc.setFont("helvetica", "bold");
     doc.text(`Page ${pageNumber}`, pageWidth - marginRight, pageHeight - 8, { align: "right" });
-    
-    // Initials boxes
-    doc.setDrawColor(...textMuted);
-    doc.setLineWidth(0.3);
-    doc.rect(marginLeft, pageHeight - 18, 12, 6);
-    doc.rect(marginLeft + 16, pageHeight - 18, 12, 6);
-    doc.setFontSize(5);
-    doc.text("CL", marginLeft + 6, pageHeight - 14, { align: "center" });
-    doc.text("NV", marginLeft + 22, pageHeight - 14, { align: "center" });
   };
   
-  const addSectionHeader = (number: number, title: string) => {
-    checkPageBreak(18);
-    currentY += 6;
+  const addSectionDivider = (letter: string, title: string) => {
+    checkPageBreak(12);
+    currentY += 4;
     
-    // Section number box
-    doc.setFillColor(...primaryNavy);
-    doc.roundedRect(marginLeft, currentY - 5, 8, 8, 1, 1, "F");
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...white);
-    doc.text(String(number), marginLeft + 4, currentY, { align: "center" });
+    // Divider line
+    doc.setDrawColor(...borderLight);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
+    currentY += 4;
     
-    // Section title
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryNavy);
-    doc.text(title.toUpperCase(), marginLeft + 12, currentY);
+    doc.text(`${letter}) ${title.toUpperCase()}`, marginLeft, currentY);
     
-    // Underline
-    doc.setDrawColor(...accentTeal);
-    doc.setLineWidth(0.8);
-    doc.line(marginLeft + 12, currentY + 2, pageWidth - marginRight, currentY + 2);
-    
-    currentY += 10;
+    currentY += 2;
+    doc.setDrawColor(...borderLight);
+    doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
+    currentY += 6;
   };
   
-  const addParagraph = (text: string, indent: number = 0, fontSize: number = 8) => {
+  const addLabelValue = (label: string, value: string, labelWidth: number = 60) => {
+    checkPageBreak(5);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...textMuted);
+    
+    // Pad label to fixed width
+    const paddedLabel = (label + ":").padEnd(35, " ");
+    doc.text(paddedLabel, marginLeft, currentY);
+    
+    doc.setTextColor(...textDark);
+    doc.text(value || "—", marginLeft + labelWidth, currentY);
+    currentY += 4.5;
+  };
+  
+  const addSubHeader = (text: string) => {
+    checkPageBreak(8);
+    currentY += 2;
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryNavy);
+    doc.text(text, marginLeft, currentY);
+    currentY += 5;
+  };
+  
+  const addParagraph = (text: string, fontSize: number = 6.5) => {
     doc.setFontSize(fontSize);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...textDark);
     
-    const lines = doc.splitTextToSize(text, contentWidth - indent);
-    checkPageBreak(lines.length * 4 + 2);
-    doc.text(lines, marginLeft + indent, currentY, { align: "justify" });
-    currentY += lines.length * 4 + 3;
+    const lines = doc.splitTextToSize(text, contentWidth);
+    checkPageBreak(lines.length * 3.5 + 2);
+    doc.text(lines, marginLeft, currentY);
+    currentY += lines.length * 3.5 + 2;
   };
   
-  const addBulletPoint = (text: string, indent: number = 5) => {
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...textDark);
+  const addTableRow = (cols: string[], widths: number[], isHeader: boolean = false) => {
+    const rowHeight = 5;
+    checkPageBreak(rowHeight + 2);
     
-    const bulletX = marginLeft + indent;
-    doc.text("•", bulletX, currentY);
-    
-    const textX = bulletX + 5;
-    const maxWidth = contentWidth - indent - 5;
-    const lines = doc.splitTextToSize(text, maxWidth);
-    
-    checkPageBreak(lines.length * 4 + 2);
-    doc.text(lines, textX, currentY);
-    currentY += lines.length * 4 + 2;
-  };
-  
-  const addTable = (headers: string[], rows: string[][], columnWidths: number[]) => {
-    const rowHeight = 7;
-    const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
-    
-    checkPageBreak((rows.length + 1) * rowHeight + 5);
-    
-    // Header row
-    doc.setFillColor(...primaryNavy);
-    doc.rect(marginLeft, currentY, tableWidth, rowHeight, "F");
-    
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...white);
+    if (isHeader) {
+      doc.setFillColor(...primaryNavy);
+      doc.rect(marginLeft, currentY - 3.5, contentWidth, rowHeight, "F");
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...white);
+    } else {
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...textDark);
+    }
     
     let xPos = marginLeft + 2;
-    headers.forEach((header, i) => {
-      doc.text(header.toUpperCase(), xPos, currentY + 5);
-      xPos += columnWidths[i];
+    cols.forEach((col, i) => {
+      const maxWidth = widths[i] - 4;
+      const truncated = col.length > maxWidth / 2 ? col.substring(0, Math.floor(maxWidth / 2)) + "..." : col;
+      doc.text(truncated, xPos, currentY);
+      xPos += widths[i];
     });
     
     currentY += rowHeight;
-    
-    // Data rows
-    rows.forEach((row, rowIndex) => {
-      const bgColor = rowIndex % 2 === 0 ? bgLight : white;
-      doc.setFillColor(...bgColor);
-      doc.rect(marginLeft, currentY, tableWidth, rowHeight, "F");
-      
-      // Border
-      doc.setDrawColor(...borderLight);
-      doc.setLineWidth(0.2);
-      doc.rect(marginLeft, currentY, tableWidth, rowHeight, "S");
-      
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...textDark);
-      
-      xPos = marginLeft + 2;
-      row.forEach((cell, i) => {
-        doc.text(cell, xPos, currentY + 5);
-        xPos += columnWidths[i];
-      });
-      
-      currentY += rowHeight;
-    });
-    
-    currentY += 4;
   };
   
-  const addKeyValue = (key: string, value: string, indent: number = 0) => {
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...textMuted);
-    doc.text(key + ":", marginLeft + indent, currentY);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...textDark);
-    doc.text(value || "—", marginLeft + indent + 45, currentY);
-    currentY += 5;
-  };
+  // ========== PAGE 1: HEADER ==========
   
-  // ========== PAGE 1: COVER & HEAD OFFICE ==========
-  
-  // Premium header band
+  // Top accent line
   doc.setFillColor(...accentTeal);
   doc.rect(0, 0, pageWidth, 3, "F");
   
+  // Header band
   doc.setFillColor(...primaryNavy);
-  doc.rect(0, 3, pageWidth, 40, "F");
+  doc.rect(0, 3, pageWidth, 28, "F");
   
-  // Company name - bold uppercase
-  doc.setFontSize(22);
+  // Company name
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...white);
-  doc.text("NIVRA COMMUNICATIONS INC.", pageWidth / 2, 22, { align: "center" });
+  doc.text("NIVRA COMMUNICATIONS INC.", pageWidth / 2, 15, { align: "center" });
   
   // Subtitle
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...accentTeal);
-  doc.text("CUSTOMER SERVICE AGREEMENT (CSA)", pageWidth / 2, 32, { align: "center" });
+  doc.text("Telecommunications Service Agreement — Client Copy", pageWidth / 2, 23, { align: "center" });
   
-  doc.setFontSize(7);
-  doc.setTextColor(180, 180, 180);
-  doc.text(`Telecommunications & Digital Services Provider — ${BUSINESS_INFO.serviceTerritory}`, pageWidth / 2, 40, { align: "center" });
+  currentY = 36;
   
-  currentY = 52;
-  
-  // HEAD OFFICE section
+  // Head Office info box
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
   doc.setLineWidth(0.5);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 32, 2, 2, "FD");
+  doc.roundedRect(marginLeft, currentY, contentWidth, 18, 1, 1, "FD");
   
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("HEAD OFFICE", marginLeft + 5, currentY + 8);
-  
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6);
   doc.setTextColor(...textDark);
-  doc.text(BUSINESS_INFO.address, marginLeft + 5, currentY + 14);
-  doc.text(`Support Email: ${BUSINESS_INFO.email}`, marginLeft + 5, currentY + 20);
-  doc.text(`Service Fulfillment & Delivery Centre: ${BUSINESS_INFO.fulfillmentCentre}`, marginLeft + 5, currentY + 26);
-  
+  doc.text(`Head Office: 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5`, marginLeft + 3, currentY + 5);
+  doc.text(`Support: ${BUSINESS_INFO.email} | ${BUSINESS_INFO.phone}`, marginLeft + 3, currentY + 10);
   doc.setFont("helvetica", "bold");
-  doc.text(`Service Territory: ${BUSINESS_INFO.serviceTerritory}`, marginLeft + 100, currentY + 26);
-  
-  currentY += 40;
-  
-  // CONTRACT IDENTIFICATION
-  addSectionHeader(1, "Contract Identification");
-  
-  const contractIdRows: string[][] = [
-    ["Contract Number", data.contractNumber],
-    ["Order Reference", data.orderReference || data.orderNumber || "—"],
-    ["Payment Reference", data.paymentReference || "—"],
-    ["Agreement Version", CONTRACT_TERMS.version],
-    ["Issue Date", format(new Date(data.orderDate), "d MMMM yyyy", { locale: fr })],
-    ["Agreement Status", data.internalStatus || "Pending (Admin-editable)"],
-  ];
-  
-  addTable(["Identifier", "Value"], contractIdRows, [55, contentWidth - 55]);
-  
-  // CLIENT INFORMATION
-  addSectionHeader(2, "Client Information");
-  
-  addKeyValue("Full Name", `${data.clientFirstName} ${data.clientLastName}`);
-  addKeyValue("Email", data.clientEmail);
-  addKeyValue("Phone", data.clientPhone || "—");
-  addKeyValue("Date of Birth", data.clientDOB || "—");
-  addKeyValue("Service Address", `${data.serviceAddress || "—"}, Québec, Canada`);
-  addKeyValue("Client Account Number", `${data.clientAccountNumber || "—"} (internal ownership key)`);
-  
-  addLegalFooter();
-  
-  // ========== PAGE 2: SERVICES & EQUIPMENT BINDING ==========
-  addNewPage();
-  
-  addSectionHeader(3, "Services & Equipment Binding");
-  
-  addParagraph(CONTRACT_TERMS.servicesBinding, 0, 7);
-  
-  currentY += 3;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Services Subscribed (client-chosen placeholders only):", marginLeft, currentY);
-  currentY += 6;
-  
-  const serviceRows: string[][] = [];
-  if (data.internetPlan || data.servicePlan) serviceRows.push(["Internet Service", data.internetPlan || data.servicePlan]);
-  if (data.tvBundle || data.bundleName) serviceRows.push(["TV + Internet Bundle", data.tvBundle || data.bundleName || "—"]);
-  if (data.mobilePlan) serviceRows.push(["Mobile Service", data.mobilePlan]);
-  if (data.streamingPlan) serviceRows.push(["Streaming Service", data.streamingPlan]);
-  if (data.accessories) serviceRows.push(["Accessories / Extras", data.accessories]);
-  
-  if (serviceRows.length === 0) {
-    serviceRows.push([data.category || "Telecom Service", data.servicePlan]);
-  }
-  
-  addTable(["Service Type", "Plan / Description"], serviceRows, [55, contentWidth - 55]);
-  
-  // Equipment Linked to Selected Services
-  currentY += 3;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Equipment Linked to Selected Services (placeholders only):", marginLeft, currentY);
-  currentY += 6;
-  
-  if (data.routerSerial) {
-    addBulletPoint(`Nivra Born WiFi Router Serial: ${data.routerSerial}`);
-    addBulletPoint(`Equipment Fee Placeholder: ${data.routerFee ? `${data.routerFee.toFixed(2)} $` : "—"}`, 10);
-    addBulletPoint(`Warranty Placeholder: ${data.warrantyStatus || "1-Year Manufacturer Warranty"}`, 10);
-    currentY += 2;
-  }
-  
-  if (data.terminalSerial) {
-    const count = data.terminalCount || 1;
-    addBulletPoint(`Nivra 4K Smart Terminal Serial(s): ${data.terminalSerial} (×${count})`);
-    addBulletPoint(`Terminal Fee Placeholder (max 4): ${data.terminalFee ? `${data.terminalFee.toFixed(2)} $` : "—"}`, 10);
-    currentY += 2;
-  }
-  
-  if (data.simSerial || data.simType) {
-    addBulletPoint(`SIM Type: ${data.simType || "Physical"}`);
-    addBulletPoint(`SIM Serial Number: ${data.simSerial || "Assigned at activation"}`, 10);
-    addBulletPoint(`SIM Fee Placeholder: ${data.simFee ? `${data.simFee.toFixed(2)} $` : "—"}`, 10);
-    currentY += 2;
-  }
-  
-  // Tracking & Delivery
-  currentY += 3;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Tracking & Delivery (client-selected placeholders only):", marginLeft, currentY);
-  currentY += 6;
-  
-  addBulletPoint(`Delivery Method: ${data.deliveryMethod || "Standard Québec Delivery"}`);
-  addBulletPoint(`Delivery Fee: ${data.deliveryFee ? `${data.deliveryFee.toFixed(2)} $` : "—"}`);
-  addBulletPoint(`Tracking Number: ${data.trackingNumber || "Assigned upon shipment"}`);
-  
-  addLegalFooter();
-  
-  // ========== PAGE 3: FEES & PAYMENT ==========
-  addNewPage();
-  
-  addSectionHeader(4, "Applicable Fees & Conditions");
-  
-  addParagraph("Fees apply automatically depending on what the client purchased. Plan names are never inserted here.", 0, 7);
-  
-  const feeRows: string[][] = [];
-  feeRows.push(["SIM Physical Fee", `${CONTRACT_TERMS.fees.simPhysical} $`]);
-  feeRows.push(["eSIM Fee", `${CONTRACT_TERMS.fees.esim} $`]);
-  feeRows.push(["Router Equipment Fee", `${CONTRACT_TERMS.fees.router} $`]);
-  feeRows.push(["TV Terminal Fee", `${CONTRACT_TERMS.fees.tvTerminal} $ × number of terminals selected (max 4)`]);
-  feeRows.push(["Uber Express Delivery Fee", `${CONTRACT_TERMS.fees.uberExpress} $ (if eligible city & selected)`]);
-  feeRows.push(["Technician Installation Fee", "If Internet/TV installation selected"]);
-  
-  addTable(["Fee Type", "Amount / Condition"], feeRows, [60, contentWidth - 60]);
-  
-  // Order-specific fees
-  currentY += 3;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Order-Specific Fee Summary:", marginLeft, currentY);
-  currentY += 6;
-  
-  const orderFeeRows: string[][] = [];
-  if (data.simFee && data.simFee > 0) {
-    orderFeeRows.push([data.simType === "eSIM" ? "eSIM Activation" : "Physical SIM", `${data.simFee.toFixed(2)} $`]);
-  }
-  if (data.routerFee && data.routerFee > 0) orderFeeRows.push(["Router Fee", `${data.routerFee.toFixed(2)} $`]);
-  if (data.terminalFee && data.terminalFee > 0) {
-    const count = data.terminalCount || 1;
-    orderFeeRows.push([`TV Terminal (×${count})`, `${data.terminalFee.toFixed(2)} $`]);
-  }
-  if (data.deliveryFee && data.deliveryFee > 0) orderFeeRows.push(["Delivery Fee", `${data.deliveryFee.toFixed(2)} $`]);
-  if (data.uberExpressFee && data.uberExpressFee > 0) orderFeeRows.push(["Uber Express Delivery", `${data.uberExpressFee.toFixed(2)} $`]);
-  if (data.installationFee && data.installationFee > 0) orderFeeRows.push(["Technician Installation", `${data.installationFee.toFixed(2)} $`]);
-  if (data.activationFee && data.activationFee > 0) orderFeeRows.push(["Activation Fee", `${data.activationFee.toFixed(2)} $`]);
-  
-  orderFeeRows.push(["Subtotal", `${data.subtotal.toFixed(2)} $`]);
-  if (data.discountAmount && data.discountAmount > 0) orderFeeRows.push(["Discount Applied", `−${data.discountAmount.toFixed(2)} $`]);
-  orderFeeRows.push(["TPS (5%)", `${data.tpsAmount.toFixed(2)} $`]);
-  orderFeeRows.push(["TVQ (9.975%)", `${data.tvqAmount.toFixed(2)} $`]);
-  
-  addTable(["Fee Description", "Amount"], orderFeeRows, [100, 70]);
-  
-  // Total box
-  doc.setFillColor(...primaryNavy);
-  doc.roundedRect(marginLeft + 100, currentY - 2, 70, 10, 1, 1, "F");
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...white);
-  doc.text("TOTAL", marginLeft + 105, currentY + 5);
-  doc.text(`${data.totalAmount.toFixed(2)} $ CAD`, marginLeft + 165, currentY + 5, { align: "right" });
-  currentY += 14;
-  
-  addSectionHeader(5, "Payment Terms");
-  
-  addParagraph(CONTRACT_TERMS.paymentBeforeConfirmation, 0, 7);
-  
-  currentY += 3;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Accepted payment modes:", marginLeft, currentY);
-  currentY += 6;
-  
-  CONTRACT_TERMS.paymentTerms.acceptedMethods.forEach(method => {
-    addBulletPoint(method);
-  });
-  
-  // E-Transfer box
-  currentY += 3;
-  doc.setFillColor(255, 251, 235);
-  doc.setDrawColor(251, 191, 36);
-  doc.setLineWidth(0.8);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 18, 2, 2, "FD");
-  
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(180, 130, 0);
-  doc.text("SECURE E-TRANSFER PAYMENT CHANNEL", marginLeft + 5, currentY + 6);
-  
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...textDark);
-  doc.text(`Email: ${CONTRACT_TERMS.etransfer.email}`, marginLeft + 5, currentY + 12);
+  doc.text(`Service Territory: ${BUSINESS_INFO.serviceTerritory}`, marginLeft + 3, currentY + 15);
   
   currentY += 24;
   
-  addParagraph("The system will generate a Payment Reference placeholder once payment is captured by the Admin.", 0, 7);
-  addParagraph("Client-caused disputes or fraud flags are not part of the public contract data.", 0, 7);
+  // ========== A) AGREEMENT IDENTIFICATION ==========
+  addSectionDivider("A", "Agreement Identification (System-Generated)");
   
-  addLegalFooter();
+  const contractNum = data.contractNumber || `CTR-QC-${data.orderReference || data.orderNumber || "N/A"}`;
+  addLabelValue("Contract Number", contractNum);
+  addLabelValue("Order Reference Number", data.orderReference || data.orderNumber || "—");
+  addLabelValue("Account Key (internal)", data.accountKey || data.clientAccountNumber || "—");
+  addLabelValue("Agreement Version", data.contractVersion || CONTRACT_TERMS.version);
+  addLabelValue("Issue Date", data.issueDate || format(new Date(data.orderDate), "d MMMM yyyy", { locale: fr }));
+  addLabelValue("Agreement Effective Date", data.effectiveDate || format(new Date(data.orderDate), "d MMMM yyyy", { locale: fr }));
+  addLabelValue("Order Channel", data.orderChannel || "Client Portal");
+  addLabelValue("Status", data.contractStatus || data.internalStatus || "Pending");
   
-  // ========== PAGE 4: LATE PAYMENT & CANCELLATION ==========
+  // ========== B) CUSTOMER INFORMATION ==========
+  addSectionDivider("B", "Customer Information (From Checkout)");
+  
+  addLabelValue("Account Holder / Legal Name", data.clientName || `${data.clientFirstName} ${data.clientLastName}`);
+  addLabelValue("Client Type", data.clientType || "Individual");
+  addLabelValue("Billing Address", data.billingAddress || data.serviceAddress || "—");
+  
+  const fullServiceAddr = [data.serviceAddress, data.serviceCity, data.serviceProvince || "QC", data.servicePostalCode]
+    .filter(Boolean)
+    .join(", ");
+  addLabelValue("Service Address", fullServiceAddr || "—");
+  addLabelValue("Email", data.clientEmail);
+  addLabelValue("Phone", data.clientPhone || "—");
+  addLabelValue("Authorized User (if any)", data.authorizedUser || "—");
+  
+  addFooter();
+  
+  // ========== PAGE 2: SERVICES SUBSCRIBED ==========
   addNewPage();
   
-  addSectionHeader(6, "Late Payment Policy");
+  addSectionDivider("C", "Services Subscribed (From Checkout) — \"What You Bought\"");
   
-  addParagraph("Unpaid balances may incur a late fee.", 0, 7);
-  addBulletPoint(`Late Fee Placeholder: ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% monthly on unpaid balance`);
-  addBulletPoint("Admin override is permitted and logged internally.");
+  addParagraph("This section is system-generated from checkout selections. No plan name, pricing, or features are inserted manually outside client-selected placeholders.");
   
-  addSectionHeader(7, "Cancellation & Equipment Terms");
+  addSubHeader("C.1 Subscribed Services & Monthly Charges (MRC)");
   
-  addBulletPoint(CONTRACT_TERMS.cancellation.afterDeliveryCharge);
-  addBulletPoint("Equipment return fees are at client cost unless defective under warranty.");
+  // Build service rows
+  const serviceColWidths = [30, 40, 50, 25, 30];
+  addTableRow(["SERVICE TYPE", "PLAN NAME", "INCLUDED FEATURES", "TERM", "MONTHLY (CAD)"], serviceColWidths, true);
   
-  currentY += 3;
-  addParagraph("If an order is Cancelled at any stage:", 0, 7);
-  addBulletPoint(CONTRACT_TERMS.cancellation.equipmentRemoval, 10);
-  addBulletPoint(CONTRACT_TERMS.cancellation.recordPersistence, 10);
+  if (data.services && data.services.length > 0) {
+    data.services.forEach(svc => {
+      addTableRow([
+        svc.type,
+        svc.planName,
+        svc.inclusions || "—",
+        svc.termMonths ? `${svc.termMonths} months` : "—",
+        `$${svc.monthlyPrice.toFixed(2)}`
+      ], serviceColWidths);
+    });
+  } else {
+    // Legacy fallback
+    const legacyServices: [string, string][] = [];
+    if (data.internetPlan || data.servicePlan) legacyServices.push(["Internet", data.internetPlan || data.servicePlan]);
+    if (data.tvBundle || data.bundleName) legacyServices.push(["TV + Internet", data.tvBundle || data.bundleName || "—"]);
+    if (data.mobilePlan) legacyServices.push(["Mobile", data.mobilePlan]);
+    if (data.streamingPlan) legacyServices.push(["Streaming", data.streamingPlan]);
+    if (data.accessories) legacyServices.push(["Accessories", data.accessories]);
+    
+    if (legacyServices.length === 0) {
+      legacyServices.push([data.category || "Service", data.servicePlan]);
+    }
+    
+    legacyServices.forEach(([type, plan]) => {
+      addTableRow([type, plan, "—", "—", "—"], serviceColWidths);
+    });
+  }
   
-  addSectionHeader(8, "Warranty Terms");
+  currentY += 4;
   
-  addParagraph("Warranty is manufacturer-based only and tracked via placeholder.", 0, 7);
-  addBulletPoint(`${CONTRACT_TERMS.warranty.duration} manufacturer warranty`);
-  addBulletPoint(`Coverage: ${CONTRACT_TERMS.warranty.coverage}`);
-  addBulletPoint(`Exclusions: ${CONTRACT_TERMS.warranty.exclusions.join(", ")}`);
+  addSubHeader("C.2 Promotions / Credits (if applicable)");
   
-  addLegalFooter();
+  const creditColWidths = [60, 35, 35, 40];
+  addTableRow(["DESCRIPTION", "START", "END", "MONTHLY CREDIT"], creditColWidths, true);
   
-  // ========== PAGE 5: PRIVACY & ACCESS ==========
+  if (data.credits && data.credits.length > 0) {
+    data.credits.forEach(credit => {
+      addTableRow([
+        credit.description,
+        credit.startDate || "—",
+        credit.endDate || "—",
+        `-$${credit.amount.toFixed(2)}`
+      ], creditColWidths);
+    });
+  } else if (data.discountAmount && data.discountAmount > 0) {
+    addTableRow(["Promotional Discount", "—", "—", `-$${data.discountAmount.toFixed(2)}`], creditColWidths);
+  } else {
+    addTableRow(["No promotions applied", "—", "—", "—"], creditColWidths);
+  }
+  
+  currentY += 4;
+  
+  addSubHeader("C.3 Pay-Per-Use / Usage-Based Charges (if applicable)");
+  addParagraph("Rates may apply for roaming, overages, add-ons, and pay-per-use services where selected or triggered by usage. Usage charges appear on invoices for the applicable billing cycle.");
+  
+  addFooter();
+  
+  // ========== PAGE 3: EQUIPMENT & DEVICE FINANCING ==========
   addNewPage();
   
-  addSectionHeader(9, "Privacy, Access & Activity Logs");
+  addSectionDivider("D", "Equipment & Device Financing (From Checkout)");
   
-  addBulletPoint(PRIVACY_ACCESS_TERMS.fullPayment);
-  addBulletPoint(PRIVACY_ACCESS_TERMS.adminCardAccess);
-  addBulletPoint(`${PRIVACY_ACCESS_TERMS.staffCardAccess}: {{Client.Card.Last4Digits}}`);
-  addBulletPoint(PRIVACY_ACCESS_TERMS.activityLogs);
-  addBulletPoint(PRIVACY_ACCESS_TERMS.noPublicData);
-  addBulletPoint(PRIVACY_ACCESS_TERMS.noRedirect);
+  addSubHeader("D.1 Equipment Bound to Services (One-Time or Monthly)");
   
-  // Access permissions table
-  currentY += 5;
-  const accessRows: string[][] = [
-    [ACCESS_PERMISSIONS.admin.role, ACCESS_PERMISSIONS.admin.access, ACCESS_PERMISSIONS.admin.cardAccess],
-    [ACCESS_PERMISSIONS.employee.role, ACCESS_PERMISSIONS.employee.access, ACCESS_PERMISSIONS.employee.cardAccess],
-    [ACCESS_PERMISSIONS.technician.role, ACCESS_PERMISSIONS.technician.access, ACCESS_PERMISSIONS.technician.cardAccess],
-  ];
+  const equipColWidths = [45, 15, 35, 25, 25, 30];
+  addTableRow(["ITEM", "QTY", "SERIAL/ID", "WARRANTY", "PRICE TYPE", "AMOUNT (CAD)"], equipColWidths, true);
   
-  addTable(["Role", "Access Level", "Card Access"], accessRows, [35, 80, 55]);
+  if (data.equipment && data.equipment.length > 0) {
+    data.equipment.forEach(eq => {
+      addTableRow([
+        eq.name,
+        String(eq.quantity),
+        eq.serialOrId || "—",
+        eq.warrantyTerm || "1 Year",
+        eq.priceType,
+        `$${eq.amount.toFixed(2)}`
+      ], equipColWidths);
+    });
+  } else {
+    // Legacy equipment
+    if (data.routerSerial) {
+      addTableRow(["Nivra Born WiFi Router", "1", data.routerSerial, "1 Year", "One-Time", data.routerFee ? `$${data.routerFee.toFixed(2)}` : "—"], equipColWidths);
+    }
+    if (data.terminalSerial) {
+      addTableRow(["Nivra 4K Smart Terminal", String(data.terminalCount || 1), data.terminalSerial, "1 Year", "One-Time", data.terminalFee ? `$${data.terminalFee.toFixed(2)}` : "—"], equipColWidths);
+    }
+    if (data.simSerial || data.simType) {
+      addTableRow([`SIM (${data.simType || "Physical"})`, "1", data.simSerial || "At activation", "N/A", "One-Time", data.simFee ? `$${data.simFee.toFixed(2)}` : "—"], equipColWidths);
+    }
+    if (!data.routerSerial && !data.terminalSerial && !data.simSerial && !data.simType) {
+      addTableRow(["No equipment", "—", "—", "—", "—", "—"], equipColWidths);
+    }
+  }
   
-  addSectionHeader(10, "Client Acknowledgement");
+  currentY += 4;
   
-  addParagraph("By confirming the order linked to this agreement, the client confirms and accepts that:", 0, 7);
+  addSubHeader("D.2 Device Financing (if selected)");
   
-  CLIENT_ACKNOWLEDGEMENT.forEach(item => {
-    addBulletPoint(item);
-  });
+  if (data.deviceFinancing && data.deviceFinancing.deviceName) {
+    addLabelValue("Device", data.deviceFinancing.deviceName);
+    addLabelValue("Financing Term", `${data.deviceFinancing.financeTermMonths || 24} months`);
+    addLabelValue("Monthly Device Payment", data.deviceFinancing.monthlyPayment ? `$${data.deviceFinancing.monthlyPayment.toFixed(2)}` : "—");
+    addLabelValue("Applicable Taxes on Financing", `GST $${(data.deviceFinancing.gst || 0).toFixed(2)} | QST $${(data.deviceFinancing.qst || 0).toFixed(2)}`);
+  } else {
+    addParagraph("No device financing selected.");
+  }
   
-  addLegalFooter();
+  currentY += 2;
+  addParagraph("Warranty is manufacturer-based for 12 months from activation; exclusions include client damage, loss/theft, liquid damage, physical impact.");
   
-  // ========== PAGE 6: SIGNATURES ==========
+  addFooter();
+  
+  // ========== PAGE 4: ONE-TIME FEES, DELIVERY & INSTALLATION ==========
   addNewPage();
   
-  addSectionHeader(11, "Signatures");
+  addSectionDivider("E", "One-Time Fees, Delivery & Installation (From Checkout)");
   
-  const sigWidth = (contentWidth - 20) / 2;
-  const sigHeight = 55;
+  addSubHeader("E.1 One-Time Fees (OTC)");
   
-  // Client signature (LEFT)
+  const feeColWidths = [50, 70, 55];
+  addTableRow(["FEE TYPE", "DESCRIPTION", "AMOUNT (CAD)"], feeColWidths, true);
+  
+  if (data.oneTimeFees && data.oneTimeFees.length > 0) {
+    data.oneTimeFees.forEach(fee => {
+      addTableRow([fee.type, fee.description, `$${fee.amount.toFixed(2)}`], feeColWidths);
+    });
+  } else {
+    // Legacy fees
+    if (data.activationFee && data.activationFee > 0) addTableRow(["Activation", "Service activation fee", `$${data.activationFee.toFixed(2)}`], feeColWidths);
+    if (data.simFee && data.simFee > 0) addTableRow(["SIM Fee", data.simType === "eSIM" ? "eSIM activation" : "Physical SIM card", `$${data.simFee.toFixed(2)}`], feeColWidths);
+    if (data.routerFee && data.routerFee > 0) addTableRow(["Router", "Nivra Born WiFi Router", `$${data.routerFee.toFixed(2)}`], feeColWidths);
+    if (data.terminalFee && data.terminalFee > 0) addTableRow(["TV Terminal", `Nivra 4K Smart Terminal (×${data.terminalCount || 1})`, `$${data.terminalFee.toFixed(2)}`], feeColWidths);
+    if (data.equipmentFee && data.equipmentFee > 0) addTableRow(["Equipment", "Equipment fee", `$${data.equipmentFee.toFixed(2)}`], feeColWidths);
+  }
+  
+  currentY += 4;
+  
+  addSubHeader("E.2 Delivery / Fulfillment");
+  addLabelValue("Delivery Method", data.deliveryMethod || "Standard Québec Delivery");
+  addLabelValue("Delivery Fee", data.deliveryFee ? `$${data.deliveryFee.toFixed(2)}` : "—");
+  addLabelValue("Tracking Number", data.trackingNumber || "(assigned upon shipment)");
+  addLabelValue("Fulfillment Timeline", data.fulfillmentTimeline || CONTRACT_TERMS.delivery.standardDays);
+  
+  currentY += 2;
+  
+  addSubHeader("E.3 Installation (if selected)");
+  addLabelValue("Installation Selected", data.installationSelected ? "Yes" : "No");
+  addLabelValue("Installation Fee", data.installationFee ? `$${data.installationFee.toFixed(2)}` : "—");
+  addLabelValue("Technician ETA", data.technicianETA || "—");
+  
+  addFooter();
+  
+  // ========== PAGE 5: BILLING SUMMARY & PAYMENT TERMS ==========
+  addNewPage();
+  
+  addSectionDivider("F", "Billing Summary (System-Calculated)");
+  
+  const mrc = data.mrc || data.subtotal || 0;
+  const otc = data.otc || ((data.deliveryFee || 0) + (data.activationFee || 0) + (data.installationFee || 0));
+  const subtotalBeforeTax = data.subtotal || (mrc + otc);
+  const totalDue = data.totalDueToday || data.totalAmount;
+  const nextMonth = data.estimatedNextMonthTotal || mrc;
+  
+  addLabelValue("Monthly Recurring Charges (MRC)", `$${mrc.toFixed(2)}`);
+  addLabelValue("One-Time Charges (OTC)", `$${otc.toFixed(2)}`);
+  addLabelValue("Subtotal Before Taxes", `$${subtotalBeforeTax.toFixed(2)}`);
+  addLabelValue("GST (5%)", `$${data.tpsAmount.toFixed(2)}`);
+  addLabelValue("QST (9.975%)", `$${data.tvqAmount.toFixed(2)}`);
+  
+  currentY += 2;
+  doc.setFillColor(...primaryNavy);
+  doc.roundedRect(marginLeft, currentY - 2, contentWidth, 8, 1, 1, "F");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...white);
+  doc.text("TOTAL DUE TODAY:", marginLeft + 5, currentY + 3);
+  doc.text(`$${totalDue.toFixed(2)} CAD`, pageWidth - marginRight - 5, currentY + 3, { align: "right" });
+  currentY += 12;
+  
+  addLabelValue("Next Estimated Monthly Total", `$${nextMonth.toFixed(2)}`);
+  addLabelValue("Billing Cycle", data.billingCycleStart && data.billingCycleEnd ? `${data.billingCycleStart} to ${data.billingCycleEnd}` : "Monthly");
+  addLabelValue("Invoice Number (when issued)", data.invoiceNumber || "(to be assigned)");
+  
+  // ========== G) PAYMENT TERMS ==========
+  addSectionDivider("G", "Payment Terms");
+  
+  addParagraph("Accepted payment methods include Credit Card (processed internally) and Secure E-Transfer.");
+  addParagraph("Payment must be completed before an order requiring equipment fees, delivery charges, or first-month service can be confirmed or processed.");
+  
+  currentY += 2;
+  addLabelValue("Payment Status", data.paymentStatus || "Unpaid");
+  addLabelValue("Payment Due Date", data.paymentDueDate || "Upon order confirmation");
+  addLabelValue("Payment Reference (if applicable)", data.paymentReference || "—");
+  
+  // ========== H) SECURITY DEPOSIT ==========
+  addSectionDivider("H", "Security Deposit (If Applicable)");
+  
+  addLabelValue("Deposit Required Today", data.depositAmount ? `$${data.depositAmount.toFixed(2)}` : "$0.00");
+  addLabelValue("Deposit Reason", data.depositReason || "N/A");
+  addParagraph("Deposits may be applied to overdue amounts where permitted and returned according to deposit rules shown in the client portal.");
+  
+  addFooter();
+  
+  // ========== PAGE 6: POLICIES ==========
+  addNewPage();
+  
+  // ========== I) LATE PAYMENT & SUSPENSION ==========
+  addSectionDivider("I", "Late Payment & Suspension");
+  
+  addParagraph("Any payment not received within 30 days of billing date is considered late.");
+  addParagraph(`Late fee: ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month on unpaid balance.`);
+  addParagraph("Non-payment after 60 days may result in service suspension.");
+  addParagraph("Collection costs may be charged to the client where permitted.");
+  addParagraph("Admin override is permitted and logged internally.");
+  
+  // ========== J) CANCELLATION / TERMINATION ==========
+  addSectionDivider("J", "Cancellation / Termination");
+  
+  addParagraph(`Client cancellation requires ${CONTRACT_TERMS.cancellation.noticeDays} days' notice.`);
+  addParagraph("If cancellation occurs after delivery/activation, one month of service charge may still apply (order category dependent).");
+  addParagraph("Provider may refuse fulfillment or terminate for non-payment, fraud indicators, or abuse.");
+  
+  // ========== K) CONFIDENTIALITY ==========
+  addSectionDivider("K", "Confidentiality");
+  
+  addParagraph("Nivra will keep client information confidential and will not share personal or commercial information with third parties without consent, except where required by law.");
+  
+  // ========== L) PRIVACY & DATA PROTECTION ==========
+  addSectionDivider("L", "Privacy & Data Protection (Québec Law 25)");
+  
+  addParagraph("Client data is protected in accordance with Québec private-sector privacy law and Law 25. Data is used only for service delivery and stored securely.");
+  
+  // ========== M) LIMITATION OF LIABILITY ==========
+  addSectionDivider("M", "Limitation of Liability");
+  
+  addParagraph("Nivra provides recommendations based on information available at the time and does not guarantee specific outcomes. Nivra is not responsible for carrier decisions or offer changes; liability is limited to the fees paid by the client.");
+  
+  addFooter();
+  
+  // ========== PAGE 7: JURISDICTION & SIGNATURES ==========
+  addNewPage();
+  
+  // ========== N) GOVERNING LAW & JURISDICTION ==========
+  addSectionDivider("N", "Governing Law & Jurisdiction");
+  
+  addParagraph("This Agreement is governed by Québec law and applicable federal laws of Canada. Disputes are submitted to the courts of Québec.");
+  
+  // ========== O) SIGNATURES ==========
+  addSectionDivider("O", "Signatures (Electronic Where Enabled)");
+  
+  currentY += 4;
+  
+  const sigBoxWidth = (contentWidth - 10) / 2;
+  const sigBoxHeight = 45;
+  
+  // Client signature box (LEFT)
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
   doc.setLineWidth(0.5);
-  doc.roundedRect(marginLeft, currentY, sigWidth, sigHeight, 2, 2, "FD");
+  doc.roundedRect(marginLeft, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "FD");
   
-  // Left accent bar
   doc.setFillColor(...accentTeal);
-  doc.rect(marginLeft, currentY, 3, sigHeight, "F");
+  doc.rect(marginLeft, currentY, 3, sigBoxHeight, "F");
   
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
-  doc.text("CLIENT", marginLeft + 8, currentY + 10);
+  doc.text("CLIENT", marginLeft + 8, currentY + 8);
   
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...textDark);
-  doc.text(`${data.clientFirstName} ${data.clientLastName}`, marginLeft + 8, currentY + 18);
-  doc.text(`Signed on: ${data.signedAt ? format(new Date(data.signedAt), "d MMM yyyy") : "____________________"}`, marginLeft + 8, currentY + 26);
+  doc.text(`Client Name: ${data.clientName || `${data.clientFirstName} ${data.clientLastName}`}`, marginLeft + 8, currentY + 16);
+  doc.text(`Client Signature: ____________________`, marginLeft + 8, currentY + 24);
   
-  doc.text("Signature:", marginLeft + 8, currentY + 40);
-  doc.setDrawColor(...textMuted);
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft + 30, currentY + 40, marginLeft + sigWidth - 5, currentY + 40);
-  
-  // Company signature (RIGHT)
-  const compSigX = marginLeft + sigWidth + 20;
+  // Provider signature box (RIGHT)
+  const provSigX = marginLeft + sigBoxWidth + 10;
   doc.setFillColor(...primaryNavy);
-  doc.roundedRect(compSigX, currentY, sigWidth, sigHeight, 2, 2, "F");
-  
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...accentTeal);
-  doc.text("PROCESSED AND AUTHORIZED BY", compSigX + 5, currentY + 10);
+  doc.roundedRect(provSigX, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "F");
   
   doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...accentTeal);
+  doc.text("PROVIDER", provSigX + 5, currentY + 8);
+  
+  doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...white);
-  doc.text(`Admin: ${data.adminName || "____________________"} — ${data.adminEmail || ""}`, compSigX + 5, currentY + 20);
-  doc.text(`Employee: ${data.employeeName || "____________________"} — ${data.employeeEmail || ""}`, compSigX + 5, currentY + 28);
-  doc.text(`Technician: ${data.technicianName || "____________________"} — ${data.technicianEmail || ""}`, compSigX + 5, currentY + 36);
+  doc.text(`Provider Rep: ${data.providerRepName || data.employeeName || data.adminName || "____________________"}`, provSigX + 5, currentY + 16);
+  doc.text(`Provider Signature: ____________________`, provSigX + 5, currentY + 24);
   
-  doc.text("Signature:", compSigX + 5, currentY + 48);
-  doc.setDrawColor(150, 150, 150);
-  doc.line(compSigX + 30, currentY + 48, compSigX + sigWidth - 5, currentY + 48);
+  currentY += sigBoxHeight + 8;
   
-  currentY += sigHeight + 15;
+  // Signature details
+  const signDate = data.signedAt ? format(new Date(data.signedAt), "d MMMM yyyy", { locale: fr }) : "____________________";
+  const signTime = data.signTime || (data.signedAt ? format(new Date(data.signedAt), "HH:mm") : "____:____");
+  
+  addLabelValue("Signed On", `${signDate} at ${signTime}`);
+  addLabelValue("Execution Method", data.signatureMethod || "Electronic");
+  
+  currentY += 8;
   
   // Status banner
   if (data.isSigned && data.signedAt) {
     doc.setFillColor(220, 252, 231);
     doc.setDrawColor(34, 197, 94);
     doc.setLineWidth(1.5);
-    doc.roundedRect(marginLeft, currentY, contentWidth, 18, 3, 3, "FD");
-    
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(22, 163, 74);
-    doc.text("✓ AGREEMENT EXECUTED", pageWidth / 2, currentY + 8, { align: "center" });
-    
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text(format(new Date(data.signedAt), "d MMMM yyyy 'at' HH:mm"), pageWidth / 2, currentY + 14, { align: "center" });
-  } else {
-    doc.setFillColor(254, 249, 195);
-    doc.setDrawColor(234, 179, 8);
-    doc.setLineWidth(1.5);
     doc.roundedRect(marginLeft, currentY, contentWidth, 15, 3, 3, "FD");
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(22, 163, 74);
+    doc.text("✓ AGREEMENT EXECUTED", pageWidth / 2, currentY + 7, { align: "center" });
+    
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text(format(new Date(data.signedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr }), pageWidth / 2, currentY + 12, { align: "center" });
+  } else {
+    doc.setFillColor(254, 249, 195);
+    doc.setDrawColor(234, 179, 8);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(marginLeft, currentY, contentWidth, 12, 3, 3, "FD");
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(161, 98, 7);
-    doc.text("⏳ AWAITING CLIENT SIGNATURE", pageWidth / 2, currentY + 10, { align: "center" });
+    doc.text("⏳ AWAITING CLIENT SIGNATURE", pageWidth / 2, currentY + 8, { align: "center" });
   }
   
-  currentY += 25;
+  currentY += 20;
   
   // End of Agreement
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
   doc.text("— END OF AGREEMENT —", pageWidth / 2, currentY, { align: "center" });
   
-  addLegalFooter();
+  addFooter();
   
   return doc;
 };
@@ -711,7 +758,7 @@ export const downloadTelecomContractPDF = (data: TelecomContractData): void => {
   try {
     const doc = generateTelecomContractPDF(data);
     const blob = doc.output("blob");
-    const filename = `CSA-${data.contractNumber}.pdf`;
+    const filename = `TSA-${data.contractNumber}.pdf`;
     safePDFDownload(blob, filename);
   } catch (error) {
     console.error("Error generating PDF:", error);
@@ -723,7 +770,7 @@ export const viewTelecomContractPDF = (data: TelecomContractData): void => {
   try {
     const doc = generateTelecomContractPDF(data);
     const blob = doc.output("blob");
-    const filename = `CSA-${data.contractNumber}.pdf`;
+    const filename = `TSA-${data.contractNumber}.pdf`;
     safePDFOpen(blob, filename);
   } catch (error) {
     console.error("Error viewing PDF:", error);
