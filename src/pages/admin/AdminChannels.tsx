@@ -174,6 +174,20 @@ const AdminChannels = () => {
     is_active: true,
   });
 
+  // Channel Details dialog state (admin-only)
+  const [channelDetailsDialogOpen, setChannelDetailsDialogOpen] = useState(false);
+  const [selectedPackageForDetails, setSelectedPackageForDetails] = useState<ChannelPackage | null>(null);
+
+  const openChannelDetails = (pkg: ChannelPackage) => {
+    setSelectedPackageForDetails(pkg);
+    setChannelDetailsDialogOpen(true);
+  };
+
+  const getPackageChannelDetails = (pkg: ChannelPackage) => {
+    const channelIds = Array.isArray(pkg.channels) ? pkg.channels : [];
+    return tvChannels.filter(ch => channelIds.includes(ch.id));
+  };
+
   // Fetch all channel selections
   const { data: selections = [], isLoading } = useQuery({
     queryKey: ["admin-channel-selections"],
@@ -1259,6 +1273,20 @@ const AdminChannels = () => {
                       <div className="text-xs text-muted-foreground">
                         {channelsList.length} chaînes incluses
                       </div>
+
+                      {/* Channel Details Button - Admin Only */}
+                      {isAdmin && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => openChannelDetails(pkg)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Détails des chaînes
+                        </Button>
+                      )}
+
                       <Separator />
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1696,6 +1724,103 @@ const AdminChannels = () => {
               disabled={savePackageMutation.isPending || !packageForm.name}
             >
               {editingPackage ? "Modifier" : "Créer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Channel Details Dialog - Admin Only */}
+      <Dialog open={channelDetailsDialogOpen} onOpenChange={setChannelDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tv className="h-5 w-5" />
+              Détails des chaînes: {selectedPackageForDetails?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Liste complète des chaînes incluses dans ce forfait (visible admin uniquement)
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[50vh]">
+            {selectedPackageForDetails && (
+              <div className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{selectedPackageForDetails.name}</span>
+                    <Badge variant="outline">{selectedPackageForDetails.category}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedPackageForDetails.description}
+                  </p>
+                  <div className="flex gap-4 mt-2 text-sm">
+                    <span>Prix: <strong className="text-green-600">${selectedPackageForDetails.discounted_price}/mois</strong></span>
+                    {selectedPackageForDetails.savings_percent && (
+                      <span className="text-green-600">(-{selectedPackageForDetails.savings_percent}%)</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Chaînes incluses ({getPackageChannelDetails(selectedPackageForDetails).length})
+                  </h4>
+                  
+                  {getPackageChannelDetails(selectedPackageForDetails).length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {getPackageChannelDetails(selectedPackageForDetails).map(channel => (
+                        <div 
+                          key={channel.id} 
+                          className="flex items-center justify-between p-2 border rounded-lg bg-background"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Tv className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium text-sm">{channel.name}</p>
+                              <p className="text-xs text-muted-foreground">{channel.category}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {channel.is_hd && <Badge variant="secondary" className="text-xs">HD</Badge>}
+                            {channel.is_4k && <Badge variant="secondary" className="text-xs">4K</Badge>}
+                            {channel.status && channel.status !== "active" && (
+                              <Badge variant="destructive" className="text-xs">
+                                {CHANNEL_STATUS_OPTIONS.find(s => s.value === channel.status)?.label}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Tv className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>Aucune chaîne configurée pour ce forfait</p>
+                      <p className="text-xs">Ajoutez des IDs de chaînes au forfait pour les afficher ici</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Show raw channel IDs for reference */}
+                {Array.isArray(selectedPackageForDetails.channels) && selectedPackageForDetails.channels.length > 0 && (
+                  <div className="p-3 bg-muted/50 rounded-lg text-xs">
+                    <p className="font-medium mb-1 flex items-center gap-1">
+                      <Shield className="h-3 w-3" />
+                      Référence technique (admin)
+                    </p>
+                    <p className="text-muted-foreground break-all">
+                      IDs: {selectedPackageForDetails.channels.join(", ")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChannelDetailsDialogOpen(false)}>
+              Fermer
             </Button>
           </DialogFooter>
         </DialogContent>
