@@ -1877,6 +1877,219 @@ export type Database = {
         }
         Relationships: []
       }
+      work_order_files: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_type: string | null
+          file_url: string
+          id: string
+          uploaded_by_technician_id: string | null
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          uploaded_by_technician_id?: string | null
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          uploaded_by_technician_id?: string | null
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_files_uploaded_by_technician_id_fkey"
+            columns: ["uploaded_by_technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_files_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_order_updates: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          created_at: string
+          id: string
+          new_status: string | null
+          note: string | null
+          old_status: string | null
+          work_order_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          work_order_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_updates_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_orders: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_technician_id: string | null
+          checklist: Json | null
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          client_phone: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          equipment_details: Json | null
+          id: string
+          internal_notes: string | null
+          linked_appointment_id: string | null
+          linked_order_id: string | null
+          notes: string | null
+          priority: string | null
+          scheduled_end: string | null
+          scheduled_start: string | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          service_province: string | null
+          service_type: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["work_order_status"]
+          type: Database["public"]["Enums"]["work_order_type"]
+          updated_at: string
+          work_order_number: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_technician_id?: string | null
+          checklist?: Json | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          equipment_details?: Json | null
+          id?: string
+          internal_notes?: string | null
+          linked_appointment_id?: string | null
+          linked_order_id?: string | null
+          notes?: string | null
+          priority?: string | null
+          scheduled_end?: string | null
+          scheduled_start?: string | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
+          service_type?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["work_order_status"]
+          type?: Database["public"]["Enums"]["work_order_type"]
+          updated_at?: string
+          work_order_number?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_technician_id?: string | null
+          checklist?: Json | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          equipment_details?: Json | null
+          id?: string
+          internal_notes?: string | null
+          linked_appointment_id?: string | null
+          linked_order_id?: string | null
+          notes?: string | null
+          priority?: string | null
+          scheduled_end?: string | null
+          scheduled_start?: string | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
+          service_type?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["work_order_status"]
+          type?: Database["public"]["Enums"]["work_order_type"]
+          updated_at?: string
+          work_order_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_assigned_technician_id_fkey"
+            columns: ["assigned_technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_linked_appointment_id_fkey"
+            columns: ["linked_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1894,11 +2107,16 @@ export type Database = {
       generate_replacement_ticket_number: { Args: never; Returns: string }
       generate_request_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
+      generate_work_order_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_assigned_technician: {
+        Args: { _work_order_id: string }
         Returns: boolean
       }
     }
@@ -1922,6 +2140,17 @@ export type Database = {
         | "malfunction"
         | "upgrade"
         | "other"
+      work_order_status:
+        | "assigned"
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+      work_order_type:
+        | "installation"
+        | "service_call"
+        | "replacement"
+        | "maintenance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2069,6 +2298,19 @@ export const Constants = {
         "malfunction",
         "upgrade",
         "other",
+      ],
+      work_order_status: [
+        "assigned",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
+      work_order_type: [
+        "installation",
+        "service_call",
+        "replacement",
+        "maintenance",
       ],
     },
   },
