@@ -8,42 +8,57 @@ import { Wrench, Lock, Mail, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const TechnicianAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [accessCode, setAccessCode] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (accessCode.length !== 4) {
+      toast({
+        title: "Code invalide",
+        description: "Le code d'accès doit contenir 4 chiffres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-
-      // Check if user has technician role
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authData.user.id)
-        .eq("role", "technician")
+      // Look up technician by email and access code
+      const { data: techData, error: techError } = await supabase
+        .from("technicians")
+        .select("id, full_name, email, status, user_id, access_code")
+        .eq("email", email.toLowerCase().trim())
+        .eq("access_code", accessCode)
+        .eq("status", "active")
         .maybeSingle();
 
-      if (roleError) throw roleError;
+      if (techError) throw techError;
 
-      if (!roleData) {
-        await supabase.auth.signOut();
-        throw new Error("Accès non autorisé. Vous devez être un technicien Nivra.");
+      if (!techData) {
+        throw new Error("Courriel ou code d'accès invalide, ou compte inactif.");
       }
 
-      toast({ title: "Connexion réussie", description: "Bienvenue dans le portail technicien" });
+      // Store technician session in localStorage (simple session without Supabase Auth)
+      const techSession = {
+        id: techData.id,
+        email: techData.email,
+        full_name: techData.full_name,
+        user_id: techData.user_id,
+        authenticated_at: new Date().toISOString(),
+      };
+      
+      localStorage.setItem("nivra_technician_session", JSON.stringify(techSession));
+
+      toast({ title: "Connexion réussie", description: `Bienvenue, ${techData.full_name}` });
       navigate("/technician");
     } catch (error: any) {
       toast({
@@ -74,7 +89,7 @@ const TechnicianAuth = () => {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Courriel</Label>
                 <div className="relative">
@@ -92,26 +107,31 @@ const TechnicianAuth = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
+                <Label htmlFor="access-code">Code d'accès (4 chiffres)</Label>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={4}
+                    value={accessCode}
+                    onChange={(value) => setAccessCode(value)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} className="w-14 h-14 text-2xl" />
+                      <InputOTPSlot index={1} className="w-14 h-14 text-2xl" />
+                      <InputOTPSlot index={2} className="w-14 h-14 text-2xl" />
+                      <InputOTPSlot index={3} className="w-14 h-14 text-2xl" />
+                    </InputOTPGroup>
+                  </InputOTP>
                 </div>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Entrez le code à 4 chiffres fourni par l'administrateur
+                </p>
               </div>
 
               <Button
                 type="submit"
                 className="w-full"
                 variant="hero"
-                disabled={isLoading}
+                disabled={isLoading || accessCode.length !== 4}
               >
                 {isLoading ? "Connexion..." : "Se connecter"}
               </Button>

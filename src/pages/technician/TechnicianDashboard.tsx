@@ -65,8 +65,10 @@ const statusConfig: Record<string, { color: string; label: string; icon: any }> 
   pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente", icon: Clock },
   hold: { color: "bg-purple-500/20 text-purple-500", label: "Suspendu", icon: AlertTriangle },
   verification: { color: "bg-blue-500/20 text-blue-500", label: "Vérification", icon: Shield },
+  back_order: { color: "bg-orange-500/20 text-orange-500", label: "Back Order", icon: Package },
   shipped: { color: "bg-cyan-500/20 text-cyan-400", label: "Expédié", icon: Truck },
   completed: { color: "bg-emerald-500/20 text-emerald-500", label: "Terminé", icon: CheckCircle },
+  completed_installation: { color: "bg-green-500/20 text-green-400", label: "Installation terminée", icon: CheckCircle },
   cancelled: { color: "bg-red-500/20 text-red-500", label: "Annulé", icon: XCircle },
 };
 
@@ -75,6 +77,7 @@ const statusOptions = [
   { value: "hold", label: "Suspendu" },
   { value: "shipped", label: "Expédié" },
   { value: "completed", label: "Terminé" },
+  { value: "completed_installation", label: "Installation terminée" },
   { value: "cancelled", label: "Annulé" },
 ];
 
@@ -82,8 +85,7 @@ const TechnicianDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [technicianRecord, setTechnicianRecord] = useState<any>(null);
+  const [technicianSession, setTechnicianSession] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: string; data?: any } | null>(null);
@@ -96,36 +98,41 @@ const TechnicianDashboard = () => {
   const [rescheduleReason, setRescheduleReason] = useState("");
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+    // Check for technician session in localStorage
+    const storedSession = localStorage.getItem("nivra_technician_session");
+    if (!storedSession) {
+      navigate("/technician/auth");
+      return;
+    }
+
+    try {
+      const session = JSON.parse(storedSession);
+      // Check if session is still valid (e.g., within 8 hours)
+      const authenticatedAt = new Date(session.authenticated_at);
+      const hoursElapsed = (Date.now() - authenticatedAt.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursElapsed > 8) {
+        localStorage.removeItem("nivra_technician_session");
+        toast({ title: "Session expirée", description: "Veuillez vous reconnecter.", variant: "destructive" });
         navigate("/technician/auth");
         return;
       }
-      setCurrentUser(user);
 
-      // Get technician record
-      const { data: techData } = await supabase
-        .from("technicians")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (techData) {
-        setTechnicianRecord(techData);
-      }
-    };
-    checkAuth();
-  }, [navigate]);
+      setTechnicianSession(session);
+    } catch {
+      localStorage.removeItem("nivra_technician_session");
+      navigate("/technician/auth");
+    }
+  }, [navigate, toast]);
 
   const { data: assignments, isLoading, refetch } = useQuery({
-    queryKey: ["technician-assignments", technicianRecord?.id],
-    enabled: !!technicianRecord?.id,
+    queryKey: ["technician-assignments", technicianSession?.id],
+    enabled: !!technicianSession?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("technician_id", technicianRecord.id)
+        .eq("technician_id", technicianSession.id)
         .order("appointment_date", { ascending: true });
       if (error) throw error;
 
@@ -167,7 +174,7 @@ const TechnicianDashboard = () => {
         from: currentOrder?.status,
         to: status,
         reason: reason,
-        by: `Technicien: ${technicianRecord?.full_name}`,
+        by: `Technicien: ${technicianSession?.full_name}`,
         at: now,
       });
 
@@ -182,19 +189,21 @@ const TechnicianDashboard = () => {
 
       if (error) throw error;
 
-      // Log activity (admin-visible)
-      await supabase.from("activity_logs").insert({
-        user_id: currentUser.id,
-        action: "order_status_update",
-        entity_type: "order",
-        entity_id: orderId,
-        old_value: currentOrder?.status,
-        new_value: status,
-        reason: reason,
-        actor_name: technicianRecord?.full_name,
-        actor_role: "technician",
-        details: { by_technician: true },
-      });
+      // Log activity (admin-visible) - use service role or skip if no user_id
+      if (technicianSession?.user_id) {
+        await supabase.from("activity_logs").insert({
+          user_id: technicianSession.user_id,
+          action: "order_status_update",
+          entity_type: "order",
+          entity_id: orderId,
+          old_value: currentOrder?.status,
+          new_value: status,
+          reason: reason,
+          actor_name: technicianSession?.full_name,
+          actor_role: "technician",
+          details: { by_technician: true, technician_id: technicianSession?.id },
+        });
+      }
     },
     onSuccess: () => {
       toast({ title: "Statut mis à jour", description: "Le statut de la commande a été modifié" });
@@ -229,7 +238,7 @@ const TechnicianDashboard = () => {
         from: currentOrder?.appointment_date,
         to: newDate,
         reason: reason,
-        by: `Technicien: ${technicianRecord?.full_name}`,
+        by: `Technicien: ${technicianSession?.full_name}`,
         at: now,
       });
 
@@ -246,18 +255,20 @@ const TechnicianDashboard = () => {
       if (error) throw error;
 
       // Log activity
-      await supabase.from("activity_logs").insert({
-        user_id: currentUser.id,
-        action: "appointment_rescheduled",
-        entity_type: "order",
-        entity_id: orderId,
-        old_value: currentOrder?.appointment_date,
-        new_value: newDate,
-        reason: reason,
-        actor_name: technicianRecord?.full_name,
-        actor_role: "technician",
-        details: { by_technician: true },
-      });
+      if (technicianSession?.user_id) {
+        await supabase.from("activity_logs").insert({
+          user_id: technicianSession.user_id,
+          action: "appointment_rescheduled",
+          entity_type: "order",
+          entity_id: orderId,
+          old_value: currentOrder?.appointment_date,
+          new_value: newDate,
+          reason: reason,
+          actor_name: technicianSession?.full_name,
+          actor_role: "technician",
+          details: { by_technician: true, technician_id: technicianSession?.id },
+        });
+      }
     },
     onSuccess: () => {
       toast({ title: "Rendez-vous reporté", description: "Le rendez-vous a été modifié" });
@@ -290,7 +301,7 @@ const TechnicianDashboard = () => {
         action: "appointment_cancelled",
         previous_date: currentOrder?.appointment_date,
         reason: reason,
-        by: `Technicien: ${technicianRecord?.full_name}`,
+        by: `Technicien: ${technicianSession?.full_name}`,
         at: now,
       });
 
@@ -308,18 +319,20 @@ const TechnicianDashboard = () => {
       if (error) throw error;
 
       // Log activity
-      await supabase.from("activity_logs").insert({
-        user_id: currentUser.id,
-        action: "appointment_cancelled",
-        entity_type: "order",
-        entity_id: orderId,
-        old_value: currentOrder?.appointment_date,
-        new_value: null,
-        reason: reason,
-        actor_name: technicianRecord?.full_name,
-        actor_role: "technician",
-        details: { by_technician: true },
-      });
+      if (technicianSession?.user_id) {
+        await supabase.from("activity_logs").insert({
+          user_id: technicianSession.user_id,
+          action: "appointment_cancelled",
+          entity_type: "order",
+          entity_id: orderId,
+          old_value: currentOrder?.appointment_date,
+          new_value: null,
+          reason: reason,
+          actor_name: technicianSession?.full_name,
+          actor_role: "technician",
+          details: { by_technician: true, technician_id: technicianSession?.id },
+        });
+      }
     },
     onSuccess: () => {
       toast({ title: "Rendez-vous annulé", description: "L'affectation a été retirée" });
@@ -332,8 +345,8 @@ const TechnicianDashboard = () => {
     },
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
+    localStorage.removeItem("nivra_technician_session");
     navigate("/technician/auth");
   };
 
@@ -427,7 +440,7 @@ const TechnicianDashboard = () => {
               <div>
                 <h1 className="font-display font-bold text-lg">Technicien – Nivra</h1>
                 <p className="text-xs text-muted-foreground">
-                  {technicianRecord?.full_name || currentUser?.email}
+                  {technicianSession?.full_name || technicianSession?.email}
                 </p>
               </div>
             </div>

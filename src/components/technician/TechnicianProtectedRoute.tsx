@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
 interface TechnicianProtectedRouteProps {
   children: ReactNode;
@@ -12,46 +11,48 @@ const TechnicianProtectedRoute = ({ children }: TechnicianProtectedRouteProps) =
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkSession = () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const storedSession = localStorage.getItem("nivra_technician_session");
         
-        if (!user) {
+        if (!storedSession) {
           navigate("/technician/auth");
           return;
         }
 
-        // Check for technician role
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("role", "technician")
-          .maybeSingle();
-
-        if (!roleData) {
+        const session = JSON.parse(storedSession);
+        
+        // Check if session is still valid (within 8 hours)
+        const authenticatedAt = new Date(session.authenticated_at);
+        const hoursElapsed = (Date.now() - authenticatedAt.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursElapsed > 8) {
+          localStorage.removeItem("nivra_technician_session");
           navigate("/technician/auth");
           return;
         }
 
         setIsAuthorized(true);
       } catch (error) {
-        console.error("Auth check error:", error);
+        console.error("Session check error:", error);
+        localStorage.removeItem("nivra_technician_session");
         navigate("/technician/auth");
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkAuth();
+    checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
+    // Listen for storage changes (e.g., logout in another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "nivra_technician_session" && !e.newValue) {
         navigate("/technician/auth");
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [navigate]);
 
   if (isLoading) {

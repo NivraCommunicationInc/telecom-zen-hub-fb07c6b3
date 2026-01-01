@@ -1051,6 +1051,7 @@ export type Database = {
       }
       technicians: {
         Row: {
+          access_code: string | null
           created_at: string
           email: string
           full_name: string
@@ -1063,6 +1064,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          access_code?: string | null
           created_at?: string
           email: string
           full_name: string
@@ -1075,6 +1077,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          access_code?: string | null
           created_at?: string
           email?: string
           full_name?: string

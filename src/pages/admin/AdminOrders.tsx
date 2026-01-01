@@ -67,12 +67,14 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 // Status configurations
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
   pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente", icon: Clock },
-  hold: { color: "bg-purple-500/20 text-purple-500", label: "En attente", icon: Clock },
+  hold: { color: "bg-purple-500/20 text-purple-500", label: "Suspendu", icon: AlertTriangle },
   verification: { color: "bg-blue-500/20 text-blue-500", label: "Vérification", icon: Shield },
+  back_order: { color: "bg-orange-500/20 text-orange-500", label: "Back Order", icon: Package },
   backorder: { color: "bg-orange-500/20 text-orange-500", label: "Rupture de stock", icon: Package },
   cancelled: { color: "bg-red-500/20 text-red-500", label: "Annulé", icon: XCircle },
   shipped: { color: "bg-cyan-500/20 text-cyan-400", label: "Expédié", icon: Truck },
   completed: { color: "bg-emerald-500/20 text-emerald-500", label: "Terminé", icon: CheckCircle },
+  completed_installation: { color: "bg-green-500/20 text-green-400", label: "Installation terminée", icon: CheckCircle },
 };
 
 const paymentStatusConfig: Record<string, { color: string; label: string }> = {
@@ -94,10 +96,11 @@ const orderStatusOptions = [
   { value: "pending", label: "En attente" },
   { value: "hold", label: "Suspendu" },
   { value: "verification", label: "Vérification" },
-  { value: "backorder", label: "Rupture de stock" },
+  { value: "back_order", label: "Back Order" },
   { value: "cancelled", label: "Annulé" },
   { value: "shipped", label: "Expédié" },
   { value: "completed", label: "Terminé" },
+  { value: "completed_installation", label: "Installation terminée" },
 ];
 
 const paymentStatusOptions = [
@@ -356,13 +359,49 @@ const AdminOrders = () => {
 
       if (orderError) throw orderError;
 
-      // Update linked billing with payment reference
-      if (order?.id) {
+      // Update linked billing with payment reference - or create invoice if none exists
+      if (newStatus === "captured") {
+        const { data: existingBilling } = await supabase
+          .from("billing")
+          .select("id")
+          .eq("order_id", order.id)
+          .maybeSingle();
+
+        if (existingBilling) {
+          await supabase
+            .from("billing")
+            .update({
+              status: "paid",
+              paid_at: new Date().toISOString(),
+              payment_reference: paymentReference,
+            })
+            .eq("id", existingBilling.id);
+        } else {
+          // Create new invoice/billing record if none exists
+          await supabase.from("billing").insert({
+            user_id: order.user_id,
+            order_id: order.id,
+            client_email: order.client_email || order.profiles?.email,
+            amount: order.total_amount || 0,
+            subtotal: order.subtotal || 0,
+            delivery_fee: order.delivery_fee || 0,
+            activation_fee: order.activation_fee || 0,
+            installation_fee: order.installation_fee || 0,
+            tps_amount: order.tps_amount || 0,
+            tvq_amount: order.tvq_amount || 0,
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            payment_reference: paymentReference,
+            related_order_number: order.order_number,
+            notes: `Facture pour commande ${order.order_number}`,
+          });
+        }
+      } else if (order?.id) {
         await supabase
           .from("billing")
           .update({
-            status: newStatus === "captured" ? "paid" : newStatus === "refunded" ? "refunded" : "pending",
-            paid_at: newStatus === "captured" ? new Date().toISOString() : null,
+            status: newStatus === "refunded" ? "refunded" : "pending",
+            paid_at: null,
             payment_reference: paymentReference,
           })
           .eq("order_id", order.id);
@@ -379,9 +418,17 @@ const AdminOrders = () => {
         const currentBalance = profile?.balance || 0;
         const amountPaid = order.total_amount || 0;
         
+        // Set amount_paid on order
+        await supabase
+          .from("orders")
+          .update({ amount_paid: amountPaid })
+          .eq("id", orderId);
+        
+        // Update profile balance (subtract what was owed)
+        const newBalance = currentBalance - amountPaid;
         await supabase
           .from("profiles")
-          .update({ balance: currentBalance - amountPaid })
+          .update({ balance: newBalance })
           .eq("user_id", order.user_id);
 
         // Record payment in payments table
@@ -392,8 +439,7 @@ const AdminOrders = () => {
           reference_number: paymentReference,
           payment_reference: paymentReference,
           status: "completed",
-          billing_id: order.id,
-          notes: `Paiement pour commande ${order.order_number}`,
+          notes: `Paiement capturé pour commande ${order.order_number}`,
         });
       }
 
@@ -406,12 +452,27 @@ const AdminOrders = () => {
           .maybeSingle();
         
         const currentBalance = profile?.balance || 0;
-        const refundAmount = order.total_amount || 0;
+        const refundAmount = order.amount_paid || order.total_amount || 0;
         
+        // Credit back to profile
         await supabase
           .from("profiles")
-          .update({ balance: currentBalance + refundAmount })
+          .update({ 
+            balance: currentBalance + refundAmount,
+            store_credit: (profile as any)?.store_credit || 0 + refundAmount 
+          })
           .eq("user_id", order.user_id);
+
+        // Record refund payment
+        await supabase.from("payments").insert({
+          user_id: order.user_id,
+          amount: -refundAmount,
+          payment_method: "refund",
+          reference_number: `REF-${paymentReference}`,
+          payment_reference: `REF-${paymentReference}`,
+          status: "completed",
+          notes: `Remboursement pour commande ${order.order_number}`,
+        });
       }
 
       return { paymentReference };
