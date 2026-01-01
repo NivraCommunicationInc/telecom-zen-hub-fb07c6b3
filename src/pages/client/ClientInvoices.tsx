@@ -143,7 +143,7 @@ const ClientInvoices = () => {
         .from("profiles")
         .select("balance, store_credit")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       const currentBalance = Number(currentProfile?.balance || 0);
       const currentCredit = Number(currentProfile?.store_credit || 0);
@@ -154,7 +154,7 @@ const ClientInvoices = () => {
           .from("billing")
           .select("*")
           .eq("id", invoiceId)
-          .single();
+          .maybeSingle();
 
         if (invoice) {
           const invoiceTotal = calculateTotal(invoice);
@@ -543,31 +543,40 @@ const ClientInvoices = () => {
                                   <Button 
                                     size="sm" 
                                     variant="outline"
-                                    onClick={() => {
-                                      downloadInvoicePDF({
-                                        invoiceNumber: inv.invoice_number || inv.id.slice(0, 8).toUpperCase(),
-                                        orderNumber: inv.related_order_number,
-                                        clientName: profile?.full_name || "Client",
-                                        clientEmail: profile?.email || user?.email || "",
-                                        clientPhone: profile?.phone,
-                                        subtotal: Number(inv.subtotal || inv.amount) || 0,
-                                        fees: Number(inv.fees) || 0,
-                                        credits: Number(inv.credits) || 0,
-                                        deliveryFee: Number(inv.delivery_fee) || 0,
-                                        activationFee: Number(inv.activation_fee) || 0,
-                                        installationFee: Number(inv.installation_fee) || 0,
-                                        discountAmount: Number(inv.discount_amount) || 0,
-                                        tpsAmount: Number(inv.tps_amount) || 0,
-                                        tvqAmount: Number(inv.tvq_amount) || 0,
-                                        lateFeeAmount: Number(inv.late_fee_amount) || 0,
-                                        dueDate: inv.due_date,
-                                        createdAt: inv.created_at,
-                                        status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
-                                        paidAt: inv.paid_at,
-                                        notes: inv.notes,
-                                        equipmentId: inv.equipment_id,
-                                      });
-                                      toast.success("Facture téléchargée");
+                                    onClick={async () => {
+                                      try {
+                                        if (!inv) {
+                                          toast.error("Facture non disponible");
+                                          return;
+                                        }
+                                        await downloadInvoicePDF({
+                                          invoiceNumber: inv.invoice_number || inv.id?.slice(0, 8).toUpperCase() || "FACT-000",
+                                          orderNumber: inv.related_order_number || undefined,
+                                          clientName: profile?.full_name || "Client",
+                                          clientEmail: profile?.email || user?.email || "",
+                                          clientPhone: profile?.phone || "",
+                                          subtotal: Number(inv.subtotal || inv.amount) || 0,
+                                          fees: Number(inv.fees) || 0,
+                                          credits: Number(inv.credits) || 0,
+                                          deliveryFee: Number(inv.delivery_fee) || 0,
+                                          activationFee: Number(inv.activation_fee) || 0,
+                                          installationFee: Number(inv.installation_fee) || 0,
+                                          discountAmount: Number(inv.discount_amount) || 0,
+                                          tpsAmount: Number(inv.tps_amount) || 0,
+                                          tvqAmount: Number(inv.tvq_amount) || 0,
+                                          lateFeeAmount: Number(inv.late_fee_amount) || 0,
+                                          dueDate: inv.due_date,
+                                          createdAt: inv.created_at,
+                                          status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
+                                          paidAt: inv.paid_at,
+                                          notes: inv.notes || "",
+                                          equipmentId: inv.equipment_id || "",
+                                        });
+                                        toast.success("Facture téléchargée");
+                                      } catch (error: any) {
+                                        console.error("Invoice download error:", error);
+                                        toast.error("Erreur lors du téléchargement de la facture");
+                                      }
                                     }}
                                   >
                                     <Download className="w-4 h-4" />

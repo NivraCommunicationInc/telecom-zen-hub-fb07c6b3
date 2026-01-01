@@ -1321,14 +1321,14 @@ const AdminAppointments = () => {
                   <div className="space-y-2">
                     <Label>Lier à une commande (optionnel)</Label>
                     <Select 
-                      value={appointmentForm.order_id}
-                      onValueChange={(v) => setAppointmentForm(prev => ({ ...prev, order_id: v }))}
+                      value={appointmentForm.order_id || "__none__"}
+                      onValueChange={(v) => setAppointmentForm(prev => ({ ...prev, order_id: v === "__none__" ? "" : v }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner une commande" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Aucune</SelectItem>
+                        <SelectItem value="__none__">Aucune</SelectItem>
                         {orders?.map(o => (
                           <SelectItem key={o.id} value={o.id}>
                             {o.order_number} — {o.service_type}
@@ -1340,14 +1340,14 @@ const AdminAppointments = () => {
                   <div className="space-y-2">
                     <Label>Technicien (optionnel)</Label>
                     <Select 
-                      value={appointmentForm.technician_id}
-                      onValueChange={(v) => setAppointmentForm(prev => ({ ...prev, technician_id: v }))}
+                      value={appointmentForm.technician_id || "__none__"}
+                      onValueChange={(v) => setAppointmentForm(prev => ({ ...prev, technician_id: v === "__none__" ? "" : v }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Assigner un technicien" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Non assigné</SelectItem>
+                        <SelectItem value="__none__">Non assigné</SelectItem>
                         {technicians?.map(t => (
                           <SelectItem key={t.id} value={t.id}>
                             {t.full_name} — {t.specializations?.join(", ") || "Général"}
