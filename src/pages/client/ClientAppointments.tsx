@@ -92,31 +92,24 @@ const ClientAppointments = () => {
   const clientEmail = profile?.email || user?.email;
 
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ["client-appointments-all", clientId, clientEmail],
+    queryKey: ["client-appointments-all", user?.id, clientEmail],
     queryFn: async () => {
-      if (!clientId && !clientEmail) return [];
+      if (!user?.id) return [];
       
-      // Build query with explicit client filter (RLS + frontend filter for safety)
-      let query = supabase
+      // Rely on RLS to filter appointments - RLS allows:
+      // 1. client_id = auth.uid()
+      // 2. client_email matches user's profile email
+      const { data, error } = await supabase
         .from("appointments")
         .select("*")
         .order("scheduled_at", { ascending: false });
-      
-      // Filter by client_id OR client_email
-      if (clientId && clientEmail) {
-        query = query.or(`client_id.eq.${clientId},client_email.eq.${clientEmail}`);
-      } else if (clientId) {
-        query = query.eq("client_id", clientId);
-      } else if (clientEmail) {
-        query = query.eq("client_email", clientEmail);
-      }
-      
-      const { data, error } = await query;
       
       if (error) {
         console.error("Appointments fetch error:", error);
         throw error;
       }
+      
+      console.log("Fetched appointments for client:", data?.length || 0, "appointments");
       
       // Fetch technicians for display
       if (data && data.length > 0) {
@@ -136,30 +129,25 @@ const ClientAppointments = () => {
       
       return data || [];
     },
-    enabled: !!(clientId || clientEmail),
+    enabled: !!user?.id,
   });
 
   // Realtime subscription - invalidate on any appointment change
   useEffect(() => {
-    if (!clientId && !clientEmail) return;
+    if (!user?.id) return;
     
     const channel = supabase
       .channel("client-appointments-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, (payload) => {
-        // Only invalidate if the change is relevant to this client
-        const changedClientId = (payload.new as any)?.client_id || (payload.old as any)?.client_id;
-        const changedClientEmail = (payload.new as any)?.client_email || (payload.old as any)?.client_email;
-        
-        if (changedClientId === clientId || changedClientEmail === clientEmail) {
-          queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
-        }
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
+        // Invalidate to refetch - RLS will filter appropriately
+        queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient, clientId, clientEmail]);
+  }, [queryClient, user?.id]);
 
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
