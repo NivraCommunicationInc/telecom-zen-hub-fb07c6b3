@@ -329,15 +329,17 @@ const AdminOrders = () => {
         action: `payment_${newStatus}`,
         timestamp: new Date().toISOString(),
         user_id: currentUser?.id,
+        user_email: currentUser?.email,
         details: { from: order?.payment_status, to: newStatus },
       };
       const currentAudit = Array.isArray(order?.audit_timeline) ? order.audit_timeline : [];
 
-      // Generate payment reference when capturing
+      // Generate NIVRA payment reference when capturing
       let paymentReference = order?.payment_reference;
       if (newStatus === "captured" && !paymentReference) {
-        const { data: refData } = await supabase.rpc("generate_payment_reference");
-        paymentReference = refData || `PAY-QC-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+        const year = new Date().getFullYear();
+        const random = Math.floor(10000 + Math.random() * 90000);
+        paymentReference = `NIVRA-PAY-QC-${year}-${random}`;
       }
 
       const { error: orderError } = await supabase
@@ -1160,12 +1162,21 @@ const AdminOrders = () => {
                     {/* Payment Actions */}
                     <div className="flex flex-wrap gap-2">
                       {selectedOrder.payment_status === "pending" && (
-                        <Button
-                          onClick={() => setConfirmAction({ type: "authorize", data: { orderId: selectedOrder.id } })}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Autoriser
-                        </Button>
+                        <>
+                          <Button
+                            onClick={() => setConfirmAction({ type: "authorize", data: { orderId: selectedOrder.id } })}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Autoriser
+                          </Button>
+                          <Button
+                            variant="hero"
+                            onClick={() => setConfirmAction({ type: "capture", data: { orderId: selectedOrder.id } })}
+                          >
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            Capturer directement
+                          </Button>
+                        </>
                       )}
                       {selectedOrder.payment_status === "authorized" && (
                         <Button
@@ -1183,6 +1194,17 @@ const AdminOrders = () => {
                         >
                           <RefreshCw className="w-4 h-4 mr-2" />
                           Rembourser
+                        </Button>
+                      )}
+                      {selectedOrder.payment_status !== "disputed" && selectedOrder.payment_status !== "pending" && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            updatePaymentStatusMutation.mutate({ orderId: selectedOrder.id, newStatus: "disputed" });
+                          }}
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                          Contester
                         </Button>
                       )}
                     </div>
@@ -1386,7 +1408,13 @@ const AdminOrders = () => {
                                 </div>
                               </div>
                             ))}
-                            <p className="text-xs text-muted-foreground">Garantie: 1 an couverture fabricant</p>
+                            <div className="p-3 bg-emerald-500/10 rounded-lg mt-3">
+                              <div className="flex items-center gap-2 text-emerald-500">
+                                <CheckCircle className="w-4 h-4" />
+                                <span className="text-sm font-medium">Garantie: 1 an couverture fabricant</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">Équipement inclut garantie matériel standard Nivra</p>
+                            </div>
                           </div>
                         )}
 
