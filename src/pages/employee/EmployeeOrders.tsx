@@ -33,6 +33,8 @@ import {
   Shield,
   Plus,
   MapPin,
+  Wrench,
+  UserCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -61,18 +63,28 @@ const idVerificationLabels: Record<string, { label: string; color: string }> = {
   failed: { label: "Échoué", color: "bg-red-500/20 text-red-600" },
 };
 
+interface Technician {
+  id: string;
+  full_name: string;
+  email: string;
+  status: string;
+  specializations: string[] | null;
+}
+
 const EmployeeOrders = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
   
   // Create order dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -156,10 +168,25 @@ const EmployeeOrders = () => {
     }
   };
 
+  const fetchTechnicians = async () => {
+    if (!session?.token) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { action: "get_technicians" },
+      });
+      if (error) throw error;
+      setTechnicians(data?.technicians || []);
+    } catch (error) {
+      console.error("Error fetching technicians:", error);
+    }
+  };
+
   useEffect(() => {
     if (session?.token) {
       fetchOrders();
       fetchClients();
+      fetchTechnicians();
     }
   }, [session?.token]);
 
@@ -324,6 +351,31 @@ const EmployeeOrders = () => {
     }
   };
 
+  const handleAssignTechnician = async () => {
+    if (!selectedOrder) return;
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { 
+          action: "assign_technician_to_order", 
+          params: { 
+            orderId: selectedOrder.id,
+            technician_id: selectedTechnicianId || null
+          } 
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error);
+      toast({ title: selectedTechnicianId ? "Technicien assigné" : "Technicien retiré" });
+      fetchOrders();
+      setSelectedOrder({ ...selectedOrder, technician_id: selectedTechnicianId || null });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!session) return null;
 
   return (
@@ -446,6 +498,7 @@ const EmployeeOrders = () => {
                             tracking_number: order.tracking_number || "",
                             tracking_url: order.tracking_url || ""
                           });
+                          setSelectedTechnicianId(order.technician_id || "");
                         }}>
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -474,11 +527,12 @@ const EmployeeOrders = () => {
 
           {selectedOrder && (
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="details">Détails</TabsTrigger>
                 <TabsTrigger value="payment">Paiement</TabsTrigger>
                 <TabsTrigger value="verification">Identité</TabsTrigger>
                 <TabsTrigger value="shipping">Expédition</TabsTrigger>
+                <TabsTrigger value="technician">Technicien</TabsTrigger>
               </TabsList>
 
               <TabsContent value="details" className="space-y-4 mt-4">
@@ -719,6 +773,77 @@ const EmployeeOrders = () => {
                       <Button onClick={handleUpdateTracking} disabled={isSubmitting || !trackingData.tracking_number}>
                         <Truck className="w-4 h-4 mr-2" />
                         Marquer comme expédié
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="technician" className="space-y-4 mt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Technicien assigné</span>
+                  {selectedOrder.technician_id ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-600">
+                      <UserCheck className="w-3 h-3 mr-1" />
+                      {technicians.find(t => t.id === selectedOrder.technician_id)?.full_name || "Assigné"}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-yellow-500/20 text-yellow-600">Non assigné</Badge>
+                  )}
+                </div>
+
+                {selectedOrder.technician_id && (
+                  <div className="bg-muted/50 p-3 rounded space-y-1">
+                    {(() => {
+                      const tech = technicians.find(t => t.id === selectedOrder.technician_id);
+                      return tech ? (
+                        <>
+                          <p className="text-sm font-medium">{tech.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{tech.email}</p>
+                          {tech.specializations && tech.specializations.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {tech.specializations.map((spec: string, i: number) => (
+                                <Badge key={i} variant="outline" className="text-xs">{spec}</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : <p className="text-sm text-muted-foreground">Information technicien non disponible</p>;
+                    })()}
+                  </div>
+                )}
+
+                {session?.permissions?.can_manage_appointments && (
+                  <div className="border-t pt-4 space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Wrench className="w-4 h-4" />
+                      Assigner un technicien
+                    </h4>
+                    
+                    <div className="grid gap-4">
+                      <div>
+                        <Label>Technicien</Label>
+                        <Select 
+                          value={selectedTechnicianId} 
+                          onValueChange={setSelectedTechnicianId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner un technicien..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Aucun (retirer l'assignation)</SelectItem>
+                            {technicians.map((tech) => (
+                              <SelectItem key={tech.id} value={tech.id}>
+                                {tech.full_name} - {tech.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button onClick={handleAssignTechnician} disabled={isSubmitting}>
+                        <UserCheck className="w-4 h-4 mr-2" />
+                        {selectedTechnicianId ? "Assigner le technicien" : "Retirer l'assignation"}
                       </Button>
                     </div>
                   </div>
