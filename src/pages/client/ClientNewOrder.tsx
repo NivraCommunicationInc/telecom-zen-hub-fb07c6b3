@@ -193,8 +193,7 @@ const ClientNewOrder = () => {
   const [discountCode, setDiscountCode] = useState("");
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null);
-  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
+  
   
   // ID verification state
   const [idType, setIdType] = useState("");
@@ -233,7 +232,7 @@ const ClientNewOrder = () => {
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
-  const [nivraPaymentReference, setNivraPaymentReference] = useState("");
+  
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
@@ -592,26 +591,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return { ...data, nivraPaymentRef };
     },
     onSuccess: (result) => {
-      // Set order data first, then flag confirmation, then change step
+      // Navigate to dedicated confirmation page with order ID
       const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
-      setCreatedOrder(orderData);
-      setIsOrderConfirmed(true);
-      if (orderData.nivraPaymentRef) {
-        setNivraPaymentReference(orderData.nivraPaymentRef);
-      }
       
-      // Use setTimeout to ensure state is set before step change
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
-        queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
-        queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
-        queryClient.invalidateQueries({ queryKey: ["client-payments"] });
-        
-        // Go to completed step (dynamic based on service selection)
-        if (hasTVService && hasMobileService) setStep(6);
-        else if (hasTVService || hasMobileService) setStep(5);
-        else setStep(4);
-      }, 0);
+      // Invalidate queries so orders/invoices appear in admin & client views
+      queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payments"] });
+      
+      // Navigate to confirmation page with order ID
+      navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -832,47 +822,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     createOrderMutation.mutate();
   };
 
-  // Generate ICS calendar file
-  const generateICSFile = () => {
-    if (!selectedDate || !selectedTime || !createdOrder) return;
-    
-    const startDate = new Date();
-    const [startHour] = selectedTime.split(' - ')[0].split('h');
-    startDate.setHours(parseInt(startHour), 0, 0, 0);
-    
-    const endDate = new Date(startDate);
-    endDate.setHours(endDate.getHours() + 2);
-
-    const formatICSDate = (date: Date) => {
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    };
-
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Nivra//TV Installation//FR
-BEGIN:VEVENT
-UID:${createdOrder.order_number}@nivra.ca
-DTSTAMP:${formatICSDate(new Date())}
-DTSTART:${formatICSDate(startDate)}
-DTEND:${formatICSDate(endDate)}
-SUMMARY:Installation Nivra TV - ${createdOrder.order_number}
-DESCRIPTION:Installation de vos services Nivra.\\nCommande: ${createdOrder.order_number}\\nServices: ${createdOrder.service_type}
-LOCATION:Votre domicile
-STATUS:CONFIRMED
-END:VEVENT
-END:VCALENDAR`;
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `nivra-installation-${createdOrder.order_number}.ics`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success("Événement ajouté à votre calendrier");
-  };
 
   return (
     <ClientLayout>
@@ -2643,369 +2592,6 @@ END:VCALENDAR`;
                 </CardContent>
               </Card>
             </div>
-          </div>
-        )}
-
-        {/* Completed Step - Dynamic based on service selection */}
-        {((step === 4 && !hasTVService && !hasMobileService) ||
-          (step === 5 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
-          (step === 6 && hasTVService && hasMobileService)) && isOrderConfirmed && createdOrder && (
-          <div className="space-y-6 max-w-4xl mx-auto">
-            {/* Success Banner */}
-            <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
-              <CardContent className="py-8 text-center">
-                <div className="w-20 h-20 rounded-full bg-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-                </div>
-                <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-                  Commande soumise!
-                </h2>
-                <p className="text-muted-foreground max-w-lg mx-auto">
-                  Merci pour votre commande. Votre commande est en attente d'approbation par notre équipe.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Pending Approval Notice */}
-            <Card className="bg-amber-500/10 border-amber-500/30">
-              <CardContent className="py-4 flex items-center gap-3">
-                <Clock className="w-6 h-6 text-amber-500 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-amber-600">Commande en attente d'approbation</p>
-                  <p className="text-sm text-muted-foreground">
-                    Notre équipe examinera votre commande et vous contactera sous peu pour confirmer les prochaines étapes.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Order Numbers & References */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-card border-cyan-500/30">
-                <CardContent className="py-6 text-center">
-                  <Receipt className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Numéro de confirmation</p>
-                  <p className="text-xl font-mono font-bold text-cyan-500">
-                    {createdOrder?.id ? `CONF-${createdOrder.id.slice(0, 8).toUpperCase()}` : "En cours..."}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card border-border">
-                <CardContent className="py-6 text-center">
-                  <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Numéro de commande</p>
-                  <p className="text-xl font-mono font-bold text-foreground">
-                    {createdOrder?.order_number || "En cours..."}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card border-emerald-500/30">
-                <CardContent className="py-6 text-center">
-                  <CreditCard className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Référence de paiement</p>
-                  <p className="text-lg font-mono font-bold text-emerald-500 break-all">
-                    {nivraPaymentReference || "NIVRA-PAY-QC-..."}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Date */}
-            <Card className="bg-card border-border">
-              <CardContent className="py-4">
-                <div className="flex items-center justify-center gap-3">
-                  <Calendar className="w-5 h-5 text-muted-foreground" />
-                  <p className="text-muted-foreground">Date de soumission:</p>
-                  <p className="font-semibold text-foreground">
-                    {createdOrder?.created_at 
-                      ? format(new Date(createdOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })
-                      : format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Services Summary (simplified) */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-cyan-500" />
-                  Services commandés
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {selectedServices.map((service) => {
-                  const CategoryIcon = categoryIcons[service.category] || Package;
-                  return (
-                    <div key={service.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${categoryColors[service.category]?.split(' ')[0] || 'bg-muted'}`}>
-                          <CategoryIcon className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">{service.name}</p>
-                          <p className="text-sm text-muted-foreground">{service.category}</p>
-                        </div>
-                      </div>
-                      <p className="font-bold text-foreground">
-                        {Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        <span className="text-xs text-muted-foreground font-normal">/mois</span>
-                      </p>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Client Information */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-cyan-500" />
-                  Informations du client
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Nom complet</p>
-                      <p className="font-medium text-foreground">{profile?.full_name || "Non spécifié"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Courriel</p>
-                      <p className="font-medium text-foreground">{profile?.email || user?.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Téléphone</p>
-                      <p className="font-medium text-foreground">{profile?.phone || "À confirmer"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                    <Building2 className="w-4 h-4 text-cyan-500" />
-                    <div>
-                      <p className="text-xs text-cyan-500">Numéro de client</p>
-                      <p className="font-mono font-bold text-cyan-500">{profile?.client_number || "À générer"}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* First Invoice / Payment Summary */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-cyan-500" />
-                  Première facture - Frais initiaux
-                </CardTitle>
-                <CardDescription>
-                  Montant dû avant l'activation de vos services
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <Truck className="w-4 h-4" /> Frais de livraison (Québec)
-                    </span>
-                    <span className="font-medium">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <Zap className="w-4 h-4" /> Frais d'activation (unique)
-                    </span>
-                    <span className="font-medium">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <Wrench className="w-4 h-4" /> Frais d'installation
-                    </span>
-                    <span className={`font-medium ${installationCredit > 0 ? "text-emerald-500" : ""}`}>
-                      {installationCredit > 0 && <span className="line-through text-muted-foreground mr-2">50,00 $</span>}
-                      {installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      {installationCredit > 0 && " (rabais appliqué)"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">Sous-total frais</span>
-                    <span className="font-medium">{(deliveryFee + activationFee + installationFee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">TPS (5%)</span>
-                    <span className="font-medium">{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">TVQ (9.975%)</span>
-                    <span className="font-medium">{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between py-3 bg-accent/50 rounded-lg px-4 -mx-4">
-                    <span className="font-semibold text-foreground">Total première facture</span>
-                    <span className="text-xl font-bold text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                </div>
-
-                <Card className="bg-amber-500/10 border-amber-500/30">
-                  <CardContent className="py-3 flex items-start gap-2">
-                    <CreditCard className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground">
-                      Le paiement sera requis avant l'activation de vos services. Vous recevrez les instructions de paiement par courriel.
-                    </p>
-                  </CardContent>
-                </Card>
-              </CardContent>
-            </Card>
-
-            {/* Monthly Bill Estimate */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-cyan-500" />
-                  Facturation mensuelle récurrente
-                </CardTitle>
-                <CardDescription>
-                  Estimation de votre facture mensuelle après l'activation
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {selectedServices.map((service) => (
-                    <div key={service.id} className="flex justify-between py-2">
-                      <span className="text-muted-foreground">{service.name}</span>
-                      <span className="font-medium">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
-                    </div>
-                  ))}
-                  {paidChannelTotal > 0 && (
-                    <div className="flex justify-between py-2">
-                      <span className="text-amber-500">Chaînes premium ({selectedPaidChannels.length})</span>
-                      <span className="font-medium text-amber-500">{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">Sous-total mensuel</span>
-                    <span className="font-medium">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">TPS (5%)</span>
-                    <span className="font-medium">{((subtotal + paidChannelTotal) * 0.05).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">TVQ (9.975%)</span>
-                    <span className="font-medium">{((subtotal + paidChannelTotal) * 0.09975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between py-3 bg-emerald-500/10 rounded-lg px-4 -mx-4">
-                    <span className="font-semibold text-foreground">Total mensuel estimé</span>
-                    <span className="text-xl font-bold text-emerald-500">
-                      {((subtotal + paidChannelTotal) * 1.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  <span>Prochaine facturation estimée: {format(addMonths(new Date(), 1), "d MMMM yyyy", { locale: fr })}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Next Steps */}
-            <Card className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ArrowRight className="w-5 h-5 text-cyan-500" />
-                  Prochaines étapes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-cyan-500 font-bold">1</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Confirmation par courriel</p>
-                      <p className="text-sm text-muted-foreground">Vous recevrez un courriel de confirmation avec tous les détails dans les prochaines minutes.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-cyan-500 font-bold">2</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Vérification d'identité</p>
-                      <p className="text-sm text-muted-foreground">Notre équipe vous contactera pour la vérification d'identité dans les 24-48h.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-cyan-500 font-bold">3</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Paiement des frais initiaux</p>
-                      <p className="text-sm text-muted-foreground">Une fois l'identité vérifiée, vous recevrez les instructions pour le paiement.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-emerald-500 font-bold">4</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Installation et activation</p>
-                      <p className="text-sm text-muted-foreground">Votre installation sera planifiée et vos services activés.</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="outline" size="lg" className="gap-2">
-                <Printer className="w-4 h-4" />
-                Imprimer la confirmation
-              </Button>
-              {selectedDate && selectedTime && (
-                <Button variant="outline" size="lg" className="gap-2" onClick={generateICSFile}>
-                  <CalendarPlus className="w-4 h-4" />
-                  Ajouter au calendrier
-                </Button>
-              )}
-              <Button variant="hero" size="lg" onClick={() => navigate("/portal/orders")} className="gap-2">
-                Voir mes commandes
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Contact Info */}
-            <Card className="bg-card border-border">
-              <CardContent className="py-4">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    1-888-NIVRA
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    support@nivra.ca
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Lun-Ven 9h-18h
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
       </div>
