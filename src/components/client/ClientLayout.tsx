@@ -43,9 +43,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     { path: "/portal/channels", label: "Chaînes TV", icon: Tv },
     { path: "/portal/invoices", label: "Factures", icon: FileText },
     { path: "/portal/contracts", label: "Contrats", icon: FileText },
-    { path: "/portal/subscriptions", label: "Abonnements", icon: CreditCard },
     { path: "/portal/tickets", label: "Support", icon: MessageSquare },
-    { path: "/portal/profile", label: "Mon profil", icon: User },
+    { path: "/portal/profile", label: "Mon profil & Services", icon: User },
     { path: "/portal/payments", label: "Paiements", icon: CreditCard },
   ];
 
