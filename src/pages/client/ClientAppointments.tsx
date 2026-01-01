@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -32,10 +33,13 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info } from "lucide-react";
+import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info, History, MapPin, User, Phone, Mail, Package } from "lucide-react";
 import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { AppointmentHistoryTimeline } from "@/components/appointments/AppointmentHistoryTimeline";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 // Available time slots for rescheduling
 const TIME_SLOTS = [
@@ -46,6 +50,17 @@ const TIME_SLOTS = [
   "16h00 - 18h00",
 ];
 
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  scheduled: { label: "Planifié", color: "bg-cyan-500/20 text-cyan-500", icon: Clock },
+  modified: { label: "Modifié", color: "bg-purple-500/20 text-purple-500", icon: Edit },
+  completed: { label: "Terminé", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
+  cancelled: { label: "Annulé", color: "bg-red-500/20 text-red-500", icon: XCircle },
+  no_show: { label: "Absent", color: "bg-amber-500/20 text-amber-500", icon: AlertTriangle },
+  technician_assigned: { label: "Technicien assigné", color: "bg-blue-500/20 text-blue-500", icon: Wrench },
+  pending_verification: { label: "Vérification", color: "bg-amber-500/20 text-amber-500", icon: AlertTriangle },
+  in_progress: { label: "En cours", color: "bg-indigo-500/20 text-indigo-500", icon: Wrench },
+};
+
 const ClientAppointments = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -55,6 +70,7 @@ const ClientAppointments = () => {
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
+  const [activeTab, setActiveTab] = useState("upcoming");
 
   // Fetch client profile
   const { data: profile } = useQuery({
@@ -79,10 +95,41 @@ const ClientAppointments = () => {
         .select("*")
         .order("scheduled_at", { ascending: false });
       if (error) throw error;
+      
+      // Fetch technicians for display
+      if (data && data.length > 0) {
+        const techIds = [...new Set(data.filter(a => a.technician_id).map(a => a.technician_id))];
+        if (techIds.length > 0) {
+          const { data: techs } = await supabase
+            .from("technicians")
+            .select("id, full_name, email, phone")
+            .in("id", techIds);
+          
+          return data.map(apt => ({
+            ...apt,
+            technician: techs?.find(t => t.id === apt.technician_id)
+          }));
+        }
+      }
+      
       return data || [];
     },
     enabled: !!user?.id,
   });
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel("client-appointments-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
@@ -328,139 +375,222 @@ const ClientAppointments = () => {
           </CardContent>
         </Card>
 
-        {/* Upcoming Appointments */}
-        {upcomingAppointments.length > 0 && (
-          <Card className="bg-card border-border border-l-4 border-l-cyan-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarClock className="w-5 h-5 text-cyan-400" />
-                Installations à venir
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {upcomingAppointments.map((apt: any) => {
-                  const StatusIcon = statusIcons[apt.status] || Clock;
-                  const aptDate = new Date(apt.scheduled_at);
-                  const hoursUntil = getHoursUntil(apt);
-                  const canEdit = canManage(apt);
-                  
-                  return (
-                    <div
-                      key={apt.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-accent/50 rounded-lg border border-cyan-500/20"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex flex-col items-center justify-center">
-                          <span className="text-lg font-bold text-cyan-500">{format(aptDate, "d")}</span>
-                          <span className="text-xs text-cyan-400 uppercase">{format(aptDate, "MMM", { locale: fr })}</span>
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {format(aptDate, "EEEE 'à' HH:mm", { locale: fr })}
-                          </p>
-                          {apt.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{filterDescription(apt.description)}</p>
-                          )}
-                          {apt.status === "scheduled" && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {hoursUntil >= 24 
-                                ? `Modifiable (${hoursUntil}h avant)` 
-                                : `Non modifiable (moins de 24h)`}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusColors[apt.status] || "bg-muted"}>
-                          {statusLabels[apt.status] || apt.status}
-                        </Badge>
-                        <Button variant="outline" size="sm" onClick={() => handleViewDetails(apt)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Tabs for Upcoming / Past / History */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="upcoming" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              <span className="hidden sm:inline">À venir</span>
+              {upcomingAppointments.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {upcomingAppointments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="past" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Passés</span>
+              {pastAppointments.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {pastAppointments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">Historique</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* All Appointments History */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-cyan-400" />
-              Historique des installations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
-                ))}
-              </div>
-            ) : appointments && appointments.length > 0 ? (
-              <div className="space-y-4">
-                {appointments.map((apt: any) => {
-                  const StatusIcon = statusIcons[apt.status] || Clock;
-                  return (
-                    <div
-                      key={apt.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-accent/50 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            apt.status === "completed" ? "bg-emerald-500/20" :
-                            apt.status === "cancelled" ? "bg-red-500/20" :
-                            apt.status === "scheduled" ? "bg-cyan-500/20" : "bg-amber-500/20"
-                          }`}>
-                            <StatusIcon className={`w-4 h-4 ${
-                              apt.status === "completed" ? "text-emerald-500" :
-                              apt.status === "cancelled" ? "text-red-500" :
-                              apt.status === "scheduled" ? "text-cyan-500" : "text-amber-500"
-                            }`} />
+          {/* Upcoming Appointments Tab */}
+          <TabsContent value="upcoming" className="mt-0">
+            <Card className="bg-card border-border border-l-4 border-l-cyan-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarClock className="w-5 h-5 text-cyan-400" />
+                  Installations à venir
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : upcomingAppointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {upcomingAppointments.map((apt: any) => {
+                      const status = STATUS_CONFIG[apt.status] || STATUS_CONFIG.scheduled;
+                      const StatusIcon = status.icon;
+                      const aptDate = new Date(apt.scheduled_at);
+                      const hoursUntil = getHoursUntil(apt);
+                      
+                      return (
+                        <div
+                          key={apt.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-accent/50 rounded-lg border border-cyan-500/20 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                          onClick={() => handleViewDetails(apt)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex flex-col items-center justify-center">
+                              <span className="text-lg font-bold text-cyan-500">{format(aptDate, "d")}</span>
+                              <span className="text-xs text-cyan-400 uppercase">{format(aptDate, "MMM", { locale: fr })}</span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className="text-[10px] text-cyan-400 border-cyan-500/30">
+                                  {apt.appointment_number || `#${apt.id?.slice(0, 8).toUpperCase()}`}
+                                </Badge>
+                              </div>
+                              <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {format(aptDate, "EEEE 'à' HH:mm", { locale: fr })}
+                              </p>
+                              {apt.technician && (
+                                <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                  <Wrench className="w-3 h-3" />
+                                  Technicien: {apt.technician.full_name}
+                                </p>
+                              )}
+                              {apt.status === "scheduled" && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {hoursUntil >= 24 
+                                    ? `Modifiable (${hoursUntil}h avant)` 
+                                    : `Non modifiable (moins de 24h)`}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
-                          <Badge className={statusColors[apt.status] || "bg-muted"}>
-                            {statusLabels[apt.status] || apt.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge className={status.color}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {status.label}
+                            </Badge>
+                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDetails(apt); }}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(apt.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                        </p>
-                        {apt.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{filterDescription(apt.description)}</p>
-                        )}
-                      </div>
-                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(apt)}>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Détails
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Wrench className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-4">Vous n'avez pas encore de rendez-vous d'installation</p>
-                <Link to="/portal/new-order">
-                  <Button variant="hero">Commander avec installation technicien</Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">Aucune installation à venir</p>
+                    <Link to="/portal/new-order">
+                      <Button variant="hero">Commander une installation</Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Past Appointments Tab */}
+          <TabsContent value="past" className="mt-0">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  Installations passées
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : pastAppointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {pastAppointments.map((apt: any) => {
+                      const status = STATUS_CONFIG[apt.status] || STATUS_CONFIG.scheduled;
+                      const StatusIcon = status.icon;
+                      const aptDate = new Date(apt.scheduled_at);
+                      
+                      return (
+                        <div
+                          key={apt.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-accent/50 rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                          onClick={() => handleViewDetails(apt)}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                apt.status === "completed" ? "bg-emerald-500/20" :
+                                apt.status === "cancelled" ? "bg-red-500/20" : "bg-muted"
+                              }`}>
+                                <StatusIcon className={`w-4 h-4 ${
+                                  apt.status === "completed" ? "text-emerald-500" :
+                                  apt.status === "cancelled" ? "text-red-500" : "text-muted-foreground"
+                                }`} />
+                              </div>
+                              <div>
+                                <Badge variant="outline" className="text-[10px] text-muted-foreground mr-2">
+                                  {apt.appointment_number || `#${apt.id?.slice(0, 8).toUpperCase()}`}
+                                </Badge>
+                                <span className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</span>
+                              </div>
+                              <Badge className={status.color}>
+                                {status.label}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground pl-11">
+                              {format(aptDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDetails(apt); }}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Détails
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <CheckCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Aucune installation passée</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* History Timeline Tab */}
+          <TabsContent value="history" className="mt-0">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-purple-400" />
+                  Historique des installations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : (
+                  <AppointmentHistoryTimeline
+                    appointments={appointments || []}
+                    onSelectAppointment={handleViewDetails}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Appointment Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wrench className="w-5 h-5 text-primary" />
@@ -468,63 +598,119 @@ const ClientAppointments = () => {
             </DialogTitle>
           </DialogHeader>
           {selectedAppointment && (
-            <div className="space-y-4 mt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Type</span>
-                <span className="text-foreground font-medium">{filterAppointmentTitle(selectedAppointment.title)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Date & Heure</span>
-                <span className="text-foreground">
-                  {format(new Date(selectedAppointment.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Statut</span>
-                <Badge className={statusColors[selectedAppointment.status] || "bg-muted"}>
-                  {statusLabels[selectedAppointment.status] || selectedAppointment.status}
-                </Badge>
-              </div>
-              {selectedAppointment.description && (
-                <div className="pt-4 border-t border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Description</p>
-                  <p className="text-foreground">{filterDescription(selectedAppointment.description)}</p>
+            <ScrollArea className="max-h-[65vh] pr-4">
+              <div className="space-y-4 mt-4">
+                {/* Appointment ID */}
+                <div className="bg-muted/50 p-3 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Numéro de rendez-vous</p>
+                  <p className="font-mono text-cyan-400">
+                    {selectedAppointment.appointment_number || `#${selectedAppointment.id?.slice(0, 8).toUpperCase()}`}
+                  </p>
                 </div>
-              )}
-              
-              {/* Management buttons with 24h restriction */}
-              {selectedAppointment.status === "scheduled" && (
-                <div className="pt-4 border-t border-border space-y-3">
-                  {canManage(selectedAppointment) ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleRescheduleClick}
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Reprogrammer le rendez-vous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full text-red-500 hover:text-red-600"
-                        onClick={handleCancelClick}
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Annuler ce rendez-vous
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
-                      <p className="text-sm text-amber-600 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        Ce rendez-vous ne peut plus être modifié car il est prévu dans moins de 24 heures.
-                      </p>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="text-foreground font-medium">{filterAppointmentTitle(selectedAppointment.title)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Date & Heure</span>
+                  <span className="text-foreground">
+                    {format(new Date(selectedAppointment.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Statut</span>
+                  <Badge className={STATUS_CONFIG[selectedAppointment.status]?.color || "bg-muted"}>
+                    {STATUS_CONFIG[selectedAppointment.status]?.label || selectedAppointment.status}
+                  </Badge>
+                </div>
+
+                {/* Service Address */}
+                {(selectedAppointment.service_address || profile?.service_address) && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> Adresse d'installation
+                    </p>
+                    <p className="text-foreground">
+                      {selectedAppointment.service_address || profile?.service_address}
+                      {(selectedAppointment.service_city || profile?.service_city) && 
+                        `, ${selectedAppointment.service_city || profile?.service_city}`}
+                      {selectedAppointment.service_postal_code && `, ${selectedAppointment.service_postal_code}`}
+                    </p>
+                  </div>
+                )}
+
+                {/* Technician Info - Visible to Client */}
+                {selectedAppointment.technician && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                      <Wrench className="w-3 h-3" /> Technicien assigné
+                    </p>
+                    <p className="text-foreground font-medium text-blue-400">
+                      {selectedAppointment.technician.full_name}
+                    </p>
+                  </div>
+                )}
+
+                {/* Service Type & Method */}
+                {selectedAppointment.service_type && (
+                  <div className="pt-2 border-t border-border">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Type de service</p>
+                        <p className="text-foreground capitalize">{selectedAppointment.service_type.replace(/_/g, ' ')}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Méthode</p>
+                        <p className="text-foreground">
+                          {selectedAppointment.installation_method === 'auto' ? 'Auto-installation' : 'Technicien Nivra'}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+
+                {selectedAppointment.description && (
+                  <div className="pt-4 border-t border-border">
+                    <p className="text-sm text-muted-foreground mb-2">Description</p>
+                    <p className="text-foreground">{filterDescription(selectedAppointment.description)}</p>
+                  </div>
+                )}
+                
+                {/* Management buttons with 24h restriction */}
+                {selectedAppointment.status === "scheduled" && (
+                  <div className="pt-4 border-t border-border space-y-3">
+                    {canManage(selectedAppointment) ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={handleRescheduleClick}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Reprogrammer le rendez-vous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full text-red-500 hover:text-red-600"
+                          onClick={handleCancelClick}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Annuler ce rendez-vous
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                        <p className="text-sm text-amber-600 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          Ce rendez-vous ne peut plus être modifié car il est prévu dans moins de 24 heures.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           )}
         </DialogContent>
       </Dialog>
