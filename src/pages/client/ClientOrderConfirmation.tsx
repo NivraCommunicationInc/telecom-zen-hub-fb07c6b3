@@ -152,7 +152,7 @@ END:VCALENDAR`;
 
   const services = order.service_type.split(", ");
   const deliveryFee = order.delivery_fee || 0;
-  const activationFee = order.activation_fee || 25;
+  const activationFee = order.activation_fee ?? 0;
   const installationFee = order.installation_fee || 0;
   const tpsAmount = order.tps_amount || 0;
   const tvqAmount = order.tvq_amount || 0;
@@ -276,12 +276,14 @@ END:VCALENDAR`;
                 </span>
                 <span className="font-medium">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Zap className="w-4 h-4" /> Frais d'activation (unique)
-                </span>
-                <span className="font-medium">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-              </div>
+              {activationFee > 0 && (
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Frais d'activation (unique)
+                  </span>
+                  <span className="font-medium">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                </div>
+              )}
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground flex items-center gap-2">
                   <Wrench className="w-4 h-4" /> Frais d'installation
