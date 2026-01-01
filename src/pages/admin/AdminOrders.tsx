@@ -145,6 +145,18 @@ const AdminOrders = () => {
     serial_numbers: ["", "", "", ""],
     imei_numbers: ["", "", "", ""],
     inventory_refs: ["", "", "", ""],
+    sim_type: "" as "" | "esim" | "physical_sim",
+    sim_serial_number: "",
+  });
+
+  // Identity edit state
+  const [identityForm, setIdentityForm] = useState({
+    id_type: "",
+    id_number: "",
+    id_province: "",
+    id_expiration: "",
+    id_issue_date: "",
+    id_upload: "",
   });
 
   // Queries
@@ -661,6 +673,16 @@ const AdminOrders = () => {
       serial_numbers: order.equipment_details?.serial_numbers || ["", "", "", ""],
       imei_numbers: order.equipment_details?.imei_numbers || ["", "", "", ""],
       inventory_refs: order.equipment_details?.inventory_refs || ["", "", "", ""],
+      sim_type: order.equipment_details?.sim_type || "",
+      sim_serial_number: order.sim_number || "",
+    });
+    setIdentityForm({
+      id_type: order.profiles?.id_type || "",
+      id_number: order.profiles?.id_number || "",
+      id_province: order.profiles?.id_province || "",
+      id_expiration: order.profiles?.id_expiration || "",
+      id_issue_date: order.profiles?.id_issue_date || "",
+      id_upload: order.profiles?.id_upload || "",
     });
     setDetailsDialogOpen(true);
   };
@@ -671,6 +693,7 @@ const AdminOrders = () => {
       serial_numbers: equipmentForm.serial_numbers.filter(s => s),
       imei_numbers: equipmentForm.imei_numbers.filter(s => s),
       inventory_refs: equipmentForm.inventory_refs.filter(s => s),
+      sim_type: equipmentForm.sim_type,
       warranty: "1 year manufacturer coverage",
     };
     
@@ -683,10 +706,58 @@ const AdminOrders = () => {
     updateOrderMutation.mutate({
       ...selectedOrder,
       equipment_details: equipmentDetails,
+      sim_number: equipmentForm.sim_serial_number,
       terminal_count: equipmentForm.terminal_count,
       terminal_fee: equipmentForm.terminal_count * TERMINAL_PRICE,
       router_fee: equipmentForm.router_included ? ROUTER_PRICE : 0,
     });
+  };
+
+  // Save identity information
+  const handleSaveIdentity = async () => {
+    if (!selectedOrder?.profiles?.user_id) {
+      toast({ title: "Erreur", description: "Profil client non trouvé", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          id_type: identityForm.id_type || null,
+          id_number: identityForm.id_number || null,
+          id_province: identityForm.id_province || null,
+          id_expiration: identityForm.id_expiration || null,
+        })
+        .eq("user_id", selectedOrder.profiles.user_id);
+
+      if (error) throw error;
+
+      await logActivity("update", "profile", selectedOrder.profiles.user_id, {
+        order_id: selectedOrder.id,
+        order_number: selectedOrder.order_number
+      }, {
+        changedField: "identity_info",
+        reason: "Modification des informations d'identité par admin"
+      });
+
+      // Update local state
+      setSelectedOrder({
+        ...selectedOrder,
+        profiles: {
+          ...selectedOrder.profiles,
+          id_type: identityForm.id_type,
+          id_number: identityForm.id_number,
+          id_province: identityForm.id_province,
+          id_expiration: identityForm.id_expiration,
+        }
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      toast({ title: "Identité mise à jour", description: "Les informations d'identité ont été sauvegardées" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error?.message || "Erreur lors de la sauvegarde", variant: "destructive" });
+    }
   };
 
   const isQuebecAddress = (province?: string) => {
@@ -1381,51 +1452,105 @@ const AdminOrders = () => {
                           </CardContent>
                         </Card>
 
-                        {/* ID Details Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Type de pièce d'identité</Label>
-                            <p className="font-medium">
-                              {selectedOrder.profiles?.id_type === "drivers_license" && "Permis de conduire"}
-                              {selectedOrder.profiles?.id_type === "passport" && "Passeport"}
-                              {selectedOrder.profiles?.id_type === "health_card" && "Carte d'assurance maladie"}
-                              {selectedOrder.profiles?.id_type === "residency_card" && "Carte de résident permanent"}
-                              {!selectedOrder.profiles?.id_type && "Non fourni"}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Numéro de pièce</Label>
-                            <p className="font-medium font-mono">{selectedOrder.profiles?.id_number || "Non fourni"}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Province d'émission</Label>
-                            <p className="font-medium">{selectedOrder.profiles?.id_province || "Non fourni"}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Date d'expiration</Label>
-                            <p className="font-medium">
-                              {selectedOrder.profiles?.id_expiration
-                                ? format(new Date(selectedOrder.profiles.id_expiration), "d MMMM yyyy", { locale: fr })
-                                : "Non fourni"}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Date d'émission</Label>
-                            <p className="font-medium text-muted-foreground italic">Non disponible</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Document téléversé</Label>
-                            <p className="font-medium text-muted-foreground italic">Non disponible</p>
-                          </div>
-                        </div>
+                        {/* Editable ID Fields */}
+                        <Card className="border-primary/30">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-xs text-primary flex items-center gap-2">
+                              <FileText className="w-3 h-3" />
+                              Modifier les informations d'identité
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                              <div>
+                                <Label className="text-xs">Type de pièce d'identité</Label>
+                                <Select
+                                  value={identityForm.id_type}
+                                  onValueChange={(v) => setIdentityForm({ ...identityForm, id_type: v })}
+                                >
+                                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="drivers_license">Permis de conduire</SelectItem>
+                                    <SelectItem value="passport">Passeport</SelectItem>
+                                    <SelectItem value="health_card">Carte d'assurance maladie</SelectItem>
+                                    <SelectItem value="residency_card">Carte de résident permanent</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Numéro de pièce</Label>
+                                <Input
+                                  placeholder="Numéro de pièce"
+                                  value={identityForm.id_number}
+                                  onChange={(e) => setIdentityForm({ ...identityForm, id_number: e.target.value })}
+                                  className="font-mono"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Province d'émission</Label>
+                                <Select
+                                  value={identityForm.id_province}
+                                  onValueChange={(v) => setIdentityForm({ ...identityForm, id_province: v })}
+                                >
+                                  <SelectTrigger><SelectValue placeholder="Province..." /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="QC">Québec</SelectItem>
+                                    <SelectItem value="ON">Ontario</SelectItem>
+                                    <SelectItem value="BC">Colombie-Britannique</SelectItem>
+                                    <SelectItem value="AB">Alberta</SelectItem>
+                                    <SelectItem value="MB">Manitoba</SelectItem>
+                                    <SelectItem value="SK">Saskatchewan</SelectItem>
+                                    <SelectItem value="NS">Nouvelle-Écosse</SelectItem>
+                                    <SelectItem value="NB">Nouveau-Brunswick</SelectItem>
+                                    <SelectItem value="NL">Terre-Neuve-et-Labrador</SelectItem>
+                                    <SelectItem value="PE">Île-du-Prince-Édouard</SelectItem>
+                                    <SelectItem value="NT">Territoires du Nord-Ouest</SelectItem>
+                                    <SelectItem value="YT">Yukon</SelectItem>
+                                    <SelectItem value="NU">Nunavut</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Date d'expiration</Label>
+                                <Input
+                                  type="date"
+                                  value={identityForm.id_expiration}
+                                  onChange={(e) => setIdentityForm({ ...identityForm, id_expiration: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Date d'émission</Label>
+                                <Input
+                                  type="date"
+                                  value={identityForm.id_issue_date}
+                                  onChange={(e) => setIdentityForm({ ...identityForm, id_issue_date: e.target.value })}
+                                  placeholder="Non disponible"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Champ optionnel</p>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Référence document téléversé</Label>
+                                <Input
+                                  placeholder="Nom de fichier ou référence"
+                                  value={identityForm.id_upload}
+                                  onChange={(e) => setIdentityForm({ ...identityForm, id_upload: e.target.value })}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Admin privé</p>
+                              </div>
+                            </div>
+                            <Button onClick={handleSaveIdentity} className="w-full">
+                              Sauvegarder les informations d'identité
+                            </Button>
+                          </CardContent>
+                        </Card>
 
                         {/* Verification Warning for Missing Data */}
-                        {(!selectedOrder.profiles?.id_type || !selectedOrder.profiles?.id_number) && (
+                        {(!identityForm.id_type || !identityForm.id_number) && (
                           <Card className="bg-amber-500/10 border-amber-500/30">
                             <CardContent className="py-3 flex items-center gap-2">
                               <AlertTriangle className="w-4 h-4 text-amber-500" />
                               <p className="text-sm text-amber-600">
-                                Données d'identité incomplètes - Le client n'a pas soumis toutes les informations requises.
+                                Données d'identité incomplètes - Veuillez compléter le type et numéro de pièce d'identité.
                               </p>
                             </CardContent>
                           </Card>
@@ -1510,6 +1635,64 @@ const AdminOrders = () => {
                             </Label>
                           </div>
                         </div>
+
+                        {/* SIM Card Section */}
+                        {(selectedOrder.service_type?.toLowerCase().includes("mobile") || 
+                          selectedOrder.service_type?.toLowerCase().includes("cellulaire")) && (
+                          <Card className="bg-primary/5 border-primary/20">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-xs text-primary flex items-center gap-2">
+                                <CreditCard className="w-3 h-3" />
+                                Carte SIM
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Type de carte SIM</Label>
+                                  <Select
+                                    value={equipmentForm.sim_type}
+                                    onValueChange={(v: "" | "esim" | "physical_sim") => setEquipmentForm({ ...equipmentForm, sim_type: v })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Sélectionner le type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="esim">eSIM (25$)</SelectItem>
+                                      <SelectItem value="physical_sim">Carte SIM physique (30$)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label>Numéro de série SIM</Label>
+                                  <Input
+                                    placeholder="Entrez le numéro de série..."
+                                    value={equipmentForm.sim_serial_number}
+                                    onChange={(e) => setEquipmentForm({ ...equipmentForm, sim_serial_number: e.target.value })}
+                                    className="font-mono"
+                                  />
+                                  {equipmentForm.sim_type && !equipmentForm.sim_serial_number && (
+                                    <p className="text-xs text-amber-500 mt-1">Numéro de série requis</p>
+                                  )}
+                                </div>
+                              </div>
+                              {equipmentForm.sim_type && (
+                                <div className="p-3 bg-accent/30 rounded-lg">
+                                  <p className="text-sm">
+                                    <span className="font-medium">Type sélectionné:</span>{" "}
+                                    {equipmentForm.sim_type === "esim" ? "eSIM (25$)" : "Carte SIM physique (30$)"}
+                                  </p>
+                                  {equipmentForm.sim_serial_number && (
+                                    <p className="text-sm mt-1">
+                                      <span className="font-medium">Série:</span>{" "}
+                                      <span className="font-mono">{equipmentForm.sim_serial_number}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
 
                         {equipmentForm.terminal_count > 0 && (
                           <div className="space-y-4 p-4 bg-muted rounded-lg">
