@@ -17,29 +17,50 @@ export type Database = {
       activity_logs: {
         Row: {
           action: string
+          actor_email: string | null
+          actor_name: string | null
+          actor_role: string | null
+          changed_field: string | null
           created_at: string
           details: Json | null
           entity_id: string | null
           entity_type: string
           id: string
+          new_value: string | null
+          old_value: string | null
+          reason: string | null
           user_id: string
         }
         Insert: {
           action: string
+          actor_email?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          changed_field?: string | null
           created_at?: string
           details?: Json | null
           entity_id?: string | null
           entity_type: string
           id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
           user_id: string
         }
         Update: {
           action?: string
+          actor_email?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          changed_field?: string | null
           created_at?: string
           details?: Json | null
           entity_id?: string | null
           entity_type?: string
           id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1211,7 +1232,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "client" | "technician"
+      app_role: "admin" | "client" | "technician" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1339,7 +1360,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "client", "technician"],
+      app_role: ["admin", "client", "technician", "employee"],
     },
   },
 } as const

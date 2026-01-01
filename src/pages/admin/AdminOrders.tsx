@@ -62,6 +62,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 // Status configurations
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
@@ -115,6 +116,7 @@ const AdminOrders = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
+  const { isAdmin, permissions, formatCardDisplay } = useRoleAccess();
 
   // State
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -246,7 +248,13 @@ const AdminOrders = () => {
     },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-      logActivity("create", "order", data.id, { service_type: data.service_type });
+      logActivity("create", "order", data.id, { 
+        service_type: data.service_type,
+        order_number: data.order_number 
+      }, {
+        changedField: "order",
+        reason: "Nouvelle commande créée par admin"
+      });
       toast({ title: "Commande créée", description: `#${data.order_number || data.id.slice(0, 8)}` });
       setCreateDialogOpen(false);
       setNewOrder({ user_id: "", service_type: "", total_amount: "", notes: "" });
@@ -298,7 +306,14 @@ const AdminOrders = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-      logActivity("update", "order", selectedOrder?.id, { status: selectedOrder?.status });
+      logActivity("update", "order", selectedOrder?.id, { 
+        status: selectedOrder?.status,
+        order_number: selectedOrder?.order_number 
+      }, {
+        changedField: "status",
+        newValue: selectedOrder?.status,
+        reason: "Mise à jour de commande"
+      });
       toast({ title: "Commande mise à jour" });
     },
     onError: () => {
@@ -399,9 +414,20 @@ const AdminOrders = () => {
 
       return { paymentReference };
     },
-    onSuccess: (data, { newStatus }) => {
+    onSuccess: (data, { orderId, newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-billing"] });
+      const order = orders?.find((o: any) => o.id === orderId);
+      logActivity("update", "order", orderId, { 
+        payment_status: newStatus,
+        payment_reference: data?.paymentReference,
+        order_number: order?.order_number
+      }, {
+        changedField: "payment_status",
+        oldValue: order?.payment_status,
+        newValue: newStatus,
+        reason: `Statut paiement changé à ${paymentStatusConfig[newStatus]?.label || newStatus}`
+      });
       toast({ 
         title: `Paiement ${paymentStatusConfig[newStatus]?.label || newStatus}`,
         description: data?.paymentReference ? `Réf: ${data.paymentReference}` : undefined
@@ -427,8 +453,15 @@ const AdminOrders = () => {
         .eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: (_, { status }) => {
+    onSuccess: (_, { orderId, status }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      logActivity("id_verification", "order", orderId, { 
+        verification_status: status 
+      }, {
+        changedField: "id_verification_status",
+        newValue: status,
+        reason: status === "verified" ? "ID vérifié avec succès" : "ID rejeté"
+      });
       toast({ title: status === "verified" ? "ID vérifié" : "ID rejeté" });
     },
     onError: () => {
@@ -508,8 +541,18 @@ const AdminOrders = () => {
 
       return { technicianName: technician?.full_name };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, { orderId, technicianId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      const order = orders?.find((o: any) => o.id === orderId);
+      logActivity("technician_assigned", "order", orderId, { 
+        technician_id: technicianId,
+        technician_name: data?.technicianName,
+        order_number: order?.order_number
+      }, {
+        changedField: "technician",
+        newValue: data?.technicianName,
+        reason: "Technicien assigné à la commande"
+      });
       toast({ 
         title: "Technicien assigné", 
         description: data?.technicianName ? `${data.technicianName} assigné à cette commande` : undefined 
