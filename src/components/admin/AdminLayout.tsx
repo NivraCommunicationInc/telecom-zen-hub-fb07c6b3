@@ -20,7 +20,8 @@ import {
   Wrench,
   UserCog,
   ExternalLink,
-  Building2
+  Building2,
+  Film
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +39,7 @@ const navItems = [
   { icon: Building2, label: "Comptes", href: "/admin/accounts" },
   { icon: Settings, label: "Services", href: "/admin/services" },
   { icon: Tv, label: "Chaînes TV", href: "/admin/channels" },
+  { icon: Film, label: "Streaming+", href: "/admin/streaming" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
   { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },

@@ -565,6 +565,69 @@ export type Database = {
         }
         Relationships: []
       }
+      client_streaming_subscriptions: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          discount_amount: number | null
+          end_date: string | null
+          id: string
+          internal_notes: string | null
+          monthly_price: number | null
+          promo_code: string | null
+          start_date: string | null
+          status: string | null
+          streaming_service_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          discount_amount?: number | null
+          end_date?: string | null
+          id?: string
+          internal_notes?: string | null
+          monthly_price?: number | null
+          promo_code?: string | null
+          start_date?: string | null
+          status?: string | null
+          streaming_service_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          discount_amount?: number | null
+          end_date?: string | null
+          id?: string
+          internal_notes?: string | null
+          monthly_price?: number | null
+          promo_code?: string | null
+          start_date?: string | null
+          status?: string | null
+          streaming_service_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_streaming_subscriptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_streaming_subscriptions_streaming_service_id_fkey"
+            columns: ["streaming_service_id"]
+            isOneToOne: false
+            referencedRelation: "streaming_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_requests: {
         Row: {
           created_at: string
@@ -1946,6 +2009,48 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      streaming_services: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          monthly_price: number
+          name: string
+          private_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          monthly_price?: number
+          name: string
+          private_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          monthly_price?: number
+          name?: string
+          private_notes?: string | null
           updated_at?: string
         }
         Relationships: []
