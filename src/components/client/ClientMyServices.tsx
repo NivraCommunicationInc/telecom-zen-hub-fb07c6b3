@@ -50,6 +50,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 // Plans matching website exactly
 const AVAILABLE_PLANS = {
@@ -110,6 +111,7 @@ const ClientMyServices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logActivity } = useActivityLog();
   
   // Dialog states
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
@@ -267,6 +269,15 @@ const ClientMyServices = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-services-tickets"] });
+      // Log activity for admin visibility
+      logActivity("create", "ticket", data.id, { 
+        subject: data.subject,
+        priority: data.priority,
+        ticket_number: data.ticket_number 
+      }, {
+        changedField: "support_ticket",
+        reason: data.subject
+      });
       toast({ 
         title: "Ticket créé", 
         description: `Référence: ${data.ticket_number || data.id.slice(0, 8)}` 
@@ -298,8 +309,18 @@ const ClientMyServices = () => {
         });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["client-services-tickets"] });
+      // Log activity for admin visibility
+      logActivity("update", "subscription", variables.subscriptionId, { 
+        current_plan: variables.currentPlan,
+        new_plan: variables.newPlan 
+      }, {
+        changedField: "plan",
+        oldValue: variables.currentPlan,
+        newValue: variables.newPlan,
+        reason: "Client demande de changement de forfait"
+      });
       toast({ title: "Demande envoyée", description: "Notre équipe vous contactera sous peu" });
       setUpgradeDialogOpen(false);
       setSelectedPlan("");

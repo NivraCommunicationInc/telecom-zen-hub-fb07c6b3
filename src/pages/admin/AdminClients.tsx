@@ -32,11 +32,13 @@ import { format, differenceInDays, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 const AdminClients = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
+  const { isAdmin, permissions } = useRoleAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -188,7 +190,13 @@ const AdminClients = () => {
       // Force immediate refetch to ensure the new client appears
       await queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       await queryClient.refetchQueries({ queryKey: ["admin-clients"] });
-      logActivity("create", "client", undefined, { email: newClient.email });
+      logActivity("create", "client", undefined, { 
+        email: newClient.email,
+        full_name: newClient.full_name 
+      }, {
+        changedField: "profile",
+        reason: "Nouveau client créé par admin"
+      });
       toast({ 
         title: "Client créé avec succès",
         description: `${newClient.full_name} a été ajouté au système`
@@ -221,7 +229,13 @@ const AdminClients = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
-      logActivity("update", "client", selectedClient?.id);
+      logActivity("update", "client", selectedClient?.id, { 
+        full_name: selectedClient?.full_name,
+        account_status: selectedClient?.account_status
+      }, {
+        changedField: "profile",
+        reason: "Mise à jour du profil client"
+      });
       toast({ title: "Client mis à jour" });
     },
     onError: () => {
@@ -252,7 +266,16 @@ const AdminClients = () => {
     onSuccess: (newValue, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       setSelectedClient((prev: any) => prev ? { ...prev, [variables.field]: newValue } : prev);
-      logActivity("update", "client", selectedClient?.id, { field: variables.field, operation: variables.operation });
+      logActivity("update", "client", selectedClient?.id, { 
+        field: variables.field, 
+        operation: variables.operation,
+        amount: variables.amount
+      }, {
+        changedField: variables.field,
+        oldValue: String(selectedClient?.[variables.field] || 0),
+        newValue: String(newValue),
+        reason: variables.operation === 'add' ? "Ajout de montant" : "Retrait de montant"
+      });
       toast({ title: variables.operation === 'add' ? "Montant ajouté" : "Montant retiré" });
     },
     onError: () => {
@@ -278,7 +301,12 @@ const AdminClients = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-documents"] });
-      logActivity("upload", "document", selectedClient?.id);
+      logActivity("upload", "document", selectedClient?.id, { 
+        document_name: "document" 
+      }, {
+        changedField: "documents",
+        reason: "Document téléversé"
+      });
       toast({ title: "Document ajouté" });
     },
     onError: () => {

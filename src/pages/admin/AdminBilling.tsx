@@ -28,6 +28,7 @@ import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-500/20 text-amber-500",
@@ -54,6 +55,7 @@ const AdminBilling = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
+  const { isAdmin, permissions, maskCardNumber, formatCardDisplay } = useRoleAccess();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -265,7 +267,14 @@ const AdminBilling = () => {
       // Force immediate refetch to ensure the new invoice appears
       await queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
       await queryClient.refetchQueries({ queryKey: ["admin-billing"] });
-      logActivity("create", "invoice", data.id, { amount: data.amount });
+      logActivity("create", "invoice", data.id, { 
+        amount: data.amount,
+        invoice_number: data.invoice_number,
+        due_date: data.due_date
+      }, {
+        changedField: "invoice",
+        reason: "Nouvelle facture créée"
+      });
       toast({ 
         title: "Facture créée avec succès",
         description: `Facture ${data.invoice_number} créée pour ${Number(data.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
@@ -297,7 +306,14 @@ const AdminBilling = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
-      logActivity("update", "invoice", selectedBill?.id, { status: selectedBill?.status });
+      logActivity("update", "invoice", selectedBill?.id, { 
+        status: selectedBill?.status,
+        invoice_number: selectedBill?.invoice_number
+      }, {
+        changedField: "status",
+        newValue: selectedBill?.status,
+        reason: "Mise à jour manuelle"
+      });
       toast({ title: "Facture mise à jour" });
     },
     onError: () => {
@@ -433,7 +449,14 @@ const AdminBilling = () => {
       logActivity("payment", "invoice", paymentBill.id, { 
         method: paymentMethod,
         amount: paymentAmount,
-        reference: referenceNumber
+        reference: referenceNumber,
+        invoice_number: paymentBill.invoice_number,
+        client_name: paymentBill.profiles?.full_name
+      }, {
+        changedField: "payment_status",
+        oldValue: paymentBill.status,
+        newValue: "paid",
+        reason: `Paiement ${paymentMethod === "credit" ? "par carte" : "par Interac"}`
       });
 
       // Send payment received notification
