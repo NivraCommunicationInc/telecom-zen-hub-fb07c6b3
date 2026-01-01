@@ -52,6 +52,9 @@ import {
   Monitor,
   Wifi,
   RefreshCw,
+  User,
+  FileText,
+  Wrench,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,6 +189,19 @@ const AdminOrders = () => {
         .select("*")
         .eq("order_id", selectedOrder.id)
         .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: technicians } = useQuery({
+    queryKey: ["admin-technicians"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("*")
+        .eq("status", "active")
+        .order("full_name");
       if (error) throw error;
       return data;
     },
@@ -350,6 +366,35 @@ const AdminOrders = () => {
           .from("profiles")
           .update({ balance: currentBalance - amountPaid })
           .eq("user_id", order.user_id);
+
+        // Record payment in payments table
+        await supabase.from("payments").insert({
+          user_id: order.user_id,
+          amount: amountPaid,
+          payment_method: "card",
+          reference_number: paymentReference,
+          payment_reference: paymentReference,
+          status: "completed",
+          billing_id: order.id,
+          notes: `Paiement pour commande ${order.order_number}`,
+        });
+      }
+
+      // Handle refund - reverse balance
+      if (newStatus === "refunded" && order?.user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("user_id", order.user_id)
+          .maybeSingle();
+        
+        const currentBalance = profile?.balance || 0;
+        const refundAmount = order.total_amount || 0;
+        
+        await supabase
+          .from("profiles")
+          .update({ balance: currentBalance + refundAmount })
+          .eq("user_id", order.user_id);
       }
 
       return { paymentReference };
@@ -421,6 +466,57 @@ const AdminOrders = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       toast({ title: "Équipements ajoutés" });
+    },
+  });
+
+  const assignTechnicianMutation = useMutation({
+    mutationFn: async ({ orderId, technicianId }: { orderId: string; technicianId: string }) => {
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      const order = orders?.find((o: any) => o.id === orderId);
+      const technician = technicians?.find((t: any) => t.id === technicianId);
+      
+      const auditEntry = {
+        action: "technician_assigned",
+        timestamp: new Date().toISOString(),
+        user_id: currentUser?.id,
+        details: { technician_id: technicianId, technician_name: technician?.full_name },
+      };
+      const currentAudit = Array.isArray(order?.audit_timeline) ? order.audit_timeline : [];
+
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({
+          technician_id: technicianId,
+          audit_timeline: [...currentAudit, auditEntry],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      if (orderError) throw orderError;
+
+      // Create appointment for client if order has scheduled date
+      if (order?.appointment_date) {
+        await supabase.from("appointments").insert({
+          client_id: order.user_id,
+          client_email: order.client_email || order.profiles?.email,
+          title: `Installation - ${order.service_type}`,
+          description: `Installation par technicien Nivra pour commande ${order.order_number}`,
+          scheduled_at: order.appointment_date,
+          status: "scheduled",
+        });
+      }
+
+      return { technicianName: technician?.full_name };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      toast({ 
+        title: "Technicien assigné", 
+        description: data?.technicianName ? `${data.technicianName} assigné à cette commande` : undefined 
+      });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de l'assignation", variant: "destructive" });
     },
   });
 
@@ -720,6 +816,53 @@ const AdminOrders = () => {
 
                   {/* Details Tab */}
                   <TabsContent value="details" className="space-y-4 mt-4">
+                    {/* Service Details Section */}
+                    <Card className="border-primary/20 bg-primary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Détails du service commandé
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Type de service</Label>
+                            <p className="font-medium">{selectedOrder.service_type || "N/A"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Catégorie</Label>
+                            <p className="font-medium">{selectedOrder.category || selectedOrder.service_type?.split(" ")[0] || "N/A"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Montant total</Label>
+                            <p className="font-bold text-primary">{Number(selectedOrder.total_amount || 0).toFixed(2)} $</p>
+                          </div>
+                        </div>
+                        {selectedOrder.notes && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Description</Label>
+                            <p className="text-sm">{selectedOrder.notes}</p>
+                          </div>
+                        )}
+                        {/* Equipment included */}
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {(selectedOrder.terminal_count || 0) > 0 && (
+                            <Badge variant="outline" className="bg-background">
+                              <Monitor className="w-3 h-3 mr-1" />
+                              {selectedOrder.terminal_count}x Terminal 4K
+                            </Badge>
+                          )}
+                          {(selectedOrder.router_fee || 0) > 0 && (
+                            <Badge variant="outline" className="bg-background">
+                              <Wifi className="w-3 h-3 mr-1" />
+                              Routeur Nivra Born
+                            </Badge>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>Statut commande</Label>
@@ -749,6 +892,58 @@ const AdminOrders = () => {
                         </Select>
                       </div>
                     </div>
+
+                    {/* Technician Assignment Section */}
+                    {selectedOrder.installation_type === "technician" && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Wrench className="w-4 h-4" />
+                            Assignation technicien
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Technicien</Label>
+                              <Select
+                                value={selectedOrder.technician_id || ""}
+                                onValueChange={(v) => {
+                                  assignTechnicianMutation.mutate({
+                                    orderId: selectedOrder.id,
+                                    technicianId: v,
+                                  });
+                                  setSelectedOrder({ ...selectedOrder, technician_id: v });
+                                }}
+                              >
+                                <SelectTrigger><SelectValue placeholder="Sélectionner un technicien" /></SelectTrigger>
+                                <SelectContent>
+                                  {technicians?.map((tech: any) => (
+                                    <SelectItem key={tech.id} value={tech.id}>
+                                      {tech.full_name} {tech.specializations?.length > 0 && `(${tech.specializations.join(", ")})`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Date d'installation</Label>
+                              <Input
+                                type="datetime-local"
+                                value={selectedOrder.appointment_date ? new Date(selectedOrder.appointment_date).toISOString().slice(0, 16) : ""}
+                                onChange={(e) => setSelectedOrder({ ...selectedOrder, appointment_date: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          {selectedOrder.technician_id && (
+                            <div className="flex items-center gap-2 p-2 bg-emerald-500/10 rounded-lg">
+                              <CheckCircle className="w-4 h-4 text-emerald-500" />
+                              <span className="text-sm text-emerald-500">Technicien assigné</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -824,6 +1019,21 @@ const AdminOrders = () => {
 
                   {/* Payment Tab */}
                   <TabsContent value="payment" className="space-y-4 mt-4">
+                    {/* Payment Reference Display */}
+                    {selectedOrder.payment_reference && (
+                      <Card className="border-emerald-500/30 bg-emerald-500/10">
+                        <CardContent className="py-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-5 h-5 text-emerald-500" />
+                              <span className="text-sm font-medium">Référence de paiement</span>
+                            </div>
+                            <span className="font-mono font-bold text-lg">{selectedOrder.payment_reference}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                       <Card>
                         <CardHeader className="pb-2">
