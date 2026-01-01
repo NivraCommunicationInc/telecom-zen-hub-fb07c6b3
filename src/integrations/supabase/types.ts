@@ -307,6 +307,8 @@ export type Database = {
           preauth_discount: number | null
           preauth_discount_applied: boolean | null
           related_order_number: string | null
+          replacement_order_id: string | null
+          replacement_ticket_id: string | null
           status: string
           subtotal: number | null
           tps_amount: number | null
@@ -336,6 +338,8 @@ export type Database = {
           preauth_discount?: number | null
           preauth_discount_applied?: boolean | null
           related_order_number?: string | null
+          replacement_order_id?: string | null
+          replacement_ticket_id?: string | null
           status?: string
           subtotal?: number | null
           tps_amount?: number | null
@@ -365,6 +369,8 @@ export type Database = {
           preauth_discount?: number | null
           preauth_discount_applied?: boolean | null
           related_order_number?: string | null
+          replacement_order_id?: string | null
+          replacement_ticket_id?: string | null
           status?: string
           subtotal?: number | null
           tps_amount?: number | null
@@ -377,6 +383,20 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_replacement_order_id_fkey"
+            columns: ["replacement_order_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_internal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_replacement_ticket_id_fkey"
+            columns: ["replacement_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_request_tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -1826,6 +1846,199 @@ export type Database = {
         }
         Relationships: []
       }
+      replacement_internal_orders: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
+          delivery_fee: number | null
+          delivery_method: string | null
+          fulfillment_type: string | null
+          id: string
+          installation_fee: number | null
+          installation_selected: boolean | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_status: string | null
+          is_quote: boolean | null
+          items_subtotal: number | null
+          notes_internal: string | null
+          order_number: string | null
+          payment_confirmed: boolean | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
+          payment_reference: string | null
+          quote_approved_at: string | null
+          quote_approved_by: string | null
+          return_deadline: string | null
+          return_fee: number | null
+          return_received: boolean | null
+          return_required: boolean | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          service_province: string | null
+          status: string | null
+          subtotal: number | null
+          technician_required: boolean | null
+          ticket_id: string
+          total_amount: number | null
+          tps_amount: number | null
+          tvq_amount: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          delivery_fee?: number | null
+          delivery_method?: string | null
+          fulfillment_type?: string | null
+          id?: string
+          installation_fee?: number | null
+          installation_selected?: boolean | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_status?: string | null
+          is_quote?: boolean | null
+          items_subtotal?: number | null
+          notes_internal?: string | null
+          order_number?: string | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_reference?: string | null
+          quote_approved_at?: string | null
+          quote_approved_by?: string | null
+          return_deadline?: string | null
+          return_fee?: number | null
+          return_received?: boolean | null
+          return_required?: boolean | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
+          status?: string | null
+          subtotal?: number | null
+          technician_required?: boolean | null
+          ticket_id: string
+          total_amount?: number | null
+          tps_amount?: number | null
+          tvq_amount?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          delivery_fee?: number | null
+          delivery_method?: string | null
+          fulfillment_type?: string | null
+          id?: string
+          installation_fee?: number | null
+          installation_selected?: boolean | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_status?: string | null
+          is_quote?: boolean | null
+          items_subtotal?: number | null
+          notes_internal?: string | null
+          order_number?: string | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_reference?: string | null
+          quote_approved_at?: string | null
+          quote_approved_by?: string | null
+          return_deadline?: string | null
+          return_fee?: number | null
+          return_received?: boolean | null
+          return_required?: boolean | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
+          status?: string | null
+          subtotal?: number | null
+          technician_required?: boolean | null
+          ticket_id?: string
+          total_amount?: number | null
+          tps_amount?: number | null
+          tvq_amount?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_internal_orders_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_request_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_order_items: {
+        Row: {
+          backorder_eta: string | null
+          created_at: string | null
+          id: string
+          in_stock: boolean | null
+          item_name: string
+          item_type: string
+          line_total: number | null
+          order_id: string
+          quantity: number | null
+          sku: string | null
+          taxable: boolean | null
+          unit_price: number | null
+        }
+        Insert: {
+          backorder_eta?: string | null
+          created_at?: string | null
+          id?: string
+          in_stock?: boolean | null
+          item_name: string
+          item_type: string
+          line_total?: number | null
+          order_id: string
+          quantity?: number | null
+          sku?: string | null
+          taxable?: boolean | null
+          unit_price?: number | null
+        }
+        Update: {
+          backorder_eta?: string | null
+          created_at?: string | null
+          id?: string
+          in_stock?: boolean | null
+          item_name?: string
+          item_type?: string
+          line_total?: number | null
+          order_id?: string
+          quantity?: number | null
+          sku?: string | null
+          taxable?: boolean | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_internal_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       replacement_orders: {
         Row: {
           admin_fee: number | null
@@ -1981,6 +2194,159 @@ export type Database = {
           },
         ]
       }
+      replacement_request_tickets: {
+        Row: {
+          account_id: string | null
+          assigned_to_id: string | null
+          assigned_to_name: string | null
+          attachment_urls: Json | null
+          billable_acknowledged: boolean | null
+          category: string
+          client_email: string | null
+          client_message: string | null
+          client_name: string | null
+          created_at: string | null
+          id: string
+          internal_notes: string | null
+          preferred_fulfillment: string | null
+          priority: string | null
+          reason: string
+          reason_details: string | null
+          service_location_id: string | null
+          status: string
+          ticket_number: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          attachment_urls?: Json | null
+          billable_acknowledged?: boolean | null
+          category?: string
+          client_email?: string | null
+          client_message?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          id?: string
+          internal_notes?: string | null
+          preferred_fulfillment?: string | null
+          priority?: string | null
+          reason?: string
+          reason_details?: string | null
+          service_location_id?: string | null
+          status?: string
+          ticket_number?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          attachment_urls?: Json | null
+          billable_acknowledged?: boolean | null
+          category?: string
+          client_email?: string | null
+          client_message?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          id?: string
+          internal_notes?: string | null
+          preferred_fulfillment?: string | null
+          priority?: string | null
+          reason?: string
+          reason_details?: string | null
+          service_location_id?: string | null
+          status?: string
+          ticket_number?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_request_tickets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_request_tickets_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_shipments: {
+        Row: {
+          carrier: string | null
+          created_at: string | null
+          delivered_at: string | null
+          estimated_delivery: string | null
+          id: string
+          order_id: string
+          shipped_at: string | null
+          shipped_by_id: string | null
+          shipped_by_name: string | null
+          status: string | null
+          ticket_id: string | null
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          carrier?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          order_id: string
+          shipped_at?: string | null
+          shipped_by_id?: string | null
+          shipped_by_name?: string | null
+          status?: string | null
+          ticket_id?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          carrier?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          order_id?: string
+          shipped_at?: string | null
+          shipped_by_id?: string | null
+          shipped_by_name?: string | null
+          status?: string | null
+          ticket_id?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_internal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_shipments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_request_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       replacement_tickets: {
         Row: {
           billable_acknowledged: boolean | null
@@ -2057,6 +2423,63 @@ export type Database = {
             columns: ["linked_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_timeline: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          created_at: string | null
+          event_description: string | null
+          event_title: string
+          event_type: string
+          id: string
+          order_id: string | null
+          ticket_id: string | null
+          visible_to_client: boolean | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string | null
+          event_description?: string | null
+          event_title: string
+          event_type: string
+          id?: string
+          order_id?: string | null
+          ticket_id?: string | null
+          visible_to_client?: boolean | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string | null
+          event_description?: string | null
+          event_title?: string
+          event_type?: string
+          id?: string
+          order_id?: string | null
+          ticket_id?: string | null
+          visible_to_client?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_timeline_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_internal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_timeline_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_request_tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -2668,6 +3091,8 @@ export type Database = {
           linked_order_id: string | null
           notes: string | null
           priority: string | null
+          replacement_order_id: string | null
+          replacement_ticket_id: string | null
           scheduled_end: string | null
           scheduled_start: string | null
           service_address: string | null
@@ -2700,6 +3125,8 @@ export type Database = {
           linked_order_id?: string | null
           notes?: string | null
           priority?: string | null
+          replacement_order_id?: string | null
+          replacement_ticket_id?: string | null
           scheduled_end?: string | null
           scheduled_start?: string | null
           service_address?: string | null
@@ -2732,6 +3159,8 @@ export type Database = {
           linked_order_id?: string | null
           notes?: string | null
           priority?: string | null
+          replacement_order_id?: string | null
+          replacement_ticket_id?: string | null
           scheduled_end?: string | null
           scheduled_start?: string | null
           service_address?: string | null
@@ -2767,6 +3196,20 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "work_orders_replacement_order_id_fkey"
+            columns: ["replacement_order_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_internal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_replacement_ticket_id_fkey"
+            columns: ["replacement_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_request_tickets"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -2784,7 +3227,15 @@ export type Database = {
       generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_payment_reference: { Args: never; Returns: string }
+      generate_replacement_internal_order_number: {
+        Args: never
+        Returns: string
+      }
       generate_replacement_order_number: { Args: never; Returns: string }
+      generate_replacement_request_ticket_number: {
+        Args: never
+        Returns: string
+      }
       generate_replacement_ticket_number: { Args: never; Returns: string }
       generate_request_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
@@ -2803,6 +3254,17 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client" | "technician" | "employee"
+      fulfillment_type: "ship" | "technician" | "pickup"
+      internal_order_status:
+        | "draft"
+        | "quoted"
+        | "invoiced"
+        | "awaiting_payment"
+        | "ready_to_fulfill"
+        | "shipped"
+        | "tech_dispatched"
+        | "completed"
+        | "cancelled"
       replacement_order_status:
         | "open"
         | "awaiting_decision"
@@ -2821,6 +3283,31 @@ export type Database = {
         | "malfunction"
         | "upgrade"
         | "other"
+      replacement_ticket_category:
+        | "replacement"
+        | "sim"
+        | "accessory"
+        | "phone"
+        | "equipment"
+        | "other"
+      replacement_ticket_reason:
+        | "lost"
+        | "stolen"
+        | "broken"
+        | "defective"
+        | "upgrade"
+        | "other"
+      replacement_ticket_status:
+        | "open"
+        | "needs_quote"
+        | "quote_sent"
+        | "quote_approved"
+        | "invoiced"
+        | "awaiting_payment"
+        | "paid"
+        | "fulfillment_in_progress"
+        | "completed"
+        | "cancelled"
       work_order_status:
         | "assigned"
         | "scheduled"
@@ -2960,6 +3447,18 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client", "technician", "employee"],
+      fulfillment_type: ["ship", "technician", "pickup"],
+      internal_order_status: [
+        "draft",
+        "quoted",
+        "invoiced",
+        "awaiting_payment",
+        "ready_to_fulfill",
+        "shipped",
+        "tech_dispatched",
+        "completed",
+        "cancelled",
+      ],
       replacement_order_status: [
         "open",
         "awaiting_decision",
@@ -2979,6 +3478,34 @@ export const Constants = {
         "malfunction",
         "upgrade",
         "other",
+      ],
+      replacement_ticket_category: [
+        "replacement",
+        "sim",
+        "accessory",
+        "phone",
+        "equipment",
+        "other",
+      ],
+      replacement_ticket_reason: [
+        "lost",
+        "stolen",
+        "broken",
+        "defective",
+        "upgrade",
+        "other",
+      ],
+      replacement_ticket_status: [
+        "open",
+        "needs_quote",
+        "quote_sent",
+        "quote_approved",
+        "invoiced",
+        "awaiting_payment",
+        "paid",
+        "fulfillment_in_progress",
+        "completed",
+        "cancelled",
       ],
       work_order_status: [
         "assigned",
