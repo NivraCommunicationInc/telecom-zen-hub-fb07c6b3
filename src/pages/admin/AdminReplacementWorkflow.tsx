@@ -125,6 +125,14 @@ interface Profile {
   service_postal_code: string;
 }
 
+interface Technician {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  status: string;
+}
+
 // Item presets
 const ITEM_PRESETS = [
   { type: "sim", name: "Carte SIM Standard", price: 10 },
@@ -242,15 +250,15 @@ const AdminReplacementWorkflow = () => {
   });
 
   // Fetch technicians
-  const { data: technicians = [] } = useQuery({
+  const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["technicians-list"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("technicians")
-        .select("*")
-        .eq("is_active", true);
+        .select("id, full_name, email, phone, status")
+        .eq("status", "active");
       if (error) throw error;
-      return data;
+      return (data || []) as Technician[];
     },
   });
 
