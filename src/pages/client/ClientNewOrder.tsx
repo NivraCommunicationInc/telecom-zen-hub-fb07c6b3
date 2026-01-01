@@ -115,8 +115,14 @@ const ROUTER_CONFIG = {
 
 // SIM configuration for Mobile orders
 const SIM_CONFIG = {
-  name: "Nivra eSIM / Physical SIM",
-  price: 60,
+  esim: {
+    name: "Nivra eSIM",
+    price: 25,
+  },
+  physical: {
+    name: "Nivra Physical SIM",
+    price: 30,
+  },
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
   notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
 };
@@ -227,8 +233,10 @@ const ClientNewOrder = () => {
   const [transferImei, setTransferImei] = useState("");
   const [transferValidationResult, setTransferValidationResult] = useState<"valid" | "invalid" | null>(null);
   const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string>("");
+  
+  // SIM type selection state
+  const [simType, setSimType] = useState<"esim" | "physical">("esim");
 
-  // Payment state
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
@@ -433,8 +441,9 @@ const ClientNewOrder = () => {
         : '';
       
       // Prepare SIM info for notes
+      const selectedSim = SIM_CONFIG[simType];
       const simInfo = hasMobileService
-        ? `\n\n**Carte SIM:**\n${SIM_CONFIG.name} = ${SIM_CONFIG.price.toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
+        ? `\n\n**Carte SIM:**\n${selectedSim.name} = ${selectedSim.price.toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
         : '';
 
       // Prepare delivery info for notes
@@ -445,7 +454,7 @@ const ClientNewOrder = () => {
       const equipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-        (hasMobileService ? SIM_CONFIG.price : 0);
+        (hasMobileService ? SIM_CONFIG[simType].price : 0);
 
       // Calculate delivery fee based on order type
       const orderDeliveryFee = isDeliveryOnlyOrder 
@@ -557,7 +566,7 @@ const ClientNewOrder = () => {
       const invoiceEquipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-        (hasMobileService ? SIM_CONFIG.price : 0);
+        (hasMobileService ? SIM_CONFIG[simType].price : 0);
       const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
       
       // Calculate invoice delivery fee based on order type
@@ -738,7 +747,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
-  const simFee = hasMobileService ? SIM_CONFIG.price : 0;
+  const simFee = hasMobileService ? SIM_CONFIG[simType].price : 0;
   
   // Fee logic based on installation choice OR delivery choice for delivery-only orders
   const calculateDeliveryFee = (): number => {
@@ -1480,33 +1489,68 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* SIM Card Info */}
+              {/* SIM Card Selection */}
               <Card className="bg-card border-blue-500/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Smartphone className="w-5 h-5 text-blue-500" />
-                    Carte SIM - {SIM_CONFIG.name}
+                    Carte SIM
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                        <Smartphone className="w-6 h-6 text-blue-500" />
+                  <p className="text-sm text-muted-foreground">Sélectionnez votre type de carte SIM:</p>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* eSIM Option */}
+                    <div
+                      onClick={() => setSimType("esim")}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        simType === "esim"
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-border hover:border-blue-500/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                          simType === "esim" ? "border-blue-500" : "border-muted-foreground"
+                        }`}>
+                          {simType === "esim" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                        </div>
+                        <span className="font-medium">{SIM_CONFIG.esim.name}</span>
                       </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{SIM_CONFIG.name}</p>
-                        <p className="text-sm text-muted-foreground">{SIM_CONFIG.warranty}</p>
-                      </div>
+                      <p className="text-lg font-bold text-blue-500">
+                        {SIM_CONFIG.esim.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Activation instantanée</p>
                     </div>
-                    <p className="font-bold text-blue-500">
-                      {SIM_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      <span className="text-xs font-normal text-muted-foreground"> (frais unique)</span>
-                    </p>
+                    
+                    {/* Physical SIM Option */}
+                    <div
+                      onClick={() => setSimType("physical")}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        simType === "physical"
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-border hover:border-blue-500/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                          simType === "physical" ? "border-blue-500" : "border-muted-foreground"
+                        }`}>
+                          {simType === "physical" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                        </div>
+                        <span className="font-medium">{SIM_CONFIG.physical.name}</span>
+                      </div>
+                      <p className="text-lg font-bold text-blue-500">
+                        {SIM_CONFIG.physical.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Livraison incluse</p>
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground space-y-1">
+                  
+                  <div className="text-sm text-muted-foreground space-y-1 pt-2">
+                    <p>• {SIM_CONFIG.warranty}</p>
                     <p>• {SIM_CONFIG.notes}</p>
-                    <p>• Plusieurs services peuvent être commandés sous un seul compte client et une seule facture</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1542,8 +1586,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-blue-500">{SIM_CONFIG.name}</span>
-                      <span className="text-blue-500">{SIM_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
+                      <span className="text-blue-500">{SIM_CONFIG[simType].price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
@@ -2079,7 +2123,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-blue-500">{SIM_CONFIG.name}</span>
+                        <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
@@ -2232,12 +2276,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           <Smartphone className="w-5 h-5 text-blue-500" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{SIM_CONFIG.name}</p>
+                          <p className="font-medium text-foreground">{SIM_CONFIG[simType].name}</p>
                           <p className="text-sm text-muted-foreground">Frais unique (payé à la commande)</p>
                         </div>
                       </div>
                       <p className="font-bold text-blue-500">
-                        {SIM_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {SIM_CONFIG[simType].price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </p>
                     </div>
                     <div className="space-y-1 text-xs text-muted-foreground">
@@ -2617,7 +2661,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-blue-500">{SIM_CONFIG.name}</span>
+                        <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
