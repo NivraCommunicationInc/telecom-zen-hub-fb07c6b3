@@ -40,11 +40,12 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     { path: "/portal/appointments", label: "Rendez-vous", icon: Calendar },
     { path: "/portal/new-order", label: "Nouvelle commande", icon: ShoppingCart },
     { path: "/portal/orders", label: "Mes commandes", icon: Package },
+    { path: "/portal/services", label: "Mes services", icon: CreditCard },
     { path: "/portal/channels", label: "Chaînes TV", icon: Tv },
     { path: "/portal/invoices", label: "Factures", icon: FileText },
     { path: "/portal/contracts", label: "Contrats", icon: FileText },
     { path: "/portal/tickets", label: "Support", icon: MessageSquare },
-    { path: "/portal/profile", label: "Mon profil & Services", icon: User },
+    { path: "/portal/profile", label: "Mon profil", icon: User },
     { path: "/portal/payments", label: "Paiements", icon: CreditCard },
   ];
 
