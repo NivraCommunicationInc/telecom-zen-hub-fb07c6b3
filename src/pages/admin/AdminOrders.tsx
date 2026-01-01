@@ -162,7 +162,7 @@ const AdminOrders = () => {
         const userIds = [...new Set(ordersData.map((o: any) => o.user_id))];
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, email, full_name, phone, service_address, service_city, service_province, service_postal_code, id_type, id_number, id_expiration, id_province")
+          .select("user_id, email, full_name, phone, service_address, service_city, service_province, service_postal_code, id_type, id_number, id_expiration, id_province, date_of_birth, first_name, last_name")
           .in("user_id", userIds);
 
         return ordersData.map((order: any) => ({
@@ -1353,14 +1353,53 @@ const AdminOrders = () => {
                           </Badge>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                        {/* Client Info Summary */}
+                        <Card className="bg-accent/20 border-accent/30">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
+                              <User className="w-3 h-3" />
+                              Information du client
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Nom complet</Label>
+                              <p className="font-medium">
+                                {selectedOrder.profiles?.first_name && selectedOrder.profiles?.last_name
+                                  ? `${selectedOrder.profiles.first_name} ${selectedOrder.profiles.last_name}`
+                                  : selectedOrder.profiles?.full_name || "Non fourni"}
+                              </p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Date de naissance</Label>
+                              <p className="font-medium">
+                                {selectedOrder.profiles?.date_of_birth
+                                  ? format(new Date(selectedOrder.profiles.date_of_birth), "d MMMM yyyy", { locale: fr })
+                                  : "Non fourni"}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* ID Details Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Type de pièce</Label>
-                            <p className="font-medium">{selectedOrder.profiles?.id_type || "Non fourni"}</p>
+                            <Label className="text-xs text-muted-foreground">Type de pièce d'identité</Label>
+                            <p className="font-medium">
+                              {selectedOrder.profiles?.id_type === "drivers_license" && "Permis de conduire"}
+                              {selectedOrder.profiles?.id_type === "passport" && "Passeport"}
+                              {selectedOrder.profiles?.id_type === "health_card" && "Carte d'assurance maladie"}
+                              {selectedOrder.profiles?.id_type === "residency_card" && "Carte de résident permanent"}
+                              {!selectedOrder.profiles?.id_type && "Non fourni"}
+                            </p>
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Numéro</Label>
+                            <Label className="text-xs text-muted-foreground">Numéro de pièce</Label>
                             <p className="font-medium font-mono">{selectedOrder.profiles?.id_number || "Non fourni"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Province d'émission</Label>
+                            <p className="font-medium">{selectedOrder.profiles?.id_province || "Non fourni"}</p>
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Date d'expiration</Label>
@@ -1371,10 +1410,26 @@ const AdminOrders = () => {
                             </p>
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Province</Label>
-                            <p className="font-medium">{selectedOrder.profiles?.id_province || "Non fourni"}</p>
+                            <Label className="text-xs text-muted-foreground">Date d'émission</Label>
+                            <p className="font-medium text-muted-foreground italic">Non disponible</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Document téléversé</Label>
+                            <p className="font-medium text-muted-foreground italic">Non disponible</p>
                           </div>
                         </div>
+
+                        {/* Verification Warning for Missing Data */}
+                        {(!selectedOrder.profiles?.id_type || !selectedOrder.profiles?.id_number) && (
+                          <Card className="bg-amber-500/10 border-amber-500/30">
+                            <CardContent className="py-3 flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              <p className="text-sm text-amber-600">
+                                Données d'identité incomplètes - Le client n'a pas soumis toutes les informations requises.
+                              </p>
+                            </CardContent>
+                          </Card>
+                        )}
 
                         <div>
                           <Label>Notes de vérification</Label>
