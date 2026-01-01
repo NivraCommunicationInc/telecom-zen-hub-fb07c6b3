@@ -60,7 +60,10 @@ const TIME_SLOTS = [
 const SERVICE_TYPES = [
   { value: "internet", label: "Internet", icon: Wifi },
   { value: "tv_internet", label: "TV + Internet", icon: Tv },
-  { value: "giga_tv", label: "GIGA + TV", icon: Package },
+  { value: "giga_tv", label: "GIGA + TV Bundle", icon: Package },
+  { value: "mobile", label: "Mobile", icon: Phone },
+  { value: "streaming", label: "Streaming", icon: Tv },
+  { value: "accessories", label: "Accessoires", icon: Package },
   { value: "security", label: "Sécurité", icon: Shield },
 ];
 

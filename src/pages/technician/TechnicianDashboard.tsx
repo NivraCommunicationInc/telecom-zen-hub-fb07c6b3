@@ -54,12 +54,14 @@ import {
   Edit,
   Shield,
   User,
+  History,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, isAfter, addHours, isBefore } from "date-fns";
+import { format, isAfter, addHours, isBefore, isPast, isToday, isFuture } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { AppointmentHistoryTimeline } from "@/components/appointments/AppointmentHistoryTimeline";
 
 const statusConfig: Record<string, { color: string; label: string; icon: any }> = {
   pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente", icon: Clock },
@@ -90,6 +92,7 @@ const TechnicianDashboard = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: string; data?: any } | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState("upcoming");
 
   // Form states
   const [updateReason, setUpdateReason] = useState("");
@@ -364,12 +367,16 @@ const TechnicianDashboard = () => {
     return a.status === statusFilter;
   });
 
-  // Filter upcoming appointments (24h+ before)
-  const upcomingAppointments = assignments?.filter((a: any) => {
+  // Filter upcoming appointments (future)
+  const upcomingAssignments = assignments?.filter((a: any) => {
     if (!a.appointment_date) return false;
-    const appointmentTime = new Date(a.appointment_date);
-    const now = new Date();
-    return isAfter(appointmentTime, addHours(now, 24));
+    return isFuture(new Date(a.appointment_date)) || isToday(new Date(a.appointment_date));
+  });
+
+  // Filter past appointments
+  const pastAssignments = assignments?.filter((a: any) => {
+    if (!a.appointment_date) return false;
+    return isPast(new Date(a.appointment_date)) && !isToday(new Date(a.appointment_date));
   });
 
   const todayAppointments = assignments?.filter((a: any) => {
@@ -477,7 +484,7 @@ const TechnicianDashboard = () => {
           <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
               <Package className="w-6 h-6 text-cyan-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold">{upcomingAppointments?.length || 0}</p>
+              <p className="text-2xl font-bold">{upcomingAssignments?.length || 0}</p>
               <p className="text-xs text-muted-foreground">À venir</p>
             </CardContent>
           </Card>
