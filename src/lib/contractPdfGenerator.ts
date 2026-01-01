@@ -509,14 +509,38 @@ export const generateContractPDF = (data: ContractData): jsPDF => {
   return doc;
 };
 
-export const downloadContractPDF = (data: ContractData) => {
-  const doc = generateContractPDF(data);
-  doc.save(`Contrat_${data.contractNumber}_${data.clientName.replace(/\s+/g, '_')}.pdf`);
+import { safePDFDownload, safePDFOpen } from "./pdfUtils";
+
+export const downloadContractPDF = (data: ContractData): void => {
+  try {
+    const doc = generateContractPDF(data);
+    const blob = doc.output("blob");
+    const filename = `Contrat_${data.contractNumber}_${data.clientName.replace(/\s+/g, '_')}.pdf`;
+    safePDFDownload(blob, filename);
+  } catch (error) {
+    console.error("Error generating contract PDF:", error);
+    throw new Error("Failed to generate contract PDF");
+  }
 };
 
-export const viewContractPDF = (data: ContractData) => {
-  const doc = generateContractPDF(data);
-  const pdfBlob = doc.output("blob");
-  const url = URL.createObjectURL(pdfBlob);
-  window.open(url, "_blank");
+export const viewContractPDF = (data: ContractData): void => {
+  try {
+    const doc = generateContractPDF(data);
+    const blob = doc.output("blob");
+    const filename = `Contrat_${data.contractNumber}.pdf`;
+    safePDFOpen(blob, filename);
+  } catch (error) {
+    console.error("Error viewing contract PDF:", error);
+    throw new Error("Failed to open contract PDF");
+  }
+};
+
+export const getContractPDFBlob = (data: ContractData): Blob => {
+  try {
+    const doc = generateContractPDF(data);
+    return doc.output("blob");
+  } catch (error) {
+    console.error("Error creating contract PDF blob:", error);
+    throw new Error("Failed to create contract PDF");
+  }
 };

@@ -404,8 +404,9 @@ const AdminClients = () => {
         .from("profiles")
         .select(field)
         .eq("id", clientId)
-        .single();
+        .maybeSingle();
       if (fetchError) throw fetchError;
+      if (!current) throw new Error("Profile not found");
       
       const currentValue = Number(current?.[field] || 0);
       const newValue = operation === 'add' ? currentValue + amount : Math.max(0, currentValue - amount);
@@ -1857,14 +1858,89 @@ const AdminClients = () => {
                 <div className="p-8 bg-muted/30 rounded-lg border border-dashed border-border text-center">
                   <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground mb-4">Aperçu du document</p>
-                  <p className="text-sm text-muted-foreground">{selectedDocument.document_url}</p>
+                  <p className="text-sm text-muted-foreground break-all">{selectedDocument.document_url}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button className="flex-1" variant="outline">
+                  <Button 
+                    className="flex-1" 
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        if (selectedDocument.document_type === 'contract' && selectedDocument.contract_url) {
+                          // This is a generated contract - use the contract generator
+                          const contractData = {
+                            contractNumber: selectedDocument.contract_url || selectedDocument.id?.slice(0, 8).toUpperCase(),
+                            contractName: selectedDocument.document_name || "Contrat",
+                            clientName: selectedClient?.full_name || "Client",
+                            clientEmail: selectedClient?.email || "",
+                            clientPhone: selectedClient?.phone || "",
+                            serviceDescription: `Contrat de services - ${selectedDocument.document_name}`,
+                            startDate: selectedDocument.created_at,
+                            isSigned: selectedDocument.is_signed || false,
+                            signedAt: selectedDocument.signed_at,
+                            employeeName: "Nivra Télécom",
+                            employeeTitle: "Service Client",
+                          };
+                          downloadContractPDF(contractData);
+                        } else if (selectedDocument.document_url?.startsWith('http')) {
+                          // External URL - fetch and download
+                          const response = await fetch(selectedDocument.document_url);
+                          if (!response.ok) throw new Error("Failed to fetch document");
+                          const blob = await response.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = selectedDocument.document_name || "document";
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        } else {
+                          toast({ title: "URL du document non disponible", variant: "destructive" });
+                        }
+                        toast({ title: "Document téléchargé" });
+                      } catch (error) {
+                        console.error("Download error:", error);
+                        toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
+                      }
+                    }}
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Télécharger
                   </Button>
-                  <Button className="flex-1" variant="outline">
+                  <Button 
+                    className="flex-1" 
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        if (selectedDocument.document_type === 'contract' && selectedDocument.contract_url) {
+                          // This is a generated contract - use the contract generator
+                          const contractData = {
+                            contractNumber: selectedDocument.contract_url || selectedDocument.id?.slice(0, 8).toUpperCase(),
+                            contractName: selectedDocument.document_name || "Contrat",
+                            clientName: selectedClient?.full_name || "Client",
+                            clientEmail: selectedClient?.email || "",
+                            clientPhone: selectedClient?.phone || "",
+                            serviceDescription: `Contrat de services - ${selectedDocument.document_name}`,
+                            startDate: selectedDocument.created_at,
+                            isSigned: selectedDocument.is_signed || false,
+                            signedAt: selectedDocument.signed_at,
+                            employeeName: "Nivra Télécom",
+                            employeeTitle: "Service Client",
+                          };
+                          viewContractPDF(contractData);
+                        } else if (selectedDocument.document_url?.startsWith('http')) {
+                          // External URL - open safely in new tab
+                          window.open(selectedDocument.document_url, "_blank", "noopener,noreferrer");
+                        } else {
+                          toast({ title: "URL du document non disponible", variant: "destructive" });
+                        }
+                      } catch (error) {
+                        console.error("Open error:", error);
+                        toast({ title: "Erreur lors de l'ouverture", variant: "destructive" });
+                      }
+                    }}
+                  >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Ouvrir
                   </Button>

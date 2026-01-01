@@ -14,7 +14,8 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { downloadInvoicePDF, generateInvoicePDF } from "@/lib/invoicePdfGenerator";
+import { downloadInvoicePDF, getInvoicePDFBlob } from "@/lib/invoicePdfGenerator";
+import { safePDFPrint } from "@/lib/pdfUtils";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -1330,39 +1331,37 @@ const ClientInvoices = () => {
                     <Button 
                       variant="outline"
                       onClick={() => {
-                        const invoiceData = {
-                          invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
-                          orderNumber: previewInvoice.related_order_number,
-                          clientName: profile?.full_name || "Client",
-                          clientEmail: profile?.email || user?.email || "",
-                          clientPhone: profile?.phone,
-                          subtotal: Number(previewInvoice.subtotal || previewInvoice.amount) || 0,
-                          fees: Number(previewInvoice.fees) || 0,
-                          credits: Number(previewInvoice.credits) || 0,
-                          deliveryFee: Number(previewInvoice.delivery_fee) || 0,
-                          activationFee: Number(previewInvoice.activation_fee) || 0,
-                          installationFee: Number(previewInvoice.installation_fee) || 0,
-                          discountAmount: Number(previewInvoice.discount_amount) || 0,
-                          tpsAmount: Number(previewInvoice.tps_amount) || 0,
-                          tvqAmount: Number(previewInvoice.tvq_amount) || 0,
-                          lateFeeAmount: Number(previewInvoice.late_fee_amount) || 0,
-                          dueDate: previewInvoice.due_date,
-                          createdAt: previewInvoice.created_at,
-                          status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
-                          paidAt: previewInvoice.paid_at,
-                          notes: previewInvoice.notes,
-                          equipmentId: previewInvoice.equipment_id,
-                        };
-                        const doc = generateInvoicePDF(invoiceData);
-                        const pdfBlob = doc.output("blob");
-                        const url = URL.createObjectURL(pdfBlob);
-                        const printWindow = window.open(url, "_blank");
-                        if (printWindow) {
-                          printWindow.onload = () => {
-                            printWindow.print();
+                        try {
+                          const invoiceData = {
+                            invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
+                            orderNumber: previewInvoice.related_order_number,
+                            clientName: profile?.full_name || "Client",
+                            clientEmail: profile?.email || user?.email || "",
+                            clientPhone: profile?.phone,
+                            subtotal: Number(previewInvoice.subtotal || previewInvoice.amount) || 0,
+                            fees: Number(previewInvoice.fees) || 0,
+                            credits: Number(previewInvoice.credits) || 0,
+                            deliveryFee: Number(previewInvoice.delivery_fee) || 0,
+                            activationFee: Number(previewInvoice.activation_fee) || 0,
+                            installationFee: Number(previewInvoice.installation_fee) || 0,
+                            discountAmount: Number(previewInvoice.discount_amount) || 0,
+                            tpsAmount: Number(previewInvoice.tps_amount) || 0,
+                            tvqAmount: Number(previewInvoice.tvq_amount) || 0,
+                            lateFeeAmount: Number(previewInvoice.late_fee_amount) || 0,
+                            dueDate: previewInvoice.due_date,
+                            createdAt: previewInvoice.created_at,
+                            status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
+                            paidAt: previewInvoice.paid_at,
+                            notes: previewInvoice.notes,
+                            equipmentId: previewInvoice.equipment_id,
                           };
+                          const pdfBlob = getInvoicePDFBlob(invoiceData);
+                          safePDFPrint(pdfBlob);
+                          toast.success("Ouverture pour impression...");
+                        } catch (error) {
+                          console.error("Print error:", error);
+                          toast.error("Erreur lors de l'impression");
                         }
-                        toast.success("Ouverture pour impression...");
                       }}
                     >
                       <Printer className="w-4 h-4 mr-2" />
