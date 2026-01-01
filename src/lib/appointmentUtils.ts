@@ -104,9 +104,27 @@ export const parseScheduledDateTime = (dateStr: string, timeSlot: string): Date 
  */
 export const createAppointmentFromOrder = async (data: AppointmentData): Promise<CreateAppointmentResult> => {
   try {
+    // Validate required fields
+    if (!data.userId) {
+      return { success: false, error: "User ID is required" };
+    }
+    if (!data.scheduledDate || !data.scheduledTime) {
+      return { success: false, error: "Scheduled date and time are required" };
+    }
+    
     const appointmentType = getAppointmentType(data.serviceType, data.category);
     const title = generateAppointmentTitle(data.serviceType, data.installationMethod);
-    const scheduledAt = parseScheduledDateTime(data.scheduledDate, data.scheduledTime);
+    
+    // Safe date parsing with validation
+    let scheduledAt: Date;
+    try {
+      scheduledAt = parseScheduledDateTime(data.scheduledDate, data.scheduledTime);
+      if (isNaN(scheduledAt.getTime())) {
+        throw new Error("Invalid date");
+      }
+    } catch {
+      return { success: false, error: "Invalid date/time format" };
+    }
     
     // Calculate fees based on installation method
     const deliveryFee = data.installationMethod === "auto" ? (data.deliveryFee ?? 30) : 0;
@@ -115,22 +133,24 @@ export const createAppointmentFromOrder = async (data: AppointmentData): Promise
     const appointmentPayload = {
       order_id: data.orderId,
       client_id: data.userId,
-      client_email: data.clientEmail,
+      client_email: data.clientEmail || "",
       client_phone: data.clientPhone || null,
       title,
       description: `${appointmentType === "installation" ? "Installation" : "Livraison"} pour commande ${data.orderNumber || data.orderId}`,
-      service_type: data.serviceType,
-      service_address: data.serviceAddress,
+      service_type: data.serviceType || "Internet",
+      service_address: data.serviceAddress || "",
       service_city: data.serviceCity || null,
       service_postal_code: data.servicePostalCode || null,
-      installation_method: data.installationMethod,
+      installation_method: data.installationMethod || "auto",
       scheduled_at: scheduledAt.toISOString(),
       delivery_fee: deliveryFee,
       installation_fee: installationFee,
       equipment_details: data.equipmentDetails || [],
-      status: "scheduled",
+      status: data.installationMethod === "technician" ? "scheduled" : "scheduled",
       created_by: data.userId,
     };
+
+    console.log("Creating appointment with payload:", appointmentPayload);
 
     const { data: appointment, error } = await supabase
       .from("appointments")
@@ -147,7 +167,7 @@ export const createAppointmentFromOrder = async (data: AppointmentData): Promise
       return { success: false, error: "No appointment data returned" };
     }
 
-    console.log("Appointment created:", appointment.appointment_number);
+    console.log("Appointment created successfully:", appointment.appointment_number, appointment.id);
     return { success: true, appointment };
   } catch (err: any) {
     console.error("Appointment creation exception:", err);

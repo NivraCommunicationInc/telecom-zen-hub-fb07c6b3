@@ -309,9 +309,10 @@ const AdminAppointments = () => {
       }
     },
     onSuccess: (data) => {
-      if (queryClient) {
-        queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
-      }
+      // Invalidate all appointment queries for instant visibility
+      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-appointments"] });
       toast.success(`Rendez-vous créé: ${data?.appointment_number || 'ID généré'}`);
       setCreateDialogOpen(false);
       resetAppointmentForm();
@@ -439,6 +440,8 @@ const AdminAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-appointments"] });
       toast.success("Rendez-vous mis à jour");
     },
     onError: () => {
@@ -496,6 +499,8 @@ const AdminAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-appointments"] });
       toast.success("Rendez-vous reprogrammé");
       setRescheduleDialogOpen(false);
       setNewDate("");
@@ -534,6 +539,8 @@ const AdminAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-appointments"] });
       toast.success("Rendez-vous annulé");
       setCancelDialogOpen(false);
       setCancelReason("");
@@ -578,6 +585,8 @@ const AdminAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-appointments"] });
       toast.success("Technicien assigné");
       setAssignTechDialogOpen(false);
       setSelectedTechnician("");
@@ -602,6 +611,7 @@ const AdminAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       toast.success("Note ajoutée");
       setNotesDialogOpen(false);
       setInternalNote("");
