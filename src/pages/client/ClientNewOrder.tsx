@@ -124,6 +124,31 @@ const SIM_CONFIG = {
 // Quebec phone prefixes (area codes)
 const QUEBEC_PREFIXES = ["514", "450", "418", "438", "819", "367", "263", "579", "354", "873", "468"];
 
+// Uber Express delivery eligible area codes
+const UBER_ELIGIBLE_AREA_CODES = ["514", "450", "579", "438"];
+
+// Uber Express delivery eligible cities
+const UBER_ELIGIBLE_CITIES = [
+  "Montreal", "Montréal", "Laval", "Terrebonne", "Mascouche", 
+  "Repentigny", "Longueuil", "Saint-Hubert", "Brossard"
+];
+
+// Delivery configuration
+const DELIVERY_CONFIG = {
+  standard: {
+    name: "Livraison standard",
+    fee: 30,
+    timeframe: "24 à 78 heures ouvrables",
+    description: "Livraison partout au Québec"
+  },
+  uber: {
+    name: "Livraison Express Uber",
+    fee: 45,
+    timeframe: "10 heures",
+    description: "Disponible à Montréal, Laval, Terrebonne, Mascouche, Repentigny, Longueuil, Saint-Hubert, Brossard"
+  }
+};
+
 // Quebec carriers for transfer selection
 const QUEBEC_CARRIERS = [
   "Bell",
@@ -179,6 +204,9 @@ const ClientNewOrder = () => {
   
   // Installation choice state
   const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>(null);
+  
+  // Delivery choice state (for delivery-only orders: Mobile, Streaming, Accessories)
+  const [deliveryChoice, setDeliveryChoice] = useState<"standard" | "uber" | null>(null);
   
   // Appointment scheduling state
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -274,6 +302,22 @@ const ClientNewOrder = () => {
   
   // Check if Streaming service is selected
   const hasStreamingService = selectedServices.some(s => s.category === "Streaming");
+  
+  // Check if Extras/Accessories service is selected
+  const hasExtrasService = selectedServices.some(s => s.category === "Extras");
+  
+  // Check if this is a delivery-only order (Mobile, Streaming, or Accessories only - no technician installation)
+  const isDeliveryOnlyOrder = (hasMobileService || hasStreamingService || hasExtrasService) && 
+    !hasTVService && !hasInternetService && !selectedServices.some(s => s.category === "Sécurité");
+  
+  // Check if Uber delivery is available based on client's phone area code
+  const isUberDeliveryAvailable = (): boolean => {
+    if (!profile?.phone) return false;
+    const cleanNumber = profile.phone.replace(/\D/g, '');
+    if (cleanNumber.length < 10) return false;
+    const areaCode = cleanNumber.substring(0, 3);
+    return UBER_ELIGIBLE_AREA_CODES.includes(areaCode);
+  };
   
   // Get selected TV service to determine free channel limit
   const selectedTVService = selectedServices.find(s => s.category === "TV");
@@ -390,27 +434,43 @@ const ClientNewOrder = () => {
         ? `\n\n**Carte SIM:**\n${SIM_CONFIG.name} = ${SIM_CONFIG.price.toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
         : '';
 
+      // Prepare delivery info for notes
+      const deliveryInfo = isDeliveryOnlyOrder 
+        ? `\n\n**Livraison:**\n${deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.name : DELIVERY_CONFIG.standard.name}\nDélai: ${deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.timeframe : DELIVERY_CONFIG.standard.timeframe}\nFrais: ${deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee.toFixed(2) : DELIVERY_CONFIG.standard.fee.toFixed(2)}$`
+        : '';
+
       const equipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
         (hasMobileService ? SIM_CONFIG.price : 0);
 
+      // Calculate delivery fee based on order type
+      const orderDeliveryFee = isDeliveryOnlyOrder 
+        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : DELIVERY_CONFIG.standard.fee)
+        : (installationChoice === "auto" ? 30 : 0);
+
+      // Determine installation type for the order
+      const orderInstallationType = isDeliveryOnlyOrder 
+        ? (deliveryChoice === "uber" ? "uber_express" : "delivery_standard")
+        : installationChoice;
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
         service_type: serviceNames,
-        category: categories,
+        category: isDeliveryOnlyOrder ? "Delivery" : categories,
         subtotal: subtotal + paidChannelTotal + equipmentSubtotal,
-        delivery_fee: installationChoice === "auto" ? 30 : 0,
+        delivery_fee: orderDeliveryFee,
         activation_fee: 25,
-        installation_fee: installationChoice === "technician" ? 50 : 0,
+        installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
         installation_credit: installationCredit,
+        installation_type: orderInstallationType,
         discount_code: discountCode || null,
         status: "pending",
         payment_status: "pre_authorized",
         amount_paid: 0,
         created_by: "client",
-        notes: (notes || '') + routerInfo + equipmentInfo + simInfo,
+        notes: (notes || '') + routerInfo + equipmentInfo + simInfo + deliveryInfo,
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
@@ -453,12 +513,22 @@ const ClientNewOrder = () => {
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
         (hasMobileService ? SIM_CONFIG.price : 0);
       const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
-      const invoiceDeliveryFee = installationChoice === "auto" ? 30 : 0;
+      
+      // Calculate invoice delivery fee based on order type
+      const invoiceDeliveryFee = isDeliveryOnlyOrder 
+        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : DELIVERY_CONFIG.standard.fee)
+        : (installationChoice === "auto" ? 30 : 0);
+      
       const invoiceActivationFee = 25;
-      const invoiceInstallationFee = installationChoice === "technician" ? Math.max(0, 50 - installationCredit) : 0;
+      const invoiceInstallationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
       const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
       const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
       const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
+      
+      // Prepare delivery type note
+      const deliveryTypeNote = isDeliveryOnlyOrder 
+        ? `\nType de livraison: ${deliveryChoice === "uber" ? "Express Uber (10h)" : "Standard (24-78h)"}`
+        : '';
       
       const { error: billingError } = await supabase.from("billing").insert({
         user_id: user.id,
@@ -477,7 +547,7 @@ const ClientNewOrder = () => {
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? 'SIM' : null)),
         status: "pending",
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-        notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}`,
+        notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}`,
       });
 
       if (billingError) throw billingError;
@@ -624,17 +694,28 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const isSelected = (serviceId: string) => selectedServices.some(s => s.id === serviceId);
 
-  // Calculate totals with fees and taxes based on installation choice
+  // Calculate totals with fees and taxes based on installation/delivery choice
   const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
   const simFee = hasMobileService ? SIM_CONFIG.price : 0;
   
-  // Fee logic based on installation choice
-  const deliveryFee = installationChoice === "auto" ? 30 : 0;
+  // Fee logic based on installation choice OR delivery choice for delivery-only orders
+  const calculateDeliveryFee = (): number => {
+    if (isDeliveryOnlyOrder) {
+      // For Mobile, Streaming, Accessories - use delivery choice
+      if (deliveryChoice === "uber") return DELIVERY_CONFIG.uber.fee;
+      if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
+      return 0;
+    }
+    // For Internet, TV, Security - use installation choice
+    return installationChoice === "auto" ? 30 : 0;
+  };
+  
+  const deliveryFee = calculateDeliveryFee();
   const activationFee = 25;
-  const installationFee = installationChoice === "technician" ? Math.max(0, 50 - installationCredit) : 0;
+  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
   const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
@@ -724,13 +805,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez remplir tous les champs d'identification");
       return;
     }
-    if (!installationChoice) {
-      toast.error("Veuillez choisir un type d'installation");
-      return;
-    }
-    if (requiresInstallation && (!selectedDate || !selectedTime)) {
-      toast.error("Veuillez sélectionner une date et heure d'installation");
-      return;
+    // Validate delivery/installation choice based on order type
+    if (isDeliveryOnlyOrder) {
+      if (!deliveryChoice) {
+        toast.error("Veuillez choisir un mode de livraison");
+        return;
+      }
+    } else {
+      if (!installationChoice) {
+        toast.error("Veuillez choisir un type d'installation");
+        return;
+      }
+      if (requiresInstallation && (!selectedDate || !selectedTime)) {
+        toast.error("Veuillez sélectionner une date et heure d'installation");
+        return;
+      }
     }
     if (!isPaymentComplete) {
       toast.error("Veuillez compléter le paiement avant de soumettre votre commande");
@@ -1593,99 +1682,209 @@ END:VCALENDAR`;
                 </CardContent>
               </Card>
 
-              {/* Installation Choice Selector */}
-              <Card className="bg-card border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wrench className="w-5 h-5 text-purple-500" />
-                    Type d'installation
-                  </CardTitle>
-                  <CardDescription>
-                    Choisissez comment vous souhaitez installer vos services
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        installationChoice === "auto"
-                          ? "border-cyan-500 bg-cyan-500/10"
-                          : "border-border hover:border-cyan-500/50"
-                      }`}
-                      onClick={() => setInstallationChoice("auto")}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          installationChoice === "auto" ? "bg-cyan-500" : "bg-muted"
-                        }`}>
-                          <Truck className={`w-5 h-5 ${installationChoice === "auto" ? "text-white" : "text-muted-foreground"}`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-foreground">Auto-installation</p>
-                            <Badge variant="secondary" className="text-xs">30,00 $</Badge>
+              {/* Delivery/Installation Choice Selector */}
+              {isDeliveryOnlyOrder ? (
+                /* Delivery Options for Mobile, Streaming, Accessories */
+                <Card className="bg-card border-blue-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-blue-500" />
+                      Mode de livraison
+                    </CardTitle>
+                    <CardDescription>
+                      Choisissez votre mode de livraison pour recevoir votre équipement
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Standard Delivery */}
+                      <div
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          deliveryChoice === "standard"
+                            ? "border-cyan-500 bg-cyan-500/10"
+                            : "border-border hover:border-cyan-500/50"
+                        }`}
+                        onClick={() => setDeliveryChoice("standard")}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            deliveryChoice === "standard" ? "bg-cyan-500" : "bg-muted"
+                          }`}>
+                            <Truck className={`w-5 h-5 ${deliveryChoice === "standard" ? "text-white" : "text-muted-foreground"}`} />
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Équipement livré à domicile. Vous installez vous-même avec nos instructions.
-                          </p>
-                          <p className="text-xs text-cyan-500 mt-2">
-                            Frais de livraison: 30,00 $
-                          </p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-foreground">{DELIVERY_CONFIG.standard.name}</p>
+                              <Badge variant="secondary" className="text-xs">{DELIVERY_CONFIG.standard.fee.toFixed(2)} $</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {DELIVERY_CONFIG.standard.description}
+                            </p>
+                            <p className="text-xs text-cyan-500 mt-2">
+                              Délai: {DELIVERY_CONFIG.standard.timeframe}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        installationChoice === "technician"
-                          ? "border-purple-500 bg-purple-500/10"
-                          : "border-border hover:border-purple-500/50"
-                      }`}
-                      onClick={() => setInstallationChoice("technician")}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          installationChoice === "technician" ? "bg-purple-500" : "bg-muted"
-                        }`}>
-                          <Wrench className={`w-5 h-5 ${installationChoice === "technician" ? "text-white" : "text-muted-foreground"}`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-foreground">Technicien Nivra</p>
-                            <Badge variant="secondary" className="text-xs">{installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}</Badge>
+                      {/* Uber Express Delivery - only if eligible */}
+                      {isUberDeliveryAvailable() && (
+                        <div
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            deliveryChoice === "uber"
+                              ? "border-purple-500 bg-purple-500/10"
+                              : "border-border hover:border-purple-500/50"
+                          }`}
+                          onClick={() => setDeliveryChoice("uber")}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              deliveryChoice === "uber" ? "bg-purple-500" : "bg-muted"
+                            }`}>
+                              <Zap className={`w-5 h-5 ${deliveryChoice === "uber" ? "text-white" : "text-muted-foreground"}`} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium text-foreground">{DELIVERY_CONFIG.uber.name}</p>
+                                <Badge className="bg-purple-500/20 text-purple-500 border-0 text-xs">{DELIVERY_CONFIG.uber.fee.toFixed(2)} $</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {DELIVERY_CONFIG.uber.description}
+                              </p>
+                              <p className="text-xs text-purple-500 mt-2">
+                                Délai: {DELIVERY_CONFIG.uber.timeframe}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Un technicien se déplace pour installer et configurer vos services.
-                          </p>
-                          <p className="text-xs text-purple-500 mt-2">
-                            Frais d'installation: {installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}
-                          </p>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  </div>
 
-                  {!installationChoice && (
-                    <p className="text-sm text-amber-500 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Veuillez sélectionner un type d'installation
-                    </p>
-                  )}
+                    {!isUberDeliveryAvailable() && (
+                      <Card className="bg-amber-500/10 border-amber-500/30">
+                        <CardContent className="py-3 flex items-start gap-2">
+                          <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-muted-foreground">
+                            La livraison Express Uber (10h) est disponible uniquement pour les indicatifs régionaux 514, 450, 579, 438 
+                            (Montréal, Laval, Terrebonne, Mascouche, Repentigny, Longueuil, Saint-Hubert, Brossard).
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
 
-                  {/* Quebec address validation notice */}
-                  <Card className="bg-blue-500/10 border-blue-500/30">
-                    <CardContent className="py-3 flex items-start gap-2">
-                      <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-muted-foreground">
-                        L'installation par technicien est disponible uniquement pour les adresses au Québec.
+                    {!deliveryChoice && (
+                      <p className="text-sm text-amber-500 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Veuillez sélectionner un mode de livraison
                       </p>
-                    </CardContent>
-                  </Card>
-                </CardContent>
-              </Card>
+                    )}
 
-              {/* Appointment Scheduling - only for technician installation */}
-              {installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && (
+                    {deliveryChoice && (
+                      <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
+                        <CheckCircle2 className="w-4 h-4" />
+                        {deliveryChoice === "uber" 
+                          ? `Livraison Express Uber sélectionnée (${DELIVERY_CONFIG.uber.timeframe})`
+                          : `Livraison standard sélectionnée (${DELIVERY_CONFIG.standard.timeframe})`
+                        }
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                /* Installation Options for Internet, TV, Security */
+                <Card className="bg-card border-purple-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="w-5 h-5 text-purple-500" />
+                      Type d'installation
+                    </CardTitle>
+                    <CardDescription>
+                      Choisissez comment vous souhaitez installer vos services
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          installationChoice === "auto"
+                            ? "border-cyan-500 bg-cyan-500/10"
+                            : "border-border hover:border-cyan-500/50"
+                        }`}
+                        onClick={() => setInstallationChoice("auto")}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            installationChoice === "auto" ? "bg-cyan-500" : "bg-muted"
+                          }`}>
+                            <Truck className={`w-5 h-5 ${installationChoice === "auto" ? "text-white" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-foreground">Auto-installation</p>
+                              <Badge variant="secondary" className="text-xs">30,00 $</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Équipement livré à domicile. Vous installez vous-même avec nos instructions.
+                            </p>
+                            <p className="text-xs text-cyan-500 mt-2">
+                              Frais de livraison: 30,00 $
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          installationChoice === "technician"
+                            ? "border-purple-500 bg-purple-500/10"
+                            : "border-border hover:border-purple-500/50"
+                        }`}
+                        onClick={() => setInstallationChoice("technician")}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            installationChoice === "technician" ? "bg-purple-500" : "bg-muted"
+                          }`}>
+                            <Wrench className={`w-5 h-5 ${installationChoice === "technician" ? "text-white" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-foreground">Technicien Nivra</p>
+                              <Badge variant="secondary" className="text-xs">{installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Un technicien se déplace pour installer et configurer vos services.
+                            </p>
+                            <p className="text-xs text-purple-500 mt-2">
+                              Frais d'installation: {installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!installationChoice && (
+                      <p className="text-sm text-amber-500 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Veuillez sélectionner un type d'installation
+                      </p>
+                    )}
+
+                    {/* Quebec address validation notice */}
+                    <Card className="bg-blue-500/10 border-blue-500/30">
+                      <CardContent className="py-3 flex items-start gap-2">
+                        <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-muted-foreground">
+                          L'installation par technicien est disponible uniquement pour les adresses au Québec.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Appointment Scheduling - only for technician installation (non-delivery orders) */}
+              {!isDeliveryOnlyOrder && installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && (
                 <Card className="bg-card border-purple-500/30">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1817,31 +2016,57 @@ END:VCALENDAR`;
                       <span className="text-muted-foreground">Sous-total services</span>
                       <span className="text-foreground">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {installationChoice === "auto" && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-cyan-500">Frais de livraison (QC)</span>
-                        <span className="text-cyan-500">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
+                    {/* Delivery fee for delivery-only orders OR installation choice */}
+                    {isDeliveryOnlyOrder ? (
+                      deliveryChoice && (
+                        <div className="flex justify-between text-sm">
+                          <span className={deliveryChoice === "uber" ? "text-purple-500" : "text-cyan-500"}>
+                            {deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.name : DELIVERY_CONFIG.standard.name}
+                          </span>
+                          <span className={deliveryChoice === "uber" ? "text-purple-500" : "text-cyan-500"}>
+                            {deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        {installationChoice === "auto" && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-cyan-500">Frais de livraison (QC)</span>
+                            <span className="text-cyan-500">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                          </div>
+                        )}
+                        {installationChoice === "technician" && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-purple-500">Frais d'installation</span>
+                            <span className={installationCredit > 0 ? "text-emerald-500" : "text-purple-500"}>
+                              {installationCredit > 0 && <span className="line-through text-muted-foreground mr-1">50,00 $</span>}
+                              {installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {/* Prompt to select delivery/installation */}
+                    {isDeliveryOnlyOrder ? (
+                      !deliveryChoice && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground italic">Sélectionnez un mode de livraison</span>
+                          <span className="text-muted-foreground">—</span>
+                        </div>
+                      )
+                    ) : (
+                      !installationChoice && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground italic">Sélectionnez un type d'installation</span>
+                          <span className="text-muted-foreground">—</span>
+                        </div>
+                      )
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Frais d'activation</span>
                       <span className="text-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {installationChoice === "technician" && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-purple-500">Frais d'installation</span>
-                        <span className={installationCredit > 0 ? "text-emerald-500" : "text-purple-500"}>
-                          {installationCredit > 0 && <span className="line-through text-muted-foreground mr-1">50,00 $</span>}
-                          {installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </div>
-                    )}
-                    {!installationChoice && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground italic">Sélectionnez un type d'installation</span>
-                        <span className="text-muted-foreground">—</span>
-                      </div>
-                    )}
                     {(hasInternetService || hasTVService) && routerFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-cyan-500">{ROUTER_CONFIG.name}</span>
@@ -1896,7 +2121,7 @@ END:VCALENDAR`;
                         else nextStep = 3;
                         setStep(nextStep);
                       }}
-                      disabled={!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime))}
+                      disabled={!isIdComplete || (isDeliveryOnlyOrder ? !deliveryChoice : (!installationChoice || (requiresInstallation && (!selectedDate || !selectedTime))))}
                     >
                       Réviser et confirmer
                       <ArrowRight className="w-4 h-4 ml-2" />
