@@ -26,7 +26,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,
-  Loader2, CheckCircle, Clock, BarChart3
+  Loader2, CheckCircle, Clock, BarChart3, CreditCard, DollarSign,
+  Receipt, AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -56,6 +57,7 @@ const EQUIPMENT_ISSUE_TYPES = [
   { value: "defect", label: "Défaut de fabrication" },
   { value: "damaged", label: "Équipement endommagé" },
   { value: "stolen", label: "Équipement volé" },
+  { value: "lost", label: "Équipement perdu" },
   { value: "return_rental", label: "Retour équipement de location" },
 ];
 
@@ -124,6 +126,51 @@ const ClientMyServices = () => {
         .select("*, ticket_replies(*)")
         .order("updated_at", { ascending: false })
         .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch profile for credit balance
+  const { data: profile } = useQuery({
+    queryKey: ["client-profile-credit", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("store_credit, balance")
+        .eq("user_id", user?.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch billing/invoices for payment info and overdue status
+  const { data: billingRecords } = useQuery({
+    queryKey: ["client-billing-info", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch payments for last payment reference
+  const { data: payments } = useQuery({
+    queryKey: ["client-payments-info", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1);
       if (error) throw error;
       return data || [];
     },
@@ -238,14 +285,80 @@ const ClientMyServices = () => {
   const pausedServices = subscriptions?.filter((s: any) => s.status === "paused") || [];
   const mobileServices = activeServices.filter((s: any) => getServiceCategory(s.plan_name) === "mobile");
   
-  // Equipment from orders
+  // Equipment from orders - exclude cancelled orders
   const equipmentOrders = orders?.filter((o: any) => 
-    o.equipment_id || o.serial_number || o.imei_number || 
-    (o.equipment_details && Array.isArray(o.equipment_details) && o.equipment_details.length > 0)
+    o.status !== "cancelled" && (
+      o.equipment_id || o.serial_number || o.imei_number || 
+      (o.equipment_details && Array.isArray(o.equipment_details) && o.equipment_details.length > 0)
+    )
   ) || [];
+
+  // Billing calculations
+  const lastPayment = payments?.[0];
+  const overdueInvoices = billingRecords?.filter((b: any) => 
+    b.status === "overdue" || (b.due_date && new Date(b.due_date) < new Date() && b.status !== "paid")
+  ) || [];
+  const clientCredit = Number(profile?.store_credit || 0);
 
   return (
     <div className="space-y-6">
+      {/* Billing & Credit Summary Card */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Crédit disponible</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {clientCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                <Receipt className="w-5 h-5 text-cyan-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Dernier paiement</p>
+                <p className="text-sm font-medium text-foreground">
+                  {lastPayment ? (
+                    <>
+                      {lastPayment.reference_number || lastPayment.payment_reference || "N/A"}
+                      <span className="text-muted-foreground ml-1">
+                        ({Number(lastPayment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
+                      </span>
+                    </>
+                  ) : "Aucun paiement"}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                overdueInvoices.length > 0 ? "bg-red-500/20" : "bg-muted"
+              }`}>
+                <AlertCircle className={`w-5 h-5 ${overdueInvoices.length > 0 ? "text-red-500" : "text-muted-foreground"}`} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Factures en retard</p>
+                {overdueInvoices.length > 0 ? (
+                  <div>
+                    <p className="text-sm font-medium text-red-500">{overdueInvoices.length} facture(s)</p>
+                    <p className="text-xs text-red-400">+5% frais de retard appliqué</p>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-emerald-500">Aucune</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="services" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="services">Mes services</TabsTrigger>
@@ -360,6 +473,14 @@ const ClientMyServices = () => {
 
           {equipmentOrders.length > 0 ? (
             <div className="space-y-4">
+              {/* No issues message */}
+              <Card className="bg-emerald-500/5 border-emerald-500/20">
+                <CardContent className="p-3 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  <p className="text-sm text-emerald-600">Aucun problème d'équipement signalé</p>
+                </CardContent>
+              </Card>
+
               {equipmentOrders.map((order: any) => {
                 const equipmentList = order.equipment_details && Array.isArray(order.equipment_details) 
                   ? order.equipment_details 
@@ -371,6 +492,13 @@ const ClientMyServices = () => {
                 warrantyEnd.setFullYear(warrantyEnd.getFullYear() + 1);
                 const isUnderWarranty = new Date() < warrantyEnd;
 
+                // Check for equipment type display
+                const equipmentTypeName = order.service_type?.toLowerCase().includes("tv") 
+                  ? "Nivra 4K Smart Terminal" 
+                  : order.service_type?.toLowerCase().includes("internet") 
+                  ? "Nivra Born Wifi Router" 
+                  : order.service_type || "Équipement";
+
                 return (
                   <Card key={order.id} className="bg-card border-border">
                     <CardContent className="p-4">
@@ -379,30 +507,36 @@ const ClientMyServices = () => {
                           <div className="flex items-center gap-2 mb-2">
                             <Package className="w-5 h-5 text-cyan-500" />
                             <h4 className="font-semibold text-foreground">
-                              {order.order_number || `Commande ${order.id.slice(0, 8)}`}
+                              {equipmentTypeName}
                             </h4>
                             <Badge className={isUnderWarranty ? "bg-emerald-500/20 text-emerald-500" : "bg-muted text-muted-foreground"}>
-                              {isUnderWarranty ? "Sous garantie" : "Garantie expirée"}
+                              {isUnderWarranty ? "Sous garantie (1 an)" : "Garantie expirée"}
                             </Badge>
                           </div>
                           
                           <div className="space-y-1 text-sm">
+                            <p className="text-muted-foreground">
+                              Commande: {order.order_number || order.id.slice(0, 8)}
+                            </p>
                             {order.equipment_id && (
-                              <p className="text-muted-foreground">ID: {order.equipment_id}</p>
+                              <p className="text-muted-foreground">ID équipement: {order.equipment_id}</p>
                             )}
                             {order.serial_number && (
-                              <p className="text-muted-foreground">Série: {order.serial_number}</p>
+                              <p className="text-muted-foreground">N° série: {order.serial_number}</p>
                             )}
                             {order.imei_number && (
                               <p className="text-muted-foreground">IMEI: {order.imei_number}</p>
                             )}
-                            {equipmentList.map((eq: any, idx: number) => (
+                            {order.sim_number && (
+                              <p className="text-muted-foreground">SIM: {order.sim_number}</p>
+                            )}
+                            {equipmentList.length > 0 && equipmentList.map((eq: any, idx: number) => (
                               <p key={idx} className="text-foreground">• {eq.name || eq}</p>
                             ))}
                           </div>
                           
                           <p className="text-xs text-muted-foreground mt-2">
-                            Garantie jusqu'au: {format(warrantyEnd, "d MMM yyyy", { locale: fr })}
+                            Garantie fabricant jusqu'au: {format(warrantyEnd, "d MMM yyyy", { locale: fr })}
                           </p>
                         </div>
                         
