@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +16,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { downloadContractPDF } from "@/lib/contractPdfGenerator";
+import { generateContractPDF, downloadContractPDF } from "@/lib/contractPdfGenerator";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { usePDFViewer } from "@/hooks/usePDFViewer";
 
 const ClientContracts = () => {
   const { user } = useAuth();
@@ -26,6 +28,7 @@ const ClientContracts = () => {
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
+  const pdfViewer = usePDFViewer();
 
   // Fetch contracts for current user
   const { data: contracts, isLoading } = useQuery({
@@ -114,6 +117,42 @@ const ClientContracts = () => {
     }
   };
 
+  const handleViewPDF = useCallback(
+    async (contract: any) => {
+      if (!contract) {
+        toast({ title: "Contrat non trouvé", variant: "destructive" });
+        return;
+      }
+
+      const contractData = {
+        contractNumber: contract.contract_number || contract.contract_url || `NIVRA-${contract.id.slice(0, 8).toUpperCase()}`,
+        contractName: contract.contract_name || "Contrat de services",
+        clientName: profile?.full_name || "Client",
+        clientEmail: profile?.email || user?.email || "",
+        clientPhone: profile?.phone || "",
+        clientAddress: profile?.service_address || "",
+        serviceDescription: `Contrat de services de courtage télécom - ${contract.contract_name || "Services"}`,
+        startDate: contract.created_at,
+        isSigned: contract.is_signed || false,
+        signedAt: contract.signed_at,
+        employeeName: "Représentant Nivra",
+        employeeTitle: "Conseiller Télécom",
+      };
+
+      const filename = `Contrat-${contractData.contractNumber}.pdf`;
+
+      await pdfViewer.openWithGenerator(
+        () => {
+          const doc = generateContractPDF(contractData);
+          return doc.output("blob");
+        },
+        `Contrat - ${contract.contract_name || contractData.contractNumber}`,
+        filename
+      );
+    },
+    [profile, user?.email, pdfViewer, toast]
+  );
+
   const openSignDialog = (contract: any) => {
     setSelectedContract(contract);
     setIsAgreed(false);
@@ -187,6 +226,14 @@ const ClientContracts = () => {
                       )}
                       <Button
                         variant="outline"
+                        size="sm"
+                        onClick={() => handleViewPDF(contract)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Voir PDF
+                      </Button>
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => handleDownloadContract(contract)}
                       >
@@ -327,6 +374,17 @@ const ClientContracts = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* PDF Viewer Dialog */}
+        <PDFViewerDialog
+          open={pdfViewer.isOpen}
+          onOpenChange={pdfViewer.setOpen}
+          pdfBlob={pdfViewer.pdfBlob}
+          title={pdfViewer.title}
+          filename={pdfViewer.filename}
+          isLoading={pdfViewer.isLoading}
+          error={pdfViewer.error}
+        />
       </div>
     </ClientLayout>
   );
