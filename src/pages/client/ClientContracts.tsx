@@ -270,7 +270,7 @@ const ClientContracts = () => {
                       <li>• Paiement sous {CONTRACT_TERMS.paymentTerms.dueDays} jours</li>
                       <li>• Intérêt de {CONTRACT_TERMS.paymentTerms.lateInterestRate}% par mois sur paiements en retard</li>
                       <li>• Préavis de résiliation de {CONTRACT_TERMS.cancellation.noticeDays} jours</li>
-                      <li>• Frais de résiliation anticipée: {CONTRACT_TERMS.cancellation.earlyTerminationFee}% du solde restant</li>
+                      <li>• Frais après livraison: {CONTRACT_TERMS.cancellation.afterDeliveryCharge}</li>
                     </ul>
                   </div>
 
