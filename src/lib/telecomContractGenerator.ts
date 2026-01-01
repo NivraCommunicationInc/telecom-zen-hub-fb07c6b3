@@ -5,9 +5,6 @@ import {
   BUSINESS_INFO,
   CONTRACT_TERMS,
   ACCESS_PERMISSIONS,
-  WARRANTY_POLICY,
-  CANCELLATION_POLICY,
-  NO_CREDIT_CHECK_POLICY,
 } from "./contractPolicies";
 
 export interface TelecomContractData {
@@ -46,7 +43,7 @@ export interface TelecomContractData {
   securityPlan?: string;
   streamingPlan?: string;
   accessories?: string;
-  servicePlan: string; // Main service name
+  servicePlan: string;
   bundleName?: string;
   category?: string;
   
@@ -55,7 +52,7 @@ export interface TelecomContractData {
   terminalSerial?: string;
   terminalCount?: number;
   simSerial?: string;
-  simType?: string; // "SIM" or "eSIM"
+  simType?: string;
   imeiNumber?: string;
   warrantyStatus?: string;
   
@@ -89,20 +86,26 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15;
-  const contentWidth = pageWidth - margin * 2;
-  let currentY = margin;
+  const marginLeft = 20;
+  const marginRight = 20;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  let currentY = 20;
   let pageNumber = 1;
+  let sectionNumber = 0;
   
-  // Colors
-  const navyColor: [number, number, number] = [10, 25, 47];
-  const cyanAccent: [number, number, number] = [0, 188, 212];
-  const darkText: [number, number, number] = [33, 33, 33];
-  const grayText: [number, number, number] = [100, 100, 100];
-  const lightGray: [number, number, number] = [245, 247, 250];
+  // Premium color palette
+  const primaryNavy: [number, number, number] = [15, 23, 42];
+  const accentTeal: [number, number, number] = [20, 184, 166];
+  const textDark: [number, number, number] = [30, 41, 59];
+  const textMuted: [number, number, number] = [100, 116, 139];
+  const borderLight: [number, number, number] = [203, 213, 225];
+  const bgLight: [number, number, number] = [248, 250, 252];
+  const white: [number, number, number] = [255, 255, 255];
+  
+  // ========== HELPER FUNCTIONS ==========
   
   const addNewPage = () => {
-    addFooter();
+    addLegalFooter();
     doc.addPage();
     pageNumber++;
     currentY = 25;
@@ -110,609 +113,589 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   };
   
   const checkPageBreak = (neededHeight: number) => {
-    if (currentY + neededHeight > pageHeight - 35) {
+    if (currentY + neededHeight > pageHeight - 30) {
       addNewPage();
     }
   };
   
   const addPageHeader = () => {
     if (pageNumber > 1) {
-      doc.setFillColor(...cyanAccent);
-      doc.rect(0, 0, pageWidth, 3, "F");
-      doc.setFillColor(...navyColor);
-      doc.rect(0, 3, pageWidth, 15, "F");
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(255, 255, 255);
-      doc.text(BUSINESS_INFO.name.toUpperCase(), margin, 12);
+      // Top accent line
+      doc.setFillColor(...accentTeal);
+      doc.rect(0, 0, pageWidth, 2, "F");
+      
+      // Header bar
+      doc.setFillColor(...primaryNavy);
+      doc.rect(0, 2, pageWidth, 12, "F");
+      
+      // Company name
       doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...white);
+      doc.text("NIVRA COMMUNICATIONS INC.", marginLeft, 10);
+      
+      // Contract reference
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
-      doc.text(`Contract ID: ${data.contractNumber}`, pageWidth - margin, 12, { align: "right" });
-      currentY = 25;
+      doc.text(`CSA ${data.contractNumber}`, pageWidth - marginRight, 10, { align: "right" });
+      
+      currentY = 22;
     }
   };
   
-  const addFooter = () => {
-    doc.setFillColor(...cyanAccent);
-    doc.rect(0, pageHeight - 10, pageWidth, 2, "F");
+  const addLegalFooter = () => {
+    // Legal divider line
+    doc.setDrawColor(...borderLight);
+    doc.setLineWidth(0.5);
+    doc.line(marginLeft, pageHeight - 22, pageWidth - marginRight, pageHeight - 22);
+    
+    // Footer content
     doc.setFontSize(6);
-    doc.setTextColor(...grayText);
-    doc.text(`${BUSINESS_INFO.legalName} | ${BUSINESS_INFO.phone} | ${BUSINESS_INFO.email}`, pageWidth / 2, pageHeight - 5, { align: "center" });
-    doc.text(`Page ${pageNumber}`, pageWidth - margin, pageHeight - 5, { align: "right" });
+    doc.setTextColor(...textMuted);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address} — ${BUSINESS_INFO.phone}`,
+      pageWidth / 2,
+      pageHeight - 16,
+      { align: "center" }
+    );
+    doc.text(
+      "Licensed Telecommunications Services Provider — Province of Québec",
+      pageWidth / 2,
+      pageHeight - 12,
+      { align: "center" }
+    );
+    
+    // Page number
+    doc.setFont("helvetica", "bold");
+    doc.text(`Page ${pageNumber}`, pageWidth - marginRight, pageHeight - 8, { align: "right" });
     
     // Initials boxes
-    doc.setDrawColor(...grayText);
+    doc.setDrawColor(...textMuted);
     doc.setLineWidth(0.3);
-    doc.rect(margin, pageHeight - 20, 18, 7);
-    doc.rect(margin + 22, pageHeight - 20, 18, 7);
+    doc.rect(marginLeft, pageHeight - 18, 12, 6);
+    doc.rect(marginLeft + 16, pageHeight - 18, 12, 6);
     doc.setFontSize(5);
-    doc.text("Client", margin + 9, pageHeight - 22, { align: "center" });
-    doc.text("Nivra", margin + 31, pageHeight - 22, { align: "center" });
+    doc.text("CL", marginLeft + 6, pageHeight - 14, { align: "center" });
+    doc.text("NV", marginLeft + 22, pageHeight - 14, { align: "center" });
   };
   
-  const addSectionNumber = (num: number, title: string) => {
-    checkPageBreak(16);
-    currentY += 4;
-    doc.setFillColor(...navyColor);
-    doc.roundedRect(margin, currentY - 4, contentWidth, 9, 1, 1, "F");
-    doc.setFontSize(9);
+  const addSectionHeader = (title: string) => {
+    sectionNumber++;
+    checkPageBreak(18);
+    currentY += 6;
+    
+    // Section number box
+    doc.setFillColor(...primaryNavy);
+    doc.roundedRect(marginLeft, currentY - 5, 8, 8, 1, 1, "F");
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text(`${num}. ${title}`, margin + 4, currentY + 2);
+    doc.setTextColor(...white);
+    doc.text(String(sectionNumber), marginLeft + 4, currentY, { align: "center" });
+    
+    // Section title
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryNavy);
+    doc.text(title.toUpperCase(), marginLeft + 12, currentY);
+    
+    // Underline
+    doc.setDrawColor(...accentTeal);
+    doc.setLineWidth(0.8);
+    doc.line(marginLeft + 12, currentY + 2, pageWidth - marginRight, currentY + 2);
+    
     currentY += 10;
   };
   
-  const addParagraph = (text: string, fontSize: number = 8, indent: number = 0) => {
+  const addClause = (clauseNum: string, text: string, indent: number = 0) => {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...textDark);
+    
+    const clauseX = marginLeft + indent;
+    doc.text(clauseNum, clauseX, currentY);
+    
+    doc.setFont("helvetica", "normal");
+    const textX = clauseX + 12;
+    const maxWidth = contentWidth - indent - 12;
+    const lines = doc.splitTextToSize(text, maxWidth);
+    
+    checkPageBreak(lines.length * 4 + 2);
+    doc.text(lines, textX, currentY);
+    currentY += lines.length * 4 + 3;
+  };
+  
+  const addParagraph = (text: string, indent: number = 0, fontSize: number = 8) => {
     doc.setFontSize(fontSize);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...darkText);
+    doc.setTextColor(...textDark);
+    
     const lines = doc.splitTextToSize(text, contentWidth - indent);
-    const lineHeight = fontSize * 0.4;
-    checkPageBreak(lines.length * lineHeight + 3);
-    doc.text(lines, margin + indent, currentY);
-    currentY += lines.length * lineHeight + 2;
+    checkPageBreak(lines.length * 4 + 2);
+    doc.text(lines, marginLeft + indent, currentY, { align: "justify" });
+    currentY += lines.length * 4 + 3;
   };
   
-  const addTableRow = (col1: string, col2: string, y: number, isHeader: boolean = false) => {
-    const col1Width = 55;
+  const addTable = (headers: string[], rows: string[][], columnWidths: number[]) => {
+    const rowHeight = 7;
+    const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
+    
+    checkPageBreak((rows.length + 1) * rowHeight + 5);
+    
+    // Header row
+    doc.setFillColor(...primaryNavy);
+    doc.rect(marginLeft, currentY, tableWidth, rowHeight, "F");
+    
     doc.setFontSize(7);
-    if (isHeader) {
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...navyColor);
-    } else {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...white);
+    
+    let xPos = marginLeft + 2;
+    headers.forEach((header, i) => {
+      doc.text(header.toUpperCase(), xPos, currentY + 5);
+      xPos += columnWidths[i];
+    });
+    
+    currentY += rowHeight;
+    
+    // Data rows
+    rows.forEach((row, rowIndex) => {
+      const bgColor = rowIndex % 2 === 0 ? bgLight : white;
+      doc.setFillColor(...bgColor);
+      doc.rect(marginLeft, currentY, tableWidth, rowHeight, "F");
+      
+      // Border
+      doc.setDrawColor(...borderLight);
+      doc.setLineWidth(0.2);
+      doc.rect(marginLeft, currentY, tableWidth, rowHeight, "S");
+      
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(...darkText);
-    }
-    doc.text(col1, margin + 5, y);
-    doc.text(col2, margin + col1Width, y);
-    return y + 5;
+      doc.setTextColor(...textDark);
+      
+      xPos = marginLeft + 2;
+      row.forEach((cell, i) => {
+        doc.text(cell, xPos, currentY + 5);
+        xPos += columnWidths[i];
+      });
+      
+      currentY += rowHeight;
+    });
+    
+    currentY += 4;
   };
   
-  // ========== PAGE 1: COVER ==========
-  doc.setFillColor(...cyanAccent);
-  doc.rect(0, 0, pageWidth, 4, "F");
-  doc.setFillColor(...navyColor);
-  doc.rect(0, 4, pageWidth, 50, "F");
+  // ========== PAGE 1: COVER & PARTIES ==========
   
-  doc.setFontSize(24);
+  // Premium header band
+  doc.setFillColor(...accentTeal);
+  doc.rect(0, 0, pageWidth, 3, "F");
+  
+  doc.setFillColor(...primaryNavy);
+  doc.rect(0, 3, pageWidth, 40, "F");
+  
+  // Company name - bold uppercase
+  doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text(BUSINESS_INFO.name.toUpperCase(), pageWidth / 2, 22, { align: "center" });
+  doc.setTextColor(...white);
+  doc.text("NIVRA COMMUNICATIONS INC.", pageWidth / 2, 22, { align: "center" });
   
-  doc.setFontSize(11);
-  doc.setTextColor(...cyanAccent);
-  doc.text("Customer Service Agreement (CSA)", pageWidth / 2, 34, { align: "center" });
-  
-  doc.setFontSize(8);
-  doc.setTextColor(200, 200, 200);
-  doc.text("Licensed Telecommunications Services Provider — Province of Québec", pageWidth / 2, 42, { align: "center" });
-  doc.text(`${BUSINESS_INFO.email}`, pageWidth / 2, 50, { align: "center" });
-  
-  currentY = 62;
-  
-  // ========== SECTION 1: PARTIES ==========
-  addSectionNumber(1, "Parties");
-  
-  const partyWidth = (contentWidth - 8) / 2;
-  
-  // Service Provider
-  doc.setFillColor(...navyColor);
-  doc.roundedRect(margin, currentY, partyWidth, 38, 2, 2, "F");
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...cyanAccent);
-  doc.text("Service Provider", margin + 4, currentY + 8);
-  doc.setFontSize(7);
+  // Subtitle
+  doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(255, 255, 255);
-  doc.text(BUSINESS_INFO.legalName, margin + 4, currentY + 16);
-  doc.text(BUSINESS_INFO.address, margin + 4, currentY + 22);
-  doc.text(`Customer Support: ${BUSINESS_INFO.email}`, margin + 4, currentY + 28);
-  doc.setFontSize(6);
+  doc.setTextColor(...accentTeal);
+  doc.text("CUSTOMER SERVICE AGREEMENT", pageWidth / 2, 32, { align: "center" });
+  
+  doc.setFontSize(7);
   doc.setTextColor(180, 180, 180);
-  doc.text("(system-owned inbox)", margin + 4, currentY + 33);
+  doc.text("Licensed Telecommunications Services Provider — Province of Québec", pageWidth / 2, 40, { align: "center" });
   
-  // Client
-  const clientX = margin + partyWidth + 8;
-  doc.setFillColor(...lightGray);
-  doc.roundedRect(clientX, currentY, partyWidth, 38, 2, 2, "F");
-  doc.setDrawColor(...cyanAccent);
+  currentY = 52;
+  
+  // Reference ID box (sidebar-style, top right)
+  const refBoxWidth = 55;
+  const refBoxX = pageWidth - marginRight - refBoxWidth;
+  
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...accentTeal);
   doc.setLineWidth(1);
-  doc.line(clientX, currentY + 2, clientX, currentY + 36);
+  doc.roundedRect(refBoxX, currentY, refBoxWidth, 32, 2, 2, "FD");
+  
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...textMuted);
+  doc.text("CONTRACT REFERENCE", refBoxX + refBoxWidth / 2, currentY + 6, { align: "center" });
   
   doc.setFontSize(8);
+  doc.setTextColor(...primaryNavy);
+  doc.text(data.contractNumber, refBoxX + refBoxWidth / 2, currentY + 13, { align: "center" });
+  
+  doc.setFontSize(6);
+  doc.setTextColor(...textMuted);
+  doc.text("ISSUED", refBoxX + refBoxWidth / 2, currentY + 20, { align: "center" });
+  
+  doc.setFontSize(7);
+  doc.setTextColor(...textDark);
+  doc.text(format(new Date(data.orderDate), "dd MMM yyyy").toUpperCase(), refBoxX + refBoxWidth / 2, currentY + 26, { align: "center" });
+  
+  // Parties section (left side)
+  const partiesWidth = refBoxX - marginLeft - 10;
+  
+  addSectionHeader("Parties");
+  
+  // Provider box
+  doc.setFillColor(...primaryNavy);
+  doc.roundedRect(marginLeft, currentY, partiesWidth / 2 - 3, 35, 2, 2, "F");
+  
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("Client (Service Subscriber)", clientX + 4, currentY + 8);
+  doc.setTextColor(...accentTeal);
+  doc.text("SERVICE PROVIDER", marginLeft + 4, currentY + 7);
+  
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(`${data.clientFirstName} ${data.clientLastName}`, clientX + 4, currentY + 16);
-  doc.text(data.clientEmail, clientX + 4, currentY + 22);
-  if (data.clientPhone) doc.text(data.clientPhone, clientX + 4, currentY + 28);
+  doc.setTextColor(...white);
+  doc.text(BUSINESS_INFO.legalName, marginLeft + 4, currentY + 14);
+  doc.text(BUSINESS_INFO.address, marginLeft + 4, currentY + 20);
+  doc.text(`Tel: ${BUSINESS_INFO.phone}`, marginLeft + 4, currentY + 26);
+  doc.text(BUSINESS_INFO.email, marginLeft + 4, currentY + 32);
   
-  currentY += 45;
+  // Client box
+  const clientBoxX = marginLeft + partiesWidth / 2 + 3;
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...borderLight);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(clientBoxX, currentY, partiesWidth / 2 - 3, 35, 2, 2, "FD");
   
-  // ========== SECTION 2: AGREEMENT IDENTIFICATION ==========
-  addSectionNumber(2, "Agreement Identification");
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryNavy);
+  doc.text("CLIENT (SUBSCRIBER)", clientBoxX + 4, currentY + 7);
   
-  doc.setFillColor(...lightGray);
-  doc.roundedRect(margin, currentY, contentWidth, 40, 2, 2, "F");
-  
-  let idY = currentY + 8;
-  idY = addTableRow("Identifier Type", "Format", idY, true);
-  idY = addTableRow("Contract ID", data.contractNumber, idY);
-  if (data.orderReference || data.orderNumber) {
-    idY = addTableRow("Order Reference", data.orderReference || data.orderNumber || "", idY);
-  }
-  if (data.paymentReference) {
-    idY = addTableRow("Payment Reference", data.paymentReference, idY);
-  }
-  idY = addTableRow("Agreement Version", CONTRACT_TERMS.version, idY);
-  idY = addTableRow("Issued On", format(new Date(data.orderDate), "d MMMM yyyy", { locale: fr }), idY);
-  addTableRow("Internal Status Flow", CONTRACT_TERMS.statusFlow.join(" → "), idY);
-  
-  currentY += 47;
-  
-  // ========== SECTION 3: SERVICES SUBSCRIBED ==========
-  addSectionNumber(3, "Services Subscribed");
-  
-  addParagraph("The contract binds dynamically to all services selected and paid through the Nivra platform:", 7);
-  currentY += 2;
-  
-  doc.setFillColor(...lightGray);
-  const servicesHeight = 35;
-  doc.roundedRect(margin, currentY, contentWidth, servicesHeight, 2, 2, "F");
-  
-  let servY = currentY + 7;
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
+  doc.setTextColor(...textDark);
+  doc.text(`${data.clientFirstName} ${data.clientLastName}`, clientBoxX + 4, currentY + 14);
+  doc.text(data.clientEmail, clientBoxX + 4, currentY + 20);
+  if (data.clientPhone) doc.text(data.clientPhone, clientBoxX + 4, currentY + 26);
+  if (data.clientAccountNumber) {
+    doc.setFont("helvetica", "bold");
+    doc.text(`Account: ${data.clientAccountNumber}`, clientBoxX + 4, currentY + 32);
+  }
   
-  const serviceItems = [
-    { label: "Internet", value: data.internetPlan || data.servicePlan },
-    { label: "TV Bundle", value: data.tvBundle || data.bundleName },
-    { label: "Mobile Plan", value: data.mobilePlan },
-    { label: "Security", value: data.securityPlan },
-    { label: "Streaming", value: data.streamingPlan },
-    { label: "Accessories", value: data.accessories },
+  currentY += 42;
+  
+  // Agreement identifiers table
+  addSectionHeader("Agreement Identification");
+  
+  const idRows: string[][] = [
+    ["Contract ID", data.contractNumber],
+    ["Order Reference", data.orderReference || data.orderNumber || "—"],
+    ["Agreement Version", CONTRACT_TERMS.version],
+    ["Issue Date", format(new Date(data.orderDate), "d MMMM yyyy", { locale: fr })],
   ];
   
-  serviceItems.forEach((item, i) => {
-    if (item.value) {
-      doc.text(`• ${item.label}: ${item.value}`, margin + 5, servY);
-      servY += 5;
-    }
-  });
+  addTable(["Identifier", "Value"], idRows, [50, contentWidth - 50]);
   
-  currentY += servicesHeight + 3;
+  // Services section
+  addSectionHeader("Services Subscribed");
+  
+  addParagraph("This Agreement binds dynamically to all services selected and paid through the Nivra platform:", 0, 7);
+  
+  const serviceRows: string[][] = [];
+  if (data.internetPlan || data.servicePlan) serviceRows.push(["Internet", data.internetPlan || data.servicePlan]);
+  if (data.tvBundle || data.bundleName) serviceRows.push(["TV Bundle", data.tvBundle || data.bundleName || "—"]);
+  if (data.mobilePlan) serviceRows.push(["Mobile Plan", data.mobilePlan]);
+  if (data.securityPlan) serviceRows.push(["Security", data.securityPlan]);
+  if (data.streamingPlan) serviceRows.push(["Streaming", data.streamingPlan]);
+  if (data.accessories) serviceRows.push(["Accessories", data.accessories]);
+  
+  if (serviceRows.length === 0) {
+    serviceRows.push([data.category || "Telecom Service", data.servicePlan]);
+  }
+  
+  addTable(["Service Type", "Plan/Description"], serviceRows, [45, contentWidth - 45]);
   
   doc.setFontSize(6);
-  doc.setTextColor(...grayText);
-  doc.text("* TV services cannot be subscribed without an Internet plan.", margin + 5, currentY);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(...textMuted);
+  doc.text("* TV services cannot be subscribed without an active Internet plan.", marginLeft, currentY);
   currentY += 5;
   
-  addFooter();
+  addLegalFooter();
   
   // ========== PAGE 2: EQUIPMENT & FEES ==========
   addNewPage();
   
-  // ========== SECTION 4: EQUIPMENT ASSIGNED ==========
-  addSectionNumber(4, "Equipment Assigned to Order");
+  addSectionHeader("Equipment Assigned");
   
-  doc.setFillColor(...lightGray);
-  const equipHeight = 35;
-  doc.roundedRect(margin, currentY, contentWidth, equipHeight, 2, 2, "F");
-  
-  let eqY = currentY + 8;
-  eqY = addTableRow("Equipment Type", "Placeholder", eqY, true);
-  
-  if (data.routerSerial) {
-    eqY = addTableRow("Router", data.routerSerial, eqY);
-  }
+  const equipRows: string[][] = [];
+  if (data.routerSerial) equipRows.push(["Nivra WiFi Router", data.routerSerial, "1-Year Warranty"]);
   if (data.terminalSerial) {
-    const terminalInfo = data.terminalCount ? `${data.terminalSerial} (x${data.terminalCount})` : data.terminalSerial;
-    eqY = addTableRow("TV Terminal(s)", terminalInfo, eqY);
+    const count = data.terminalCount || 1;
+    equipRows.push(["Nivra 4K Terminal", `${data.terminalSerial} (×${count})`, "1-Year Warranty"]);
   }
   if (data.simSerial || data.simType) {
-    const simInfo = `${data.simSerial || "N/A"} — ${data.simType || "SIM"}`;
-    eqY = addTableRow("SIM / eSIM", simInfo, eqY);
+    equipRows.push([data.simType === "eSIM" ? "eSIM" : "Physical SIM", data.simSerial || "Assigned at activation", "—"]);
   }
-  addTableRow("Warranty", data.warrantyStatus || "1-year manufacturer warranty", eqY);
+  if (data.imeiNumber) equipRows.push(["IMEI", data.imeiNumber, "—"]);
   
-  currentY += equipHeight + 5;
+  if (equipRows.length > 0) {
+    addTable(["Equipment", "Serial / Reference", "Warranty"], equipRows, [55, 70, 45]);
+  } else {
+    addParagraph("Equipment will be assigned upon order processing.", 0, 7);
+  }
   
-  // ========== SECTION 5: FEES & PAYMENTS ==========
-  addSectionNumber(5, "Fees & Payments (No Credit Verification, No Commission)");
+  addSectionHeader("Fees & Payment Terms");
   
-  addParagraph("All one-time fees are paid before order confirmation. Fees are not plan-name dependent and apply automatically:", 7);
-  currentY += 2;
+  addClause("5.1", "All one-time fees are collected before order confirmation. Fees are applied automatically based on service selection.");
   
-  doc.setFillColor(...lightGray);
-  doc.roundedRect(margin, currentY, contentWidth, 55, 2, 2, "F");
-  
-  let feeY = currentY + 8;
-  const priceCol = pageWidth - margin - 30;
-  
-  const addFeeRow = (label: string, condition: string, amount: string, isNegative: boolean = false) => {
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...darkText);
-    doc.text(label, margin + 5, feeY);
-    doc.setTextColor(...grayText);
-    doc.text(condition, margin + 45, feeY);
-    doc.setFont("helvetica", "bold");
-    if (isNegative) {
-      doc.setTextColor(34, 197, 94);
-    } else {
-      doc.setTextColor(...darkText);
-    }
-    doc.text(amount, priceCol, feeY, { align: "right" });
-    feeY += 5;
-  };
-  
-  feeY = addTableRow("Fee Type", "Applied Logic                                  Amount", feeY, true);
-  
+  const feeRows: string[][] = [];
   if (data.simFee && data.simFee > 0) {
-    const simLabel = data.simType === "eSIM" ? "eSIM" : "SIM Physical";
-    addFeeRow(simLabel, data.simType === "eSIM" ? "Added if eSIM selected" : "Added if SIM selected", `${data.simFee.toFixed(2)} $`);
+    feeRows.push([data.simType === "eSIM" ? "eSIM Activation" : "Physical SIM", `${data.simFee.toFixed(2)} $`]);
   }
-  if (data.routerFee && data.routerFee > 0) {
-    addFeeRow("Router Fee", "Added if router delivered", `${data.routerFee.toFixed(2)} $`);
-  }
+  if (data.routerFee && data.routerFee > 0) feeRows.push(["Router Fee", `${data.routerFee.toFixed(2)} $`]);
   if (data.terminalFee && data.terminalFee > 0) {
-    const termCount = data.terminalCount || 1;
-    addFeeRow("TV Terminal", `Added per terminal (x${termCount})`, `${data.terminalFee.toFixed(2)} $`);
+    const count = data.terminalCount || 1;
+    feeRows.push([`TV Terminal (×${count})`, `${data.terminalFee.toFixed(2)} $`]);
   }
-  if (data.uberExpressFee && data.uberExpressFee > 0) {
-    addFeeRow("Uber Express", "Added if eligible city", `${data.uberExpressFee.toFixed(2)} $`);
-  }
-  if (data.installationFee && data.installationFee > 0) {
-    addFeeRow("Technician Install", "Added if Internet/TV", `${data.installationFee.toFixed(2)} $`);
-  }
-  if (data.discountAmount && data.discountAmount > 0) {
-    addFeeRow("Discount", "Applied", `-${data.discountAmount.toFixed(2)} $`, true);
-  }
+  if (data.deliveryFee && data.deliveryFee > 0) feeRows.push(["Delivery Fee", `${data.deliveryFee.toFixed(2)} $`]);
+  if (data.uberExpressFee && data.uberExpressFee > 0) feeRows.push(["Uber Express Delivery", `${data.uberExpressFee.toFixed(2)} $`]);
+  if (data.installationFee && data.installationFee > 0) feeRows.push(["Technician Installation", `${data.installationFee.toFixed(2)} $`]);
+  if (data.activationFee && data.activationFee > 0) feeRows.push(["Activation Fee", `${data.activationFee.toFixed(2)} $`]);
   
-  currentY += 60;
+  feeRows.push(["Subtotal", `${data.subtotal.toFixed(2)} $`]);
+  if (data.discountAmount && data.discountAmount > 0) feeRows.push(["Discount Applied", `−${data.discountAmount.toFixed(2)} $`]);
+  feeRows.push(["TPS (5%)", `${data.tpsAmount.toFixed(2)} $`]);
+  feeRows.push(["TVQ (9.975%)", `${data.tvqAmount.toFixed(2)} $`]);
   
-  // Accepted Payment Methods
-  doc.setFontSize(8);
+  addTable(["Fee Description", "Amount"], feeRows, [120, 50]);
+  
+  // Total box
+  doc.setFillColor(...primaryNavy);
+  doc.roundedRect(marginLeft + 120, currentY - 2, 50, 10, 1, 1, "F");
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("Accepted Payment Methods", margin, currentY);
-  currentY += 5;
+  doc.setTextColor(...white);
+  doc.text("TOTAL", marginLeft + 125, currentY + 5);
+  doc.text(`${data.totalAmount.toFixed(2)} $ CAD`, marginLeft + 165, currentY + 5, { align: "right" });
+  currentY += 14;
   
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(CONTRACT_TERMS.paymentTerms.acceptedMethods.join(", "), margin + 5, currentY);
-  currentY += 8;
+  // Payment methods
+  addClause("5.2", `Accepted Payment Methods: ${CONTRACT_TERMS.paymentTerms.acceptedMethods.join(", ")}`);
   
-  // E-Transfer Instructions
-  doc.setFillColor(255, 250, 235);
-  doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "F");
-  doc.setDrawColor(234, 179, 8);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "S");
+  // E-Transfer box
+  doc.setFillColor(255, 251, 235);
+  doc.setDrawColor(251, 191, 36);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(marginLeft, currentY, contentWidth, 20, 2, 2, "FD");
   
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(180, 130, 0);
-  doc.text("E-Transfer Instructions (Secure Payment Channel)", margin + 5, currentY + 6);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(`Email: ${CONTRACT_TERMS.etransfer.email}`, margin + 5, currentY + 12);
-  doc.text(`Security Question: ${CONTRACT_TERMS.etransfer.securityQuestion}`, margin + 5, currentY + 17);
-  doc.text(`Required Answer: ${CONTRACT_TERMS.etransfer.securityAnswer}`, margin + 100, currentY + 17);
-  
-  currentY += 28;
-  
-  // ========== SECTION 6: DELIVERY & FULFILLMENT SLA ==========
-  addSectionNumber(6, "Delivery & Fulfillment SLA");
-  
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("Delivery Category Enforcement", margin, currentY);
-  currentY += 5;
+  doc.text("E-TRANSFER SECURE PAYMENT CHANNEL", marginLeft + 5, currentY + 6);
   
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(`• Orders containing Mobile, Streaming, or Accessories → Delivery only`, margin + 5, currentY);
-  currentY += 4;
-  doc.text(`• Orders containing Internet or TV → Technician installation may be selected`, margin + 5, currentY);
-  currentY += 6;
+  doc.setTextColor(...textDark);
+  doc.text(`Email: ${CONTRACT_TERMS.etransfer.email}`, marginLeft + 5, currentY + 12);
+  doc.text(`Security Question: "${CONTRACT_TERMS.etransfer.securityQuestion}"`, marginLeft + 80, currentY + 12);
+  doc.text(`Answer: "${CONTRACT_TERMS.etransfer.securityAnswer}"`, marginLeft + 5, currentY + 17);
   
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("Delivery Timeframes", margin, currentY);
-  currentY += 5;
+  currentY += 26;
   
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(`• Standard Québec Delivery: ${CONTRACT_TERMS.delivery.standardDays}`, margin + 5, currentY);
-  currentY += 4;
-  doc.text(`• Uber Express Delivery (${CONTRACT_TERMS.delivery.uberExpress}): Only eligible in:`, margin + 5, currentY);
-  currentY += 4;
-  doc.setFontSize(6);
-  doc.text(`  ${CONTRACT_TERMS.delivery.eligibleCities.join(", ")}`, margin + 5, currentY);
-  currentY += 6;
+  addLegalFooter();
   
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("No External Redirect", margin, currentY);
-  currentY += 4;
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text("The client will never be redirected to third-party carrier websites for delivery or payment.", margin + 5, currentY);
-  
-  addFooter();
-  
-  // ========== PAGE 3: PORTABILITY & POLICIES ==========
+  // ========== PAGE 3: DELIVERY & POLICIES ==========
   addNewPage();
   
-  // ========== SECTION 7: NUMBER PORTABILITY ==========
-  addSectionNumber(7, "Number Portability (Québec Only)");
+  addSectionHeader("Delivery & Fulfillment");
   
-  addParagraph("If the order contains a number transfer request, the system will validate inline using:", 7);
-  currentY += 2;
+  addClause("6.1", `Standard Québec Delivery: ${CONTRACT_TERMS.delivery.standardDays}`);
+  addClause("6.2", `Uber Express Delivery (${CONTRACT_TERMS.delivery.uberExpress}): Available in ${CONTRACT_TERMS.delivery.eligibleCities.slice(0, 4).join(", ")}, and select areas.`);
+  addClause("6.3", "Orders containing Mobile, Streaming, or Accessories → Delivery only. Orders with Internet or TV → Installation available.");
+  addClause("6.4", "The Client will not be redirected to third-party carrier websites for delivery or payment processing.");
   
-  doc.setFontSize(7);
-  doc.setTextColor(...darkText);
-  doc.text(`Area codes permitted: ${CONTRACT_TERMS.portability.allowedAreaCodes.join(", ")}`, margin + 5, currentY);
-  currentY += 6;
+  addSectionHeader("Number Portability (Québec Only)");
   
-  doc.text("If transferable → Admin may request:", margin + 5, currentY);
-  currentY += 4;
-  doc.text("• Previous carrier name (Québec carriers only)", margin + 10, currentY);
-  currentY += 4;
-  doc.text("• Client account number", margin + 10, currentY);
-  currentY += 4;
-  doc.text("• Internal approval", margin + 10, currentY);
-  currentY += 6;
+  addClause("7.1", `Permitted area codes: ${CONTRACT_TERMS.portability.allowedAreaCodes.join(", ")}`);
+  addClause("7.2", "If transferable, Admin may request: previous carrier name, account number, and internal approval.");
+  addClause("7.3", `If new number required, temporary placeholder assigned: ${CONTRACT_TERMS.portability.tempPlaceholder} (modifiable by Admin only).`);
   
-  doc.text(`If new number is required → system assigns temporary placeholder: ${CONTRACT_TERMS.portability.tempPlaceholder}`, margin + 5, currentY);
-  currentY += 4;
-  doc.setFontSize(6);
-  doc.setTextColor(...grayText);
-  doc.text("(modifiable later by Admin only)", margin + 5, currentY);
-  currentY += 4;
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(180, 50, 50);
-  doc.text("The client cannot choose their phone number at checkout.", margin + 5, currentY);
-  currentY += 8;
+  addSectionHeader("Equipment Warranty");
   
-  // ========== SECTION 8: EQUIPMENT WARRANTY POLICY ==========
-  addSectionNumber(8, "Equipment Warranty Policy");
+  addClause("8.1", `${CONTRACT_TERMS.warranty.duration} manufacturer warranty on all Nivra equipment.`);
+  addClause("8.2", `Coverage: ${CONTRACT_TERMS.warranty.coverage}.`);
+  addClause("8.3", `Exclusions: ${CONTRACT_TERMS.warranty.exclusions.join(", ")}.`);
   
-  doc.setFontSize(7);
-  doc.setTextColor(...darkText);
-  doc.setFont("helvetica", "normal");
-  doc.text(`• ${CONTRACT_TERMS.warranty.duration} manufacturer warranty`, margin + 5, currentY);
-  currentY += 4;
-  doc.text(`• Covers ${CONTRACT_TERMS.warranty.coverage.toLowerCase()}`, margin + 5, currentY);
-  currentY += 4;
-  doc.text("• Excludes:", margin + 5, currentY);
-  currentY += 4;
-  CONTRACT_TERMS.warranty.exclusions.forEach(excl => {
-    doc.text(`  - ${excl}`, margin + 10, currentY);
-    currentY += 4;
-  });
-  currentY += 4;
+  addSectionHeader("Cancellation & Return Policy");
   
-  // ========== SECTION 9: CANCELLATION & NON-RETURN POLICY ==========
-  addSectionNumber(9, "Cancellation & Non-Return Policy");
-  
-  doc.setFillColor(...lightGray);
-  doc.roundedRect(margin, currentY, contentWidth, 25, 2, 2, "F");
-  
-  let cancY = currentY + 7;
-  cancY = addTableRow("Cancellation Stage", "Rule", cancY, true);
-  cancY = addTableRow("After delivery", CONTRACT_TERMS.cancellation.afterDeliveryCharge, cancY);
-  cancY = addTableRow("Before delivery", CONTRACT_TERMS.cancellation.beforeDeliveryCharge, cancY);
-  addTableRow("Order cancelled", "All service bindings removed from client profile", cancY);
-  
-  currentY += 30;
-  
-  doc.setFontSize(7);
-  doc.setTextColor(180, 50, 50);
-  doc.setFont("helvetica", "bold");
-  doc.text("If equipment is not returned:", margin + 5, currentY);
-  currentY += 4;
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(`${CONTRACT_TERMS.cancellation.nonReturnFee} may be applied.`, margin + 5, currentY);
-  currentY += 8;
-  
-  // ========== SECTION 10: DATA PRIVACY & ACCESS PERMISSIONS ==========
-  addSectionNumber(10, "Data Privacy & Access Permissions");
-  
-  doc.setFillColor(...lightGray);
-  doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "F");
-  
-  let permY = currentY + 7;
-  permY = addTableRow("Role", "Access Level", permY, true);
-  permY = addTableRow(ACCESS_PERMISSIONS.admin.role, ACCESS_PERMISSIONS.admin.access, permY);
-  permY = addTableRow(ACCESS_PERMISSIONS.employee.role, ACCESS_PERMISSIONS.employee.access, permY);
-  addTableRow(ACCESS_PERMISSIONS.technician.role, ACCESS_PERMISSIONS.technician.access, permY);
-  
-  currentY += 28;
-  
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(34, 197, 94);
-  doc.text("No client data is sold or shared externally.", margin + 5, currentY);
-  currentY += 8;
-  
-  // ========== SECTION 11: INTERNAL ACTIVITY LOGS ==========
-  addSectionNumber(11, "Internal Activity Logs");
-  
-  addParagraph("All account modifications are logged internally and visible only to the Admin in:", 7);
-  currentY += 1;
-  
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("Admin Portal → Logs privés", margin + 5, currentY);
-  currentY += 5;
-  
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text("Fields logged: Actor role, Internal email, Timestamp, Field changed, Old value → New value, Reason entered", margin + 5, currentY);
-  currentY += 5;
-  
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(34, 197, 94);
-  doc.text("Logs and records never disappear from the system.", margin + 5, currentY);
-  
-  addFooter();
-  
-  // ========== PAGE 4: ACCEPTANCE & SIGNATURES ==========
-  addNewPage();
-  
-  // ========== SECTION 12: CLIENT ACCEPTANCE ==========
-  addSectionNumber(12, "Client Acceptance");
-  
-  addParagraph("By confirming this agreement, the client accepts:", 7);
-  currentY += 2;
-  
-  const acceptanceItems = [
-    "Fees applied before confirmation",
-    "Delivery category enforcement",
-    "Warranty and cancellation policies",
-    "Data privacy terms",
-    "The agreement as legally enforceable in Québec",
+  const cancRows: string[][] = [
+    ["Before Delivery", "No fees, equipment/delivery costs may apply"],
+    ["After Delivery", CONTRACT_TERMS.cancellation.afterDeliveryCharge],
+    ["Equipment Return", `Within ${CONTRACT_TERMS.cancellation.returnDays} days; return costs on Client`],
+    ["Non-Return Penalty", "Variable fee after Admin validation"],
   ];
   
-  acceptanceItems.forEach(item => {
-    doc.setFontSize(7);
-    doc.setTextColor(...darkText);
-    doc.text(`• ${item}`, margin + 5, currentY);
-    currentY += 4;
+  addTable(["Stage", "Terms"], cancRows, [50, contentWidth - 50]);
+  
+  addSectionHeader("Data Privacy & Access");
+  
+  const accessRows: string[][] = [
+    [ACCESS_PERMISSIONS.admin.role, ACCESS_PERMISSIONS.admin.access],
+    [ACCESS_PERMISSIONS.employee.role, ACCESS_PERMISSIONS.employee.access],
+    [ACCESS_PERMISSIONS.technician.role, ACCESS_PERMISSIONS.technician.access],
+  ];
+  
+  addTable(["Role", "Access Level"], accessRows, [40, contentWidth - 40]);
+  
+  addClause("10.1", "No client data is sold or shared externally. All modifications are logged in Admin Portal → Logs privés.");
+  
+  addLegalFooter();
+  
+  // ========== PAGE 4: LEGAL & SIGNATURES ==========
+  addNewPage();
+  
+  addSectionHeader("Legal Terms");
+  
+  addClause("11.1", `LATE PAYMENT: Interest of ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month on unpaid balances after ${CONTRACT_TERMS.paymentTerms.dueDays} days.`);
+  addClause("11.2", "NO CREDIT CHECK: Access based on pre-authorization or security deposit. No impact on credit file.");
+  addClause("11.3", "CONFIDENTIALITY: Client information kept strictly confidential; not shared without explicit consent.");
+  addClause("11.4", "DATA PROTECTION: Personal data protected per Québec privacy laws and Law 25.");
+  addClause("11.5", "FRAUD & ABUSE: Fraudulent use results in immediate termination and potential legal action.");
+  addClause("11.6", "JURISDICTION: Governed by laws of Québec and applicable federal laws of Canada.");
+  
+  addSectionHeader("Client Acceptance");
+  
+  addParagraph("By confirming this Agreement, the Client accepts:", 0, 8);
+  
+  const acceptItems = [
+    "All fees applied before confirmation",
+    "Delivery category enforcement rules",
+    "Equipment warranty and cancellation policies",
+    "Data privacy and access terms",
+    "This Agreement as legally enforceable in the Province of Québec"
+  ];
+  
+  acceptItems.forEach((item, i) => {
+    addClause(`12.${i + 1}`, item, 5);
   });
   
-  currentY += 6;
+  currentY += 5;
   
-  // ========== SECTION 13: SIGNATURES ==========
-  addSectionNumber(13, "Signatures");
+  addSectionHeader("Signatures");
   
-  const sigBoxWidth = (contentWidth - 10) / 2;
-  const sigBoxHeight = 60;
+  const sigWidth = (contentWidth - 20) / 2;
+  const sigHeight = 55;
   
-  // Client e-Signature
-  doc.setFillColor(...lightGray);
-  doc.roundedRect(margin, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "F");
-  doc.setDrawColor(...cyanAccent);
-  doc.setLineWidth(1);
-  doc.line(margin, currentY + 2, margin, currentY + sigBoxHeight - 2);
+  // Client signature (LEFT)
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...borderLight);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(marginLeft, currentY, sigWidth, sigHeight, 2, 2, "FD");
   
-  doc.setFontSize(9);
+  // Left accent bar
+  doc.setFillColor(...accentTeal);
+  doc.rect(marginLeft, currentY, 3, sigHeight, "F");
+  
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...navyColor);
-  doc.text("Client e-Signature", margin + sigBoxWidth / 2, currentY + 10, { align: "center" });
+  doc.setTextColor(...primaryNavy);
+  doc.text("CLIENT E-SIGNATURE", marginLeft + 8, currentY + 10);
   
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkText);
-  doc.text(`Name: ${data.clientFirstName} ${data.clientLastName}`, margin + 5, currentY + 22);
-  doc.text(`Date: ${data.signedAt ? format(new Date(data.signedAt), "d MMMM yyyy", { locale: fr }) : "_______________________"}`, margin + 5, currentY + 30);
-  doc.text("Signature:", margin + 5, currentY + 42);
-  doc.setDrawColor(...grayText);
-  doc.line(margin + 25, currentY + 42, margin + sigBoxWidth - 5, currentY + 42);
+  doc.setTextColor(...textDark);
+  doc.text(`Name: ${data.clientFirstName} ${data.clientLastName}`, marginLeft + 8, currentY + 20);
+  doc.text(`Date: ${data.signedAt ? format(new Date(data.signedAt), "d MMM yyyy") : "____________________"}`, marginLeft + 8, currentY + 28);
   
-  // Processed by (Nivra Employee)
-  const empX = margin + sigBoxWidth + 10;
-  doc.setFillColor(...navyColor);
-  doc.roundedRect(empX, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "F");
+  doc.text("Signature:", marginLeft + 8, currentY + 40);
+  doc.setDrawColor(...textMuted);
+  doc.setLineWidth(0.3);
+  doc.line(marginLeft + 30, currentY + 40, marginLeft + sigWidth - 5, currentY + 40);
   
-  doc.setFontSize(9);
+  // Company signature (RIGHT)
+  const compSigX = marginLeft + sigWidth + 20;
+  doc.setFillColor(...primaryNavy);
+  doc.roundedRect(compSigX, currentY, sigWidth, sigHeight, 2, 2, "F");
+  
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...cyanAccent);
-  doc.text("Processed by (Nivra Employee)", empX + sigBoxWidth / 2, currentY + 10, { align: "center" });
+  doc.setTextColor(...accentTeal);
+  doc.text("NIVRA AUTHORIZED REPRESENTATIVE", compSigX + 5, currentY + 10);
   
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(255, 255, 255);
-  doc.text(`Name: ${data.employeeName || "_______________________"}`, empX + 5, currentY + 22);
-  doc.text(`Role: ${data.employeeRole || "_______________________"}`, empX + 5, currentY + 30);
-  doc.text(`Internal Email: ${data.employeeEmail || "_______________________"}`, empX + 5, currentY + 38);
-  doc.text("Signature:", empX + 5, currentY + 50);
-  doc.setDrawColor(100, 100, 100);
-  doc.line(empX + 25, currentY + 50, empX + sigBoxWidth - 5, currentY + 50);
+  doc.setTextColor(...white);
+  doc.text(`Name: ${data.employeeName || "____________________"}`, compSigX + 5, currentY + 20);
+  doc.text(`Role: ${data.employeeRole || "____________________"}`, compSigX + 5, currentY + 28);
+  doc.text(`Email: ${data.employeeEmail || "____________________"}`, compSigX + 5, currentY + 36);
   
-  doc.setFontSize(6);
-  doc.setTextColor(180, 180, 180);
-  doc.text("Authorized for Nivra Communications Inc.", empX + 5, currentY + 56);
+  doc.text("Signature:", compSigX + 5, currentY + 48);
+  doc.setDrawColor(150, 150, 150);
+  doc.line(compSigX + 30, currentY + 48, compSigX + sigWidth - 5, currentY + 48);
   
-  currentY += sigBoxHeight + 15;
+  currentY += sigHeight + 12;
   
   // Status banner
   if (data.isSigned && data.signedAt) {
-    doc.setFillColor(230, 255, 230);
-    doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "F");
+    doc.setFillColor(220, 252, 231);
     doc.setDrawColor(34, 197, 94);
-    doc.setLineWidth(1);
-    doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "S");
+    doc.setLineWidth(1.5);
+    doc.roundedRect(marginLeft, currentY, contentWidth, 18, 3, 3, "FD");
+    
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(34, 150, 94);
-    doc.text("✓ CONTRACT SIGNED / CONTRAT SIGNÉ", pageWidth / 2, currentY + 10, { align: "center" });
+    doc.setTextColor(22, 163, 74);
+    doc.text("✓ AGREEMENT EXECUTED", pageWidth / 2, currentY + 8, { align: "center" });
+    
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(`${format(new Date(data.signedAt), "d MMMM yyyy 'at' HH:mm", { locale: fr })}`, pageWidth / 2, currentY + 17, { align: "center" });
+    doc.text(format(new Date(data.signedAt), "d MMMM yyyy 'at' HH:mm"), pageWidth / 2, currentY + 14, { align: "center" });
   } else {
-    doc.setFillColor(255, 250, 235);
-    doc.roundedRect(margin, currentY, contentWidth, 18, 2, 2, "F");
+    doc.setFillColor(254, 249, 195);
     doc.setDrawColor(234, 179, 8);
-    doc.setLineWidth(1);
-    doc.roundedRect(margin, currentY, contentWidth, 18, 2, 2, "S");
+    doc.setLineWidth(1.5);
+    doc.roundedRect(marginLeft, currentY, contentWidth, 15, 3, 3, "FD");
+    
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(180, 130, 0);
-    doc.text("⏳ AWAITING SIGNATURE / EN ATTENTE DE SIGNATURE", pageWidth / 2, currentY + 11, { align: "center" });
+    doc.setTextColor(161, 98, 7);
+    doc.text("⏳ AWAITING CLIENT SIGNATURE", pageWidth / 2, currentY + 10, { align: "center" });
   }
   
-  addFooter();
+  addLegalFooter();
   
   return doc;
 };
 
 export const downloadTelecomContractPDF = (data: TelecomContractData): void => {
-  const doc = generateTelecomContractPDF(data);
-  doc.save(`CSA-${data.contractNumber}.pdf`);
+  try {
+    const doc = generateTelecomContractPDF(data);
+    doc.save(`CSA-${data.contractNumber}.pdf`);
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    throw new Error("Failed to generate contract PDF");
+  }
 };
 
 export const viewTelecomContractPDF = (data: TelecomContractData): void => {
-  const doc = generateTelecomContractPDF(data);
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  try {
+    const doc = generateTelecomContractPDF(data);
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  } catch (error) {
+    console.error("Error viewing PDF:", error);
+    throw new Error("Failed to open contract PDF");
+  }
 };
 
 export const getTelecomContractBlob = (data: TelecomContractData): Blob => {
-  const doc = generateTelecomContractPDF(data);
-  return doc.output("blob");
+  try {
+    const doc = generateTelecomContractPDF(data);
+    return doc.output("blob");
+  } catch (error) {
+    console.error("Error creating PDF blob:", error);
+    throw new Error("Failed to create contract PDF");
+  }
 };
