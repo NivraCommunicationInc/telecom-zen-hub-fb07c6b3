@@ -661,6 +661,71 @@ serve(async (req) => {
         result = { payment };
         break;
 
+      // ==================== INTERNAL TICKETS ====================
+      case "get_internal_tickets":
+        const { data: intTickets } = await supabase
+          .from("internal_tickets")
+          .select("*")
+          .or(`assigned_to_department.eq.employee,assigned_to_department.eq.all,created_by_role.eq.employee`)
+          .order("created_at", { ascending: false })
+          .limit(100);
+        result = { tickets: intTickets || [] };
+        break;
+
+      case "get_internal_ticket_replies":
+        const { data: intReplies } = await supabase
+          .from("internal_ticket_replies")
+          .select("*")
+          .eq("ticket_id", params.ticketId)
+          .order("created_at", { ascending: true });
+        result = { replies: intReplies || [] };
+        break;
+
+      case "create_internal_ticket":
+        const { data: newIntTicket, error: createIntError } = await supabase
+          .from("internal_tickets")
+          .insert({
+            created_by_id: employeeId,
+            created_by_name: employeeName,
+            created_by_role: "employee",
+            created_by_email: employeeEmail,
+            subject: params.subject,
+            description: params.description,
+            category: params.category || "general",
+            priority: params.priority || "normal",
+            assigned_to_department: params.assigned_to_department || "all",
+            cc_departments: params.cc_departments || [],
+          })
+          .select()
+          .single();
+        if (createIntError) throw createIntError;
+        result = { ticket: newIntTicket };
+        break;
+
+      case "add_internal_ticket_reply":
+        const { error: replyError } = await supabase
+          .from("internal_ticket_replies")
+          .insert({
+            ticket_id: params.ticketId,
+            author_id: employeeId,
+            author_name: employeeName,
+            author_role: "employee",
+            author_email: employeeEmail,
+            content: params.content,
+          });
+        if (replyError) throw replyError;
+        result = { success: true };
+        break;
+
+      case "update_internal_ticket_status":
+        const { error: statusUpdateError } = await supabase
+          .from("internal_tickets")
+          .update({ status: params.status, updated_at: new Date().toISOString() })
+          .eq("id", params.ticketId);
+        if (statusUpdateError) throw statusUpdateError;
+        result = { success: true };
+        break;
+
       default:
         return new Response(
           JSON.stringify({ error: "Action non reconnue" }),

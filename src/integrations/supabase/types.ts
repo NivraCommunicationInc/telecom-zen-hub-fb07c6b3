@@ -892,6 +892,122 @@ export type Database = {
           },
         ]
       }
+      internal_ticket_replies: {
+        Row: {
+          author_email: string | null
+          author_id: string
+          author_name: string
+          author_role: string
+          content: string
+          created_at: string
+          id: string
+          is_internal_note: boolean | null
+          ticket_id: string
+        }
+        Insert: {
+          author_email?: string | null
+          author_id: string
+          author_name: string
+          author_role: string
+          content: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean | null
+          ticket_id: string
+        }
+        Update: {
+          author_email?: string | null
+          author_id?: string
+          author_name?: string
+          author_role?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_ticket_replies_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "internal_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_tickets: {
+        Row: {
+          assigned_to_department: string
+          assigned_to_id: string | null
+          assigned_to_name: string | null
+          category: string | null
+          cc_departments: Json | null
+          created_at: string
+          created_by_email: string | null
+          created_by_id: string
+          created_by_name: string
+          created_by_role: string
+          description: string
+          id: string
+          internal_notes: string | null
+          priority: string
+          resolved_at: string | null
+          resolved_by_id: string | null
+          resolved_by_name: string | null
+          status: string
+          subject: string
+          ticket_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_department: string
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          category?: string | null
+          cc_departments?: Json | null
+          created_at?: string
+          created_by_email?: string | null
+          created_by_id: string
+          created_by_name: string
+          created_by_role: string
+          description: string
+          id?: string
+          internal_notes?: string | null
+          priority?: string
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          status?: string
+          subject: string
+          ticket_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_department?: string
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          category?: string | null
+          cc_departments?: Json | null
+          created_at?: string
+          created_by_email?: string | null
+          created_by_id?: string
+          created_by_name?: string
+          created_by_role?: string
+          description?: string
+          id?: string
+          internal_notes?: string | null
+          priority?: string
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          status?: string
+          subject?: string
+          ticket_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       job_applications: {
         Row: {
           created_at: string
@@ -2663,6 +2779,7 @@ export type Database = {
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
+      generate_internal_ticket_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
