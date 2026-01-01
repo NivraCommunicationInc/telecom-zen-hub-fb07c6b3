@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, CheckCircle, RotateCw, Wifi, Tv, Smartphone, Shield, Play } from "lucide-react";
+import { FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, CheckCircle, RotateCw, Wifi, Tv, Smartphone, Shield, Play, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -899,175 +899,293 @@ const AdminContracts = () => {
           </CardContent>
         </Card>
 
-        {/* Contract Preview Dialog */}
+        {/* Contract Preview Dialog - Premium Carrier-Grade Design */}
         <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
           <DialogContent 
-            className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}
           >
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-cyan-400" />
-                Aperçu du contrat
-              </DialogTitle>
-            </DialogHeader>
             {selectedContract && (
-              <ScrollArea className="flex-1">
-                <div className="space-y-6 py-4 pr-4">
-                  {/* Header */}
-                  <div className="bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg p-6 text-center">
-                    <h2 className="text-2xl font-bold">{BUSINESS_INFO.name.toUpperCase()}</h2>
-                    <p className="text-sm opacity-90">Compagnie Télécom Indépendante</p>
-                    <p className="text-xs opacity-75 mt-1">
-                      {BUSINESS_INFO.phone} | {BUSINESS_INFO.email}
-                    </p>
-                  </div>
-
-                  {/* Contract Info */}
-                  <div className="bg-muted rounded-lg p-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium">Contrat N° :</span>{" "}
-                        {selectedContract.contract_number || selectedContract.contract_url || selectedContract.id.slice(0, 8).toUpperCase()}
-                      </div>
-                      <div>
-                        <span className="font-medium">Version :</span> {CONTRACT_TERMS.version}
-                      </div>
-                      <div>
-                        <span className="font-medium">Date d'émission :</span>{" "}
-                        {format(new Date(selectedContract.created_at), "d MMMM yyyy", { locale: fr })}
-                      </div>
-                      <div>
-                        <span className="font-medium">Statut :</span>{" "}
-                        <Badge
-                          className={
-                            selectedContract.is_signed
-                              ? "bg-emerald-500/20 text-emerald-500"
-                              : "bg-amber-500/20 text-amber-500"
-                          }
-                        >
-                          {selectedContract.is_signed ? "Signé" : "En attente"}
-                        </Badge>
-                      </div>
+              <>
+                {/* Premium Header Band */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-6 py-5 relative overflow-hidden">
+                  {/* Accent line */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-400" />
+                  
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold tracking-wide">NIVRA COMMUNICATIONS INC.</h2>
+                      <p className="text-teal-400 text-sm font-medium mt-1">CUSTOMER SERVICE AGREEMENT</p>
+                      <p className="text-slate-400 text-xs mt-1">Licensed Telecommunications Provider — Québec</p>
                     </div>
-                  </div>
-
-                  {/* Parties */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-900 text-white rounded-lg p-4">
-                      <h3 className="font-bold text-cyan-400 mb-2">LE PRESTATAIRE / THE PROVIDER</h3>
-                      <p className="text-sm">{BUSINESS_INFO.legalName}</p>
-                      <p className="text-sm text-gray-300">{BUSINESS_INFO.address}</p>
-                      <p className="text-sm text-gray-300">{BUSINESS_INFO.phone}</p>
-                      <p className="text-sm text-gray-300">{BUSINESS_INFO.email}</p>
-                    </div>
-                    <div className="border-l-4 border-cyan-500 bg-muted rounded-lg p-4">
-                      <h3 className="font-bold text-cyan-500 mb-2">LE CLIENT / THE CLIENT</h3>
-                      <p className="text-sm font-medium">{selectedContract.profiles?.full_name || "N/A"}</p>
-                      <p className="text-sm text-muted-foreground">{selectedContract.profiles?.email}</p>
-                      {selectedContract.profiles?.phone && (
-                        <p className="text-sm text-muted-foreground">{selectedContract.profiles.phone}</p>
-                      )}
-                      {selectedContract.profiles?.client_number && (
-                        <p className="text-sm font-medium text-cyan-500 mt-1">
-                          # {selectedContract.profiles.client_number}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Service Address */}
-                  {selectedContract.profiles?.service_address && (
-                    <div className="bg-muted rounded-lg p-4">
-                      <h3 className="font-bold text-cyan-500 mb-2">ADRESSE DE SERVICE / SERVICE ADDRESS</h3>
-                      <p className="text-sm">
-                        {selectedContract.profiles.service_address}, {selectedContract.profiles.service_city}, {selectedContract.profiles.service_province || "QC"} {selectedContract.profiles.service_postal_code}
+                    
+                    {/* Reference Box */}
+                    <div className="bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-3 text-right">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Contract ID</p>
+                      <p className="text-sm font-mono font-bold text-teal-400">
+                        {selectedContract.contract_number || `NVR-CSA-${selectedContract.id.slice(0, 5).toUpperCase()}`}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {format(new Date(selectedContract.created_at), "dd MMM yyyy").toUpperCase()}
                       </p>
                     </div>
-                  )}
-
-                  {/* Contract Details */}
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-cyan-500">OBJET DU CONTRAT / CONTRACT OBJECT</h3>
-                    <p className="text-sm">{selectedContract.contract_name}</p>
                   </div>
-
-                  {/* Identity */}
-                  {selectedContract.profiles?.id_type && (
-                    <div className="bg-muted rounded-lg p-4">
-                      <h3 className="font-bold text-cyan-500 mb-2">VALIDATION D'IDENTITÉ / IDENTITY VALIDATION</h3>
-                      <div className="grid grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Type:</span> {selectedContract.profiles.id_type}
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">N°:</span> {selectedContract.profiles.id_number}
-                        </div>
-                        {selectedContract.profiles.id_province && (
-                          <div>
-                            <span className="text-muted-foreground">Province:</span> {selectedContract.profiles.id_province}
-                          </div>
-                        )}
-                        {selectedContract.profiles.id_expiration && (
-                          <div>
-                            <span className="text-muted-foreground">Exp:</span> {selectedContract.profiles.id_expiration}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Policies Summary */}
-                  <div className="space-y-3">
-                    <h3 className="font-bold text-cyan-500">POLITIQUES INCLUSES / INCLUDED POLICIES</h3>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded p-3">
-                        <p className="font-medium text-red-600 dark:text-red-400 text-xs">PAIEMENT EN RETARD</p>
-                        <p className="text-xs">{CONTRACT_TERMS.paymentTerms.lateInterestRate}% par mois</p>
-                      </div>
-                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded p-3">
-                        <p className="font-medium text-blue-600 dark:text-blue-400 text-xs">GARANTIE</p>
-                        <p className="text-xs">{CONTRACT_TERMS.warranty.duration} - {CONTRACT_TERMS.warranty.coverage}</p>
-                      </div>
-                      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded p-3">
-                        <p className="font-medium text-amber-600 dark:text-amber-400 text-xs">ANNULATION</p>
-                        <p className="text-xs">{CONTRACT_TERMS.cancellation.afterDeliveryCharge}</p>
-                      </div>
-                      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded p-3">
-                        <p className="font-medium text-emerald-600 dark:text-emerald-400 text-xs">CRÉDIT</p>
-                        <p className="text-xs">Aucune vérification de crédit</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Signatures */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-900 text-white rounded-lg p-4">
-                      <h3 className="font-bold text-cyan-400 text-center mb-4">POUR LE PRESTATAIRE</h3>
-                      <div className="border-b border-dashed border-gray-500 h-10 mb-2" />
-                      <p className="text-xs text-gray-400 text-center">Signature</p>
-                    </div>
-                    <div className="border-l-4 border-cyan-500 bg-muted rounded-lg p-4">
-                      <h3 className="font-bold text-cyan-500 text-center mb-4">POUR LE CLIENT</h3>
-                      <div className="border-b border-dashed border-muted-foreground h-10 mb-2" />
-                      <p className="text-xs text-muted-foreground text-center">Signature</p>
-                    </div>
-                  </div>
-
-                  {selectedContract.is_signed && selectedContract.signed_at && (
-                    <div className="bg-emerald-100 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700 rounded-lg p-4 text-center">
-                      <p className="font-bold text-emerald-600 dark:text-emerald-400">
-                        ✓ CONTRAT SIGNÉ ÉLECTRONIQUEMENT
-                      </p>
-                      <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                        {format(new Date(selectedContract.signed_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                      </p>
-                    </div>
-                  )}
                 </div>
-              </ScrollArea>
+
+                <ScrollArea className="flex-1 max-h-[60vh]">
+                  <div className="p-6 space-y-6">
+                    
+                    {/* Section 1: Parties */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">1</div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Parties</h3>
+                        <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Provider */}
+                        <div className="bg-slate-900 rounded-lg p-4 relative overflow-hidden">
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-teal-500" />
+                          <p className="text-[10px] text-teal-400 uppercase tracking-wider font-bold mb-2">Service Provider</p>
+                          <p className="text-white text-sm font-medium">{BUSINESS_INFO.legalName}</p>
+                          <p className="text-slate-400 text-xs mt-1">{BUSINESS_INFO.address}</p>
+                          <p className="text-slate-400 text-xs">{BUSINESS_INFO.phone}</p>
+                          <p className="text-slate-400 text-xs">{BUSINESS_INFO.email}</p>
+                        </div>
+                        
+                        {/* Client */}
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 relative overflow-hidden">
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
+                          <p className="text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider font-bold mb-2">Client (Subscriber)</p>
+                          <p className="text-slate-900 dark:text-white text-sm font-medium">{selectedContract.profiles?.full_name || "N/A"}</p>
+                          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">{selectedContract.profiles?.email}</p>
+                          {selectedContract.profiles?.phone && (
+                            <p className="text-slate-500 dark:text-slate-400 text-xs">{selectedContract.profiles.phone}</p>
+                          )}
+                          {selectedContract.profiles?.client_number && (
+                            <p className="text-cyan-600 dark:text-cyan-400 text-xs font-mono font-bold mt-2">
+                              Account: {selectedContract.profiles.client_number}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Agreement Details */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">2</div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Agreement Identification</h3>
+                        <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                      </div>
+                      
+                      <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-900 text-white">
+                            <tr>
+                              <th className="text-left px-4 py-2 text-xs font-bold uppercase">Identifier</th>
+                              <th className="text-left px-4 py-2 text-xs font-bold uppercase">Value</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            <tr>
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Contract ID</td>
+                              <td className="px-4 py-2 font-mono font-medium">{selectedContract.contract_number || selectedContract.id.slice(0, 8).toUpperCase()}</td>
+                            </tr>
+                            <tr className="bg-white dark:bg-slate-800/50">
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Agreement Version</td>
+                              <td className="px-4 py-2 font-medium">{CONTRACT_TERMS.version}</td>
+                            </tr>
+                            <tr>
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Issue Date</td>
+                              <td className="px-4 py-2 font-medium">{format(new Date(selectedContract.created_at), "d MMMM yyyy", { locale: fr })}</td>
+                            </tr>
+                            <tr className="bg-white dark:bg-slate-800/50">
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Status</td>
+                              <td className="px-4 py-2">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                  selectedContract.is_signed 
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${selectedContract.is_signed ? "bg-emerald-500" : "bg-amber-500"}`} />
+                                  {selectedContract.is_signed ? "Executed" : "Awaiting Signature"}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Section 3: Services */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">3</div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Services Subscribed</h3>
+                        <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                      </div>
+                      
+                      <div className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-800/30 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                        <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedContract.contract_name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Bound to all services selected through the Nivra platform</p>
+                      </div>
+                    </div>
+
+                    {/* Section 4: Service Address */}
+                    {selectedContract.profiles?.service_address && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">4</div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Service Address</h3>
+                          <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                        </div>
+                        
+                        <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                          <p className="text-sm font-medium">
+                            {selectedContract.profiles.service_address}, {selectedContract.profiles.service_city}, {selectedContract.profiles.service_province || "QC"} {selectedContract.profiles.service_postal_code}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 5: Identity Validation */}
+                    {selectedContract.profiles?.id_type && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">5</div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Identity Validation</h3>
+                          <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Type</p>
+                            <p className="text-sm font-medium mt-1">{selectedContract.profiles.id_type}</p>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Number</p>
+                            <p className="text-sm font-medium mt-1 font-mono">{selectedContract.profiles.id_number}</p>
+                          </div>
+                          {selectedContract.profiles.id_province && (
+                            <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Province</p>
+                              <p className="text-sm font-medium mt-1">{selectedContract.profiles.id_province}</p>
+                            </div>
+                          )}
+                          {selectedContract.profiles.id_expiration && (
+                            <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Expiry</p>
+                              <p className="text-sm font-medium mt-1">{selectedContract.profiles.id_expiration}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 6: Policy Summary */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">6</div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Policy Summary</h3>
+                        <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-3 border-l-4 border-red-500">
+                          <p className="text-[10px] text-red-600 dark:text-red-400 uppercase tracking-wider font-bold">Late Payment</p>
+                          <p className="text-sm font-medium text-red-700 dark:text-red-300 mt-1">{CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month</p>
+                          <p className="text-[10px] text-red-500/70 mt-1">After {CONTRACT_TERMS.paymentTerms.dueDays} days</p>
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 border-l-4 border-blue-500">
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold">Warranty</p>
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mt-1">{CONTRACT_TERMS.warranty.duration}</p>
+                          <p className="text-[10px] text-blue-500/70 mt-1">{CONTRACT_TERMS.warranty.coverage}</p>
+                        </div>
+                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3 border-l-4 border-amber-500">
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold">Cancellation</p>
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mt-1">{CONTRACT_TERMS.cancellation.afterDeliveryCharge}</p>
+                          <p className="text-[10px] text-amber-500/70 mt-1">{CONTRACT_TERMS.cancellation.noticeDays} days notice</p>
+                        </div>
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-3 border-l-4 border-emerald-500">
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider font-bold">Credit Check</p>
+                          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 mt-1">Not Required</p>
+                          <p className="text-[10px] text-emerald-500/70 mt-1">Pre-authorization only</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 7: Signatures */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">7</div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Signatures</h3>
+                        <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Client Signature - LEFT */}
+                        <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4 border border-slate-200 dark:border-slate-700 relative overflow-hidden">
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
+                          <p className="text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider font-bold mb-3">Client e-Signature</p>
+                          <p className="text-sm font-medium">{selectedContract.profiles?.full_name || "—"}</p>
+                          <div className="border-b-2 border-dashed border-slate-300 dark:border-slate-600 h-10 mt-4 mb-2" />
+                          <p className="text-[10px] text-slate-400 text-center">Signature</p>
+                        </div>
+                        
+                        {/* Company Signature - RIGHT */}
+                        <div className="bg-slate-900 rounded-lg p-4 relative overflow-hidden">
+                          <div className="absolute right-0 top-0 bottom-0 w-1 bg-teal-500" />
+                          <p className="text-[10px] text-teal-400 uppercase tracking-wider font-bold mb-3">Nivra Authorized Representative</p>
+                          <p className="text-sm font-medium text-white">Nivra Communications Inc.</p>
+                          <div className="border-b-2 border-dashed border-slate-600 h-10 mt-4 mb-2" />
+                          <p className="text-[10px] text-slate-500 text-center">Authorized Signature</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Execution Status Banner */}
+                    {selectedContract.is_signed && selectedContract.signed_at ? (
+                      <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 border-2 border-emerald-400 rounded-xl p-5 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <CheckCircle className="w-6 h-6 text-emerald-500" />
+                          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                            AGREEMENT EXECUTED
+                          </p>
+                        </div>
+                        <p className="text-sm text-emerald-600 dark:text-emerald-300">
+                          Electronically signed on {format(new Date(selectedContract.signed_at), "d MMMM yyyy 'at' HH:mm", { locale: fr })}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-900/20 border-2 border-amber-400 border-dashed rounded-xl p-5 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <Clock className="w-6 h-6 text-amber-500" />
+                          <p className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                            AWAITING CLIENT SIGNATURE
+                          </p>
+                        </div>
+                        <p className="text-sm text-amber-600 dark:text-amber-300">
+                          Contract pending client review and acceptance
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Legal Footer */}
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-6">
+                      <p className="text-[10px] text-slate-400 text-center">
+                        {BUSINESS_INFO.legalName} — {BUSINESS_INFO.address} — {BUSINESS_INFO.phone}
+                      </p>
+                      <p className="text-[10px] text-slate-400 text-center mt-1">
+                        Licensed Telecommunications Services Provider — Province of Québec
+                      </p>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </>
             )}
             <DialogFooter className="border-t pt-4">
               <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
