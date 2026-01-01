@@ -4,11 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wrench, Lock, Mail, ArrowLeft } from "lucide-react";
+import { Wrench, Mail, ArrowLeft, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MINUTES = 15;
 
 const TechnicianAuth = () => {
   const navigate = useNavigate();
@@ -16,38 +20,108 @@ const TechnicianAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [accessCode, setAccessCode] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const normalizeEmail = (email: string): string => {
+    return email.trim().toLowerCase();
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     
     if (accessCode.length !== 4) {
-      toast({
-        title: "Code invalide",
-        description: "Le code d'accès doit contenir 4 chiffres.",
-        variant: "destructive",
-      });
+      setErrorMessage("Le code d'accès doit contenir 4 chiffres.");
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      setErrorMessage("Veuillez entrer votre courriel.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Look up technician by email and access code
+      // Step 1: Find technician by normalized email
       const { data: techData, error: techError } = await supabase
         .from("technicians")
-        .select("id, full_name, email, status, user_id, access_code")
-        .eq("email", email.toLowerCase().trim())
-        .eq("access_code", accessCode)
-        .eq("status", "active")
+        .select("id, full_name, email, status, user_id, access_code, failed_login_attempts, lockout_until")
+        .ilike("email", normalizedEmail)
         .maybeSingle();
 
-      if (techError) throw techError;
-
-      if (!techData) {
-        throw new Error("Courriel ou code d'accès invalide, ou compte inactif.");
+      if (techError) {
+        console.error("Database error:", techError);
+        setErrorMessage("Erreur de connexion. Veuillez réessayer.");
+        return;
       }
 
-      // Store technician session in localStorage (simple session without Supabase Auth)
+      // Step 2: Check if technician exists
+      if (!techData) {
+        setErrorMessage("Aucun profil technicien trouvé pour ce courriel. Contactez l'administrateur.");
+        return;
+      }
+
+      // Step 3: Check if account is locked out
+      if (techData.lockout_until) {
+        const lockoutEnd = new Date(techData.lockout_until);
+        if (lockoutEnd > new Date()) {
+          const minutesRemaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / 60000);
+          setErrorMessage(`Compte temporairement verrouillé. Réessayez dans ${minutesRemaining} minute(s).`);
+          return;
+        }
+      }
+
+      // Step 4: Check if account is active
+      if (techData.status !== "active") {
+        setErrorMessage("Accès bloqué: compte désactivé. Contactez l'administrateur.");
+        return;
+      }
+
+      // Step 5: Verify access code
+      if (techData.access_code !== accessCode) {
+        // Increment failed attempts
+        const newAttempts = (techData.failed_login_attempts || 0) + 1;
+        const updates: { failed_login_attempts: number; lockout_until?: string } = {
+          failed_login_attempts: newAttempts,
+        };
+
+        // Lock account if max attempts exceeded
+        if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+          const lockoutTime = new Date();
+          lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_DURATION_MINUTES);
+          updates.lockout_until = lockoutTime.toISOString();
+          
+          await supabase
+            .from("technicians")
+            .update(updates)
+            .eq("id", techData.id);
+
+          setErrorMessage(`Trop de tentatives échouées. Compte verrouillé pour ${LOCKOUT_DURATION_MINUTES} minutes.`);
+          return;
+        }
+
+        await supabase
+          .from("technicians")
+          .update(updates)
+          .eq("id", techData.id);
+
+        const remainingAttempts = MAX_LOGIN_ATTEMPTS - newAttempts;
+        setErrorMessage(`Code d'accès invalide. ${remainingAttempts} tentative(s) restante(s).`);
+        return;
+      }
+
+      // Step 6: Success - Reset failed attempts and create session
+      await supabase
+        .from("technicians")
+        .update({ 
+          failed_login_attempts: 0, 
+          lockout_until: null 
+        })
+        .eq("id", techData.id);
+
+      // Store technician session in localStorage
       const techSession = {
         id: techData.id,
         email: techData.email,
@@ -58,14 +132,14 @@ const TechnicianAuth = () => {
       
       localStorage.setItem("nivra_technician_session", JSON.stringify(techSession));
 
-      toast({ title: "Connexion réussie", description: `Bienvenue, ${techData.full_name}` });
+      toast({ 
+        title: "Connexion réussie", 
+        description: `Bienvenue, ${techData.full_name}` 
+      });
       navigate("/technician");
     } catch (error: any) {
-      toast({
-        title: "Erreur de connexion",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("Login error:", error);
+      setErrorMessage("Erreur inattendue. Veuillez réessayer.");
     } finally {
       setIsLoading(false);
     }
@@ -89,6 +163,13 @@ const TechnicianAuth = () => {
           </CardHeader>
 
           <CardContent>
+            {errorMessage && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Courriel</Label>
@@ -99,7 +180,10 @@ const TechnicianAuth = () => {
                     type="email"
                     placeholder="technicien@nivra.ca"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrorMessage(null);
+                    }}
                     className="pl-10"
                     required
                   />
@@ -112,7 +196,10 @@ const TechnicianAuth = () => {
                   <InputOTP
                     maxLength={4}
                     value={accessCode}
-                    onChange={(value) => setAccessCode(value)}
+                    onChange={(value) => {
+                      setAccessCode(value);
+                      setErrorMessage(null);
+                    }}
                   >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} className="w-14 h-14 text-2xl" />
