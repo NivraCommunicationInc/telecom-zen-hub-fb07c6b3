@@ -1683,8 +1683,10 @@ export type Database = {
           access_code: string | null
           created_at: string
           email: string
+          failed_login_attempts: number | null
           full_name: string
           id: string
+          lockout_until: string | null
           notes: string | null
           phone: string | null
           specializations: string[] | null
@@ -1696,8 +1698,10 @@ export type Database = {
           access_code?: string | null
           created_at?: string
           email: string
+          failed_login_attempts?: number | null
           full_name: string
           id?: string
+          lockout_until?: string | null
           notes?: string | null
           phone?: string | null
           specializations?: string[] | null
@@ -1709,8 +1713,10 @@ export type Database = {
           access_code?: string | null
           created_at?: string
           email?: string
+          failed_login_attempts?: number | null
           full_name?: string
           id?: string
+          lockout_until?: string | null
           notes?: string | null
           phone?: string | null
           specializations?: string[] | null
