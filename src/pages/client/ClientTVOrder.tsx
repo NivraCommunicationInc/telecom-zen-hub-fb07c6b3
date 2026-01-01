@@ -356,7 +356,7 @@ const ClientTVOrder = () => {
   const tvqAmount = Math.round((oneTimeTotal) * 0.09975 * 100) / 100;
   const totalDueNow = oneTimeTotal + tpsAmount + tvqAmount;
 
-  // Create order mutation
+  // Create order mutation with automatic appointment creation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
@@ -383,8 +383,8 @@ const ClientTVOrder = () => {
         console.error("Profile update error:", profileError);
       }
 
-      // Create the order (DO NOT include ID data or channel selections in visible order notes)
-      const { data, error } = await supabase.from("orders").insert({
+      // Create the order
+      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
         service_type: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
@@ -396,6 +396,8 @@ const ClientTVOrder = () => {
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
+        installation_type: installationMethod,
+        appointment_date: selectedDate ? new Date(selectedDate).toISOString() : null,
         created_by: "client",
         notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
@@ -405,12 +407,52 @@ ${notes || ""}`.trim(),
         internal_notes: `Equipment: Nivra Born Wifi Router ($60) + ${terminalCount}x Nivra 4K Smart Terminal ($${terminalFee})`,
       }).select().single();
 
-      if (error) throw error;
-      return data;
+      if (orderError) throw orderError;
+      if (!orderData) throw new Error("Order creation failed - no data returned");
+
+      // AUTO-CREATE APPOINTMENT for TV + Internet orders
+      if (selectedDate && selectedTime) {
+        const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+        
+        const appointmentResult = await createAppointmentFromOrder({
+          orderId: orderData.id,
+          orderNumber: orderData.order_number,
+          userId: user.id,
+          clientEmail: clientIdData.email || profile?.email || user.email || "",
+          clientPhone: clientIdData.phone || profile?.phone || "",
+          clientName: `${clientIdData.firstName} ${clientIdData.lastName}`,
+          serviceType: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
+          category: "TV + Internet",
+          serviceAddress: address,
+          serviceCity: addressValidation?.city || "",
+          servicePostalCode: addressValidation?.postalCode || "",
+          scheduledDate: selectedDate,
+          scheduledTime: selectedTime,
+          installationMethod: installationMethod,
+          deliveryFee: installationMethod === "auto" ? 30 : 0,
+          installationFee: installationMethod === "technician" ? 50 : 0,
+          equipmentDetails: [
+            { type: "router", name: "Nivra Born Wifi", fee: 60 },
+            { type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalCount, fee: terminalFee }
+          ],
+          notes: notes || "",
+        });
+
+        if (!appointmentResult.success) {
+          console.error("Appointment creation failed:", appointmentResult.error);
+          // Don't throw - order was created successfully, appointment creation is secondary
+        } else {
+          console.log("Appointment created:", appointmentResult.appointment?.appointment_number);
+        }
+      }
+
+      return orderData;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       setCreatedOrder(data);
       setStep(5);
     },
