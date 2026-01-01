@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, CheckCircle } from "lucide-react";
+import { FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, CheckCircle, RotateCw, Wifi, Tv, Smartphone, Shield, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { downloadTelecomContractPDF, viewTelecomContractPDF, TelecomContractData } from "@/lib/telecomContractGenerator";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ContractFormData {
   user_id: string;
@@ -32,11 +33,30 @@ interface ContractFormData {
   employee_title: string;
 }
 
+interface ActiveService {
+  id: string;
+  type: 'subscription' | 'order';
+  serviceName: string;
+  category: string;
+  userId: string;
+  clientName: string;
+  clientEmail: string;
+  clientNumber?: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  hasContract: boolean;
+  profile: any;
+  originalData: any;
+}
+
 const AdminContracts = () => {
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [formData, setFormData] = useState<ContractFormData>({
     user_id: "",
     contract_name: "",
@@ -109,6 +129,116 @@ const AdminContracts = () => {
       );
       
       return ordersWithProfiles;
+    },
+    staleTime: 30000,
+  });
+
+  // Fetch ALL active services for contract regeneration
+  const { data: activeServices, refetch: refetchActiveServices } = useQuery({
+    queryKey: ["active-services-for-contracts"],
+    queryFn: async () => {
+      const services: ActiveService[] = [];
+      
+      // Get active subscriptions
+      const { data: subscriptions } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("status", "active");
+      
+      // Get completed/delivered orders
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("*")
+        .in("status", ["completed", "delivered", "active", "shipped"]);
+      
+      // Get existing contracts to check which services already have one
+      const { data: existingContracts } = await supabase
+        .from("contracts")
+        .select("user_id, contract_name");
+      
+      // Get all profiles for these users
+      const userIds = [
+        ...(subscriptions || []).map(s => s.user_id),
+        ...(orders || []).map(o => o.user_id)
+      ];
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("user_id", uniqueUserIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
+      // Process subscriptions
+      for (const sub of subscriptions || []) {
+        const profile = profileMap.get(sub.user_id);
+        const hasContract = existingContracts?.some(
+          c => c.user_id === sub.user_id && c.contract_name.toLowerCase().includes(sub.plan_name.toLowerCase())
+        ) || false;
+        
+        // Determine category from plan name
+        let category = "Télécom";
+        const planLower = sub.plan_name.toLowerCase();
+        if (planLower.includes("internet") || planLower.includes("giga") || planLower.includes("fibre")) category = "Internet";
+        else if (planLower.includes("tv") || planLower.includes("télé")) category = "TV";
+        else if (planLower.includes("mobile") || planLower.includes("cellulaire")) category = "Mobile";
+        else if (planLower.includes("sécurité") || planLower.includes("security")) category = "Sécurité";
+        else if (planLower.includes("streaming") || planLower.includes("netflix") || planLower.includes("disney")) category = "Streaming";
+        
+        services.push({
+          id: `sub-${sub.id}`,
+          type: 'subscription',
+          serviceName: sub.plan_name,
+          category,
+          userId: sub.user_id,
+          clientName: profile?.full_name || profile?.email || "N/A",
+          clientEmail: profile?.email || "",
+          clientNumber: profile?.client_number,
+          amount: sub.amount,
+          status: sub.status,
+          createdAt: sub.created_at,
+          hasContract,
+          profile,
+          originalData: sub,
+        });
+      }
+      
+      // Process orders
+      for (const order of orders || []) {
+        const profile = profileMap.get(order.user_id);
+        const hasContract = order.related_contract_id != null || existingContracts?.some(
+          c => c.user_id === order.user_id && c.contract_name.toLowerCase().includes(order.service_type.toLowerCase())
+        ) || false;
+        
+        // Determine category from service type
+        let category = "Télécom";
+        const serviceTypeLower = order.service_type.toLowerCase();
+        if (serviceTypeLower.includes("internet") || serviceTypeLower.includes("giga") || serviceTypeLower.includes("fibre")) category = "Internet";
+        else if (serviceTypeLower.includes("tv") || serviceTypeLower.includes("télé") || serviceTypeLower.includes("bundle")) category = "TV + Internet";
+        else if (serviceTypeLower.includes("mobile") || serviceTypeLower.includes("cellulaire") || serviceTypeLower.includes("sim")) category = "Mobile";
+        else if (serviceTypeLower.includes("sécurité") || serviceTypeLower.includes("security")) category = "Sécurité";
+        else if (serviceTypeLower.includes("streaming")) category = "Streaming";
+        
+        services.push({
+          id: `ord-${order.id}`,
+          type: 'order',
+          serviceName: order.service_type,
+          category,
+          userId: order.user_id,
+          clientName: profile?.full_name || order.client_email || "N/A",
+          clientEmail: profile?.email || order.client_email || "",
+          clientNumber: profile?.client_number,
+          amount: order.total_amount || 0,
+          status: order.status,
+          createdAt: order.created_at,
+          hasContract,
+          profile,
+          originalData: order,
+        });
+      }
+      
+      return services;
     },
     staleTime: 30000,
   });
@@ -212,6 +342,73 @@ const AdminContracts = () => {
     },
     onError: () => {
       toast.error("Erreur lors de la suppression");
+    },
+  });
+
+  // Regenerate contracts for active services
+  const regenerateContractsMutation = useMutation({
+    mutationFn: async (serviceIds: string[]) => {
+      const results: { success: string[]; failed: string[] } = { success: [], failed: [] };
+      
+      for (const serviceId of serviceIds) {
+        const service = activeServices?.find(s => s.id === serviceId);
+        if (!service) continue;
+        
+        try {
+          const contractNumber = `CTR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+          const profile = service.profile;
+          
+          // Build contract name with service details
+          const contractName = `Contrat ${service.category} - ${service.serviceName}`;
+          
+          // Create contract
+          const { data: newContract, error } = await supabase
+            .from("contracts")
+            .insert({
+              user_id: service.userId,
+              contract_name: contractName,
+              contract_url: contractNumber,
+              contract_number: contractNumber,
+              is_signed: false,
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          
+          // If it's an order, link the contract
+          if (service.type === 'order') {
+            const orderId = serviceId.replace('ord-', '');
+            await supabase
+              .from("orders")
+              .update({ related_contract_id: newContract.id })
+              .eq("id", orderId);
+          }
+          
+          results.success.push(service.serviceName);
+        } catch (err) {
+          console.error(`Failed to generate contract for ${service.serviceName}:`, err);
+          results.failed.push(service.serviceName);
+        }
+      }
+      
+      return results;
+    },
+    onSuccess: (results) => {
+      if (results.success.length > 0) {
+        toast.success(`${results.success.length} contrat(s) généré(s) avec succès`);
+      }
+      if (results.failed.length > 0) {
+        toast.error(`${results.failed.length} contrat(s) ont échoué`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["active-services-for-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["orders-needing-contracts"] });
+      setIsRegenerateDialogOpen(false);
+      setSelectedServices([]);
+    },
+    onError: () => {
+      toast.error("Erreur lors de la régénération des contrats");
     },
   });
 
@@ -333,6 +530,45 @@ const AdminContracts = () => {
     }
   };
 
+  const toggleServiceSelection = (serviceId: string) => {
+    setSelectedServices(prev => 
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
+
+  const selectAllServices = () => {
+    const servicesWithoutContract = activeServices?.filter(s => !s.hasContract) || [];
+    setSelectedServices(servicesWithoutContract.map(s => s.id));
+  };
+
+  const deselectAllServices = () => {
+    setSelectedServices([]);
+  };
+
+  const handleRegenerateContracts = () => {
+    if (selectedServices.length === 0) {
+      toast.error("Veuillez sélectionner au moins un service");
+      return;
+    }
+    regenerateContractsMutation.mutate(selectedServices);
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "Internet": return <Wifi className="w-4 h-4 text-blue-500" />;
+      case "TV": case "TV + Internet": return <Tv className="w-4 h-4 text-purple-500" />;
+      case "Mobile": return <Smartphone className="w-4 h-4 text-green-500" />;
+      case "Sécurité": return <Shield className="w-4 h-4 text-red-500" />;
+      case "Streaming": return <Play className="w-4 h-4 text-orange-500" />;
+      default: return <Package className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const servicesWithoutContract = activeServices?.filter(s => !s.hasContract) || [];
+  const servicesWithContract = activeServices?.filter(s => s.hasContract) || [];
+
   return (
     <AdminLayout>
       <div className="space-y-8">
@@ -345,6 +581,17 @@ const AdminContracts = () => {
             <Button variant="outline" onClick={() => refetchContracts()}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                refetchActiveServices();
+                setIsRegenerateDialogOpen(true);
+              }}
+              className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
+            >
+              <RotateCw className="w-4 h-4 mr-2" />
+              Régénérer contrats
             </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
@@ -847,6 +1094,161 @@ const AdminContracts = () => {
                   </Button>
                 </>
               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Contract Regeneration Dialog */}
+        <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+          <DialogContent 
+            className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RotateCw className="w-5 h-5 text-amber-500" />
+                Régénérer contrats pour services actifs
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="text-sm text-muted-foreground mb-4">
+              Sélectionnez les services pour lesquels vous souhaitez générer des contrats. Les contrats seront créés et liés aux profils clients.
+            </div>
+
+            <ScrollArea className="flex-1 max-h-[60vh]">
+              <div className="space-y-6 pr-4">
+                {/* Services without contracts */}
+                {servicesWithoutContract.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground flex items-center gap-2">
+                        <Package className="w-4 h-4 text-amber-500" />
+                        Services sans contrat ({servicesWithoutContract.length})
+                      </h3>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={selectAllServices}>
+                          Tout sélectionner
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={deselectAllServices}>
+                          Désélectionner
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {servicesWithoutContract.map(service => (
+                        <div
+                          key={service.id}
+                          className={`flex items-center gap-3 p-3 border rounded-lg transition-colors cursor-pointer ${
+                            selectedServices.includes(service.id)
+                              ? "border-cyan-500 bg-cyan-500/5"
+                              : "border-border hover:bg-muted/30"
+                          }`}
+                          onClick={() => toggleServiceSelection(service.id)}
+                        >
+                          <Checkbox
+                            checked={selectedServices.includes(service.id)}
+                            onCheckedChange={() => toggleServiceSelection(service.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex items-center gap-2">
+                            {getCategoryIcon(service.category)}
+                            <Badge variant="outline" className="text-xs">
+                              {service.category}
+                            </Badge>
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{service.serviceName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {service.clientName}
+                              {service.clientNumber && ` (${service.clientNumber})`}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-sm">${service.amount.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {service.type === 'subscription' ? 'Abonnement' : 'Commande'} • {service.status}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {servicesWithoutContract.length === 0 && (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                    <p className="text-muted-foreground">Tous les services actifs ont déjà un contrat</p>
+                  </div>
+                )}
+
+                {/* Services with contracts (for reference) */}
+                {servicesWithContract.length > 0 && (
+                  <div className="space-y-3 border-t pt-4">
+                    <h3 className="font-semibold text-muted-foreground flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      Services avec contrat existant ({servicesWithContract.length})
+                    </h3>
+                    
+                    <div className="space-y-2 opacity-60">
+                      {servicesWithContract.slice(0, 5).map(service => (
+                        <div
+                          key={service.id}
+                          className="flex items-center gap-3 p-3 border border-border/50 rounded-lg bg-muted/20"
+                        >
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                          <div className="flex items-center gap-2">
+                            {getCategoryIcon(service.category)}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{service.serviceName}</p>
+                            <p className="text-xs text-muted-foreground">{service.clientName}</p>
+                          </div>
+                          <Badge className="bg-emerald-500/20 text-emerald-500">Contrat existant</Badge>
+                        </div>
+                      ))}
+                      {servicesWithContract.length > 5 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          +{servicesWithContract.length - 5} autres services avec contrat
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="border-t pt-4">
+              <div className="flex items-center justify-between w-full">
+                <p className="text-sm text-muted-foreground">
+                  {selectedServices.length} service(s) sélectionné(s)
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={handleRegenerateContracts}
+                    disabled={selectedServices.length === 0 || regenerateContractsMutation.isPending}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    {regenerateContractsMutation.isPending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Générer {selectedServices.length} contrat(s)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
