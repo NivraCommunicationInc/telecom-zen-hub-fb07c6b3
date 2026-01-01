@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Users,
@@ -32,10 +34,32 @@ import {
   XCircle,
   AlertCircle,
   Edit,
+  User,
+  IdCard,
+  Package,
+  DollarSign,
+  FileText,
+  Calendar,
+  Ticket,
+  Router,
+  Smartphone,
+  Monitor,
+  AlertTriangle,
+  PlusCircle,
+  MinusCircle,
+  Pause,
+  Ban,
+  Save,
+  Play,
+  Wrench,
+  Receipt,
+  Tv,
+  Wifi,
+  History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -43,6 +67,23 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   suspended: { label: "Suspendu", color: "bg-red-500/20 text-red-600" },
   pending: { label: "En attente", color: "bg-yellow-500/20 text-yellow-600" },
   inactive: { label: "Inactif", color: "bg-gray-500/20 text-gray-600" },
+  hold: { label: "En attente", color: "bg-amber-500/20 text-amber-600" },
+  frozen: { label: "Gelé", color: "bg-blue-500/20 text-blue-600" },
+  deactivated: { label: "Désactivé", color: "bg-red-500/20 text-red-600" },
+};
+
+const orderStatusColors: Record<string, string> = {
+  pending: "bg-amber-500/20 text-amber-400",
+  processing: "bg-cyan-500/20 text-cyan-400",
+  completed: "bg-emerald-500/20 text-emerald-400",
+  cancelled: "bg-red-500/20 text-red-400",
+  shipped: "bg-blue-500/20 text-blue-400",
+  paid: "bg-emerald-500/20 text-emerald-400",
+  overdue: "bg-red-500/20 text-red-400",
+  open: "bg-cyan-500/20 text-cyan-400",
+  closed: "bg-muted text-muted-foreground",
+  active: "bg-emerald-500/20 text-emerald-400",
+  paused: "bg-blue-500/20 text-blue-400",
 };
 
 const EmployeeClients = () => {
@@ -52,31 +93,34 @@ const EmployeeClients = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchFilter, setSearchFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Edit mode
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    full_name: "",
-    phone: "",
-    service_address: "",
-    service_city: "",
-    service_postal_code: "",
-  });
-  
-  // ID Verification
-  const [idData, setIdData] = useState({
-    id_type: "",
-    id_number: "",
-    id_province: "QC",
-    id_expiration: "",
-  });
-  
-  // Status change
-  const [statusNote, setStatusNote] = useState("");
+  // Client-specific data
+  const [clientOrders, setClientOrders] = useState<any[]>([]);
+  const [clientBilling, setClientBilling] = useState<any[]>([]);
+  const [clientPayments, setClientPayments] = useState<any[]>([]);
+  const [clientTickets, setClientTickets] = useState<any[]>([]);
+  const [clientAppointments, setClientAppointments] = useState<any[]>([]);
+  const [clientSubscriptions, setClientSubscriptions] = useState<any[]>([]);
+  const [clientDocuments, setClientDocuments] = useState<any[]>([]);
+  const [isLoadingClientData, setIsLoadingClientData] = useState(false);
+
+  // Order details dialog
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
+
+  // Invoice details dialog
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [invoiceDetailsOpen, setInvoiceDetailsOpen] = useState(false);
+
+  // Balance adjustment
+  const [balanceAmount, setBalanceAmount] = useState("");
+  const [balanceField, setBalanceField] = useState<"balance" | "store_credit">("balance");
 
   useEffect(() => {
     const stored = localStorage.getItem("nivra_employee_session");
@@ -120,38 +164,77 @@ const EmployeeClients = () => {
     if (session?.token) fetchClients();
   }, [session?.token]);
 
+  const fetchClientData = async (client: any) => {
+    if (!session?.token || !client?.user_id) return;
+    setIsLoadingClientData(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { 
+          action: "get_client_details", 
+          params: { 
+            clientId: client.id,
+            userId: client.user_id,
+            email: client.email 
+          } 
+        },
+      });
+      if (error) throw error;
+      setClientOrders(data?.orders || []);
+      setClientBilling(data?.billing || []);
+      setClientPayments(data?.payments || []);
+      setClientTickets(data?.tickets || []);
+      setClientAppointments(data?.appointments || []);
+      setClientSubscriptions(data?.subscriptions || []);
+      setClientDocuments(data?.documents || []);
+    } catch (error) {
+      console.error("Error fetching client data:", error);
+    } finally {
+      setIsLoadingClientData(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("nivra_employee_session");
     navigate("/employee/login");
   };
 
   const filteredClients = clients.filter(client => {
-    const matchesSearch = !search ||
-      client.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-      client.email?.toLowerCase().includes(search.toLowerCase()) ||
-      client.client_number?.toLowerCase().includes(search.toLowerCase()) ||
-      client.phone?.includes(search);
+    if (!search && statusFilter === "all") return true;
+    
+    const query = search.toLowerCase();
+    let matchesSearch = true;
+    
+    if (search) {
+      switch (searchFilter) {
+        case "name":
+          matchesSearch = client.full_name?.toLowerCase().includes(query) ||
+                         client.first_name?.toLowerCase().includes(query) ||
+                         client.last_name?.toLowerCase().includes(query);
+          break;
+        case "email":
+          matchesSearch = client.email?.toLowerCase().includes(query);
+          break;
+        case "phone":
+          matchesSearch = client.phone?.includes(query);
+          break;
+        default:
+          matchesSearch = 
+            client.full_name?.toLowerCase().includes(query) ||
+            client.email?.toLowerCase().includes(query) ||
+            client.client_number?.toLowerCase().includes(query) ||
+            client.phone?.includes(query);
+      }
+    }
+    
     const matchesStatus = statusFilter === "all" || client.account_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const handleSelectClient = (client: any) => {
-    setSelectedClient(client);
-    setEditData({
-      full_name: client.full_name || "",
-      phone: client.phone || "",
-      service_address: client.service_address || "",
-      service_city: client.service_city || "",
-      service_postal_code: client.service_postal_code || "",
-    });
-    setIdData({
-      id_type: client.id_type || "",
-      id_number: client.id_number || "",
-      id_province: client.id_province || "QC",
-      id_expiration: client.id_expiration || "",
-    });
-    setIsEditing(false);
-    setStatusNote("");
+    setSelectedClient({ ...client, sector_tags: client.sector_tags || [] });
+    setDetailsDialogOpen(true);
+    fetchClientData(client);
   };
 
   const handleUpdateClient = async () => {
@@ -161,21 +244,34 @@ const EmployeeClients = () => {
     }
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("employee-data", {
+      const { error } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
         body: { 
           action: "update_client", 
           params: { 
             clientId: selectedClient.id,
-            updates: editData
+            updates: {
+              full_name: selectedClient.full_name,
+              first_name: selectedClient.first_name,
+              last_name: selectedClient.last_name,
+              phone: selectedClient.phone,
+              date_of_birth: selectedClient.date_of_birth,
+              service_address: selectedClient.service_address,
+              service_city: selectedClient.service_city,
+              service_postal_code: selectedClient.service_postal_code,
+              service_province: selectedClient.service_province,
+              account_status: selectedClient.account_status,
+              id_type: selectedClient.id_type,
+              id_number: selectedClient.id_number,
+              id_province: selectedClient.id_province,
+              id_expiration: selectedClient.id_expiration,
+            }
           } 
         },
       });
-      if (error || data?.error) throw new Error(data?.error || error);
-      toast({ title: "Client mis à jour" });
-      setIsEditing(false);
+      if (error) throw error;
+      toast({ title: "Client mis à jour avec succès" });
       fetchClients();
-      setSelectedClient({ ...selectedClient, ...editData });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
@@ -183,30 +279,38 @@ const EmployeeClients = () => {
     }
   };
 
-  const handleUpdateStatus = async (newStatus: string) => {
-    if (!session?.permissions?.can_edit_clients || !selectedClient) {
-      toast({ title: "Permission refusée", variant: "destructive" });
+  const handleAdjustBalance = async (operation: "add" | "remove") => {
+    if (!session?.permissions?.can_edit_clients || !selectedClient || !balanceAmount) {
+      toast({ title: "Permission refusée ou montant invalide", variant: "destructive" });
+      return;
+    }
+    const amount = parseFloat(balanceAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Montant invalide", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("employee-data", {
+      const { error } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
         body: { 
-          action: "update_client_status", 
+          action: "adjust_client_balance", 
           params: { 
             clientId: selectedClient.id,
-            status: newStatus,
-            existing_notes: selectedClient.internal_notes,
-            append_note: statusNote ? `Statut changé à ${newStatus} par ${session.name}: ${statusNote}` : `Statut changé à ${newStatus} par ${session.name}`
+            field: balanceField,
+            amount,
+            operation
           } 
         },
       });
-      if (error || data?.error) throw new Error(data?.error || error);
-      toast({ title: newStatus === "active" ? "Compte réactivé" : "Statut mis à jour" });
-      setStatusNote("");
+      if (error) throw error;
+      
+      const currentValue = Number(selectedClient[balanceField] || 0);
+      const newValue = operation === "add" ? currentValue + amount : Math.max(0, currentValue - amount);
+      setSelectedClient({ ...selectedClient, [balanceField]: newValue });
+      setBalanceAmount("");
+      toast({ title: operation === "add" ? "Montant ajouté" : "Montant retiré" });
       fetchClients();
-      setSelectedClient({ ...selectedClient, account_status: newStatus });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
@@ -214,32 +318,52 @@ const EmployeeClients = () => {
     }
   };
 
-  const handleVerifyIdentity = async () => {
-    if (!session?.permissions?.can_edit_clients || !selectedClient) {
+  const handleUpdateOrder = async () => {
+    if (!session?.permissions?.can_edit_orders_status || !selectedOrder) {
       toast({ title: "Permission refusée", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("employee-data", {
+      const { error } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
         body: { 
-          action: "verify_client_identity", 
+          action: "update_order", 
           params: { 
-            clientId: selectedClient.id,
-            ...idData
+            orderId: selectedOrder.id,
+            updates: {
+              status: selectedOrder.status,
+              payment_status: selectedOrder.payment_status,
+              payment_reference: selectedOrder.payment_reference,
+              tracking_number: selectedOrder.tracking_number,
+              tracking_url: selectedOrder.tracking_url,
+              serial_number: selectedOrder.serial_number,
+              equipment_id: selectedOrder.equipment_id,
+              imei_number: selectedOrder.imei_number,
+              sim_number: selectedOrder.sim_number,
+              internal_notes: selectedOrder.internal_notes,
+            }
           } 
         },
       });
-      if (error || data?.error) throw new Error(data?.error || error);
-      toast({ title: "Identité enregistrée" });
-      fetchClients();
-      setSelectedClient({ ...selectedClient, ...idData });
+      if (error) throw error;
+      toast({ title: "Commande mise à jour" });
+      setOrderDetailsOpen(false);
+      if (selectedClient) fetchClientData(selectedClient);
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getSubscriptionStatus = (sub: any) => {
+    if (!sub.next_billing_date) return null;
+    const daysUntil = differenceInDays(new Date(sub.next_billing_date), new Date());
+    if (daysUntil < 0) return { status: "overdue", color: "bg-red-500", text: "En retard" };
+    if (daysUntil <= 7) return { status: "soon", color: "bg-amber-500", text: `${daysUntil}j` };
+    if (daysUntil <= 30) return { status: "upcoming", color: "bg-cyan-500", text: `${daysUntil}j` };
+    return { status: "ok", color: "bg-emerald-500", text: `${daysUntil}j` };
   };
 
   if (!session) return null;
@@ -256,7 +380,7 @@ const EmployeeClients = () => {
                   Retour
                 </Button>
               </Link>
-              <Users className="w-6 h-6 text-emerald-500" />
+              <Users className="w-6 h-6 text-primary" />
               <h1 className="font-display font-bold text-lg">Clients</h1>
             </div>
             <div className="flex items-center gap-2">
@@ -276,11 +400,28 @@ const EmployeeClients = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-4">
+        {/* Enhanced Search */}
         <div className="flex flex-col sm:flex-row gap-3">
+          <Select value={searchFilter} onValueChange={setSearchFilter}>
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectValue placeholder="Filtrer par" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              <SelectItem value="name">Nom</SelectItem>
+              <SelectItem value="email">Courriel</SelectItem>
+              <SelectItem value="phone">Téléphone</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher par nom, email ou téléphone..."
+              placeholder={
+                searchFilter === "name" ? "Rechercher par nom..." :
+                searchFilter === "email" ? "Rechercher par courriel..." :
+                searchFilter === "phone" ? "Rechercher par téléphone..." :
+                "Rechercher par nom, email, téléphone, numéro client..."
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -299,7 +440,14 @@ const EmployeeClients = () => {
           </Select>
         </div>
 
+        {/* Clients Table */}
         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Liste des clients ({filteredClients.length})
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -307,6 +455,7 @@ const EmployeeClients = () => {
               </div>
             ) : filteredClients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
+                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 Aucun client trouvé
               </div>
             ) : (
@@ -319,6 +468,7 @@ const EmployeeClients = () => {
                     <TableHead>Téléphone</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Solde</TableHead>
+                    <TableHead>Crédit</TableHead>
                     <TableHead>Inscrit le</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -328,23 +478,27 @@ const EmployeeClients = () => {
                     <TableRow key={client.id}>
                       <TableCell className="font-medium">{client.client_number || "N/A"}</TableCell>
                       <TableCell>{client.full_name || "N/A"}</TableCell>
-                      <TableCell>{client.email || "N/A"}</TableCell>
+                      <TableCell className="text-sm">{client.email || "N/A"}</TableCell>
                       <TableCell>{client.phone || "N/A"}</TableCell>
                       <TableCell>
-                        <Badge className={statusLabels[client.account_status]?.color || "bg-emerald-500/20 text-emerald-600"}>
+                        <Badge className={statusLabels[client.account_status]?.color || statusLabels.active.color}>
                           {statusLabels[client.account_status]?.label || "Actif"}
                         </Badge>
                       </TableCell>
-                      <TableCell className={client.balance > 0 ? "text-red-500 font-medium" : ""}>
-                        ${Math.abs(client.balance || 0).toFixed(2)}
-                        {client.balance > 0 && " dû"}
+                      <TableCell className={Number(client.balance || 0) > 0 ? "text-red-500 font-medium" : ""}>
+                        ${Math.abs(Number(client.balance || 0)).toFixed(2)}
+                        {Number(client.balance || 0) > 0 && " dû"}
+                      </TableCell>
+                      <TableCell className="text-emerald-500">
+                        ${Number(client.store_credit || 0).toFixed(2)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => handleSelectClient(client)}>
-                          <Eye className="w-4 h-4" />
+                        <Button variant="outline" size="sm" onClick={() => handleSelectClient(client)}>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Gérer
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -356,296 +510,851 @@ const EmployeeClients = () => {
         </Card>
       </main>
 
-      <Dialog open={!!selectedClient} onOpenChange={() => setSelectedClient(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Client Management Dialog */}
+      <Dialog 
+        open={detailsDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) setDetailsDialogOpen(false);
+        }}
+      >
+        <DialogContent 
+          className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              {selectedClient?.full_name || "Client"}
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <span className="block">{selectedClient?.full_name || selectedClient?.email}</span>
+                {selectedClient?.client_number && (
+                  <span className="text-xs text-muted-foreground font-normal">{selectedClient.client_number}</span>
+                )}
+              </div>
             </DialogTitle>
           </DialogHeader>
 
           {selectedClient && (
-            <Tabs defaultValue="info" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="info">Informations</TabsTrigger>
-                <TabsTrigger value="identity">Identité</TabsTrigger>
-                <TabsTrigger value="account">Compte</TabsTrigger>
+            <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col">
+              <TabsList className="grid grid-cols-9 w-full flex-shrink-0">
+                <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
+                <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
+                <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>
+                <TabsTrigger value="equipment" className="text-xs">Équipement</TabsTrigger>
+                <TabsTrigger value="orders" className="text-xs">Commandes</TabsTrigger>
+                <TabsTrigger value="payments" className="text-xs">Paiements</TabsTrigger>
+                <TabsTrigger value="incidents" className="text-xs">Incidents</TabsTrigger>
+                <TabsTrigger value="documents" className="text-xs">Documents</TabsTrigger>
+                <TabsTrigger value="tickets" className="text-xs">Tickets</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="info" className="space-y-4 mt-4">
-                <div className="flex items-center justify-between">
-                  <Badge className={statusLabels[selectedClient.account_status]?.color || "bg-emerald-500/20 text-emerald-600"}>
-                    {statusLabels[selectedClient.account_status]?.label || "Actif"}
-                  </Badge>
-                  {session?.permissions?.can_edit_clients && (
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      {isEditing ? "Annuler" : "Modifier"}
-                    </Button>
+              <ScrollArea className="flex-1 mt-4">
+                {isLoadingClientData && (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                )}
+
+                {/* Profile Tab */}
+                <TabsContent value="profile" className="space-y-4 pr-4">
+                  {selectedClient.account_status && selectedClient.account_status !== 'active' && (
+                    <div className={`p-4 rounded-lg border ${
+                      selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
+                      selectedClient.account_status === 'hold' ? 'bg-amber-500/10 border-amber-500/30' :
+                      'bg-red-500/10 border-red-500/30'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {selectedClient.account_status === 'frozen' && <Pause className="w-5 h-5 text-blue-500" />}
+                        {selectedClient.account_status === 'hold' && <Clock className="w-5 h-5 text-amber-500" />}
+                        {selectedClient.account_status === 'deactivated' && <Ban className="w-5 h-5 text-red-500" />}
+                        <span className={`font-medium ${
+                          selectedClient.account_status === 'frozen' ? 'text-blue-500' :
+                          selectedClient.account_status === 'hold' ? 'text-amber-500' : 'text-red-500'
+                        }`}>
+                          Compte {selectedClient.account_status === 'frozen' ? 'gelé' : selectedClient.account_status === 'hold' ? 'en attente' : 'désactivé'}
+                        </span>
+                      </div>
+                    </div>
                   )}
-                </div>
 
-                {isEditing ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Nom complet</Label>
-                      <Input 
-                        value={editData.full_name}
-                        onChange={(e) => setEditData({...editData, full_name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label>Téléphone</Label>
-                      <Input 
-                        value={editData.phone}
-                        onChange={(e) => setEditData({...editData, phone: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label>Adresse de service</Label>
-                      <Input 
-                        value={editData.service_address}
-                        onChange={(e) => setEditData({...editData, service_address: e.target.value})}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                  {/* Balance & Credit Management */}
+                  {session?.permissions?.can_edit_clients && (
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
                       <div>
-                        <Label>Ville</Label>
-                        <Input 
-                          value={editData.service_city}
-                          onChange={(e) => setEditData({...editData, service_city: e.target.value})}
-                        />
+                        <Label className="text-xs text-muted-foreground uppercase">Solde dû</Label>
+                        <p className="text-2xl font-bold text-amber-500 mt-1">
+                          {Number(selectedClient.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            type="number"
+                            placeholder="Montant"
+                            value={balanceField === "balance" ? balanceAmount : ""}
+                            onChange={(e) => { setBalanceField("balance"); setBalanceAmount(e.target.value); }}
+                            className="w-24"
+                          />
+                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("balance"); handleAdjustBalance("add"); }} disabled={isSubmitting}>
+                            <PlusCircle className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("balance"); handleAdjustBalance("remove"); }} disabled={isSubmitting}>
+                            <MinusCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                       <div>
-                        <Label>Code postal</Label>
-                        <Input 
-                          value={editData.service_postal_code}
-                          onChange={(e) => setEditData({...editData, service_postal_code: e.target.value})}
-                        />
+                        <Label className="text-xs text-muted-foreground uppercase">Crédit en magasin</Label>
+                        <p className="text-2xl font-bold text-emerald-500 mt-1">
+                          {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            type="number"
+                            placeholder="Montant"
+                            value={balanceField === "store_credit" ? balanceAmount : ""}
+                            onChange={(e) => { setBalanceField("store_credit"); setBalanceAmount(e.target.value); }}
+                            className="w-24"
+                          />
+                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("store_credit"); handleAdjustBalance("add"); }} disabled={isSubmitting}>
+                            <PlusCircle className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("store_credit"); handleAdjustBalance("remove"); }} disabled={isSubmitting}>
+                            <MinusCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <Button onClick={handleUpdateClient} disabled={isSubmitting}>
-                      Enregistrer les modifications
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground w-24">Client #:</span>
-                      <span className="font-medium">{selectedClient.client_number || "N/A"}</span>
-                    </div>
-                    
-                    {selectedClient.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <a href={`mailto:${selectedClient.email}`} className="hover:underline">
-                          {selectedClient.email}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {selectedClient.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <a href={`tel:${selectedClient.phone}`} className="hover:underline">
-                          {selectedClient.phone}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {selectedClient.service_address && (
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  )}
+
+                  {/* Profile Fields */}
+                  <Card className="bg-card border-border">
+                    <CardContent className="pt-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p>{selectedClient.service_address}</p>
-                          <p className="text-muted-foreground">
-                            {selectedClient.service_city}, {selectedClient.service_province || "QC"} {selectedClient.service_postal_code}
-                          </p>
+                          <Label>Prénom</Label>
+                          <Input 
+                            value={selectedClient.first_name || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, first_name: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
+                        </div>
+                        <div>
+                          <Label>Nom</Label>
+                          <Input 
+                            value={selectedClient.last_name || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, last_name: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
                         </div>
                       </div>
-                    )}
-
-                    {(selectedClient.balance !== null && selectedClient.balance !== undefined) && (
-                      <div className="border-t pt-4 mt-4">
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-2">
-                            <CreditCard className="w-4 h-4 text-muted-foreground" />
-                            Solde
-                          </span>
-                          <span className={`font-bold ${selectedClient.balance > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                            ${Math.abs(selectedClient.balance || 0).toFixed(2)}
-                            {selectedClient.balance > 0 ? " dû" : ""}
-                          </span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Téléphone</Label>
+                          <Input 
+                            value={selectedClient.phone || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, phone: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
+                        </div>
+                        <div>
+                          <Label>Date de naissance</Label>
+                          <Input 
+                            type="date" 
+                            value={selectedClient.date_of_birth || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, date_of_birth: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
                         </div>
                       </div>
-                    )}
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="identity" className="space-y-4 mt-4">
-                {selectedClient.id_type ? (
-                  <div className="bg-emerald-500/10 p-4 rounded-lg space-y-2">
-                    <div className="flex items-center gap-2 text-emerald-600">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="font-medium">Identité vérifiée</span>
-                    </div>
-                    <p className="text-sm"><strong>Type:</strong> {selectedClient.id_type}</p>
-                    <p className="text-sm"><strong>Numéro:</strong> {selectedClient.id_number}</p>
-                    <p className="text-sm"><strong>Province:</strong> {selectedClient.id_province}</p>
-                    {selectedClient.id_expiration && (
-                      <p className="text-sm"><strong>Expiration:</strong> {format(new Date(selectedClient.id_expiration), "d MMMM yyyy", { locale: fr })}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-yellow-500/10 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 text-yellow-600">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="font-medium">Identité non vérifiée</span>
-                    </div>
-                  </div>
-                )}
-
-                {session?.permissions?.can_edit_clients && (
-                  <div className="border-t pt-4 space-y-4">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Enregistrer l'identité
-                    </h4>
-                    
-                    <div className="grid gap-4">
                       <div>
-                        <Label>Type de pièce</Label>
-                        <Select value={idData.id_type} onValueChange={(v) => setIdData({...idData, id_type: v})}>
+                        <Label>Adresse de service</Label>
+                        <Input 
+                          value={selectedClient.service_address || ""} 
+                          onChange={(e) => setSelectedClient({ ...selectedClient, service_address: e.target.value })} 
+                          disabled={!session?.permissions?.can_edit_clients}
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label>Ville</Label>
+                          <Input 
+                            value={selectedClient.service_city || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, service_city: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
+                        </div>
+                        <div>
+                          <Label>Province</Label>
+                          <Input 
+                            value={selectedClient.service_province || "QC"} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, service_province: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
+                        </div>
+                        <div>
+                          <Label>Code postal</Label>
+                          <Input 
+                            value={selectedClient.service_postal_code || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, service_postal_code: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Statut du compte</Label>
+                        <Select 
+                          value={selectedClient.account_status || "active"} 
+                          onValueChange={(v) => setSelectedClient({ ...selectedClient, account_status: v })}
+                          disabled={!session?.permissions?.can_edit_clients}
+                        >
                           <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner..." />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="drivers_license">Permis de conduire</SelectItem>
-                            <SelectItem value="passport">Passeport</SelectItem>
-                            <SelectItem value="health_card">Carte d'assurance maladie</SelectItem>
-                            <SelectItem value="other">Autre</SelectItem>
+                            <SelectItem value="active">Actif</SelectItem>
+                            <SelectItem value="hold">En attente</SelectItem>
+                            <SelectItem value="frozen">Gelé</SelectItem>
+                            <SelectItem value="suspended">Suspendu</SelectItem>
+                            <SelectItem value="deactivated">Désactivé</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div>
-                        <Label>Numéro</Label>
-                        <Input 
-                          value={idData.id_number}
-                          onChange={(e) => setIdData({...idData, id_number: e.target.value})}
-                          placeholder="Numéro de la pièce"
-                        />
-                      </div>
-                      
+                      {session?.permissions?.can_edit_clients && (
+                        <Button onClick={handleUpdateClient} disabled={isSubmitting}>
+                          <Save className="w-4 h-4 mr-2" />
+                          Enregistrer le profil
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Identity Tab */}
+                <TabsContent value="identity" className="space-y-4 pr-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <IdCard className="w-5 h-5 text-primary" />
+                        Informations d'identité
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label>Province</Label>
-                          <Select value={idData.id_province} onValueChange={(v) => setIdData({...idData, id_province: v})}>
+                          <Label>Type de pièce d'identité</Label>
+                          <Select 
+                            value={selectedClient.id_type || ""} 
+                            onValueChange={(v) => setSelectedClient({ ...selectedClient, id_type: v })}
+                            disabled={!session?.permissions?.can_edit_clients}
+                          >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Sélectionner..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="driver_license">Permis de conduire</SelectItem>
+                              <SelectItem value="health_card">Carte d'assurance maladie</SelectItem>
+                              <SelectItem value="passport">Passeport</SelectItem>
+                              <SelectItem value="other">Autre</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Province d'émission</Label>
+                          <Select 
+                            value={selectedClient.id_province || "QC"} 
+                            onValueChange={(v) => setSelectedClient({ ...selectedClient, id_province: v })}
+                            disabled={!session?.permissions?.can_edit_clients}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner..." />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="QC">Québec</SelectItem>
                               <SelectItem value="ON">Ontario</SelectItem>
                               <SelectItem value="BC">Colombie-Britannique</SelectItem>
                               <SelectItem value="AB">Alberta</SelectItem>
-                              <SelectItem value="MB">Manitoba</SelectItem>
-                              <SelectItem value="SK">Saskatchewan</SelectItem>
-                              <SelectItem value="NS">Nouvelle-Écosse</SelectItem>
-                              <SelectItem value="NB">Nouveau-Brunswick</SelectItem>
-                              <SelectItem value="NL">Terre-Neuve</SelectItem>
-                              <SelectItem value="PE">Île-du-Prince-Édouard</SelectItem>
+                              <SelectItem value="other">Autre</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label>Expiration</Label>
+                          <Label>Numéro de pièce d'identité</Label>
                           <Input 
-                            type="date"
-                            value={idData.id_expiration}
-                            onChange={(e) => setIdData({...idData, id_expiration: e.target.value})}
+                            value={selectedClient.id_number || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, id_number: e.target.value })} 
+                            placeholder="Numéro..."
+                            disabled={!session?.permissions?.can_edit_clients}
+                          />
+                        </div>
+                        <div>
+                          <Label>Date d'expiration</Label>
+                          <Input 
+                            type="date" 
+                            value={selectedClient.id_expiration || ""} 
+                            onChange={(e) => setSelectedClient({ ...selectedClient, id_expiration: e.target.value })} 
+                            disabled={!session?.permissions?.can_edit_clients}
                           />
                         </div>
                       </div>
-                      
-                      <Button onClick={handleVerifyIdentity} disabled={!idData.id_type || !idData.id_number || isSubmitting}>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Enregistrer l'identité
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="account" className="space-y-4 mt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Statut actuel</span>
-                  <Badge className={statusLabels[selectedClient.account_status]?.color || "bg-emerald-500/20 text-emerald-600"}>
-                    {statusLabels[selectedClient.account_status]?.label || "Actif"}
-                  </Badge>
-                </div>
-
-                {selectedClient.internal_notes && (
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm font-medium mb-2">Notes internes:</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedClient.internal_notes}</p>
-                  </div>
-                )}
-
-                {session?.permissions?.can_edit_clients && (
-                  <div className="border-t pt-4 space-y-4">
-                    <h4 className="font-medium">Changer le statut du compte</h4>
-                    
-                    <div>
-                      <Label>Note (optionnel)</Label>
-                      <Textarea 
-                        placeholder="Raison du changement..."
-                        value={statusNote}
-                        onChange={(e) => setStatusNote(e.target.value)}
-                        rows={2}
-                      />
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {selectedClient.account_status === "suspended" ? (
-                        <Button 
-                          onClick={() => handleUpdateStatus("active")} 
-                          disabled={isSubmitting}
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Réactiver le compte
+                      {session?.permissions?.can_edit_clients && (
+                        <Button onClick={handleUpdateClient} disabled={isSubmitting}>
+                          <Save className="w-4 h-4 mr-2" />
+                          Enregistrer l'identité
                         </Button>
-                      ) : (
-                        <>
-                          <Button 
-                            variant="destructive"
-                            onClick={() => handleUpdateStatus("suspended")} 
-                            disabled={isSubmitting}
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Suspendre
-                          </Button>
-                          <Button 
-                            variant="outline"
-                            onClick={() => handleUpdateStatus("inactive")} 
-                            disabled={isSubmitting}
-                          >
-                            Marquer inactif
-                          </Button>
-                        </>
                       )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Services Tab */}
+                <TabsContent value="services" className="space-y-4 pr-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Wifi className="w-5 h-5 text-primary" />
+                        Abonnements actifs
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientSubscriptions.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientSubscriptions.map((sub: any) => {
+                            const billingStatus = getSubscriptionStatus(sub);
+                            return (
+                              <div key={sub.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                                <div className="flex items-center gap-4">
+                                  {sub.plan_name?.toLowerCase().includes("internet") && <Wifi className="w-8 h-8 text-cyan-400" />}
+                                  {sub.plan_name?.toLowerCase().includes("mobile") && <Smartphone className="w-8 h-8 text-purple-400" />}
+                                  {sub.plan_name?.toLowerCase().includes("tv") && <Tv className="w-8 h-8 text-pink-400" />}
+                                  {!sub.plan_name?.toLowerCase().includes("internet") && 
+                                   !sub.plan_name?.toLowerCase().includes("mobile") && 
+                                   !sub.plan_name?.toLowerCase().includes("tv") && 
+                                   <Package className="w-8 h-8 text-primary" />}
+                                  <div>
+                                    <p className="font-medium text-foreground">{sub.plan_name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      Depuis {format(new Date(sub.start_date), "d MMM yyyy", { locale: fr })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <span className="font-medium">{Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                                  <Badge className={orderStatusColors[sub.status] || orderStatusColors.active}>
+                                    {sub.status === "active" ? "Actif" : sub.status === "paused" ? "Suspendu" : sub.status}
+                                  </Badge>
+                                  {billingStatus && (
+                                    <Badge className={`${billingStatus.color}/20 text-${billingStatus.color.replace("bg-", "")}`}>
+                                      {billingStatus.text}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Wifi className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun abonnement actif</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Equipment Tab */}
+                <TabsContent value="equipment" className="space-y-4 pr-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Router className="w-5 h-5 text-primary" />
+                        Équipement assigné
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientOrders.filter(o => o.serial_number || o.equipment_id || o.sim_number).length > 0 ? (
+                        <div className="space-y-4">
+                          {clientOrders.filter(o => o.serial_number || o.equipment_id || o.sim_number).map((order: any) => (
+                            <div key={order.id} className="p-4 border border-border rounded-lg space-y-3">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium">{order.order_number} - {order.service_type}</p>
+                                <Badge className={orderStatusColors[order.status]}>{order.status}</Badge>
+                              </div>
+                              
+                              {order.serial_number && (
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                  <Router className="w-5 h-5 text-cyan-400" />
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">Router WiFi</p>
+                                    <p className="text-xs text-muted-foreground">S/N: {order.serial_number}</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {order.equipment_id && (
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                  <Monitor className="w-5 h-5 text-purple-400" />
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">Terminal TV</p>
+                                    <p className="text-xs text-muted-foreground">ID: {order.equipment_id}</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {order.sim_number && (
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                  <Smartphone className="w-5 h-5 text-blue-400" />
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">Carte SIM</p>
+                                    <p className="text-xs text-muted-foreground">SIM: {order.sim_number}</p>
+                                    {order.imei_number && <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Router className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun équipement attribué</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Orders Tab */}
+                <TabsContent value="orders" className="space-y-4 pr-4">
+                  <div className="space-y-3">
+                    {clientOrders.length > 0 ? (
+                      clientOrders.map((order: any) => (
+                        <div key={order.id} className="p-4 border border-border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <Package className="w-8 h-8 text-primary" />
+                              <div>
+                                <p className="font-medium text-foreground">{order.order_number || order.service_type}</p>
+                                <p className="text-sm text-muted-foreground">{format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}</p>
+                                <p className="text-xs text-muted-foreground">{order.service_type}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              {order.total_amount && (
+                                <span className="font-medium">{Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                              )}
+                              <Badge className={orderStatusColors[order.status] || orderStatusColors.pending}>{order.status}</Badge>
+                              <Button size="sm" variant="outline" onClick={() => { setSelectedOrder({ ...order }); setOrderDetailsOpen(true); }}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Aucune commande</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Payments Tab */}
+                <TabsContent value="payments" className="space-y-4 pr-4">
+                  {/* Credits Display */}
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                    <Label className="text-sm font-medium mb-2 block">État du compte</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Solde dû</p>
+                        <p className="font-bold text-lg text-amber-500">{Number(selectedClient?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Crédit disponible</p>
+                        <p className="font-bold text-lg text-emerald-500">{Number(selectedClient?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                <div className="border-t pt-4 text-xs text-muted-foreground">
-                  Inscrit le {format(new Date(selectedClient.created_at), "d MMMM yyyy", { locale: fr })}
-                </div>
-              </TabsContent>
+                  {/* Payment History */}
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <CreditCard className="w-5 h-5 text-primary" />
+                        Historique des paiements
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientPayments.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientPayments.map((payment: any) => (
+                            <div key={payment.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <DollarSign className="w-8 h-8 text-emerald-400" />
+                                <div>
+                                  <p className="font-medium text-foreground">{payment.reference_number}</p>
+                                  <p className="text-sm text-muted-foreground">{format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                                  <p className="text-xs text-muted-foreground">{payment.payment_method} {payment.card_last_four && `•••• ${payment.card_last_four}`}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold text-lg text-emerald-500">{Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                <Badge className={orderStatusColors[payment.status] || orderStatusColors.completed}>
+                                  {payment.status === "completed" ? "Complété" : payment.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun paiement</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Invoices */}
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileText className="w-5 h-5 text-primary" />
+                        Factures
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientBilling.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientBilling.map((bill: any) => (
+                            <div key={bill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <FileText className="w-6 h-6 text-primary" />
+                                <div>
+                                  <p className="font-medium text-foreground">{bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
+                                    {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="font-medium">{Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                <Badge className={orderStatusColors[bill.status] || orderStatusColors.pending}>
+                                  {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucune facture</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Incidents Tab */}
+                <TabsContent value="incidents" className="space-y-4 pr-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        Signalements et incidents
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">Enregistrez les incidents signalés par le client.</p>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {
+                          toast({ title: "Incident SIM volée/perdue", description: "Créez un ticket de support pour ce signalement." });
+                        }}>
+                          <Smartphone className="w-4 h-4 mr-2" />
+                          SIM volée/perdue (60$)
+                        </Button>
+                        
+                        <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {
+                          toast({ title: "Téléphone perdu", description: "Créez un ticket de support pour ce signalement." });
+                        }}>
+                          <Phone className="w-4 h-4 mr-2" />
+                          Téléphone perdu
+                        </Button>
+                        
+                        <Button variant="outline" className="justify-start border-amber-500/30 text-amber-500 hover:bg-amber-500/10" onClick={() => {
+                          toast({ title: "Problème équipement", description: "Créez un ticket de support pour ce signalement." });
+                        }}>
+                          <Wrench className="w-4 h-4 mr-2" />
+                          Problème équipement
+                        </Button>
+                        
+                        <Button variant="outline" className="justify-start border-blue-500/30 text-blue-500 hover:bg-blue-500/10" onClick={() => {
+                          toast({ title: "Pause de service", description: "Créez un ticket de support pour cette demande." });
+                        }}>
+                          <Pause className="w-4 h-4 mr-2" />
+                          Demande pause service
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Documents Tab */}
+                <TabsContent value="documents" className="space-y-4 pr-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileText className="w-5 h-5 text-primary" />
+                        Documents du client
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientDocuments.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientDocuments.map((doc: any) => (
+                            <div key={doc.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <FileText className="w-6 h-6 text-primary" />
+                                <div>
+                                  <p className="font-medium text-foreground">{doc.document_name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {doc.document_type} • {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button size="sm" variant="outline">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun document</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Tickets Tab */}
+                <TabsContent value="tickets" className="space-y-4 pr-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Ticket className="w-5 h-5 text-primary" />
+                        Tickets de support
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientTickets.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientTickets.map((ticket: any) => (
+                            <div key={ticket.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <Ticket className="w-6 h-6 text-primary" />
+                                <div>
+                                  <p className="font-medium text-foreground">{ticket.ticket_number || ticket.subject}</p>
+                                  <p className="text-sm text-muted-foreground">{ticket.subject}</p>
+                                  <p className="text-xs text-muted-foreground">{format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={orderStatusColors[ticket.status] || orderStatusColors.open}>
+                                  {ticket.status === "open" ? "Ouvert" : ticket.status === "in_progress" ? "En cours" : ticket.status === "closed" ? "Fermé" : ticket.status}
+                                </Badge>
+                                <Badge variant="outline">{ticket.priority}</Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Ticket className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun ticket</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </ScrollArea>
             </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Order Details Dialog */}
+      <Dialog open={orderDetailsOpen} onOpenChange={setOrderDetailsOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Détails de la commande {selectedOrder?.order_number}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Service</Label>
+                    <p className="font-medium">{selectedOrder.service_type}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Date de commande</Label>
+                    <p className="font-medium">{format(new Date(selectedOrder.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Créé par</Label>
+                    <p className="font-medium">{selectedOrder.created_by === 'admin' ? 'Admin' : selectedOrder.created_by === 'employee' ? 'Employé' : 'Client'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Statut</Label>
+                  <Select 
+                    value={selectedOrder.status} 
+                    onValueChange={(v) => setSelectedOrder({ ...selectedOrder, status: v })}
+                    disabled={!session?.permissions?.can_edit_orders_status}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="processing">En traitement</SelectItem>
+                      <SelectItem value="shipped">Expédié</SelectItem>
+                      <SelectItem value="completed">Complété</SelectItem>
+                      <SelectItem value="cancelled">Annulé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Statut paiement</Label>
+                  <Select 
+                    value={selectedOrder.payment_status || "pending"} 
+                    onValueChange={(v) => setSelectedOrder({ ...selectedOrder, payment_status: v })}
+                    disabled={!session?.permissions?.can_confirm_payments}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="partial">Partiel</SelectItem>
+                      <SelectItem value="paid">Payé</SelectItem>
+                      <SelectItem value="refunded">Remboursé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Référence paiement</Label>
+                  <Input 
+                    value={selectedOrder.payment_reference || ""} 
+                    onChange={(e) => setSelectedOrder({ ...selectedOrder, payment_reference: e.target.value })}
+                    disabled={!session?.permissions?.can_confirm_payments} 
+                  />
+                </div>
+                <div>
+                  <Label>Numéro de suivi</Label>
+                  <Input 
+                    value={selectedOrder.tracking_number || ""} 
+                    onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_number: e.target.value })}
+                    disabled={!session?.permissions?.can_ship_orders} 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>URL de suivi</Label>
+                <Input 
+                  value={selectedOrder.tracking_url || ""} 
+                  onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_url: e.target.value })}
+                  disabled={!session?.permissions?.can_ship_orders} 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Numéro de série (Router)</Label>
+                  <Input 
+                    value={selectedOrder.serial_number || ""} 
+                    onChange={(e) => setSelectedOrder({ ...selectedOrder, serial_number: e.target.value })}
+                    disabled={!session?.permissions?.can_edit_orders_status} 
+                  />
+                </div>
+                <div>
+                  <Label>ID équipement (Terminal)</Label>
+                  <Input 
+                    value={selectedOrder.equipment_id || ""} 
+                    onChange={(e) => setSelectedOrder({ ...selectedOrder, equipment_id: e.target.value })}
+                    disabled={!session?.permissions?.can_edit_orders_status} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>IMEI</Label>
+                  <Input 
+                    value={selectedOrder.imei_number || ""} 
+                    onChange={(e) => setSelectedOrder({ ...selectedOrder, imei_number: e.target.value })}
+                    disabled={!session?.permissions?.can_edit_orders_status} 
+                  />
+                </div>
+                <div>
+                  <Label>Numéro SIM</Label>
+                  <Input 
+                    value={selectedOrder.sim_number || ""} 
+                    onChange={(e) => setSelectedOrder({ ...selectedOrder, sim_number: e.target.value })}
+                    disabled={!session?.permissions?.can_edit_orders_status} 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Notes internes</Label>
+                <Textarea 
+                  value={selectedOrder.internal_notes || ""} 
+                  onChange={(e) => setSelectedOrder({ ...selectedOrder, internal_notes: e.target.value })} 
+                  rows={3}
+                  disabled={!session?.permissions?.can_edit_orders_status}
+                />
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <Label className="text-sm font-medium mb-3 block">Récapitulatif financier</Label>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span>Sous-total:</span><span>{Number(selectedOrder.subtotal || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between"><span>Livraison:</span><span>{Number(selectedOrder.delivery_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between"><span>Activation:</span><span>{Number(selectedOrder.activation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between"><span>Installation:</span><span>{Number(selectedOrder.installation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  {selectedOrder.discount_amount > 0 && <div className="flex justify-between text-emerald-500"><span>Rabais:</span><span>-{Number(selectedOrder.discount_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                  <div className="flex justify-between"><span>TPS:</span><span>{Number(selectedOrder.tps_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between"><span>TVQ:</span><span>{Number(selectedOrder.tvq_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span>{Number(selectedOrder.total_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                </div>
+              </div>
+
+              {(session?.permissions?.can_edit_orders_status || session?.permissions?.can_ship_orders || session?.permissions?.can_confirm_payments) && (
+                <Button className="w-full" onClick={handleUpdateOrder} disabled={isSubmitting}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Enregistrer les modifications
+                </Button>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>
