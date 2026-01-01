@@ -22,6 +22,7 @@ const FAQ = () => {
         { q: t('faq.about.q2'), a: t('faq.about.a2') },
         { q: t('faq.about.q3'), a: t('faq.about.a3') },
         { q: t('faq.about.q4'), a: t('faq.about.a4') },
+        { q: t('faq.about.q5'), a: t('faq.about.a5') },
       ],
     },
     {

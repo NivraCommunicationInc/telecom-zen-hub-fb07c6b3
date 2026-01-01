@@ -140,6 +140,8 @@ const translations: Record<Language, Record<string, string>> = {
     'faq.about.a3': 'Nivra est payé par ses clients (frais ou abonnements). Aucune commission carrier, aucun partenariat.',
     'faq.about.q4': 'Quelles régions desservez-vous?',
     'faq.about.a4': 'Nivra offre ses services au Québec uniquement.',
+    'faq.about.q5': 'C\'est quoi mon Nivra?',
+    'faq.about.a5': 'Telecom',
     
     // FAQ Questions - Consultations
     'faq.consult.q1': 'Comment commander un service Nivra?',
@@ -332,6 +334,8 @@ const translations: Record<Language, Record<string, string>> = {
     'faq.about.a3': 'Nivra is paid by clients (fees or subscriptions). No carrier commission, no partnership.',
     'faq.about.q4': 'Which regions do you serve?',
     'faq.about.a4': 'Nivra offers services in Quebec only.',
+    'faq.about.q5': 'What is my Nivra?',
+    'faq.about.a5': 'Telecom',
     
     // FAQ Questions - Consultations
     'faq.consult.q1': 'How do I order a Nivra service?',
