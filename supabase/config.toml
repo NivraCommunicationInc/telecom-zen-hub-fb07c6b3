@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.technician-work-orders]
 verify_jwt = false
+
+[functions.employee-auth]
+verify_jwt = false
+
+[functions.employee-data]
+verify_jwt = false
+
+[functions.admin-employee-management]
+verify_jwt = true
