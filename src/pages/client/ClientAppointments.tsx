@@ -3,6 +3,8 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import {
   Dialog,
@@ -20,21 +22,54 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { format, isPast, isFuture, isToday } from "date-fns";
+import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info } from "lucide-react";
+import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+
+// Available time slots for rescheduling
+const TIME_SLOTS = [
+  "08h00 - 10h00",
+  "10h00 - 12h00",
+  "12h00 - 14h00",
+  "14h00 - 16h00",
+  "16h00 - 18h00",
+];
 
 const ClientAppointments = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
+
+  // Fetch client profile
+  const { data: profile } = useQuery({
+    queryKey: ["client-profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ["client-appointments-all", user?.id, user?.email],
@@ -49,6 +84,7 @@ const ClientAppointments = () => {
     enabled: !!user?.id,
   });
 
+  // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
     mutationFn: async (aptId: string) => {
       const { error } = await supabase
@@ -56,16 +92,64 @@ const ClientAppointments = () => {
         .update({ status: "cancelled" })
         .eq("id", aptId);
       if (error) throw error;
+
+      // Create notification ticket for admin
+      await supabase.from("support_tickets").insert({
+        user_id: user?.id,
+        client_email: profile?.email || user?.email,
+        subject: `Installation annulée - ${selectedAppointment?.title}`,
+        description: `**Annulation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Date originale:** ${format(new Date(selectedAppointment?.scheduled_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a annulé son rendez-vous d'installation.`,
+        priority: "high",
+        status: "open",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
-      toast({ title: "Rendez-vous annulé" });
+      toast.success("Rendez-vous annulé avec succès");
       setCancelDialogOpen(false);
       setDetailsOpen(false);
       setSelectedAppointment(null);
     },
     onError: () => {
-      toast({ title: "Erreur lors de l'annulation", variant: "destructive" });
+      toast.error("Erreur lors de l'annulation");
+    },
+  });
+
+  // Reschedule appointment mutation
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: async ({ aptId, newScheduledAt }: { aptId: string; newScheduledAt: Date }) => {
+      const oldDate = selectedAppointment?.scheduled_at;
+      
+      const { error } = await supabase
+        .from("appointments")
+        .update({ 
+          scheduled_at: newScheduledAt.toISOString(),
+          status: "scheduled",
+        })
+        .eq("id", aptId);
+      if (error) throw error;
+
+      // Create notification ticket for admin
+      await supabase.from("support_tickets").insert({
+        user_id: user?.id,
+        client_email: profile?.email || user?.email,
+        subject: `Installation reprogrammée - ${selectedAppointment?.title}`,
+        description: `**Reprogrammation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Ancienne date:** ${format(new Date(oldDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n**Nouvelle date:** ${format(newScheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a reprogrammé son rendez-vous d'installation.`,
+        priority: "high",
+        status: "open",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      toast.success("Rendez-vous reprogrammé avec succès");
+      setRescheduleDialogOpen(false);
+      setDetailsOpen(false);
+      setSelectedAppointment(null);
+      setNewDate("");
+      setNewTime("");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la reprogrammation");
     },
   });
 
@@ -90,6 +174,26 @@ const ClientAppointments = () => {
     no_show: AlertTriangle,
   };
 
+  // Filter appointments to only show installation-related ones (hide consultation/carrier mentions)
+  const filterAppointmentTitle = (title: string) => {
+    // Remove carrier names and consultation text
+    return title
+      .replace(/consultation/gi, 'Rendez-vous')
+      .replace(/Bell|Rogers|Telus|Vidéotron|Fido|Koodo|Virgin|Chatr|Freedom|Lucky|Public|Fizz/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const filterDescription = (description: string | null) => {
+    if (!description) return null;
+    // Remove carrier names from description
+    return description
+      .replace(/Bell|Rogers|Telus|Vidéotron|Fido|Koodo|Virgin|Chatr|Freedom|Lucky|Public|Fizz/gi, '')
+      .replace(/consultation/gi, 'rendez-vous')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   // Separate appointments into upcoming and past
   const upcomingAppointments = appointments?.filter((apt: any) => 
     isFuture(new Date(apt.scheduled_at)) || isToday(new Date(apt.scheduled_at))
@@ -107,8 +211,55 @@ const ClientAppointments = () => {
     setCancelDialogOpen(true);
   };
 
-  const canCancel = (apt: any) => {
-    return apt.status === "scheduled" && isFuture(new Date(apt.scheduled_at));
+  const handleRescheduleClick = () => {
+    setRescheduleDialogOpen(true);
+  };
+
+  const handleRescheduleSubmit = () => {
+    if (!newDate || !newTime || !selectedAppointment) {
+      toast.error("Veuillez sélectionner une date et une heure");
+      return;
+    }
+
+    // Parse time slot to get start hour
+    const [startTime] = newTime.split(' - ');
+    const [hours] = startTime.replace('h', ':').split(':');
+    
+    const scheduledDate = new Date(newDate);
+    scheduledDate.setHours(parseInt(hours), 0, 0, 0);
+
+    rescheduleAppointmentMutation.mutate({
+      aptId: selectedAppointment.id,
+      newScheduledAt: scheduledDate,
+    });
+  };
+
+  // Check if appointment can be managed (24+ hours away)
+  const canManage = (apt: any) => {
+    if (apt.status !== "scheduled") return false;
+    const scheduledDate = new Date(apt.scheduled_at);
+    const hoursUntil = differenceInHours(scheduledDate, new Date());
+    return hoursUntil >= 24;
+  };
+
+  // Get hours until appointment
+  const getHoursUntil = (apt: any) => {
+    const scheduledDate = new Date(apt.scheduled_at);
+    return differenceInHours(scheduledDate, new Date());
+  };
+
+  // Generate available dates for rescheduling (next 14 days, excluding today)
+  const getAvailableDates = () => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 2; i <= 14; i++) { // Start from 2 days out to ensure 24+ hours
+      const date = addDays(today, i);
+      dates.push({
+        value: format(date, "yyyy-MM-dd"),
+        label: format(date, "EEEE d MMMM", { locale: fr }),
+      });
+    }
+    return dates;
   };
 
   return (
@@ -117,7 +268,7 @@ const ClientAppointments = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground">Mes rendez-vous</h1>
-            <p className="text-muted-foreground mt-1">Gérez vos rendez-vous avec Nivra</p>
+            <p className="text-muted-foreground mt-1">Gérez vos rendez-vous d'installation Nivra</p>
           </div>
           <Link to="/portal/new-order">
             <Button variant="hero">
@@ -132,11 +283,11 @@ const ClientAppointments = () => {
           <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-cyan-500" />
+                <Wrench className="w-5 h-5 text-cyan-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{upcomingAppointments.length}</p>
-                <p className="text-xs text-muted-foreground">À venir</p>
+                <p className="text-xs text-muted-foreground">Installations à venir</p>
               </div>
             </CardContent>
           </Card>
@@ -149,7 +300,7 @@ const ClientAppointments = () => {
                 <p className="text-2xl font-bold text-foreground">
                   {appointments?.filter((a: any) => a.status === "completed").length || 0}
                 </p>
-                <p className="text-xs text-muted-foreground">Complétés</p>
+                <p className="text-xs text-muted-foreground">Complétées</p>
               </div>
             </CardContent>
           </Card>
@@ -166,13 +317,24 @@ const ClientAppointments = () => {
           </Card>
         </div>
 
+        {/* Management Info */}
+        <Card className="bg-blue-500/10 border-blue-500/30">
+          <CardContent className="py-4 flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Gestion des rendez-vous:</strong> Vous pouvez modifier ou annuler un rendez-vous 
+              d'installation uniquement si celui-ci est prévu dans plus de 24 heures.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Upcoming Appointments */}
         {upcomingAppointments.length > 0 && (
           <Card className="bg-card border-border border-l-4 border-l-cyan-500">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-cyan-400" />
-                Rendez-vous à venir
+                <CalendarClock className="w-5 h-5 text-cyan-400" />
+                Installations à venir
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -180,6 +342,9 @@ const ClientAppointments = () => {
                 {upcomingAppointments.map((apt: any) => {
                   const StatusIcon = statusIcons[apt.status] || Clock;
                   const aptDate = new Date(apt.scheduled_at);
+                  const hoursUntil = getHoursUntil(apt);
+                  const canEdit = canManage(apt);
+                  
                   return (
                     <div
                       key={apt.id}
@@ -191,12 +356,19 @@ const ClientAppointments = () => {
                           <span className="text-xs text-cyan-400 uppercase">{format(aptDate, "MMM", { locale: fr })}</span>
                         </div>
                         <div>
-                          <h3 className="font-medium text-foreground">{apt.title}</h3>
+                          <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
                           <p className="text-sm text-muted-foreground">
                             {format(aptDate, "EEEE 'à' HH:mm", { locale: fr })}
                           </p>
                           {apt.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{apt.description}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{filterDescription(apt.description)}</p>
+                          )}
+                          {apt.status === "scheduled" && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {hoursUntil >= 24 
+                                ? `Modifiable (${hoursUntil}h avant)` 
+                                : `Non modifiable (moins de 24h)`}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -221,7 +393,7 @@ const ClientAppointments = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-cyan-400" />
-              Historique des rendez-vous
+              Historique des installations
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -253,7 +425,7 @@ const ClientAppointments = () => {
                               apt.status === "scheduled" ? "text-cyan-500" : "text-amber-500"
                             }`} />
                           </div>
-                          <h3 className="font-medium text-foreground">{apt.title}</h3>
+                          <h3 className="font-medium text-foreground">{filterAppointmentTitle(apt.title)}</h3>
                           <Badge className={statusColors[apt.status] || "bg-muted"}>
                             {statusLabels[apt.status] || apt.status}
                           </Badge>
@@ -262,7 +434,7 @@ const ClientAppointments = () => {
                           {format(new Date(apt.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
                         </p>
                         {apt.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{apt.description}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{filterDescription(apt.description)}</p>
                         )}
                       </div>
                       <Button variant="outline" size="sm" onClick={() => handleViewDetails(apt)}>
@@ -275,10 +447,10 @@ const ClientAppointments = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-4">Vous n'avez pas encore de rendez-vous</p>
+                <Wrench className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-4">Vous n'avez pas encore de rendez-vous d'installation</p>
                 <Link to="/portal/new-order">
-                  <Button variant="hero">Passer une commande</Button>
+                  <Button variant="hero">Commander avec installation technicien</Button>
                 </Link>
               </div>
             )}
@@ -290,13 +462,16 @@ const ClientAppointments = () => {
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Détails du rendez-vous</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-primary" />
+              Détails de l'installation
+            </DialogTitle>
           </DialogHeader>
           {selectedAppointment && (
             <div className="space-y-4 mt-4">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Titre</span>
-                <span className="text-foreground font-medium">{selectedAppointment.title}</span>
+                <span className="text-muted-foreground">Type</span>
+                <span className="text-foreground font-medium">{filterAppointmentTitle(selectedAppointment.title)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Date & Heure</span>
@@ -313,24 +488,106 @@ const ClientAppointments = () => {
               {selectedAppointment.description && (
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm text-muted-foreground mb-2">Description</p>
-                  <p className="text-foreground">{selectedAppointment.description}</p>
+                  <p className="text-foreground">{filterDescription(selectedAppointment.description)}</p>
                 </div>
               )}
               
-              {canCancel(selectedAppointment) && (
-                <div className="pt-4 border-t border-border">
-                  <Button
-                    variant="outline"
-                    className="w-full text-red-500 hover:text-red-600"
-                    onClick={handleCancelClick}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Annuler ce rendez-vous
-                  </Button>
+              {/* Management buttons with 24h restriction */}
+              {selectedAppointment.status === "scheduled" && (
+                <div className="pt-4 border-t border-border space-y-3">
+                  {canManage(selectedAppointment) ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleRescheduleClick}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Reprogrammer le rendez-vous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full text-red-500 hover:text-red-600"
+                        onClick={handleCancelClick}
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Annuler ce rendez-vous
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                      <p className="text-sm text-amber-600 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Ce rendez-vous ne peut plus être modifié car il est prévu dans moins de 24 heures.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="w-5 h-5 text-primary" />
+              Reprogrammer l'installation
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Nouvelle date</Label>
+              <Select value={newDate} onValueChange={setNewDate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une date" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableDates().map(date => (
+                    <SelectItem key={date.value} value={date.value}>
+                      {date.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Nouvelle heure</Label>
+              <Select value={newTime} onValueChange={setNewTime}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une plage horaire" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_SLOTS.map(slot => (
+                    <SelectItem key={slot} value={slot}>
+                      {slot}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setRescheduleDialogOpen(false)}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleRescheduleSubmit}
+                disabled={!newDate || !newTime || rescheduleAppointmentMutation.isPending}
+              >
+                {rescheduleAppointmentMutation.isPending ? "Enregistrement..." : "Confirmer"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -340,10 +597,11 @@ const ClientAppointments = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-500" />
-              Annuler le rendez-vous
+              Annuler le rendez-vous d'installation
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir annuler ce rendez-vous ? Cette action ne peut pas être annulée.
+              Êtes-vous sûr de vouloir annuler ce rendez-vous d'installation ? 
+              L'équipe Nivra sera informée de cette annulation.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -351,8 +609,9 @@ const ClientAppointments = () => {
             <AlertDialogAction
               onClick={() => selectedAppointment && cancelAppointmentMutation.mutate(selectedAppointment.id)}
               className="bg-red-500 hover:bg-red-600"
+              disabled={cancelAppointmentMutation.isPending}
             >
-              Annuler le rendez-vous
+              {cancelAppointmentMutation.isPending ? "Annulation..." : "Annuler le rendez-vous"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
