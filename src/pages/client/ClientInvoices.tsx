@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer } from "lucide-react";
+import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, isPast, parseISO } from "date-fns";
@@ -261,12 +261,14 @@ const ClientInvoices = () => {
     pending: "bg-amber-500/20 text-amber-500",
     paid: "bg-emerald-500/20 text-emerald-500",
     overdue: "bg-red-500/20 text-red-500",
+    pre_authorized: "bg-blue-500/20 text-blue-500",
   };
 
   const statusLabels: Record<string, string> = {
     pending: "En attente",
     paid: "Payé",
     overdue: "En retard",
+    pre_authorized: "Pré-autorisé",
   };
 
   const calculateTotal = (inv: any) => {
@@ -604,38 +606,54 @@ const ClientInvoices = () => {
                   </div>
                 ) : payments && payments.length > 0 ? (
                   <div className="space-y-3">
-                    {payments.map((payment: any) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between p-4 bg-accent/50 rounded-lg border border-border"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                            <CheckCircle className="w-6 h-6 text-emerald-500" />
+                    {payments.map((payment: any) => {
+                      const isPending = payment.status === "pending";
+                      return (
+                        <div
+                          key={payment.id}
+                          className={`flex items-center justify-between p-4 bg-accent/50 rounded-lg border ${
+                            isPending ? "border-blue-500/30" : "border-border"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                              isPending ? "bg-blue-500/20" : "bg-emerald-500/20"
+                            }`}>
+                              {isPending ? (
+                                <Clock className="w-6 h-6 text-blue-500" />
+                              ) : (
+                                <CheckCircle className="w-6 h-6 text-emerald-500" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {payment.payment_method === "credit_card" ? "Carte de crédit" : "Virement Interac"}
+                                {payment.card_last_four && ` •••• ${payment.card_last_four}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground font-mono">
+                                Réf: {payment.reference_number}
+                              </p>
+                              {isPending && (
+                                <Badge className="mt-1 bg-blue-500/20 text-blue-500 text-xs">
+                                  Pré-autorisé - En attente validation
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-foreground">
-                              {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                            </p>
+                          <div className="text-right">
                             <p className="text-sm text-muted-foreground">
-                              {payment.payment_method === "credit_card" ? "Carte de crédit" : "Virement Interac"}
-                              {payment.card_last_four && ` •••• ${payment.card_last_four}`}
+                              {format(new Date(payment.created_at), "d MMM yyyy", { locale: fr })}
                             </p>
-                            <p className="text-xs text-muted-foreground font-mono">
-                              Réf: {payment.reference_number}
-                            </p>
+                            <Button size="sm" variant="ghost" onClick={() => handleViewPayment(payment)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(payment.created_at), "d MMM yyyy", { locale: fr })}
-                          </p>
-                          <Button size="sm" variant="ghost" onClick={() => handleViewPayment(payment)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -1168,12 +1186,48 @@ const ClientInvoices = () => {
                       <span className="font-medium text-sm text-right">Montant</span>
                     </div>
                     <div className="divide-y divide-border">
+                      {/* Subtotal - Service fees */}
                       <div className="px-4 py-3 grid grid-cols-2">
-                        <span className="text-sm">Services de courtage télécom</span>
+                        <span className="text-sm">Services ({previewInvoice.related_order_number || 'N/A'})</span>
                         <span className="text-sm text-right">
-                          {Number(previewInvoice.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          {Number(previewInvoice.subtotal || previewInvoice.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </span>
                       </div>
+                      {/* Delivery fee */}
+                      {Number(previewInvoice.delivery_fee || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm">Frais de livraison</span>
+                          <span className="text-sm text-right">
+                            {Number(previewInvoice.delivery_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {/* Activation fee */}
+                      {Number(previewInvoice.activation_fee || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm">Frais d'activation</span>
+                          <span className="text-sm text-right">
+                            {Number(previewInvoice.activation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {/* Installation fee */}
+                      {Number(previewInvoice.installation_fee || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm">Frais d'installation</span>
+                          <span className="text-sm text-right">
+                            {Number(previewInvoice.installation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {/* Equipment */}
+                      {previewInvoice.equipment_id && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm">Équipement ({previewInvoice.equipment_id})</span>
+                          <span className="text-sm text-right text-muted-foreground">Inclus</span>
+                        </div>
+                      )}
+                      {/* Additional fees */}
                       {Number(previewInvoice.fees || 0) > 0 && (
                         <div className="px-4 py-3 grid grid-cols-2">
                           <span className="text-sm">Frais additionnels</span>
@@ -1182,6 +1236,34 @@ const ClientInvoices = () => {
                           </span>
                         </div>
                       )}
+                      {/* Discount */}
+                      {Number(previewInvoice.discount_amount || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2 bg-emerald-50 dark:bg-emerald-950/20">
+                          <span className="text-sm text-emerald-600 dark:text-emerald-400">Rabais appliqué</span>
+                          <span className="text-sm text-right text-emerald-600 dark:text-emerald-400">
+                            -{Number(previewInvoice.discount_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {/* TPS */}
+                      {Number(previewInvoice.tps_amount || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm text-muted-foreground">TPS (5%)</span>
+                          <span className="text-sm text-right text-muted-foreground">
+                            {Number(previewInvoice.tps_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {/* TVQ */}
+                      {Number(previewInvoice.tvq_amount || 0) > 0 && (
+                        <div className="px-4 py-3 grid grid-cols-2">
+                          <span className="text-sm text-muted-foreground">TVQ (9.975%)</span>
+                          <span className="text-sm text-right text-muted-foreground">
+                            {Number(previewInvoice.tvq_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </span>
+                        </div>
+                      )}
+                      {/* Late fee */}
                       {lateFeeAmount > 0 && (
                         <div className="px-4 py-3 grid grid-cols-2 bg-red-50 dark:bg-red-950/20">
                           <span className="text-sm text-red-600 dark:text-red-400">Frais de retard (5%)</span>
@@ -1190,6 +1272,7 @@ const ClientInvoices = () => {
                           </span>
                         </div>
                       )}
+                      {/* Credits */}
                       {Number(previewInvoice.credits || 0) > 0 && (
                         <div className="px-4 py-3 grid grid-cols-2 bg-emerald-50 dark:bg-emerald-950/20">
                           <span className="text-sm text-emerald-600 dark:text-emerald-400">Crédits appliqués</span>

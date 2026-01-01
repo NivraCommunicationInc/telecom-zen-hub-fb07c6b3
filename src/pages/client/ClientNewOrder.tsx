@@ -405,6 +405,36 @@ const ClientNewOrder = () => {
 
       if (paymentError) throw paymentError;
 
+      // Create billing/invoice record for client portal
+      const invoiceSubtotal = subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + (hasMobileService ? SIM_CONFIG.price : 0);
+      const invoiceDeliveryFee = installationChoice === "auto" ? 30 : 0;
+      const invoiceActivationFee = 25;
+      const invoiceInstallationFee = installationChoice === "technician" ? Math.max(0, 50 - installationCredit) : 0;
+      const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
+      const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
+      const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
+      
+      const { error: billingError } = await supabase.from("billing").insert({
+        user_id: user.id,
+        client_email: profile?.email || user.email,
+        order_id: data.id,
+        related_order_number: data.order_number,
+        amount: totalAmount,
+        subtotal: invoiceSubtotal,
+        delivery_fee: invoiceDeliveryFee,
+        activation_fee: invoiceActivationFee,
+        installation_fee: invoiceInstallationFee,
+        discount_amount: discountCode ? installationCredit : 0,
+        tps_amount: invoiceTps,
+        tvq_amount: invoiceTvq,
+        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasMobileService ? 'SIM' : null),
+        status: "pending",
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        notes: `Paiement pré-autorisé - Confirmation: ${paymentRef}\nServices: ${serviceNames}`,
+      });
+
+      if (billingError) throw billingError;
+
       // Create support ticket for TV channel configuration if TV service is included
       if (hasTVService && channelData.length > 0) {
         const baseChannelsList = baseChannels.map(ch => ch.name).join(', ');
@@ -447,6 +477,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payments"] });
       setCreatedOrder(data as CreatedOrder);
       // Go to completed step (dynamic based on service selection)
       if (hasTVService && hasMobileService) setStep(6);
