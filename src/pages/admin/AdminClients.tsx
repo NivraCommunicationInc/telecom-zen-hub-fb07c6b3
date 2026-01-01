@@ -21,7 +21,7 @@ import {
   DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle,
   Router, Monitor, Smartphone, Shield, CheckCircle, XCircle, AlertTriangle,
   Phone, MapPin, User, IdCard, Wrench, Hash, Download, Edit, History,
-  ExternalLink, Tv, Wifi, Save, RefreshCw, Printer, FilePlus, Receipt
+  ExternalLink, Tv, Wifi, Save, RefreshCw, Printer, FilePlus, Receipt, Building2, Star
 } from "lucide-react";
 import {
   Select,
@@ -280,6 +280,29 @@ const AdminClients = () => {
     },
     enabled: !!selectedClient?.user_id,
   });
+
+  // Fetch client accounts (with credit class - internal only)
+  const { data: clientAccounts } = useQuery({
+    queryKey: ["client-accounts", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("client_id", selectedClient.user_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  const creditClassLabels: Record<string, { label: string; color: string }> = {
+    A: { label: "Excellent", color: "bg-green-500" },
+    B: { label: "Bon", color: "bg-blue-500" },
+    C: { label: "Moyen", color: "bg-yellow-500" },
+    D: { label: "Mauvais", color: "bg-red-500" },
+  };
 
   // Filter clients with enhanced search
   const filteredClients = clients?.filter((client: any) => {
@@ -1037,6 +1060,46 @@ const AdminClients = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Client Accounts with Credit Class (Internal) */}
+                    <Card className="bg-amber-500/5 border-amber-500/30">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2 text-amber-600">
+                          <Star className="w-4 h-4" />
+                          Comptes & Classe de crédit (INTERNE)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {clientAccounts && clientAccounts.length > 0 ? (
+                          clientAccounts.map((account: any) => (
+                            <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg bg-background">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Building2 className="w-4 h-4 text-muted-foreground" />
+                                  <span className="font-mono text-sm font-medium">{account.account_number}</span>
+                                  <Badge variant="outline">{account.account_name}</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {account.billing_address}, {account.billing_city}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${creditClassLabels[account.credit_class]?.color || "bg-gray-400"}`}>
+                                  {account.credit_class || "?"}
+                                </div>
+                                <span className="text-sm font-medium">
+                                  {creditClassLabels[account.credit_class]?.label || "Non défini"}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Aucun compte associé. Créez un compte dans la section "Comptes".
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
 
                     {/* Profile Fields */}
                     <Card className="bg-card border-border">
