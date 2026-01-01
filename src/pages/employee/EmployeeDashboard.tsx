@@ -14,7 +14,18 @@ import {
   Clock,
   LayoutDashboard,
   Film,
+  Plus,
+  UserPlus,
+  FileBarChart,
+  CalendarPlus,
+  TicketPlus,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -81,6 +92,38 @@ const EmployeeDashboard = () => {
   };
 
   const permissions = session?.permissions || {};
+
+  // Quick Actions for employees
+  const quickActions = [
+    {
+      label: "Nouvelle commande",
+      icon: Package,
+      action: () => navigate("/employee/orders?action=new"),
+      enabled: permissions.can_edit_orders,
+      color: "bg-blue-500 hover:bg-blue-600",
+    },
+    {
+      label: "Nouveau rendez-vous",
+      icon: CalendarPlus,
+      action: () => navigate("/employee/appointments?action=new"),
+      enabled: permissions.can_edit_appointments,
+      color: "bg-cyan-500 hover:bg-cyan-600",
+    },
+    {
+      label: "Nouveau ticket",
+      icon: TicketPlus,
+      action: () => navigate("/employee/tickets?action=new"),
+      enabled: permissions.can_edit_tickets,
+      color: "bg-amber-500 hover:bg-amber-600",
+    },
+    {
+      label: "Nouvelle facture",
+      icon: FileBarChart,
+      action: () => navigate("/employee/invoices?action=new"),
+      enabled: permissions.can_generate_invoices,
+      color: "bg-purple-500 hover:bg-purple-600",
+    },
+  ];
 
   const menuItems = [
     { 
@@ -194,6 +237,25 @@ const EmployeeDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Quick Actions */}
+        {quickActions.some(a => a.enabled) && (
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Actions rapides</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {quickActions.filter(a => a.enabled).map((action) => (
+                <Button
+                  key={action.label}
+                  onClick={action.action}
+                  className={`${action.color} text-white h-auto py-3 flex flex-col items-center gap-2`}
+                >
+                  <action.icon className="w-5 h-5" />
+                  <span className="text-xs font-medium">{action.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
