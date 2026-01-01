@@ -146,6 +146,35 @@ serve(async (req) => {
         result = { clients };
         break;
 
+      case "get_client_details":
+        if (!permissions?.can_view_clients) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const clientUserId = params.userId;
+        const clientEmail = params.email;
+        
+        // Fetch all client-related data in parallel
+        const [clientOrders, clientBilling, clientPayments, clientTickets, clientAppointments, clientSubscriptions, clientDocuments] = await Promise.all([
+          supabase.from("orders").select("*").or(`user_id.eq.${clientUserId},client_email.eq.${clientEmail}`).order("created_at", { ascending: false }).limit(50),
+          supabase.from("billing").select("*").or(`user_id.eq.${clientUserId},client_email.eq.${clientEmail}`).order("created_at", { ascending: false }).limit(50),
+          supabase.from("payments").select("*").eq("user_id", clientUserId).order("created_at", { ascending: false }).limit(50),
+          supabase.from("support_tickets").select("*").or(`user_id.eq.${clientUserId},client_email.eq.${clientEmail}`).order("created_at", { ascending: false }).limit(50),
+          supabase.from("appointments").select("*").or(`client_id.eq.${clientUserId},client_email.eq.${clientEmail}`).order("scheduled_at", { ascending: false }).limit(50),
+          supabase.from("subscriptions").select("*").eq("user_id", clientUserId).order("created_at", { ascending: false }).limit(50),
+          supabase.from("client_documents").select("*").eq("user_id", clientUserId).order("created_at", { ascending: false }).limit(50),
+        ]);
+        
+        result = {
+          orders: clientOrders.data || [],
+          billing: clientBilling.data || [],
+          payments: clientPayments.data || [],
+          tickets: clientTickets.data || [],
+          appointments: clientAppointments.data || [],
+          subscriptions: clientSubscriptions.data || [],
+          documents: clientDocuments.data || [],
+        };
+        break;
+
       case "get_invoices":
         if (!permissions?.can_generate_invoices && !permissions?.can_edit_invoices) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -458,6 +487,36 @@ serve(async (req) => {
           .eq("id", params.clientId);
         if (verifyClientIdError) throw verifyClientIdError;
         result = { success: true };
+        break;
+
+      case "adjust_client_balance":
+        if (!permissions?.can_edit_clients) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour modifier le solde" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        
+        // Get current value
+        const { data: currentProfile, error: fetchBalanceError } = await supabase
+          .from("profiles")
+          .select(params.field)
+          .eq("id", params.clientId)
+          .single();
+        if (fetchBalanceError) throw fetchBalanceError;
+        
+        const currentValue = Number(currentProfile?.[params.field] || 0);
+        const newBalanceValue = params.operation === 'add' 
+          ? currentValue + params.amount 
+          : Math.max(0, currentValue - params.amount);
+        
+        const { error: updateBalanceError } = await supabase
+          .from("profiles")
+          .update({ 
+            [params.field]: newBalanceValue,
+            updated_at: new Date().toISOString() 
+          })
+          .eq("id", params.clientId);
+        if (updateBalanceError) throw updateBalanceError;
+        
+        result = { success: true, newValue: newBalanceValue };
         break;
 
       // ==================== INVOICE/BILLING OPERATIONS ====================
