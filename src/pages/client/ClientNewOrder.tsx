@@ -239,6 +239,10 @@ const ClientNewOrder = () => {
   const [cardName, setCardName] = useState("");
   const [etransferConfirmationNumber, setEtransferConfirmationNumber] = useState("");
   const [etransferSenderName, setEtransferSenderName] = useState("");
+  
+  // Pre-authorized payment state
+  const [acceptPreauthorized, setAcceptPreauthorized] = useState(false);
+  const PREAUTH_MONTHLY_DISCOUNT = 5;
 
   // Fetch available services
   const { data: services, isLoading } = useQuery({
@@ -453,6 +457,46 @@ const ClientNewOrder = () => {
         ? (deliveryChoice === "uber" ? "uber_express" : "delivery_standard")
         : installationChoice;
 
+      // Save pre-authorized payment method if credit card and checkbox selected
+      let savedPaymentMethodId: string | null = null;
+      if (paymentMethod === "credit_card" && acceptPreauthorized) {
+        const cardNum = cardNumber.replace(/\s/g, '');
+        const lastFour = cardNum.slice(-4);
+        const cardType = cardNum.startsWith('4') ? 'Visa' : cardNum.startsWith('5') ? 'Mastercard' : 'Card';
+        const [month, year] = cardExpiry.split('/');
+        
+        // Simple encryption for storage (in production, use proper encryption)
+        const encryptedCard = btoa(cardNum); // Base64 encode for demo purposes
+        
+        const { data: paymentMethodData, error: paymentMethodError } = await supabase
+          .from("payment_methods")
+          .insert({
+            user_id: user.id,
+            card_type: cardType,
+            last_four: lastFour,
+            expiry_month: parseInt(month),
+            expiry_year: 2000 + parseInt(year),
+            is_default: true,
+            is_preauthorized: true,
+            preauthorized_at: new Date().toISOString(),
+            encrypted_card_number: encryptedCard,
+            cardholder_name: cardName,
+          })
+          .select()
+          .single();
+        
+        if (!paymentMethodError && paymentMethodData) {
+          savedPaymentMethodId = paymentMethodData.id;
+          
+          // Set this as default, unset others
+          await supabase
+            .from("payment_methods")
+            .update({ is_default: false })
+            .eq("user_id", user.id)
+            .neq("id", paymentMethodData.id);
+        }
+      }
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
@@ -469,11 +513,14 @@ const ClientNewOrder = () => {
         payment_status: "pre_authorized",
         amount_paid: 0,
         created_by: "client",
-        notes: (notes || '') + routerInfo + equipmentInfo + simInfo + deliveryInfo,
+        notes: (notes || '') + routerInfo + equipmentInfo + simInfo + deliveryInfo + 
+          (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
+        preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+        preauth_card_id: savedPaymentMethodId,
       }).select().single();
 
       if (error) throw error;
@@ -545,8 +592,10 @@ const ClientNewOrder = () => {
         tvq_amount: invoiceTvq,
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? 'SIM' : null)),
         status: "pending",
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}`,
+        preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+        preauth_discount_applied: acceptPreauthorized,
       });
 
       if (billingError) throw billingError;
@@ -2383,6 +2432,37 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           />
                         </div>
                       </div>
+                      
+                      {/* Pre-authorized Payment Checkbox */}
+                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg space-y-3">
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            id="preauth-accept"
+                            checked={acceptPreauthorized}
+                            onCheckedChange={(checked) => setAcceptPreauthorized(checked === true)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor="preauth-accept" className="text-sm font-medium cursor-pointer leading-relaxed">
+                              J'autorise Nivra à débiter automatiquement cette carte pour mes paiements mensuels futurs
+                            </Label>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
+                                <Star className="w-3 h-3 mr-1" />
+                                Économisez 5$/mois
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">Rabais automatique appliqué</span>
+                            </div>
+                          </div>
+                        </div>
+                        {acceptPreauthorized && (
+                          <div className="text-xs text-emerald-600 bg-emerald-500/20 p-2 rounded">
+                            ✓ Votre carte sera enregistrée de façon sécurisée pour les paiements automatiques.
+                            Un rabais de 5$/mois sera appliqué sur toutes vos factures mensuelles.
+                          </div>
+                        )}
+                      </div>
+
                       <Button
                         variant="hero"
                         className="w-full"

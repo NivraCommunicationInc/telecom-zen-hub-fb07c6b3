@@ -241,10 +241,21 @@ const ClientPayments = () => {
                               Par défaut
                             </span>
                           )}
+                          {card.is_preauthorized && (
+                            <span className="text-xs bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              Pré-autorisé
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Expire {card.expiry_month.toString().padStart(2, "0")}/{card.expiry_year}
                         </p>
+                        {card.is_preauthorized && (
+                          <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
+                            ✓ Rabais 5$/mois appliqué automatiquement
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">

@@ -122,6 +122,8 @@ export type Database = {
           order_id: string | null
           paid_at: string | null
           payment_reference: string | null
+          preauth_discount: number | null
+          preauth_discount_applied: boolean | null
           related_order_number: string | null
           status: string
           subtotal: number | null
@@ -149,6 +151,8 @@ export type Database = {
           order_id?: string | null
           paid_at?: string | null
           payment_reference?: string | null
+          preauth_discount?: number | null
+          preauth_discount_applied?: boolean | null
           related_order_number?: string | null
           status?: string
           subtotal?: number | null
@@ -176,6 +180,8 @@ export type Database = {
           order_id?: string | null
           paid_at?: string | null
           payment_reference?: string | null
+          preauth_discount?: number | null
+          preauth_discount_applied?: boolean | null
           related_order_number?: string | null
           status?: string
           subtotal?: number | null
@@ -562,6 +568,8 @@ export type Database = {
           order_number: string | null
           payment_reference: string | null
           payment_status: string | null
+          preauth_card_id: string | null
+          preauth_discount: number | null
           processed_at: string | null
           processed_by: string | null
           related_contract_id: string | null
@@ -622,6 +630,8 @@ export type Database = {
           order_number?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          preauth_card_id?: string | null
+          preauth_discount?: number | null
           processed_at?: string | null
           processed_by?: string | null
           related_contract_id?: string | null
@@ -682,6 +692,8 @@ export type Database = {
           order_number?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          preauth_card_id?: string | null
+          preauth_discount?: number | null
           processed_at?: string | null
           processed_by?: string | null
           related_contract_id?: string | null
@@ -710,6 +722,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_preauth_card_id_fkey"
+            columns: ["preauth_card_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_technician_id_fkey"
             columns: ["technician_id"]
             isOneToOne: false
@@ -721,32 +740,44 @@ export type Database = {
       payment_methods: {
         Row: {
           card_type: string
+          cardholder_name: string | null
           created_at: string
+          encrypted_card_number: string | null
           expiry_month: number
           expiry_year: number
           id: string
           is_default: boolean
+          is_preauthorized: boolean | null
           last_four: string
+          preauthorized_at: string | null
           user_id: string
         }
         Insert: {
           card_type: string
+          cardholder_name?: string | null
           created_at?: string
+          encrypted_card_number?: string | null
           expiry_month: number
           expiry_year: number
           id?: string
           is_default?: boolean
+          is_preauthorized?: boolean | null
           last_four: string
+          preauthorized_at?: string | null
           user_id: string
         }
         Update: {
           card_type?: string
+          cardholder_name?: string | null
           created_at?: string
+          encrypted_card_number?: string | null
           expiry_month?: number
           expiry_year?: number
           id?: string
           is_default?: boolean
+          is_preauthorized?: boolean | null
           last_four?: string
+          preauthorized_at?: string | null
           user_id?: string
         }
         Relationships: []
