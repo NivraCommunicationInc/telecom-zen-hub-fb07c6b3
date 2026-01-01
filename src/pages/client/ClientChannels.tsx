@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,7 +24,11 @@ import {
   Calendar,
   Download,
   Gift,
-  Percent
+  Percent,
+  Edit,
+  Save,
+  X,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -60,12 +64,25 @@ interface ChannelSelection {
   related_ticket_id: string | null;
 }
 
+interface TVOrder {
+  id: string;
+  order_number: string;
+  service_type: string;
+  status: string;
+  selected_channels: any[];
+  created_at: string;
+}
+
 const ClientChannels = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<ChannelPackage[]>([]);
-  const [activeTab, setActiveTab] = useState("browse");
+  const [activeTab, setActiveTab] = useState("my-channels");
+  
+  // Editing state for order channels
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editingChannels, setEditingChannels] = useState<any[]>([]);
 
   // Fetch all channels
   const { data: channels = [], isLoading: channelsLoading } = useQuery({
@@ -95,6 +112,26 @@ const ClientChannels = () => {
     },
   });
 
+  // Fetch user's TV orders (only non-cancelled ones show channels)
+  const { data: tvOrders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ["client-tv-orders", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, order_number, service_type, status, selected_channels, created_at")
+        .eq("user_id", user.id)
+        .ilike("category", "%TV%")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as TVOrder[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Filter out cancelled orders for channel display
+  const activeOrders = tvOrders.filter(order => order.status !== "cancelled");
+
   // Fetch user's channel selections
   const { data: selections = [], isLoading: selectionsLoading } = useQuery({
     queryKey: ["channel-selections", user?.id],
@@ -120,7 +157,7 @@ const ClientChannels = () => {
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -136,12 +173,35 @@ const ClientChannels = () => {
         .from("support_tickets")
         .select("*")
         .eq("user_id", user.id)
-        .ilike("subject", "%Channel Selection%")
+        .ilike("subject", "%Channel%")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  // Update order channels mutation
+  const updateOrderChannelsMutation = useMutation({
+    mutationFn: async ({ orderId, channels }: { orderId: string; channels: any[] }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ 
+          selected_channels: channels,
+          channel_assigned_by: 'client',
+        })
+        .eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Chaînes mises à jour avec succès!");
+      setEditingOrderId(null);
+      setEditingChannels([]);
+      queryClient.invalidateQueries({ queryKey: ["client-tv-orders"] });
+    },
+    onError: (error: any) => {
+      toast.error("Erreur: " + error.message);
+    },
   });
 
   // Submit channel selection mutation
@@ -453,9 +513,13 @@ END:VCALENDAR`;
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
-            <TabsTrigger value="browse" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[500px]">
+            <TabsTrigger value="my-channels" className="flex items-center gap-2">
               <Tv className="h-4 w-4" />
+              Mes Chaînes
+            </TabsTrigger>
+            <TabsTrigger value="browse" className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
               Parcourir
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
@@ -463,6 +527,296 @@ END:VCALENDAR`;
               Historique
             </TabsTrigger>
           </TabsList>
+
+          {/* My Channels Tab - Shows channels from TV orders */}
+          <TabsContent value="my-channels" className="space-y-6">
+            {ordersLoading ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Chargement de vos chaînes...
+                </CardContent>
+              </Card>
+            ) : activeOrders.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Tv className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-lg font-semibold mb-2">Aucun forfait TV actif</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Vous n'avez pas encore de commande TV avec des chaînes sélectionnées.
+                  </p>
+                  <Button onClick={() => setActiveTab("browse")} variant="outline">
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Parcourir les chaînes
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {activeOrders.map(order => {
+                  const orderChannels = Array.isArray(order.selected_channels) ? order.selected_channels : [];
+                  const isEditing = editingOrderId === order.id;
+                  const displayChannels = isEditing ? editingChannels : orderChannels;
+                  
+                  const baseChannels = displayChannels.filter((ch: any) => ch.type === 'base_included' || ch.category === 'base');
+                  const freeChoiceChannels = displayChannels.filter((ch: any) => ch.type === 'free_choice' || ch.category === 'free_choice');
+                  const paidChannels = displayChannels.filter((ch: any) => ch.type === 'paid_addon' || ch.category === 'paid');
+                  
+                  const getStatusBadgeColor = (status: string) => {
+                    switch (status) {
+                      case 'pending': return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30';
+                      case 'processing': return 'bg-blue-500/20 text-blue-600 border-blue-500/30';
+                      case 'completed': return 'bg-green-500/20 text-green-600 border-green-500/30';
+                      case 'shipped': return 'bg-purple-500/20 text-purple-600 border-purple-500/30';
+                      default: return 'bg-gray-500/20 text-gray-600 border-gray-500/30';
+                    }
+                  };
+
+                  const startEditing = () => {
+                    setEditingOrderId(order.id);
+                    setEditingChannels([...orderChannels]);
+                  };
+
+                  const cancelEditing = () => {
+                    setEditingOrderId(null);
+                    setEditingChannels([]);
+                  };
+
+                  const saveChanges = () => {
+                    updateOrderChannelsMutation.mutate({
+                      orderId: order.id,
+                      channels: editingChannels,
+                    });
+                  };
+
+                  const toggleEditChannel = (channel: Channel, type: string) => {
+                    setEditingChannels(prev => {
+                      const exists = prev.find((ch: any) => ch.id === channel.id);
+                      if (exists) {
+                        return prev.filter((ch: any) => ch.id !== channel.id);
+                      }
+                      return [...prev, {
+                        id: channel.id,
+                        name: channel.name,
+                        category: channel.category,
+                        price: channel.price,
+                        is_hd: channel.is_hd,
+                        type: type,
+                      }];
+                    });
+                  };
+
+                  return (
+                    <Card key={order.id} className="border-l-4 border-l-primary">
+                      <CardHeader>
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div>
+                            <CardTitle className="flex items-center gap-2">
+                              <Tv className="h-5 w-5 text-primary" />
+                              Commande {order.order_number}
+                            </CardTitle>
+                            <CardDescription className="mt-1">
+                              {order.service_type} • Créée le {format(new Date(order.created_at), "d MMMM yyyy", { locale: fr })}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={getStatusBadgeColor(order.status)}>
+                              {order.status === 'pending' ? 'En attente' : 
+                               order.status === 'processing' ? 'En traitement' :
+                               order.status === 'completed' ? 'Complétée' :
+                               order.status === 'shipped' ? 'Expédiée' : order.status}
+                            </Badge>
+                            {!isEditing ? (
+                              <Button variant="outline" size="sm" onClick={startEditing}>
+                                <Edit className="h-4 w-4 mr-1" />
+                                Modifier
+                              </Button>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={cancelEditing}
+                                  disabled={updateOrderChannelsMutation.isPending}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Annuler
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  onClick={saveChanges}
+                                  disabled={updateOrderChannelsMutation.isPending}
+                                >
+                                  {updateOrderChannelsMutation.isPending ? (
+                                    "Sauvegarde..."
+                                  ) : (
+                                    <>
+                                      <Save className="h-4 w-4 mr-1" />
+                                      Sauvegarder
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {orderChannels.length === 0 && !isEditing ? (
+                          <div className="text-center py-6 text-muted-foreground">
+                            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p>Aucune chaîne sélectionnée pour cette commande.</p>
+                            <Button variant="link" onClick={startEditing} className="mt-2">
+                              Ajouter des chaînes
+                            </Button>
+                          </div>
+                        ) : isEditing ? (
+                          <div className="space-y-4">
+                            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <p className="text-sm text-blue-700 flex items-center gap-2">
+                                <Edit className="h-4 w-4" />
+                                Mode édition - Cliquez sur les chaînes pour les ajouter/retirer
+                              </p>
+                            </div>
+                            
+                            {/* Base Channels (read-only in edit mode) */}
+                            {baseChannels.length > 0 && (
+                              <div>
+                                <h4 className="font-medium mb-2 flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-green-500" />
+                                  Chaînes de base (incluses)
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {baseChannels.map((ch: any, idx: number) => (
+                                    <Badge key={idx} variant="secondary" className="bg-green-100 text-green-700">
+                                      {ch.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Editable Free Choice Channels */}
+                            <div>
+                              <h4 className="font-medium mb-2 flex items-center gap-2">
+                                <Star className="h-4 w-4 text-yellow-500" />
+                                Chaînes au choix (sélectionnez)
+                              </h4>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {channels.filter(ch => ch.category === 'free_choice').map(channel => {
+                                  const isSelected = editingChannels.some((ch: any) => ch.id === channel.id);
+                                  return (
+                                    <div 
+                                      key={channel.id}
+                                      className={`p-2 rounded border cursor-pointer transition-all ${
+                                        isSelected 
+                                          ? 'border-primary bg-primary/10' 
+                                          : 'border-border hover:border-primary/50'
+                                      }`}
+                                      onClick={() => toggleEditChannel(channel, 'free_choice')}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Checkbox checked={isSelected} className="pointer-events-none" />
+                                        <span className="text-sm">{channel.name}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Editable Paid Channels */}
+                            <div>
+                              <h4 className="font-medium mb-2 flex items-center gap-2">
+                                <Package className="h-4 w-4 text-purple-500" />
+                                Chaînes payantes
+                              </h4>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {channels.filter(ch => ch.category === 'paid').map(channel => {
+                                  const isSelected = editingChannels.some((ch: any) => ch.id === channel.id);
+                                  return (
+                                    <div 
+                                      key={channel.id}
+                                      className={`p-2 rounded border cursor-pointer transition-all ${
+                                        isSelected 
+                                          ? 'border-purple-500 bg-purple-50' 
+                                          : 'border-border hover:border-purple-500/50'
+                                      }`}
+                                      onClick={() => toggleEditChannel(channel, 'paid_addon')}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <Checkbox checked={isSelected} className="pointer-events-none" />
+                                          <span className="text-sm">{channel.name}</span>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">${channel.price}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Base Channels */}
+                            {baseChannels.length > 0 && (
+                              <div>
+                                <h4 className="font-medium mb-2 flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-green-500" />
+                                  Chaînes de base ({baseChannels.length})
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {baseChannels.map((ch: any, idx: number) => (
+                                    <Badge key={idx} variant="secondary" className="bg-green-100 text-green-700">
+                                      {ch.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Free Choice Channels */}
+                            {freeChoiceChannels.length > 0 && (
+                              <div>
+                                <h4 className="font-medium mb-2 flex items-center gap-2">
+                                  <Star className="h-4 w-4 text-yellow-500" />
+                                  Chaînes au choix ({freeChoiceChannels.length})
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {freeChoiceChannels.map((ch: any, idx: number) => (
+                                    <Badge key={idx} variant="secondary" className="bg-yellow-100 text-yellow-700">
+                                      {ch.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Paid Channels */}
+                            {paidChannels.length > 0 && (
+                              <div>
+                                <h4 className="font-medium mb-2 flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-purple-500" />
+                                  Chaînes payantes ({paidChannels.length})
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {paidChannels.map((ch: any, idx: number) => (
+                                    <Badge key={idx} variant="secondary" className="bg-purple-100 text-purple-700">
+                                      {ch.name} {ch.price > 0 && `($${ch.price}/mois)`}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="browse" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
