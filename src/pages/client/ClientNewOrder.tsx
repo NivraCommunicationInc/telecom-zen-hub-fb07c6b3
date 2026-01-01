@@ -201,6 +201,7 @@ const ClientNewOrder = () => {
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
+  const [nivraPaymentReference, setNivraPaymentReference] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
@@ -411,13 +412,19 @@ const ClientNewOrder = () => {
 
       if (error) throw error;
 
+      // Generate NIVRA payment reference
+      const year = new Date().getFullYear();
+      const random = Math.floor(10000 + Math.random() * 90000);
+      const nivraPaymentRef = `NIVRA-PAY-QC-${year}-${random}`;
+
       // Create payment record with pending/pre-authorized status
-      const paymentRef = paymentConfirmationNumber || `PAY-${Date.now()}`;
+      const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
       const { error: paymentError } = await supabase.from("payments").insert({
         user_id: user.id,
         amount: totalAmount,
         payment_method: paymentMethod === "credit_card" ? "credit_card" : "etransfer",
         reference_number: paymentRef,
+        payment_reference: nivraPaymentRef,
         status: "pending",
         card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
         card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
@@ -427,6 +434,11 @@ const ClientNewOrder = () => {
       });
 
       if (paymentError) throw paymentError;
+
+      // Update order with payment reference
+      await supabase.from("orders").update({
+        payment_reference: nivraPaymentRef,
+      }).eq("id", data.id);
 
       // Create billing/invoice record for client portal
       const invoiceEquipmentSubtotal = 
@@ -446,6 +458,7 @@ const ClientNewOrder = () => {
         client_email: profile?.email || user.email,
         order_id: data.id,
         related_order_number: data.order_number,
+        payment_reference: nivraPaymentRef,
         amount: totalAmount,
         subtotal: invoiceSubtotal,
         delivery_fee: invoiceDeliveryFee,
@@ -457,7 +470,7 @@ const ClientNewOrder = () => {
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? 'SIM' : null)),
         status: "pending",
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-        notes: `Paiement pré-autorisé - Confirmation: ${paymentRef}\nServices: ${serviceNames}`,
+        notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}`,
       });
 
       if (billingError) throw billingError;
@@ -499,13 +512,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         });
       }
 
-      return data;
+      return { ...data, nivraPaymentRef };
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       // Set order data first, then flag confirmation, then change step
-      const orderData = data as CreatedOrder;
+      const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
       setCreatedOrder(orderData);
       setIsOrderConfirmed(true);
+      if (orderData.nivraPaymentRef) {
+        setNivraPaymentReference(orderData.nivraPaymentRef);
+      }
       
       // Use setTimeout to ensure state is set before step change
       setTimeout(() => {
@@ -2395,7 +2411,7 @@ END:VCALENDAR`;
         {/* Completed Step - Dynamic based on service selection */}
         {((step === 4 && !hasTVService && !hasMobileService) ||
           (step === 5 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
-          (step === 6 && hasTVService && hasMobileService)) && isOrderConfirmed && (
+          (step === 6 && hasTVService && hasMobileService)) && isOrderConfirmed && createdOrder && (
           <div className="space-y-6 max-w-4xl mx-auto">
             {/* Success Banner */}
             <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
@@ -2445,16 +2461,12 @@ END:VCALENDAR`;
                   </p>
                 </CardContent>
               </Card>
-              <Card className="bg-card border-border">
+              <Card className="bg-card border-emerald-500/30">
                 <CardContent className="py-6 text-center">
-                  <CreditCard className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <CreditCard className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Référence de paiement</p>
-                  <p className="text-xl font-mono font-bold text-foreground">
-                  {paymentMethod === "etransfer" && etransferConfirmationNumber 
-                      ? etransferConfirmationNumber 
-                      : createdOrder?.order_number
-                        ? `PAY-${createdOrder.order_number.replace("ORD-", "")}` 
-                        : "En attente"}
+                  <p className="text-lg font-mono font-bold text-emerald-500 break-all">
+                    {nivraPaymentReference || "NIVRA-PAY-QC-..."}
                   </p>
                 </CardContent>
               </Card>
