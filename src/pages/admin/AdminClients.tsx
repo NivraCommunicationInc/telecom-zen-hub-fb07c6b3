@@ -13,13 +13,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { 
   Users, Plus, Search, Eye, Upload, FileText, Trash2, 
   ShoppingBag, CreditCard, Ticket, Calendar, Bell, Package,
   DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle,
   Router, Monitor, Smartphone, Shield, CheckCircle, XCircle, AlertTriangle,
-  Phone, MapPin, User, IdCard, Wrench, Hash
+  Phone, MapPin, User, IdCard, Wrench, Hash, Download, Edit, History,
+  ExternalLink, Tv, Wifi, Save, RefreshCw
 } from "lucide-react";
 import {
   Select,
@@ -30,11 +32,12 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, differenceInDays, addDays } from "date-fns";
+import { format, differenceInDays, addDays, addYears } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -73,6 +76,15 @@ const AdminClients = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [invoiceDetailsOpen, setInvoiceDetailsOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [deleteDocumentReason, setDeleteDocumentReason] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<any>(null);
   const [newClient, setNewClient] = useState({
     email: "",
     password: "",
@@ -90,7 +102,6 @@ const AdminClients = () => {
   const { data: clients, isLoading, refetch: refetchClients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: async () => {
-      // Fetch all profiles without role filtering - all users are clients
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
@@ -98,12 +109,10 @@ const AdminClients = () => {
 
       if (profilesError) throw profilesError;
 
-      // Fetch roles separately to ensure no join issues
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
-      // Merge roles into profiles
       const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
       
       return profilesData?.map(profile => ({
@@ -113,38 +122,22 @@ const AdminClients = () => {
       })) || [];
     },
     refetchOnWindowFocus: true,
-    staleTime: 0, // Always refetch to ensure latest data
+    staleTime: 0,
   });
 
   // Real-time subscription for instant client visibility
   useEffect(() => {
     const channel = supabase
       .channel('admin-clients-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        () => {
-          // Refetch clients when profiles table changes
-          refetchClients();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'user_roles' },
-        () => {
-          // Refetch clients when user_roles table changes
-          refetchClients();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => refetchClients())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, () => refetchClients())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [refetchClients]);
 
   // Fetch client-specific data when a client is selected
-  const { data: clientOrders } = useQuery({
+  const { data: clientOrders, refetch: refetchOrders } = useQuery({
     queryKey: ["client-orders", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
@@ -160,7 +153,7 @@ const AdminClients = () => {
   });
 
   // Fetch client payments
-  const { data: clientPayments } = useQuery({
+  const { data: clientPayments, refetch: refetchPayments } = useQuery({
     queryKey: ["client-payments", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
@@ -175,7 +168,7 @@ const AdminClients = () => {
     enabled: !!selectedClient?.user_id,
   });
 
-  const { data: clientBilling } = useQuery({
+  const { data: clientBilling, refetch: refetchBilling } = useQuery({
     queryKey: ["client-billing", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
@@ -205,7 +198,7 @@ const AdminClients = () => {
     enabled: !!selectedClient?.user_id,
   });
 
-  const { data: clientSubscriptions } = useQuery({
+  const { data: clientSubscriptions, refetch: refetchSubscriptions } = useQuery({
     queryKey: ["client-subscriptions", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
@@ -235,7 +228,7 @@ const AdminClients = () => {
     enabled: !!selectedClient?.user_id,
   });
 
-  const { data: clientDocuments } = useQuery({
+  const { data: clientDocuments, refetch: refetchDocuments } = useQuery({
     queryKey: ["client-documents", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
@@ -244,6 +237,38 @@ const AdminClients = () => {
         .select("*")
         .eq("user_id", selectedClient.user_id)
         .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  const { data: clientContracts } = useQuery({
+    queryKey: ["client-contracts", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("contracts")
+        .select("*")
+        .eq("user_id", selectedClient.user_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  // Fetch activity logs for this client
+  const { data: clientActivityLogs, refetch: refetchActivityLogs } = useQuery({
+    queryKey: ["client-activity-logs", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .or(`entity_id.eq.${selectedClient.id},user_id.eq.${selectedClient.user_id}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
       if (error) throw error;
       return data;
     },
@@ -285,9 +310,7 @@ const AdminClients = () => {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: client.email,
         password: client.password,
-        options: {
-          data: { full_name: fullName },
-        },
+        options: { data: { full_name: fullName } },
       });
       if (authError) throw authError;
 
@@ -314,32 +337,15 @@ const AdminClients = () => {
       const fullName = `${newClient.first_name} ${newClient.last_name}`.trim();
       await queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       await queryClient.refetchQueries({ queryKey: ["admin-clients"] });
-      logActivity("create", "client", undefined, { 
-        email: newClient.email,
-        full_name: fullName
-      }, {
+      logActivity("create", "client", undefined, { email: newClient.email, full_name: fullName }, {
         changedField: "profile",
         reason: "Nouveau client créé par admin"
       });
-      toast({ 
-        title: "Client créé avec succès",
-        description: `${fullName} a été ajouté au système`
-      });
+      toast({ title: "Client créé avec succès", description: `${fullName} a été ajouté au système` });
       setCreateDialogOpen(false);
-      setNewClient({ 
-        email: "", 
-        password: "", 
-        first_name: "", 
-        last_name: "",
-        phone: "",
-        date_of_birth: "",
-        service_address: "",
-        service_city: "",
-        service_postal_code: "",
-      });
+      setNewClient({ email: "", password: "", first_name: "", last_name: "", phone: "", date_of_birth: "", service_address: "", service_city: "", service_postal_code: "" });
     },
     onError: (error: any) => {
-      console.error("Client creation error:", error);
       toast({ title: "Erreur lors de la création", description: error.message, variant: "destructive" });
     },
   });
@@ -350,6 +356,8 @@ const AdminClients = () => {
         .from("profiles")
         .update({
           full_name: client.full_name,
+          first_name: client.first_name,
+          last_name: client.last_name,
           phone: client.phone,
           internal_notes: client.internal_notes,
           sector_tags: client.sector_tags,
@@ -357,16 +365,23 @@ const AdminClients = () => {
           balance: client.balance,
           store_credit: client.store_credit,
           account_status: client.account_status,
+          id_type: client.id_type,
+          id_number: client.id_number,
+          id_province: client.id_province,
+          id_expiration: client.id_expiration,
+          date_of_birth: client.date_of_birth,
+          service_address: client.service_address,
+          service_city: client.service_city,
+          service_postal_code: client.service_postal_code,
+          service_province: client.service_province,
         })
         .eq("id", client.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
-      logActivity("update", "client", selectedClient?.id, { 
-        full_name: selectedClient?.full_name,
-        account_status: selectedClient?.account_status
-      }, {
+      refetchActivityLogs();
+      logActivity("update", "client", selectedClient?.id, { full_name: selectedClient?.full_name }, {
         changedField: "profile",
         reason: "Mise à jour du profil client"
       });
@@ -389,10 +404,7 @@ const AdminClients = () => {
       const currentValue = Number(current?.[field] || 0);
       const newValue = operation === 'add' ? currentValue + amount : Math.max(0, currentValue - amount);
       
-      const { error } = await supabase
-        .from("profiles")
-        .update({ [field]: newValue })
-        .eq("id", clientId);
+      const { error } = await supabase.from("profiles").update({ [field]: newValue }).eq("id", clientId);
       if (error) throw error;
       
       return newValue;
@@ -400,11 +412,8 @@ const AdminClients = () => {
     onSuccess: (newValue, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       setSelectedClient((prev: any) => prev ? { ...prev, [variables.field]: newValue } : prev);
-      logActivity("update", "client", selectedClient?.id, { 
-        field: variables.field, 
-        operation: variables.operation,
-        amount: variables.amount
-      }, {
+      refetchActivityLogs();
+      logActivity("update", "client", selectedClient?.id, { field: variables.field, operation: variables.operation, amount: variables.amount }, {
         changedField: variables.field,
         oldValue: String(selectedClient?.[variables.field] || 0),
         newValue: String(newValue),
@@ -428,16 +437,15 @@ const AdminClients = () => {
         user_id: selectedClient.user_id,
         uploaded_by: user.id,
         document_name: file.name,
-        document_type: file.type.includes("pdf") ? "contract" : "general",
+        document_type: file.type.includes("pdf") ? "contract" : file.type.includes("image") ? "id" : "general",
         document_url: documentUrl,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-documents"] });
-      logActivity("upload", "document", selectedClient?.id, { 
-        document_name: "document" 
-      }, {
+      refetchDocuments();
+      refetchActivityLogs();
+      logActivity("upload", "document", selectedClient?.id, { document_name: "document" }, {
         changedField: "documents",
         reason: "Document téléversé"
       });
@@ -449,13 +457,76 @@ const AdminClients = () => {
   });
 
   const deleteDocumentMutation = useMutation({
-    mutationFn: async (docId: string) => {
+    mutationFn: async ({ docId, reason }: { docId: string; reason: string }) => {
       const { error } = await supabase.from("client_documents").delete().eq("id", docId);
+      if (error) throw error;
+      return reason;
+    },
+    onSuccess: (reason) => {
+      refetchDocuments();
+      refetchActivityLogs();
+      logActivity("delete", "document", documentToDelete?.id, { document_name: documentToDelete?.document_name }, {
+        changedField: "documents",
+        reason: reason || "Document supprimé par admin"
+      });
+      toast({ title: "Document supprimé" });
+      setDeleteConfirmOpen(false);
+      setDocumentToDelete(null);
+      setDeleteDocumentReason("");
+    },
+  });
+
+  const updateOrderMutation = useMutation({
+    mutationFn: async (order: any) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          status: order.status,
+          payment_reference: order.payment_reference,
+          tracking_number: order.tracking_number,
+          tracking_url: order.tracking_url,
+          serial_number: order.serial_number,
+          equipment_id: order.equipment_id,
+          imei_number: order.imei_number,
+          sim_number: order.sim_number,
+          internal_notes: order.internal_notes,
+          payment_status: order.payment_status,
+        })
+        .eq("id", order.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-documents"] });
-      toast({ title: "Document supprimé" });
+      refetchOrders();
+      refetchActivityLogs();
+      logActivity("update", "order", selectedOrder?.id, { order_number: selectedOrder?.order_number }, {
+        changedField: "order",
+        reason: "Commande mise à jour"
+      });
+      toast({ title: "Commande mise à jour" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+  });
+
+  const updateSubscriptionMutation = useMutation({
+    mutationFn: async ({ id, status, reason }: { id: string; status: string; reason: string }) => {
+      const { error } = await supabase.from("subscriptions").update({ status }).eq("id", id);
+      if (error) throw error;
+      return { id, status, reason };
+    },
+    onSuccess: ({ id, status, reason }) => {
+      refetchSubscriptions();
+      refetchActivityLogs();
+      logActivity("update", "subscription", id, { status }, {
+        changedField: "status",
+        newValue: status,
+        reason: reason
+      });
+      toast({ title: `Service ${status === 'active' ? 'activé' : status === 'paused' ? 'suspendu' : 'modifié'}` });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
     },
   });
 
@@ -484,7 +555,26 @@ const AdminClients = () => {
     if (file) uploadDocumentMutation.mutate(file);
   };
 
-  // Calculate renewal reminders
+  const handleViewDocument = (doc: any) => {
+    setSelectedDocument(doc);
+    setDocumentViewerOpen(true);
+  };
+
+  const handleViewOrder = (order: any) => {
+    setSelectedOrder({ ...order });
+    setOrderDetailsOpen(true);
+  };
+
+  const handleViewInvoice = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setInvoiceDetailsOpen(true);
+  };
+
+  const handleDeleteDocument = (doc: any) => {
+    setDocumentToDelete(doc);
+    setDeleteConfirmOpen(true);
+  };
+
   const getSubscriptionStatus = (sub: any) => {
     if (!sub.next_billing_date) return null;
     const daysUntil = differenceInDays(new Date(sub.next_billing_date), new Date());
@@ -492,6 +582,17 @@ const AdminClients = () => {
     if (daysUntil <= 7) return { status: "soon", color: "bg-amber-500", text: `${daysUntil}j` };
     if (daysUntil <= 30) return { status: "upcoming", color: "bg-cyan-500", text: `${daysUntil}j` };
     return { status: "ok", color: "bg-emerald-500", text: `${daysUntil}j` };
+  };
+
+  const getDocumentTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      contract: "Contrat",
+      id: "Pièce d'identité",
+      cv: "CV",
+      invoice: "Facture",
+      general: "Document général",
+    };
+    return labels[type] || type;
   };
 
   const statusColors: Record<string, string> = {
@@ -505,6 +606,9 @@ const AdminClients = () => {
     closed: "bg-muted text-muted-foreground",
     active: "bg-emerald-500/20 text-emerald-400",
     inactive: "bg-muted text-muted-foreground",
+    paused: "bg-blue-500/20 text-blue-400",
+    approved: "bg-emerald-500/20 text-emerald-400",
+    rejected: "bg-red-500/20 text-red-400",
   };
 
   return (
@@ -533,55 +637,29 @@ const AdminClients = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Prénom *</Label>
-                    <Input
-                      value={newClient.first_name}
-                      onChange={(e) => setNewClient({ ...newClient, first_name: e.target.value })}
-                      placeholder="Jean"
-                    />
+                    <Input value={newClient.first_name} onChange={(e) => setNewClient({ ...newClient, first_name: e.target.value })} placeholder="Jean" />
                   </div>
                   <div>
                     <Label>Nom de famille *</Label>
-                    <Input
-                      value={newClient.last_name}
-                      onChange={(e) => setNewClient({ ...newClient, last_name: e.target.value })}
-                      placeholder="Dupont"
-                    />
+                    <Input value={newClient.last_name} onChange={(e) => setNewClient({ ...newClient, last_name: e.target.value })} placeholder="Dupont" />
                   </div>
                 </div>
                 <div>
                   <Label>Courriel *</Label>
-                  <Input
-                    type="email"
-                    value={newClient.email}
-                    onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                    placeholder="jean@exemple.com"
-                  />
+                  <Input type="email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} placeholder="jean@exemple.com" />
                 </div>
                 <div>
                   <Label>Mot de passe temporaire *</Label>
-                  <Input
-                    type="password"
-                    value={newClient.password}
-                    onChange={(e) => setNewClient({ ...newClient, password: e.target.value })}
-                    placeholder="••••••••"
-                  />
+                  <Input type="password" value={newClient.password} onChange={(e) => setNewClient({ ...newClient, password: e.target.value })} placeholder="••••••••" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Téléphone</Label>
-                    <Input
-                      value={newClient.phone}
-                      onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                      placeholder="514-555-1234"
-                    />
+                    <Input value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} placeholder="514-555-1234" />
                   </div>
                   <div>
                     <Label>Date de naissance</Label>
-                    <Input
-                      type="date"
-                      value={newClient.date_of_birth}
-                      onChange={(e) => setNewClient({ ...newClient, date_of_birth: e.target.value })}
-                    />
+                    <Input type="date" value={newClient.date_of_birth} onChange={(e) => setNewClient({ ...newClient, date_of_birth: e.target.value })} />
                   </div>
                 </div>
                 <div className="border-t border-border pt-4">
@@ -589,37 +667,21 @@ const AdminClients = () => {
                   <div className="space-y-3">
                     <div>
                       <Label>Adresse</Label>
-                      <Input
-                        value={newClient.service_address}
-                        onChange={(e) => setNewClient({ ...newClient, service_address: e.target.value })}
-                        placeholder="123 rue Exemple"
-                      />
+                      <Input value={newClient.service_address} onChange={(e) => setNewClient({ ...newClient, service_address: e.target.value })} placeholder="123 rue Exemple" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>Ville</Label>
-                        <Input
-                          value={newClient.service_city}
-                          onChange={(e) => setNewClient({ ...newClient, service_city: e.target.value })}
-                          placeholder="Montréal"
-                        />
+                        <Input value={newClient.service_city} onChange={(e) => setNewClient({ ...newClient, service_city: e.target.value })} placeholder="Montréal" />
                       </div>
                       <div>
                         <Label>Code postal</Label>
-                        <Input
-                          value={newClient.service_postal_code}
-                          onChange={(e) => setNewClient({ ...newClient, service_postal_code: e.target.value })}
-                          placeholder="H1A 1A1"
-                        />
+                        <Input value={newClient.service_postal_code} onChange={(e) => setNewClient({ ...newClient, service_postal_code: e.target.value })} placeholder="H1A 1A1" />
                       </div>
                     </div>
                   </div>
                 </div>
-                <Button
-                  className="w-full"
-                  onClick={() => createClientMutation.mutate(newClient)}
-                  disabled={!newClient.email || !newClient.password || !newClient.first_name || !newClient.last_name}
-                >
+                <Button className="w-full" onClick={() => createClientMutation.mutate(newClient)} disabled={!newClient.email || !newClient.password || !newClient.first_name || !newClient.last_name}>
                   <Plus className="w-4 h-4 mr-2" />
                   Créer le client
                 </Button>
@@ -690,9 +752,7 @@ const AdminClients = () => {
                   <tbody>
                     {filteredClients.map((client: any) => (
                       <tr key={client.id} className="border-b border-border/50 hover:bg-accent/50">
-                        <td className="py-3 px-4 text-sm text-foreground font-medium">
-                          {client.full_name || "—"}
-                        </td>
+                        <td className="py-3 px-4 text-sm text-foreground font-medium">{client.full_name || "—"}</td>
                         <td className="py-3 px-4 text-sm text-foreground">{client.email || "—"}</td>
                         <td className="py-3 px-4 text-sm">
                           <span className={Number(client.balance || 0) > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}>
@@ -705,15 +765,13 @@ const AdminClients = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <Badge
-                            className={
-                              client.account_status === 'active' ? "bg-emerald-500/20 text-emerald-400" :
-                              client.account_status === 'frozen' ? "bg-blue-500/20 text-blue-400" :
-                              client.account_status === 'hold' ? "bg-amber-500/20 text-amber-400" :
-                              client.account_status === 'deactivated' ? "bg-red-500/20 text-red-400" :
-                              "bg-emerald-500/20 text-emerald-400"
-                            }
-                          >
+                          <Badge className={
+                            client.account_status === 'active' ? "bg-emerald-500/20 text-emerald-400" :
+                            client.account_status === 'frozen' ? "bg-blue-500/20 text-blue-400" :
+                            client.account_status === 'hold' ? "bg-amber-500/20 text-amber-400" :
+                            client.account_status === 'deactivated' ? "bg-red-500/20 text-red-400" :
+                            "bg-emerald-500/20 text-emerald-400"
+                          }>
                             {client.account_status === 'active' || !client.account_status ? 'Actif' :
                              client.account_status === 'frozen' ? 'Gelé' :
                              client.account_status === 'hold' ? 'Attente' : 'Désactivé'}
@@ -736,9 +794,7 @@ const AdminClients = () => {
             ) : (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  {searchQuery ? "Aucun client trouvé" : "Aucun client pour le moment"}
-                </p>
+                <p className="text-muted-foreground">{searchQuery ? "Aucun client trouvé" : "Aucun client pour le moment"}</p>
               </div>
             )}
           </CardContent>
@@ -746,7 +802,7 @@ const AdminClients = () => {
 
         {/* Client Management Dialog */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center">
@@ -761,8 +817,8 @@ const AdminClients = () => {
               </DialogTitle>
             </DialogHeader>
             {selectedClient && (
-              <Tabs defaultValue="profile" className="mt-4">
-                <TabsList className="grid grid-cols-8 w-full">
+              <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col">
+                <TabsList className="grid grid-cols-9 w-full flex-shrink-0">
                   <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
                   <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
                   <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>
@@ -771,464 +827,385 @@ const AdminClients = () => {
                   <TabsTrigger value="payments" className="text-xs">Paiements</TabsTrigger>
                   <TabsTrigger value="incidents" className="text-xs">Incidents</TabsTrigger>
                   <TabsTrigger value="documents" className="text-xs">Documents</TabsTrigger>
+                  <TabsTrigger value="logs" className="text-xs">Logs</TabsTrigger>
                 </TabsList>
 
-                {/* Profile Tab */}
-                <TabsContent value="profile" className="space-y-4 mt-4">
-                  {/* Account Status Banner */}
-                  {selectedClient.account_status && selectedClient.account_status !== 'active' && (
-                    <div className={`p-4 rounded-lg border ${
-                      selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
-                      selectedClient.account_status === 'hold' ? 'bg-amber-500/10 border-amber-500/30' :
-                      'bg-red-500/10 border-red-500/30'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        {selectedClient.account_status === 'frozen' && <Pause className="w-5 h-5 text-blue-500" />}
-                        {selectedClient.account_status === 'hold' && <Clock className="w-5 h-5 text-amber-500" />}
-                        {selectedClient.account_status === 'deactivated' && <Ban className="w-5 h-5 text-red-500" />}
-                        <span className={`font-medium ${
-                          selectedClient.account_status === 'frozen' ? 'text-blue-500' :
-                          selectedClient.account_status === 'hold' ? 'text-amber-500' : 'text-red-500'
-                        }`}>
-                          Compte {selectedClient.account_status === 'frozen' ? 'gelé' : 
-                                  selectedClient.account_status === 'hold' ? 'en attente' : 'désactivé'}
-                        </span>
+                <ScrollArea className="flex-1 mt-4">
+                  {/* Profile Tab */}
+                  <TabsContent value="profile" className="space-y-4 pr-4">
+                    {selectedClient.account_status && selectedClient.account_status !== 'active' && (
+                      <div className={`p-4 rounded-lg border ${
+                        selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
+                        selectedClient.account_status === 'hold' ? 'bg-amber-500/10 border-amber-500/30' :
+                        'bg-red-500/10 border-red-500/30'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          {selectedClient.account_status === 'frozen' && <Pause className="w-5 h-5 text-blue-500" />}
+                          {selectedClient.account_status === 'hold' && <Clock className="w-5 h-5 text-amber-500" />}
+                          {selectedClient.account_status === 'deactivated' && <Ban className="w-5 h-5 text-red-500" />}
+                          <span className={`font-medium ${
+                            selectedClient.account_status === 'frozen' ? 'text-blue-500' :
+                            selectedClient.account_status === 'hold' ? 'text-amber-500' : 'text-red-500'
+                          }`}>
+                            Compte {selectedClient.account_status === 'frozen' ? 'gelé' : selectedClient.account_status === 'hold' ? 'en attente' : 'désactivé'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Balance & Credit Management */}
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
-                    <div>
-                      <Label className="text-xs text-muted-foreground uppercase">Solde dû</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-2xl font-bold text-amber-500">
-                          {Number(selectedClient.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <Button size="sm" variant="outline" onClick={() => {
-                          const amount = prompt("Montant à ajouter au solde:");
-                          if (amount && !isNaN(Number(amount))) {
-                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'add' });
-                          }
-                        }}>
-                          <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          const amount = prompt("Montant à retirer du solde:");
-                          if (amount && !isNaN(Number(amount))) {
-                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'remove' });
-                          }
-                        }}>
-                          <MinusCircle className="w-4 h-4 mr-1" /> Retirer
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground uppercase">Crédit disponible</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-2xl font-bold text-emerald-500">
-                          {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <Button size="sm" variant="outline" onClick={() => {
-                          const amount = prompt("Montant à ajouter au crédit:");
-                          if (amount && !isNaN(Number(amount))) {
-                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'add' });
-                          }
-                        }}>
-                          <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          const amount = prompt("Montant à retirer du crédit:");
-                          if (amount && !isNaN(Number(amount))) {
-                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'remove' });
-                          }
-                        }}>
-                          <MinusCircle className="w-4 h-4 mr-1" /> Retirer
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Account Status Management */}
-                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                    <Label className="text-sm font-medium mb-3 block">Statut du compte</Label>
-                    <div className="grid grid-cols-4 gap-2">
-                      <Button 
-                        size="sm" 
-                        variant={selectedClient.account_status === 'active' || !selectedClient.account_status ? 'default' : 'outline'}
-                        className={selectedClient.account_status === 'active' || !selectedClient.account_status ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
-                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'active' })}
-                      >
-                        <Play className="w-4 h-4 mr-1" /> Actif
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant={selectedClient.account_status === 'frozen' ? 'default' : 'outline'}
-                        className={selectedClient.account_status === 'frozen' ? 'bg-blue-500 hover:bg-blue-600' : ''}
-                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'frozen' })}
-                      >
-                        <Pause className="w-4 h-4 mr-1" /> Gelé
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant={selectedClient.account_status === 'hold' ? 'default' : 'outline'}
-                        className={selectedClient.account_status === 'hold' ? 'bg-amber-500 hover:bg-amber-600' : ''}
-                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'hold' })}
-                      >
-                        <Clock className="w-4 h-4 mr-1" /> Attente
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant={selectedClient.account_status === 'deactivated' ? 'default' : 'outline'}
-                        className={selectedClient.account_status === 'deactivated' ? 'bg-red-500 hover:bg-red-600' : ''}
-                        onClick={() => setSelectedClient({ ...selectedClient, account_status: 'deactivated' })}
-                      >
-                        <Ban className="w-4 h-4 mr-1" /> Désactivé
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Client Info */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Nom complet</Label>
-                      <Input
-                        value={selectedClient.full_name || ""}
-                        onChange={(e) => setSelectedClient({ ...selectedClient, full_name: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Téléphone</Label>
-                      <Input
-                        value={selectedClient.phone || ""}
-                        onChange={(e) => setSelectedClient({ ...selectedClient, phone: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Courriel</Label>
-                      <Input value={selectedClient.email || ""} disabled className="bg-muted" />
-                    </div>
-                    <div>
-                      <Label>Date de naissance</Label>
-                      <Input 
-                        type="date" 
-                        value={selectedClient.date_of_birth || ""} 
-                        onChange={(e) => setSelectedClient({ ...selectedClient, date_of_birth: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Address */}
-                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                    <Label className="text-xs text-muted-foreground uppercase mb-3 block">Adresse de service</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2">
-                        <Label>Adresse</Label>
-                        <Input
-                          value={selectedClient.service_address || ""}
-                          onChange={(e) => setSelectedClient({ ...selectedClient, service_address: e.target.value })}
-                          placeholder="123 rue Exemple"
-                        />
-                      </div>
+                    {/* Balance & Credit Management */}
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
                       <div>
-                        <Label>Ville</Label>
-                        <Input
-                          value={selectedClient.service_city || ""}
-                          onChange={(e) => setSelectedClient({ ...selectedClient, service_city: e.target.value })}
-                          placeholder="Montréal"
-                        />
-                      </div>
-                      <div>
-                        <Label>Code postal</Label>
-                        <Input
-                          value={selectedClient.service_postal_code || ""}
-                          onChange={(e) => setSelectedClient({ ...selectedClient, service_postal_code: e.target.value })}
-                          placeholder="H1A 1A1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Tags secteur</Label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {selectedClient.sector_tags?.map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => handleRemoveTag(tag)}>
-                          {tag} ×
-                        </Badge>
-                      ))}
-                    </div>
-                    <Input
-                      placeholder="Ajouter un tag (Entrée pour confirmer)"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleAddTag(e.currentTarget.value);
-                          e.currentTarget.value = "";
-                        }
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <Label>Notes internes (Admin uniquement)</Label>
-                    <Textarea
-                      value={selectedClient.internal_notes || ""}
-                      onChange={(e) => setSelectedClient({ ...selectedClient, internal_notes: e.target.value })}
-                      placeholder="Notes privées..."
-                      rows={4}
-                    />
-                  </div>
-                  <Button onClick={() => updateClientMutation.mutate(selectedClient)}>
-                    Enregistrer les modifications
-                  </Button>
-                </TabsContent>
-
-                {/* Identity Verification Tab */}
-                <TabsContent value="identity" className="space-y-4 mt-4">
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <IdCard className="w-5 h-5 text-cyan-400" />
-                        Vérification d'identité gouvernementale
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Type de pièce d'identité</Label>
-                          <Select
-                            value={selectedClient.id_type || ""}
-                            onValueChange={(v) => setSelectedClient({ ...selectedClient, id_type: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Sélectionner..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="driver_license">Permis de conduire</SelectItem>
-                              <SelectItem value="health_card">Carte d'assurance maladie</SelectItem>
-                              <SelectItem value="passport">Passeport</SelectItem>
-                              <SelectItem value="other">Autre</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <Label className="text-xs text-muted-foreground uppercase">Solde dû</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-2xl font-bold text-amber-500">
+                            {Number(selectedClient.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </p>
                         </div>
-                        <div>
-                          <Label>Province d'émission</Label>
-                          <Select
-                            value={selectedClient.id_province || "QC"}
-                            onValueChange={(v) => setSelectedClient({ ...selectedClient, id_province: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Sélectionner..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="QC">Québec</SelectItem>
-                              <SelectItem value="ON">Ontario</SelectItem>
-                              <SelectItem value="BC">Colombie-Britannique</SelectItem>
-                              <SelectItem value="AB">Alberta</SelectItem>
-                              <SelectItem value="other">Autre</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Numéro de pièce d'identité</Label>
-                          <Input
-                            value={selectedClient.id_number || ""}
-                            onChange={(e) => setSelectedClient({ ...selectedClient, id_number: e.target.value })}
-                            placeholder="Numéro..."
-                          />
-                        </div>
-                        <div>
-                          <Label>Date d'expiration</Label>
-                          <Input
-                            type="date"
-                            value={selectedClient.id_expiration || ""}
-                            onChange={(e) => setSelectedClient({ ...selectedClient, id_expiration: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* ID Verification Actions */}
-                      <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                        <Label className="text-sm font-medium mb-3 block">Statut de vérification</Label>
-                        <div className="flex gap-3">
-                          <Button 
-                            variant="outline" 
-                            className="flex-1 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
-                            onClick={() => {
-                              logActivity("approve_id", "client", selectedClient.id, {
-                                id_type: selectedClient.id_type,
-                                id_number: selectedClient.id_number,
-                              }, {
-                                changedField: "id_verification",
-                                reason: "Identité approuvée par admin"
-                              });
-                              toast({ title: "Identité approuvée", description: "La vérification a été enregistrée." });
-                            }}
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Approuver
+                        <div className="flex gap-2 mt-2">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            const amount = prompt("Montant à ajouter au solde:");
+                            if (amount && !isNaN(Number(amount))) {
+                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'add' });
+                            }
+                          }}>
+                            <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            className="flex-1 border-red-500/30 text-red-500 hover:bg-red-500/10"
-                            onClick={() => {
-                              const reason = prompt("Raison du rejet:");
-                              if (reason) {
-                                logActivity("reject_id", "client", selectedClient.id, {
+                          <Button size="sm" variant="outline" onClick={() => {
+                            const amount = prompt("Montant à retirer du solde:");
+                            if (amount && !isNaN(Number(amount))) {
+                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'remove' });
+                            }
+                          }}>
+                            <MinusCircle className="w-4 h-4 mr-1" /> Retirer
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase">Crédit en magasin</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-2xl font-bold text-emerald-500">
+                            {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            const amount = prompt("Montant de crédit à ajouter:");
+                            if (amount && !isNaN(Number(amount))) {
+                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'add' });
+                            }
+                          }}>
+                            <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            const amount = prompt("Montant de crédit à retirer:");
+                            if (amount && !isNaN(Number(amount))) {
+                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'remove' });
+                            }
+                          }}>
+                            <MinusCircle className="w-4 h-4 mr-1" /> Retirer
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Profile Fields */}
+                    <Card className="bg-card border-border">
+                      <CardContent className="pt-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Prénom</Label>
+                            <Input value={selectedClient.first_name || ""} onChange={(e) => setSelectedClient({ ...selectedClient, first_name: e.target.value })} />
+                          </div>
+                          <div>
+                            <Label>Nom</Label>
+                            <Input value={selectedClient.last_name || ""} onChange={(e) => setSelectedClient({ ...selectedClient, last_name: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Téléphone</Label>
+                            <Input value={selectedClient.phone || ""} onChange={(e) => setSelectedClient({ ...selectedClient, phone: e.target.value })} />
+                          </div>
+                          <div>
+                            <Label>Date de naissance</Label>
+                            <Input type="date" value={selectedClient.date_of_birth || ""} onChange={(e) => setSelectedClient({ ...selectedClient, date_of_birth: e.target.value })} />
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Adresse de service</Label>
+                          <Input value={selectedClient.service_address || ""} onChange={(e) => setSelectedClient({ ...selectedClient, service_address: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <Label>Ville</Label>
+                            <Input value={selectedClient.service_city || ""} onChange={(e) => setSelectedClient({ ...selectedClient, service_city: e.target.value })} />
+                          </div>
+                          <div>
+                            <Label>Province</Label>
+                            <Input value={selectedClient.service_province || "QC"} onChange={(e) => setSelectedClient({ ...selectedClient, service_province: e.target.value })} />
+                          </div>
+                          <div>
+                            <Label>Code postal</Label>
+                            <Input value={selectedClient.service_postal_code || ""} onChange={(e) => setSelectedClient({ ...selectedClient, service_postal_code: e.target.value })} />
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Statut du compte</Label>
+                          <Select value={selectedClient.account_status || "active"} onValueChange={(v) => setSelectedClient({ ...selectedClient, account_status: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Actif</SelectItem>
+                              <SelectItem value="hold">En attente</SelectItem>
+                              <SelectItem value="frozen">Gelé</SelectItem>
+                              <SelectItem value="deactivated">Désactivé</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Notes internes (admin seulement)</Label>
+                          <Textarea value={selectedClient.internal_notes || ""} onChange={(e) => setSelectedClient({ ...selectedClient, internal_notes: e.target.value })} rows={3} />
+                        </div>
+                        <Button onClick={() => updateClientMutation.mutate(selectedClient)}>
+                          <Save className="w-4 h-4 mr-2" />
+                          Enregistrer le profil
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  {/* Identity Tab */}
+                  <TabsContent value="identity" className="space-y-4 pr-4">
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <IdCard className="w-5 h-5 text-cyan-400" />
+                          Informations d'identité
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Type de pièce d'identité</Label>
+                            <Select value={selectedClient.id_type || ""} onValueChange={(v) => setSelectedClient({ ...selectedClient, id_type: v })}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="driver_license">Permis de conduire</SelectItem>
+                                <SelectItem value="health_card">Carte d'assurance maladie</SelectItem>
+                                <SelectItem value="passport">Passeport</SelectItem>
+                                <SelectItem value="other">Autre</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Province d'émission</Label>
+                            <Select value={selectedClient.id_province || "QC"} onValueChange={(v) => setSelectedClient({ ...selectedClient, id_province: v })}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="QC">Québec</SelectItem>
+                                <SelectItem value="ON">Ontario</SelectItem>
+                                <SelectItem value="BC">Colombie-Britannique</SelectItem>
+                                <SelectItem value="AB">Alberta</SelectItem>
+                                <SelectItem value="other">Autre</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Numéro de pièce d'identité</Label>
+                            <Input value={selectedClient.id_number || ""} onChange={(e) => setSelectedClient({ ...selectedClient, id_number: e.target.value })} placeholder="Numéro..." />
+                          </div>
+                          <div>
+                            <Label>Date d'expiration</Label>
+                            <Input type="date" value={selectedClient.id_expiration || ""} onChange={(e) => setSelectedClient({ ...selectedClient, id_expiration: e.target.value })} />
+                          </div>
+                        </div>
+                        
+                        {/* ID Document Preview */}
+                        {clientDocuments?.filter((d: any) => d.document_type === 'id').length > 0 && (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <Label className="text-sm font-medium mb-3 block">Documents d'identité téléversés</Label>
+                            <div className="space-y-2">
+                              {clientDocuments?.filter((d: any) => d.document_type === 'id').map((doc: any) => (
+                                <div key={doc.id} className="flex items-center justify-between p-2 bg-background rounded border">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-cyan-400" />
+                                    <span className="text-sm">{doc.document_name}</span>
+                                  </div>
+                                  <Button size="sm" variant="ghost" onClick={() => handleViewDocument(doc)}>
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* ID Verification Actions */}
+                        <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                          <Label className="text-sm font-medium mb-3 block">Statut de vérification</Label>
+                          <div className="flex gap-3">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                              onClick={() => {
+                                logActivity("approve_id", "client", selectedClient.id, {
                                   id_type: selectedClient.id_type,
                                   id_number: selectedClient.id_number,
-                                  rejection_reason: reason
                                 }, {
                                   changedField: "id_verification",
-                                  reason: `Identité rejetée: ${reason}`
+                                  newValue: "approved",
+                                  reason: "Identité approuvée par admin"
                                 });
-                                toast({ title: "Identité rejetée", description: "Le rejet a été enregistré.", variant: "destructive" });
-                              }
-                            }}
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Rejeter
-                          </Button>
+                                refetchActivityLogs();
+                                toast({ title: "Identité approuvée", description: "La vérification a été enregistrée." });
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Approuver
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              className="flex-1 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                              onClick={() => {
+                                const reason = prompt("Raison du rejet:");
+                                if (reason) {
+                                  logActivity("reject_id", "client", selectedClient.id, {
+                                    id_type: selectedClient.id_type,
+                                    id_number: selectedClient.id_number,
+                                    rejection_reason: reason
+                                  }, {
+                                    changedField: "id_verification",
+                                    newValue: "rejected",
+                                    reason: `Identité rejetée: ${reason}`
+                                  });
+                                  refetchActivityLogs();
+                                  toast({ title: "Identité rejetée", description: "Le rejet a été enregistré.", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Rejeter
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <Button onClick={() => updateClientMutation.mutate(selectedClient)}>
-                        Enregistrer les informations d'identité
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        
+                        <Button onClick={() => updateClientMutation.mutate(selectedClient)}>
+                          <Save className="w-4 h-4 mr-2" />
+                          Enregistrer les informations d'identité
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-                {/* Services Tab - Shows subscribed plans matching public website */}
-                <TabsContent value="services" className="space-y-4 mt-4">
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Package className="w-5 h-5 text-cyan-400" />
-                        Services souscrits
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {clientSubscriptions && clientSubscriptions.length > 0 ? (
-                        <div className="space-y-3">
-                          {clientSubscriptions.map((sub: any) => {
-                            const matchedPlan = allPlans.find(p => 
-                              p.name.toLowerCase().includes(sub.plan_name?.toLowerCase() || "") ||
-                              sub.plan_name?.toLowerCase().includes(p.name.toLowerCase())
-                            );
-                            const renewalStatus = getSubscriptionStatus(sub);
-                            return (
-                              <div key={sub.id} className="p-4 border border-border rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-3">
-                                    {sub.plan_name?.toLowerCase().includes("mobile") ? (
-                                      <Smartphone className="w-6 h-6 text-blue-500" />
-                                    ) : sub.plan_name?.toLowerCase().includes("tv") ? (
-                                      <Monitor className="w-6 h-6 text-purple-500" />
-                                    ) : (
-                                      <Router className="w-6 h-6 text-cyan-500" />
-                                    )}
-                                    <div>
-                                      <p className="font-medium text-foreground">{sub.plan_name}</p>
-                                      <p className="text-sm text-muted-foreground">
-                                        {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
-                                      </p>
+                  {/* Services Tab */}
+                  <TabsContent value="services" className="space-y-4 pr-4">
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Package className="w-5 h-5 text-cyan-400" />
+                          Services souscrits
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {clientSubscriptions && clientSubscriptions.length > 0 ? (
+                          <div className="space-y-3">
+                            {clientSubscriptions.map((sub: any) => {
+                              const renewalStatus = getSubscriptionStatus(sub);
+                              return (
+                                <div key={sub.id} className="p-4 border border-border rounded-lg">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                      {sub.plan_name?.toLowerCase().includes("mobile") ? (
+                                        <Smartphone className="w-6 h-6 text-blue-500" />
+                                      ) : sub.plan_name?.toLowerCase().includes("tv") ? (
+                                        <Monitor className="w-6 h-6 text-purple-500" />
+                                      ) : (
+                                        <Router className="w-6 h-6 text-cyan-500" />
+                                      )}
+                                      <div>
+                                        <p className="font-medium text-foreground">{sub.plan_name}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {renewalStatus && (
+                                        <Badge variant="outline" className={`${renewalStatus.color.replace('bg-', 'border-').replace('-500', '-500/30')} ${renewalStatus.color.replace('bg-', 'text-')}`}>
+                                          <Bell className="w-3 h-3 mr-1" />
+                                          {renewalStatus.text}
+                                        </Badge>
+                                      )}
+                                      <Badge className={statusColors[sub.status] || statusColors.active}>
+                                        {sub.status === "active" ? "Actif" : sub.status === "paused" ? "Suspendu" : "Inactif"}
+                                      </Badge>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    {renewalStatus && (
-                                      <Badge variant="outline" className={`${renewalStatus.color.replace('bg-', 'border-').replace('-500', '-500/30')} ${renewalStatus.color.replace('bg-', 'text-')}`}>
-                                        <Bell className="w-3 h-3 mr-1" />
-                                        {renewalStatus.text}
-                                      </Badge>
+                                  <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
+                                    {sub.status === 'active' ? (
+                                      <Button size="sm" variant="outline" className="text-amber-500" onClick={() => {
+                                        const reason = prompt("Raison de la suspension:");
+                                        if (reason) {
+                                          updateSubscriptionMutation.mutate({ id: sub.id, status: 'paused', reason });
+                                        }
+                                      }}>
+                                        <Pause className="w-4 h-4 mr-1" /> Suspendre
+                                      </Button>
+                                    ) : (
+                                      <Button size="sm" variant="outline" className="text-emerald-500" onClick={() => {
+                                        updateSubscriptionMutation.mutate({ id: sub.id, status: 'active', reason: 'Service réactivé par admin' });
+                                      }}>
+                                        <Play className="w-4 h-4 mr-1" /> Activer
+                                      </Button>
                                     )}
-                                    <Badge className={statusColors[sub.status] || statusColors.active}>
-                                      {sub.status === "active" ? "Actif" : sub.status === "paused" ? "Pausé" : "Inactif"}
-                                    </Badge>
+                                    <Button size="sm" variant="outline" className="text-red-500" onClick={() => {
+                                      const reason = prompt("Raison de l'annulation:");
+                                      if (reason) {
+                                        updateSubscriptionMutation.mutate({ id: sub.id, status: 'cancelled', reason });
+                                      }
+                                    }}>
+                                      <XCircle className="w-4 h-4 mr-1" /> Annuler
+                                    </Button>
                                   </div>
                                 </div>
-                                {matchedPlan && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Catégorie: {matchedPlan.category}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground">Aucun service souscrit</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">Aucun service souscrit</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-                  {/* Available Plans Reference */}
-                  <Card className="bg-card/50 border-border">
-                    <CardHeader>
-                      <CardTitle className="text-sm text-muted-foreground">Forfaits disponibles (site public)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4 text-xs">
-                        <div>
-                          <p className="font-medium text-foreground mb-2 flex items-center gap-1">
-                            <Router className="w-4 h-4 text-cyan-500" /> Internet
-                          </p>
-                          {publicPlans.internet.map(p => (
-                            <p key={p.id} className="text-muted-foreground">{p.name} - ${p.price}/mois</p>
-                          ))}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground mb-2 flex items-center gap-1">
-                            <Smartphone className="w-4 h-4 text-blue-500" /> Mobile
-                          </p>
-                          {publicPlans.mobile.map(p => (
-                            <p key={p.id} className="text-muted-foreground">{p.name} - ${p.price}/30j</p>
-                          ))}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground mb-2 flex items-center gap-1">
-                            <Monitor className="w-4 h-4 text-purple-500" /> TV+Internet
-                          </p>
-                          {publicPlans.tv.slice(0, 5).map(p => (
-                            <p key={p.id} className="text-muted-foreground">{p.name} - ${p.price}/mois</p>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Equipment Tab */}
-                <TabsContent value="equipment" className="space-y-4 mt-4">
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Router className="w-5 h-5 text-cyan-400" />
-                        Équipement attribué
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {clientOrders && clientOrders.some((o: any) => o.equipment_details || o.equipment_id) ? (
-                        <div className="space-y-3">
-                          {clientOrders.filter((o: any) => o.equipment_details || o.equipment_id).map((order: any) => {
-                            const equipmentDetails = order.equipment_details || [];
-                            return (
+                  {/* Equipment Tab */}
+                  <TabsContent value="equipment" className="space-y-4 pr-4">
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Router className="w-5 h-5 text-cyan-400" />
+                          Équipement attribué
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {clientOrders && clientOrders.some((o: any) => o.service_type) ? (
+                          <div className="space-y-4">
+                            {clientOrders.map((order: any) => (
                               <div key={order.id} className="p-4 border border-border rounded-lg">
                                 <div className="flex items-center justify-between mb-3">
                                   <span className="text-sm text-muted-foreground">Commande: {order.order_number}</span>
-                                  <Badge className={statusColors[order.status] || statusColors.pending}>
-                                    {order.status}
-                                  </Badge>
+                                  <Badge className={statusColors[order.status] || statusColors.pending}>{order.status}</Badge>
                                 </div>
                                 
                                 {/* Nivra Born Wifi Router */}
@@ -1240,12 +1217,18 @@ const AdminClients = () => {
                                         <p className="font-medium text-sm">Nivra Born Wifi Router</p>
                                         <p className="text-xs text-muted-foreground">Frais unique: 60$</p>
                                       </div>
-                                      {order.serial_number && (
-                                        <div className="text-right">
-                                          <p className="text-xs text-muted-foreground">S/N: {order.serial_number}</p>
-                                          <Badge variant="outline" className="text-xs">Garantie 1 an</Badge>
-                                        </div>
-                                      )}
+                                      <div className="text-right">
+                                        {order.serial_number ? (
+                                          <>
+                                            <p className="text-xs text-muted-foreground">S/N: {order.serial_number}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                              Garantie: {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })} - {format(addYears(new Date(order.created_at), 1), "d MMM yyyy", { locale: fr })}
+                                            </p>
+                                          </>
+                                        ) : (
+                                          <Badge variant="outline" className="text-xs">Non assigné</Badge>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 )}
@@ -1257,356 +1240,293 @@ const AdminClients = () => {
                                       <Monitor className="w-5 h-5 text-purple-500" />
                                       <div className="flex-1">
                                         <p className="font-medium text-sm">Nivra 4K Smart Terminal</p>
-                                        <p className="text-xs text-muted-foreground">
-                                          Frais: 50$/terminal × {order.terminal_count || 1}
-                                        </p>
+                                        <p className="text-xs text-muted-foreground">Frais: 50$/terminal × {order.terminal_count || 1}</p>
                                       </div>
-                                      {order.equipment_id && (
-                                        <div className="text-right">
-                                          <p className="text-xs text-muted-foreground">ID: {order.equipment_id}</p>
-                                          {order.imei_number && (
-                                            <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>
-                                          )}
-                                        </div>
-                                      )}
+                                      <div className="text-right">
+                                        {order.equipment_id ? (
+                                          <>
+                                            <p className="text-xs text-muted-foreground">ID: {order.equipment_id}</p>
+                                            {order.imei_number && <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>}
+                                            <p className="text-xs text-muted-foreground">
+                                              Garantie: {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })} - {format(addYears(new Date(order.created_at), 1), "d MMM yyyy", { locale: fr })}
+                                            </p>
+                                          </>
+                                        ) : (
+                                          <Badge variant="outline" className="text-xs">Non assigné</Badge>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 )}
                                 
                                 {/* SIM for Mobile */}
-                                {order.service_type?.toLowerCase().includes("mobile") && order.sim_number && (
+                                {order.service_type?.toLowerCase().includes("mobile") && (
                                   <div className="p-3 bg-muted/50 rounded-lg">
                                     <div className="flex items-center gap-3">
                                       <Smartphone className="w-5 h-5 text-blue-500" />
                                       <div className="flex-1">
-                                        <p className="font-medium text-sm">Carte SIM</p>
+                                        <p className="font-medium text-sm">Carte SIM / eSIM</p>
                                         <p className="text-xs text-muted-foreground">Frais unique: 60$</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-muted-foreground">SIM: {order.sim_number}</p>
-                                        {order.imei_number && (
-                                          <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>
+                                        {order.sim_number ? (
+                                          <>
+                                            <p className="text-xs text-muted-foreground">SIM: {order.sim_number}</p>
+                                            {order.imei_number && <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>}
+                                            <p className="text-xs text-muted-foreground">
+                                              Activé: {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                                            </p>
+                                          </>
+                                        ) : (
+                                          <Badge variant="outline" className="text-xs">Non assigné</Badge>
                                         )}
                                       </div>
                                     </div>
                                   </div>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <Router className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground">Aucun équipement attribué</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Router className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">Aucun équipement attribué</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-                {/* Orders Tab */}
-                <TabsContent value="orders" className="mt-4">
-                  <div className="space-y-3">
-                    {clientOrders && clientOrders.length > 0 ? (
-                      clientOrders.map((order: any) => (
-                        <div key={order.id} className="p-4 border border-border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <Package className="w-8 h-8 text-cyan-400" />
-                              <div>
-                                <p className="font-medium text-foreground">{order.order_number || order.service_type}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
-                                </p>
-                                {order.technician_id && (
-                                  <p className="text-xs text-cyan-500">Technicien assigné</p>
-                                )}
+                  {/* Orders Tab */}
+                  <TabsContent value="orders" className="space-y-4 pr-4">
+                    <div className="space-y-3">
+                      {clientOrders && clientOrders.length > 0 ? (
+                        clientOrders.map((order: any) => (
+                          <div key={order.id} className="p-4 border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <Package className="w-8 h-8 text-cyan-400" />
+                                <div>
+                                  <p className="font-medium text-foreground">{order.order_number || order.service_type}</p>
+                                  <p className="text-sm text-muted-foreground">{format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}</p>
+                                  <p className="text-xs text-muted-foreground">{order.service_type}</p>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              {order.total_amount && (
-                                <span className="font-medium">{Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              )}
-                              <Badge className={statusColors[order.status] || statusColors.pending}>
-                                {order.status}
-                              </Badge>
+                              <div className="flex items-center gap-4">
+                                {order.total_amount && (
+                                  <span className="font-medium">{Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                )}
+                                <Badge className={statusColors[order.status] || statusColors.pending}>{order.status}</Badge>
+                                <Button size="sm" variant="outline" onClick={() => handleViewOrder(order)}>
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">Aucune commande</p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* Payments Tab */}
-                <TabsContent value="payments" className="space-y-4 mt-4">
-                  {/* Payment History with Reference Numbers */}
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <CreditCard className="w-5 h-5 text-cyan-400" />
-                        Historique des paiements
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {clientPayments && clientPayments.length > 0 ? (
-                        <div className="space-y-3">
-                          {clientPayments.map((payment: any) => (
-                            <div key={payment.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                              <div className="flex items-center gap-4">
-                                <DollarSign className="w-8 h-8 text-emerald-400" />
-                                <div>
-                                  <p className="font-medium text-foreground">
-                                    {payment.payment_reference || payment.reference_number}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {payment.payment_method} {payment.card_last_four && `•••• ${payment.card_last_four}`}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="font-bold text-lg text-emerald-500">
-                                  {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                                </span>
-                                <Badge className={statusColors[payment.status] || "bg-emerald-500/20 text-emerald-400"}>
-                                  {payment.status === "completed" ? "Complété" : payment.status}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        ))
                       ) : (
                         <div className="text-center py-8">
-                          <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground">Aucun paiement</p>
+                          <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucune commande</p>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </TabsContent>
 
-                  {/* Billing/Invoices */}
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <FileText className="w-5 h-5 text-cyan-400" />
-                        Factures
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {clientBilling && clientBilling.length > 0 ? (
-                        <div className="space-y-3">
-                          {clientBilling.map((bill: any) => (
-                            <div key={bill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                              <div className="flex items-center gap-4">
-                                <FileText className="w-6 h-6 text-cyan-400" />
-                                <div>
-                                  <p className="font-medium text-foreground">
-                                    {bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
-                                    {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}
-                                  </p>
-                                  {bill.payment_reference && (
-                                    <p className="text-xs text-cyan-500">Réf: {bill.payment_reference}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <span className="font-medium">{Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                                <Badge className={statusColors[bill.status] || statusColors.pending}>
-                                  {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground">Aucune facture</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Incidents Tab */}
-                <TabsContent value="incidents" className="space-y-4 mt-4">
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
-                        Signalements et incidents
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Enregistrez les incidents signalés par le client. Ces informations sont visibles uniquement aux administrateurs.
-                      </p>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                          variant="outline" 
-                          className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10"
-                          onClick={() => {
-                            const details = prompt("Détails du signalement SIM volée/perdue:");
-                            if (details) {
-                              logActivity("incident_sim_lost", "client", selectedClient.id, {
-                                type: "sim_stolen_lost",
-                                details,
-                                fee: 60
-                              }, {
-                                changedField: "incident",
-                                reason: `SIM volée/perdue: ${details}`
-                              });
-                              toast({ title: "Incident enregistré", description: "SIM volée/perdue - Frais 60$ applicable pour remplacement" });
-                            }
-                          }}
-                        >
-                          <Smartphone className="w-4 h-4 mr-2" />
-                          SIM volée/perdue (60$)
-                        </Button>
-                        
-                        <Button 
-                          variant="outline" 
-                          className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10"
-                          onClick={() => {
-                            const details = prompt("Détails du signalement téléphone perdu:");
-                            if (details) {
-                              logActivity("incident_phone_lost", "client", selectedClient.id, {
-                                type: "phone_lost",
-                                details
-                              }, {
-                                changedField: "incident",
-                                reason: `Téléphone perdu: ${details}`
-                              });
-                              toast({ title: "Incident enregistré", description: "Téléphone perdu enregistré" });
-                            }
-                          }}
-                        >
-                          <Phone className="w-4 h-4 mr-2" />
-                          Téléphone perdu
-                        </Button>
-                        
-                        <Button 
-                          variant="outline" 
-                          className="justify-start border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
-                          onClick={() => {
-                            const equipment = prompt("Quel équipement? (Router, Terminal, etc.)");
-                            const issue = prompt("Type de problème? (Défaut, Endommagé, Volé)");
-                            if (equipment && issue) {
-                              logActivity("incident_equipment", "client", selectedClient.id, {
-                                type: "equipment_issue",
-                                equipment,
-                                issue
-                              }, {
-                                changedField: "incident",
-                                reason: `Équipement ${equipment}: ${issue}`
-                              });
-                              toast({ title: "Incident enregistré", description: `${equipment} - ${issue}` });
-                            }
-                          }}
-                        >
-                          <Wrench className="w-4 h-4 mr-2" />
-                          Problème équipement
-                        </Button>
-                        
-                        <Button 
-                          variant="outline" 
-                          className="justify-start border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
-                          onClick={() => {
-                            const reason = prompt("Raison de la pause:");
-                            if (reason) {
-                              logActivity("service_pause_request", "client", selectedClient.id, {
-                                type: "service_pause",
-                                reason,
-                                note: "Frais mensuels continuent"
-                              }, {
-                                changedField: "service",
-                                reason: `Pause service demandée: ${reason} (frais continuent)`
-                              });
-                              toast({ title: "Demande enregistrée", description: "Pause service - Les frais mensuels continuent" });
-                            }
-                          }}
-                        >
-                          <Pause className="w-4 h-4 mr-2" />
-                          Pause service (frais continuent)
-                        </Button>
-                        
-                        <Button 
-                          variant="outline" 
-                          className="justify-start col-span-2 border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/10"
-                          onClick={() => {
-                            const simType = prompt("Type? (SIM physique ou eSIM)");
-                            if (simType) {
-                              logActivity("sim_replacement_request", "client", selectedClient.id, {
-                                type: "sim_replacement",
-                                sim_type: simType,
-                                fee: 60
-                              }, {
-                                changedField: "order",
-                                reason: `Nouvelle ${simType} demandée - Frais 60$ à la caisse`
-                              });
-                              toast({ title: "Demande enregistrée", description: `Nouvelle ${simType} - 60$ sera facturé à la caisse` });
-                            }
-                          }}
-                        >
-                          <Hash className="w-4 h-4 mr-2" />
-                          Nouvelle SIM/eSIM (60$ à la caisse)
-                        </Button>
-                      </div>
-
-                      {/* Recent Incidents from Tickets */}
-                      <div className="mt-6">
-                        <Label className="text-sm font-medium mb-3 block">Tickets de support récents</Label>
-                        {clientTickets && clientTickets.length > 0 ? (
-                          <div className="space-y-2">
-                            {clientTickets.slice(0, 5).map((ticket: any) => (
-                              <div key={ticket.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <Ticket className="w-5 h-5 text-cyan-400" />
+                  {/* Payments Tab */}
+                  <TabsContent value="payments" className="space-y-4 pr-4">
+                    {/* Payment History */}
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <CreditCard className="w-5 h-5 text-cyan-400" />
+                          Historique des paiements
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {clientPayments && clientPayments.length > 0 ? (
+                          <div className="space-y-3">
+                            {clientPayments.map((payment: any) => (
+                              <div key={payment.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                                <div className="flex items-center gap-4">
+                                  <DollarSign className="w-8 h-8 text-emerald-400" />
                                   <div>
-                                    <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {ticket.ticket_number} • {format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}
-                                    </p>
+                                    <p className="font-medium text-foreground">{payment.payment_reference || payment.reference_number}</p>
+                                    <p className="text-sm text-muted-foreground">{format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                                    <p className="text-xs text-muted-foreground">{payment.payment_method} {payment.card_last_four && `•••• ${payment.card_last_four}`}</p>
                                   </div>
                                 </div>
-                                <Badge className={statusColors[ticket.status] || statusColors.open}>
-                                  {ticket.status === "open" ? "Ouvert" : ticket.status === "in_progress" ? "En cours" : "Fermé"}
-                                </Badge>
+                                <div className="text-right">
+                                  <span className="font-bold text-lg text-emerald-500">{Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                  <Badge className={statusColors[payment.status] || "bg-emerald-500/20 text-emerald-400"}>
+                                    {payment.status === "completed" ? "Complété" : payment.status}
+                                  </Badge>
+                                </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground">Aucun ticket récent</p>
+                          <div className="text-center py-8">
+                            <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">Aucun paiement</p>
+                          </div>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                      </CardContent>
+                    </Card>
 
-                {/* Documents Tab */}
-                <TabsContent value="documents" className="mt-4">
-                  <div className="space-y-4">
+                    {/* Invoices */}
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <FileText className="w-5 h-5 text-cyan-400" />
+                          Factures
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {clientBilling && clientBilling.length > 0 ? (
+                          <div className="space-y-3">
+                            {clientBilling.map((bill: any) => (
+                              <div key={bill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                                <div className="flex items-center gap-4">
+                                  <FileText className="w-6 h-6 text-cyan-400" />
+                                  <div>
+                                    <p className="font-medium text-foreground">{bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
+                                      {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}
+                                    </p>
+                                    {bill.related_order_number && <p className="text-xs text-cyan-500">Commande: {bill.related_order_number}</p>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <span className="font-medium">{Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                  <Badge className={statusColors[bill.status] || statusColors.pending}>
+                                    {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
+                                  </Badge>
+                                  <Button size="sm" variant="outline" onClick={() => handleViewInvoice(bill)}>
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">Aucune facture</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  {/* Incidents Tab */}
+                  <TabsContent value="incidents" className="space-y-4 pr-4">
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <AlertTriangle className="w-5 h-5 text-amber-400" />
+                          Signalements et incidents
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Enregistrez les incidents signalés par le client. Ces informations sont visibles uniquement aux administrateurs.</p>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {
+                            const details = prompt("Détails du signalement SIM volée/perdue:");
+                            if (details) {
+                              logActivity("incident_sim_lost", "client", selectedClient.id, { type: "sim_stolen_lost", details, fee: 60 }, {
+                                changedField: "incident",
+                                reason: `SIM volée/perdue: ${details}`
+                              });
+                              refetchActivityLogs();
+                              toast({ title: "Incident enregistré", description: "SIM volée/perdue - Frais 60$ applicable pour remplacement" });
+                            }
+                          }}>
+                            <Smartphone className="w-4 h-4 mr-2" />
+                            SIM volée/perdue (60$)
+                          </Button>
+                          
+                          <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {
+                            const details = prompt("Détails du signalement téléphone perdu:");
+                            if (details) {
+                              logActivity("incident_phone_lost", "client", selectedClient.id, { type: "phone_lost", details }, {
+                                changedField: "incident",
+                                reason: `Téléphone perdu: ${details}`
+                              });
+                              refetchActivityLogs();
+                              toast({ title: "Incident enregistré", description: "Téléphone perdu enregistré" });
+                            }
+                          }}>
+                            <Phone className="w-4 h-4 mr-2" />
+                            Téléphone perdu
+                          </Button>
+                          
+                          <Button variant="outline" className="justify-start border-amber-500/30 text-amber-500 hover:bg-amber-500/10" onClick={() => {
+                            const equipment = prompt("Quel équipement? (Router, Terminal, etc.)");
+                            const issue = prompt("Type de problème? (Défaut, Endommagé, Volé, Non retourné, Fin de vie)");
+                            if (equipment && issue) {
+                              logActivity("incident_equipment", "client", selectedClient.id, { type: "equipment_issue", equipment, issue }, {
+                                changedField: "incident",
+                                reason: `Équipement ${equipment}: ${issue}`
+                              });
+                              refetchActivityLogs();
+                              toast({ title: "Incident enregistré", description: `${equipment} - ${issue}` });
+                            }
+                          }}>
+                            <Wrench className="w-4 h-4 mr-2" />
+                            Problème équipement
+                          </Button>
+                          
+                          <Button variant="outline" className="justify-start border-blue-500/30 text-blue-500 hover:bg-blue-500/10" onClick={() => {
+                            const reason = prompt("Raison de la pause:");
+                            if (reason) {
+                              logActivity("service_pause_request", "client", selectedClient.id, { type: "service_pause", reason, note: "Frais mensuels continuent" }, {
+                                changedField: "service",
+                                reason: `Pause service demandée: ${reason} (frais continuent)`
+                              });
+                              refetchActivityLogs();
+                              toast({ title: "Demande enregistrée", description: "Pause service - Les frais mensuels continuent" });
+                            }
+                          }}>
+                            <Pause className="w-4 h-4 mr-2" />
+                            Pause service (frais continuent)
+                          </Button>
+                        </div>
+
+                        {/* Recent Tickets */}
+                        <div className="mt-6">
+                          <Label className="text-sm font-medium mb-3 block">Tickets de support récents</Label>
+                          {clientTickets && clientTickets.length > 0 ? (
+                            <div className="space-y-2">
+                              {clientTickets.slice(0, 5).map((ticket: any) => (
+                                <div key={ticket.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                    <Ticket className="w-5 h-5 text-cyan-400" />
+                                    <div>
+                                      <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
+                                      <p className="text-xs text-muted-foreground">{ticket.ticket_number} • {format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}</p>
+                                    </div>
+                                  </div>
+                                  <Badge className={statusColors[ticket.status] || statusColors.open}>
+                                    {ticket.status === "open" ? "Ouvert" : ticket.status === "in_progress" ? "En cours" : "Fermé"}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Aucun ticket récent</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  {/* Documents Tab */}
+                  <TabsContent value="documents" className="space-y-4 pr-4">
                     <div className="flex gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={handleFileUpload}
-                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                      />
+                      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
                       <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
                         <Upload className="w-4 h-4 mr-2" />
                         Téléverser un document
@@ -1614,6 +1534,36 @@ const AdminClients = () => {
                     </div>
 
                     <div className="space-y-2">
+                      {/* Contracts Section */}
+                      {clientContracts && clientContracts.length > 0 && (
+                        <div className="mb-4">
+                          <Label className="text-sm font-medium mb-2 block">Contrats</Label>
+                          {clientContracts.map((contract: any) => (
+                            <div key={contract.id} className="flex items-center justify-between p-3 border border-border rounded-lg mb-2">
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-5 h-5 text-purple-400" />
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">{contract.contract_name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {contract.contract_number} • {format(new Date(contract.created_at), "d MMM yyyy", { locale: fr })}
+                                    {contract.is_signed && " • Signé"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={contract.is_signed ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}>
+                                  {contract.is_signed ? "Signé" : "En attente"}
+                                </Badge>
+                                <Button size="sm" variant="ghost" onClick={() => handleViewDocument({ ...contract, document_name: contract.contract_name, document_url: contract.contract_url, document_type: 'contract' })}>
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Other Documents */}
                       {clientDocuments && clientDocuments.length > 0 ? (
                         clientDocuments.map((doc: any) => (
                           <div key={doc.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
@@ -1622,21 +1572,18 @@ const AdminClients = () => {
                               <div>
                                 <p className="text-sm font-medium text-foreground">{doc.document_name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
+                                  {getDocumentTypeLabel(doc.document_type)} • {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
                                 </p>
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (confirm("Supprimer ce document ?")) {
-                                  deleteDocumentMutation.mutate(doc.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => handleViewDocument(doc)}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeleteDocument(doc)}>
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -1646,10 +1593,295 @@ const AdminClients = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-                </TabsContent>
+                  </TabsContent>
+
+                  {/* Logs Tab - Admin Only */}
+                  <TabsContent value="logs" className="space-y-4 pr-4">
+                    <Card className="bg-card border-border">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <History className="w-5 h-5 text-cyan-400" />
+                          Journal d'activité (Admin uniquement)
+                          <Button size="sm" variant="ghost" onClick={() => refetchActivityLogs()}>
+                            <RefreshCw className="w-4 h-4" />
+                          </Button>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {clientActivityLogs && clientActivityLogs.length > 0 ? (
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                            {clientActivityLogs.map((log: any) => (
+                              <div key={log.id} className="p-3 border border-border rounded-lg text-sm">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">{log.actor_role || "Admin"}</Badge>
+                                    <span className="font-medium">{log.actor_name || "Système"}</span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(log.created_at), "d MMM yyyy HH:mm", { locale: fr })}
+                                  </span>
+                                </div>
+                                <p className="text-muted-foreground">
+                                  <span className="font-medium text-foreground">{log.action}</span> sur {log.entity_type}
+                                  {log.changed_field && <span className="text-cyan-500"> ({log.changed_field})</span>}
+                                </p>
+                                {log.reason && <p className="text-xs text-muted-foreground mt-1">Raison: {log.reason}</p>}
+                                {log.old_value && log.new_value && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Avant: <span className="text-red-400">{log.old_value}</span> → Après: <span className="text-emerald-400">{log.new_value}</span>
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <History className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground">Aucune activité enregistrée</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </ScrollArea>
               </Tabs>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Document Viewer Dialog */}
+        <Dialog open={documentViewerOpen} onOpenChange={setDocumentViewerOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-cyan-400" />
+                {selectedDocument?.document_name}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedDocument && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Type</Label>
+                    <p className="font-medium">{getDocumentTypeLabel(selectedDocument.document_type)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Date d'upload</Label>
+                    <p className="font-medium">{format(new Date(selectedDocument.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                  </div>
+                </div>
+                <div className="p-8 bg-muted/30 rounded-lg border border-dashed border-border text-center">
+                  <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">Aperçu du document</p>
+                  <p className="text-sm text-muted-foreground">{selectedDocument.document_url}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button className="flex-1" variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Télécharger
+                  </Button>
+                  <Button className="flex-1" variant="outline">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Ouvrir
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Order Details Dialog */}
+        <Dialog open={orderDetailsOpen} onOpenChange={setOrderDetailsOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-cyan-400" />
+                Détails de la commande {selectedOrder?.order_number}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedOrder && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Statut</Label>
+                    <Select value={selectedOrder.status} onValueChange={(v) => setSelectedOrder({ ...selectedOrder, status: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="processing">En traitement</SelectItem>
+                        <SelectItem value="shipped">Expédié</SelectItem>
+                        <SelectItem value="completed">Complété</SelectItem>
+                        <SelectItem value="cancelled">Annulé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Statut paiement</Label>
+                    <Select value={selectedOrder.payment_status || "pending"} onValueChange={(v) => setSelectedOrder({ ...selectedOrder, payment_status: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="partial">Partiel</SelectItem>
+                        <SelectItem value="paid">Payé</SelectItem>
+                        <SelectItem value="refunded">Remboursé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Référence paiement</Label>
+                    <Input value={selectedOrder.payment_reference || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, payment_reference: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>Numéro de suivi</Label>
+                    <Input value={selectedOrder.tracking_number || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_number: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>URL de suivi</Label>
+                  <Input value={selectedOrder.tracking_url || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_url: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Numéro de série (Router)</Label>
+                    <Input value={selectedOrder.serial_number || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, serial_number: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>ID équipement (Terminal)</Label>
+                    <Input value={selectedOrder.equipment_id || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, equipment_id: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>IMEI</Label>
+                    <Input value={selectedOrder.imei_number || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, imei_number: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>Numéro SIM</Label>
+                    <Input value={selectedOrder.sim_number || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, sim_number: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Notes internes</Label>
+                  <Textarea value={selectedOrder.internal_notes || ""} onChange={(e) => setSelectedOrder({ ...selectedOrder, internal_notes: e.target.value })} rows={3} />
+                </div>
+                
+                {/* Order Financial Summary */}
+                <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                  <Label className="text-sm font-medium mb-3 block">Récapitulatif financier</Label>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span>Sous-total:</span><span>{Number(selectedOrder.subtotal || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    <div className="flex justify-between"><span>Livraison:</span><span>{Number(selectedOrder.delivery_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    <div className="flex justify-between"><span>Activation:</span><span>{Number(selectedOrder.activation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    <div className="flex justify-between"><span>Installation:</span><span>{Number(selectedOrder.installation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    {selectedOrder.discount_amount > 0 && <div className="flex justify-between text-emerald-500"><span>Rabais:</span><span>-{Number(selectedOrder.discount_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    <div className="flex justify-between"><span>TPS:</span><span>{Number(selectedOrder.tps_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    <div className="flex justify-between"><span>TVQ:</span><span>{Number(selectedOrder.tvq_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    {selectedOrder.late_fee_amount > 0 && <div className="flex justify-between text-red-500"><span>Frais retard (5%):</span><span>{Number(selectedOrder.late_fee_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span>{Number(selectedOrder.total_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  </div>
+                </div>
+
+                <Button className="w-full" onClick={() => { updateOrderMutation.mutate(selectedOrder); setOrderDetailsOpen(false); }}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Enregistrer les modifications
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Invoice Details Dialog */}
+        <Dialog open={invoiceDetailsOpen} onOpenChange={setInvoiceDetailsOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-cyan-400" />
+                Détails de la facture {selectedInvoice?.invoice_number}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedInvoice && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Date de création</Label>
+                    <p className="font-medium">{format(new Date(selectedInvoice.created_at), "d MMM yyyy", { locale: fr })}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Date d'échéance</Label>
+                    <p className="font-medium">{selectedInvoice.due_date ? format(new Date(selectedInvoice.due_date), "d MMM yyyy", { locale: fr }) : "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Statut</Label>
+                    <Badge className={statusColors[selectedInvoice.status] || statusColors.pending}>
+                      {selectedInvoice.status === "paid" ? "Payé" : selectedInvoice.status === "overdue" ? "En retard" : "En attente"}
+                    </Badge>
+                  </div>
+                  {selectedInvoice.related_order_number && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Commande liée</Label>
+                      <p className="font-medium text-cyan-500">{selectedInvoice.related_order_number}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Invoice Breakdown */}
+                <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                  <Label className="text-sm font-medium mb-3 block">Détail de la facture</Label>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span>Sous-total:</span><span>{Number(selectedInvoice.subtotal || selectedInvoice.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    {selectedInvoice.delivery_fee > 0 && <div className="flex justify-between"><span>Livraison:</span><span>{Number(selectedInvoice.delivery_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    {selectedInvoice.activation_fee > 0 && <div className="flex justify-between"><span>Activation:</span><span>{Number(selectedInvoice.activation_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    {selectedInvoice.installation_fee > 0 && <div className="flex justify-between"><span>Installation:</span><span>{Number(selectedInvoice.installation_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    {selectedInvoice.fees > 0 && <div className="flex justify-between"><span>Frais équipement:</span><span>{Number(selectedInvoice.fees).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    {selectedInvoice.discount_amount > 0 && <div className="flex justify-between text-emerald-500"><span>Rabais:</span><span>-{Number(selectedInvoice.discount_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    <div className="flex justify-between"><span>TPS (5%):</span><span>{Number(selectedInvoice.tps_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    <div className="flex justify-between"><span>TVQ (9.975%):</span><span>{Number(selectedInvoice.tvq_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                    {selectedInvoice.late_fee_amount > 0 && <div className="flex justify-between text-red-500"><span>Frais retard (5%):</span><span>{Number(selectedInvoice.late_fee_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    {selectedInvoice.credits > 0 && <div className="flex justify-between text-emerald-500"><span>Crédits appliqués:</span><span>-{Number(selectedInvoice.credits).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
+                    <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span>{Number(selectedInvoice.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  </div>
+                </div>
+
+                {selectedInvoice.payment_reference && (
+                  <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                    <Label className="text-xs text-muted-foreground">Référence de paiement</Label>
+                    <p className="font-medium text-emerald-500">{selectedInvoice.payment_reference}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Document Confirmation Dialog */}
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-500">
+                <Trash2 className="w-5 h-5" />
+                Supprimer le document
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p>Êtes-vous sûr de vouloir supprimer <strong>{documentToDelete?.document_name}</strong>?</p>
+              <div>
+                <Label>Raison de la suppression (admin log)</Label>
+                <Textarea value={deleteDocumentReason} onChange={(e) => setDeleteDocumentReason(e.target.value)} placeholder="Raison..." rows={2} />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Annuler</Button>
+                <Button variant="destructive" onClick={() => deleteDocumentMutation.mutate({ docId: documentToDelete?.id, reason: deleteDocumentReason })}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Supprimer
+                </Button>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
