@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown, CheckCircle, Send, Loader2, User, Wallet, PlusCircle, MinusCircle } from "lucide-react";
+import { CreditCard, Plus, Eye, DollarSign, AlertTriangle, FileDown, CheckCircle, Send, Loader2, User, Wallet, PlusCircle, MinusCircle, Search, PercentCircle, Package, Wrench } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isPast, parseISO } from "date-fns";
@@ -35,6 +36,9 @@ const statusColors: Record<string, string> = {
   paid: "bg-emerald-500/20 text-emerald-500",
   overdue: "bg-red-500/20 text-red-500",
   cancelled: "bg-muted text-muted-foreground",
+  disputed: "bg-orange-500/20 text-orange-500",
+  refunded: "bg-purple-500/20 text-purple-500",
+  partial: "bg-blue-500/20 text-blue-500",
 };
 
 const statusLabels: Record<string, string> = {
@@ -42,6 +46,32 @@ const statusLabels: Record<string, string> = {
   paid: "Payé",
   overdue: "En retard",
   cancelled: "Annulé",
+  disputed: "Contesté",
+  refunded: "Remboursé",
+  partial: "Partiel",
+};
+
+const paymentStatusLabels: Record<string, string> = {
+  pending: "En attente",
+  authorized: "Autorisé",
+  captured: "Capturé",
+  refunded: "Remboursé",
+  disputed: "Contesté",
+};
+
+const paymentStatusColors: Record<string, string> = {
+  pending: "bg-amber-500/20 text-amber-500",
+  authorized: "bg-blue-500/20 text-blue-500",
+  captured: "bg-emerald-500/20 text-emerald-500",
+  refunded: "bg-purple-500/20 text-purple-500",
+  disputed: "bg-red-500/20 text-red-500",
+};
+
+// Generate payment reference in format NIVRA-PAY-QC-YYYY-#####
+const generatePaymentReference = () => {
+  const year = new Date().getFullYear();
+  const random = Math.floor(10000 + Math.random() * 90000);
+  return `NIVRA-PAY-QC-${year}-${random}`;
 };
 
 // E-transfer payment info for clients
@@ -78,6 +108,8 @@ const AdminBilling = () => {
   const [isResendingNotification, setIsResendingNotification] = useState(false);
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [autoApplyLateFee, setAutoApplyLateFee] = useState(true);
   const [clientProfileDialogOpen, setClientProfileDialogOpen] = useState(false);
   const [selectedClientProfile, setSelectedClientProfile] = useState<any>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
@@ -86,6 +118,11 @@ const AdminBilling = () => {
     amount: "",
     due_date: "",
     notes: "",
+    delivery_fee: "30",
+    installation_fee: "0",
+    equipment_fee: "0",
+    custom_fee: "0",
+    custom_fee_label: "",
   });
 
   const { data: billing, isLoading } = useQuery({
@@ -147,8 +184,9 @@ const AdminBilling = () => {
     },
   });
 
+  // Auto-apply late fees only if enabled
   useEffect(() => {
-    if (billing) {
+    if (billing && autoApplyLateFee) {
       billing.forEach((bill: any) => {
         if (
           bill.status === "pending" &&
@@ -160,14 +198,30 @@ const AdminBilling = () => {
         }
       });
     }
-  }, [billing]);
+  }, [billing, autoApplyLateFee]);
 
+  // Filter billing by tab and search query
   const filteredBilling = billing?.filter((bill: any) => {
-    if (activeTab === "all") return true;
-    if (activeTab === "overdue") return bill.status === "overdue";
-    if (activeTab === "pending") return bill.status === "pending";
-    if (activeTab === "paid") return bill.status === "paid";
-    return true;
+    // Tab filter
+    let matchesTab = true;
+    if (activeTab === "overdue") matchesTab = bill.status === "overdue";
+    else if (activeTab === "pending") matchesTab = bill.status === "pending";
+    else if (activeTab === "paid") matchesTab = bill.status === "paid";
+    else if (activeTab === "disputed") matchesTab = bill.status === "disputed";
+    else if (activeTab === "refunded") matchesTab = bill.status === "refunded";
+    else if (activeTab === "partial") matchesTab = bill.status === "partial";
+    
+    // Search filter
+    let matchesSearch = true;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const clientName = bill.profiles?.full_name?.toLowerCase() || "";
+      const clientEmail = bill.profiles?.email?.toLowerCase() || bill.client_email?.toLowerCase() || "";
+      const invoiceNum = bill.invoice_number?.toLowerCase() || "";
+      matchesSearch = clientName.includes(query) || clientEmail.includes(query) || invoiceNum.includes(query);
+    }
+    
+    return matchesTab && matchesSearch;
   });
 
   const sendBillingNotification = async (
@@ -230,13 +284,32 @@ const AdminBilling = () => {
   const createInvoiceMutation = useMutation({
     mutationFn: async (invoice: typeof newInvoice) => {
       const invoiceNumber = `INV-${Date.now().toString(36).toUpperCase()}`;
+      const baseAmount = parseFloat(invoice.amount) || 0;
+      const deliveryFee = parseFloat(invoice.delivery_fee) || 0;
+      const installationFee = parseFloat(invoice.installation_fee) || 0;
+      const equipmentFee = parseFloat(invoice.equipment_fee) || 0;
+      const customFee = parseFloat(invoice.custom_fee) || 0;
+      const totalFees = deliveryFee + installationFee + equipmentFee + customFee;
+      
+      const notesWithFees = [
+        invoice.notes,
+        deliveryFee > 0 ? `[Frais livraison: $${deliveryFee.toFixed(2)}]` : "",
+        installationFee > 0 ? `[Frais installation: $${installationFee.toFixed(2)}]` : "",
+        equipmentFee > 0 ? `[Frais équipement: $${equipmentFee.toFixed(2)}]` : "",
+        customFee > 0 && invoice.custom_fee_label ? `[${invoice.custom_fee_label}: $${customFee.toFixed(2)}]` : "",
+      ].filter(Boolean).join("\n");
+      
       const { data, error } = await supabase
         .from("billing")
         .insert({
           user_id: invoice.user_id,
-          amount: parseFloat(invoice.amount),
+          amount: baseAmount,
+          subtotal: baseAmount,
+          delivery_fee: deliveryFee,
+          installation_fee: installationFee,
+          fees: equipmentFee + customFee,
           due_date: invoice.due_date || null,
-          notes: invoice.notes,
+          notes: notesWithFees,
           invoice_number: invoiceNumber,
           status: "pending",
         })
@@ -280,7 +353,7 @@ const AdminBilling = () => {
         description: `Facture ${data.invoice_number} créée pour ${Number(data.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
       });
       setCreateDialogOpen(false);
-      setNewInvoice({ user_id: "", amount: "", due_date: "", notes: "" });
+      setNewInvoice({ user_id: "", amount: "", due_date: "", notes: "", delivery_fee: "30", installation_fee: "0", equipment_fee: "0", custom_fee: "0", custom_fee_label: "" });
     },
     onError: (error: any) => {
       console.error("Invoice creation error:", error);
@@ -294,11 +367,16 @@ const AdminBilling = () => {
         .from("billing")
         .update({
           amount: bill.amount,
+          subtotal: bill.subtotal,
           fees: bill.fees,
           credits: bill.credits,
+          delivery_fee: bill.delivery_fee,
+          installation_fee: bill.installation_fee,
+          activation_fee: bill.activation_fee,
           status: bill.status,
           notes: bill.notes,
           paid_at: bill.status === "paid" ? new Date().toISOString() : bill.paid_at,
+          payment_reference: bill.payment_reference,
         })
         .eq("id", bill.id);
 
@@ -320,6 +398,30 @@ const AdminBilling = () => {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
     },
   });
+
+  // Manual late fee application
+  const applyManualLateFee = async (bill: any) => {
+    const lateFee = Number(bill.amount) * 0.05;
+    const currentFees = Number(bill.fees) || 0;
+    const { error } = await supabase
+      .from("billing")
+      .update({
+        fees: currentFees + lateFee,
+        late_fee_applied: true,
+        late_fee_amount: lateFee,
+        status: "overdue",
+      })
+      .eq("id", bill.id);
+    
+    if (error) {
+      toast({ title: "Erreur", variant: "destructive" });
+      return;
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+    logActivity("apply_late_fee", "invoice", bill.id, { amount: lateFee });
+    toast({ title: "Frais de retard appliqué (5%)", description: `+${lateFee.toFixed(2)} $` });
+  };
 
   const openPaymentDialog = (bill: any) => {
     setPaymentBill(bill);
@@ -351,7 +453,7 @@ const AdminBilling = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const referenceNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+      const referenceNumber = generatePaymentReference();
       const totalAmount = calculateTotal(paymentBill);
       const paymentAmount = paymentMethod === "etransfer" ? parseFloat(etransferDetails.amount) : totalAmount;
       
@@ -505,8 +607,11 @@ const AdminBilling = () => {
   const calculateTotal = (bill: any) => {
     const base = Number(bill.amount) || 0;
     const fees = Number(bill.fees) || 0;
+    const deliveryFee = Number(bill.delivery_fee) || 0;
+    const installationFee = Number(bill.installation_fee) || 0;
+    const activationFee = Number(bill.activation_fee) || 0;
     const credits = Number(bill.credits) || 0;
-    return base + fees - credits;
+    return base + fees + deliveryFee + installationFee + activationFee - credits;
   };
 
   // Compact single-page PDF invoice
@@ -798,7 +903,7 @@ const AdminBilling = () => {
                 Nouvelle facture
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Créer une facture</DialogTitle>
               </DialogHeader>
@@ -817,17 +922,69 @@ const AdminBilling = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label>Montant</Label>
+                  <Label>Montant de base</Label>
                   <Input type="number" value={newInvoice.amount} onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })} placeholder="0.00" />
                 </div>
                 <div>
                   <Label>Date d'échéance</Label>
                   <Input type="date" value={newInvoice.due_date} onChange={(e) => setNewInvoice({ ...newInvoice, due_date: e.target.value })} />
                 </div>
+                
+                {/* Fee controls */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <Label className="flex items-center gap-2"><Package className="w-4 h-4" />Frais additionnels</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Frais livraison ($)</Label>
+                      <Input type="number" value={newInvoice.delivery_fee} onChange={(e) => setNewInvoice({ ...newInvoice, delivery_fee: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Frais installation ($)</Label>
+                      <Input type="number" value={newInvoice.installation_fee} onChange={(e) => setNewInvoice({ ...newInvoice, installation_fee: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Frais équipement ($)</Label>
+                      <Input type="number" value={newInvoice.equipment_fee} onChange={(e) => setNewInvoice({ ...newInvoice, equipment_fee: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Frais personnalisé ($)</Label>
+                      <Input type="number" value={newInvoice.custom_fee} onChange={(e) => setNewInvoice({ ...newInvoice, custom_fee: e.target.value })} />
+                    </div>
+                  </div>
+                  {parseFloat(newInvoice.custom_fee) > 0 && (
+                    <div>
+                      <Label className="text-xs">Libellé frais personnalisé</Label>
+                      <Input value={newInvoice.custom_fee_label} onChange={(e) => setNewInvoice({ ...newInvoice, custom_fee_label: e.target.value })} placeholder="Ex: Frais admin" />
+                    </div>
+                  )}
+                </div>
+                
                 <div>
                   <Label>Notes</Label>
                   <Textarea value={newInvoice.notes} onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })} placeholder="Description..." />
                 </div>
+                
+                {/* Invoice preview */}
+                <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                  <div className="flex justify-between"><span>Base:</span><span>{parseFloat(newInvoice.amount || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Livraison:</span><span>+{parseFloat(newInvoice.delivery_fee || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Installation:</span><span>+{parseFloat(newInvoice.installation_fee || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Équipement:</span><span>+{parseFloat(newInvoice.equipment_fee || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  {parseFloat(newInvoice.custom_fee) > 0 && (
+                    <div className="flex justify-between text-muted-foreground"><span>{newInvoice.custom_fee_label || "Autre"}:</span><span>+{parseFloat(newInvoice.custom_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  )}
+                  <div className="flex justify-between font-bold border-t pt-1 mt-1">
+                    <span>Total:</span>
+                    <span>{(
+                      parseFloat(newInvoice.amount || "0") +
+                      parseFloat(newInvoice.delivery_fee || "0") +
+                      parseFloat(newInvoice.installation_fee || "0") +
+                      parseFloat(newInvoice.equipment_fee || "0") +
+                      parseFloat(newInvoice.custom_fee || "0")
+                    ).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                </div>
+                
                 <Button className="w-full" onClick={() => createInvoiceMutation.mutate(newInvoice)} disabled={!newInvoice.user_id || !newInvoice.amount}>
                   Créer la facture
                 </Button>
@@ -876,19 +1033,48 @@ const AdminBilling = () => {
 
         <Card className="bg-card border-border">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-cyan-400" />
-                Factures
-              </CardTitle>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                  <TabsTrigger value="all">Toutes</TabsTrigger>
-                  <TabsTrigger value="pending">En attente</TabsTrigger>
-                  <TabsTrigger value="overdue">En retard</TabsTrigger>
-                  <TabsTrigger value="paid">Payées</TabsTrigger>
-                </TabsList>
-              </Tabs>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-cyan-400" />
+                  Factures
+                </CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Switch 
+                      checked={autoApplyLateFee} 
+                      onCheckedChange={setAutoApplyLateFee}
+                      id="auto-late-fee"
+                    />
+                    <Label htmlFor="auto-late-fee" className="text-xs cursor-pointer flex items-center gap-1">
+                      <PercentCircle className="w-3 h-3" />
+                      Auto-frais 5%
+                    </Label>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Rechercher par client, email, ou nº facture..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="flex-wrap h-auto">
+                    <TabsTrigger value="all" className="text-xs">Toutes</TabsTrigger>
+                    <TabsTrigger value="pending" className="text-xs">En attente</TabsTrigger>
+                    <TabsTrigger value="overdue" className="text-xs">En retard</TabsTrigger>
+                    <TabsTrigger value="paid" className="text-xs">Payées</TabsTrigger>
+                    <TabsTrigger value="partial" className="text-xs">Partiel</TabsTrigger>
+                    <TabsTrigger value="disputed" className="text-xs">Contesté</TabsTrigger>
+                    <TabsTrigger value="refunded" className="text-xs">Remboursé</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -902,53 +1088,70 @@ const AdminBilling = () => {
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nº</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Client</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédits</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Échéance</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredBilling.map((bill: any) => (
-                      <tr key={bill.id} className="border-b border-border/50 hover:bg-accent/50">
-                        <td className="py-3 px-4 text-sm text-foreground font-mono">{bill.invoice_number || bill.id.slice(0, 8)}</td>
-                        <td className="py-3 px-4">
-                          <button 
-                            className="text-left hover:text-cyan-400 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (bill.profiles) {
-                                setSelectedClientProfile({ ...bill.profiles, user_id: bill.user_id });
-                                setAdjustAmount("");
-                                setClientProfileDialogOpen(true);
-                              }
-                            }}
-                          >
-                            <p className="text-sm text-foreground flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              {bill.profiles?.full_name || "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{bill.profiles?.email}</p>
-                          </button>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-foreground font-medium">{calculateTotal(bill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">{bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "—"}</td>
-                        <td className="py-3 px-4"><Badge className={statusColors[bill.status] || "bg-muted"}>{statusLabels[bill.status] || bill.status}</Badge></td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleViewDetails(bill)}><Eye className="w-4 h-4" /></Button>
-                            <Button size="sm" variant="outline" onClick={() => exportInvoicePDF(bill)}><FileDown className="w-4 h-4" /></Button>
-                            {bill.status !== "paid" && <Button size="sm" variant="hero" onClick={() => openPaymentDialog(bill)}><DollarSign className="w-4 h-4" /></Button>}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredBilling.map((bill: any) => {
+                      const remainingBalance = calculateTotal(bill);
+                      const hasCredits = Number(bill.credits || 0) > 0;
+                      return (
+                        <tr key={bill.id} className="border-b border-border/50 hover:bg-accent/50">
+                          <td className="py-3 px-4 text-sm text-foreground font-mono">{bill.invoice_number || bill.id.slice(0, 8)}</td>
+                          <td className="py-3 px-4">
+                            <button 
+                              className="text-left hover:text-cyan-400 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (bill.profiles) {
+                                  setSelectedClientProfile({ ...bill.profiles, user_id: bill.user_id });
+                                  setAdjustAmount("");
+                                  setClientProfileDialogOpen(true);
+                                }
+                              }}
+                            >
+                              <p className="text-sm text-foreground flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                {bill.profiles?.full_name || "N/A"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{bill.profiles?.email}</p>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-foreground font-medium">{remainingBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</td>
+                          <td className="py-3 px-4 text-sm">
+                            {hasCredits ? (
+                              <span className="text-emerald-500 font-medium">-{Number(bill.credits).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">{bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "—"}</td>
+                          <td className="py-3 px-4"><Badge className={statusColors[bill.status] || "bg-muted"}>{statusLabels[bill.status] || bill.status}</Badge></td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(bill)}><Eye className="w-4 h-4" /></Button>
+                              <Button size="sm" variant="outline" onClick={() => exportInvoicePDF(bill)}><FileDown className="w-4 h-4" /></Button>
+                              {bill.status === "pending" && !bill.late_fee_applied && (
+                                <Button size="sm" variant="outline" onClick={() => applyManualLateFee(bill)} title="Appliquer frais 5%">
+                                  <PercentCircle className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {bill.status !== "paid" && bill.status !== "refunded" && <Button size="sm" variant="hero" onClick={() => openPaymentDialog(bill)}><DollarSign className="w-4 h-4" /></Button>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
               <div className="text-center py-12">
                 <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucune facture</p>
+                <p className="text-muted-foreground">{searchQuery ? "Aucun résultat" : "Aucune facture"}</p>
               </div>
             )}
           </CardContent>
@@ -956,10 +1159,19 @@ const AdminBilling = () => {
 
         {/* Invoice Details Dialog */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Détails de la facture</DialogTitle></DialogHeader>
             {selectedBill && (
               <div className="space-y-4 mt-4">
+                {/* Invoice Info */}
+                <div className="p-3 bg-muted/50 rounded-lg flex flex-wrap gap-4 text-sm">
+                  <div><span className="text-muted-foreground">Nº:</span> <span className="font-mono font-medium">{selectedBill.invoice_number}</span></div>
+                  <div><span className="text-muted-foreground">Client:</span> <span className="font-medium">{selectedBill.profiles?.full_name}</span></div>
+                  {selectedBill.payment_reference && (
+                    <div><span className="text-muted-foreground">Réf. paiement:</span> <span className="font-mono text-cyan-400">{selectedBill.payment_reference}</span></div>
+                  )}
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Montant de base</Label>
@@ -973,22 +1185,66 @@ const AdminBilling = () => {
                         <SelectItem value="pending">En attente</SelectItem>
                         <SelectItem value="paid">Payé</SelectItem>
                         <SelectItem value="overdue">En retard</SelectItem>
+                        <SelectItem value="partial">Partiel</SelectItem>
+                        <SelectItem value="disputed">Contesté</SelectItem>
+                        <SelectItem value="refunded">Remboursé</SelectItem>
                         <SelectItem value="cancelled">Annulé</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label>Frais</Label><Input type="number" value={selectedBill.fees || 0} onChange={(e) => setSelectedBill({ ...selectedBill, fees: e.target.value })} /></div>
-                  <div><Label>Crédits</Label><Input type="number" value={selectedBill.credits || 0} onChange={(e) => setSelectedBill({ ...selectedBill, credits: e.target.value })} /></div>
+                
+                {/* Fee Controls */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <Label className="flex items-center gap-2"><Wrench className="w-4 h-4" />Frais détaillés</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Frais livraison ($)</Label>
+                      <Input type="number" value={selectedBill.delivery_fee || 0} onChange={(e) => setSelectedBill({ ...selectedBill, delivery_fee: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Frais installation ($)</Label>
+                      <Input type="number" value={selectedBill.installation_fee || 0} onChange={(e) => setSelectedBill({ ...selectedBill, installation_fee: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Frais activation ($)</Label>
+                      <Input type="number" value={selectedBill.activation_fee || 0} onChange={(e) => setSelectedBill({ ...selectedBill, activation_fee: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Autres frais ($)</Label>
+                      <Input type="number" value={selectedBill.fees || 0} onChange={(e) => setSelectedBill({ ...selectedBill, fees: e.target.value })} />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="flex justify-between text-sm"><span>Base:</span><span>{Number(selectedBill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm"><span>Frais:</span><span>+{Number(selectedBill.fees || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm"><span>Crédits:</span><span>-{Number(selectedBill.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between font-bold mt-2 pt-2 border-t"><span>Total:</span><span>{calculateTotal(selectedBill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                
+                {/* Credit Controls */}
+                <div className="p-4 bg-emerald-500/10 rounded-lg">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label className="text-xs">Crédits à appliquer ($)</Label>
+                      <Input type="number" value={selectedBill.credits || 0} onChange={(e) => setSelectedBill({ ...selectedBill, credits: e.target.value })} />
+                    </div>
+                    {isAdmin && (
+                      <div className="text-xs text-muted-foreground mt-4">
+                        Admin peut outrepasser
+                      </div>
+                    )}
+                  </div>
                 </div>
+                
+                {/* Totals Summary */}
+                <div className="p-4 bg-muted rounded-lg space-y-1">
+                  <div className="flex justify-between text-sm"><span>Base:</span><span>{Number(selectedBill.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-sm text-muted-foreground"><span>Livraison:</span><span>+{Number(selectedBill.delivery_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-sm text-muted-foreground"><span>Installation:</span><span>+{Number(selectedBill.installation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-sm text-muted-foreground"><span>Activation:</span><span>+{Number(selectedBill.activation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-sm text-muted-foreground"><span>Autres frais:</span><span>+{Number(selectedBill.fees || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-sm text-emerald-500"><span>Crédits:</span><span>-{Number(selectedBill.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t"><span>Total dû:</span><span>{calculateTotal(selectedBill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                </div>
+                
                 <div><Label>Notes</Label><Textarea value={selectedBill.notes || ""} onChange={(e) => setSelectedBill({ ...selectedBill, notes: e.target.value })} /></div>
+                
                 <div className="flex flex-wrap gap-2">
                   <Button className="flex-1" onClick={() => { updateBillingMutation.mutate(selectedBill); setDetailsDialogOpen(false); }}>Enregistrer</Button>
                   <Button variant="outline" onClick={() => exportInvoicePDF(selectedBill)}><FileDown className="w-4 h-4 mr-2" />PDF</Button>
@@ -1004,7 +1260,9 @@ const AdminBilling = () => {
                     )}
                     Renvoyer
                   </Button>
-                  {selectedBill.status !== "paid" && <Button variant="hero" onClick={() => openPaymentDialog(selectedBill)}><DollarSign className="w-4 h-4 mr-2" />Paiement</Button>}
+                  {selectedBill.status !== "paid" && selectedBill.status !== "refunded" && (
+                    <Button variant="hero" onClick={() => openPaymentDialog(selectedBill)}><DollarSign className="w-4 h-4 mr-2" />Paiement</Button>
+                  )}
                 </div>
               </div>
             )}
