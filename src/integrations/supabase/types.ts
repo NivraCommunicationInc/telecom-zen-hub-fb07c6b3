@@ -1980,6 +1980,48 @@ export type Database = {
           },
         ]
       }
+      service_status: {
+        Row: {
+          description: string | null
+          display_name: string
+          id: string
+          last_incident_at: string | null
+          response_time_ms: number | null
+          service_name: string
+          status: string
+          status_message: string | null
+          updated_at: string
+          updated_by: string | null
+          uptime_percent: number | null
+        }
+        Insert: {
+          description?: string | null
+          display_name: string
+          id?: string
+          last_incident_at?: string | null
+          response_time_ms?: number | null
+          service_name: string
+          status?: string
+          status_message?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uptime_percent?: number | null
+        }
+        Update: {
+          description?: string | null
+          display_name?: string
+          id?: string
+          last_incident_at?: string | null
+          response_time_ms?: number | null
+          service_name?: string
+          status?: string
+          status_message?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uptime_percent?: number | null
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           category: string
