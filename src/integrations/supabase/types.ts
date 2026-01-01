@@ -68,38 +68,104 @@ export type Database = {
       appointments: {
         Row: {
           admin_id: string | null
+          appointment_number: string | null
+          cancellation_reason: string | null
           client_email: string | null
           client_id: string | null
+          client_phone: string | null
           created_at: string
+          created_by: string | null
+          delivery_fee: number | null
           description: string | null
+          equipment_details: Json | null
           id: string
+          installation_fee: number | null
+          installation_method: string | null
+          internal_notes: string | null
+          order_id: string | null
           scheduled_at: string
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          service_type: string | null
           status: string | null
+          technician_id: string | null
           title: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           admin_id?: string | null
+          appointment_number?: string | null
+          cancellation_reason?: string | null
           client_email?: string | null
           client_id?: string | null
+          client_phone?: string | null
           created_at?: string
+          created_by?: string | null
+          delivery_fee?: number | null
           description?: string | null
+          equipment_details?: Json | null
           id?: string
+          installation_fee?: number | null
+          installation_method?: string | null
+          internal_notes?: string | null
+          order_id?: string | null
           scheduled_at: string
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_type?: string | null
           status?: string | null
+          technician_id?: string | null
           title: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           admin_id?: string | null
+          appointment_number?: string | null
+          cancellation_reason?: string | null
           client_email?: string | null
           client_id?: string | null
+          client_phone?: string | null
           created_at?: string
+          created_by?: string | null
+          delivery_fee?: number | null
           description?: string | null
+          equipment_details?: Json | null
           id?: string
+          installation_fee?: number | null
+          installation_method?: string | null
+          internal_notes?: string | null
+          order_id?: string | null
           scheduled_at?: string
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_type?: string | null
           status?: string | null
+          technician_id?: string | null
           title?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       billing: {
         Row: {
@@ -1346,6 +1412,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_appointment_number: { Args: never; Returns: string }
       generate_client_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
