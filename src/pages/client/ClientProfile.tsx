@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -16,10 +17,11 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import ClientMyServices from "@/components/client/ClientMyServices";
 
 const ClientProfile = () => {
   const { user } = useAuth();
@@ -173,189 +175,209 @@ const ClientProfile = () => {
           <p className="text-muted-foreground mt-1">Gérez vos informations personnelles et votre compte</p>
         </div>
 
-        {/* Account Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                accountStatusColors[profile?.account_status || "active"]?.replace("text-", "bg-").replace("/20", "/20")
-              } bg-emerald-500/20`}>
-                <User className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <Badge className={accountStatusColors[profile?.account_status || "active"]}>
-                  {accountStatusLabels[profile?.account_status || "active"]}
-                </Badge>
-                <p className="text-xs text-muted-foreground mt-1">Statut</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-foreground">
-                  {Number(profile?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                </p>
-                <p className="text-xs text-muted-foreground">Solde dû</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-emerald-500">
-                  {Number(profile?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                </p>
-                <p className="text-xs text-muted-foreground">Crédit</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-cyan-500" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-foreground">
-                  {profile?.created_at ? format(new Date(profile.created_at), "MMM yyyy", { locale: fr }) : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">Membre depuis</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Profile Tabs */}
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Mon profil
+            </TabsTrigger>
+            <TabsTrigger value="services" className="flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Mes services
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Personal Information */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5 text-cyan-400" />
-                Informations personnelles
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-12 bg-muted animate-pulse rounded-lg" />
-                  ))}
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="full_name">Nom complet</Label>
-                    <Input
-                      id="full_name"
-                      value={formData.full_name}
-                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                      placeholder="Jean Dupont"
-                    />
+          <TabsContent value="profile" className="space-y-6">
+            {/* Account Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    accountStatusColors[profile?.account_status || "active"]?.replace("text-", "bg-").replace("/20", "/20")
+                  } bg-emerald-500/20`}>
+                    <User className="w-5 h-5 text-emerald-500" />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      L'email ne peut pas être modifié
+                    <Badge className={accountStatusColors[profile?.account_status || "active"]}>
+                      {accountStatusLabels[profile?.account_status || "active"]}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">Statut</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-foreground">
+                      {Number(profile?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                     </p>
+                    <p className="text-xs text-muted-foreground">Solde dû</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-emerald-500" />
                   </div>
                   <div>
-                    <Label htmlFor="phone">Téléphone</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="(514) 555-1234"
-                    />
+                    <p className="text-lg font-bold text-emerald-500">
+                      {Number(profile?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Crédit</p>
                   </div>
-                  <Button
-                    type="submit"
-                    variant="hero"
-                    disabled={updateProfileMutation.isPending}
-                    className="w-full"
-                  >
-                    {updateProfileMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
+                </CardContent>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-foreground">
+                      {profile?.created_at ? format(new Date(profile.created_at), "MMM yyyy", { locale: fr }) : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Membre depuis</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Personal Information */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-cyan-400" />
+                    Informations personnelles
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-12 bg-muted animate-pulse rounded-lg" />
+                      ))}
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div>
+                        <Label htmlFor="full_name">Nom complet</Label>
+                        <Input
+                          id="full_name"
+                          value={formData.full_name}
+                          onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                          placeholder="Jean Dupont"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          disabled
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          L'email ne peut pas être modifié
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">Téléphone</Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="(514) 555-1234"
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        variant="hero"
+                        disabled={updateProfileMutation.isPending}
+                        className="w-full"
+                      >
+                        {updateProfileMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="w-4 h-4 mr-2" />
+                        )}
+                        Enregistrer les modifications
+                      </Button>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Account Details */}
+              <div className="space-y-6">
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-cyan-400" />
+                      Sécurité du compte
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-foreground">Mot de passe</p>
+                        <p className="text-sm text-muted-foreground">
+                          Changer votre mot de passe
+                        </p>
+                      </div>
+                      <Button variant="outline" onClick={() => setPasswordDialogOpen(true)}>
+                        Modifier
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-foreground">Authentification à deux facteurs</p>
+                        <p className="text-sm text-muted-foreground">
+                          Non activée
+                        </p>
+                      </div>
+                      <Badge variant="outline">Bientôt</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Stats */}
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle>Aperçu du compte</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                      <span className="text-muted-foreground">Abonnements actifs</span>
+                      <span className="font-bold text-foreground">{subscriptions?.length || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                      <span className="text-muted-foreground">Total commandes</span>
+                      <span className="font-bold text-foreground">{orders?.length || 0}</span>
+                    </div>
+                    {profile?.employer_discount && (
+                      <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                        <span className="text-emerald-500">Rabais employeur</span>
+                        <span className="font-bold text-emerald-500">{profile.employer_discount}</span>
+                      </div>
                     )}
-                    Enregistrer les modifications
-                  </Button>
-                </form>
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
 
-          {/* Account Details */}
-          <div className="space-y-6">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-cyan-400" />
-                  Sécurité du compte
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">Mot de passe</p>
-                    <p className="text-sm text-muted-foreground">
-                      Changer votre mot de passe
-                    </p>
-                  </div>
-                  <Button variant="outline" onClick={() => setPasswordDialogOpen(true)}>
-                    Modifier
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">Authentification à deux facteurs</p>
-                    <p className="text-sm text-muted-foreground">
-                      Non activée
-                    </p>
-                  </div>
-                  <Badge variant="outline">Bientôt</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle>Aperçu du compte</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
-                  <span className="text-muted-foreground">Abonnements actifs</span>
-                  <span className="font-bold text-foreground">{subscriptions?.length || 0}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
-                  <span className="text-muted-foreground">Total commandes</span>
-                  <span className="font-bold text-foreground">{orders?.length || 0}</span>
-                </div>
-                {profile?.employer_discount && (
-                  <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                    <span className="text-emerald-500">Rabais employeur</span>
-                    <span className="font-bold text-emerald-500">{profile.employer_discount}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+          <TabsContent value="services">
+            <ClientMyServices />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Password Change Dialog */}
