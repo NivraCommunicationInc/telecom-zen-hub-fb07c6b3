@@ -189,6 +189,17 @@ const ClientNewOrder = () => {
   const [transferValidationResult, setTransferValidationResult] = useState<"valid" | "invalid" | null>(null);
   const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string>("");
 
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>(null);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [etransferConfirmationNumber, setEtransferConfirmationNumber] = useState("");
+  const [etransferSenderName, setEtransferSenderName] = useState("");
+
   // Fetch available services
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
@@ -359,12 +370,14 @@ const ClientNewOrder = () => {
         service_type: serviceNames,
         category: categories,
         subtotal: subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + (hasMobileService ? SIM_CONFIG.price : 0),
-        delivery_fee: 30,
+        delivery_fee: installationChoice === "auto" ? 30 : 0,
         activation_fee: 25,
-        installation_fee: 50,
+        installation_fee: installationChoice === "technician" ? 50 : 0,
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
+        payment_status: "paid",
+        amount_paid: totalAmount,
         created_by: "client",
         notes: (notes || '') + equipmentInfo + simInfo,
         selected_channels: channelData,
@@ -372,6 +385,23 @@ const ClientNewOrder = () => {
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : null,
       }).select().single();
+
+      if (error) throw error;
+
+      // Create payment record
+      const paymentRef = paymentConfirmationNumber || `PAY-${Date.now()}`;
+      await supabase.from("payments").insert({
+        user_id: user.id,
+        amount: totalAmount,
+        payment_method: paymentMethod === "credit_card" ? "credit_card" : "etransfer",
+        reference_number: paymentRef,
+        status: "completed",
+        card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
+        card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
+        etransfer_amount: paymentMethod === "etransfer" ? totalAmount : null,
+        etransfer_sender_name: paymentMethod === "etransfer" ? etransferSenderName : null,
+        notes: `Paiement pour commande ${data.order_number}`,
+      });
 
       if (error) throw error;
 
@@ -541,6 +571,41 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   
   // Check if ID details are complete
   const isIdComplete = idType && idNumber && idExpiration && idProvince;
+  
+  // Check if payment is complete
+  const isPaymentComplete = paymentComplete && paymentConfirmationNumber;
+  
+  // Validate credit card format
+  const isCardValid = cardNumber.replace(/\s/g, '').length >= 15 && 
+    cardExpiry.length === 5 && 
+    cardCvv.length >= 3 && 
+    cardName.length >= 2;
+  
+  // Validate e-transfer info
+  const isEtransferValid = etransferConfirmationNumber.length >= 6 && etransferSenderName.length >= 2;
+
+  // Process credit card payment (simulated)
+  const processCardPayment = () => {
+    if (!isCardValid) {
+      toast.error("Veuillez vérifier les informations de votre carte");
+      return;
+    }
+    const confirmNumber = `CC-${Date.now().toString().slice(-8)}`;
+    setPaymentConfirmationNumber(confirmNumber);
+    setPaymentComplete(true);
+    toast.success(`Paiement accepté! Confirmation: ${confirmNumber}`);
+  };
+
+  // Process e-transfer payment confirmation
+  const processEtransferPayment = () => {
+    if (!isEtransferValid) {
+      toast.error("Veuillez entrer le numéro de confirmation Interac et votre nom");
+      return;
+    }
+    setPaymentConfirmationNumber(etransferConfirmationNumber);
+    setPaymentComplete(true);
+    toast.success(`Paiement E-Transfer confirmé! Référence: ${etransferConfirmationNumber}`);
+  };
 
   const handleSubmit = () => {
     if (selectedServices.length === 0) {
@@ -557,6 +622,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     }
     if (requiresInstallation && (!selectedDate || !selectedTime)) {
       toast.error("Veuillez sélectionner une date et heure d'installation");
+      return;
+    }
+    if (!isPaymentComplete) {
+      toast.error("Veuillez compléter le paiement avant de soumettre votre commande");
       return;
     }
     if (!termsAccepted) {
@@ -1897,6 +1966,211 @@ END:VCALENDAR`;
                 </Card>
               )}
 
+              {/* Payment Section - Required before order submission */}
+              <Card className="bg-card border-emerald-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-500" />
+                    Paiement requis
+                  </CardTitle>
+                  <CardDescription>
+                    Le paiement complet est requis avant la confirmation de votre commande
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Payment method selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        paymentMethod === "credit_card"
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-border hover:border-emerald-500/50"
+                      }`}
+                      onClick={() => {
+                        setPaymentMethod("credit_card");
+                        setPaymentComplete(false);
+                        setPaymentConfirmationNumber("");
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          paymentMethod === "credit_card" ? "bg-emerald-500" : "bg-muted"
+                        }`}>
+                          <CreditCard className={`w-5 h-5 ${paymentMethod === "credit_card" ? "text-white" : "text-muted-foreground"}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">Carte de crédit</p>
+                          <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        paymentMethod === "etransfer"
+                          ? "border-amber-500 bg-amber-500/10"
+                          : "border-border hover:border-amber-500/50"
+                      }`}
+                      onClick={() => {
+                        setPaymentMethod("etransfer");
+                        setPaymentComplete(false);
+                        setPaymentConfirmationNumber("");
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          paymentMethod === "etransfer" ? "bg-amber-500" : "bg-muted"
+                        }`}>
+                          <Mail className={`w-5 h-5 ${paymentMethod === "etransfer" ? "text-white" : "text-muted-foreground"}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">Virement Interac</p>
+                          <p className="text-xs text-muted-foreground">E-Transfer</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Credit Card Form */}
+                  {paymentMethod === "credit_card" && !paymentComplete && (
+                    <div className="space-y-4 p-4 bg-accent/30 rounded-lg">
+                      <div className="space-y-2">
+                        <Label htmlFor="card-name">Nom sur la carte *</Label>
+                        <Input
+                          id="card-name"
+                          placeholder="Jean Tremblay"
+                          value={cardName}
+                          onChange={(e) => setCardName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="card-number">Numéro de carte *</Label>
+                        <Input
+                          id="card-number"
+                          placeholder="4242 4242 4242 4242"
+                          value={cardNumber}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 16);
+                            const formatted = value.replace(/(\d{4})/g, '$1 ').trim();
+                            setCardNumber(formatted);
+                          }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="card-expiry">Expiration *</Label>
+                          <Input
+                            id="card-expiry"
+                            placeholder="MM/AA"
+                            value={cardExpiry}
+                            onChange={(e) => {
+                              let value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              if (value.length >= 2) {
+                                value = value.slice(0, 2) + '/' + value.slice(2);
+                              }
+                              setCardExpiry(value);
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="card-cvv">CVV *</Label>
+                          <Input
+                            id="card-cvv"
+                            placeholder="123"
+                            type="password"
+                            value={cardCvv}
+                            onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        variant="hero"
+                        className="w-full"
+                        onClick={processCardPayment}
+                        disabled={!isCardValid}
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Payer {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* E-Transfer Form */}
+                  {paymentMethod === "etransfer" && !paymentComplete && (
+                    <div className="space-y-4 p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                      <Card className="bg-amber-500/20 border-amber-500/50">
+                        <CardContent className="py-4">
+                          <div className="flex items-start gap-3">
+                            <Mail className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm">
+                              <p className="font-medium text-foreground mb-2">Instructions de paiement Interac</p>
+                              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                                <li>Envoyez <strong className="text-amber-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
+                                <li className="ml-4"><strong className="text-foreground">Nivratelecom@gmail.com</strong></li>
+                                <li>Entrez le numéro de confirmation Interac ci-dessous</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <div className="space-y-2">
+                        <Label htmlFor="etransfer-sender">Votre nom (expéditeur) *</Label>
+                        <Input
+                          id="etransfer-sender"
+                          placeholder="Jean Tremblay"
+                          value={etransferSenderName}
+                          onChange={(e) => setEtransferSenderName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="etransfer-confirmation">Numéro de confirmation Interac *</Label>
+                        <Input
+                          id="etransfer-confirmation"
+                          placeholder="Ex: CAbcd123456"
+                          value={etransferConfirmationNumber}
+                          onChange={(e) => setEtransferConfirmationNumber(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                        onClick={processEtransferPayment}
+                        disabled={!isEtransferValid}
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        Confirmer le paiement E-Transfer
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Payment Confirmed */}
+                  {paymentComplete && (
+                    <div className="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <CheckCircle2 className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-emerald-500">Paiement accepté!</p>
+                          <p className="text-sm text-muted-foreground">
+                            Confirmation: <span className="font-mono font-bold text-foreground">{paymentConfirmationNumber}</span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!paymentMethod && (
+                    <p className="text-sm text-amber-500 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Veuillez sélectionner un mode de paiement
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Terms and Conditions Acceptance */}
               <Card className="bg-card border-border">
                 <CardHeader>
@@ -1982,13 +2256,23 @@ END:VCALENDAR`;
                     </div>
                   </div>
 
+                  {/* Payment Status Indicator */}
+                  {isPaymentComplete && (
+                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-lg text-center">
+                      <p className="text-sm font-medium text-emerald-500 flex items-center justify-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Paiement complété
+                      </p>
+                    </div>
+                  )}
+
                   <div className="pt-4 space-y-3">
                     <Button
                       variant="hero"
                       className="w-full"
                       size="lg"
                       onClick={handleSubmit}
-                      disabled={createOrderMutation.isPending || !termsAccepted || (requiresInstallation && (!selectedDate || !selectedTime))}
+                      disabled={createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}
                     >
                       {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
                     </Button>
