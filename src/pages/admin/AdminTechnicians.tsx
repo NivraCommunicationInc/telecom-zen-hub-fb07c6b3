@@ -56,6 +56,7 @@ const AdminTechnicians = () => {
     status: "active",
     specializations: [] as string[],
     notes: "",
+    access_code: "",
   });
 
   const { data: technicians, isLoading, refetch } = useQuery({
@@ -91,19 +92,25 @@ const AdminTechnicians = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // Validate access code
+      if (!data.access_code || data.access_code.length !== 4 || !/^\d{4}$/.test(data.access_code)) {
+        throw new Error("Le code d'accès doit contenir exactement 4 chiffres.");
+      }
+
       const { error } = await supabase.from("technicians").insert({
         full_name: data.full_name,
-        email: data.email,
+        email: data.email.toLowerCase().trim(),
         phone: data.phone,
         status: data.status,
         specializations: data.specializations,
         notes: data.notes,
+        access_code: data.access_code,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-technicians"] });
-      toast({ title: "Technicien créé" });
+      toast({ title: "Technicien créé", description: "Le code d'accès a été enregistré." });
       resetForm();
       setDialogOpen(false);
     },
@@ -114,16 +121,28 @@ const AdminTechnicians = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      // Validate access code if provided
+      if (data.access_code && (data.access_code.length !== 4 || !/^\d{4}$/.test(data.access_code))) {
+        throw new Error("Le code d'accès doit contenir exactement 4 chiffres.");
+      }
+
+      const updateData: any = {
+        full_name: data.full_name,
+        email: data.email.toLowerCase().trim(),
+        phone: data.phone,
+        status: data.status,
+        specializations: data.specializations,
+        notes: data.notes,
+      };
+
+      // Only update access_code if provided
+      if (data.access_code) {
+        updateData.access_code = data.access_code;
+      }
+
       const { error } = await supabase
         .from("technicians")
-        .update({
-          full_name: data.full_name,
-          email: data.email,
-          phone: data.phone,
-          status: data.status,
-          specializations: data.specializations,
-          notes: data.notes,
-        })
+        .update(updateData)
         .eq("id", id);
       if (error) throw error;
     },
@@ -132,6 +151,9 @@ const AdminTechnicians = () => {
       toast({ title: "Technicien mis à jour" });
       resetForm();
       setDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
 
@@ -154,6 +176,7 @@ const AdminTechnicians = () => {
       status: "active",
       specializations: [],
       notes: "",
+      access_code: "",
     });
     setEditingTech(null);
   };
@@ -167,6 +190,7 @@ const AdminTechnicians = () => {
       status: tech.status || "active",
       specializations: tech.specializations || [],
       notes: tech.notes || "",
+      access_code: "", // Don't show existing code, user can set new one
     });
     setDialogOpen(true);
   };
@@ -248,6 +272,25 @@ const AdminTechnicians = () => {
                     </Select>
                   </div>
                   <div>
+                    <Label>Code d'accès (4 chiffres) *</Label>
+                    <Input
+                      type="text"
+                      maxLength={4}
+                      value={formData.access_code}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setFormData({ ...formData, access_code: value });
+                      }}
+                      placeholder={editingTech ? "Laisser vide pour garder l'actuel" : "1234"}
+                      className="font-mono text-center text-lg tracking-widest"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {editingTech 
+                        ? "Entrez un nouveau code pour le modifier" 
+                        : "Code requis pour la connexion au portail technicien"}
+                    </p>
+                  </div>
+                  <div>
                     <Label>Notes</Label>
                     <Textarea
                       value={formData.notes}
@@ -258,7 +301,7 @@ const AdminTechnicians = () => {
                   <Button
                     className="w-full"
                     onClick={handleSubmit}
-                    disabled={!formData.full_name || !formData.email}
+                    disabled={!formData.full_name || !formData.email || (!editingTech && formData.access_code.length !== 4)}
                   >
                     {editingTech ? "Mettre à jour" : "Créer"}
                   </Button>
