@@ -152,6 +152,12 @@ const DELIVERY_CONFIG = {
     fee: 45,
     timeframe: "10 heures",
     description: "Disponible à Montréal, Laval, Terrebonne, Mascouche, Repentigny, Longueuil, Saint-Hubert, Brossard"
+  },
+  shipHome: {
+    name: "Expédition à domicile",
+    fee: 15,
+    timeframe: "3 à 5 jours ouvrables",
+    description: "Expédition postale partout au Québec"
   }
 };
 
@@ -210,8 +216,8 @@ const ClientNewOrder = () => {
   // Installation choice state
   const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>(null);
   
-  // Delivery choice state (for delivery-only orders: Mobile, Streaming, Accessories)
-  const [deliveryChoice, setDeliveryChoice] = useState<"standard" | "uber" | null>(null);
+  // Delivery choice state (for delivery-only orders: Mobile, Streaming, Accessories, Equipment)
+  const [deliveryChoice, setDeliveryChoice] = useState<"standard" | "uber" | "shipHome" | null>(null);
   
   // Appointment scheduling state
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -320,6 +326,12 @@ const ClientNewOrder = () => {
   // Check if this is a delivery-only order (Mobile, Streaming, or Accessories only - no technician installation)
   const isDeliveryOnlyOrder = (hasMobileService || hasStreamingService || hasExtrasService) && 
     !hasTVService && !hasInternetService && !selectedServices.some(s => s.category === "Sécurité");
+  
+  // Check if this is an equipment/accessories-only order (no service plans requiring ID)
+  // Equipment-only = Streaming OR Extras/Accessories (no Mobile, Internet, TV, or Security)
+  const isEquipmentOnlyOrder = (hasStreamingService || hasExtrasService) && 
+    !hasMobileService && !hasTVService && !hasInternetService && 
+    !selectedServices.some(s => s.category === "Sécurité");
   
   // Check if Uber delivery is available based on client's phone area code
   const isUberDeliveryAvailable = (): boolean => {
@@ -458,13 +470,20 @@ const ClientNewOrder = () => {
 
       // Calculate delivery fee based on order type
       const orderDeliveryFee = isDeliveryOnlyOrder 
-        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : DELIVERY_CONFIG.standard.fee)
+        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
+           deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
+           DELIVERY_CONFIG.standard.fee)
         : (installationChoice === "auto" ? 30 : 0);
 
       // Determine installation type for the order
       const orderInstallationType = isDeliveryOnlyOrder 
-        ? (deliveryChoice === "uber" ? "uber_express" : "delivery_standard")
+        ? (deliveryChoice === "uber" ? "uber_express" : 
+           deliveryChoice === "shipHome" ? "ship_to_home" :
+           "delivery_standard")
         : installationChoice;
+      
+      // For equipment-only orders, no activation fee
+      const orderActivationFee = isEquipmentOnlyOrder ? 0 : 25;
 
       // Save pre-authorized payment method if credit card and checkbox selected
       let savedPaymentMethodId: string | null = null;
@@ -513,7 +532,7 @@ const ClientNewOrder = () => {
         category: isDeliveryOnlyOrder ? "Delivery" : categories,
         subtotal: subtotal + paidChannelTotal + equipmentSubtotal,
         delivery_fee: orderDeliveryFee,
-        activation_fee: 25,
+        activation_fee: orderActivationFee,
         installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
         installation_credit: installationCredit,
         installation_type: orderInstallationType,
@@ -571,10 +590,13 @@ const ClientNewOrder = () => {
       
       // Calculate invoice delivery fee based on order type
       const invoiceDeliveryFee = isDeliveryOnlyOrder 
-        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : DELIVERY_CONFIG.standard.fee)
+        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
+           deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee :
+           DELIVERY_CONFIG.standard.fee)
         : (installationChoice === "auto" ? 30 : 0);
       
-      const invoiceActivationFee = 25;
+      // For equipment-only orders, no activation fee on invoice
+      const invoiceActivationFee = isEquipmentOnlyOrder ? 0 : 25;
       const invoiceInstallationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
       const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
       const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
@@ -582,7 +604,9 @@ const ClientNewOrder = () => {
       
       // Prepare delivery type note
       const deliveryTypeNote = isDeliveryOnlyOrder 
-        ? `\nType de livraison: ${deliveryChoice === "uber" ? "Express Uber (10h)" : "Standard (24-78h)"}`
+        ? `\nType de livraison: ${deliveryChoice === "uber" ? "Express Uber (10h)" : 
+           deliveryChoice === "shipHome" ? "Expédition à domicile (3-5 jours)" :
+           "Standard (24-78h)"}`
         : '';
       
       const { error: billingError } = await supabase.from("billing").insert({
@@ -798,6 +822,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     if (isDeliveryOnlyOrder) {
       // For Mobile, Streaming, Accessories - use delivery choice
       if (deliveryChoice === "uber") return DELIVERY_CONFIG.uber.fee;
+      if (deliveryChoice === "shipHome") return DELIVERY_CONFIG.shipHome.fee;
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
       return 0;
     }
@@ -806,7 +831,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   };
   
   const deliveryFee = calculateDeliveryFee();
-  const activationFee = 25;
+  // For equipment-only orders, no activation fee
+  const activationFee = isEquipmentOnlyOrder ? 0 : 25;
   const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
   const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
@@ -1681,92 +1707,108 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-cyan-500" />
-                    Vérification d'identité
-                  </CardTitle>
-                  <CardDescription>
-                    Une pièce d'identité valide avec photo est requise pour toutes les commandes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Card className="bg-amber-500/10 border-amber-500/30">
-                    <CardContent className="py-4 flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm">
-                        <p className="font-medium text-foreground mb-1">Important</p>
-                        <p className="text-muted-foreground">
-                          Nous n'effectuons aucune vérification de crédit. Une pièce d'identité valide sera vérifiée lors de la confirmation de votre commande.
-                        </p>
+              {/* ID Verification - Skip for equipment-only orders */}
+              {!isEquipmentOnlyOrder ? (
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-cyan-500" />
+                      Vérification d'identité
+                    </CardTitle>
+                    <CardDescription>
+                      Une pièce d'identité valide avec photo est requise pour les services télécom
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Card className="bg-amber-500/10 border-amber-500/30">
+                      <CardContent className="py-4 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium text-foreground mb-1">Important</p>
+                          <p className="text-muted-foreground">
+                            Nous n'effectuons aucune vérification de crédit. Une pièce d'identité valide sera vérifiée lors de la confirmation de votre commande.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* ID Details Form */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="id-type">Type de pièce d'identité *</Label>
+                        <select
+                          id="id-type"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                          value={idType}
+                          onChange={(e) => setIdType(e.target.value)}
+                        >
+                          <option value="">Sélectionner un type</option>
+                          {ID_TYPES.map((type) => (
+                            <option key={type.value} value={type.value}>
+                              {type.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="space-y-2">
+                        <Label htmlFor="id-number">Numéro de pièce d'identité *</Label>
+                        <Input
+                          id="id-number"
+                          placeholder="Ex: A1234567"
+                          value={idNumber}
+                          onChange={(e) => setIdNumber(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="id-expiration">Date d'expiration *</Label>
+                        <Input
+                          id="id-expiration"
+                          type="date"
+                          value={idExpiration}
+                          onChange={(e) => setIdExpiration(e.target.value)}
+                          min={format(new Date(), "yyyy-MM-dd")}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="id-province">Province d'émission *</Label>
+                        <select
+                          id="id-province"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                          value={idProvince}
+                          onChange={(e) => setIdProvince(e.target.value)}
+                        >
+                          <option value="">Sélectionner une province</option>
+                          {CANADIAN_PROVINCES.map((province) => (
+                            <option key={province.value} value={province.value}>
+                              {province.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                  {/* ID Details Form */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="id-type">Type de pièce d'identité *</Label>
-                      <select
-                        id="id-type"
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                        value={idType}
-                        onChange={(e) => setIdType(e.target.value)}
-                      >
-                        <option value="">Sélectionner un type</option>
-                        {ID_TYPES.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
+                    {isIdComplete && (
+                      <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Informations d'identité complétées
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-emerald-500/10 border-emerald-500/30">
+                  <CardContent className="py-4 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium text-emerald-600 mb-1">Commande d'équipement/accessoires</p>
+                      <p className="text-muted-foreground">
+                        Aucune vérification d'identité requise pour les commandes d'équipement et accessoires uniquement. 
+                        Aucun frais d'activation ne sera facturé.
+                      </p>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="id-number">Numéro de pièce d'identité *</Label>
-                      <Input
-                        id="id-number"
-                        placeholder="Ex: A1234567"
-                        value={idNumber}
-                        onChange={(e) => setIdNumber(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="id-expiration">Date d'expiration *</Label>
-                      <Input
-                        id="id-expiration"
-                        type="date"
-                        value={idExpiration}
-                        onChange={(e) => setIdExpiration(e.target.value)}
-                        min={format(new Date(), "yyyy-MM-dd")}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="id-province">Province d'émission *</Label>
-                      <select
-                        id="id-province"
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                        value={idProvince}
-                        onChange={(e) => setIdProvince(e.target.value)}
-                      >
-                        <option value="">Sélectionner une province</option>
-                        {CANADIAN_PROVINCES.map((province) => (
-                          <option key={province.value} value={province.value}>
-                            {province.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {isIdComplete && (
-                    <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Informations d'identité complétées
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Delivery/Installation Choice Selector */}
               {isDeliveryOnlyOrder ? (
@@ -1782,7 +1824,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Standard Delivery */}
                       <div
                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
@@ -1808,6 +1850,36 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             </p>
                             <p className="text-xs text-cyan-500 mt-2">
                               Délai: {DELIVERY_CONFIG.standard.timeframe}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ship to Home - Always available */}
+                      <div
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          deliveryChoice === "shipHome"
+                            ? "border-emerald-500 bg-emerald-500/10"
+                            : "border-border hover:border-emerald-500/50"
+                        }`}
+                        onClick={() => setDeliveryChoice("shipHome")}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            deliveryChoice === "shipHome" ? "bg-emerald-500" : "bg-muted"
+                          }`}>
+                            <Package className={`w-5 h-5 ${deliveryChoice === "shipHome" ? "text-white" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-foreground">{DELIVERY_CONFIG.shipHome.name}</p>
+                              <Badge className="bg-emerald-500/20 text-emerald-500 border-0 text-xs">{DELIVERY_CONFIG.shipHome.fee.toFixed(2)} $</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {DELIVERY_CONFIG.shipHome.description}
+                            </p>
+                            <p className="text-xs text-emerald-500 mt-2">
+                              Délai: {DELIVERY_CONFIG.shipHome.timeframe}
                             </p>
                           </div>
                         </div>
@@ -1870,6 +1942,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <CheckCircle2 className="w-4 h-4" />
                         {deliveryChoice === "uber" 
                           ? `Livraison Express Uber sélectionnée (${DELIVERY_CONFIG.uber.timeframe})`
+                          : deliveryChoice === "shipHome"
+                          ? `Expédition à domicile sélectionnée (${DELIVERY_CONFIG.shipHome.timeframe})`
                           : `Livraison standard sélectionnée (${DELIVERY_CONFIG.standard.timeframe})`
                         }
                       </div>
@@ -2106,10 +2180,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     {isDeliveryOnlyOrder ? (
                       deliveryChoice && (
                         <div className="flex justify-between text-sm">
-                          <span className={deliveryChoice === "uber" ? "text-purple-500" : "text-cyan-500"}>
-                            {deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.name : DELIVERY_CONFIG.standard.name}
+                          <span className={
+                            deliveryChoice === "uber" ? "text-purple-500" : 
+                            deliveryChoice === "shipHome" ? "text-emerald-500" : 
+                            "text-cyan-500"
+                          }>
+                            {deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.name : 
+                             deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.name :
+                             DELIVERY_CONFIG.standard.name}
                           </span>
-                          <span className={deliveryChoice === "uber" ? "text-purple-500" : "text-cyan-500"}>
+                          <span className={
+                            deliveryChoice === "uber" ? "text-purple-500" : 
+                            deliveryChoice === "shipHome" ? "text-emerald-500" : 
+                            "text-cyan-500"
+                          }>
                             {deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                           </span>
                         </div>
@@ -2149,10 +2233,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </div>
                       )
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Frais d'activation</span>
-                      <span className="text-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                    </div>
+                    {/* Show activation fee only if not equipment-only order */}
+                    {!isEquipmentOnlyOrder && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Frais d'activation</span>
+                        <span className="text-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                     {(hasInternetService || hasTVService) && routerFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-cyan-500">{ROUTER_CONFIG.name}</span>
@@ -2207,7 +2294,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         else nextStep = 3;
                         setStep(nextStep);
                       }}
-                      disabled={!isIdComplete || (isDeliveryOnlyOrder ? !deliveryChoice : (!installationChoice || (requiresInstallation && (!selectedDate || !selectedTime))))}
+                      disabled={
+                        // For equipment-only orders, only need delivery choice (no ID required)
+                        isEquipmentOnlyOrder 
+                          ? !deliveryChoice
+                          // For other delivery-only orders (mobile), need ID + delivery choice
+                          : isDeliveryOnlyOrder 
+                            ? (!isIdComplete || !deliveryChoice)
+                            // For installation orders, need ID + installation choice + appointment if technician
+                            : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime)))
+                      }
                     >
                       Réviser et confirmer
                       <ArrowRight className="w-4 h-4 ml-2" />
