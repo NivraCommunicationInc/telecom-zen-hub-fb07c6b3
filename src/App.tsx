@@ -72,6 +72,7 @@ import EmployeeClients from "./pages/employee/EmployeeClients";
 import EmployeeInvoices from "./pages/employee/EmployeeInvoices";
 import EmployeeStreaming from "./pages/employee/EmployeeStreaming";
 import EmployeeInternalTickets from "./pages/employee/EmployeeInternalTickets";
+import EmployeeSystemStatus from "./pages/employee/EmployeeSystemStatus";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,6 +141,7 @@ const App = () => (
               <Route path="/employee/invoices" element={<EmployeeProtectedRoute><EmployeeInvoices /></EmployeeProtectedRoute>} />
               <Route path="/employee/streaming" element={<EmployeeProtectedRoute><EmployeeStreaming /></EmployeeProtectedRoute>} />
               <Route path="/employee/internal-tickets" element={<EmployeeProtectedRoute><EmployeeInternalTickets /></EmployeeProtectedRoute>} />
+              <Route path="/employee/system-status" element={<EmployeeProtectedRoute><EmployeeSystemStatus /></EmployeeProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />

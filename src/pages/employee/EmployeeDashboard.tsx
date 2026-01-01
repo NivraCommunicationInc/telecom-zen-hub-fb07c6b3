@@ -21,6 +21,8 @@ import {
   TicketPlus,
   Building2,
   FileSignature,
+  Radio,
+  MessageSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -197,6 +199,22 @@ const EmployeeDashboard = () => {
       count: null,
       enabled: true,
       color: "text-pink-500"
+    },
+    { 
+      label: "Tickets internes", 
+      icon: MessageSquare, 
+      href: "/employee/internal-tickets", 
+      count: null,
+      enabled: true,
+      color: "text-indigo-500"
+    },
+    { 
+      label: "Statut système", 
+      icon: Radio, 
+      href: "/employee/system-status", 
+      count: null,
+      enabled: true,
+      color: "text-orange-500"
     },
   ];
 
