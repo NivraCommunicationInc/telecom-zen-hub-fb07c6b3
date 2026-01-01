@@ -376,8 +376,8 @@ const ClientNewOrder = () => {
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
-        payment_status: "paid",
-        amount_paid: totalAmount,
+        payment_status: "pre_authorized",
+        amount_paid: 0,
         created_by: "client",
         notes: (notes || '') + equipmentInfo + simInfo,
         selected_channels: channelData,
@@ -388,22 +388,22 @@ const ClientNewOrder = () => {
 
       if (error) throw error;
 
-      // Create payment record
+      // Create payment record with pending/pre-authorized status
       const paymentRef = paymentConfirmationNumber || `PAY-${Date.now()}`;
-      await supabase.from("payments").insert({
+      const { error: paymentError } = await supabase.from("payments").insert({
         user_id: user.id,
         amount: totalAmount,
         payment_method: paymentMethod === "credit_card" ? "credit_card" : "etransfer",
         reference_number: paymentRef,
-        status: "completed",
+        status: "pending",
         card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
         card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
         etransfer_amount: paymentMethod === "etransfer" ? totalAmount : null,
         etransfer_sender_name: paymentMethod === "etransfer" ? etransferSenderName : null,
-        notes: `Paiement pour commande ${data.order_number}`,
+        notes: `Pré-autorisation pour commande ${data.order_number} - En attente de validation admin`,
       });
 
-      if (error) throw error;
+      if (paymentError) throw paymentError;
 
       // Create support ticket for TV channel configuration if TV service is included
       if (hasTVService && channelData.length > 0) {
