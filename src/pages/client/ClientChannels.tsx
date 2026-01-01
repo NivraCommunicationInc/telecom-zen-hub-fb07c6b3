@@ -68,6 +68,7 @@ interface TVOrder {
   id: string;
   order_number: string;
   service_type: string;
+  category: string;
   status: string;
   selected_channels: any[];
   created_at: string;
@@ -117,14 +118,25 @@ const ClientChannels = () => {
     queryKey: ["client-tv-orders", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+      // Query orders that have TV in category OR service_type
       const { data, error } = await supabase
         .from("orders")
-        .select("id, order_number, service_type, status, selected_channels, created_at")
+        .select("id, order_number, service_type, status, selected_channels, created_at, category")
         .eq("user_id", user.id)
-        .ilike("category", "%TV%")
         .order("created_at", { ascending: false });
+      
       if (error) throw error;
-      return data as TVOrder[];
+      
+      // Filter client-side for TV orders (more flexible matching)
+      const tvFiltered = (data || []).filter(order => {
+        const category = (order.category || "").toLowerCase();
+        const serviceType = (order.service_type || "").toLowerCase();
+        return category.includes("tv") || serviceType.includes("tv") || 
+               serviceType.includes("giga") || category.includes("giga");
+      });
+      
+      console.log("TV Orders found for client:", tvFiltered.length);
+      return tvFiltered as TVOrder[];
     },
     enabled: !!user?.id,
   });
