@@ -17,7 +17,9 @@ import {
 import { 
   Users, Plus, Search, Eye, Upload, FileText, Trash2, 
   ShoppingBag, CreditCard, Ticket, Calendar, Bell, Package,
-  DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle
+  DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle,
+  Router, Monitor, Smartphone, Shield, CheckCircle, XCircle, AlertTriangle,
+  Phone, MapPin, User, IdCard, Wrench, Hash
 } from "lucide-react";
 import {
   Select,
@@ -34,20 +36,53 @@ import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
+// Public website plans mapping (must match exactly)
+const publicPlans = {
+  internet: [
+    { id: "internet-100", name: "Internet 100 Mbps", price: 55, category: "Internet" },
+    { id: "internet-500", name: "Internet 500 Mbps", price: 60, category: "Internet" },
+    { id: "internet-940", name: "Internet 940 Mbps", price: 70, category: "Internet" },
+  ],
+  mobile: [
+    { id: "mobile-50", name: "Mobile 50$/30 jours", price: 50, category: "Mobile", data: "50-55 GB 4G" },
+    { id: "mobile-60", name: "Mobile 60$/30 jours", price: 60, category: "Mobile", data: "75-80 GB 4G" },
+  ],
+  tv: [
+    { id: "tv-basic", name: "Internet 100 + TV Basic", price: 75, category: "TV+Internet", channels: 26 },
+    { id: "tv-5choices", name: "Internet 500 + TV 5 choix", price: 80, category: "TV+Internet", channels: 32 },
+    { id: "tv-10choices", name: "Internet 500 + TV 10 choix", price: 90, category: "TV+Internet", channels: 37 },
+    { id: "tv-15choices", name: "Internet 500 + TV 15 choix", price: 95, category: "TV+Internet", channels: 42 },
+    { id: "tv-25choices", name: "Internet 500 + TV 25 choix", price: 110, category: "TV+Internet", channels: 52 },
+    { id: "giga-tv-basic", name: "GIGA + TV Basic", price: 85, category: "GIGA+TV", channels: 26 },
+    { id: "giga-tv-5choices", name: "GIGA + TV 5 choix", price: 95, category: "GIGA+TV", channels: 32 },
+    { id: "giga-tv-10choices", name: "GIGA + TV 10 choix", price: 105, category: "GIGA+TV", channels: 37 },
+    { id: "giga-tv-15choices", name: "GIGA + TV 15 choix", price: 110, category: "GIGA+TV", channels: 42 },
+    { id: "giga-tv-25choices", name: "GIGA + TV 25 choix", price: 120, category: "GIGA+TV", channels: 52 },
+  ],
+};
+
+const allPlans = [...publicPlans.internet, ...publicPlans.mobile, ...publicPlans.tv];
+
 const AdminClients = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
   const { isAdmin, permissions } = useRoleAccess();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilter, setSearchFilter] = useState<"all" | "name" | "email" | "phone" | "tag">("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [newClient, setNewClient] = useState({
     email: "",
     password: "",
-    full_name: "",
+    first_name: "",
+    last_name: "",
     phone: "",
+    date_of_birth: "",
+    service_address: "",
+    service_city: "",
+    service_postal_code: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +109,22 @@ const AdminClients = () => {
         .from("orders")
         .select("*")
         .or(`user_id.eq.${selectedClient.user_id},client_email.eq.${selectedClient.email}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
+  // Fetch client payments
+  const { data: clientPayments } = useQuery({
+    queryKey: ["client-payments", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("user_id", selectedClient.user_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -156,23 +207,43 @@ const AdminClients = () => {
     enabled: !!selectedClient?.user_id,
   });
 
+  // Filter clients with enhanced search
   const filteredClients = clients?.filter((client: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    return (
-      client.full_name?.toLowerCase().includes(query) ||
-      client.email?.toLowerCase().includes(query) ||
-      client.phone?.includes(query)
-    );
+    
+    switch (searchFilter) {
+      case "name":
+        return client.full_name?.toLowerCase().includes(query) ||
+               client.first_name?.toLowerCase().includes(query) ||
+               client.last_name?.toLowerCase().includes(query);
+      case "email":
+        return client.email?.toLowerCase().includes(query);
+      case "phone":
+        return client.phone?.includes(query);
+      case "tag":
+        return client.sector_tags?.some((tag: string) => tag.toLowerCase().includes(query));
+      default:
+        return (
+          client.full_name?.toLowerCase().includes(query) ||
+          client.first_name?.toLowerCase().includes(query) ||
+          client.last_name?.toLowerCase().includes(query) ||
+          client.email?.toLowerCase().includes(query) ||
+          client.phone?.includes(query) ||
+          client.client_number?.toLowerCase().includes(query) ||
+          client.sector_tags?.some((tag: string) => tag.toLowerCase().includes(query))
+        );
+    }
   });
 
   const createClientMutation = useMutation({
     mutationFn: async (client: typeof newClient) => {
+      const fullName = `${client.first_name} ${client.last_name}`.trim();
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: client.email,
         password: client.password,
         options: {
-          data: { full_name: client.full_name },
+          data: { full_name: fullName },
         },
       });
       if (authError) throw authError;
@@ -180,29 +251,49 @@ const AdminClients = () => {
       if (authData.user) {
         const { error: profileError } = await supabase
           .from("profiles")
-          .update({ phone: client.phone })
+          .update({ 
+            phone: client.phone,
+            first_name: client.first_name,
+            last_name: client.last_name,
+            full_name: fullName,
+            date_of_birth: client.date_of_birth || null,
+            service_address: client.service_address || null,
+            service_city: client.service_city || null,
+            service_postal_code: client.service_postal_code || null,
+            service_province: "QC",
+          })
           .eq("user_id", authData.user.id);
         if (profileError) throw profileError;
       }
       return authData;
     },
     onSuccess: async () => {
-      // Force immediate refetch to ensure the new client appears
+      const fullName = `${newClient.first_name} ${newClient.last_name}`.trim();
       await queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       await queryClient.refetchQueries({ queryKey: ["admin-clients"] });
       logActivity("create", "client", undefined, { 
         email: newClient.email,
-        full_name: newClient.full_name 
+        full_name: fullName
       }, {
         changedField: "profile",
         reason: "Nouveau client créé par admin"
       });
       toast({ 
         title: "Client créé avec succès",
-        description: `${newClient.full_name} a été ajouté au système`
+        description: `${fullName} a été ajouté au système`
       });
       setCreateDialogOpen(false);
-      setNewClient({ email: "", password: "", full_name: "", phone: "" });
+      setNewClient({ 
+        email: "", 
+        password: "", 
+        first_name: "", 
+        last_name: "",
+        phone: "",
+        date_of_birth: "",
+        service_address: "",
+        service_city: "",
+        service_postal_code: "",
+      });
     },
     onError: (error: any) => {
       console.error("Client creation error:", error);
@@ -388,21 +479,34 @@ const AdminClients = () => {
                 Nouveau client
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Créer un client</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-cyan-400" />
+                  Créer un nouveau client
+                </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label>Nom complet</Label>
-                  <Input
-                    value={newClient.full_name}
-                    onChange={(e) => setNewClient({ ...newClient, full_name: e.target.value })}
-                    placeholder="Jean Dupont"
-                  />
+              <div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto pr-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Prénom *</Label>
+                    <Input
+                      value={newClient.first_name}
+                      onChange={(e) => setNewClient({ ...newClient, first_name: e.target.value })}
+                      placeholder="Jean"
+                    />
+                  </div>
+                  <div>
+                    <Label>Nom de famille *</Label>
+                    <Input
+                      value={newClient.last_name}
+                      onChange={(e) => setNewClient({ ...newClient, last_name: e.target.value })}
+                      placeholder="Dupont"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label>Courriel</Label>
+                  <Label>Courriel *</Label>
                   <Input
                     type="email"
                     value={newClient.email}
@@ -411,7 +515,7 @@ const AdminClients = () => {
                   />
                 </div>
                 <div>
-                  <Label>Mot de passe temporaire</Label>
+                  <Label>Mot de passe temporaire *</Label>
                   <Input
                     type="password"
                     value={newClient.password}
@@ -419,19 +523,61 @@ const AdminClients = () => {
                     placeholder="••••••••"
                   />
                 </div>
-                <div>
-                  <Label>Téléphone</Label>
-                  <Input
-                    value={newClient.phone}
-                    onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                    placeholder="514-555-1234"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Téléphone</Label>
+                    <Input
+                      value={newClient.phone}
+                      onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                      placeholder="514-555-1234"
+                    />
+                  </div>
+                  <div>
+                    <Label>Date de naissance</Label>
+                    <Input
+                      type="date"
+                      value={newClient.date_of_birth}
+                      onChange={(e) => setNewClient({ ...newClient, date_of_birth: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="border-t border-border pt-4">
+                  <Label className="text-muted-foreground text-xs uppercase mb-2 block">Adresse de service</Label>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Adresse</Label>
+                      <Input
+                        value={newClient.service_address}
+                        onChange={(e) => setNewClient({ ...newClient, service_address: e.target.value })}
+                        placeholder="123 rue Exemple"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Ville</Label>
+                        <Input
+                          value={newClient.service_city}
+                          onChange={(e) => setNewClient({ ...newClient, service_city: e.target.value })}
+                          placeholder="Montréal"
+                        />
+                      </div>
+                      <div>
+                        <Label>Code postal</Label>
+                        <Input
+                          value={newClient.service_postal_code}
+                          onChange={(e) => setNewClient({ ...newClient, service_postal_code: e.target.value })}
+                          placeholder="H1A 1A1"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <Button
                   className="w-full"
                   onClick={() => createClientMutation.mutate(newClient)}
-                  disabled={!newClient.email || !newClient.password || !newClient.full_name}
+                  disabled={!newClient.email || !newClient.password || !newClient.first_name || !newClient.last_name}
                 >
+                  <Plus className="w-4 h-4 mr-2" />
                   Créer le client
                 </Button>
               </div>
@@ -439,15 +585,35 @@ const AdminClients = () => {
           </Dialog>
         </div>
 
-        {/* Search bar */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher par nom, courriel ou téléphone..."
-            className="pl-10"
-          />
+        {/* Enhanced Search bar */}
+        <div className="flex gap-2 max-w-xl">
+          <Select value={searchFilter} onValueChange={(v: any) => setSearchFilter(v)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Filtrer par" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              <SelectItem value="name">Nom</SelectItem>
+              <SelectItem value="email">Courriel</SelectItem>
+              <SelectItem value="phone">Téléphone</SelectItem>
+              <SelectItem value="tag">Tag service</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                searchFilter === "name" ? "Rechercher par nom..." :
+                searchFilter === "email" ? "Rechercher par courriel..." :
+                searchFilter === "phone" ? "Rechercher par téléphone..." :
+                searchFilter === "tag" ? "Rechercher par tag..." :
+                "Rechercher par nom, courriel, téléphone, numéro client..."
+              }
+              className="pl-10"
+            />
+          </div>
         </div>
 
         <Card className="bg-card border-border">
@@ -537,22 +703,31 @@ const AdminClients = () => {
 
         {/* Client Management Dialog */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-400" />
-                {selectedClient?.full_name || selectedClient?.email}
+              <DialogTitle className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                  <User className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <span className="block">{selectedClient?.full_name || selectedClient?.email}</span>
+                  {selectedClient?.client_number && (
+                    <span className="text-xs text-muted-foreground font-normal">{selectedClient.client_number}</span>
+                  )}
+                </div>
               </DialogTitle>
             </DialogHeader>
             {selectedClient && (
               <Tabs defaultValue="profile" className="mt-4">
-                <TabsList className="grid grid-cols-6 w-full">
-                  <TabsTrigger value="profile">Profil</TabsTrigger>
-                  <TabsTrigger value="orders">Commandes</TabsTrigger>
-                  <TabsTrigger value="billing">Paiements</TabsTrigger>
-                  <TabsTrigger value="subscriptions">Abonnements</TabsTrigger>
-                  <TabsTrigger value="tickets">Tickets</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsList className="grid grid-cols-8 w-full">
+                  <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
+                  <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
+                  <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>
+                  <TabsTrigger value="equipment" className="text-xs">Équipement</TabsTrigger>
+                  <TabsTrigger value="orders" className="text-xs">Commandes</TabsTrigger>
+                  <TabsTrigger value="payments" className="text-xs">Paiements</TabsTrigger>
+                  <TabsTrigger value="incidents" className="text-xs">Incidents</TabsTrigger>
+                  <TabsTrigger value="documents" className="text-xs">Documents</TabsTrigger>
                 </TabsList>
 
                 {/* Profile Tab */}
@@ -641,8 +816,8 @@ const AdminClients = () => {
                     <div className="grid grid-cols-4 gap-2">
                       <Button 
                         size="sm" 
-                        variant={selectedClient.account_status === 'active' ? 'default' : 'outline'}
-                        className={selectedClient.account_status === 'active' ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
+                        variant={selectedClient.account_status === 'active' || !selectedClient.account_status ? 'default' : 'outline'}
+                        className={selectedClient.account_status === 'active' || !selectedClient.account_status ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
                         onClick={() => setSelectedClient({ ...selectedClient, account_status: 'active' })}
                       >
                         <Play className="w-4 h-4 mr-1" /> Actif
@@ -674,6 +849,7 @@ const AdminClients = () => {
                     </div>
                   </div>
 
+                  {/* Client Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Nom complet</Label>
@@ -690,18 +866,52 @@ const AdminClients = () => {
                       />
                     </div>
                   </div>
-                  <div>
-                    <Label>Courriel</Label>
-                    <Input value={selectedClient.email || ""} disabled className="bg-muted" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Courriel</Label>
+                      <Input value={selectedClient.email || ""} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Date de naissance</Label>
+                      <Input 
+                        type="date" 
+                        value={selectedClient.date_of_birth || ""} 
+                        onChange={(e) => setSelectedClient({ ...selectedClient, date_of_birth: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label>Rabais employeur</Label>
-                    <Input
-                      value={selectedClient.employer_discount || ""}
-                      onChange={(e) => setSelectedClient({ ...selectedClient, employer_discount: e.target.value })}
-                      placeholder="Ex: 15% Entreprise XYZ"
-                    />
+                  
+                  {/* Address */}
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                    <Label className="text-xs text-muted-foreground uppercase mb-3 block">Adresse de service</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <Label>Adresse</Label>
+                        <Input
+                          value={selectedClient.service_address || ""}
+                          onChange={(e) => setSelectedClient({ ...selectedClient, service_address: e.target.value })}
+                          placeholder="123 rue Exemple"
+                        />
+                      </div>
+                      <div>
+                        <Label>Ville</Label>
+                        <Input
+                          value={selectedClient.service_city || ""}
+                          onChange={(e) => setSelectedClient({ ...selectedClient, service_city: e.target.value })}
+                          placeholder="Montréal"
+                        />
+                      </div>
+                      <div>
+                        <Label>Code postal</Label>
+                        <Input
+                          value={selectedClient.service_postal_code || ""}
+                          onChange={(e) => setSelectedClient({ ...selectedClient, service_postal_code: e.target.value })}
+                          placeholder="H1A 1A1"
+                        />
+                      </div>
+                    </div>
                   </div>
+
                   <div>
                     <Label>Tags secteur</Label>
                     <div className="flex flex-wrap gap-2 mb-2">
@@ -722,7 +932,7 @@ const AdminClients = () => {
                     />
                   </div>
                   <div>
-                    <Label>Notes internes</Label>
+                    <Label>Notes internes (Admin uniquement)</Label>
                     <Textarea
                       value={selectedClient.internal_notes || ""}
                       onChange={(e) => setSelectedClient({ ...selectedClient, internal_notes: e.target.value })}
@@ -735,28 +945,350 @@ const AdminClients = () => {
                   </Button>
                 </TabsContent>
 
+                {/* Identity Verification Tab */}
+                <TabsContent value="identity" className="space-y-4 mt-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <IdCard className="w-5 h-5 text-cyan-400" />
+                        Vérification d'identité gouvernementale
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Type de pièce d'identité</Label>
+                          <Select
+                            value={selectedClient.id_type || ""}
+                            onValueChange={(v) => setSelectedClient({ ...selectedClient, id_type: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="driver_license">Permis de conduire</SelectItem>
+                              <SelectItem value="health_card">Carte d'assurance maladie</SelectItem>
+                              <SelectItem value="passport">Passeport</SelectItem>
+                              <SelectItem value="other">Autre</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Province d'émission</Label>
+                          <Select
+                            value={selectedClient.id_province || "QC"}
+                            onValueChange={(v) => setSelectedClient({ ...selectedClient, id_province: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="QC">Québec</SelectItem>
+                              <SelectItem value="ON">Ontario</SelectItem>
+                              <SelectItem value="BC">Colombie-Britannique</SelectItem>
+                              <SelectItem value="AB">Alberta</SelectItem>
+                              <SelectItem value="other">Autre</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Numéro de pièce d'identité</Label>
+                          <Input
+                            value={selectedClient.id_number || ""}
+                            onChange={(e) => setSelectedClient({ ...selectedClient, id_number: e.target.value })}
+                            placeholder="Numéro..."
+                          />
+                        </div>
+                        <div>
+                          <Label>Date d'expiration</Label>
+                          <Input
+                            type="date"
+                            value={selectedClient.id_expiration || ""}
+                            onChange={(e) => setSelectedClient({ ...selectedClient, id_expiration: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* ID Verification Actions */}
+                      <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                        <Label className="text-sm font-medium mb-3 block">Statut de vérification</Label>
+                        <div className="flex gap-3">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                            onClick={() => {
+                              logActivity("approve_id", "client", selectedClient.id, {
+                                id_type: selectedClient.id_type,
+                                id_number: selectedClient.id_number,
+                              }, {
+                                changedField: "id_verification",
+                                reason: "Identité approuvée par admin"
+                              });
+                              toast({ title: "Identité approuvée", description: "La vérification a été enregistrée." });
+                            }}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Approuver
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                            onClick={() => {
+                              const reason = prompt("Raison du rejet:");
+                              if (reason) {
+                                logActivity("reject_id", "client", selectedClient.id, {
+                                  id_type: selectedClient.id_type,
+                                  id_number: selectedClient.id_number,
+                                  rejection_reason: reason
+                                }, {
+                                  changedField: "id_verification",
+                                  reason: `Identité rejetée: ${reason}`
+                                });
+                                toast({ title: "Identité rejetée", description: "Le rejet a été enregistré.", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Rejeter
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <Button onClick={() => updateClientMutation.mutate(selectedClient)}>
+                        Enregistrer les informations d'identité
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Services Tab - Shows subscribed plans matching public website */}
+                <TabsContent value="services" className="space-y-4 mt-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Package className="w-5 h-5 text-cyan-400" />
+                        Services souscrits
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientSubscriptions && clientSubscriptions.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientSubscriptions.map((sub: any) => {
+                            const matchedPlan = allPlans.find(p => 
+                              p.name.toLowerCase().includes(sub.plan_name?.toLowerCase() || "") ||
+                              sub.plan_name?.toLowerCase().includes(p.name.toLowerCase())
+                            );
+                            const renewalStatus = getSubscriptionStatus(sub);
+                            return (
+                              <div key={sub.id} className="p-4 border border-border rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                    {sub.plan_name?.toLowerCase().includes("mobile") ? (
+                                      <Smartphone className="w-6 h-6 text-blue-500" />
+                                    ) : sub.plan_name?.toLowerCase().includes("tv") ? (
+                                      <Monitor className="w-6 h-6 text-purple-500" />
+                                    ) : (
+                                      <Router className="w-6 h-6 text-cyan-500" />
+                                    )}
+                                    <div>
+                                      <p className="font-medium text-foreground">{sub.plan_name}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {renewalStatus && (
+                                      <Badge variant="outline" className={`${renewalStatus.color.replace('bg-', 'border-').replace('-500', '-500/30')} ${renewalStatus.color.replace('bg-', 'text-')}`}>
+                                        <Bell className="w-3 h-3 mr-1" />
+                                        {renewalStatus.text}
+                                      </Badge>
+                                    )}
+                                    <Badge className={statusColors[sub.status] || statusColors.active}>
+                                      {sub.status === "active" ? "Actif" : sub.status === "paused" ? "Pausé" : "Inactif"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                {matchedPlan && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Catégorie: {matchedPlan.category}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun service souscrit</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Available Plans Reference */}
+                  <Card className="bg-card/50 border-border">
+                    <CardHeader>
+                      <CardTitle className="text-sm text-muted-foreground">Forfaits disponibles (site public)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <p className="font-medium text-foreground mb-2 flex items-center gap-1">
+                            <Router className="w-4 h-4 text-cyan-500" /> Internet
+                          </p>
+                          {publicPlans.internet.map(p => (
+                            <p key={p.id} className="text-muted-foreground">{p.name} - ${p.price}/mois</p>
+                          ))}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground mb-2 flex items-center gap-1">
+                            <Smartphone className="w-4 h-4 text-blue-500" /> Mobile
+                          </p>
+                          {publicPlans.mobile.map(p => (
+                            <p key={p.id} className="text-muted-foreground">{p.name} - ${p.price}/30j</p>
+                          ))}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground mb-2 flex items-center gap-1">
+                            <Monitor className="w-4 h-4 text-purple-500" /> TV+Internet
+                          </p>
+                          {publicPlans.tv.slice(0, 5).map(p => (
+                            <p key={p.id} className="text-muted-foreground">{p.name} - ${p.price}/mois</p>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Equipment Tab */}
+                <TabsContent value="equipment" className="space-y-4 mt-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Router className="w-5 h-5 text-cyan-400" />
+                        Équipement attribué
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientOrders && clientOrders.some((o: any) => o.equipment_details || o.equipment_id) ? (
+                        <div className="space-y-3">
+                          {clientOrders.filter((o: any) => o.equipment_details || o.equipment_id).map((order: any) => {
+                            const equipmentDetails = order.equipment_details || [];
+                            return (
+                              <div key={order.id} className="p-4 border border-border rounded-lg">
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-sm text-muted-foreground">Commande: {order.order_number}</span>
+                                  <Badge className={statusColors[order.status] || statusColors.pending}>
+                                    {order.status}
+                                  </Badge>
+                                </div>
+                                
+                                {/* Nivra Born Wifi Router */}
+                                {(order.service_type?.toLowerCase().includes("internet") || order.service_type?.toLowerCase().includes("tv")) && (
+                                  <div className="p-3 bg-muted/50 rounded-lg mb-2">
+                                    <div className="flex items-center gap-3">
+                                      <Router className="w-5 h-5 text-cyan-500" />
+                                      <div className="flex-1">
+                                        <p className="font-medium text-sm">Nivra Born Wifi Router</p>
+                                        <p className="text-xs text-muted-foreground">Frais unique: 60$</p>
+                                      </div>
+                                      {order.serial_number && (
+                                        <div className="text-right">
+                                          <p className="text-xs text-muted-foreground">S/N: {order.serial_number}</p>
+                                          <Badge variant="outline" className="text-xs">Garantie 1 an</Badge>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Nivra 4K Smart Terminal */}
+                                {order.service_type?.toLowerCase().includes("tv") && (
+                                  <div className="p-3 bg-muted/50 rounded-lg mb-2">
+                                    <div className="flex items-center gap-3">
+                                      <Monitor className="w-5 h-5 text-purple-500" />
+                                      <div className="flex-1">
+                                        <p className="font-medium text-sm">Nivra 4K Smart Terminal</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          Frais: 50$/terminal × {order.terminal_count || 1}
+                                        </p>
+                                      </div>
+                                      {order.equipment_id && (
+                                        <div className="text-right">
+                                          <p className="text-xs text-muted-foreground">ID: {order.equipment_id}</p>
+                                          {order.imei_number && (
+                                            <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* SIM for Mobile */}
+                                {order.service_type?.toLowerCase().includes("mobile") && order.sim_number && (
+                                  <div className="p-3 bg-muted/50 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                      <Smartphone className="w-5 h-5 text-blue-500" />
+                                      <div className="flex-1">
+                                        <p className="font-medium text-sm">Carte SIM</p>
+                                        <p className="text-xs text-muted-foreground">Frais unique: 60$</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-xs text-muted-foreground">SIM: {order.sim_number}</p>
+                                        {order.imei_number && (
+                                          <p className="text-xs text-muted-foreground">IMEI: {order.imei_number}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Router className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun équipement attribué</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
                 {/* Orders Tab */}
                 <TabsContent value="orders" className="mt-4">
                   <div className="space-y-3">
                     {clientOrders && clientOrders.length > 0 ? (
                       clientOrders.map((order: any) => (
-                        <div key={order.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <Package className="w-8 h-8 text-cyan-400" />
-                            <div>
-                              <p className="font-medium text-foreground">{order.service_type}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
-                              </p>
+                        <div key={order.id} className="p-4 border border-border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <Package className="w-8 h-8 text-cyan-400" />
+                              <div>
+                                <p className="font-medium text-foreground">{order.order_number || order.service_type}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                                </p>
+                                {order.technician_id && (
+                                  <p className="text-xs text-cyan-500">Technicien assigné</p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            {order.total_amount && (
-                              <span className="font-medium">${order.total_amount}</span>
-                            )}
-                            <Badge className={statusColors[order.status] || statusColors.pending}>
-                              {order.status}
-                            </Badge>
+                            <div className="flex items-center gap-4">
+                              {order.total_amount && (
+                                <span className="font-medium">{Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                              )}
+                              <Badge className={statusColors[order.status] || statusColors.pending}>
+                                {order.status}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -769,115 +1301,256 @@ const AdminClients = () => {
                   </div>
                 </TabsContent>
 
-                {/* Billing Tab */}
-                <TabsContent value="billing" className="mt-4">
-                  <div className="space-y-3">
-                    {clientBilling && clientBilling.length > 0 ? (
-                      clientBilling.map((bill: any) => (
-                        <div key={bill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <DollarSign className="w-8 h-8 text-cyan-400" />
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
-                                {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span className="font-medium">${bill.amount}</span>
-                            <Badge className={statusColors[bill.status] || statusColors.pending}>
-                              {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">Aucun paiement</p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* Subscriptions Tab */}
-                <TabsContent value="subscriptions" className="mt-4">
-                  <div className="space-y-3">
-                    {clientSubscriptions && clientSubscriptions.length > 0 ? (
-                      clientSubscriptions.map((sub: any) => {
-                        const renewalStatus = getSubscriptionStatus(sub);
-                        return (
-                          <div key={sub.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                            <div className="flex items-center gap-4">
-                              <Calendar className="w-8 h-8 text-cyan-400" />
-                              <div>
-                                <p className="font-medium text-foreground">{sub.plan_name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  ${sub.amount}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
-                                </p>
+                {/* Payments Tab */}
+                <TabsContent value="payments" className="space-y-4 mt-4">
+                  {/* Payment History with Reference Numbers */}
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <CreditCard className="w-5 h-5 text-cyan-400" />
+                        Historique des paiements
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientPayments && clientPayments.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientPayments.map((payment: any) => (
+                            <div key={payment.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <DollarSign className="w-8 h-8 text-emerald-400" />
+                                <div>
+                                  <p className="font-medium text-foreground">
+                                    {payment.payment_reference || payment.reference_number}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {payment.payment_method} {payment.card_last_four && `•••• ${payment.card_last_four}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold text-lg text-emerald-500">
+                                  {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                </span>
+                                <Badge className={statusColors[payment.status] || "bg-emerald-500/20 text-emerald-400"}>
+                                  {payment.status === "completed" ? "Complété" : payment.status}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              {renewalStatus && (
-                                <div className="flex items-center gap-2">
-                                  <Bell className={`w-4 h-4 ${renewalStatus.status === "overdue" ? "text-red-400" : renewalStatus.status === "soon" ? "text-amber-400" : "text-muted-foreground"}`} />
-                                  <span className="text-sm text-muted-foreground">
-                                    Renouvellement: {renewalStatus.text}
-                                  </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucun paiement</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Billing/Invoices */}
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileText className="w-5 h-5 text-cyan-400" />
+                        Factures
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {clientBilling && clientBilling.length > 0 ? (
+                        <div className="space-y-3">
+                          {clientBilling.map((bill: any) => (
+                            <div key={bill.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <FileText className="w-6 h-6 text-cyan-400" />
+                                <div>
+                                  <p className="font-medium text-foreground">
+                                    {bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
+                                    {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}
+                                  </p>
+                                  {bill.payment_reference && (
+                                    <p className="text-xs text-cyan-500">Réf: {bill.payment_reference}</p>
+                                  )}
                                 </div>
-                              )}
-                              <Badge className={statusColors[sub.status] || statusColors.active}>
-                                {sub.status === "active" ? "Actif" : "Inactif"}
-                              </Badge>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="font-medium">{Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                <Badge className={statusColors[bill.status] || statusColors.pending}>
+                                  {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
+                                </Badge>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-8">
-                        <Calendar className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">Aucun abonnement</p>
-                      </div>
-                    )}
-                  </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-muted-foreground">Aucune facture</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
-                {/* Tickets Tab */}
-                <TabsContent value="tickets" className="mt-4">
-                  <div className="space-y-3">
-                    {clientTickets && clientTickets.length > 0 ? (
-                      clientTickets.map((ticket: any) => (
-                        <div key={ticket.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <Ticket className="w-8 h-8 text-cyan-400" />
-                            <div>
-                              <p className="font-medium text-foreground">{ticket.subject}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <Badge className={ticket.priority === "high" ? "bg-red-500/20 text-red-400" : ticket.priority === "normal" ? "bg-amber-500/20 text-amber-400" : "bg-muted text-muted-foreground"}>
-                              {ticket.priority === "high" ? "Urgent" : ticket.priority === "normal" ? "Normal" : "Bas"}
-                            </Badge>
-                            <Badge className={statusColors[ticket.status] || statusColors.open}>
-                              {ticket.status === "open" ? "Ouvert" : ticket.status === "in_progress" ? "En cours" : "Fermé"}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <Ticket className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">Aucun ticket</p>
+                {/* Incidents Tab */}
+                <TabsContent value="incidents" className="space-y-4 mt-4">
+                  <Card className="bg-card border-border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        Signalements et incidents
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Enregistrez les incidents signalés par le client. Ces informations sont visibles uniquement aux administrateurs.
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                          variant="outline" 
+                          className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10"
+                          onClick={() => {
+                            const details = prompt("Détails du signalement SIM volée/perdue:");
+                            if (details) {
+                              logActivity("incident_sim_lost", "client", selectedClient.id, {
+                                type: "sim_stolen_lost",
+                                details,
+                                fee: 60
+                              }, {
+                                changedField: "incident",
+                                reason: `SIM volée/perdue: ${details}`
+                              });
+                              toast({ title: "Incident enregistré", description: "SIM volée/perdue - Frais 60$ applicable pour remplacement" });
+                            }
+                          }}
+                        >
+                          <Smartphone className="w-4 h-4 mr-2" />
+                          SIM volée/perdue (60$)
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10"
+                          onClick={() => {
+                            const details = prompt("Détails du signalement téléphone perdu:");
+                            if (details) {
+                              logActivity("incident_phone_lost", "client", selectedClient.id, {
+                                type: "phone_lost",
+                                details
+                              }, {
+                                changedField: "incident",
+                                reason: `Téléphone perdu: ${details}`
+                              });
+                              toast({ title: "Incident enregistré", description: "Téléphone perdu enregistré" });
+                            }
+                          }}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Téléphone perdu
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="justify-start border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                          onClick={() => {
+                            const equipment = prompt("Quel équipement? (Router, Terminal, etc.)");
+                            const issue = prompt("Type de problème? (Défaut, Endommagé, Volé)");
+                            if (equipment && issue) {
+                              logActivity("incident_equipment", "client", selectedClient.id, {
+                                type: "equipment_issue",
+                                equipment,
+                                issue
+                              }, {
+                                changedField: "incident",
+                                reason: `Équipement ${equipment}: ${issue}`
+                              });
+                              toast({ title: "Incident enregistré", description: `${equipment} - ${issue}` });
+                            }
+                          }}
+                        >
+                          <Wrench className="w-4 h-4 mr-2" />
+                          Problème équipement
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="justify-start border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
+                          onClick={() => {
+                            const reason = prompt("Raison de la pause:");
+                            if (reason) {
+                              logActivity("service_pause_request", "client", selectedClient.id, {
+                                type: "service_pause",
+                                reason,
+                                note: "Frais mensuels continuent"
+                              }, {
+                                changedField: "service",
+                                reason: `Pause service demandée: ${reason} (frais continuent)`
+                              });
+                              toast({ title: "Demande enregistrée", description: "Pause service - Les frais mensuels continuent" });
+                            }
+                          }}
+                        >
+                          <Pause className="w-4 h-4 mr-2" />
+                          Pause service (frais continuent)
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="justify-start col-span-2 border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/10"
+                          onClick={() => {
+                            const simType = prompt("Type? (SIM physique ou eSIM)");
+                            if (simType) {
+                              logActivity("sim_replacement_request", "client", selectedClient.id, {
+                                type: "sim_replacement",
+                                sim_type: simType,
+                                fee: 60
+                              }, {
+                                changedField: "order",
+                                reason: `Nouvelle ${simType} demandée - Frais 60$ à la caisse`
+                              });
+                              toast({ title: "Demande enregistrée", description: `Nouvelle ${simType} - 60$ sera facturé à la caisse` });
+                            }
+                          }}
+                        >
+                          <Hash className="w-4 h-4 mr-2" />
+                          Nouvelle SIM/eSIM (60$ à la caisse)
+                        </Button>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Recent Incidents from Tickets */}
+                      <div className="mt-6">
+                        <Label className="text-sm font-medium mb-3 block">Tickets de support récents</Label>
+                        {clientTickets && clientTickets.length > 0 ? (
+                          <div className="space-y-2">
+                            {clientTickets.slice(0, 5).map((ticket: any) => (
+                              <div key={ticket.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <Ticket className="w-5 h-5 text-cyan-400" />
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {ticket.ticket_number} • {format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Badge className={statusColors[ticket.status] || statusColors.open}>
+                                  {ticket.status === "open" ? "Ouvert" : ticket.status === "in_progress" ? "En cours" : "Fermé"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Aucun ticket récent</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 {/* Documents Tab */}
