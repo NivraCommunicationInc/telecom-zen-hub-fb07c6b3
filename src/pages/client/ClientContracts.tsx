@@ -51,7 +51,7 @@ const ClientContracts = () => {
         .from("profiles")
         .select("*")
         .eq("user_id", user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -87,21 +87,31 @@ const ClientContracts = () => {
     },
   });
 
-  const handleDownloadContract = (contract: any) => {
-    downloadContractPDF({
-      contractNumber: contract.contract_url || `NIVRA-${contract.id.slice(0, 8).toUpperCase()}`,
-      contractName: contract.contract_name,
-      clientName: profile?.full_name || "Client",
-      clientEmail: profile?.email || user?.email || "",
-      clientPhone: profile?.phone,
-      serviceDescription: `Contrat de services de courtage télécom - ${contract.contract_name}`,
-      startDate: contract.created_at,
-      isSigned: contract.is_signed,
-      signedAt: contract.signed_at,
-      employeeName: "Représentant Nivra",
-      employeeTitle: "Conseiller Télécom",
-    });
-    toast({ title: "Contrat téléchargé" });
+  const handleDownloadContract = async (contract: any) => {
+    try {
+      if (!contract) {
+        toast({ title: "Contrat non trouvé", variant: "destructive" });
+        return;
+      }
+      
+      await downloadContractPDF({
+        contractNumber: contract.contract_url || `NIVRA-${contract.id.slice(0, 8).toUpperCase()}`,
+        contractName: contract.contract_name || "Contrat de services",
+        clientName: profile?.full_name || "Client",
+        clientEmail: profile?.email || user?.email || "",
+        clientPhone: profile?.phone || "",
+        serviceDescription: `Contrat de services de courtage télécom - ${contract.contract_name || "Services"}`,
+        startDate: contract.created_at,
+        isSigned: contract.is_signed || false,
+        signedAt: contract.signed_at,
+        employeeName: "Représentant Nivra",
+        employeeTitle: "Conseiller Télécom",
+      });
+      toast({ title: "Contrat téléchargé" });
+    } catch (error: any) {
+      console.error("Download error:", error);
+      toast({ title: "Erreur lors du téléchargement", description: "Veuillez réessayer", variant: "destructive" });
+    }
   };
 
   const openSignDialog = (contract: any) => {
