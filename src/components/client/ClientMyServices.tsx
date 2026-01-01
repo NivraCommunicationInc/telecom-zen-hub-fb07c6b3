@@ -156,13 +156,14 @@ const ClientMyServices = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch orders with equipment
+  // Fetch orders with equipment - exclude cancelled from client view
   const { data: orders } = useQuery({
     queryKey: ["client-services-orders", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
+        .neq("status", "cancelled") // Exclude cancelled orders from client view
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -385,10 +386,16 @@ const ClientMyServices = () => {
     
     let extraInfo = "";
     if (mobileIssueType === "request_new_sim" || mobileIssueType === "request_esim") {
-      extraInfo = "\n\n[PAIEMENT REQUIS avant activation]";
+      extraInfo = "\n\n[PAIEMENT REQUIS: 60$ avant activation]";
+    }
+    if (mobileIssueType === "sim_stolen" || mobileIssueType === "sim_lost") {
+      extraInfo = "\n\n[Note: Remplacement SIM disponible - 60$ frais applicable]\n[Service reste actif, frais mensuels continuent]";
     }
     if (mobileIssueType === "number_change") {
       extraInfo = "\n\n[APPROBATION ADMIN requise]";
+    }
+    if (mobileIssueType === "pause_plan") {
+      extraInfo = "\n\n[APPROBATION ADMIN requise]\n[Note: Les frais mensuels continuent pendant la suspension]";
     }
     
     createTicketMutation.mutate({
@@ -432,8 +439,8 @@ const ClientMyServices = () => {
   const handleSimOrder = () => {
     if (!selectedService) return;
     createTicketMutation.mutate({
-      subject: `Commander ${simType === "esim" ? "eSIM" : "nouvelle SIM"}`,
-      description: `Commande ${simType === "esim" ? "eSIM" : "carte SIM"}:\n- Forfait: ${selectedService.plan_name}\n- Type: ${simType.toUpperCase()}\n- ID: ${selectedService.id}\n\n[PAIEMENT REQUIS avant activation]`,
+      subject: `Commander ${simType === "esim" ? "eSIM" : "nouvelle SIM"} (60$)`,
+      description: `Commande ${simType === "esim" ? "eSIM" : "carte SIM"}:\n- Forfait: ${selectedService.plan_name}\n- Type: ${simType.toUpperCase()}\n- Frais: 60,00 $ CAD\n- ID: ${selectedService.id}\n\n[PAIEMENT REQUIS: 60$ avant activation]\n[Frais appliqué automatiquement au prochain checkout]`,
       priority: "normal",
       relatedServiceId: selectedService.id,
     });
@@ -1464,7 +1471,7 @@ const ClientMyServices = () => {
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
               <p className="text-sm text-amber-600">
                 <Info className="w-4 h-4 inline mr-1" />
-                Paiement requis avant activation de la nouvelle SIM.
+                Frais: <span className="font-bold">60,00 $</span> - Paiement requis avant activation.
               </p>
             </div>
             <div>
@@ -1474,17 +1481,22 @@ const ClientMyServices = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sim">Carte SIM physique</SelectItem>
-                  <SelectItem value="esim">eSIM (numérique)</SelectItem>
+                  <SelectItem value="sim">Carte SIM physique (60$)</SelectItem>
+                  <SelectItem value="esim">eSIM numérique (60$)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+              <p className="text-muted-foreground">
+                La nouvelle SIM sera activée après réception du paiement. Vous recevrez une notification une fois activée.
+              </p>
             </div>
           </div>
           <DialogFooter className="mt-6">
             <Button variant="outline" onClick={() => setSimOrderDialogOpen(false)}>Annuler</Button>
             <Button variant="hero" onClick={handleSimOrder} disabled={createTicketMutation.isPending}>
               {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Commander
+              Commander (60$)
             </Button>
           </DialogFooter>
         </DialogContent>

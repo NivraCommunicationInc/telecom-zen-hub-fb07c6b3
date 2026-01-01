@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -352,6 +353,31 @@ const ClientProfile = () => {
                     <span className="font-bold text-emerald-500">{profile.employer_discount}</span>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Mes Services Quick Link */}
+            <Card className="bg-gradient-to-br from-cyan-500/10 to-cyan-400/5 border-cyan-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                      <Settings className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">Mes services</p>
+                      <p className="text-sm text-muted-foreground">
+                        Gérer forfaits, équipements, facturation
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="hero" size="sm" asChild>
+                    <Link to="/portal/services">
+                      Accéder
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
