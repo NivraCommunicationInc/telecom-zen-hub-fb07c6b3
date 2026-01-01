@@ -68,20 +68,23 @@ const paymentStatusColors: Record<string, string> = {
 };
 
 // E-Transfer specific status configuration
+// Status values: Pending | Verification | Processed | Declined | Fraud | Refunded
 const etransferStatusConfig: Record<string, { color: string; label: string }> = {
-  pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente" },
-  in_verification: { color: "bg-blue-500/20 text-blue-500", label: "En vérification" },
-  completed: { color: "bg-emerald-500/20 text-emerald-500", label: "Complété" },
-  declined: { color: "bg-red-500/20 text-red-500", label: "Refusé" },
-  fraud: { color: "bg-red-600/30 text-red-600", label: "Fraude" },
+  pending: { color: "bg-amber-500/20 text-amber-500", label: "Pending" },
+  verification: { color: "bg-blue-500/20 text-blue-500", label: "Verification" },
+  processed: { color: "bg-emerald-500/20 text-emerald-500", label: "Processed" },
+  declined: { color: "bg-red-500/20 text-red-500", label: "Declined" },
+  fraud: { color: "bg-red-600/30 text-red-600", label: "Fraud" },
+  refunded: { color: "bg-purple-500/20 text-purple-500", label: "Refunded" },
 };
 
 const etransferStatusOptions = [
-  { value: "pending", label: "En attente" },
-  { value: "in_verification", label: "En vérification" },
-  { value: "completed", label: "Complété" },
-  { value: "declined", label: "Refusé" },
-  { value: "fraud", label: "Fraude" },
+  { value: "pending", label: "Pending" },
+  { value: "verification", label: "Verification" },
+  { value: "processed", label: "Processed" },
+  { value: "declined", label: "Declined" },
+  { value: "fraud", label: "Fraud" },
+  { value: "refunded", label: "Refunded" },
 ];
 
 // Generate payment reference in format NIVRA-PAY-QC-YYYY-#####
@@ -448,7 +451,7 @@ const AdminBilling = () => {
     },
   });
 
-  // E-Transfer status update mutation
+  // E-Transfer status update mutation (Admin + Employee only)
   const updateEtransferStatusMutation = useMutation({
     mutationFn: async ({ 
       paymentId, 
@@ -464,19 +467,33 @@ const AdminBilling = () => {
       const currentUser = (await supabase.auth.getUser()).data.user;
       const oldStatus = payment.status;
       
+      // Get user role for logging
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", currentUser?.id)
+        .maybeSingle();
+      
+      const actorRole = userRole?.role || "admin";
+      
+      // Only admin and employee can update (check role)
+      if (actorRole !== "admin" && actorRole !== "employee") {
+        throw new Error("Unauthorized: Only Admin and Employee can update payment status");
+      }
+      
       // Update payment status
       const { error: paymentError } = await supabase
         .from("payments")
         .update({
           status: newStatus,
-          notes: `${payment.notes || ""}\n[Statut: ${oldStatus} → ${newStatus}] ${reason ? `Raison: ${reason}` : ""} (${format(new Date(), "d MMM yyyy HH:mm", { locale: fr })})`.trim(),
+          notes: `${payment.notes || ""}\n[PaymentStatus: ${oldStatus} → ${newStatus}] ${reason ? `Reason: ${reason}` : ""} (${format(new Date(), "d MMM yyyy HH:mm", { locale: fr })})`.trim(),
         })
         .eq("id", paymentId);
 
       if (paymentError) throw paymentError;
 
-      // Handle balance update only if status is "completed"
-      if (newStatus === "completed" && oldStatus !== "completed") {
+      // Handle balance update only if status is "processed"
+      if (newStatus === "processed" && oldStatus !== "processed") {
         // Get client profile
         const { data: profile } = await supabase
           .from("profiles")
@@ -487,7 +504,7 @@ const AdminBilling = () => {
         const currentBalance = Number(profile?.balance || 0);
         const paymentAmount = Number(payment.amount || 0);
         
-        // Reduce balance when payment is completed
+        // Reduce balance when payment is processed
         const newBalance = Math.max(0, currentBalance - paymentAmount);
         
         await supabase
@@ -507,8 +524,8 @@ const AdminBilling = () => {
         }
       }
 
-      // If status changed FROM completed to something else, reverse the balance
-      if (oldStatus === "completed" && newStatus !== "completed") {
+      // If status changed FROM processed to something else, reverse the balance
+      if (oldStatus === "processed" && newStatus !== "processed") {
         const { data: profile } = await supabase
           .from("profiles")
           .select("balance")
@@ -536,16 +553,16 @@ const AdminBilling = () => {
         }
       }
 
-      // Log activity
+      // Log activity with exact field="PaymentStatus" and action="Updated"
       await supabase.from("activity_logs").insert({
         user_id: currentUser?.id || "00000000-0000-0000-0000-000000000000",
         entity_type: "payment",
         entity_id: paymentId,
-        action: "etransfer_status_update",
+        action: "Updated",
         actor_email: currentUser?.email,
         actor_name: currentUser?.user_metadata?.full_name || currentUser?.email,
-        actor_role: "admin",
-        changed_field: "status",
+        actor_role: actorRole === "admin" ? "Admin" : "Employee",
+        changed_field: "PaymentStatus",
         old_value: oldStatus,
         new_value: newStatus,
         reason: reason || null,
@@ -554,6 +571,7 @@ const AdminBilling = () => {
           amount: payment.amount,
           sender_name: payment.etransfer_sender_name,
           client_email: payment.profiles?.email,
+          client_name: payment.profiles?.full_name,
         },
       });
 
@@ -564,7 +582,7 @@ const AdminBilling = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       toast({ 
-        title: "Statut E-Transfer mis à jour", 
+        title: "E-Transfer Status Updated", 
         description: `${etransferStatusConfig[data.oldStatus]?.label || data.oldStatus} → ${etransferStatusConfig[data.newStatus]?.label || data.newStatus}` 
       });
       setSelectedPaymentForStatus(null);
@@ -572,7 +590,7 @@ const AdminBilling = () => {
     },
     onError: (error: any) => {
       console.error("E-Transfer status update error:", error);
-      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+      toast({ title: "Error updating status", description: error.message || "Please try again", variant: "destructive" });
     },
   });
 
@@ -1851,24 +1869,24 @@ const AdminBilling = () => {
                   />
                 </div>
 
-                {/* Warning for Fraud/Declined */}
-                {(selectedPaymentForStatus.newStatus === "fraud" || selectedPaymentForStatus.newStatus === "declined") && (
+                {/* Warning for Fraud/Declined/Refunded */}
+                {(selectedPaymentForStatus.newStatus === "fraud" || selectedPaymentForStatus.newStatus === "declined" || selectedPaymentForStatus.newStatus === "refunded") && (
                   <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                     <div className="text-xs text-red-600">
-                      <p className="font-medium">Attention</p>
-                      <p>Ce statut ne mettra pas à jour le solde client. La commande restera en attente pour révision admin.</p>
+                      <p className="font-medium">Warning</p>
+                      <p>This status will NOT update the client balance. Order will remain pending for Admin review.</p>
                     </div>
                   </div>
                 )}
 
-                {/* Completed notification */}
-                {selectedPaymentForStatus.newStatus === "completed" && selectedPaymentForStatus.status !== "completed" && (
+                {/* Processed notification */}
+                {selectedPaymentForStatus.newStatus === "processed" && selectedPaymentForStatus.status !== "processed" && (
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                     <div className="text-xs text-emerald-600">
-                      <p className="font-medium">Mise à jour du solde</p>
-                      <p>Le solde client sera réduit de {Number(selectedPaymentForStatus.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}.</p>
+                      <p className="font-medium">Balance Update</p>
+                      <p>Client balance will be reduced by {Number(selectedPaymentForStatus.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}.</p>
                     </div>
                   </div>
                 )}
@@ -1880,7 +1898,7 @@ const AdminBilling = () => {
                     variant="hero"
                     onClick={() => {
                       if (!selectedPaymentForStatus.newStatus || selectedPaymentForStatus.newStatus === selectedPaymentForStatus.status) {
-                        toast({ title: "Sélectionnez un nouveau statut", variant: "destructive" });
+                        toast({ title: "Select a new status", variant: "destructive" });
                         return;
                       }
                       updateEtransferStatusMutation.mutate({
@@ -1892,10 +1910,10 @@ const AdminBilling = () => {
                     }}
                     disabled={updateEtransferStatusMutation.isPending || !selectedPaymentForStatus.newStatus || selectedPaymentForStatus.newStatus === selectedPaymentForStatus.status}
                   >
-                    {updateEtransferStatusMutation.isPending ? "Mise à jour..." : "Enregistrer"}
+                    {updateEtransferStatusMutation.isPending ? "Updating..." : "Save"}
                   </Button>
                   <Button variant="outline" onClick={() => setSelectedPaymentForStatus(null)}>
-                    Annuler
+                    Cancel
                   </Button>
                 </div>
               </div>
