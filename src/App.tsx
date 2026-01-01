@@ -61,6 +61,7 @@ import AdminPromotions from "./pages/admin/AdminPromotions";
 import AdminAccounts from "./pages/admin/AdminAccounts";
 import AdminStreaming from "./pages/admin/AdminStreaming";
 import AdminSystemStatus from "./pages/admin/AdminSystemStatus";
+import AdminInternalTickets from "./pages/admin/AdminInternalTickets";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
@@ -70,6 +71,7 @@ import EmployeeTickets from "./pages/employee/EmployeeTickets";
 import EmployeeClients from "./pages/employee/EmployeeClients";
 import EmployeeInvoices from "./pages/employee/EmployeeInvoices";
 import EmployeeStreaming from "./pages/employee/EmployeeStreaming";
+import EmployeeInternalTickets from "./pages/employee/EmployeeInternalTickets";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -127,6 +129,7 @@ const App = () => (
               <Route path="/admin/accounts" element={<ProtectedRoute requireAdmin><AdminAccounts /></ProtectedRoute>} />
               <Route path="/admin/streaming" element={<ProtectedRoute requireAdmin><AdminStreaming /></ProtectedRoute>} />
               <Route path="/admin/system-status" element={<ProtectedRoute requireAdmin><AdminSystemStatus /></ProtectedRoute>} />
+              <Route path="/admin/internal-tickets" element={<ProtectedRoute requireAdmin><AdminInternalTickets /></ProtectedRoute>} />
               {/* Employee Portal Routes */}
               <Route path="/employee/login" element={<EmployeeLogin />} />
               <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
@@ -136,6 +139,7 @@ const App = () => (
               <Route path="/employee/clients" element={<EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute>} />
               <Route path="/employee/invoices" element={<EmployeeProtectedRoute><EmployeeInvoices /></EmployeeProtectedRoute>} />
               <Route path="/employee/streaming" element={<EmployeeProtectedRoute><EmployeeStreaming /></EmployeeProtectedRoute>} />
+              <Route path="/employee/internal-tickets" element={<EmployeeProtectedRoute><EmployeeInternalTickets /></EmployeeProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
