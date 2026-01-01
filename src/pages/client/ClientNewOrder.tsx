@@ -2404,179 +2404,108 @@ END:VCALENDAR`;
                   <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                 </div>
                 <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-                  Commande confirmée!
+                  Commande soumise!
                 </h2>
                 <p className="text-muted-foreground max-w-lg mx-auto">
-                  Merci pour votre commande. Vous recevrez un courriel de confirmation sous peu.
+                  Merci pour votre commande. Votre commande est en attente d'approbation par notre équipe.
                 </p>
               </CardContent>
             </Card>
 
-            {/* Order Number & Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Pending Approval Notice */}
+            <Card className="bg-amber-500/10 border-amber-500/30">
+              <CardContent className="py-4 flex items-center gap-3">
+                <Clock className="w-6 h-6 text-amber-500 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-600">Commande en attente d'approbation</p>
+                  <p className="text-sm text-muted-foreground">
+                    Notre équipe examinera votre commande et vous contactera sous peu pour confirmer les prochaines étapes.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Order Numbers & References */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="bg-card border-cyan-500/30">
                 <CardContent className="py-6 text-center">
                   <Receipt className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Numéro de commande</p>
-                  <p className="text-2xl font-mono font-bold text-cyan-500">{createdOrder?.order_number || "En cours..."}</p>
+                  <p className="text-sm text-muted-foreground">Numéro de confirmation</p>
+                  <p className="text-xl font-mono font-bold text-cyan-500">
+                    {createdOrder?.id ? `CONF-${createdOrder.id.slice(0, 8).toUpperCase()}` : "En cours..."}
+                  </p>
                 </CardContent>
               </Card>
               <Card className="bg-card border-border">
                 <CardContent className="py-6 text-center">
-                  <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Date de commande</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    {createdOrder?.created_at 
-                      ? format(new Date(createdOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })
-                      : format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                  <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Numéro de commande</p>
+                  <p className="text-xl font-mono font-bold text-foreground">
+                    {createdOrder?.order_number || "En cours..."}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardContent className="py-6 text-center">
+                  <CreditCard className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Référence de paiement</p>
+                  <p className="text-xl font-mono font-bold text-foreground">
+                  {paymentMethod === "etransfer" && etransferConfirmationNumber 
+                      ? etransferConfirmationNumber 
+                      : createdOrder?.order_number
+                        ? `PAY-${createdOrder.order_number.replace("ORD-", "")}` 
+                        : "En attente"}
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Order Details */}
+            {/* Date */}
             <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-cyan-500" />
-                  Détails de la commande
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {selectedServices.map((service) => {
-                    const CategoryIcon = categoryIcons[service.category] || Package;
-                    return (
-                      <div key={service.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${categoryColors[service.category]?.split(' ')[0] || 'bg-muted'}`}>
-                            <CategoryIcon className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{service.name}</p>
-                            <p className="text-sm text-muted-foreground">{service.category}</p>
-                          </div>
-                        </div>
-                        <p className="font-bold text-foreground">
-                          {Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                          <span className="text-xs text-muted-foreground font-normal">/mois</span>
-                        </p>
-                      </div>
-                    );
-                  })}
+              <CardContent className="py-4">
+                <div className="flex items-center justify-center gap-3">
+                  <Calendar className="w-5 h-5 text-muted-foreground" />
+                  <p className="text-muted-foreground">Date de soumission:</p>
+                  <p className="font-semibold text-foreground">
+                    {createdOrder?.created_at 
+                      ? format(new Date(createdOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })
+                      : format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Channel Summary for TV Orders in Confirmation */}
-            {hasTVService && (
-              <Card className="bg-card border-cyan-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Tv className="w-5 h-5 text-cyan-500" />
-                    Vos chaînes TV ({baseChannels.length + selectedFreeChannels.length + selectedPaidChannels.length} chaînes)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-3 bg-emerald-500/10 rounded-lg">
-                    <p className="text-sm font-medium text-emerald-500 mb-2">
-                      ✓ {baseChannels.length} chaînes de base incluses (gratuites)
-                    </p>
-                    <ScrollArea className="h-24">
-                      <div className="flex flex-wrap gap-1">
-                        {baseChannels.slice(0, 20).map(ch => (
-                          <Badge key={ch.id} variant="outline" className="text-xs bg-emerald-500/10">
-                            {ch.name}
-                          </Badge>
-                        ))}
-                        {baseChannels.length > 20 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{baseChannels.length - 20} autres
-                          </Badge>
-                        )}
+            {/* Services Summary (simplified) */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-cyan-500" />
+                  Services commandés
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {selectedServices.map((service) => {
+                  const CategoryIcon = categoryIcons[service.category] || Package;
+                  return (
+                    <div key={service.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${categoryColors[service.category]?.split(' ')[0] || 'bg-muted'}`}>
+                          <CategoryIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{service.name}</p>
+                          <p className="text-sm text-muted-foreground">{service.category}</p>
+                        </div>
                       </div>
-                    </ScrollArea>
-                  </div>
-                  
-                  {selectedFreeChannels.length > 0 && (
-                    <div className="p-3 bg-cyan-500/10 rounded-lg">
-                      <p className="text-sm font-medium text-cyan-500 mb-2">
-                        Chaînes au choix ({selectedFreeChannels.length})
+                      <p className="font-bold text-foreground">
+                        {Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        <span className="text-xs text-muted-foreground font-normal">/mois</span>
                       </p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedFreeChannels.map(ch => (
-                          <Badge key={ch.id} variant="outline" className="text-xs">
-                            {ch.name}
-                          </Badge>
-                        ))}
-                      </div>
                     </div>
-                  )}
-
-                  {selectedPaidChannels.length > 0 && (
-                    <div className="p-3 bg-amber-500/10 rounded-lg">
-                      <p className="text-sm font-medium text-amber-500 mb-2">
-                        Chaînes premium (+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois)
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedPaidChannels.map(ch => (
-                          <Badge key={ch.id} variant="outline" className="text-xs border-amber-500/50">
-                            {ch.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Appointment Details - if applicable */}
-            {(selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && selectedDate && selectedTime) && (
-              <Card className="bg-card border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-purple-500" />
-                    Rendez-vous d'installation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
-                      <Calendar className="w-5 h-5 text-purple-500" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Date</p>
-                        <p className="font-medium text-foreground">{selectedDate}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
-                      <Clock className="w-5 h-5 text-purple-500" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Heure</p>
-                        <p className="font-medium text-foreground">{selectedTime}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg">
-                      <Wrench className="w-5 h-5 text-purple-500" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Technicien</p>
-                        <p className="font-medium text-foreground">Confirmé</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <Button variant="outline" className="gap-2" onClick={generateICSFile}>
-                      <CalendarPlus className="w-4 h-4" />
-                      Ajouter à mon calendrier
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-4">
-                    <Info className="w-4 h-4 inline mr-1" />
-                    Le technicien vous contactera 30 minutes avant son arrivée. Assurez-vous qu'un adulte soit présent.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                  );
+                })}
+              </CardContent>
+            </Card>
 
             {/* Client Information */}
             <Card className="bg-card border-border">
