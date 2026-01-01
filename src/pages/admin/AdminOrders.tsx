@@ -494,8 +494,22 @@ const AdminOrders = () => {
       return { paymentReference };
     },
     onSuccess: (data, { orderId, newStatus }) => {
+      // Immediately update selectedOrder for instant UI feedback
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev: any) => prev ? {
+          ...prev,
+          payment_status: newStatus,
+          payment_reference: data?.paymentReference || prev.payment_reference,
+          processed_at: newStatus === "captured" ? new Date().toISOString() : prev.processed_at,
+          amount_paid: newStatus === "captured" ? prev.total_amount : prev.amount_paid,
+        } : prev);
+      }
+      
+      // Invalidate queries to sync with server
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-billing"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      
       const order = orders?.find((o: any) => o.id === orderId);
       logActivity("update", "order", orderId, { 
         payment_status: newStatus,
@@ -513,8 +527,12 @@ const AdminOrders = () => {
       });
       setConfirmAction(null);
     },
-    onError: () => {
-      toast({ title: "Erreur de mise à jour du paiement", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Erreur de mise à jour du paiement", 
+        description: error?.message || "Impossible de traiter le paiement",
+        variant: "destructive" 
+      });
     },
   });
 
