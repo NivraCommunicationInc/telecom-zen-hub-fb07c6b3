@@ -22,7 +22,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     ],
     support: [
       { labelKey: "nav.faq", href: "/faq" },
-      { labelKey: "nav.contact", href: "/#contact" },
       { labelKey: "nav.portal", href: "/portal/auth" },
     ],
   };

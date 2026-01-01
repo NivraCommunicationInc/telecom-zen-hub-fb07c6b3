@@ -1,65 +1,18 @@
-import { useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Calendar, Clock, CheckCircle } from "lucide-react";
+import { Calendar, Clock, CheckCircle, Phone, Mail, MapPin } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-declare global {
-  interface Window {
-    Calendly: any;
-  }
-}
-
-interface CalendlyEmbedProps {
-  url: string;
-  prefillName?: string;
-  prefillEmail?: string;
-  className?: string;
-}
-
-const CalendlyEmbed = ({ url, prefillName, prefillEmail, className }: CalendlyEmbedProps) => {
-  useEffect(() => {
-    // Load Calendly widget script
-    const script = document.createElement("script");
-    script.src = "https://assets.calendly.com/assets/external/widget.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      // Cleanup
-      const existingScript = document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-    };
-  }, []);
-
-  // Build prefill parameters
-  const prefillParams = new URLSearchParams();
-  if (prefillName) prefillParams.set("name", prefillName);
-  if (prefillEmail) prefillParams.set("email", prefillEmail);
-  
-  const fullUrl = prefillParams.toString() 
-    ? `${url}?${prefillParams.toString()}`
-    : url;
-
-  return (
-    <div
-      className={`calendly-inline-widget ${className || ""}`}
-      data-url={fullUrl}
-      style={{ minWidth: "320px", height: "700px" }}
-    />
-  );
-};
+import ContactForm from "@/components/ContactForm";
+import { Button } from "@/components/ui/button";
 
 const BookConsultation = () => {
   const { t } = useLanguage();
 
   const benefits = [
-    t('howitworks.step1.desc'),
     t('benefits.independent.desc'),
     t('benefits.simple.desc'),
     t('benefits.savings.desc'),
+    t('benefits.support.desc'),
   ];
 
   return (
@@ -74,13 +27,10 @@ const BookConsultation = () => {
             <span className="text-sm font-medium text-cyan-300">{t('cta.badge')}</span>
           </div>
           <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-6">
-            {t('booking.title')}{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-300">
-              {t('booking.title2')}
-            </span>
+            {t('contact.title')}
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            {t('booking.subtitle')}
+            {t('contact.subtitle')}
           </p>
         </div>
       </section>
@@ -97,7 +47,7 @@ const BookConsultation = () => {
                     <Calendar className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-foreground">{t('hero.cta.book')}</h3>
+                    <h3 className="font-display font-bold text-foreground">{t('contact.title')}</h3>
                     <p className="text-sm text-muted-foreground">{t('cta.badge')}</p>
                   </div>
                 </div>
@@ -111,33 +61,35 @@ const BookConsultation = () => {
                   ))}
                 </div>
 
-                <div className="border-t border-border pt-6">
-                  <h4 className="font-medium text-foreground mb-3">{t('howitworks.badge')}</h4>
-                  <ol className="space-y-3 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-3">
-                      <span className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
-                      <span>{t('howitworks.step1.title')}</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
-                      <span>{t('howitworks.step2.title')}</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
-                      <span>{t('howitworks.step3.title')}</span>
-                    </li>
-                  </ol>
+                <div className="border-t border-border pt-6 space-y-4">
+                  <h4 className="font-medium text-foreground mb-3">Nous joindre</h4>
+                  
+                  <Button variant="outline" className="w-full justify-start gap-3" asChild>
+                    <a href="tel:+14385442233">
+                      <Phone className="w-4 h-4 text-cyan-400" />
+                      <span>438-544-2233</span>
+                    </a>
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start gap-3" asChild>
+                    <a href="mailto:Nivratelecom@gmail.com">
+                      <Mail className="w-4 h-4 text-cyan-400" />
+                      <span>Nivratelecom@gmail.com</span>
+                    </a>
+                  </Button>
+                  
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                    <MapPin className="w-4 h-4 text-cyan-400" />
+                    <span>Montréal, QC - Québec seulement</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Calendly Embed */}
+            {/* Contact Form */}
             <div className="lg:col-span-2">
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <CalendlyEmbed
-                  url="https://calendly.com/nivratelecom/30min"
-                  className="w-full"
-                />
+              <div className="bg-card border border-border rounded-xl p-6 md:p-8">
+                <ContactForm />
               </div>
             </div>
           </div>

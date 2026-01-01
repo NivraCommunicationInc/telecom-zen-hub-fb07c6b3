@@ -64,15 +64,15 @@ const Benefits = () => {
             {/* Stats with 3D Effect */}
             <div className="grid grid-cols-3 gap-6">
               <div className="text-center p-4 rounded-xl bg-card/50 border border-border card-3d">
-                <div className="font-display text-3xl md:text-4xl font-bold text-accent mb-1 text-3d">90%</div>
-                <div className="text-sm text-muted-foreground">{t('benefits.stat.satisfied')}</div>
+                <div className="font-display text-3xl md:text-4xl font-bold text-accent mb-1 text-3d">30%</div>
+                <div className="text-sm text-muted-foreground">{t('benefits.stat.services')}</div>
               </div>
               <div className="text-center p-4 rounded-xl bg-card/50 border border-border card-3d">
                 <div className="font-display text-3xl md:text-4xl font-bold text-accent mb-1 text-3d">500+</div>
                 <div className="text-sm text-muted-foreground">{t('benefits.stat.clients')}</div>
               </div>
               <div className="text-center p-4 rounded-xl bg-card/50 border border-border card-3d">
-                <div className="font-display text-3xl md:text-4xl font-bold text-accent mb-1 text-3d">QC</div>
+                <div className="font-display text-3xl md:text-4xl font-bold text-accent mb-1 text-3d">24/7</div>
                 <div className="text-sm text-muted-foreground">{t('benefits.stat.quebec')}</div>
               </div>
             </div>

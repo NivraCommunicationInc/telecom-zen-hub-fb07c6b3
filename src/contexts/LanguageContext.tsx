@@ -42,9 +42,9 @@ const translations: Record<Language, Record<string, string>> = {
     'hero.subtitle': 'Nivra vend ses propres services de télécommunications au Québec. Modèle client-payeur, aucune affiliation avec les carriers, sans vérification de crédit. Pièce d\'identité gouvernementale requise.',
     'hero.cta.order': 'Commander maintenant',
     'hero.cta.services': 'Voir nos services',
-    'hero.trust.satisfied': '90% Clients satisfaits',
+    'hero.trust.services': '30% Services Nivra',
     'hero.trust.clients': '500+ Clients actifs',
-    'hero.trust.quebec': 'Au Québec',
+    'hero.trust.quebec': '24/7 Au Québec',
     
     // Services
     'services.badge': 'Nos services Nivra',
@@ -84,7 +84,7 @@ const translations: Record<Language, Record<string, string>> = {
     'benefits.simple.desc': 'Commande en ligne, pièce d\'identité requise, sans vérification de crédit.',
     'benefits.support.title': 'Support navigateur',
     'benefits.support.desc': 'Accès client et support via navigateur uniquement (aucune app mobile).',
-    'benefits.stat.satisfied': 'Clients satisfaits',
+    'benefits.stat.services': 'Services Nivra',
     'benefits.stat.clients': 'Clients actifs',
     'benefits.stat.quebec': 'Au Québec',
     
@@ -236,9 +236,9 @@ const translations: Record<Language, Record<string, string>> = {
     'hero.subtitle': 'Nivra sells its own telecommunications services in Quebec. Client-paid model, no carrier affiliation, no credit check. Government ID required.',
     'hero.cta.order': 'Order Now',
     'hero.cta.services': 'View our services',
-    'hero.trust.satisfied': '90% Satisfied Clients',
+    'hero.trust.services': '30% Nivra Services',
     'hero.trust.clients': '500+ Active Clients',
-    'hero.trust.quebec': 'In Quebec',
+    'hero.trust.quebec': '24/7 In Quebec',
     
     // Services
     'services.badge': 'Nivra Services',
@@ -278,7 +278,7 @@ const translations: Record<Language, Record<string, string>> = {
     'benefits.simple.desc': 'Order online, ID required, no credit check.',
     'benefits.support.title': 'Browser Support',
     'benefits.support.desc': 'Client access and support via browser only (no mobile app).',
-    'benefits.stat.satisfied': 'Satisfied Clients',
+    'benefits.stat.services': 'Nivra Services',
     'benefits.stat.clients': 'Active Clients',
     'benefits.stat.quebec': 'In Quebec',
     
