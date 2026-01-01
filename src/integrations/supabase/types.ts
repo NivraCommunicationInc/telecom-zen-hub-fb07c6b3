@@ -1043,10 +1043,12 @@ export type Database = {
       }
       support_tickets: {
         Row: {
+          category: string | null
           client_email: string | null
           created_at: string
           description: string
           id: string
+          internal_notes: string | null
           priority: string
           status: string
           subject: string
@@ -1055,10 +1057,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           client_email?: string | null
           created_at?: string
           description: string
           id?: string
+          internal_notes?: string | null
           priority?: string
           status?: string
           subject: string
@@ -1067,10 +1071,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           client_email?: string | null
           created_at?: string
           description?: string
           id?: string
+          internal_notes?: string | null
           priority?: string
           status?: string
           subject?: string
