@@ -369,8 +369,8 @@ serve(async (req) => {
           const { data: existingWO } = await supabase
             .from("work_orders")
             .select("id")
-            .eq("appointment_id", params.appointmentId)
-            .single();
+            .eq("linked_appointment_id", params.appointmentId)
+            .maybeSingle();
           
           if (existingWO) {
             await supabase

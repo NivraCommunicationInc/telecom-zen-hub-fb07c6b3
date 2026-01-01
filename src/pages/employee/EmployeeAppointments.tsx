@@ -507,14 +507,14 @@ const EmployeeAppointments = () => {
                     
                     <div className="space-y-4">
                       <Select 
-                        value={selectedAppointment.technician_id || ""} 
-                        onValueChange={(v) => handleAssignTechnician(v || null)}
+                        value={selectedAppointment.technician_id || "none"} 
+                        onValueChange={(v) => handleAssignTechnician(v === "none" ? null : v)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionner un technicien..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Aucun (retirer l'assignation)</SelectItem>
+                          <SelectItem value="none">Aucun (retirer l'assignation)</SelectItem>
                           {technicians.map((tech) => (
                             <SelectItem key={tech.id} value={tech.id}>
                               {tech.full_name} ({tech.email})
