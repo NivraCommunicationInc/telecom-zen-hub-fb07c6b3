@@ -1,14 +1,21 @@
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Users, CreditCard, TrendingUp, MessageSquare, Calendar, AlertTriangle, Activity, Smartphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  Package, Users, CreditCard, TrendingUp, MessageSquare, Calendar, 
+  AlertTriangle, Activity, Smartphone, Plus, FileText, UserPlus, 
+  Building2, Tag, FileSignature, CalendarPlus, Briefcase, Wrench, 
+  UserCog, Megaphone, Settings
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import PendingTVOrdersNotification from "@/components/admin/PendingTVOrdersNotification";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["admin-stats-dashboard"],
     queryFn: async () => {
@@ -195,12 +202,122 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Quick Create Actions */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-cyan-400" />
+              Créer rapidement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/10"
+                onClick={() => navigate("/admin/billing?action=new")}
+              >
+                <FileText className="w-5 h-5 text-blue-500" />
+                <span className="text-xs font-medium">Nouvelle facture</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-cyan-500 hover:bg-cyan-500/10"
+                onClick={() => navigate("/admin/orders?action=new")}
+              >
+                <Package className="w-5 h-5 text-cyan-500" />
+                <span className="text-xs font-medium">Nouvelle commande</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-emerald-500 hover:bg-emerald-500/10"
+                onClick={() => navigate("/admin/clients?action=new")}
+              >
+                <UserPlus className="w-5 h-5 text-emerald-500" />
+                <span className="text-xs font-medium">Nouveau client</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-violet-500 hover:bg-violet-500/10"
+                onClick={() => navigate("/admin/accounts?action=new")}
+              >
+                <Building2 className="w-5 h-5 text-violet-500" />
+                <span className="text-xs font-medium">Nouveau compte</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-amber-500 hover:bg-amber-500/10"
+                onClick={() => navigate("/admin/services?action=new")}
+              >
+                <Settings className="w-5 h-5 text-amber-500" />
+                <span className="text-xs font-medium">Nouveau service</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-pink-500 hover:bg-pink-500/10"
+                onClick={() => navigate("/admin/promotions?action=new")}
+              >
+                <Tag className="w-5 h-5 text-pink-500" />
+                <span className="text-xs font-medium">Nouvelle promotion</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-indigo-500 hover:bg-indigo-500/10"
+                onClick={() => navigate("/admin/contracts?action=new")}
+              >
+                <FileSignature className="w-5 h-5 text-indigo-500" />
+                <span className="text-xs font-medium">Nouveau contrat</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-teal-500 hover:bg-teal-500/10"
+                onClick={() => navigate("/admin/appointments?action=new")}
+              >
+                <CalendarPlus className="w-5 h-5 text-teal-500" />
+                <span className="text-xs font-medium">Nouveau rendez-vous</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-orange-500 hover:bg-orange-500/10"
+                onClick={() => navigate("/admin/careers?action=new")}
+              >
+                <Briefcase className="w-5 h-5 text-orange-500" />
+                <span className="text-xs font-medium">Ajouter un poste</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-red-500 hover:bg-red-500/10"
+                onClick={() => navigate("/admin/technicians?action=new")}
+              >
+                <Wrench className="w-5 h-5 text-red-500" />
+                <span className="text-xs font-medium">Nouveau technicien</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-sky-500 hover:bg-sky-500/10"
+                onClick={() => navigate("/admin/employees?action=new")}
+              >
+                <UserCog className="w-5 h-5 text-sky-500" />
+                <span className="text-xs font-medium">Nouvel employé</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2 hover:border-yellow-500 hover:bg-yellow-500/10"
+                onClick={() => navigate("/admin/system-status?action=new")}
+              >
+                <Megaphone className="w-5 h-5 text-yellow-500" />
+                <span className="text-xs font-medium">Nouvelle annonce</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Navigation */}
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-cyan-400" />
-              Actions rapides
+              Navigation rapide
             </CardTitle>
           </CardHeader>
           <CardContent>

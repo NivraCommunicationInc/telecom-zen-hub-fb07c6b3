@@ -19,13 +19,9 @@ import {
   FileBarChart,
   CalendarPlus,
   TicketPlus,
+  Building2,
+  FileSignature,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -93,35 +89,63 @@ const EmployeeDashboard = () => {
 
   const permissions = session?.permissions || {};
 
-  // Quick Actions for employees
+  // Quick Actions for employees - based on permissions
   const quickActions = [
+    {
+      label: "Nouvelle facture",
+      icon: FileBarChart,
+      action: () => navigate("/employee/invoices?action=new"),
+      enabled: permissions.can_generate_invoices,
+      color: "hover:border-blue-500 hover:bg-blue-500/10",
+      iconColor: "text-blue-500",
+    },
     {
       label: "Nouvelle commande",
       icon: Package,
       action: () => navigate("/employee/orders?action=new"),
       enabled: permissions.can_edit_orders,
-      color: "bg-blue-500 hover:bg-blue-600",
+      color: "hover:border-cyan-500 hover:bg-cyan-500/10",
+      iconColor: "text-cyan-500",
+    },
+    {
+      label: "Nouveau client",
+      icon: UserPlus,
+      action: () => navigate("/employee/clients?action=new"),
+      enabled: permissions.can_edit_clients,
+      color: "hover:border-emerald-500 hover:bg-emerald-500/10",
+      iconColor: "text-emerald-500",
+    },
+    {
+      label: "Nouveau compte",
+      icon: Building2,
+      action: () => navigate("/employee/clients?action=new-account"),
+      enabled: permissions.can_edit_clients,
+      color: "hover:border-violet-500 hover:bg-violet-500/10",
+      iconColor: "text-violet-500",
+    },
+    {
+      label: "Nouveau contrat",
+      icon: FileSignature,
+      action: () => navigate("/employee/clients?action=new-contract"),
+      enabled: permissions.can_edit_clients,
+      color: "hover:border-indigo-500 hover:bg-indigo-500/10",
+      iconColor: "text-indigo-500",
     },
     {
       label: "Nouveau rendez-vous",
       icon: CalendarPlus,
       action: () => navigate("/employee/appointments?action=new"),
       enabled: permissions.can_edit_appointments,
-      color: "bg-cyan-500 hover:bg-cyan-600",
+      color: "hover:border-teal-500 hover:bg-teal-500/10",
+      iconColor: "text-teal-500",
     },
     {
       label: "Nouveau ticket",
       icon: TicketPlus,
       action: () => navigate("/employee/tickets?action=new"),
       enabled: permissions.can_edit_tickets,
-      color: "bg-amber-500 hover:bg-amber-600",
-    },
-    {
-      label: "Nouvelle facture",
-      icon: FileBarChart,
-      action: () => navigate("/employee/invoices?action=new"),
-      enabled: permissions.can_generate_invoices,
-      color: "bg-purple-500 hover:bg-purple-600",
+      color: "hover:border-amber-500 hover:bg-amber-500/10",
+      iconColor: "text-amber-500",
     },
   ];
 
@@ -240,21 +264,29 @@ const EmployeeDashboard = () => {
 
         {/* Quick Actions */}
         {quickActions.some(a => a.enabled) && (
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">Actions rapides</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {quickActions.filter(a => a.enabled).map((action) => (
-                <Button
-                  key={action.label}
-                  onClick={action.action}
-                  className={`${action.color} text-white h-auto py-3 flex flex-col items-center gap-2`}
-                >
-                  <action.icon className="w-5 h-5" />
-                  <span className="text-xs font-medium">{action.label}</span>
-                </Button>
-              ))}
-            </div>
-          </div>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Plus className="w-4 h-4 text-primary" />
+                Créer rapidement
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {quickActions.filter(a => a.enabled).map((action) => (
+                  <Button
+                    key={action.label}
+                    variant="outline"
+                    onClick={action.action}
+                    className={`h-auto py-4 flex flex-col items-center gap-2 ${action.color}`}
+                  >
+                    <action.icon className={`w-5 h-5 ${action.iconColor}`} />
+                    <span className="text-xs font-medium">{action.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Quick Stats */}
