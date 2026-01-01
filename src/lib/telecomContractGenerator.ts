@@ -668,10 +668,14 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   return doc;
 };
 
+import { safePDFDownload, safePDFOpen } from "./pdfUtils";
+
 export const downloadTelecomContractPDF = (data: TelecomContractData): void => {
   try {
     const doc = generateTelecomContractPDF(data);
-    doc.save(`CSA-${data.contractNumber}.pdf`);
+    const blob = doc.output("blob");
+    const filename = `CSA-${data.contractNumber}.pdf`;
+    safePDFDownload(blob, filename);
   } catch (error) {
     console.error("Error generating PDF:", error);
     throw new Error("Failed to generate contract PDF");
@@ -682,8 +686,8 @@ export const viewTelecomContractPDF = (data: TelecomContractData): void => {
   try {
     const doc = generateTelecomContractPDF(data);
     const blob = doc.output("blob");
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+    const filename = `CSA-${data.contractNumber}.pdf`;
+    safePDFOpen(blob, filename);
   } catch (error) {
     console.error("Error viewing PDF:", error);
     throw new Error("Failed to open contract PDF");

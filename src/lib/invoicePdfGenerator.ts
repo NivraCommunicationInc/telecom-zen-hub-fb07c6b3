@@ -378,14 +378,38 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   return doc;
 };
 
-export const downloadInvoicePDF = (data: InvoiceData) => {
-  const doc = generateInvoicePDF(data);
-  doc.save(`Facture_${data.invoiceNumber}_${data.clientName.replace(/\s+/g, "_")}.pdf`);
+import { safePDFDownload, safePDFOpen } from "./pdfUtils";
+
+export const downloadInvoicePDF = (data: InvoiceData): void => {
+  try {
+    const doc = generateInvoicePDF(data);
+    const blob = doc.output("blob");
+    const filename = `Facture_${data.invoiceNumber}_${data.clientName.replace(/\s+/g, "_")}.pdf`;
+    safePDFDownload(blob, filename);
+  } catch (error) {
+    console.error("Error generating invoice PDF:", error);
+    throw new Error("Failed to generate invoice PDF");
+  }
 };
 
-export const viewInvoicePDF = (data: InvoiceData) => {
-  const doc = generateInvoicePDF(data);
-  const pdfBlob = doc.output("blob");
-  const url = URL.createObjectURL(pdfBlob);
-  window.open(url, "_blank");
+export const viewInvoicePDF = (data: InvoiceData): void => {
+  try {
+    const doc = generateInvoicePDF(data);
+    const blob = doc.output("blob");
+    const filename = `Facture_${data.invoiceNumber}.pdf`;
+    safePDFOpen(blob, filename);
+  } catch (error) {
+    console.error("Error viewing invoice PDF:", error);
+    throw new Error("Failed to open invoice PDF");
+  }
+};
+
+export const getInvoicePDFBlob = (data: InvoiceData): Blob => {
+  try {
+    const doc = generateInvoicePDF(data);
+    return doc.output("blob");
+  } catch (error) {
+    console.error("Error creating invoice PDF blob:", error);
+    throw new Error("Failed to create invoice PDF");
+  }
 };

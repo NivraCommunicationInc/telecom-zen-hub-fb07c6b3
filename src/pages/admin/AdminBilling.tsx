@@ -488,7 +488,7 @@ const AdminBilling = () => {
         .from("profiles")
         .select("balance, store_credit")
         .eq("user_id", paymentBill.user_id)
-        .single();
+        .maybeSingle();
 
       const currentBalance = Number(clientProfile?.balance || 0);
       const currentCredit = Number(clientProfile?.store_credit || 0);
@@ -879,11 +879,21 @@ const AdminBilling = () => {
       </html>
     `;
 
-    const printWindow = window.open("", "_blank");
+    // Use a safer approach for printing HTML content
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
     if (printWindow) {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      printWindow.onload = () => printWindow.print();
+      printWindow.onload = () => {
+        try {
+          printWindow.print();
+        } catch (e) {
+          console.error("Print error:", e);
+        }
+      };
+    } else {
+      toast({ title: "Fenêtre bloquée", description: "Autorisez les popups pour imprimer", variant: "destructive" });
+      return;
     }
     toast({ title: "Facture PDF prête" });
   };
