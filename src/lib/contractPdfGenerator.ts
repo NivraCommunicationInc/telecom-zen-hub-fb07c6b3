@@ -513,3 +513,10 @@ export const downloadContractPDF = (data: ContractData) => {
   const doc = generateContractPDF(data);
   doc.save(`Contrat_${data.contractNumber}_${data.clientName.replace(/\s+/g, '_')}.pdf`);
 };
+
+export const viewContractPDF = (data: ContractData) => {
+  const doc = generateContractPDF(data);
+  const pdfBlob = doc.output("blob");
+  const url = URL.createObjectURL(pdfBlob);
+  window.open(url, "_blank");
+};

@@ -21,7 +21,7 @@ import {
   DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle,
   Router, Monitor, Smartphone, Shield, CheckCircle, XCircle, AlertTriangle,
   Phone, MapPin, User, IdCard, Wrench, Hash, Download, Edit, History,
-  ExternalLink, Tv, Wifi, Save, RefreshCw
+  ExternalLink, Tv, Wifi, Save, RefreshCw, Printer, FilePlus, Receipt
 } from "lucide-react";
 import {
   Select,
@@ -38,6 +38,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { downloadInvoicePDF, viewInvoicePDF } from "@/lib/invoicePdfGenerator";
+import { downloadContractPDF, viewContractPDF } from "@/lib/contractPdfGenerator";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -85,6 +87,10 @@ const AdminClients = () => {
   const [deleteDocumentReason, setDeleteDocumentReason] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<any>(null);
+  const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [equipmentEditOpen, setEquipmentEditOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
   const [newClient, setNewClient] = useState({
     email: "",
     password: "",
@@ -529,6 +535,115 @@ const AdminClients = () => {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
     },
   });
+
+  // Approve payment and update client balance
+  const approvePaymentMutation = useMutation({
+    mutationFn: async ({ paymentId, amount }: { paymentId: string; amount: number }) => {
+      // Update payment status
+      const { error: paymentError } = await supabase
+        .from("payments")
+        .update({ status: "completed" })
+        .eq("id", paymentId);
+      if (paymentError) throw paymentError;
+
+      // Update client balance (reduce it by payment amount)
+      if (selectedClient?.id) {
+        const currentBalance = Number(selectedClient.balance || 0);
+        const newBalance = Math.max(0, currentBalance - amount);
+        const { error: balanceError } = await supabase
+          .from("profiles")
+          .update({ balance: newBalance })
+          .eq("id", selectedClient.id);
+        if (balanceError) throw balanceError;
+        return { newBalance, amount };
+      }
+      return { newBalance: 0, amount };
+    },
+    onSuccess: ({ newBalance, amount }) => {
+      refetchPayments();
+      refetchActivityLogs();
+      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      setSelectedClient((prev: any) => prev ? { ...prev, balance: newBalance } : prev);
+      logActivity("approve_payment", "payment", selectedPayment?.id, { 
+        amount, 
+        payment_reference: selectedPayment?.reference_number 
+      }, {
+        changedField: "balance",
+        oldValue: String(selectedClient?.balance || 0),
+        newValue: String(newBalance),
+        reason: `Paiement approuvé: ${amount.toFixed(2)} $`
+      });
+      toast({ title: "Paiement approuvé", description: `Le solde client a été réduit de ${amount.toFixed(2)} $` });
+      setPaymentDetailsOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de l'approbation", variant: "destructive" });
+    },
+  });
+
+  // Generate invoice from order
+  const handleGenerateInvoice = (order: any) => {
+    if (!selectedClient) return;
+    
+    const invoiceData = {
+      invoiceNumber: `INV-${Date.now().toString().slice(-8)}`,
+      orderNumber: order.order_number,
+      paymentReference: order.payment_reference,
+      clientNumber: selectedClient.client_number,
+      clientName: selectedClient.full_name || selectedClient.email,
+      clientEmail: selectedClient.email,
+      clientPhone: selectedClient.phone,
+      subtotal: order.subtotal || 0,
+      deliveryFee: order.delivery_fee || 0,
+      activationFee: order.activation_fee || 0,
+      installationFee: order.installation_fee || 0,
+      terminalFee: order.terminal_fee || 0,
+      routerFee: order.router_fee || 0,
+      discountAmount: order.discount_amount || 0,
+      tpsAmount: order.tps_amount || 0,
+      tvqAmount: order.tvq_amount || 0,
+      lateFeeAmount: order.late_fee_amount || 0,
+      credits: order.credits_applied || 0,
+      createdAt: order.created_at,
+      status: order.payment_status || "pending",
+      serviceDescription: order.service_type,
+      equipmentId: order.equipment_id,
+    };
+    
+    viewInvoicePDF(invoiceData);
+    logActivity("generate_invoice", "order", order.id, { order_number: order.order_number }, {
+      changedField: "invoice",
+      reason: "Facture PDF générée"
+    });
+  };
+
+  // Generate contract from order
+  const handleGenerateContract = (order: any) => {
+    if (!selectedClient) return;
+    
+    const contractData = {
+      contractNumber: `CTR-${Date.now().toString().slice(-8)}`,
+      contractName: `Contrat ${order.service_type}`,
+      clientName: selectedClient.full_name || selectedClient.email,
+      clientEmail: selectedClient.email,
+      clientPhone: selectedClient.phone,
+      clientAddress: `${selectedClient.service_address || ""}, ${selectedClient.service_city || ""}, ${selectedClient.service_province || "QC"} ${selectedClient.service_postal_code || ""}`.trim(),
+      serviceDescription: order.service_type,
+      monthlyAmount: order.subtotal || 0,
+      totalAmount: order.total_amount || 0,
+      startDate: order.created_at,
+      durationMonths: 12,
+      employeeName: "Nivra Télécom",
+      employeeTitle: "Service Client",
+      isSigned: false,
+    };
+    
+    viewContractPDF(contractData);
+    logActivity("generate_contract", "order", order.id, { order_number: order.order_number }, {
+      changedField: "contract",
+      reason: "Contrat PDF généré"
+    });
+  };
 
   const handleViewDetails = (client: any) => {
     setSelectedClient({ ...client, sector_tags: client.sector_tags || [] });
@@ -1205,12 +1320,17 @@ const AdminClients = () => {
                               <div key={order.id} className="p-4 border border-border rounded-lg">
                                 <div className="flex items-center justify-between mb-3">
                                   <span className="text-sm text-muted-foreground">Commande: {order.order_number}</span>
-                                  <Badge className={statusColors[order.status] || statusColors.pending}>{order.status}</Badge>
+                                  <div className="flex items-center gap-2">
+                                    <Badge className={statusColors[order.status] || statusColors.pending}>{order.status}</Badge>
+                                    <Button size="sm" variant="ghost" onClick={() => handleViewOrder(order)}>
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 </div>
                                 
                                 {/* Nivra Born Wifi Router */}
                                 {(order.service_type?.toLowerCase().includes("internet") || order.service_type?.toLowerCase().includes("tv")) && (
-                                  <div className="p-3 bg-muted/50 rounded-lg mb-2">
+                                  <div className="p-3 bg-muted/50 rounded-lg mb-2 hover:bg-muted/70 cursor-pointer" onClick={() => handleViewOrder(order)}>
                                     <div className="flex items-center gap-3">
                                       <Router className="w-5 h-5 text-cyan-500" />
                                       <div className="flex-1">
@@ -1224,6 +1344,9 @@ const AdminClients = () => {
                                             <p className="text-xs text-muted-foreground">
                                               Garantie: {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })} - {format(addYears(new Date(order.created_at), 1), "d MMM yyyy", { locale: fr })}
                                             </p>
+                                            <Badge variant="outline" className={new Date() > addYears(new Date(order.created_at), 1) ? "text-red-500 border-red-500/30" : "text-emerald-500 border-emerald-500/30"}>
+                                              {new Date() > addYears(new Date(order.created_at), 1) ? "Expiré" : "Valide"}
+                                            </Badge>
                                           </>
                                         ) : (
                                           <Badge variant="outline" className="text-xs">Non assigné</Badge>
@@ -1235,7 +1358,7 @@ const AdminClients = () => {
                                 
                                 {/* Nivra 4K Smart Terminal */}
                                 {order.service_type?.toLowerCase().includes("tv") && (
-                                  <div className="p-3 bg-muted/50 rounded-lg mb-2">
+                                  <div className="p-3 bg-muted/50 rounded-lg mb-2 hover:bg-muted/70 cursor-pointer" onClick={() => handleViewOrder(order)}>
                                     <div className="flex items-center gap-3">
                                       <Monitor className="w-5 h-5 text-purple-500" />
                                       <div className="flex-1">
@@ -1250,6 +1373,9 @@ const AdminClients = () => {
                                             <p className="text-xs text-muted-foreground">
                                               Garantie: {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })} - {format(addYears(new Date(order.created_at), 1), "d MMM yyyy", { locale: fr })}
                                             </p>
+                                            <Badge variant="outline" className={new Date() > addYears(new Date(order.created_at), 1) ? "text-red-500 border-red-500/30" : "text-emerald-500 border-emerald-500/30"}>
+                                              {new Date() > addYears(new Date(order.created_at), 1) ? "Expiré" : "Valide"}
+                                            </Badge>
                                           </>
                                         ) : (
                                           <Badge variant="outline" className="text-xs">Non assigné</Badge>
@@ -1261,7 +1387,7 @@ const AdminClients = () => {
                                 
                                 {/* SIM for Mobile */}
                                 {order.service_type?.toLowerCase().includes("mobile") && (
-                                  <div className="p-3 bg-muted/50 rounded-lg">
+                                  <div className="p-3 bg-muted/50 rounded-lg hover:bg-muted/70 cursor-pointer" onClick={() => handleViewOrder(order)}>
                                     <div className="flex items-center gap-3">
                                       <Smartphone className="w-5 h-5 text-blue-500" />
                                       <div className="flex-1">
@@ -1284,6 +1410,29 @@ const AdminClients = () => {
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Report Equipment Issue Button */}
+                                <div className="mt-3 pt-3 border-t border-border/50">
+                                  <Button size="sm" variant="outline" className="text-amber-500 border-amber-500/30" onClick={() => {
+                                    const equipment = prompt("Équipement concerné? (Router, Terminal, SIM)");
+                                    const issue = prompt("Type d'incident? (Défaut, Volé, Non retourné, Fin de vie)");
+                                    if (equipment && issue) {
+                                      logActivity("incident_equipment", "order", order.id, { 
+                                        order_number: order.order_number,
+                                        equipment, 
+                                        issue 
+                                      }, {
+                                        changedField: "equipment_incident",
+                                        reason: `${equipment}: ${issue}`
+                                      });
+                                      refetchActivityLogs();
+                                      toast({ title: "Incident enregistré", description: `${equipment} - ${issue}` });
+                                    }
+                                  }}>
+                                    <AlertTriangle className="w-4 h-4 mr-1" />
+                                    Signaler incident
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1335,6 +1484,23 @@ const AdminClients = () => {
 
                   {/* Payments Tab */}
                   <TabsContent value="payments" className="space-y-4 pr-4">
+                    {/* Credits Display */}
+                    {(Number(selectedClient?.store_credit || 0) > 0 || Number(selectedClient?.balance || 0) > 0) && (
+                      <div className="p-4 bg-muted/50 rounded-lg border border-border mb-4">
+                        <Label className="text-sm font-medium mb-2 block">État du compte avant nouveau paiement</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Solde dû</p>
+                            <p className="font-bold text-lg text-amber-500">{Number(selectedClient?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Crédit disponible</p>
+                            <p className="font-bold text-lg text-emerald-500">{Number(selectedClient?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Payment History */}
                     <Card className="bg-card border-border">
                       <CardHeader>
@@ -1347,7 +1513,7 @@ const AdminClients = () => {
                         {clientPayments && clientPayments.length > 0 ? (
                           <div className="space-y-3">
                             {clientPayments.map((payment: any) => (
-                              <div key={payment.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                              <div key={payment.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/30 cursor-pointer" onClick={() => { setSelectedPayment(payment); setPaymentDetailsOpen(true); }}>
                                 <div className="flex items-center gap-4">
                                   <DollarSign className="w-8 h-8 text-emerald-400" />
                                   <div>
@@ -1356,11 +1522,16 @@ const AdminClients = () => {
                                     <p className="text-xs text-muted-foreground">{payment.payment_method} {payment.card_last_four && `•••• ${payment.card_last_four}`}</p>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <span className="font-bold text-lg text-emerald-500">{Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                                  <Badge className={statusColors[payment.status] || "bg-emerald-500/20 text-emerald-400"}>
-                                    {payment.status === "completed" ? "Complété" : payment.status}
-                                  </Badge>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <span className="font-bold text-lg text-emerald-500">{Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                    <Badge className={statusColors[payment.status] || "bg-emerald-500/20 text-emerald-400"}>
+                                      {payment.status === "completed" ? "Complété" : payment.status === "pending" ? "En attente" : payment.status}
+                                    </Badge>
+                                  </div>
+                                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setSelectedPayment(payment); setPaymentDetailsOpen(true); }}>
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </div>
                             ))}
@@ -1692,7 +1863,7 @@ const AdminClients = () => {
 
         {/* Order Details Dialog */}
         <Dialog open={orderDetailsOpen} onOpenChange={setOrderDetailsOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-cyan-400" />
@@ -1701,6 +1872,78 @@ const AdminClients = () => {
             </DialogHeader>
             {selectedOrder && (
               <div className="space-y-4">
+                {/* Order Info Header */}
+                <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Service</Label>
+                      <p className="font-medium">{selectedOrder.service_type}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Date de commande</Label>
+                      <p className="font-medium">{format(new Date(selectedOrder.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Créé par</Label>
+                      <p className="font-medium">{selectedOrder.created_by === 'admin' ? 'Admin' : 'Client'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ID Verification Status */}
+                <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                  <Label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                    <IdCard className="w-4 h-4 text-cyan-400" />
+                    Vérification d'identité
+                  </Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Statut</Label>
+                      <Badge className={
+                        selectedOrder.id_verification_status === 'approved' ? "bg-emerald-500/20 text-emerald-400" :
+                        selectedOrder.id_verification_status === 'rejected' ? "bg-red-500/20 text-red-400" :
+                        "bg-amber-500/20 text-amber-400"
+                      }>
+                        {selectedOrder.id_verification_status === 'approved' ? 'Approuvé' : 
+                         selectedOrder.id_verification_status === 'rejected' ? 'Rejeté' : 'En attente'}
+                      </Badge>
+                    </div>
+                    {selectedOrder.id_verified_at && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Vérifié le</Label>
+                        <p className="text-sm">{format(new Date(selectedOrder.id_verified_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedOrder.id_verification_notes && (
+                    <div className="mt-2">
+                      <Label className="text-xs text-muted-foreground">Notes de vérification</Label>
+                      <p className="text-sm text-muted-foreground">{selectedOrder.id_verification_notes}</p>
+                    </div>
+                  )}
+                  {/* Client ID Details from Profile */}
+                  {selectedClient && (
+                    <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-4 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <p>{selectedClient.id_type === 'driver_license' ? 'Permis' : selectedClient.id_type === 'health_card' ? 'RAMQ' : selectedClient.id_type === 'passport' ? 'Passeport' : selectedClient.id_type || '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Numéro:</span>
+                        <p>{selectedClient.id_number || '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Province:</span>
+                        <p>{selectedClient.id_province || 'QC'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Expiration:</span>
+                        <p>{selectedClient.id_expiration ? format(new Date(selectedClient.id_expiration), "d MMM yyyy", { locale: fr }) : '—'}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Statut</Label>
@@ -1785,6 +2028,18 @@ const AdminClients = () => {
                     {selectedOrder.late_fee_amount > 0 && <div className="flex justify-between text-red-500"><span>Frais retard (5%):</span><span>{Number(selectedOrder.late_fee_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>}
                     <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span>{Number(selectedOrder.total_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
                   </div>
+                </div>
+
+                {/* PDF Generation Buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => handleGenerateInvoice(selectedOrder)}>
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Générer Facture PDF
+                  </Button>
+                  <Button variant="outline" onClick={() => handleGenerateContract(selectedOrder)}>
+                    <FilePlus className="w-4 h-4 mr-2" />
+                    Générer Contrat PDF
+                  </Button>
                 </div>
 
                 <Button className="w-full" onClick={() => { updateOrderMutation.mutate(selectedOrder); setOrderDetailsOpen(false); }}>
@@ -1882,6 +2137,96 @@ const AdminClients = () => {
                 </Button>
               </DialogFooter>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Details Dialog */}
+        <Dialog open={paymentDetailsOpen} onOpenChange={setPaymentDetailsOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-400" />
+                Détails du paiement
+              </DialogTitle>
+            </DialogHeader>
+            {selectedPayment && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Référence</Label>
+                      <p className="font-bold text-cyan-500">{selectedPayment.payment_reference || selectedPayment.reference_number}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Montant</Label>
+                      <p className="font-bold text-2xl text-emerald-500">{Number(selectedPayment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Date</Label>
+                      <p className="font-medium">{format(new Date(selectedPayment.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Méthode</Label>
+                      <p className="font-medium">{selectedPayment.payment_method} {selectedPayment.card_last_four && `•••• ${selectedPayment.card_last_four}`}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Statut</Label>
+                      <Badge className={statusColors[selectedPayment.status] || "bg-amber-500/20 text-amber-400"}>
+                        {selectedPayment.status === "completed" ? "Complété" : selectedPayment.status === "pending" ? "En attente" : selectedPayment.status}
+                      </Badge>
+                    </div>
+                    {selectedPayment.received_by && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Reçu par</Label>
+                        <p className="font-medium">{selectedPayment.received_by}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectedPayment.notes && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Notes</Label>
+                    <p className="text-sm text-muted-foreground">{selectedPayment.notes}</p>
+                  </div>
+                )}
+
+                {/* Client Balance Impact */}
+                <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                  <Label className="text-sm font-medium mb-2 block">Impact sur le solde client</Label>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Solde actuel:</span>
+                      <p className="font-bold text-amber-500">{Number(selectedClient?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Après approbation:</span>
+                      <p className="font-bold text-emerald-500">{Math.max(0, Number(selectedClient?.balance || 0) - Number(selectedPayment.amount)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedPayment.status !== "completed" && (
+                  <Button 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700" 
+                    onClick={() => approvePaymentMutation.mutate({ 
+                      paymentId: selectedPayment.id, 
+                      amount: Number(selectedPayment.amount) 
+                    })}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Approuver et mettre à jour le solde
+                  </Button>
+                )}
+
+                {selectedPayment.status === "completed" && (
+                  <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30 text-center">
+                    <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="font-medium text-emerald-500">Ce paiement a été approuvé</p>
+                  </div>
+                )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
