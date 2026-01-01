@@ -17,7 +17,9 @@ import {
   UserPlus,
   Ticket,
   Tv,
-  Wrench
+  Wrench,
+  UserCog,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,6 +45,7 @@ const navItems = [
   { icon: UserPlus, label: "Candidatures", href: "/admin/applications" },
   { icon: Activity, label: "Activité", href: "/admin/activity" },
   { icon: Wrench, label: "Techniciens", href: "/admin/technicians" },
+  { icon: UserCog, label: "Employés", href: "/admin/employees" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
@@ -87,8 +90,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-border">
-          <div className="mb-4 px-4">
+        <div className="p-4 border-t border-border space-y-3">
+          <div className="px-4">
             <p className="text-xs text-muted-foreground">Connecté en tant que</p>
             <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
           </div>
@@ -100,6 +103,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <LogOut className="w-5 h-5" />
             Déconnexion
           </Button>
+          <Link
+            to="/employee/login"
+            className="flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Portail Employé
+          </Link>
         </div>
       </aside>
 
@@ -148,6 +158,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               <LogOut className="w-5 h-5" />
               Déconnexion
             </Button>
+            <Link
+              to="/employee/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-4 py-2 mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Portail Employé
+            </Link>
           </div>
         )}
       </div>
