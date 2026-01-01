@@ -521,6 +521,103 @@ export type Database = {
         }
         Relationships: []
       }
+      fulfillment_snapshots: {
+        Row: {
+          created_at: string
+          delivery_fee: number | null
+          delivery_method: string | null
+          equipment_ids: Json | null
+          id: string
+          installation_fee: number | null
+          installation_selected: boolean | null
+          invoice_id: string | null
+          invoice_number: string | null
+          order_id: string
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          technician_eta: string | null
+          technician_id: string | null
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+          updated_by_id: string | null
+          updated_by_name: string | null
+          updated_by_role: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          delivery_fee?: number | null
+          delivery_method?: string | null
+          equipment_ids?: Json | null
+          id?: string
+          installation_fee?: number | null
+          installation_selected?: boolean | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          order_id: string
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          technician_eta?: string | null
+          technician_id?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          delivery_fee?: number | null
+          delivery_method?: string | null
+          equipment_ids?: Json | null
+          id?: string
+          installation_fee?: number | null
+          installation_selected?: boolean | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          order_id?: string
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          technician_eta?: string | null
+          technician_id?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fulfillment_snapshots_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_snapshots_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_applications: {
         Row: {
           created_at: string
@@ -661,9 +758,133 @@ export type Database = {
           },
         ]
       }
+      order_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          file_name: string | null
+          file_size: number | null
+          fulfillment_snapshot_id: string | null
+          generated_at: string
+          generated_by: string | null
+          generated_by_role: string | null
+          id: string
+          order_id: string
+          order_snapshot_id: string | null
+          pdf_url: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          file_name?: string | null
+          file_size?: number | null
+          fulfillment_snapshot_id?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          generated_by_role?: string | null
+          id?: string
+          order_id: string
+          order_snapshot_id?: string | null
+          pdf_url?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          file_name?: string | null
+          file_size?: number | null
+          fulfillment_snapshot_id?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          generated_by_role?: string | null
+          id?: string
+          order_id?: string
+          order_snapshot_id?: string | null
+          pdf_url?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_documents_fulfillment_snapshot_id_fkey"
+            columns: ["fulfillment_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "fulfillment_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_documents_order_snapshot_id_fkey"
+            columns: ["order_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "order_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_snapshots: {
+        Row: {
+          accepted_at: string
+          accepted_ip: string | null
+          accepted_method: string | null
+          billing_snapshot: Json
+          client_snapshot: Json
+          created_at: string
+          equipment_snapshot: Json
+          fees_snapshot: Json
+          id: string
+          order_id: string
+          services_snapshot: Json
+          version: number
+        }
+        Insert: {
+          accepted_at?: string
+          accepted_ip?: string | null
+          accepted_method?: string | null
+          billing_snapshot?: Json
+          client_snapshot?: Json
+          created_at?: string
+          equipment_snapshot?: Json
+          fees_snapshot?: Json
+          id?: string
+          order_id: string
+          services_snapshot?: Json
+          version?: number
+        }
+        Update: {
+          accepted_at?: string
+          accepted_ip?: string | null
+          accepted_method?: string | null
+          billing_snapshot?: Json
+          client_snapshot?: Json
+          created_at?: string
+          equipment_snapshot?: Json
+          fees_snapshot?: Json
+          id?: string
+          order_id?: string
+          services_snapshot?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           activation_fee: number | null
+          agreement_version: number | null
           amount_paid: number | null
           appointment_date: string | null
           appointment_notes: string | null
@@ -672,10 +893,12 @@ export type Database = {
           channel_assigned_by: string | null
           channel_selection_locked: boolean | null
           client_email: string | null
+          confirmation_number: string | null
           created_at: string
           created_by: string | null
           credits_applied: number | null
           delivery_fee: number | null
+          delivery_method: string | null
           discount_amount: number | null
           discount_code: string | null
           equipment_details: Json | null
@@ -726,6 +949,7 @@ export type Database = {
         }
         Insert: {
           activation_fee?: number | null
+          agreement_version?: number | null
           amount_paid?: number | null
           appointment_date?: string | null
           appointment_notes?: string | null
@@ -734,10 +958,12 @@ export type Database = {
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
           client_email?: string | null
+          confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
           credits_applied?: number | null
           delivery_fee?: number | null
+          delivery_method?: string | null
           discount_amount?: number | null
           discount_code?: string | null
           equipment_details?: Json | null
@@ -788,6 +1014,7 @@ export type Database = {
         }
         Update: {
           activation_fee?: number | null
+          agreement_version?: number | null
           amount_paid?: number | null
           appointment_date?: string | null
           appointment_notes?: string | null
@@ -796,10 +1023,12 @@ export type Database = {
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
           client_email?: string | null
+          confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
           credits_applied?: number | null
           delivery_fee?: number | null
+          delivery_method?: string | null
           discount_amount?: number | null
           discount_code?: string | null
           equipment_details?: Json | null
@@ -1649,6 +1878,7 @@ export type Database = {
     Functions: {
       generate_appointment_number: { Args: never; Returns: string }
       generate_client_number: { Args: never; Returns: string }
+      generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
