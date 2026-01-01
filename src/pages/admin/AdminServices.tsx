@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { 
   Settings, Plus, Pencil, Trash2, Wifi, Tv, Smartphone, Shield, 
   Package, Router, CreditCard, Truck, FileCheck, Search, RefreshCw,
-  ChevronDown, ChevronRight, Info
+  ChevronDown, ChevronRight, Info, Eye, EyeOff, Clock, Zap,
+  CheckCircle2, XCircle, AlertTriangle, Archive, Star
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -30,12 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   Collapsible,
   CollapsibleContent,
@@ -52,6 +48,19 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 const categories = [
   "Internet",
@@ -80,7 +89,7 @@ const categoryColors: Record<string, string> = {
   "Équipement": "bg-blue-500/20 text-blue-400 border-blue-500/30",
 };
 
-// Official service catalogue
+// Official service catalogue with expanded plan details
 const officialCatalogue = [
   // Internet Plans
   {
@@ -89,6 +98,13 @@ const officialCatalogue = [
     price: 55,
     description: "Download up to 100 Mbps, Unlimited data, Nivra Born Wifi Router included, 7/7 tech support",
     billing_type: "monthly",
+    plan_details: {
+      speed: "100 Mbps download",
+      data: "Unlimited",
+      router: "Nivra Born Wifi Router included",
+      support: "7/7 technical support",
+      features: ["Unlimited data", "No contract required", "Free installation (eligible areas)"]
+    }
   },
   {
     name: "Internet Résidentiel 500 Mbps",
@@ -96,6 +112,13 @@ const officialCatalogue = [
     price: 60,
     description: "Download up to 500 Mbps, Unlimited data, Priority support, 4K streaming",
     billing_type: "monthly",
+    plan_details: {
+      speed: "500 Mbps download",
+      data: "Unlimited",
+      router: "Nivra Born Wifi Router included",
+      support: "Priority support",
+      features: ["4K streaming optimized", "Unlimited data", "No contract required", "Free installation (eligible areas)"]
+    }
   },
   {
     name: "Internet Coaxial GIGA 940 Mbps",
@@ -103,13 +126,13 @@ const officialCatalogue = [
     price: 70,
     description: "Download up to 940 Mbps, Unlimited data, VIP support, ultra-low latency",
     billing_type: "monthly",
-  },
-  {
-    name: "Router Nivra Born Wifi",
-    category: "Équipement",
-    price: 60,
-    description: "Frais uniques, 1-year manufacturer warranty, defects covered",
-    billing_type: "one_time",
+    plan_details: {
+      speed: "940 Mbps download (GIGA Speed)",
+      data: "Unlimited",
+      router: "Nivra Born Wifi Router included",
+      support: "VIP support",
+      features: ["Ultra-low latency", "Unlimited data", "No contract required", "Free installation (eligible areas)", "Ideal for gaming & streaming"]
+    }
   },
   // TV + Internet Bundles
   {
@@ -118,6 +141,12 @@ const officialCatalogue = [
     price: 75,
     description: "26 general channels included",
     billing_type: "monthly",
+    plan_details: {
+      internet: "100 Mbps download",
+      channels: 26,
+      channel_type: "General channels",
+      features: ["Unlimited data", "Nivra Born Wifi Router included", "7/7 support"]
+    }
   },
   {
     name: "Internet 500 + TV 5 choix",
@@ -125,6 +154,13 @@ const officialCatalogue = [
     price: 80,
     description: "32 popular channels, 5 channels picker",
     billing_type: "monthly",
+    plan_details: {
+      internet: "500 Mbps download",
+      channels: 32,
+      channel_type: "Popular channels",
+      picker: "5 channels picker",
+      features: ["Unlimited data", "Nivra Born Wifi Router included", "Priority support"]
+    }
   },
   {
     name: "Internet 500 + TV 10 choix",
@@ -132,6 +168,13 @@ const officialCatalogue = [
     price: 90,
     description: "37 popular + sports channels, 10 channels picker",
     billing_type: "monthly",
+    plan_details: {
+      internet: "500 Mbps download",
+      channels: 37,
+      channel_type: "Popular + sports channels",
+      picker: "10 channels picker",
+      features: ["Unlimited data", "Nivra Born Wifi Router included", "Priority support"]
+    }
   },
   {
     name: "Internet 500 + TV 15 choix",
@@ -139,20 +182,27 @@ const officialCatalogue = [
     price: 95,
     description: "42 popular + sports channels, 15 channels picker",
     billing_type: "monthly",
+    plan_details: {
+      internet: "500 Mbps download",
+      channels: 42,
+      channel_type: "Popular + sports channels",
+      picker: "15 channels picker",
+      features: ["Unlimited data", "Nivra Born Wifi Router included", "Priority support"]
+    }
   },
   {
     name: "Internet 500 + TV 25 choix",
     category: "TV + Internet",
     price: 110,
-    description: "52 popular + sports channels, 25 channels picker",
+    description: "52 popular + sports channels, 25 channels picker, VIP support",
     billing_type: "monthly",
-  },
-  {
-    name: "Terminal Nivra 4K Smart",
-    category: "Équipement",
-    price: 50,
-    description: "Par terminal (max 4), paid before installation, 1-year manufacturer warranty",
-    billing_type: "one_time",
+    plan_details: {
+      internet: "500 Mbps download",
+      channels: 52,
+      channel_type: "Popular + sports channels",
+      picker: "25 channels picker",
+      features: ["Unlimited data", "Nivra Born Wifi Router included", "VIP support"]
+    }
   },
   // GIGA Bundles
   {
@@ -161,6 +211,12 @@ const officialCatalogue = [
     price: 85,
     description: "26 general channels included",
     billing_type: "monthly",
+    plan_details: {
+      internet: "940 Mbps download (GIGA Speed)",
+      channels: 26,
+      channel_type: "General channels",
+      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+    }
   },
   {
     name: "GIGA + TV 5 choix",
@@ -168,6 +224,13 @@ const officialCatalogue = [
     price: 95,
     description: "32 popular channels, 5 channels picker",
     billing_type: "monthly",
+    plan_details: {
+      internet: "940 Mbps download (GIGA Speed)",
+      channels: 32,
+      channel_type: "Popular channels",
+      picker: "5 channels picker",
+      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+    }
   },
   {
     name: "GIGA + TV 10 choix",
@@ -175,6 +238,13 @@ const officialCatalogue = [
     price: 105,
     description: "37 popular + sports channels, 10 channels picker",
     billing_type: "monthly",
+    plan_details: {
+      internet: "940 Mbps download (GIGA Speed)",
+      channels: 37,
+      channel_type: "Popular + sports channels",
+      picker: "10 channels picker",
+      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+    }
   },
   {
     name: "GIGA + TV 15 choix",
@@ -182,28 +252,86 @@ const officialCatalogue = [
     price: 110,
     description: "42 popular + sports channels, 15 channels picker",
     billing_type: "monthly",
+    plan_details: {
+      internet: "940 Mbps download (GIGA Speed)",
+      channels: 42,
+      channel_type: "Popular + sports channels",
+      picker: "15 channels picker",
+      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+    }
   },
   {
     name: "GIGA + TV 25 choix",
     category: "GIGA Bundles",
     price: 120,
-    description: "52 popular + sports channels, 25 channels picker",
+    description: "52 popular + sports channels, 25 channels picker, VIP support",
     billing_type: "monthly",
+    plan_details: {
+      internet: "940 Mbps download (GIGA Speed)",
+      channels: 52,
+      channel_type: "Popular + sports channels",
+      picker: "25 channels picker",
+      features: ["Unlimited data", "Ultra-low latency", "Nivra Born Wifi Router included", "VIP support"]
+    }
   },
   // Mobile Plans
   {
     name: "Mobile 50$/30 jours",
     category: "Mobile",
     price: 50,
-    description: "Auto Top-Up: 55 GB 4G, No Top-Up: 50 GB 4G, Unlimited Canada calling, Unlimited international SMS/MMS, Voicemail, Call display, waiting, forwarding, conference",
+    description: "Auto Top-Up: 55 GB 4G, No Top-Up: 50 GB 4G, Unlimited Canada calling, Unlimited international SMS/MMS",
     billing_type: "30_days",
+    plan_details: {
+      data_with_topup: "55 GB 4G",
+      data_without_topup: "50 GB 4G",
+      calls: "Unlimited Canada-wide calls",
+      texts: "Unlimited international SMS/MMS",
+      features: ["Voicemail", "Call display", "Call waiting", "Call forwarding", "Conference calling"],
+      delivery: "Delivery only",
+      sim_fees: { physical: 30, esim: 25 }
+    }
   },
   {
     name: "Mobile 60$/30 jours",
     category: "Mobile",
     price: 60,
-    description: "Auto Top-Up: 80 GB 4G, No Top-Up: 75 GB 4G, Unlimited Canada calling, Unlimited international SMS/MMS, Voicemail, Call display, waiting, forwarding, conference",
+    description: "Auto Top-Up: 80 GB 4G, No Top-Up: 75 GB 4G, Unlimited Canada calling, Unlimited international SMS/MMS",
     billing_type: "30_days",
+    plan_details: {
+      data_with_topup: "80 GB 4G",
+      data_without_topup: "75 GB 4G",
+      calls: "Unlimited Canada-wide calls",
+      texts: "Unlimited international SMS/MMS",
+      features: ["Voicemail", "Call display", "Call waiting", "Call forwarding", "Conference calling"],
+      delivery: "Delivery only",
+      sim_fees: { physical: 30, esim: 25 }
+    }
+  },
+  // Equipment
+  {
+    name: "Router Nivra Born Wifi",
+    category: "Équipement",
+    price: 60,
+    description: "Frais uniques, 1-year manufacturer warranty, defects covered",
+    billing_type: "one_time",
+    plan_details: {
+      type: "Router",
+      warranty: "1-year manufacturer warranty",
+      coverage: "Defects covered"
+    }
+  },
+  {
+    name: "Terminal Nivra 4K Smart",
+    category: "Équipement",
+    price: 50,
+    description: "Par terminal (max 4), paid before installation, 1-year manufacturer warranty",
+    billing_type: "one_time",
+    plan_details: {
+      type: "TV Terminal",
+      max_quantity: 4,
+      warranty: "1-year manufacturer warranty",
+      note: "Paid before installation"
+    }
   },
   {
     name: "Physical SIM",
@@ -211,6 +339,12 @@ const officialCatalogue = [
     price: 30,
     description: "Frais uniques, 1-year warranty defects covered",
     billing_type: "one_time",
+    plan_details: {
+      type: "SIM Card",
+      format: "Physical SIM",
+      warranty: "1-year warranty",
+      admin_note: "SIM fee for mobile plans"
+    }
   },
   {
     name: "eSIM",
@@ -218,6 +352,12 @@ const officialCatalogue = [
     price: 25,
     description: "Frais uniques, 1-year warranty defects covered",
     billing_type: "one_time",
+    plan_details: {
+      type: "SIM Card",
+      format: "eSIM (digital)",
+      warranty: "1-year warranty",
+      admin_note: "eSIM fee for mobile plans"
+    }
   },
   // Security Plans
   {
@@ -226,6 +366,11 @@ const officialCatalogue = [
     price: 39.99,
     description: "Alarm system + connected cameras",
     billing_type: "monthly",
+    plan_details: {
+      type: "Residential Security",
+      includes: ["Alarm system", "Connected cameras"],
+      support: "24/7 monitoring available"
+    }
   },
   {
     name: "Sécurité Entreprise",
@@ -233,8 +378,21 @@ const officialCatalogue = [
     price: 99.99,
     description: "Full security solution for PME/PMI",
     billing_type: "monthly",
+    plan_details: {
+      type: "Business Security",
+      includes: ["Complete alarm system", "HD cameras", "Access control"],
+      support: "24/7 monitoring included"
+    }
   },
 ];
+
+// Status configuration
+const STATUS_CONFIG = {
+  active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", icon: CheckCircle2 },
+  inactive: { label: "Inactif", color: "bg-muted text-muted-foreground border-border", icon: XCircle },
+  end_of_life: { label: "Fin de vie", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: AlertTriangle },
+  archived: { label: "Archivé", color: "bg-slate-500/20 text-slate-400 border-slate-500/30", icon: Archive },
+};
 
 const AdminServices = () => {
   const { toast } = useToast();
@@ -245,6 +403,9 @@ const AdminServices = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(categories);
+  const [expandedDetails, setExpandedDetails] = useState<string[]>([]);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -270,14 +431,11 @@ const AdminServices = () => {
   // Seed catalogue mutation
   const seedCatalogueMutation = useMutation({
     mutationFn: async () => {
-      // Check existing services
       const { data: existing } = await supabase
         .from("services")
         .select("name");
       
       const existingNames = new Set(existing?.map(s => s.name) || []);
-      
-      // Filter out already existing services
       const newServices = officialCatalogue.filter(s => !existingNames.has(s.name));
       
       if (newServices.length === 0) {
@@ -420,6 +578,25 @@ const AdminServices = () => {
     }
   };
 
+  const toggleDetails = (serviceId: string) => {
+    setExpandedDetails(prev => 
+      prev.includes(serviceId) 
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
+
+  const viewPlanDetails = (service: any) => {
+    setSelectedService(service);
+    setDetailsDialogOpen(true);
+  };
+
+  // Get plan details from catalogue
+  const getPlanDetails = (serviceName: string) => {
+    const catalogueItem = officialCatalogue.find(item => item.name === serviceName);
+    return catalogueItem?.plan_details || null;
+  };
+
   // Filter and group services
   const filteredServices = services?.filter((service: any) => {
     const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -456,6 +633,206 @@ const AdminServices = () => {
     if (isEquipment) return `${formatted} (frais uniques)`;
     if (isMobile) return `${formatted}/30 jours`;
     return `${formatted}/mois`;
+  };
+
+  const renderPlanDetailsContent = (planDetails: any, category: string) => {
+    if (!planDetails) return null;
+
+    return (
+      <div className="space-y-4 text-sm">
+        {/* Internet Plans */}
+        {category === "Internet" && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-accent/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Vitesse</p>
+                <p className="font-semibold text-cyan-400">{planDetails.speed}</p>
+              </div>
+              <div className="bg-accent/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Données</p>
+                <p className="font-semibold text-emerald-400">{planDetails.data}</p>
+              </div>
+            </div>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Routeur</p>
+              <p className="font-medium">{planDetails.router}</p>
+            </div>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Support</p>
+              <p className="font-medium">{planDetails.support}</p>
+            </div>
+            {planDetails.features && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Fonctionnalités incluses</p>
+                <ul className="space-y-1">
+                  {planDetails.features.map((feature: string, idx: number) => (
+                    <li key={idx} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* TV + Internet Bundles */}
+        {(category === "TV + Internet" || category === "GIGA Bundles") && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-accent/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Internet</p>
+                <p className="font-semibold text-cyan-400">{planDetails.internet}</p>
+              </div>
+              <div className="bg-accent/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Chaînes</p>
+                <p className="font-semibold text-purple-400">{planDetails.channels} chaînes</p>
+              </div>
+            </div>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Type de chaînes</p>
+              <p className="font-medium">{planDetails.channel_type}</p>
+            </div>
+            {planDetails.picker && (
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Sélection personnalisée</p>
+                <p className="font-medium text-purple-400">{planDetails.picker}</p>
+              </div>
+            )}
+            {planDetails.features && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Fonctionnalités incluses</p>
+                <ul className="space-y-1">
+                  {planDetails.features.map((feature: string, idx: number) => (
+                    <li key={idx} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Mobile Plans */}
+        {category === "Mobile" && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Avec Auto Top-Up</p>
+                <p className="font-semibold text-emerald-400">{planDetails.data_with_topup}</p>
+              </div>
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Sans Auto Top-Up</p>
+                <p className="font-semibold text-amber-400">{planDetails.data_without_topup}</p>
+              </div>
+            </div>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Appels</p>
+              <p className="font-medium">{planDetails.calls}</p>
+            </div>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Textos</p>
+              <p className="font-medium">{planDetails.texts}</p>
+            </div>
+            {planDetails.features && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Fonctionnalités incluses</p>
+                <ul className="grid grid-cols-2 gap-1">
+                  {planDetails.features.map((feature: string, idx: number) => (
+                    <li key={idx} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span className="text-xs">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {planDetails.sim_fees && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                  <Shield className="w-3 h-3 inline mr-1" />
+                  Frais SIM (Admin privé)
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>Physical SIM: <span className="font-bold">${planDetails.sim_fees.physical}</span></div>
+                  <div>eSIM: <span className="font-bold">${planDetails.sim_fees.esim}</span></div>
+                </div>
+              </div>
+            )}
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+              <p className="text-xs font-medium text-blue-400">
+                <Truck className="w-3 h-3 inline mr-1" />
+                {planDetails.delivery}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Equipment */}
+        {category === "Équipement" && (
+          <>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Type</p>
+              <p className="font-medium">{planDetails.type}</p>
+            </div>
+            {planDetails.format && (
+              <div className="bg-accent/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Format</p>
+                <p className="font-medium">{planDetails.format}</p>
+              </div>
+            )}
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Garantie</p>
+              <p className="font-medium">{planDetails.warranty}</p>
+            </div>
+            {planDetails.max_quantity && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Quantité max</p>
+                <p className="font-medium text-amber-400">{planDetails.max_quantity} par installation</p>
+              </div>
+            )}
+            {planDetails.admin_note && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                <p className="text-xs font-medium text-red-400">
+                  <Shield className="w-3 h-3 inline mr-1" />
+                  Note admin: {planDetails.admin_note}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Security Plans */}
+        {category === "Sécurité" && (
+          <>
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Type</p>
+              <p className="font-medium">{planDetails.type}</p>
+            </div>
+            {planDetails.includes && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Inclus</p>
+                <ul className="space-y-1">
+                  {planDetails.includes.map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="bg-accent/30 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Support</p>
+              <p className="font-medium">{planDetails.support}</p>
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -497,6 +874,9 @@ const AdminServices = () => {
                   <DialogTitle>
                     {editingService ? "Modifier le service" : "Nouveau service"}
                   </DialogTitle>
+                  <DialogDescription>
+                    {editingService ? "Mettre à jour les informations du service" : "Créer un nouveau service dans le catalogue"}
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
@@ -728,74 +1108,149 @@ const AdminServices = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {categoryServices.map((service: any) => (
-                                <tr key={service.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
-                                  <td className="py-3 px-4">
-                                    <p className="text-sm text-foreground font-medium">{service.name}</p>
-                                    <p className="text-xs text-muted-foreground line-clamp-2 max-w-md">{service.description}</p>
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    <span className="text-sm font-semibold text-foreground">
-                                      {formatPrice(service.price, service.category)}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    <Badge
-                                      className={
-                                        service.is_active
-                                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                          : "bg-muted text-muted-foreground"
-                                      }
-                                    >
-                                      {service.is_active ? "Actif" : "Inactif"}
-                                    </Badge>
-                                  </td>
-                                  <td className="py-3 px-4 text-center">
-                                    <Switch
-                                      checked={service.is_active}
-                                      onCheckedChange={(checked) =>
-                                        toggleActiveMutation.mutate({ id: service.id, is_active: checked })
-                                      }
-                                    />
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    <div className="flex gap-1 justify-end">
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() => handleEdit(service)}
-                                            >
-                                              <Pencil className="w-4 h-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Modifier</TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() => {
-                                                if (confirm(`Supprimer "${service.name}" ?`)) {
-                                                  deleteMutation.mutate(service.id);
-                                                }
-                                              }}
-                                            >
-                                              <Trash2 className="w-4 h-4 text-destructive" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Supprimer</TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
+                              {categoryServices.map((service: any) => {
+                                const planDetails = getPlanDetails(service.name);
+                                const isDetailsExpanded = expandedDetails.includes(service.id);
+
+                                return (
+                                  <>
+                                    <tr key={service.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
+                                      <td className="py-3 px-4">
+                                        <div className="flex items-start gap-2">
+                                          <div className="flex-1">
+                                            <p className="text-sm text-foreground font-medium">{service.name}</p>
+                                            <p className="text-xs text-muted-foreground line-clamp-2 max-w-md">{service.description}</p>
+                                          </div>
+                                          {planDetails && (
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 w-6 p-0"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      toggleDetails(service.id);
+                                                    }}
+                                                  >
+                                                    {isDetailsExpanded ? (
+                                                      <EyeOff className="w-3 h-3 text-muted-foreground" />
+                                                    ) : (
+                                                      <Eye className="w-3 h-3 text-muted-foreground" />
+                                                    )}
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  {isDetailsExpanded ? "Masquer détails" : "Voir détails (Admin)"}
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <span className="text-sm font-semibold text-foreground">
+                                          {formatPrice(service.price, service.category)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <Badge
+                                          className={
+                                            service.is_active
+                                              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                              : "bg-muted text-muted-foreground"
+                                          }
+                                        >
+                                          {service.is_active ? "Actif" : "Inactif"}
+                                        </Badge>
+                                      </td>
+                                      <td className="py-3 px-4 text-center">
+                                        <Switch
+                                          checked={service.is_active}
+                                          onCheckedChange={(checked) =>
+                                            toggleActiveMutation.mutate({ id: service.id, is_active: checked })
+                                          }
+                                        />
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <div className="flex gap-1 justify-end">
+                                          {planDetails && (
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => viewPlanDetails(service)}
+                                                  >
+                                                    <Info className="w-4 h-4 text-blue-400" />
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Détails du plan</TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                          )}
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={() => handleEdit(service)}
+                                                >
+                                                  <Pencil className="w-4 h-4" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>Modifier</TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button variant="ghost" size="icon">
+                                                <Trash2 className="w-4 h-4 text-destructive" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Supprimer ce service?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Cette action est irréversible. Le service "{service.name}" sera définitivement supprimé du catalogue.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                  onClick={() => deleteMutation.mutate(service.id)}
+                                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                >
+                                                  Supprimer
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                    {/* Expandable Plan Details Row */}
+                                    {isDetailsExpanded && planDetails && (
+                                      <tr key={`${service.id}-details`}>
+                                        <td colSpan={5} className="p-0">
+                                          <div className="bg-accent/20 border-y border-border p-4">
+                                            <div className="flex items-center gap-2 mb-3">
+                                              <Shield className="w-4 h-4 text-amber-400" />
+                                              <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">
+                                                Détails du plan (Admin privé)
+                                              </span>
+                                            </div>
+                                            {renderPlanDetailsContent(planDetails, service.category)}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -827,6 +1282,57 @@ const AdminServices = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Plan Details Dialog */}
+        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+          <DialogContent className="bg-card border-border max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                {selectedService && (
+                  <div className={`p-2 rounded-lg ${categoryColors[selectedService.category] || 'bg-muted'}`}>
+                    {(() => {
+                      const Icon = categoryIcons[selectedService.category] || Settings;
+                      return <Icon className="w-5 h-5" />;
+                    })()}
+                  </div>
+                )}
+                <div>
+                  <DialogTitle>{selectedService?.name}</DialogTitle>
+                  <DialogDescription>
+                    {selectedService && formatPrice(selectedService.price, selectedService.category)}
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-medium text-amber-400">
+                Informations réservées aux administrateurs
+              </span>
+            </div>
+            
+            <ScrollArea className="max-h-[60vh]">
+              {selectedService && renderPlanDetailsContent(
+                getPlanDetails(selectedService.name),
+                selectedService.category
+              )}
+            </ScrollArea>
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+                Fermer
+              </Button>
+              <Button variant="hero" onClick={() => {
+                setDetailsDialogOpen(false);
+                if (selectedService) handleEdit(selectedService);
+              }}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Modifier
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
