@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,19 +86,62 @@ const AdminClients = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all clients
-  const { data: clients, isLoading } = useQuery({
+  // Fetch all clients - show ALL profiles regardless of role
+  const { data: clients, isLoading, refetch: refetchClients } = useQuery({
     queryKey: ["admin-clients"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch all profiles without role filtering - all users are clients
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("*, user_roles(role)")
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (profilesError) throw profilesError;
+
+      // Fetch roles separately to ensure no join issues
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      // Merge roles into profiles
+      const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
+      
+      return profilesData?.map(profile => ({
+        ...profile,
+        role: rolesMap.get(profile.user_id) || 'client',
+        user_roles: [{ role: rolesMap.get(profile.user_id) || 'client' }]
+      })) || [];
     },
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always refetch to ensure latest data
   });
+
+  // Real-time subscription for instant client visibility
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-clients-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          // Refetch clients when profiles table changes
+          refetchClients();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles' },
+        () => {
+          // Refetch clients when user_roles table changes
+          refetchClients();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetchClients]);
 
   // Fetch client-specific data when a client is selected
   const { data: clientOrders } = useQuery({
