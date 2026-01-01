@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const categories = ["Mobile", "Internet", "TV", "Sécurité", "Affaires", "Résidentiel"];
+const categories = ["Mobile", "Internet", "TV", "Streaming", "Sécurité", "Affaires", "Résidentiel", "Extras"];
 
 const AdminServices = () => {
   const { toast } = useToast();

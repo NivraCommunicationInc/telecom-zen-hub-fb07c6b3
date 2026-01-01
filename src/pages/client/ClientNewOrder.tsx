@@ -93,7 +93,9 @@ const categoryIcons: Record<string, any> = {
   Mobile: Smartphone,
   Internet: Wifi,
   TV: Tv,
+  Streaming: MonitorPlay,
   Sécurité: Shield,
+  Extras: Package,
 };
 
 // Terminal equipment configuration
@@ -143,7 +145,9 @@ const categoryColors: Record<string, string> = {
   Mobile: "bg-blue-500/20 text-blue-500 border-blue-500/30",
   Internet: "bg-purple-500/20 text-purple-500 border-purple-500/30",
   TV: "bg-pink-500/20 text-pink-500 border-pink-500/30",
+  Streaming: "bg-orange-500/20 text-orange-500 border-orange-500/30",
   Sécurité: "bg-emerald-500/20 text-emerald-500 border-emerald-500/30",
+  Extras: "bg-amber-500/20 text-amber-500 border-amber-500/30",
 };
 
 // Generate a random Quebec phone number
@@ -267,6 +271,9 @@ const ClientNewOrder = () => {
   
   // Check if Mobile service is selected
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
+  
+  // Check if Streaming service is selected
+  const hasStreamingService = selectedServices.some(s => s.category === "Streaming");
   
   // Get selected TV service to determine free channel limit
   const selectedTVService = selectedServices.find(s => s.category === "TV");
@@ -860,6 +867,12 @@ END:VCALENDAR`;
                           )}
                           {category === "Mobile" && (
                             <p className="text-xs text-blue-500">Nivra Communications • Aucune vérification de crédit • ID gouvernemental requis</p>
+                          )}
+                          {category === "Streaming" && (
+                            <p className="text-xs text-orange-500">Accès navigateur uniquement • Aucune application mobile</p>
+                          )}
+                          {category === "Extras" && (
+                            <p className="text-xs text-amber-500">Services et équipements additionnels</p>
                           )}
                         </div>
                       </div>

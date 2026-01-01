@@ -44,7 +44,7 @@ import {
   Loader2, CheckCircle, Clock, BarChart3, CreditCard, DollarSign,
   Receipt, AlertCircle, CalendarIcon, History, Tag, Phone, ScanLine,
   Upload, Lock, Eye, ShieldCheck, FileText, MapPin, Building2,
-  Crown, Star, Settings, Wrench, AlertOctagon, Info
+  Crown, Star, Settings, Wrench, AlertOctagon, Info, Plus, MonitorPlay
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -75,6 +75,12 @@ const AVAILABLE_PLANS = {
   mobile: [
     { id: "mobile-50", name: "Forfait Mobile 50$/30 jours", price: 50, data: "50-55 GB 4G (avec/sans Auto Top-Up)" },
     { id: "mobile-60", name: "Forfait Mobile 60$/30 jours", price: 60, data: "75-80 GB 4G (avec/sans Auto Top-Up)" },
+  ],
+  // Streaming+ services
+  streaming: [
+    { id: "streaming-basic", name: "Streaming+ Basic", price: 9.99, description: "Accès de base aux contenus" },
+    { id: "streaming-premium", name: "Streaming+ Premium", price: 14.99, description: "4K + Multi-écrans + Téléchargement" },
+    { id: "streaming-family", name: "Streaming+ Famille", price: 19.99, description: "6 profils + Contrôle parental" },
   ],
 };
 
@@ -453,6 +459,7 @@ const ClientMyServices = () => {
   };
 
   const getServiceIcon = (type: string) => {
+    if (type?.toLowerCase().includes("streaming")) return MonitorPlay;
     if (type?.toLowerCase().includes("internet") || type?.toLowerCase().includes("fibre")) return Wifi;
     if (type?.toLowerCase().includes("tv") || type?.toLowerCase().includes("giga")) return Tv;
     if (type?.toLowerCase().includes("mobile")) return Smartphone;
@@ -462,6 +469,7 @@ const ClientMyServices = () => {
 
   const getServiceCategory = (planName: string) => {
     const name = planName?.toLowerCase() || "";
+    if (name.includes("streaming")) return "streaming";
     if (name.includes("mobile")) return "mobile";
     if (name.includes("tv") || name.includes("giga")) return "tv";
     if (name.includes("internet") || name.includes("fibre")) return "internet";
@@ -702,8 +710,9 @@ const ClientMyServices = () => {
       </Card>
 
       <Tabs defaultValue="services" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-6 mb-6">
           <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="streaming">Streaming</TabsTrigger>
           <TabsTrigger value="equipment">Équipements</TabsTrigger>
           <TabsTrigger value="mobile">Mobile</TabsTrigger>
           <TabsTrigger value="billing">Facturation</TabsTrigger>
@@ -876,6 +885,138 @@ const ClientMyServices = () => {
                 <Button variant="hero" className="mt-4" asChild>
                   <a href="/portal/new-order">Commander un service</a>
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Streaming Tab */}
+        <TabsContent value="streaming" className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-lg font-semibold text-foreground">Streaming+</h3>
+            <Button variant="hero" size="sm" asChild>
+              <a href="/portal/new-order">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter un service streaming
+              </a>
+            </Button>
+          </div>
+
+          {/* Credit balance before paying reminder */}
+          <Card className="bg-cyan-500/5 border-cyan-500/20">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-cyan-500" />
+                <span className="text-sm text-foreground">Crédit disponible:</span>
+                <span className="font-semibold text-cyan-500">
+                  {clientCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </span>
+              </div>
+              <Badge variant="outline" className="text-xs">Applicable au prochain paiement</Badge>
+            </CardContent>
+          </Card>
+
+          {/* Available Streaming Plans */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MonitorPlay className="w-4 h-4 text-orange-500" />
+                Offres Streaming+ disponibles
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {AVAILABLE_PLANS.streaming.map((plan) => (
+                <div key={plan.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-cyan-500/50 transition-colors">
+                  <div>
+                    <p className="font-medium text-foreground">{plan.name}</p>
+                    <p className="text-xs text-muted-foreground">{plan.description}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-foreground">{plan.price.toFixed(2)}$/mois</span>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="/portal/new-order">Souscrire</a>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Active Streaming Subscriptions */}
+          {allActiveServices.filter((s: any) => 
+            (s.plan_name || s.service_type || "").toLowerCase().includes("streaming")
+          ).length > 0 ? (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground">Mes abonnements actifs</h4>
+              {allActiveServices
+                .filter((s: any) => (s.plan_name || s.service_type || "").toLowerCase().includes("streaming"))
+                .map((service: any) => (
+                  <Card key={service.id} className="bg-card border-border">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                            <MonitorPlay className="w-5 h-5 text-orange-500" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{service.plan_name || service.service_type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedService(service);
+                              setTicketDialogOpen(true);
+                              setTicketSubject("Problème tableau de bord Streaming");
+                            }}
+                          >
+                            <AlertOctagon className="w-4 h-4 mr-1" />
+                            Signaler problème
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          ) : (
+            <Card className="bg-muted/30 border-dashed border-2 border-muted">
+              <CardContent className="p-8 text-center">
+                <MonitorPlay className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Aucun service streaming actif</p>
+                <p className="text-sm text-muted-foreground mt-1">Sélectionnez une offre ci-dessus pour commencer</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Browser-only notice */}
+          <Card className="bg-muted/50 border-border">
+            <CardContent className="p-3 flex items-start gap-2">
+              <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                Streaming+ est accessible via navigateur web uniquement (aucune application mobile). 
+                En cas de problème d'accès au tableau de bord, utilisez le bouton "Signaler problème" ci-dessus pour créer un ticket.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Late fee warning for overdue streaming */}
+          {overdueInvoices.some((inv: any) => 
+            (inv.notes || "").toLowerCase().includes("streaming") || 
+            (inv.related_order_number || "").toLowerCase().includes("streaming")
+          ) && (
+            <Card className="bg-red-500/10 border-red-500/30">
+              <CardContent className="p-3 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500" />
+                <p className="text-sm text-red-600">
+                  Paiement streaming en retard - 5% frais de retard appliqué automatiquement
+                </p>
               </CardContent>
             </Card>
           )}
