@@ -4,7 +4,7 @@
 export const BUSINESS_INFO = {
   name: "Nivra Communications",
   legalName: "Nivra Communications Inc.",
-  address: "2352 Rue Monet, Laval, QC H7E 0E5, Canada",
+  address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
   phone: "438-544-2233",
   email: "Nivratelecom@gmail.com",
   paymentEmail: "Nivratelecom@gmail.com",
