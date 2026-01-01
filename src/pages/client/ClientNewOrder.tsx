@@ -104,6 +104,13 @@ const TERMINAL_CONFIG = {
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
 };
 
+// Router configuration for Internet orders
+const ROUTER_CONFIG = {
+  name: "Nivra Born Wifi Router",
+  price: 60,
+  warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
+};
+
 // SIM configuration for Mobile orders
 const SIM_CONFIG = {
   name: "Nivra eSIM / Physical SIM",
@@ -253,6 +260,9 @@ const ClientNewOrder = () => {
   // Check if TV service is selected
   const hasTVService = selectedServices.some(s => s.category === "TV");
   
+  // Check if Internet service is selected (standalone, not as part of TV bundle)
+  const hasInternetService = selectedServices.some(s => s.category === "Internet");
+  
   // Check if Mobile service is selected
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
   
@@ -263,8 +273,8 @@ const ClientNewOrder = () => {
     selectedTVService.name.toLowerCase().includes('15 choix') ? 15 :
     selectedTVService.name.toLowerCase().includes('10 choix') ? 10 :
     selectedTVService.name.toLowerCase().includes('5 choix') ? 5 :
-    selectedTVService.name.toLowerCase().includes('giga') ? 5 : 5
-  ) : 5;
+    selectedTVService.name.toLowerCase().includes('basic') ? 0 : 0
+  ) : 0;
 
   // Validate Quebec phone number for transfer
   const validateQuebecPhoneNumber = (phone: string): boolean => {
@@ -358,6 +368,10 @@ const ClientNewOrder = () => {
       ] : [];
 
       // Prepare equipment info for notes
+      const routerInfo = (hasInternetService || hasTVService)
+        ? `\n\n**Routeur:**\n${ROUTER_CONFIG.name} = ${ROUTER_CONFIG.price.toFixed(2)}$ (frais unique)\n${ROUTER_CONFIG.warranty}`
+        : '';
+      
       const equipmentInfo = hasTVService 
         ? `\n\n**Équipement TV:**\n${TERMINAL_CONFIG.name} x${terminalQuantity} = ${(terminalQuantity * TERMINAL_CONFIG.price).toFixed(2)}$\n${TERMINAL_CONFIG.warranty}`
         : '';
@@ -367,12 +381,17 @@ const ClientNewOrder = () => {
         ? `\n\n**Carte SIM:**\n${SIM_CONFIG.name} = ${SIM_CONFIG.price.toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
         : '';
 
+      const equipmentSubtotal = 
+        (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
+        ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
+        (hasMobileService ? SIM_CONFIG.price : 0);
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
         service_type: serviceNames,
         category: categories,
-        subtotal: subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + (hasMobileService ? SIM_CONFIG.price : 0),
+        subtotal: subtotal + paidChannelTotal + equipmentSubtotal,
         delivery_fee: installationChoice === "auto" ? 30 : 0,
         activation_fee: 25,
         installation_fee: installationChoice === "technician" ? 50 : 0,
@@ -382,11 +401,11 @@ const ClientNewOrder = () => {
         payment_status: "pre_authorized",
         amount_paid: 0,
         created_by: "client",
-        notes: (notes || '') + equipmentInfo + simInfo,
+        notes: (notes || '') + routerInfo + equipmentInfo + simInfo,
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
-        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : null,
+        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
       }).select().single();
 
       if (error) throw error;
@@ -409,7 +428,11 @@ const ClientNewOrder = () => {
       if (paymentError) throw paymentError;
 
       // Create billing/invoice record for client portal
-      const invoiceSubtotal = subtotal + paidChannelTotal + (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + (hasMobileService ? SIM_CONFIG.price : 0);
+      const invoiceEquipmentSubtotal = 
+        (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
+        ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
+        (hasMobileService ? SIM_CONFIG.price : 0);
+      const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
       const invoiceDeliveryFee = installationChoice === "auto" ? 30 : 0;
       const invoiceActivationFee = 25;
       const invoiceInstallationFee = installationChoice === "technician" ? Math.max(0, 50 - installationCredit) : 0;
@@ -430,7 +453,7 @@ const ClientNewOrder = () => {
         discount_amount: discountCode ? installationCredit : 0,
         tps_amount: invoiceTps,
         tvq_amount: invoiceTvq,
-        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasMobileService ? 'SIM' : null),
+        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? 'SIM' : null)),
         status: "pending",
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
         notes: `Paiement pré-autorisé - Confirmation: ${paymentRef}\nServices: ${serviceNames}`,
@@ -573,13 +596,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
+  const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
   const simFee = hasMobileService ? SIM_CONFIG.price : 0;
   
   // Fee logic based on installation choice
   const deliveryFee = installationChoice === "auto" ? 30 : 0;
   const activationFee = 25;
   const installationFee = installationChoice === "technician" ? Math.max(0, 50 - installationCredit) : 0;
-  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + simFee;
+  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
@@ -1778,6 +1802,18 @@ END:VCALENDAR`;
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground italic">Sélectionnez un type d'installation</span>
                         <span className="text-muted-foreground">—</span>
+                      </div>
+                    )}
+                    {(hasInternetService || hasTVService) && routerFee > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-cyan-500">{ROUTER_CONFIG.name}</span>
+                        <span className="text-cyan-500">{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {hasTVService && terminalFee > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-500">{TERMINAL_CONFIG.name} (×{terminalQuantity})</span>
+                        <span className="text-purple-500">{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     {hasMobileService && simFee > 0 && (
