@@ -76,6 +76,7 @@ const paymentStatusConfig: Record<string, { color: string; label: string }> = {
   authorized: { color: "bg-blue-500/20 text-blue-500", label: "Autorisé" },
   captured: { color: "bg-emerald-500/20 text-emerald-500", label: "Capturé" },
   refunded: { color: "bg-red-500/20 text-red-500", label: "Remboursé" },
+  disputed: { color: "bg-purple-500/20 text-purple-500", label: "Contesté" },
   failed: { color: "bg-red-500/20 text-red-500", label: "Échoué" },
 };
 
@@ -100,6 +101,7 @@ const paymentStatusOptions = [
   { value: "authorized", label: "Autorisé" },
   { value: "captured", label: "Capturé" },
   { value: "refunded", label: "Remboursé" },
+  { value: "disputed", label: "Contesté" },
 ];
 
 const TERMINAL_PRICE = 50;
@@ -300,10 +302,18 @@ const AdminOrders = () => {
       };
       const currentAudit = Array.isArray(order?.audit_timeline) ? order.audit_timeline : [];
 
+      // Generate payment reference when capturing
+      let paymentReference = order?.payment_reference;
+      if (newStatus === "captured" && !paymentReference) {
+        const { data: refData } = await supabase.rpc("generate_payment_reference");
+        paymentReference = refData || `PAY-QC-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+      }
+
       const { error: orderError } = await supabase
         .from("orders")
         .update({
           payment_status: newStatus,
+          payment_reference: paymentReference,
           processed_by: newStatus === "captured" ? currentUser?.id : null,
           processed_at: newStatus === "captured" ? new Date().toISOString() : null,
           audit_timeline: [...currentAudit, auditEntry],
@@ -313,21 +323,44 @@ const AdminOrders = () => {
 
       if (orderError) throw orderError;
 
-      // Update linked billing if exists
+      // Update linked billing with payment reference
       if (order?.id) {
         await supabase
           .from("billing")
           .update({
             status: newStatus === "captured" ? "paid" : newStatus === "refunded" ? "refunded" : "pending",
             paid_at: newStatus === "captured" ? new Date().toISOString() : null,
+            payment_reference: paymentReference,
           })
           .eq("order_id", order.id);
       }
+
+      // Update client balance when payment is captured
+      if (newStatus === "captured" && order?.user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("user_id", order.user_id)
+          .maybeSingle();
+        
+        const currentBalance = profile?.balance || 0;
+        const amountPaid = order.total_amount || 0;
+        
+        await supabase
+          .from("profiles")
+          .update({ balance: currentBalance - amountPaid })
+          .eq("user_id", order.user_id);
+      }
+
+      return { paymentReference };
     },
-    onSuccess: (_, { newStatus }) => {
+    onSuccess: (data, { newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-billing"] });
-      toast({ title: `Paiement ${paymentStatusConfig[newStatus]?.label || newStatus}` });
+      toast({ 
+        title: `Paiement ${paymentStatusConfig[newStatus]?.label || newStatus}`,
+        description: data?.paymentReference ? `Réf: ${data.paymentReference}` : undefined
+      });
       setConfirmAction(null);
     },
     onError: () => {

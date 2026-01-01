@@ -33,8 +33,10 @@ import AdminCareers from "./pages/admin/AdminCareers";
 import AdminApplications from "./pages/admin/AdminApplications";
 import AdminTickets from "./pages/admin/AdminTickets";
 import AdminChannels from "./pages/admin/AdminChannels";
+import AdminTechnicians from "./pages/admin/AdminTechnicians";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 import ClientProtectedRoute from "./components/client/ClientProtectedRoute";
+import TechnicianProtectedRoute from "./components/technician/TechnicianProtectedRoute";
 import ClientAuth from "./pages/client/ClientAuth";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAppointments from "./pages/client/ClientAppointments";
@@ -49,6 +51,8 @@ import ClientNewOrder from "./pages/client/ClientNewOrder";
 import ClientChannels from "./pages/client/ClientChannels";
 import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
+import TechnicianAuth from "./pages/technician/TechnicianAuth";
+import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +92,7 @@ const App = () => (
               <Route path="/admin/applications" element={<ProtectedRoute requireAdmin><AdminApplications /></ProtectedRoute>} />
               <Route path="/admin/tickets" element={<ProtectedRoute requireAdmin><AdminTickets /></ProtectedRoute>} />
               <Route path="/admin/channels" element={<ProtectedRoute requireAdmin><AdminChannels /></ProtectedRoute>} />
+              <Route path="/admin/technicians" element={<ProtectedRoute requireAdmin><AdminTechnicians /></ProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
@@ -103,6 +108,9 @@ const App = () => (
               <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
               <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
               <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientContracts /></ClientProtectedRoute>} />
+              {/* Technician Portal Routes */}
+              <Route path="/technician/auth" element={<TechnicianAuth />} />
+              <Route path="/technician" element={<TechnicianProtectedRoute><TechnicianDashboard /></TechnicianProtectedRoute>} />
               <Route path="/not-authorized" element={<NotAuthorized />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -100,6 +100,7 @@ export type Database = {
           notes: string | null
           order_id: string | null
           paid_at: string | null
+          payment_reference: string | null
           related_order_number: string | null
           status: string
           subtotal: number | null
@@ -126,6 +127,7 @@ export type Database = {
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          payment_reference?: string | null
           related_order_number?: string | null
           status?: string
           subtotal?: number | null
@@ -152,6 +154,7 @@ export type Database = {
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          payment_reference?: string | null
           related_order_number?: string | null
           status?: string
           subtotal?: number | null
@@ -507,6 +510,8 @@ export type Database = {
         Row: {
           activation_fee: number | null
           amount_paid: number | null
+          appointment_date: string | null
+          appointment_notes: string | null
           audit_timeline: Json | null
           category: string | null
           channel_assigned_by: string | null
@@ -534,6 +539,7 @@ export type Database = {
           late_fee_applied: boolean | null
           notes: string | null
           order_number: string | null
+          payment_reference: string | null
           payment_status: string | null
           processed_at: string | null
           processed_by: string | null
@@ -548,6 +554,7 @@ export type Database = {
           sim_number: string | null
           status: string
           subtotal: number | null
+          technician_id: string | null
           terminal_count: number | null
           terminal_fee: number | null
           total_amount: number | null
@@ -563,6 +570,8 @@ export type Database = {
         Insert: {
           activation_fee?: number | null
           amount_paid?: number | null
+          appointment_date?: string | null
+          appointment_notes?: string | null
           audit_timeline?: Json | null
           category?: string | null
           channel_assigned_by?: string | null
@@ -590,6 +599,7 @@ export type Database = {
           late_fee_applied?: boolean | null
           notes?: string | null
           order_number?: string | null
+          payment_reference?: string | null
           payment_status?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -604,6 +614,7 @@ export type Database = {
           sim_number?: string | null
           status?: string
           subtotal?: number | null
+          technician_id?: string | null
           terminal_count?: number | null
           terminal_fee?: number | null
           total_amount?: number | null
@@ -619,6 +630,8 @@ export type Database = {
         Update: {
           activation_fee?: number | null
           amount_paid?: number | null
+          appointment_date?: string | null
+          appointment_notes?: string | null
           audit_timeline?: Json | null
           category?: string | null
           channel_assigned_by?: string | null
@@ -646,6 +659,7 @@ export type Database = {
           late_fee_applied?: boolean | null
           notes?: string | null
           order_number?: string | null
+          payment_reference?: string | null
           payment_status?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -660,6 +674,7 @@ export type Database = {
           sim_number?: string | null
           status?: string
           subtotal?: number | null
+          technician_id?: string | null
           terminal_count?: number | null
           terminal_fee?: number | null
           total_amount?: number | null
@@ -672,7 +687,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_methods: {
         Row: {
@@ -719,6 +742,7 @@ export type Database = {
           id: string
           notes: string | null
           payment_method: string
+          payment_reference: string | null
           received_by: string | null
           reference_number: string
           status: string
@@ -735,6 +759,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_method: string
+          payment_reference?: string | null
           received_by?: string | null
           reference_number: string
           status?: string
@@ -751,6 +776,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_method?: string
+          payment_reference?: string | null
           received_by?: string | null
           reference_number?: string
           status?: string
@@ -1002,6 +1028,45 @@ export type Database = {
         }
         Relationships: []
       }
+      technicians: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          specializations: string[] | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          specializations?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          specializations?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       telecom_analytics: {
         Row: {
           activations_count: number | null
@@ -1134,6 +1199,7 @@ export type Database = {
       generate_invoice_number: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
+      generate_payment_reference: { Args: never; Returns: string }
       generate_request_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       has_role: {
@@ -1145,7 +1211,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "client"
+      app_role: "admin" | "client" | "technician"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1273,7 +1339,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "client"],
+      app_role: ["admin", "client", "technician"],
     },
   },
 } as const
