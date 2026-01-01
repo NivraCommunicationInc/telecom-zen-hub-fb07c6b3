@@ -21,8 +21,10 @@ import {
   UserCog,
   ExternalLink,
   Building2,
-  Film
+  Film,
+  Radio
 } from "lucide-react";
+import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
@@ -51,6 +53,7 @@ const navItems = [
   { icon: Activity, label: "Activité", href: "/admin/activity" },
   { icon: Wrench, label: "Techniciens", href: "/admin/technicians" },
   { icon: UserCog, label: "Employés", href: "/admin/employees" },
+  { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
@@ -65,7 +68,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* System Status Banner */}
+      <SystemStatusBanner userType="admin" />
+      
+      <div className="flex-1 flex">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-card border-r border-border">
         <div className="p-6 border-b border-border">
@@ -96,6 +103,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </nav>
 
         <div className="p-4 border-t border-border space-y-3">
+          <div className="px-4 mb-2">
+            <SystemStatusIndicator />
+          </div>
           <div className="px-4">
             <p className="text-xs text-muted-foreground">Connecté en tant que</p>
             <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
@@ -179,6 +189,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       <main className="flex-1 lg:p-8 p-4 pt-20 lg:pt-8 overflow-auto">
         {children}
       </main>
+      </div>
     </div>
   );
 };

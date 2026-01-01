@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -50,7 +51,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* System Status Banner */}
+      <SystemStatusBanner userType="client" />
+      
+      <div className="flex-1 relative">
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
@@ -147,6 +152,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
         <div className="p-6 lg:p-8">{children}</div>
       </main>
+      </div>
     </div>
   );
 };

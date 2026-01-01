@@ -13,11 +13,13 @@ import {
   RefreshCw,
   Clock,
   LayoutDashboard,
+  Film,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 
 interface EmployeeSession {
   employeeId: string;
@@ -121,6 +123,14 @@ const EmployeeDashboard = () => {
       enabled: permissions.can_generate_invoices || permissions.can_edit_invoices,
       color: "text-purple-500"
     },
+    { 
+      label: "Streaming+", 
+      icon: Film, 
+      href: "/employee/streaming", 
+      count: null,
+      enabled: true,
+      color: "text-pink-500"
+    },
   ];
 
   if (!session) {
@@ -132,7 +142,10 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* System Status Banner */}
+      <SystemStatusBanner userType="employee" />
+      
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
