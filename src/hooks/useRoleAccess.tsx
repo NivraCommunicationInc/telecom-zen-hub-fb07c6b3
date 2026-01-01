@@ -11,6 +11,13 @@ interface RolePermissions {
   canManageClients: boolean;
   canManageOrders: boolean;
   canExportData: boolean;
+  // Appointment permissions
+  canViewAllAppointments: boolean;
+  canModifyAppointments: boolean;
+  canCancelAppointments: boolean;
+  canAssignTechnicians: boolean;
+  canUpdateInstallationStatus: boolean;
+  canAddInternalNotes: boolean;
 }
 
 const rolePermissions: Record<AppRole, RolePermissions> = {
@@ -23,6 +30,13 @@ const rolePermissions: Record<AppRole, RolePermissions> = {
     canManageClients: true,
     canManageOrders: true,
     canExportData: true,
+    // Admin has full appointment access
+    canViewAllAppointments: true,
+    canModifyAppointments: true,
+    canCancelAppointments: true,
+    canAssignTechnicians: true,
+    canUpdateInstallationStatus: true,
+    canAddInternalNotes: true,
   },
   employee: {
     canViewFullCardDetails: false, // Only last 4 digits
@@ -33,6 +47,13 @@ const rolePermissions: Record<AppRole, RolePermissions> = {
     canManageClients: true,
     canManageOrders: true,
     canExportData: false,
+    // Employee can manage appointments except assign technicians
+    canViewAllAppointments: true,
+    canModifyAppointments: true,
+    canCancelAppointments: true,
+    canAssignTechnicians: false,
+    canUpdateInstallationStatus: false,
+    canAddInternalNotes: true,
   },
   technician: {
     canViewFullCardDetails: false,
@@ -43,6 +64,13 @@ const rolePermissions: Record<AppRole, RolePermissions> = {
     canManageClients: false,
     canManageOrders: false,
     canExportData: false,
+    // Technician can only view assigned and update status
+    canViewAllAppointments: false, // Only sees assigned
+    canModifyAppointments: false,
+    canCancelAppointments: false,
+    canAssignTechnicians: false,
+    canUpdateInstallationStatus: true,
+    canAddInternalNotes: false,
   },
   client: {
     canViewFullCardDetails: false,
@@ -53,6 +81,13 @@ const rolePermissions: Record<AppRole, RolePermissions> = {
     canManageClients: false,
     canManageOrders: false,
     canExportData: false,
+    // Client cannot manage appointments from admin
+    canViewAllAppointments: false,
+    canModifyAppointments: false,
+    canCancelAppointments: false,
+    canAssignTechnicians: false,
+    canUpdateInstallationStatus: false,
+    canAddInternalNotes: false,
   },
 };
 
