@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight, MapPin, Plus, Building2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -41,6 +41,13 @@ const ClientProfile = () => {
     current: false,
     new: false,
     confirm: false,
+  });
+  const [addLocationDialogOpen, setAddLocationDialogOpen] = useState(false);
+  const [newLocation, setNewLocation] = useState({
+    label: "",
+    service_address: "",
+    service_city: "",
+    service_postal_code: "",
   });
 
   const { data: profile, isLoading } = useQuery({
@@ -82,6 +89,61 @@ const ClientProfile = () => {
       return data || [];
     },
     enabled: !!user?.id,
+  });
+
+  // Fetch client accounts and service locations
+  const { data: accounts, refetch: refetchAccounts } = useQuery({
+    queryKey: ["client-accounts", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("client_id", user?.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: serviceLocations, refetch: refetchLocations } = useQuery({
+    queryKey: ["client-service-locations", user?.id],
+    queryFn: async () => {
+      if (!accounts || accounts.length === 0) return [];
+      const accountIds = accounts.map((a: any) => a.id);
+      const { data, error } = await supabase
+        .from("account_service_locations")
+        .select("*")
+        .in("account_id", accountIds)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!accounts && accounts.length > 0,
+  });
+
+  // Add service location mutation
+  const addLocationMutation = useMutation({
+    mutationFn: async (data: typeof newLocation) => {
+      if (!accounts || accounts.length === 0) throw new Error("No account found");
+      const { error } = await supabase.from("account_service_locations").insert({
+        account_id: accounts[0].id,
+        label: data.label,
+        service_address: data.service_address,
+        service_city: data.service_city,
+        service_postal_code: data.service_postal_code,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchLocations();
+      toast({ title: "Adresse ajoutée avec succès" });
+      setAddLocationDialogOpen(false);
+      setNewLocation({ label: "", service_address: "", service_city: "", service_postal_code: "" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
   });
 
   useEffect(() => {
@@ -300,6 +362,39 @@ const ClientProfile = () => {
             </CardContent>
           </Card>
 
+          {/* Service Locations */}
+          <Card className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-cyan-400" />
+                Adresses de service
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setAddLocationDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" /> Ajouter
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {accounts && accounts.length > 0 && accounts[0] && (
+                <div className="p-3 border rounded-lg bg-accent/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge>Principal</Badge>
+                    <span className="text-xs text-muted-foreground">{accounts[0].account_number}</span>
+                  </div>
+                  <p className="text-sm">{accounts[0].primary_service_address}, {accounts[0].primary_service_city}</p>
+                </div>
+              )}
+              {serviceLocations?.map((loc: any) => (
+                <div key={loc.id} className="p-3 border rounded-lg">
+                  <Badge variant="outline" className="mb-1">{loc.label}</Badge>
+                  <p className="text-sm">{loc.service_address}, {loc.service_city}</p>
+                </div>
+              ))}
+              {(!accounts || accounts.length === 0) && (!serviceLocations || serviceLocations.length === 0) && (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucune adresse de service</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Account Details */}
           <div className="space-y-6">
             <Card className="bg-card border-border">
@@ -450,6 +545,38 @@ const ClientProfile = () => {
               Changer le mot de passe
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Location Dialog */}
+      <Dialog open={addLocationDialogOpen} onOpenChange={setAddLocationDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter une adresse de service</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>Nom/Libellé *</Label>
+              <Input value={newLocation.label} onChange={(e) => setNewLocation({ ...newLocation, label: e.target.value })} placeholder="Ex: Bureau, Chalet" />
+            </div>
+            <div>
+              <Label>Adresse *</Label>
+              <Input value={newLocation.service_address} onChange={(e) => setNewLocation({ ...newLocation, service_address: e.target.value })} placeholder="123 rue Exemple" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Ville</Label>
+                <Input value={newLocation.service_city} onChange={(e) => setNewLocation({ ...newLocation, service_city: e.target.value })} placeholder="Montréal" />
+              </div>
+              <div>
+                <Label>Code postal</Label>
+                <Input value={newLocation.service_postal_code} onChange={(e) => setNewLocation({ ...newLocation, service_postal_code: e.target.value })} placeholder="H2X 1Y4" />
+              </div>
+            </div>
+            <Button className="w-full" onClick={() => addLocationMutation.mutate(newLocation)} disabled={!newLocation.label || !newLocation.service_address || addLocationMutation.isPending}>
+              {addLocationMutation.isPending ? "Ajout..." : "Ajouter l'adresse"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </ClientLayout>

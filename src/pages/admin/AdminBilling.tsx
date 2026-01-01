@@ -136,6 +136,15 @@ const AdminBilling = () => {
   const [etransferPaymentsDialogOpen, setEtransferPaymentsDialogOpen] = useState(false);
   const [selectedPaymentForStatus, setSelectedPaymentForStatus] = useState<any>(null);
   const [etransferStatusUpdateReason, setEtransferStatusUpdateReason] = useState("");
+  const [recordPaymentDialogOpen, setRecordPaymentDialogOpen] = useState(false);
+  const [newPayment, setNewPayment] = useState({
+    user_id: "",
+    amount: "",
+    payment_method: "cash",
+    reference_number: "",
+    notes: "",
+    billing_id: "",
+  });
   const [newInvoice, setNewInvoice] = useState({
     user_id: "",
     amount: "",
@@ -410,6 +419,99 @@ const AdminBilling = () => {
     onError: (error: any) => {
       console.error("Invoice creation error:", error);
       toast({ title: "Erreur lors de la création", description: error?.message, variant: "destructive" });
+    },
+  });
+
+  // Record manual payment mutation
+  const recordPaymentMutation = useMutation({
+    mutationFn: async (payment: typeof newPayment) => {
+      const amount = parseFloat(payment.amount) || 0;
+      const refNumber = payment.reference_number || `PAY-${Date.now().toString(36).toUpperCase()}`;
+      
+      // Get client info
+      const selectedClient = clients?.find((c: any) => c.user_id === payment.user_id);
+      
+      // Insert payment record
+      const { data, error } = await supabase
+        .from("payments")
+        .insert({
+          user_id: payment.user_id,
+          amount,
+          payment_method: payment.payment_method,
+          reference_number: refNumber,
+          payment_reference: refNumber,
+          notes: payment.notes,
+          billing_id: payment.billing_id || null,
+          status: "completed",
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+
+      // Update client balance
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("user_id", payment.user_id)
+        .maybeSingle();
+      
+      const currentBalance = profile?.balance || 0;
+      const newBalance = Math.max(0, currentBalance - amount);
+      
+      await supabase
+        .from("profiles")
+        .update({ balance: newBalance })
+        .eq("user_id", payment.user_id);
+
+      // If linked to a billing record, update it
+      if (payment.billing_id) {
+        await supabase
+          .from("billing")
+          .update({ 
+            status: "paid", 
+            paid_at: new Date().toISOString(),
+            payment_reference: refNumber 
+          })
+          .eq("id", payment.billing_id);
+      }
+
+      // Send notification
+      if (selectedClient?.email) {
+        try {
+          await sendBillingNotification(
+            selectedClient.email,
+            selectedClient.full_name || "Client",
+            "payment_received",
+            { amount, paymentMethod: payment.payment_method }
+          );
+        } catch (e) {
+          console.error("Failed to send payment notification:", e);
+        }
+      }
+
+      return data;
+    },
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      logActivity("create", "payment", data.id, { 
+        amount: data.amount,
+        reference: data.reference_number,
+        method: data.payment_method
+      }, {
+        changedField: "payment",
+        reason: "Paiement manuel enregistré"
+      });
+      toast({ 
+        title: "Paiement enregistré",
+        description: `Réf: ${data.reference_number}`
+      });
+      setRecordPaymentDialogOpen(false);
+      setNewPayment({ user_id: "", amount: "", payment_method: "cash", reference_number: "", notes: "", billing_id: "" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error?.message, variant: "destructive" });
     },
   });
 
@@ -1114,6 +1216,10 @@ const AdminBilling = () => {
                   {etransferPayments.filter((p: any) => p.status === "pending" || p.status === "in_verification").length}
                 </span>
               )}
+            </Button>
+            <Button variant="outline" onClick={() => setRecordPaymentDialogOpen(true)}>
+              <DollarSign className="w-4 h-4 mr-2" />
+              Enregistrer paiement
             </Button>
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogTrigger asChild>
@@ -1918,6 +2024,103 @@ const AdminBilling = () => {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Record Payment Dialog */}
+        <Dialog open={recordPaymentDialogOpen} onOpenChange={setRecordPaymentDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-500" />
+                Enregistrer un paiement
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <Label>Client *</Label>
+                <Select value={newPayment.user_id} onValueChange={(v) => setNewPayment({ ...newPayment, user_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner un client" /></SelectTrigger>
+                  <SelectContent>
+                    {clients?.map((client: any) => (
+                      <SelectItem key={client.user_id} value={client.user_id}>
+                        {client.full_name || client.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {newPayment.user_id && (
+                <div>
+                  <Label>Lier à une facture (optionnel)</Label>
+                  <Select value={newPayment.billing_id} onValueChange={(v) => setNewPayment({ ...newPayment, billing_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Aucune facture liée" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Aucune</SelectItem>
+                      {billing?.filter((b: any) => b.user_id === newPayment.user_id && b.status !== "paid").map((b: any) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.invoice_number} - {Number(b.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div>
+                <Label>Montant *</Label>
+                <Input 
+                  type="number" 
+                  value={newPayment.amount} 
+                  onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })} 
+                  placeholder="0.00" 
+                />
+              </div>
+
+              <div>
+                <Label>Méthode de paiement *</Label>
+                <Select value={newPayment.payment_method} onValueChange={(v) => setNewPayment({ ...newPayment, payment_method: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Comptant</SelectItem>
+                    <SelectItem value="cheque">Chèque</SelectItem>
+                    <SelectItem value="etransfer">Virement Interac</SelectItem>
+                    <SelectItem value="card">Carte de crédit</SelectItem>
+                    <SelectItem value="debit">Carte de débit</SelectItem>
+                    <SelectItem value="wire">Virement bancaire</SelectItem>
+                    <SelectItem value="other">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Numéro de référence (optionnel)</Label>
+                <Input 
+                  value={newPayment.reference_number} 
+                  onChange={(e) => setNewPayment({ ...newPayment, reference_number: e.target.value })} 
+                  placeholder="Auto-généré si vide" 
+                />
+              </div>
+
+              <div>
+                <Label>Notes</Label>
+                <Textarea 
+                  value={newPayment.notes} 
+                  onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })} 
+                  placeholder="Notes sur ce paiement..." 
+                  rows={2}
+                />
+              </div>
+
+              <Button 
+                className="w-full" 
+                onClick={() => recordPaymentMutation.mutate(newPayment)}
+                disabled={!newPayment.user_id || !newPayment.amount || recordPaymentMutation.isPending}
+              >
+                {recordPaymentMutation.isPending ? "Enregistrement..." : "Enregistrer le paiement"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
