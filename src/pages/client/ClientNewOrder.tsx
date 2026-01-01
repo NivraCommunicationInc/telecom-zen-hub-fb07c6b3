@@ -670,8 +670,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         });
       }
 
-      // AUTO-CREATE APPOINTMENT for orders requiring installation (Internet/TV)
-      const shouldCreateAppointment = (hasInternetService || hasTVService || selectedServices.some(s => s.category === "Sécurité")) && selectedDate && selectedTime;
+      // AUTO-CREATE APPOINTMENT for orders requiring installation (Internet/TV/Security)
+      // Only create appointment if date and time are selected AND service requires installation
+      const requiresInstallationService = hasInternetService || hasTVService || selectedServices.some(s => s.category === "Sécurité");
+      const hasScheduledSlot = selectedDate && selectedTime;
+      const shouldCreateAppointment = requiresInstallationService && hasScheduledSlot;
       
       if (shouldCreateAppointment) {
         const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
@@ -698,7 +701,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           servicePostalCode: profile?.service_postal_code || "",
           scheduledDate: selectedDate,
           scheduledTime: selectedTime,
-          installationMethod: installationChoice || "auto",
+          installationMethod: (installationChoice as "auto" | "technician") || "auto",
           deliveryFee: orderDeliveryFee,
           installationFee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
           equipmentDetails,
@@ -707,8 +710,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
         if (!appointmentResult.success) {
           console.error("Appointment creation failed:", appointmentResult.error);
+          // Show error toast but don't block order (order was already created)
+          toast.error("Erreur lors de la création du rendez-vous. Contactez le support.");
         } else {
-          console.log("Appointment created:", appointmentResult.appointment?.appointment_number);
+          console.log("Appointment created successfully:", appointmentResult.appointment?.appointment_number);
+          toast.success("Rendez-vous créé: " + (appointmentResult.appointment?.appointment_number || ""));
         }
       }
 

@@ -87,14 +87,36 @@ const ClientAppointments = () => {
     enabled: !!user?.id,
   });
 
+  // Get client profile ID for filtering
+  const clientId = profile?.user_id || user?.id;
+  const clientEmail = profile?.email || user?.email;
+
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ["client-appointments-all", user?.id, user?.email],
+    queryKey: ["client-appointments-all", clientId, clientEmail],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (!clientId && !clientEmail) return [];
+      
+      // Build query with explicit client filter (RLS + frontend filter for safety)
+      let query = supabase
         .from("appointments")
         .select("*")
         .order("scheduled_at", { ascending: false });
-      if (error) throw error;
+      
+      // Filter by client_id OR client_email
+      if (clientId && clientEmail) {
+        query = query.or(`client_id.eq.${clientId},client_email.eq.${clientEmail}`);
+      } else if (clientId) {
+        query = query.eq("client_id", clientId);
+      } else if (clientEmail) {
+        query = query.eq("client_email", clientEmail);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error("Appointments fetch error:", error);
+        throw error;
+      }
       
       // Fetch technicians for display
       if (data && data.length > 0) {
@@ -114,22 +136,30 @@ const ClientAppointments = () => {
       
       return data || [];
     },
-    enabled: !!user?.id,
+    enabled: !!(clientId || clientEmail),
   });
 
-  // Realtime subscription
+  // Realtime subscription - invalidate on any appointment change
   useEffect(() => {
+    if (!clientId && !clientEmail) return;
+    
     const channel = supabase
       .channel("client-appointments-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, (payload) => {
+        // Only invalidate if the change is relevant to this client
+        const changedClientId = (payload.new as any)?.client_id || (payload.old as any)?.client_id;
+        const changedClientEmail = (payload.new as any)?.client_email || (payload.old as any)?.client_email;
+        
+        if (changedClientId === clientId || changedClientEmail === clientEmail) {
+          queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, clientId, clientEmail]);
 
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
@@ -152,6 +182,7 @@ const ClientAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       toast.success("Rendez-vous annulé avec succès");
       setCancelDialogOpen(false);
       setDetailsOpen(false);
@@ -188,6 +219,7 @@ const ClientAppointments = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       toast.success("Rendez-vous reprogrammé avec succès");
       setRescheduleDialogOpen(false);
       setDetailsOpen(false);
@@ -241,13 +273,22 @@ const ClientAppointments = () => {
       .trim();
   };
 
-  // Separate appointments into upcoming and past
-  const upcomingAppointments = appointments?.filter((apt: any) => 
-    isFuture(new Date(apt.scheduled_at)) || isToday(new Date(apt.scheduled_at))
-  ) || [];
-  const pastAppointments = appointments?.filter((apt: any) => 
-    isPast(new Date(apt.scheduled_at)) && !isToday(new Date(apt.scheduled_at))
-  ) || [];
+  // Separate appointments into upcoming and past based on date AND status
+  // Upcoming: future date + not cancelled/completed
+  const upcomingAppointments = appointments?.filter((apt: any) => {
+    const aptDate = new Date(apt.scheduled_at);
+    const isFutureOrToday = isFuture(aptDate) || isToday(aptDate);
+    const isActiveStatus = !["cancelled", "completed", "no_show"].includes(apt.status?.toLowerCase());
+    return isFutureOrToday && isActiveStatus;
+  }) || [];
+  
+  // Past: past date OR cancelled/completed/no_show status
+  const pastAppointments = appointments?.filter((apt: any) => {
+    const aptDate = new Date(apt.scheduled_at);
+    const isPastDate = isPast(aptDate) && !isToday(aptDate);
+    const isInactiveStatus = ["cancelled", "completed", "no_show"].includes(apt.status?.toLowerCase());
+    return isPastDate || isInactiveStatus;
+  }) || [];
 
   const handleViewDetails = (apt: any) => {
     setSelectedAppointment(apt);

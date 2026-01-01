@@ -128,6 +128,7 @@ const TechnicianDashboard = () => {
     }
   }, [navigate, toast]);
 
+  // Fetch assigned orders
   const { data: assignments, isLoading, refetch } = useQuery({
     queryKey: ["technician-assignments", technicianSession?.id],
     enabled: !!technicianSession?.id,
@@ -150,6 +151,40 @@ const TechnicianDashboard = () => {
         return data.map((order: any) => ({
           ...order,
           profile: profiles?.find((p: any) => p.user_id === order.user_id),
+        }));
+      }
+      return data || [];
+    },
+  });
+
+  // Fetch assigned appointments from appointments table
+  const { data: appointmentAssignments, refetch: refetchAppointments } = useQuery({
+    queryKey: ["technician-appointments", technicianSession?.id],
+    enabled: !!technicianSession?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("technician_id", technicianSession.id)
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+
+      // Get client profiles for appointments
+      if (data && data.length > 0) {
+        const clientIds = [...new Set(data.filter((a: any) => a.client_id).map((a: any) => a.client_id))];
+        let profiles: any[] = [];
+        if (clientIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("user_id, full_name, email, phone, service_address, service_city, service_province, service_postal_code")
+            .in("user_id", clientIds);
+          profiles = profilesData || [];
+        }
+
+        return data.map((apt: any) => ({
+          ...apt,
+          profile: profiles.find((p: any) => p.user_id === apt.client_id) || 
+            (apt.client_email ? { email: apt.client_email, full_name: apt.client_email.split('@')[0] } : null),
         }));
       }
       return data || [];
