@@ -364,7 +364,7 @@ export const generateContractPDF = (data: ContractData): jsPDF => {
   
   addSectionTitle("RÉSILIATION", 8);
   addParagraph(`Préavis requis : ${CONTRACT_TERMS.cancellation.noticeDays} jours`);
-  addParagraph(`Frais de résiliation anticipée : ${CONTRACT_TERMS.cancellation.earlyTerminationFee}`);
+  addParagraph(`Frais après livraison : ${CONTRACT_TERMS.cancellation.afterDeliveryCharge}`);
   
   addFooter(pageNumber, 5);
   

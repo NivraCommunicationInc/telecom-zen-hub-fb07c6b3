@@ -443,9 +443,16 @@ const AdminContracts = () => {
 
   const buildContractData = (contract: any): TelecomContractData => {
     const client = contract.profiles;
+    const fullName = client?.full_name || "Client";
+    const nameParts = fullName.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    
     return {
-      contractNumber: contract.contract_number || contract.contract_url || `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
-      clientName: client?.full_name || "Client",
+      contractNumber: contract.contract_number || contract.contract_url || `NVR-CSA-QC-2026-${contract.id.slice(0, 5).toUpperCase()}`,
+      clientFirstName: firstName,
+      clientLastName: lastName,
+      clientName: fullName,
       clientEmail: client?.email || "",
       clientPhone: client?.phone,
       clientAccountNumber: client?.client_number,
@@ -1026,7 +1033,7 @@ const AdminContracts = () => {
                       </div>
                       <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded p-3">
                         <p className="font-medium text-amber-600 dark:text-amber-400 text-xs">ANNULATION</p>
-                        <p className="text-xs">{CONTRACT_TERMS.cancellation.earlyTerminationFee}</p>
+                        <p className="text-xs">{CONTRACT_TERMS.cancellation.afterDeliveryCharge}</p>
                       </div>
                       <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded p-3">
                         <p className="font-medium text-emerald-600 dark:text-emerald-400 text-xs">CRÉDIT</p>

@@ -1,45 +1,90 @@
 // Centralized policies that are used both on the website and in contracts
-// When these are updated, contracts will automatically use the latest version
+// Customer Service Agreement (CSA) - Licensed Telecommunications Services Provider — Province of Québec
 
 export const BUSINESS_INFO = {
-  name: "Nivra Télécom",
-  legalName: "Nivra Télécom Inc.",
-  address: "Montréal, QC, Canada",
+  name: "Nivra Communications",
+  legalName: "Nivra Communications Inc.",
+  address: "2352 Rue Monet, Laval, QC H7E 0E5",
   phone: "438-544-2233",
-  email: "Nivratelecom@gmail.com",
+  email: "support@nivratelecom.com",
+  paymentEmail: "Nivratelecom@gmail.com",
   website: "www.nivra.ca",
   neq: "À compléter", // Numéro d'entreprise du Québec
 };
 
 export const CONTRACT_TERMS = {
-  version: "2.1",
-  lastUpdated: new Date().toISOString().split('T')[0],
+  version: "v1.0-QC-2026",
+  lastUpdated: "2026-01-01",
+  agreementType: "Customer Service Agreement (CSA)",
+  
+  // Status flow
+  statusFlow: ["Pending", "Verification", "Hold/Approved", "Shipped", "Completed"],
   
   services: [
-    "Analyse des besoins en télécommunications du client",
-    "Comparaison des offres disponibles sur le marché",
-    "Recommandations personnalisées et impartiales",
-    "Accompagnement dans les démarches auprès des fournisseurs",
-    "Suivi et optimisation des services télécom",
+    "Internet",
+    "TV Bundle",
+    "Mobile Plan",
+    "Security",
+    "Streaming",
+    "Accessories",
   ],
+  
+  // One-time fees (not plan-dependent)
+  fees: {
+    simPhysical: 30,
+    esim: 25,
+    router: 60,
+    tvTerminal: 50, // per terminal, max 4
+    uberExpress: 45,
+    maxTerminals: 4,
+  },
   
   paymentTerms: {
     dueDays: 30,
     lateInterestRate: 5, // 5% per month
     currency: "CAD",
-    acceptedMethods: ["Carte de crédit", "Virement bancaire", "Chèque", "Interac e-Transfer"],
+    acceptedMethods: ["Visa", "Mastercard", "Amex", "E-Transfer"],
+  },
+  
+  // E-Transfer details
+  etransfer: {
+    email: "Nivratelecom@gmail.com",
+    securityQuestion: "What is my Nivra?",
+    securityAnswer: "Telecom",
+  },
+  
+  // Delivery SLA
+  delivery: {
+    standardDays: "24 to 78 business hours",
+    uberExpress: "10 hours",
+    eligibleCities: [
+      "Montréal", "Laval", "Terrebonne", "Mascouche", 
+      "Repentigny", "Longueuil", "Saint-Hubert", "Brossard"
+    ],
+    // Delivery-only categories
+    deliveryOnlyServices: ["Mobile", "Streaming", "Accessories"],
+    // Installation possible
+    installationServices: ["Internet", "TV"],
+  },
+  
+  // Number portability
+  portability: {
+    allowedAreaCodes: ["418", "514", "450", "579", "819", "367", "263", "354", "468"],
+    tempPlaceholder: "514-111-1111",
   },
   
   cancellation: {
     noticeDays: 30,
-    earlyTerminationFee: "Frais d'un (1) mois de service après installation. Coûts de retour d'équipement à la charge du client.",
-    freeCancel: "Annulation possible en tout temps sans pénalité avant l'installation.",
+    afterDeliveryCharge: "1 month of service",
+    beforeDeliveryCharge: "Equipment + delivery fees apply",
+    nonReturnFee: "Variable after Admin validation",
+    returnDays: 14,
   },
   
   warranty: {
-    duration: "1 an",
-    coverage: "Défauts de fabrication couverts. Dommages causés par le client non couverts.",
-    equipment: "Équipement Nivra (routeur, terminal, SIM) couvert par garantie manufacturier.",
+    duration: "1 year",
+    coverage: "Manufacturing defects only",
+    exclusions: ["Client-caused damage", "Loss or theft", "Liquid damage", "Physical impact"],
   },
   
   confidentiality: `
@@ -50,7 +95,7 @@ sauf si requis par la loi.
   `.trim(),
   
   independence: `
-Nivra Télécom est un courtier 100% indépendant. Nous ne recevons aucune commission, 
+Nivra Communications est un courtier 100% indépendant. Nous ne recevons aucune commission, 
 rémunération ou compensation de la part des fournisseurs de télécommunications. 
 Nos honoraires sont payés directement par nos clients, ce qui garantit notre 
 impartialité totale dans nos recommandations.
@@ -93,6 +138,27 @@ Le Prestataire conserve des journaux internes de toutes les modifications apport
 aux comptes clients, incluant l'identité de l'acteur, la date, l'heure et la nature 
 des changements. Ces journaux sont utilisés à des fins d'audit et de sécurité.
   `.trim(),
+  
+  noExternalRedirect: `
+Le client ne sera jamais redirigé vers des sites tiers de transporteurs pour la 
+livraison ou le traitement des paiements.
+  `.trim(),
+};
+
+// Access permissions by role
+export const ACCESS_PERMISSIONS = {
+  admin: {
+    role: "Admin",
+    access: "Full visibility (payments, logs, invoices)",
+  },
+  employee: {
+    role: "Employee",
+    access: "Can see last 4 digits of CC, update status",
+  },
+  technician: {
+    role: "Technician",
+    access: "Can update order after installation",
+  },
 };
 
 export const LATE_PAYMENT_POLICY = `
@@ -204,7 +270,7 @@ POLITIQUE D'ANNULATION
 2. Après l'installation, des frais équivalents à un (1) mois de service 
    seront facturés.
 
-3. L'équipement Nivra doit être retourné dans les 14 jours suivant 
+3. L'équipement Nivra doit être retourné dans les ${CONTRACT_TERMS.cancellation.returnDays} jours suivant 
    l'annulation. Les frais de retour sont à la charge du client.
 
 4. Un préavis de ${CONTRACT_TERMS.cancellation.noticeDays} jours est requis 
@@ -221,7 +287,7 @@ CANCELLATION POLICY
 2. After installation, fees equivalent to one (1) month of service 
    will be charged.
 
-3. Nivra equipment must be returned within 14 days following 
+3. Nivra equipment must be returned within ${CONTRACT_TERMS.cancellation.returnDays} days following 
    cancellation. Return costs are the client's responsibility.
 
 4. A notice period of ${CONTRACT_TERMS.cancellation.noticeDays} days is required 
@@ -235,7 +301,7 @@ export const NO_CREDIT_CHECK_POLICY = {
   fr: `
 POLITIQUE SANS VÉRIFICATION DE CRÉDIT
 
-Nivra Télécom n'effectue aucune vérification de crédit. L'accès aux services 
+Nivra Communications n'effectue aucune vérification de crédit. L'accès aux services 
 est basé sur une pré-autorisation de carte de crédit ou un dépôt de garantie. 
 Cette politique permet à tous les clients d'accéder à nos services sans 
 impact sur leur dossier de crédit.
@@ -243,9 +309,29 @@ impact sur leur dossier de crédit.
   en: `
 NO CREDIT CHECK POLICY
 
-Nivra Télécom does not perform any credit checks. Access to services 
+Nivra Communications does not perform any credit checks. Access to services 
 is based on a credit card pre-authorization or security deposit. 
 This policy allows all clients to access our services without 
 impacting their credit file.
   `.trim(),
+};
+
+// Contract ID generator
+export const generateContractId = (sequenceNumber: number): string => {
+  const year = new Date().getFullYear();
+  const paddedNumber = String(sequenceNumber).padStart(5, "0");
+  return `NVR-CSA-QC-${year}-${paddedNumber}`;
+};
+
+// Order Reference generator
+export const generateOrderReference = (sequenceNumber: number): string => {
+  const paddedNumber = String(sequenceNumber).padStart(5, "0");
+  return `NVR-ORD-${paddedNumber}`;
+};
+
+// Payment Reference generator
+export const generatePaymentReference = (sequenceNumber: number): string => {
+  const year = new Date().getFullYear();
+  const paddedNumber = String(sequenceNumber).padStart(5, "0");
+  return `NVR-PAY-QC-${year}-${paddedNumber}`;
 };
