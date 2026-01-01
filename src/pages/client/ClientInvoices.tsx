@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer, Clock } from "lucide-react";
+import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer, Clock, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, isPast, parseISO } from "date-fns";
@@ -14,8 +14,9 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { downloadInvoicePDF, getInvoicePDFBlob } from "@/lib/invoicePdfGenerator";
-import { safePDFPrint } from "@/lib/pdfUtils";
+import { downloadInvoicePDF, getInvoicePDFBlob, InvoiceData } from "@/lib/invoicePdfGenerator";
+import { safePDFPrint, safePDFOpen } from "@/lib/pdfUtils";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -47,6 +48,13 @@ const ClientInvoices = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [generalAmount, setGeneralAmount] = useState("");
+  
+  // PDF Viewer state
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFilename, setPdfFilename] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   // Fetch client profile for balance/credit info
   const { data: profile, refetch: refetchProfile } = useQuery({
@@ -54,7 +62,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("balance, store_credit, account_status, full_name, email, phone")
+        .select("balance, store_credit, account_status, full_name, email, phone, client_number, service_address, service_city")
         .eq("user_id", user?.id)
         .maybeSingle();
       if (error) throw error;
@@ -290,6 +298,72 @@ const ClientInvoices = () => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copié`);
   };
+
+  // Create invoice data for PDF generation
+  const createInvoiceData = useCallback((inv: any): InvoiceData => {
+    const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
+    return {
+      invoiceNumber: inv.invoice_number || `NVR-INV-QC-${new Date().getFullYear()}-${inv.id?.slice(0, 5).toUpperCase()}`,
+      orderNumber: inv.related_order_number,
+      paymentReference: inv.payment_reference,
+      clientNumber: profile?.client_number,
+      clientName: profile?.full_name || "Client",
+      clientEmail: profile?.email || user?.email || "",
+      clientPhone: profile?.phone,
+      clientAddress: profile?.service_address,
+      clientCity: profile?.service_city,
+      subtotal: Number(inv.subtotal || inv.amount) || 0,
+      fees: Number(inv.fees) || 0,
+      credits: Number(inv.credits) || 0,
+      deliveryFee: Number(inv.delivery_fee) || 0,
+      activationFee: Number(inv.activation_fee) || 0,
+      installationFee: Number(inv.installation_fee) || 0,
+      discountAmount: Number(inv.discount_amount) || 0,
+      preauthDiscount: Number(inv.preauth_discount) || 0,
+      tpsAmount: Number(inv.tps_amount) || 0,
+      tvqAmount: Number(inv.tvq_amount) || 0,
+      lateFeeAmount: Number(inv.late_fee_amount) || 0,
+      dueDate: inv.due_date,
+      createdAt: inv.created_at,
+      status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
+      paidAt: inv.paid_at,
+      notes: inv.notes,
+      equipmentId: inv.equipment_id,
+    };
+  }, [profile, user?.email]);
+
+  // Open PDF in viewer dialog
+  const handleViewPDF = useCallback((inv: any) => {
+    try {
+      setPdfLoading(true);
+      setPdfViewerOpen(true);
+      setPdfTitle(`Facture ${inv.invoice_number || inv.id?.slice(0, 8).toUpperCase()}`);
+      setPdfFilename(`Facture_${inv.invoice_number || inv.id?.slice(0, 8)}.pdf`);
+      
+      // Generate PDF blob
+      const invoiceData = createInvoiceData(inv);
+      const blob = getInvoicePDFBlob(invoiceData);
+      setPdfBlob(blob);
+      setPdfLoading(false);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("Erreur lors de la génération du PDF");
+      setPdfLoading(false);
+      setPdfViewerOpen(false);
+    }
+  }, [createInvoiceData]);
+
+  // Open PDF in new tab
+  const handleOpenPDFExternal = useCallback((inv: any) => {
+    try {
+      const invoiceData = createInvoiceData(inv);
+      const blob = getInvoicePDFBlob(invoiceData);
+      safePDFOpen(blob, `Facture_${inv.invoice_number || inv.id?.slice(0, 8)}.pdf`);
+    } catch (error) {
+      console.error("PDF open error:", error);
+      toast.error("Erreur lors de l'ouverture du PDF");
+    }
+  }, [createInvoiceData]);
 
   const handlePayClick = (invoice: any) => {
     setSelectedInvoice(invoice);
@@ -534,51 +608,43 @@ const ClientInvoices = () => {
                                   <Button 
                                     size="sm" 
                                     variant="outline"
+                                    onClick={() => handleViewPDF(inv)}
+                                    title="Voir PDF"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleOpenPDFExternal(inv)}
+                                    title="Ouvrir dans nouvel onglet"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
                                     onClick={() => {
                                       setPreviewInvoice(inv);
                                       setInvoicePreviewOpen(true);
                                     }}
+                                    title="Aperçu rapide"
                                   >
                                     <Eye className="w-4 h-4" />
                                   </Button>
                                   <Button 
                                     size="sm" 
                                     variant="outline"
-                                    onClick={async () => {
+                                    onClick={() => {
                                       try {
-                                        if (!inv) {
-                                          toast.error("Facture non disponible");
-                                          return;
-                                        }
-                                        await downloadInvoicePDF({
-                                          invoiceNumber: inv.invoice_number || inv.id?.slice(0, 8).toUpperCase() || "FACT-000",
-                                          orderNumber: inv.related_order_number || undefined,
-                                          clientName: profile?.full_name || "Client",
-                                          clientEmail: profile?.email || user?.email || "",
-                                          clientPhone: profile?.phone || "",
-                                          subtotal: Number(inv.subtotal || inv.amount) || 0,
-                                          fees: Number(inv.fees) || 0,
-                                          credits: Number(inv.credits) || 0,
-                                          deliveryFee: Number(inv.delivery_fee) || 0,
-                                          activationFee: Number(inv.activation_fee) || 0,
-                                          installationFee: Number(inv.installation_fee) || 0,
-                                          discountAmount: Number(inv.discount_amount) || 0,
-                                          tpsAmount: Number(inv.tps_amount) || 0,
-                                          tvqAmount: Number(inv.tvq_amount) || 0,
-                                          lateFeeAmount: Number(inv.late_fee_amount) || 0,
-                                          dueDate: inv.due_date,
-                                          createdAt: inv.created_at,
-                                          status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
-                                          paidAt: inv.paid_at,
-                                          notes: inv.notes || "",
-                                          equipmentId: inv.equipment_id || "",
-                                        });
+                                        downloadInvoicePDF(createInvoiceData(inv));
                                         toast.success("Facture téléchargée");
-                                      } catch (error: any) {
+                                      } catch (error) {
                                         console.error("Invoice download error:", error);
-                                        toast.error("Erreur lors du téléchargement de la facture");
+                                        toast.error("Erreur lors du téléchargement");
                                       }
                                     }}
+                                    title="Télécharger"
                                   >
                                     <Download className="w-4 h-4" />
                                   </Button>
@@ -1416,6 +1482,16 @@ const ClientInvoices = () => {
             })()}
           </DialogContent>
         </Dialog>
+
+        {/* PDF Viewer Dialog - Full preview without redirect */}
+        <PDFViewerDialog
+          open={pdfViewerOpen}
+          onOpenChange={setPdfViewerOpen}
+          pdfBlob={pdfBlob}
+          title={pdfTitle}
+          filename={pdfFilename}
+          isLoading={pdfLoading}
+        />
       </div>
     </ClientLayout>
   );
