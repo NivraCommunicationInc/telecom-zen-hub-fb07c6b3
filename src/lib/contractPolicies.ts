@@ -4,11 +4,13 @@
 export const BUSINESS_INFO = {
   name: "Nivra Communications",
   legalName: "Nivra Communications Inc.",
-  address: "2352 Rue Monet, Laval, QC H7E 0E5",
+  address: "2352 Rue Monet, Laval, QC H7E 0E5, Canada",
   phone: "438-544-2233",
-  email: "support@nivratelecom.com",
+  email: "Nivratelecom@gmail.com",
   paymentEmail: "Nivratelecom@gmail.com",
   website: "www.nivra.ca",
+  serviceTerritory: "Province of Québec only",
+  fulfillmentCentre: "Grand Montréal, Québec",
   neq: "À compléter", // Numéro d'entreprise du Québec
 };
 
@@ -17,16 +19,15 @@ export const CONTRACT_TERMS = {
   lastUpdated: "2026-01-01",
   agreementType: "Customer Service Agreement (CSA)",
   
-  // Status flow
+  // Status flow (Admin-editable)
   statusFlow: ["Pending", "Verification", "Hold/Approved", "Shipped", "Completed"],
   
   services: [
     "Internet",
-    "TV Bundle",
+    "TV + Internet Bundle",
     "Mobile Plan",
-    "Security",
     "Streaming",
-    "Accessories",
+    "Accessories / Extras",
   ],
   
   // One-time fees (not plan-dependent)
@@ -43,7 +44,7 @@ export const CONTRACT_TERMS = {
     dueDays: 30,
     lateInterestRate: 5, // 5% per month
     currency: "CAD",
-    acceptedMethods: ["Visa", "Mastercard", "Amex", "E-Transfer"],
+    acceptedMethods: ["Credit Card (processed internally)", "Secure E-Transfer"],
   },
   
   // E-Transfer details
@@ -69,16 +70,18 @@ export const CONTRACT_TERMS = {
   
   // Number portability
   portability: {
-    allowedAreaCodes: ["418", "514", "450", "579", "819", "367", "263", "354", "468"],
+    allowedAreaCodes: ["418", "514", "450", "579", "819", "367", "263", "354", "438", "468"],
     tempPlaceholder: "514-111-1111",
   },
   
   cancellation: {
     noticeDays: 30,
-    afterDeliveryCharge: "1 month of service",
+    afterDeliveryCharge: "1 month of service charge may still apply",
     beforeDeliveryCharge: "Equipment + delivery fees apply",
     nonReturnFee: "Variable after Admin validation",
     returnDays: 14,
+    equipmentRemoval: "Service channels, equipment, and bindings must be removed from the client profile automatically",
+    recordPersistence: "All invoices, contracts, and order logs must persist and never disappear from Admin records",
   },
   
   warranty: {
@@ -95,10 +98,10 @@ sauf si requis par la loi.
   `.trim(),
   
   independence: `
-Nivra Communications est un courtier 100% indépendant. Nous ne recevons aucune commission, 
-rémunération ou compensation de la part des fournisseurs de télécommunications. 
-Nos honoraires sont payés directement par nos clients, ce qui garantit notre 
-impartialité totale dans nos recommandations.
+Nivra Communications Inc. is an independent internal service provider with no carrier 
+affiliation or commissions. We do not receive any compensation from telecom carriers. 
+Our fees are paid directly by our clients, which guarantees our complete impartiality 
+in our recommendations.
   `.trim(),
   
   liability: `
@@ -110,9 +113,10 @@ Prestataire est limitée au montant des honoraires payés par le Client.
   `.trim(),
   
   jurisdiction: `
-Ce contrat est régi par les lois de la province de Québec et les lois fédérales 
-du Canada applicables. Tout litige sera soumis à la compétence exclusive des 
-tribunaux du Québec.
+This Agreement is legally binding and enforceable in the Province of Québec. 
+It is governed by the laws of the province of Québec and the applicable federal 
+laws of Canada. Any dispute will be submitted to the exclusive jurisdiction 
+of the courts of Québec.
   `.trim(),
   
   dataProtection: `
@@ -134,14 +138,26 @@ contrat et pourrait faire l'objet de poursuites judiciaires.
   `.trim(),
   
   internalLogs: `
-Le Prestataire conserve des journaux internes de toutes les modifications apportées 
-aux comptes clients, incluant l'identité de l'acteur, la date, l'heure et la nature 
-des changements. Ces journaux sont utilisés à des fins d'audit et de sécurité.
+All changes or updates made by Admin, Employees, or Technicians are recorded in 
+Admin-private logs, capturing: Actor Role | Name/Email | Timestamp | Field changed | 
+Previous → New value | Reason. These logs are used for audit and security purposes.
   `.trim(),
   
   noExternalRedirect: `
-Le client ne sera jamais redirigé vers des sites tiers de transporteurs pour la 
-livraison ou le traitement des paiements.
+No redirect to telecom carriers or third-party sites occurs at any stage. 
+The client will never be redirected to external websites for delivery or payment processing.
+  `.trim(),
+  
+  servicesBinding: `
+This agreement binds exclusively to the services and equipment selected by the client 
+at checkout or modified later through the browser-based client portal. No service plan 
+or pricing is inserted manually outside of client-selected placeholders.
+  `.trim(),
+  
+  paymentBeforeConfirmation: `
+The client acknowledges that if their order includes equipment fees, delivery charges, 
+or the first month of service, payment must be completed before the order can be 
+confirmed or processed.
   `.trim(),
 };
 
@@ -150,14 +166,17 @@ export const ACCESS_PERMISSIONS = {
   admin: {
     role: "Admin",
     access: "Full visibility (payments, logs, invoices)",
+    cardAccess: "Full credit card numbers visible",
   },
   employee: {
     role: "Employee",
     access: "Can see last 4 digits of CC, update status",
+    cardAccess: "Last 4 digits only",
   },
   technician: {
     role: "Technician",
     access: "Can update order after installation",
+    cardAccess: "Last 4 digits only",
   },
 };
 
@@ -175,6 +194,8 @@ POLITIQUE DE PAIEMENT EN RETARD
 4. Tous les frais de recouvrement engagés seront à la charge du Client.
 
 5. Le Client accepte de recevoir des rappels de paiement par courriel et téléphone.
+
+Admin override is permitted and logged internally.
 `.trim();
 
 export const LATE_PAYMENT_POLICY_EN = `
@@ -183,14 +204,15 @@ LATE PAYMENT POLICY
 1. Any payment not received within ${CONTRACT_TERMS.paymentTerms.dueDays} days following 
    the invoice date is considered late.
 
-2. Interest of ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month will be applied 
-   to any unpaid balance, calculated from the due date.
+2. Late Fee: ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% monthly on unpaid balance.
 
 3. In case of non-payment after 60 days, services may be suspended.
 
 4. All collection fees incurred will be the responsibility of the Client.
 
 5. The Client agrees to receive payment reminders by email and phone.
+
+Admin override is permitted and logged internally.
 `.trim();
 
 export const CLIENT_OBLIGATIONS = [
@@ -245,14 +267,14 @@ POLITIQUE DE GARANTIE
   en: `
 WARRANTY POLICY
 
-1. All Nivra equipment (router, 4K terminal, SIM/eSIM) is covered by a 
-   manufacturer warranty of one (1) year from the activation date.
+Warranty is manufacturer-based only and tracked via placeholder.
 
-2. The warranty covers manufacturing defects and failures not caused by 
-   misuse.
+1. All Nivra equipment (Nivra Born WiFi Router, Nivra 4K Smart Terminal, SIM/eSIM) 
+   is covered by a 1-year manufacturer warranty from the activation date.
 
-3. Damage caused by the client (drops, liquids, unauthorized modifications) 
-   is not covered under warranty.
+2. Coverage: Manufacturing defects only.
+
+3. Exclusions: Client-caused damage, loss, theft, liquid damage, physical impact.
 
 4. In case of a covered failure, equipment will be replaced at no charge.
 
@@ -279,21 +301,24 @@ POLITIQUE D'ANNULATION
 5. Les crédits en compte ne sont pas remboursables après annulation.
   `.trim(),
   en: `
-CANCELLATION POLICY
+CANCELLATION & EQUIPMENT TERMS
 
-1. The client may cancel services at any time before installation 
-   without fees or penalties.
+1. If a cancellation occurs AFTER equipment delivery, 1 month of service charge 
+   may still apply (rule-based placeholder).
 
-2. After installation, fees equivalent to one (1) month of service 
-   will be charged.
+2. Equipment return fees are at client cost unless defective under warranty.
 
-3. Nivra equipment must be returned within ${CONTRACT_TERMS.cancellation.returnDays} days following 
+3. If an order is Cancelled at any stage:
+   → Service channels, equipment, and bindings must be removed from the client 
+     profile automatically.
+   → All invoices, contracts, and order logs must persist and never disappear 
+     from Admin records.
+
+4. Nivra equipment must be returned within ${CONTRACT_TERMS.cancellation.returnDays} days following 
    cancellation. Return costs are the client's responsibility.
 
-4. A notice period of ${CONTRACT_TERMS.cancellation.noticeDays} days is required 
+5. A notice period of ${CONTRACT_TERMS.cancellation.noticeDays} days is required 
    for any cancellation after installation.
-
-5. Account credits are non-refundable after cancellation.
   `.trim(),
 };
 
@@ -315,6 +340,24 @@ This policy allows all clients to access our services without
 impacting their credit file.
   `.trim(),
 };
+
+export const PRIVACY_ACCESS_TERMS = {
+  fullPayment: "Full payment data is private and stored internally.",
+  adminCardAccess: "Only Admin sees full credit card numbers.",
+  staffCardAccess: "Employees & technicians may see the last 4 digits placeholder only.",
+  activityLogs: "All changes or updates made by Admin, Employees, or Technicians are recorded in Admin-private logs, capturing: Actor Role | Name/Email | Timestamp | Field changed | Previous → New value | Reason",
+  noPublicData: "No client data is public or shared externally.",
+  noRedirect: "No redirect to telecom carriers or third-party sites occurs at any stage.",
+};
+
+export const CLIENT_ACKNOWLEDGEMENT = [
+  "All selected service plans and equipment bindings displayed in their portal match exactly what is offered publicly on the Nivra website.",
+  "Payment for equipment or first month fees is mandatory before order confirmation.",
+  "Delivery rules are internal and enforceable via system placeholders.",
+  "No external redirect occurs for payment or delivery.",
+  "Nivra Communications Inc. is an independent internal service provider with no carrier affiliation or commissions.",
+  "This agreement is legally binding and enforceable in the Province of Québec.",
+];
 
 // Contract ID generator
 export const generateContractId = (sequenceNumber: number): string => {
