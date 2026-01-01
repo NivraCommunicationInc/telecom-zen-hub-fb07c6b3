@@ -64,6 +64,7 @@ import { Separator } from "@/components/ui/separator";
 
 const categories = [
   "Internet",
+  "TV",
   "TV + Internet",
   "GIGA Bundles",
   "Mobile",
@@ -73,6 +74,7 @@ const categories = [
 
 const categoryIcons: Record<string, any> = {
   "Internet": Wifi,
+  "TV": Tv,
   "TV + Internet": Tv,
   "GIGA Bundles": Package,
   "Mobile": Smartphone,
@@ -82,6 +84,7 @@ const categoryIcons: Record<string, any> = {
 
 const categoryColors: Record<string, string> = {
   "Internet": "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  "TV": "bg-purple-500/20 text-purple-400 border-purple-500/30",
   "TV + Internet": "bg-purple-500/20 text-purple-400 border-purple-500/30",
   "GIGA Bundles": "bg-amber-500/20 text-amber-400 border-amber-500/30",
   "Mobile": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
