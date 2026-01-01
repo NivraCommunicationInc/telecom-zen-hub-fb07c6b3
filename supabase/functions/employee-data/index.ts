@@ -73,7 +73,7 @@ serve(async (req) => {
       );
     }
 
-    const { employeeId, employeeName, employeeEmail, permissions } = verification.payload;
+    const { employeeId, fullName: employeeName, email: employeeEmail, permissions } = verification.payload;
     const { action, params } = await req.json();
     
     console.log(`[employee-data] Action: ${action} for employee: ${employeeId} (${employeeName})`);
