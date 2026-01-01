@@ -2139,6 +2139,66 @@ export type Database = {
         }
         Relationships: []
       }
+      system_status: {
+        Row: {
+          affected_services: Json | null
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          id: string
+          internal_notes: string | null
+          is_active: boolean | null
+          is_banner: boolean | null
+          message: string
+          severity: string
+          show_to_clients: boolean | null
+          show_to_employees: boolean | null
+          show_to_technicians: boolean | null
+          starts_at: string | null
+          status_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_services?: Json | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          internal_notes?: string | null
+          is_active?: boolean | null
+          is_banner?: boolean | null
+          message: string
+          severity?: string
+          show_to_clients?: boolean | null
+          show_to_employees?: boolean | null
+          show_to_technicians?: boolean | null
+          starts_at?: string | null
+          status_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_services?: Json | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          internal_notes?: string | null
+          is_active?: boolean | null
+          is_banner?: boolean | null
+          message?: string
+          severity?: string
+          show_to_clients?: boolean | null
+          show_to_employees?: boolean | null
+          show_to_technicians?: boolean | null
+          starts_at?: string | null
+          status_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       technicians: {
         Row: {
           access_code: string | null

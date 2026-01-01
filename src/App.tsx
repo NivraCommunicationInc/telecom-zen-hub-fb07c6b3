@@ -60,6 +60,7 @@ import AdminEmployees from "./pages/admin/AdminEmployees";
 import AdminPromotions from "./pages/admin/AdminPromotions";
 import AdminAccounts from "./pages/admin/AdminAccounts";
 import AdminStreaming from "./pages/admin/AdminStreaming";
+import AdminSystemStatus from "./pages/admin/AdminSystemStatus";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
@@ -125,6 +126,7 @@ const App = () => (
               <Route path="/admin/promotions" element={<ProtectedRoute requireAdmin><AdminPromotions /></ProtectedRoute>} />
               <Route path="/admin/accounts" element={<ProtectedRoute requireAdmin><AdminAccounts /></ProtectedRoute>} />
               <Route path="/admin/streaming" element={<ProtectedRoute requireAdmin><AdminStreaming /></ProtectedRoute>} />
+              <Route path="/admin/system-status" element={<ProtectedRoute requireAdmin><AdminSystemStatus /></ProtectedRoute>} />
               {/* Employee Portal Routes */}
               <Route path="/employee/login" element={<EmployeeLogin />} />
               <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
