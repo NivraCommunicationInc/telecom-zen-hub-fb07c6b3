@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 const EmployeeLogin = () => {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const EmployeeLogin = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    
+
     if (pin.length !== 4) {
       setErrorMessage("Le code PIN doit contenir 4 chiffres.");
       return;
@@ -41,8 +42,22 @@ const EmployeeLogin = () => {
       });
 
       if (error) {
-        console.error("Edge function error:", error);
-        setErrorMessage("Erreur de connexion. Veuillez réessayer.");
+        // When the function returns non-2xx, supabase-js gives a FunctionsHttpError.
+        // We extract the real message from the response body to show the user.
+        let message = "Erreur de connexion. Veuillez réessayer.";
+
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const body = await error.context.json();
+            if (typeof body?.error === "string" && body.error.trim()) {
+              message = body.error;
+            }
+          } catch {
+            // ignore parse errors and fall back to generic message
+          }
+        }
+
+        setErrorMessage(message);
         return;
       }
 
@@ -66,12 +81,12 @@ const EmployeeLogin = () => {
         token: data.token,
         loginAt: new Date().toISOString(),
       };
-      
+
       localStorage.setItem("nivra_employee_session", JSON.stringify(employeeSession));
 
-      toast({ 
-        title: "Connexion réussie", 
-        description: `Bienvenue, ${data.employee.full_name}` 
+      toast({
+        title: "Connexion réussie",
+        description: `Bienvenue, ${data.employee.full_name}`,
       });
       navigate("/employee");
     } catch (error) {

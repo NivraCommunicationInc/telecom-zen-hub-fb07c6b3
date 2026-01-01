@@ -31,10 +31,13 @@ async function signToken(payload: object, secret: string): Promise<string> {
   return `${data}.${signatureB64}`;
 }
 
+
+const PIN_SALT = "nivra_employee_salt_2025";
+
 // Simple hash function for PIN verification
-async function hashPin(pin: string): Promise<string> {
+async function hashPin(pin: string, salt = ""): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(pin);
+  const data = encoder.encode(pin + salt);
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
@@ -109,9 +112,12 @@ serve(async (req) => {
       );
     }
 
-    // Verify PIN - hash the input and compare
-    const inputPinHash = await hashPin(pin);
-    if (employee.pin_hash !== inputPinHash) {
+    // Verify PIN
+    // Support both the new salted hash and the legacy unsalted hash (backward compatibility).
+    const inputPinHash = await hashPin(pin, PIN_SALT);
+    const legacyInputPinHash = await hashPin(pin);
+
+    if (employee.pin_hash !== inputPinHash && employee.pin_hash !== legacyInputPinHash) {
       const newAttempts = (employee.failed_login_attempts || 0) + 1;
       const MAX_ATTEMPTS = 5;
       const LOCKOUT_MINUTES = 15;
@@ -124,9 +130,9 @@ serve(async (req) => {
         const lockoutTime = new Date();
         lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_MINUTES);
         updates.lockout_until = lockoutTime.toISOString();
-        
+
         await supabase.from("employees").update(updates).eq("id", employee.id);
-        
+
         console.log("[employee-auth] Account locked after", MAX_ATTEMPTS, "attempts");
         return new Response(
           JSON.stringify({ error: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
@@ -135,7 +141,7 @@ serve(async (req) => {
       }
 
       await supabase.from("employees").update(updates).eq("id", employee.id);
-      
+
       const remaining = MAX_ATTEMPTS - newAttempts;
       console.log("[employee-auth] Invalid PIN. Remaining attempts:", remaining);
       return new Response(
