@@ -73,10 +73,10 @@ serve(async (req) => {
       );
     }
 
-    const { employeeId, permissions } = verification.payload;
+    const { employeeId, employeeName, employeeEmail, permissions } = verification.payload;
     const { action, params } = await req.json();
     
-    console.log(`[employee-data] Action: ${action} for employee: ${employeeId}`);
+    console.log(`[employee-data] Action: ${action} for employee: ${employeeId} (${employeeName})`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -85,6 +85,7 @@ serve(async (req) => {
     let result: any = null;
 
     switch (action) {
+      // ==================== READ OPERATIONS ====================
       case "get_orders":
         if (!permissions?.can_view_orders) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -103,7 +104,7 @@ serve(async (req) => {
         }
         const { data: appointments } = await supabase
           .from("appointments")
-          .select("*")
+          .select("*, technicians(id, full_name, email)")
           .order("scheduled_at", { ascending: true })
           .limit(params?.limit || 100);
         result = { appointments };
@@ -121,6 +122,18 @@ serve(async (req) => {
         result = { tickets };
         break;
 
+      case "get_ticket_replies":
+        if (!permissions?.can_view_tickets) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: replies } = await supabase
+          .from("ticket_replies")
+          .select("*")
+          .eq("ticket_id", params.ticketId)
+          .order("created_at", { ascending: true });
+        result = { replies };
+        break;
+
       case "get_clients":
         if (!permissions?.can_view_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -134,11 +147,8 @@ serve(async (req) => {
         break;
 
       case "get_invoices":
-        if (!permissions?.can_generate_invoices || !permissions?.can_edit_invoices) {
-          // Allow view if they have either permission
-          if (!permissions?.can_generate_invoices && !permissions?.can_edit_invoices) {
-            return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-          }
+        if (!permissions?.can_generate_invoices && !permissions?.can_edit_invoices) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: invoices } = await supabase
           .from("billing")
@@ -148,40 +158,16 @@ serve(async (req) => {
         result = { invoices };
         break;
 
-      case "update_order_status":
-        if (!permissions?.can_edit_orders_status) {
+      case "get_technicians":
+        if (!permissions?.can_view_appointments && !permissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update({ status: params.status, updated_at: new Date().toISOString() })
-          .eq("id", params.orderId);
-        if (orderError) throw orderError;
-        result = { success: true };
-        break;
-
-      case "update_appointment":
-        if (!permissions?.can_manage_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: aptError } = await supabase
-          .from("appointments")
-          .update({ ...params.updates, updated_at: new Date().toISOString() })
-          .eq("id", params.appointmentId);
-        if (aptError) throw aptError;
-        result = { success: true };
-        break;
-
-      case "update_ticket":
-        if (!permissions?.can_manage_tickets) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: ticketError } = await supabase
-          .from("support_tickets")
-          .update({ ...params.updates, updated_at: new Date().toISOString() })
-          .eq("id", params.ticketId);
-        if (ticketError) throw ticketError;
-        result = { success: true };
+        const { data: technicians } = await supabase
+          .from("technicians")
+          .select("id, full_name, email, status, specializations")
+          .eq("status", "active")
+          .order("full_name", { ascending: true });
+        result = { technicians };
         break;
 
       case "get_dashboard_stats":
@@ -201,6 +187,331 @@ serve(async (req) => {
         };
         break;
 
+      // ==================== ORDER OPERATIONS ====================
+      case "update_order_status":
+        if (!permissions?.can_edit_orders_status) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: orderStatusError } = await supabase
+          .from("orders")
+          .update({ status: params.status, updated_at: new Date().toISOString() })
+          .eq("id", params.orderId);
+        if (orderStatusError) throw orderStatusError;
+        result = { success: true };
+        break;
+
+      case "update_order":
+        if (!permissions?.can_edit_orders_status && !permissions?.can_ship_orders) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: orderUpdateError } = await supabase
+          .from("orders")
+          .update({ ...params.updates, updated_at: new Date().toISOString() })
+          .eq("id", params.orderId);
+        if (orderUpdateError) throw orderUpdateError;
+        result = { success: true };
+        break;
+
+      case "update_order_payment":
+        if (!permissions?.can_confirm_payments) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour confirmer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: paymentUpdateError } = await supabase
+          .from("orders")
+          .update({
+            payment_status: params.payment_status,
+            payment_reference: params.payment_reference,
+            amount_paid: params.amount_paid,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", params.orderId);
+        if (paymentUpdateError) throw paymentUpdateError;
+        result = { success: true };
+        break;
+
+      case "verify_order_identity":
+        if (!permissions?.can_edit_orders_status) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: verifyIdError } = await supabase
+          .from("orders")
+          .update({
+            id_verification_status: params.status,
+            id_verification_notes: params.notes,
+            id_verified_at: new Date().toISOString(),
+            id_verified_by: employeeId,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", params.orderId);
+        if (verifyIdError) throw verifyIdError;
+        result = { success: true };
+        break;
+
+      case "create_order":
+        if (!permissions?.can_view_orders) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: newOrder, error: createOrderError } = await supabase
+          .from("orders")
+          .insert({
+            user_id: params.user_id,
+            client_email: params.client_email,
+            service_type: params.service_type,
+            category: params.category,
+            subtotal: params.subtotal || 0,
+            status: params.status || "pending",
+            created_by: "employee",
+            notes: params.notes,
+            internal_notes: `Créé par ${employeeName} (${employeeEmail}) le ${new Date().toLocaleDateString("fr-CA")}`
+          })
+          .select()
+          .single();
+        if (createOrderError) throw createOrderError;
+        result = { order: newOrder };
+        break;
+
+      // ==================== APPOINTMENT OPERATIONS ====================
+      case "update_appointment":
+        if (!permissions?.can_manage_appointments) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: aptError } = await supabase
+          .from("appointments")
+          .update({ ...params.updates, updated_at: new Date().toISOString(), updated_by: employeeId })
+          .eq("id", params.appointmentId);
+        if (aptError) throw aptError;
+        result = { success: true };
+        break;
+
+      case "assign_technician":
+        if (!permissions?.can_manage_appointments) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        
+        // Update appointment
+        const { error: assignAptError } = await supabase
+          .from("appointments")
+          .update({
+            technician_id: params.technician_id,
+            status: params.technician_id ? "technician_assigned" : "scheduled",
+            updated_at: new Date().toISOString(),
+            updated_by: employeeId
+          })
+          .eq("id", params.appointmentId);
+        if (assignAptError) throw assignAptError;
+        
+        // Create or update work order if technician assigned
+        if (params.technician_id && params.order_id) {
+          const { data: existingWO } = await supabase
+            .from("work_orders")
+            .select("id")
+            .eq("appointment_id", params.appointmentId)
+            .single();
+          
+          if (existingWO) {
+            await supabase
+              .from("work_orders")
+              .update({
+                assigned_technician_id: params.technician_id,
+                status: "assigned",
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", existingWO.id);
+          } else {
+            await supabase.from("work_orders").insert({
+              order_id: params.order_id,
+              appointment_id: params.appointmentId,
+              assigned_technician_id: params.technician_id,
+              work_type: "installation",
+              status: "assigned",
+              priority: "normal",
+              client_email: params.client_email,
+              service_address: params.service_address
+            });
+          }
+        }
+        result = { success: true };
+        break;
+
+      case "create_appointment":
+        if (!permissions?.can_manage_appointments) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: newApt, error: createAptError } = await supabase
+          .from("appointments")
+          .insert({
+            client_id: params.client_id,
+            client_email: params.client_email,
+            client_phone: params.client_phone,
+            title: params.title,
+            description: params.description,
+            scheduled_at: params.scheduled_at,
+            service_type: params.service_type,
+            service_address: params.service_address,
+            service_city: params.service_city,
+            service_postal_code: params.service_postal_code,
+            status: "scheduled",
+            order_id: params.order_id,
+            created_by: employeeId,
+            internal_notes: `Créé par ${employeeName} le ${new Date().toLocaleDateString("fr-CA")}`
+          })
+          .select()
+          .single();
+        if (createAptError) throw createAptError;
+        result = { appointment: newApt };
+        break;
+
+      // ==================== TICKET OPERATIONS ====================
+      case "update_ticket":
+        if (!permissions?.can_manage_tickets) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: ticketError } = await supabase
+          .from("support_tickets")
+          .update({ ...params.updates, updated_at: new Date().toISOString() })
+          .eq("id", params.ticketId);
+        if (ticketError) throw ticketError;
+        result = { success: true };
+        break;
+
+      case "add_ticket_reply":
+        if (!permissions?.can_manage_tickets) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        
+        // Get ticket to find user_id for the reply
+        const { data: ticketData } = await supabase
+          .from("support_tickets")
+          .select("user_id")
+          .eq("id", params.ticketId)
+          .single();
+        
+        const { data: newReply, error: replyError } = await supabase
+          .from("ticket_replies")
+          .insert({
+            ticket_id: params.ticketId,
+            user_id: ticketData?.user_id || employeeId,
+            content: params.content,
+            is_admin: true
+          })
+          .select()
+          .single();
+        if (replyError) throw replyError;
+        
+        // Update ticket status to in_progress if open
+        await supabase
+          .from("support_tickets")
+          .update({ 
+            status: params.newStatus || "in_progress", 
+            updated_at: new Date().toISOString() 
+          })
+          .eq("id", params.ticketId)
+          .eq("status", "open");
+        
+        result = { reply: newReply };
+        break;
+
+      // ==================== CLIENT OPERATIONS ====================
+      case "update_client":
+        if (!permissions?.can_edit_clients) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour modifier les clients" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: clientUpdateError } = await supabase
+          .from("profiles")
+          .update({ ...params.updates, updated_at: new Date().toISOString() })
+          .eq("id", params.clientId);
+        if (clientUpdateError) throw clientUpdateError;
+        result = { success: true };
+        break;
+
+      case "update_client_status":
+        if (!permissions?.can_edit_clients) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: clientStatusError } = await supabase
+          .from("profiles")
+          .update({ 
+            account_status: params.status, 
+            updated_at: new Date().toISOString(),
+            internal_notes: params.append_note 
+              ? (params.existing_notes ? `${params.existing_notes}\n\n[${new Date().toLocaleDateString("fr-CA")}] ${params.append_note}` : `[${new Date().toLocaleDateString("fr-CA")}] ${params.append_note}`)
+              : undefined
+          })
+          .eq("id", params.clientId);
+        if (clientStatusError) throw clientStatusError;
+        result = { success: true };
+        break;
+
+      case "verify_client_identity":
+        if (!permissions?.can_edit_clients) {
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: verifyClientIdError } = await supabase
+          .from("profiles")
+          .update({
+            id_type: params.id_type,
+            id_number: params.id_number,
+            id_province: params.id_province,
+            id_expiration: params.id_expiration,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", params.clientId);
+        if (verifyClientIdError) throw verifyClientIdError;
+        result = { success: true };
+        break;
+
+      // ==================== INVOICE/BILLING OPERATIONS ====================
+      case "update_invoice":
+        if (!permissions?.can_edit_invoices) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour modifier les factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: invoiceUpdateError } = await supabase
+          .from("billing")
+          .update({ ...params.updates })
+          .eq("id", params.invoiceId);
+        if (invoiceUpdateError) throw invoiceUpdateError;
+        result = { success: true };
+        break;
+
+      case "record_payment":
+        if (!permissions?.can_confirm_payments) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour enregistrer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        
+        // Create payment record
+        const { data: payment, error: paymentError } = await supabase
+          .from("payments")
+          .insert({
+            user_id: params.user_id,
+            billing_id: params.billing_id,
+            amount: params.amount,
+            payment_method: params.payment_method,
+            payment_reference: params.payment_reference,
+            card_last_four: params.card_last_four,
+            card_type: params.card_type,
+            notes: params.notes,
+            received_by: employeeName,
+            status: "completed"
+          })
+          .select()
+          .single();
+        if (paymentError) throw paymentError;
+        
+        // Update billing status
+        if (params.billing_id) {
+          await supabase
+            .from("billing")
+            .update({ 
+              status: "paid", 
+              paid_at: new Date().toISOString(),
+              payment_reference: payment.reference_number
+            })
+            .eq("id", params.billing_id);
+        }
+        
+        result = { payment };
+        break;
+
       default:
         return new Response(
           JSON.stringify({ error: "Action non reconnue" }),
@@ -213,10 +524,11 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[employee-data] Error:", error);
+    const message = error instanceof Error ? error.message : "Erreur inattendue";
     return new Response(
-      JSON.stringify({ error: "Erreur inattendue" }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

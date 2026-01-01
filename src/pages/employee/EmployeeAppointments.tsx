@@ -4,7 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +26,9 @@ import {
   MapPin,
   Phone,
   Clock,
+  Wrench,
+  Plus,
+  UserCog,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -36,15 +43,40 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Annulé", color: "bg-red-500/20 text-red-600" },
 };
 
+interface Technician {
+  id: string;
+  full_name: string;
+  email: string;
+  status: string;
+  specializations: string[] | null;
+}
+
 const EmployeeAppointments = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Create appointment dialog
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newAppointment, setNewAppointment] = useState({
+    client_email: "",
+    title: "",
+    description: "",
+    scheduled_at: "",
+    service_type: "internet",
+    service_address: "",
+    service_city: "",
+    service_postal_code: "",
+  });
 
   useEffect(() => {
     const stored = localStorage.getItem("nivra_employee_session");
@@ -84,8 +116,40 @@ const EmployeeAppointments = () => {
     }
   };
 
+  const fetchTechnicians = async () => {
+    if (!session?.token) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { action: "get_technicians" },
+      });
+      if (error) throw error;
+      setTechnicians(data?.technicians || []);
+    } catch (error) {
+      console.error("Error fetching technicians:", error);
+    }
+  };
+
+  const fetchClients = async () => {
+    if (!session?.token) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { action: "get_clients", params: { limit: 500 } },
+      });
+      if (error) throw error;
+      setClients(data?.clients || []);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
+  };
+
   useEffect(() => {
-    if (session?.token) fetchAppointments();
+    if (session?.token) {
+      fetchAppointments();
+      fetchTechnicians();
+      fetchClients();
+    }
   }, [session?.token]);
 
   const handleLogout = () => {
@@ -94,10 +158,12 @@ const EmployeeAppointments = () => {
   };
 
   const filteredAppointments = appointments.filter(apt => {
-    if (!search) return true;
-    return apt.appointment_number?.toLowerCase().includes(search.toLowerCase()) ||
+    const matchesSearch = !search ||
+      apt.appointment_number?.toLowerCase().includes(search.toLowerCase()) ||
       apt.client_email?.toLowerCase().includes(search.toLowerCase()) ||
       apt.title?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || apt.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   const handleUpdateStatus = async (appointmentId: string, status: string) => {
@@ -105,6 +171,7 @@ const EmployeeAppointments = () => {
       toast({ title: "Permission refusée", variant: "destructive" });
       return;
     }
+    setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
@@ -113,9 +180,101 @@ const EmployeeAppointments = () => {
       if (error || data?.error) throw new Error(data?.error || error);
       toast({ title: "Statut mis à jour" });
       fetchAppointments();
-      setSelectedAppointment(null);
+      if (selectedAppointment?.id === appointmentId) {
+        setSelectedAppointment({ ...selectedAppointment, status });
+      }
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAssignTechnician = async (technicianId: string | null) => {
+    if (!session?.permissions?.can_manage_appointments || !selectedAppointment) {
+      toast({ title: "Permission refusée", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { 
+          action: "assign_technician", 
+          params: { 
+            appointmentId: selectedAppointment.id,
+            technician_id: technicianId || null,
+            order_id: selectedAppointment.order_id,
+            client_email: selectedAppointment.client_email,
+            service_address: selectedAppointment.service_address
+          } 
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error);
+      toast({ title: technicianId ? "Technicien assigné" : "Technicien retiré" });
+      fetchAppointments();
+      const tech = technicians.find(t => t.id === technicianId);
+      setSelectedAppointment({ 
+        ...selectedAppointment, 
+        technician_id: technicianId,
+        technicians: tech ? { id: tech.id, full_name: tech.full_name, email: tech.email } : null,
+        status: technicianId ? "technician_assigned" : "scheduled"
+      });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateAppointment = async () => {
+    if (!session?.permissions?.can_manage_appointments) {
+      toast({ title: "Permission refusée", variant: "destructive" });
+      return;
+    }
+    const client = clients.find(c => c.email === newAppointment.client_email);
+    if (!client) {
+      toast({ title: "Client non trouvé", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { 
+          action: "create_appointment", 
+          params: {
+            client_id: client.user_id,
+            client_email: newAppointment.client_email,
+            client_phone: client.phone,
+            title: newAppointment.title,
+            description: newAppointment.description,
+            scheduled_at: newAppointment.scheduled_at,
+            service_type: newAppointment.service_type,
+            service_address: newAppointment.service_address || client.service_address,
+            service_city: newAppointment.service_city || client.service_city,
+            service_postal_code: newAppointment.service_postal_code || client.service_postal_code,
+          }
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error);
+      toast({ title: "Rendez-vous créé", description: `Numéro: ${data.appointment?.appointment_number}` });
+      setShowCreateDialog(false);
+      setNewAppointment({
+        client_email: "",
+        title: "",
+        description: "",
+        scheduled_at: "",
+        service_type: "internet",
+        service_address: "",
+        service_city: "",
+        service_postal_code: "",
+      });
+      fetchAppointments();
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -137,6 +296,12 @@ const EmployeeAppointments = () => {
               <h1 className="font-display font-bold text-lg">Rendez-vous</h1>
             </div>
             <div className="flex items-center gap-2">
+              {session?.permissions?.can_manage_appointments && (
+                <Button variant="outline" size="sm" onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau
+                </Button>
+              )}
               <span className="text-xs text-muted-foreground">
                 <Clock className="w-3 h-3 inline mr-1" />
                 {format(lastRefresh, "HH:mm")}
@@ -153,14 +318,27 @@ const EmployeeAppointments = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              {Object.entries(statusLabels).map(([key, { label }]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Card>
@@ -180,6 +358,7 @@ const EmployeeAppointments = () => {
                     <TableHead>Numéro</TableHead>
                     <TableHead>Titre</TableHead>
                     <TableHead>Client</TableHead>
+                    <TableHead>Technicien</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead></TableHead>
@@ -191,6 +370,11 @@ const EmployeeAppointments = () => {
                       <TableCell className="font-medium">{apt.appointment_number || "N/A"}</TableCell>
                       <TableCell>{apt.title || "N/A"}</TableCell>
                       <TableCell>{apt.client_email || "N/A"}</TableCell>
+                      <TableCell>
+                        {apt.technicians?.full_name || (
+                          <span className="text-muted-foreground italic">Non assigné</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {apt.scheduled_at ? format(new Date(apt.scheduled_at), "d MMM yyyy HH:mm", { locale: fr }) : "N/A"}
                       </TableCell>
@@ -213,8 +397,9 @@ const EmployeeAppointments = () => {
         </Card>
       </main>
 
+      {/* Appointment Details Dialog */}
       <Dialog open={!!selectedAppointment} onOpenChange={() => setSelectedAppointment(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
@@ -223,60 +408,250 @@ const EmployeeAppointments = () => {
           </DialogHeader>
 
           {selectedAppointment && (
-            <div className="space-y-4">
-              <h3 className="font-medium">{selectedAppointment.title}</h3>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                  <span>{selectedAppointment.client_email || "N/A"}</span>
-                </div>
-                {selectedAppointment.client_phone && (
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Détails</TabsTrigger>
+                <TabsTrigger value="technician">Technicien</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-4 mt-4">
+                <h3 className="font-medium text-lg">{selectedAppointment.title}</h3>
+                
+                <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedAppointment.client_phone}</span>
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <a href={`mailto:${selectedAppointment.client_email}`} className="hover:underline">
+                      {selectedAppointment.client_email || "N/A"}
+                    </a>
+                  </div>
+                  {selectedAppointment.client_phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <a href={`tel:${selectedAppointment.client_phone}`} className="hover:underline">
+                        {selectedAppointment.client_phone}
+                      </a>
+                    </div>
+                  )}
+                  {selectedAppointment.service_address && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span>{selectedAppointment.service_address}, {selectedAppointment.service_city} {selectedAppointment.service_postal_code}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span>
+                      {selectedAppointment.scheduled_at 
+                        ? format(new Date(selectedAppointment.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })
+                        : "N/A"}
+                    </span>
+                  </div>
+                </div>
+
+                <Badge className={statusLabels[selectedAppointment.status]?.color}>
+                  {statusLabels[selectedAppointment.status]?.label || selectedAppointment.status}
+                </Badge>
+
+                {selectedAppointment.description && (
+                  <div className="bg-muted/50 p-3 rounded text-sm">
+                    <p className="font-medium mb-1">Description:</p>
+                    <p className="text-muted-foreground">{selectedAppointment.description}</p>
                   </div>
                 )}
-                {selectedAppointment.service_address && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedAppointment.service_address}, {selectedAppointment.service_city}</span>
+
+                {session?.permissions?.can_manage_appointments && (
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-2">Changer le statut</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(statusLabels).map(([key, { label }]) => (
+                        <Button
+                          key={key}
+                          variant={selectedAppointment.status === key ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleUpdateStatus(selectedAppointment.id, key)}
+                          disabled={selectedAppointment.status === key || isSubmitting}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span>
-                    {selectedAppointment.scheduled_at 
-                      ? format(new Date(selectedAppointment.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })
-                      : "N/A"}
-                  </span>
-                </div>
-              </div>
+              </TabsContent>
 
-              <Badge className={statusLabels[selectedAppointment.status]?.color}>
-                {statusLabels[selectedAppointment.status]?.label || selectedAppointment.status}
-              </Badge>
+              <TabsContent value="technician" className="space-y-4 mt-4">
+                {selectedAppointment.technicians ? (
+                  <div className="bg-cyan-500/10 p-4 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-cyan-600">
+                      <Wrench className="w-4 h-4" />
+                      <span className="font-medium">Technicien assigné</span>
+                    </div>
+                    <p className="text-sm"><strong>Nom:</strong> {selectedAppointment.technicians.full_name}</p>
+                    <p className="text-sm"><strong>Email:</strong> {selectedAppointment.technicians.email}</p>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-500/10 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 text-yellow-600">
+                      <UserCog className="w-4 h-4" />
+                      <span className="font-medium">Aucun technicien assigné</span>
+                    </div>
+                  </div>
+                )}
 
-              {session?.permissions?.can_manage_appointments && (
-                <div className="border-t pt-4">
-                  <p className="text-sm font-medium mb-2">Changer le statut</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(statusLabels).map(([key, { label }]) => (
-                      <Button
-                        key={key}
-                        variant={selectedAppointment.status === key ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleUpdateStatus(selectedAppointment.id, key)}
-                        disabled={selectedAppointment.status === key}
+                {session?.permissions?.can_manage_appointments && (
+                  <div className="border-t pt-4 space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <UserCog className="w-4 h-4" />
+                      Assigner un technicien
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <Select 
+                        value={selectedAppointment.technician_id || ""} 
+                        onValueChange={(v) => handleAssignTechnician(v || null)}
                       >
-                        {label}
-                      </Button>
-                    ))}
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un technicien..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Aucun (retirer l'assignation)</SelectItem>
+                          {technicians.map((tech) => (
+                            <SelectItem key={tech.id} value={tech.id}>
+                              {tech.full_name} ({tech.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {technicians.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          Aucun technicien actif disponible
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Appointment Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Nouveau rendez-vous
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Client</Label>
+              <Select 
+                value={newAppointment.client_email} 
+                onValueChange={(v) => {
+                  const client = clients.find(c => c.email === v);
+                  setNewAppointment({
+                    ...newAppointment, 
+                    client_email: v,
+                    service_address: client?.service_address || "",
+                    service_city: client?.service_city || "",
+                    service_postal_code: client?.service_postal_code || "",
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un client..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.email || ""}>
+                      {client.full_name || client.email} ({client.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Titre</Label>
+              <Input 
+                placeholder="Ex: Installation Internet"
+                value={newAppointment.title}
+                onChange={(e) => setNewAppointment({...newAppointment, title: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label>Date et heure</Label>
+              <Input 
+                type="datetime-local"
+                value={newAppointment.scheduled_at}
+                onChange={(e) => setNewAppointment({...newAppointment, scheduled_at: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label>Type de service</Label>
+              <Select value={newAppointment.service_type} onValueChange={(v) => setNewAppointment({...newAppointment, service_type: v})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internet">Internet</SelectItem>
+                  <SelectItem value="tv">Télévision</SelectItem>
+                  <SelectItem value="mobile">Mobile</SelectItem>
+                  <SelectItem value="bundle">Forfait combiné</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Adresse de service</Label>
+              <Input 
+                placeholder="Adresse..."
+                value={newAppointment.service_address}
+                onChange={(e) => setNewAppointment({...newAppointment, service_address: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Ville</Label>
+                <Input 
+                  value={newAppointment.service_city}
+                  onChange={(e) => setNewAppointment({...newAppointment, service_city: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Code postal</Label>
+                <Input 
+                  value={newAppointment.service_postal_code}
+                  onChange={(e) => setNewAppointment({...newAppointment, service_postal_code: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label>Description (optionnel)</Label>
+              <Textarea 
+                placeholder="Notes ou détails..."
+                value={newAppointment.description}
+                onChange={(e) => setNewAppointment({...newAppointment, description: e.target.value})}
+              />
+            </div>
+            
+            <Button 
+              onClick={handleCreateAppointment} 
+              disabled={!newAppointment.client_email || !newAppointment.title || !newAppointment.scheduled_at || isSubmitting} 
+              className="w-full"
+            >
+              Créer le rendez-vous
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
