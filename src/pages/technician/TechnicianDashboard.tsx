@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -125,27 +125,189 @@ const TechnicianDashboard = () => {
     }
   }, [navigate, toast]);
 
-  // Fetch work orders for this technician
-  const { data: workOrders, isLoading, refetch } = useQuery({
+  // Fetch work orders for this technician (new system)
+  const { data: workOrders, isLoading: workOrdersLoading, refetch: refetchWorkOrders } = useQuery({
     queryKey: ["technician-work-orders", technicianSession?.id],
     enabled: !!technicianSession?.id,
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 30000,
     queryFn: async () => {
+      console.log("[TechnicianDashboard] Fetching work_orders for technician:", technicianSession.id);
       const { data, error } = await supabase
         .from("work_orders")
         .select("*")
         .eq("assigned_technician_id", technicianSession.id)
         .order("scheduled_start", { ascending: true, nullsFirst: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("[TechnicianDashboard] work_orders query error:", error);
+        throw error;
+      }
+      console.log("[TechnicianDashboard] work_orders found:", data?.length || 0);
       return data || [];
     },
   });
 
+  // ALSO fetch legacy orders assigned to this technician (for backwards compatibility)
+  const { data: legacyOrders, refetch: refetchLegacyOrders } = useQuery({
+    queryKey: ["technician-legacy-orders", technicianSession?.id],
+    enabled: !!technicianSession?.id,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      console.log("[TechnicianDashboard] Fetching legacy orders for technician:", technicianSession.id);
+      
+      // Fetch orders assigned to this technician
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("technician_id", technicianSession.id)
+        .order("appointment_date", { ascending: true, nullsFirst: false });
+      
+      if (ordersError) {
+        console.error("[TechnicianDashboard] orders query error:", ordersError);
+      }
+      
+      // Fetch appointments assigned to this technician
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("technician_id", technicianSession.id)
+        .order("scheduled_at", { ascending: true });
+      
+      if (appointmentsError) {
+        console.error("[TechnicianDashboard] appointments query error:", appointmentsError);
+      }
+
+      // Fetch client profiles for context
+      const orders = ordersData || [];
+      const appointments = appointmentsData || [];
+      
+      const userIds = [...new Set([
+        ...orders.map((o: any) => o.user_id),
+        ...appointments.filter((a: any) => a.client_id).map((a: any) => a.client_id),
+      ])].filter(Boolean);
+
+      let profiles: any[] = [];
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, email, phone, service_address, service_city, service_postal_code")
+          .in("user_id", userIds);
+        profiles = profilesData || [];
+      }
+
+      // Convert legacy orders to work_order-like format
+      const convertedOrders = orders.map((order: any) => {
+        const profile = profiles.find((p: any) => p.user_id === order.user_id);
+        return {
+          id: `order-${order.id}`,
+          work_order_number: order.order_number,
+          type: "installation" as const,
+          linked_order_id: order.id,
+          client_id: order.user_id,
+          client_name: profile?.full_name || order.client_email?.split('@')[0],
+          client_email: order.client_email || profile?.email,
+          client_phone: profile?.phone,
+          service_address: profile?.service_address,
+          service_city: profile?.service_city,
+          service_postal_code: profile?.service_postal_code,
+          scheduled_start: order.appointment_date,
+          assigned_technician_id: order.technician_id,
+          status: mapOrderStatusToWorkOrderStatus(order.status),
+          service_type: order.service_type,
+          notes: order.notes,
+          equipment_details: order.equipment_details || [],
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          _source: "order",
+        };
+      });
+
+      // Convert legacy appointments to work_order-like format
+      const convertedAppointments = appointments
+        .filter((apt: any) => !orders.some((o: any) => o.id === apt.order_id)) // Avoid duplicates
+        .map((apt: any) => {
+          const profile = profiles.find((p: any) => p.user_id === apt.client_id);
+          return {
+            id: `appointment-${apt.id}`,
+            work_order_number: apt.appointment_number,
+            type: "installation" as const,
+            linked_appointment_id: apt.id,
+            client_id: apt.client_id,
+            client_name: profile?.full_name || apt.client_email?.split('@')[0],
+            client_email: apt.client_email || profile?.email,
+            client_phone: apt.client_phone || profile?.phone,
+            service_address: apt.service_address || profile?.service_address,
+            service_city: apt.service_city || profile?.service_city,
+            service_postal_code: apt.service_postal_code || profile?.service_postal_code,
+            scheduled_start: apt.scheduled_at,
+            assigned_technician_id: apt.technician_id,
+            status: mapAppointmentStatusToWorkOrderStatus(apt.status),
+            service_type: apt.service_type,
+            notes: apt.description,
+            equipment_details: apt.equipment_details || [],
+            created_at: apt.created_at,
+            updated_at: apt.updated_at,
+            _source: "appointment",
+          };
+        });
+
+      const combined = [...convertedOrders, ...convertedAppointments];
+      console.log("[TechnicianDashboard] Legacy items found:", combined.length);
+      return combined;
+    },
+  });
+
+  // Helper to map order status to work order status
+  const mapOrderStatusToWorkOrderStatus = (status: string): string => {
+    const mapping: Record<string, string> = {
+      pending: "assigned",
+      hold: "assigned",
+      verification: "assigned",
+      back_order: "assigned",
+      shipped: "scheduled",
+      processing: "in_progress",
+      completed: "completed",
+      completed_installation: "completed",
+      cancelled: "cancelled",
+    };
+    return mapping[status] || "assigned";
+  };
+
+  // Helper to map appointment status to work order status
+  const mapAppointmentStatusToWorkOrderStatus = (status: string): string => {
+    const mapping: Record<string, string> = {
+      scheduled: "scheduled",
+      technician_assigned: "assigned",
+      in_progress: "in_progress",
+      completed: "completed",
+      cancelled: "cancelled",
+    };
+    return mapping[status] || "assigned";
+  };
+
+  // Combine work orders with legacy items (prefer work_orders if both exist)
+  const allWorkOrders = useMemo(() => {
+    const workOrderIds = new Set((workOrders || []).map((wo: any) => wo.linked_order_id || wo.linked_appointment_id));
+    const legacyFiltered = (legacyOrders || []).filter((lo: any) => {
+      // Don't include legacy items that already have work orders
+      const linkedId = lo.linked_order_id || lo.linked_appointment_id;
+      return !workOrderIds.has(linkedId);
+    });
+    return [...(workOrders || []), ...legacyFiltered];
+  }, [workOrders, legacyOrders]);
+
+  const isLoading = workOrdersLoading;
+
+  const refetch = () => {
+    console.log("[TechnicianDashboard] Manual refresh triggered for technician:", technicianSession?.id);
+    refetchWorkOrders();
+    refetchLegacyOrders();
+  };
+
   // Fetch work order updates/history for selected work order
   const { data: workOrderUpdates } = useQuery({
     queryKey: ["work-order-updates", selectedWorkOrder?.id],
-    enabled: !!selectedWorkOrder?.id,
+    enabled: !!selectedWorkOrder?.id && !selectedWorkOrder?.id?.startsWith("order-") && !selectedWorkOrder?.id?.startsWith("appointment-"),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_order_updates")
@@ -183,12 +345,52 @@ const TechnicianDashboard = () => {
     };
   }, [technicianSession?.id, queryClient]);
 
-  // Update work order status mutation
+  // Update work order status mutation - handles both work_orders and legacy items
   const updateStatusMutation = useMutation({
     mutationFn: async ({ workOrderId, newStatus, note }: { workOrderId: string; newStatus: string; note?: string }) => {
       const now = new Date().toISOString();
-      const workOrder = workOrders?.find((wo: any) => wo.id === workOrderId);
+      const workOrder = allWorkOrders?.find((wo: any) => wo.id === workOrderId);
       
+      console.log("[TechnicianDashboard] Updating status:", { workOrderId, newStatus, workOrder });
+      
+      // Handle legacy items (order-xxx or appointment-xxx)
+      if (workOrderId.startsWith("order-")) {
+        const orderId = workOrderId.replace("order-", "");
+        const orderStatus = newStatus === "completed" ? "completed_installation" : 
+                          newStatus === "in_progress" ? "processing" : 
+                          newStatus === "cancelled" ? "cancelled" : "shipped";
+        
+        const { error } = await supabase
+          .from("orders")
+          .update({ 
+            status: orderStatus,
+            updated_at: now,
+          })
+          .eq("id", orderId);
+        
+        if (error) throw error;
+        return;
+      }
+      
+      if (workOrderId.startsWith("appointment-")) {
+        const appointmentId = workOrderId.replace("appointment-", "");
+        const aptStatus = newStatus === "completed" ? "completed" : 
+                         newStatus === "in_progress" ? "in_progress" : 
+                         newStatus === "cancelled" ? "cancelled" : "technician_assigned";
+        
+        const { error } = await supabase
+          .from("appointments")
+          .update({ 
+            status: aptStatus,
+            updated_at: now,
+          })
+          .eq("id", appointmentId);
+        
+        if (error) throw error;
+        return;
+      }
+      
+      // Handle work_orders table
       const updateData: any = {
         status: newStatus,
         updated_at: now,
@@ -221,9 +423,9 @@ const TechnicianDashboard = () => {
       });
 
       // Also update linked order if exists
-      if (workOrder?.linked_order_id) {
+      if ((workOrder as any)?.linked_order_id) {
         const orderStatus = newStatus === "completed" ? "completed_installation" : 
-                          newStatus === "in_progress" ? "processing" : workOrder?.status;
+                          newStatus === "in_progress" ? "processing" : (workOrder as any)?.status;
         
         await supabase
           .from("orders")
@@ -231,11 +433,11 @@ const TechnicianDashboard = () => {
             status: orderStatus,
             updated_at: now,
           })
-          .eq("id", workOrder.linked_order_id);
+          .eq("id", (workOrder as any).linked_order_id);
       }
 
       // Also update linked appointment if exists
-      if (workOrder?.linked_appointment_id) {
+      if ((workOrder as any)?.linked_appointment_id) {
         await supabase
           .from("appointments")
           .update({ 
@@ -243,12 +445,13 @@ const TechnicianDashboard = () => {
                    newStatus === "in_progress" ? "in_progress" : "technician_assigned",
             updated_at: now,
           })
-          .eq("id", workOrder.linked_appointment_id);
+          .eq("id", (workOrder as any).linked_appointment_id);
       }
     },
     onSuccess: () => {
       toast({ title: "Statut mis à jour", description: "Le bon de travail a été modifié" });
       queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-legacy-orders"] });
       setDetailsOpen(false);
       setConfirmAction(null);
       setWorkNotes("");
@@ -294,12 +497,12 @@ const TechnicianDashboard = () => {
     navigate("/technician/auth");
   };
 
-  // Filter work orders by view
-  const activeWorkOrders = workOrders?.filter((wo: any) => 
+  // Filter work orders by view (use allWorkOrders which includes legacy)
+  const activeWorkOrders = allWorkOrders?.filter((wo: any) => 
     ["assigned", "scheduled", "in_progress"].includes(wo.status)
   ) || [];
 
-  const historyWorkOrders = workOrders?.filter((wo: any) => 
+  const historyWorkOrders = allWorkOrders?.filter((wo: any) => 
     ["completed", "cancelled"].includes(wo.status)
   ) || [];
 
