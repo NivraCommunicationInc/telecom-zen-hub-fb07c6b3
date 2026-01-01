@@ -16,6 +16,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import ServicesDetail from "./pages/ServicesDetail";
 import InternetPlans from "./pages/InternetPlans";
 import TVPlans from "./pages/TVPlans";
+import MobilePlans from "./pages/MobilePlans";
 import NotFound from "./pages/NotFound";
 import NotAuthorized from "./pages/NotAuthorized";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/services" element={<ServicesDetail />} />
               <Route path="/internet" element={<InternetPlans />} />
               <Route path="/tv" element={<TVPlans />} />
+              <Route path="/mobile" element={<MobilePlans />} />
               <Route path="/careers" element={<Careers />} />
               <Route path="/apply" element={<JobApplication />} />
               <Route path="/apply/:jobId" element={<JobApplication />} />
