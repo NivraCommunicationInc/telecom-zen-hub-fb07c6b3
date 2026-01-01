@@ -916,8 +916,21 @@ const AdminClients = () => {
         </Card>
 
         {/* Client Management Dialog */}
-        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <Dialog 
+          open={detailsDialogOpen} 
+          onOpenChange={(open) => {
+            // Only allow closing via explicit action, not from clicks inside
+            if (!open) {
+              setDetailsDialogOpen(false);
+            }
+          }}
+        >
+          <DialogContent 
+            className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
+          >
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center">
@@ -1822,7 +1835,7 @@ const AdminClients = () => {
 
         {/* Document Viewer Dialog */}
         <Dialog open={documentViewerOpen} onOpenChange={setDocumentViewerOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl" onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-cyan-400" />
@@ -1863,7 +1876,7 @@ const AdminClients = () => {
 
         {/* Order Details Dialog */}
         <Dialog open={orderDetailsOpen} onOpenChange={setOrderDetailsOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-cyan-400" />
@@ -2053,7 +2066,7 @@ const AdminClients = () => {
 
         {/* Invoice Details Dialog */}
         <Dialog open={invoiceDetailsOpen} onOpenChange={setInvoiceDetailsOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-cyan-400" />
@@ -2116,7 +2129,7 @@ const AdminClients = () => {
 
         {/* Delete Document Confirmation Dialog */}
         <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-          <DialogContent>
+          <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-500">
                 <Trash2 className="w-5 h-5" />
@@ -2142,7 +2155,7 @@ const AdminClients = () => {
 
         {/* Payment Details Dialog */}
         <Dialog open={paymentDetailsOpen} onOpenChange={setPaymentDetailsOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg" onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-emerald-400" />
