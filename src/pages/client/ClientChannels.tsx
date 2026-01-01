@@ -513,14 +513,10 @@ END:VCALENDAR`;
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[500px]">
+          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
             <TabsTrigger value="my-channels" className="flex items-center gap-2">
               <Tv className="h-4 w-4" />
               Mes Chaînes
-            </TabsTrigger>
-            <TabsTrigger value="browse" className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" />
-              Parcourir
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -541,13 +537,9 @@ END:VCALENDAR`;
                 <CardContent className="py-12 text-center">
                   <Tv className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="text-lg font-semibold mb-2">Aucun forfait TV actif</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground">
                     Vous n'avez pas encore de commande TV avec des chaînes sélectionnées.
                   </p>
-                  <Button onClick={() => setActiveTab("browse")} variant="outline">
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Parcourir les chaînes
-                  </Button>
                 </CardContent>
               </Card>
             ) : (
@@ -816,187 +808,6 @@ END:VCALENDAR`;
                 })}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="browse" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Channel Selection */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Basic Channels */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Check className="h-5 w-5 text-green-500" />
-                      Chaînes de Base (Incluses)
-                    </CardTitle>
-                    <CardDescription>
-                      Ces chaînes sont incluses dans tous les forfaits TV
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {basicChannels.map(channel => (
-                      <ChannelCard key={channel.id} channel={channel} />
-                    ))}
-                  </CardContent>
-                </Card>
-
-                {/* Premium Channels */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Star className="h-5 w-5 text-yellow-500" />
-                      Chaînes Premium ($10 - $18/mois chacune)
-                    </CardTitle>
-                    <CardDescription>
-                      Ajoutez des chaînes individuelles à votre forfait
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[500px] pr-4">
-                      <div className="space-y-3">
-                        {premiumChannels.map(channel => (
-                          <ChannelCard key={channel.id} channel={channel} />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-
-                {/* Bundle Channels */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-purple-500" />
-                      Forfaits & Bundles Premium
-                    </CardTitle>
-                    <CardDescription>
-                      Économisez avec nos forfaits regroupés
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {bundleChannels.map(channel => (
-                      <ChannelCard key={channel.id} channel={channel} />
-                    ))}
-                  </CardContent>
-                </Card>
-
-                {/* Theme Packs */}
-                <Card className="border-green-200 bg-gradient-to-br from-green-50 to-white">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Gift className="h-5 w-5 text-green-500" />
-                      Forfaits Thématiques
-                      <Badge className="bg-green-500 text-white ml-2">Économies!</Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Économisez jusqu'à 31% avec nos forfaits thématiques prédéfinis
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {packages.map(pkg => (
-                      <PackageCard key={pkg.id} pkg={pkg} />
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Cart Summary */}
-              <div className="lg:col-span-1">
-                <Card className="sticky top-4">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ShoppingCart className="h-5 w-5" />
-                      Votre Sélection
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {selectedChannels.length === 0 && selectedPackages.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Tv className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>Aucune chaîne sélectionnée</p>
-                        <p className="text-sm">Cliquez sur une chaîne ou forfait pour l'ajouter</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="space-y-2">
-                          {selectedPremium.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground mb-1">Chaînes Premium ({selectedPremium.length})</p>
-                              {selectedPremium.map(ch => (
-                                <div key={ch.id} className="flex justify-between text-sm py-1">
-                                  <span>{ch.name}</span>
-                                  <span>${ch.price}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {selectedBundles.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground mb-1">Bundles ({selectedBundles.length})</p>
-                              {selectedBundles.map(ch => (
-                                <div key={ch.id} className="flex justify-between text-sm py-1">
-                                  <span>{ch.name}</span>
-                                  <span>${ch.price}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {selectedPackages.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-green-600 mb-1 flex items-center gap-1">
-                                <Gift className="h-3 w-3" />
-                                Forfaits Thématiques ({selectedPackages.length})
-                              </p>
-                              {selectedPackages.map(pkg => (
-                                <div key={pkg.id} className="flex justify-between text-sm py-1">
-                                  <span className="flex items-center gap-1">
-                                    {pkg.name}
-                                    <Badge className="bg-green-500 text-white text-xs px-1 py-0">-{pkg.savings_percent}%</Badge>
-                                  </span>
-                                  <span className="text-green-600 font-medium">${pkg.discounted_price}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <Separator />
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between font-semibold text-lg">
-                            <span>Total mensuel</span>
-                            <span className="text-primary">${totalPrice.toFixed(2)}/mois</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            + taxes applicables (TPS 5% + TVQ 9.975%)
-                          </p>
-                        </div>
-
-                        <Button 
-                          className="w-full" 
-                          size="lg"
-                          onClick={() => submitSelectionMutation.mutate()}
-                          disabled={submitSelectionMutation.isPending || (selectedChannels.length === 0 && selectedPackages.length === 0)}
-                        >
-                          {submitSelectionMutation.isPending ? (
-                            "Traitement..."
-                          ) : (
-                            <>
-                              <Sparkles className="h-4 w-4 mr-2" />
-                              Soumettre la sélection
-                            </>
-                          )}
-                        </Button>
-
-                        <p className="text-xs text-center text-muted-foreground">
-                          Un conseiller confirmera votre sélection sous 2-24h
-                        </p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
