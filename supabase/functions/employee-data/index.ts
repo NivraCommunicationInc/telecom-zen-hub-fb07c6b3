@@ -524,6 +524,37 @@ serve(async (req) => {
         result = { success: true };
         break;
 
+      case "create_client_profile":
+        if (!permissions?.can_edit_clients) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour créer des clients" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        
+        // Generate a placeholder user_id for manual client entries
+        const placeholderId = crypto.randomUUID();
+        
+        const { data: newProfile, error: createProfileError } = await supabase
+          .from("profiles")
+          .insert({
+            user_id: placeholderId,
+            email: params.email,
+            first_name: params.first_name,
+            last_name: params.last_name,
+            full_name: `${params.first_name} ${params.last_name}`.trim(),
+            phone: params.phone,
+            date_of_birth: params.date_of_birth,
+            service_address: params.service_address,
+            service_city: params.service_city,
+            service_postal_code: params.service_postal_code,
+            service_province: params.service_province || "QC",
+            account_status: "pending",
+            internal_notes: `Client créé manuellement par ${employeeName} (${employeeEmail}) le ${new Date().toLocaleDateString("fr-CA")}`
+          })
+          .select()
+          .single();
+        if (createProfileError) throw createProfileError;
+        result = { client: newProfile };
+        break;
+
       case "adjust_client_balance":
         if (!permissions?.can_edit_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée pour modifier le solde" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -555,6 +586,30 @@ serve(async (req) => {
         break;
 
       // ==================== INVOICE/BILLING OPERATIONS ====================
+      case "create_invoice":
+        if (!permissions?.can_generate_invoices) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour créer des factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: newInvoice, error: createInvoiceError } = await supabase
+          .from("billing")
+          .insert({
+            user_id: params.user_id,
+            client_email: params.client_email,
+            subtotal: params.subtotal,
+            amount: params.subtotal, // Will be recalculated by trigger
+            delivery_fee: params.delivery_fee || 0,
+            activation_fee: params.activation_fee || 0,
+            installation_fee: params.installation_fee || 0,
+            due_date: params.due_date,
+            notes: params.notes ? `${params.notes}\n\nCréé par ${employeeName} (${employeeEmail})` : `Créé par ${employeeName} (${employeeEmail})`,
+            status: "pending"
+          })
+          .select()
+          .single();
+        if (createInvoiceError) throw createInvoiceError;
+        result = { invoice: newInvoice };
+        break;
+
       case "update_invoice":
         if (!permissions?.can_edit_invoices) {
           return new Response(JSON.stringify({ error: "Permission refusée pour modifier les factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,8 @@ import {
   Tv,
   Wifi,
   History,
+  Plus,
+  UserPlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -88,6 +90,7 @@ const orderStatusColors: Record<string, string> = {
 
 const EmployeeClients = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [session, setSession] = useState<any>(null);
   const [clients, setClients] = useState<any[]>([]);
@@ -121,6 +124,20 @@ const EmployeeClients = () => {
   // Balance adjustment
   const [balanceAmount, setBalanceAmount] = useState("");
   const [balanceField, setBalanceField] = useState<"balance" | "store_credit">("balance");
+
+  // Create client dialog
+  const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
+  const [newClient, setNewClient] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    date_of_birth: "",
+    service_address: "",
+    service_city: "",
+    service_postal_code: "",
+    service_province: "QC",
+  });
 
   useEffect(() => {
     const stored = localStorage.getItem("nivra_employee_session");
@@ -163,6 +180,43 @@ const EmployeeClients = () => {
   useEffect(() => {
     if (session?.token) fetchClients();
   }, [session?.token]);
+
+  // Handle action param
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "new" && session?.permissions?.can_edit_clients) {
+      setShowCreateClientDialog(true);
+      searchParams.delete("action");
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, session]);
+
+  const handleCreateClient = async () => {
+    if (!session?.permissions?.can_edit_clients) {
+      toast({ title: "Permission refusée", variant: "destructive" });
+      return;
+    }
+    if (!newClient.email || !newClient.first_name || !newClient.last_name) {
+      toast({ title: "Veuillez remplir les champs obligatoires", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("employee-data", {
+        headers: { "x-employee-token": session.token },
+        body: { action: "create_client_profile", params: newClient },
+      });
+      if (error || data?.error) throw new Error(data?.error || error);
+      toast({ title: "Client créé", description: `Numéro: ${data.client?.client_number}` });
+      setShowCreateClientDialog(false);
+      setNewClient({ first_name: "", last_name: "", email: "", phone: "", date_of_birth: "", service_address: "", service_city: "", service_postal_code: "", service_province: "QC" });
+      fetchClients();
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const fetchClientData = async (client: any) => {
     if (!session?.token || !client?.user_id) return;
@@ -384,6 +438,12 @@ const EmployeeClients = () => {
               <h1 className="font-display font-bold text-lg">Clients</h1>
             </div>
             <div className="flex items-center gap-2">
+              {session?.permissions?.can_edit_clients && (
+                <Button variant="outline" size="sm" onClick={() => setShowCreateClientDialog(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Nouveau
+                </Button>
+              )}
               <span className="text-xs text-muted-foreground">
                 <Clock className="w-3 h-3 inline mr-1" />
                 {format(lastRefresh, "HH:mm")}
@@ -1356,6 +1416,65 @@ const EmployeeClients = () => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Client Dialog */}
+      <Dialog open={showCreateClientDialog} onOpenChange={setShowCreateClientDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5" />
+              Nouveau client
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Prénom *</Label>
+                <Input value={newClient.first_name} onChange={(e) => setNewClient({ ...newClient, first_name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Nom *</Label>
+                <Input value={newClient.last_name} onChange={(e) => setNewClient({ ...newClient, last_name: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Courriel *</Label>
+                <Input type="email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Téléphone</Label>
+                <Input value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Adresse de service</Label>
+              <Input value={newClient.service_address} onChange={(e) => setNewClient({ ...newClient, service_address: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Ville</Label>
+                <Input value={newClient.service_city} onChange={(e) => setNewClient({ ...newClient, service_city: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Code postal</Label>
+                <Input value={newClient.service_postal_code} onChange={(e) => setNewClient({ ...newClient, service_postal_code: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Province</Label>
+                <Input value={newClient.service_province} onChange={(e) => setNewClient({ ...newClient, service_province: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateClientDialog(false)}>Annuler</Button>
+            <Button onClick={handleCreateClient} disabled={isSubmitting || !newClient.email || !newClient.first_name}>
+              {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+              Créer le client
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
