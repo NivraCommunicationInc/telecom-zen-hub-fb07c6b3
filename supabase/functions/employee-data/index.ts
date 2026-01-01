@@ -703,7 +703,7 @@ serve(async (req) => {
         break;
 
       case "add_internal_ticket_reply":
-        const { error: replyError } = await supabase
+        const { error: internalReplyError } = await supabase
           .from("internal_ticket_replies")
           .insert({
             ticket_id: params.ticketId,
@@ -713,7 +713,7 @@ serve(async (req) => {
             author_email: employeeEmail,
             content: params.content,
           });
-        if (replyError) throw replyError;
+        if (internalReplyError) throw internalReplyError;
         result = { success: true };
         break;
 
