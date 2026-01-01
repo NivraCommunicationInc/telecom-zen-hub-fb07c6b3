@@ -12,7 +12,7 @@ export const BUSINESS_INFO = {
 };
 
 export const CONTRACT_TERMS = {
-  version: "2.0",
+  version: "2.1",
   lastUpdated: new Date().toISOString().split('T')[0],
   
   services: [
@@ -27,12 +27,19 @@ export const CONTRACT_TERMS = {
     dueDays: 30,
     lateInterestRate: 5, // 5% per month
     currency: "CAD",
-    acceptedMethods: ["Carte de crédit", "Virement bancaire", "Chèque"],
+    acceptedMethods: ["Carte de crédit", "Virement bancaire", "Chèque", "Interac e-Transfer"],
   },
   
   cancellation: {
     noticeDays: 30,
-    earlyTerminationFee: "Frais calculés au prorata des services restants",
+    earlyTerminationFee: "Frais d'un (1) mois de service après installation. Coûts de retour d'équipement à la charge du client.",
+    freeCancel: "Annulation possible en tout temps sans pénalité avant l'installation.",
+  },
+  
+  warranty: {
+    duration: "1 an",
+    coverage: "Défauts de fabrication couverts. Dommages causés par le client non couverts.",
+    equipment: "Équipement Nivra (routeur, terminal, SIM) couvert par garantie manufacturier.",
   },
   
   confidentiality: `
@@ -69,6 +76,23 @@ Le Prestataire s'engage à protéger les données personnelles du Client conform
 et à la Loi 25. Les données seront utilisées uniquement pour la prestation des services 
 convenus et seront conservées de manière sécurisée.
   `.trim(),
+  
+  noCreditCheck: `
+Aucune vérification de crédit n'est effectuée. Les services sont fournis sur la base 
+d'une pré-autorisation de paiement ou d'un dépôt de garantie.
+  `.trim(),
+  
+  fraudAbuse: `
+Le Client s'engage à ne pas utiliser les services à des fins illégales, frauduleuses 
+ou abusives. Tout comportement frauduleux entraînera la résiliation immédiate du 
+contrat et pourrait faire l'objet de poursuites judiciaires.
+  `.trim(),
+  
+  internalLogs: `
+Le Prestataire conserve des journaux internes de toutes les modifications apportées 
+aux comptes clients, incluant l'identité de l'acteur, la date, l'heure et la nature 
+des changements. Ces journaux sont utilisés à des fins d'audit et de sécurité.
+  `.trim(),
 };
 
 export const LATE_PAYMENT_POLICY = `
@@ -87,12 +111,36 @@ POLITIQUE DE PAIEMENT EN RETARD
 5. Le Client accepte de recevoir des rappels de paiement par courriel et téléphone.
 `.trim();
 
+export const LATE_PAYMENT_POLICY_EN = `
+LATE PAYMENT POLICY
+
+1. Any payment not received within ${CONTRACT_TERMS.paymentTerms.dueDays} days following 
+   the invoice date is considered late.
+
+2. Interest of ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month will be applied 
+   to any unpaid balance, calculated from the due date.
+
+3. In case of non-payment after 60 days, services may be suspended.
+
+4. All collection fees incurred will be the responsibility of the Client.
+
+5. The Client agrees to receive payment reminders by email and phone.
+`.trim();
+
 export const CLIENT_OBLIGATIONS = [
   "Fournir des informations exactes et complètes concernant ses besoins télécom",
   "Mettre à jour ses informations si nécessaire",
   "Respecter les délais de paiement convenus",
   "Collaborer de bonne foi avec le Prestataire",
   "Informer le Prestataire de tout changement significatif dans ses besoins",
+];
+
+export const CLIENT_OBLIGATIONS_EN = [
+  "Provide accurate and complete information regarding telecom needs",
+  "Update information as necessary",
+  "Respect agreed payment deadlines",
+  "Collaborate in good faith with the Provider",
+  "Inform the Provider of any significant changes in needs",
 ];
 
 export const PROVIDER_OBLIGATIONS = [
@@ -102,3 +150,102 @@ export const PROVIDER_OBLIGATIONS = [
   "Informer le Client de toute modification des conditions",
   "Agir dans le meilleur intérêt du Client",
 ];
+
+export const PROVIDER_OBLIGATIONS_EN = [
+  "Provide professional and impartial advice",
+  "Maintain confidentiality of Client information",
+  "Respect agreed service deadlines",
+  "Inform the Client of any changes to terms",
+  "Act in the best interest of the Client",
+];
+
+export const WARRANTY_POLICY = {
+  fr: `
+POLITIQUE DE GARANTIE
+
+1. Tous les équipements Nivra (routeur, terminal 4K, SIM/eSIM) sont couverts par 
+   une garantie manufacturier d'un (1) an à compter de la date d'activation.
+
+2. La garantie couvre les défauts de fabrication et les pannes non causées par 
+   une mauvaise utilisation.
+
+3. Les dommages causés par le client (chutes, liquides, modifications non autorisées) 
+   ne sont pas couverts par la garantie.
+
+4. En cas de panne couverte, l'équipement sera remplacé sans frais.
+
+5. L'équipement doit être retourné dans son emballage d'origine si disponible.
+  `.trim(),
+  en: `
+WARRANTY POLICY
+
+1. All Nivra equipment (router, 4K terminal, SIM/eSIM) is covered by a 
+   manufacturer warranty of one (1) year from the activation date.
+
+2. The warranty covers manufacturing defects and failures not caused by 
+   misuse.
+
+3. Damage caused by the client (drops, liquids, unauthorized modifications) 
+   is not covered under warranty.
+
+4. In case of a covered failure, equipment will be replaced at no charge.
+
+5. Equipment must be returned in its original packaging if available.
+  `.trim(),
+};
+
+export const CANCELLATION_POLICY = {
+  fr: `
+POLITIQUE D'ANNULATION
+
+1. Le client peut annuler ses services en tout temps avant l'installation 
+   sans frais ni pénalité.
+
+2. Après l'installation, des frais équivalents à un (1) mois de service 
+   seront facturés.
+
+3. L'équipement Nivra doit être retourné dans les 14 jours suivant 
+   l'annulation. Les frais de retour sont à la charge du client.
+
+4. Un préavis de ${CONTRACT_TERMS.cancellation.noticeDays} jours est requis 
+   pour toute annulation après l'installation.
+
+5. Les crédits en compte ne sont pas remboursables après annulation.
+  `.trim(),
+  en: `
+CANCELLATION POLICY
+
+1. The client may cancel services at any time before installation 
+   without fees or penalties.
+
+2. After installation, fees equivalent to one (1) month of service 
+   will be charged.
+
+3. Nivra equipment must be returned within 14 days following 
+   cancellation. Return costs are the client's responsibility.
+
+4. A notice period of ${CONTRACT_TERMS.cancellation.noticeDays} days is required 
+   for any cancellation after installation.
+
+5. Account credits are non-refundable after cancellation.
+  `.trim(),
+};
+
+export const NO_CREDIT_CHECK_POLICY = {
+  fr: `
+POLITIQUE SANS VÉRIFICATION DE CRÉDIT
+
+Nivra Télécom n'effectue aucune vérification de crédit. L'accès aux services 
+est basé sur une pré-autorisation de carte de crédit ou un dépôt de garantie. 
+Cette politique permet à tous les clients d'accéder à nos services sans 
+impact sur leur dossier de crédit.
+  `.trim(),
+  en: `
+NO CREDIT CHECK POLICY
+
+Nivra Télécom does not perform any credit checks. Access to services 
+is based on a credit card pre-authorization or security deposit. 
+This policy allows all clients to access our services without 
+impacting their credit file.
+  `.trim(),
+};
