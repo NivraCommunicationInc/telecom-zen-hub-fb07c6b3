@@ -118,6 +118,14 @@ const TechnicianDashboard = () => {
         return;
       }
 
+      // Verify session has required token
+      if (!session.token) {
+        console.log("[TechnicianDashboard] Session missing token, redirecting to login");
+        localStorage.removeItem("nivra_technician_session");
+        navigate("/technician/auth");
+        return;
+      }
+
       setTechnicianSession(session);
     } catch {
       localStorage.removeItem("nivra_technician_session");
@@ -125,183 +133,56 @@ const TechnicianDashboard = () => {
     }
   }, [navigate, toast]);
 
-  // Fetch work orders for this technician (new system)
-  const { data: workOrders, isLoading: workOrdersLoading, refetch: refetchWorkOrders } = useQuery({
-    queryKey: ["technician-work-orders", technicianSession?.id],
-    enabled: !!technicianSession?.id,
+  // Fetch work orders via secure edge function (single source of truth)
+  const { data: workOrdersData, isLoading: workOrdersLoading, refetch: refetchWorkOrders } = useQuery({
+    queryKey: ["technician-work-orders-secure", technicianSession?.id],
+    enabled: !!technicianSession?.id && !!technicianSession?.token,
     refetchInterval: 30000,
     queryFn: async () => {
-      console.log("[TechnicianDashboard] Fetching work_orders for technician:", technicianSession.id);
-      const { data, error } = await supabase
-        .from("work_orders")
-        .select("*")
-        .eq("assigned_technician_id", technicianSession.id)
-        .order("scheduled_start", { ascending: true, nullsFirst: false });
+      console.log("[TechnicianDashboard] Fetching via secure edge function for technician:", technicianSession.id);
+      
+      const { data, error } = await supabase.functions.invoke("technician-work-orders", {
+        headers: {
+          "x-technician-token": technicianSession.token,
+        },
+      });
       
       if (error) {
-        console.error("[TechnicianDashboard] work_orders query error:", error);
+        console.error("[TechnicianDashboard] Edge function error:", error);
+        // If token is invalid, redirect to login
+        if (error.message?.includes("401") || error.message?.includes("invalid") || error.message?.includes("expired")) {
+          localStorage.removeItem("nivra_technician_session");
+          navigate("/technician/auth");
+        }
         throw error;
       }
-      console.log("[TechnicianDashboard] work_orders found:", data?.length || 0);
-      return data || [];
+      
+      if (data?.error) {
+        console.error("[TechnicianDashboard] Edge function returned error:", data.error);
+        if (data.error.includes("invalide") || data.error.includes("expirée")) {
+          localStorage.removeItem("nivra_technician_session");
+          navigate("/technician/auth");
+        }
+        throw new Error(data.error);
+      }
+      
+      console.log("[TechnicianDashboard] Secure fetch result:", data?.counts);
+      return data;
     },
   });
 
-  // ALSO fetch legacy orders assigned to this technician (for backwards compatibility)
-  const { data: legacyOrders, refetch: refetchLegacyOrders } = useQuery({
-    queryKey: ["technician-legacy-orders", technicianSession?.id],
-    enabled: !!technicianSession?.id,
-    refetchInterval: 30000,
-    queryFn: async () => {
-      console.log("[TechnicianDashboard] Fetching legacy orders for technician:", technicianSession.id);
-      
-      // Fetch orders assigned to this technician
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("technician_id", technicianSession.id)
-        .order("appointment_date", { ascending: true, nullsFirst: false });
-      
-      if (ordersError) {
-        console.error("[TechnicianDashboard] orders query error:", ordersError);
-      }
-      
-      // Fetch appointments assigned to this technician
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("technician_id", technicianSession.id)
-        .order("scheduled_at", { ascending: true });
-      
-      if (appointmentsError) {
-        console.error("[TechnicianDashboard] appointments query error:", appointmentsError);
-      }
-
-      // Fetch client profiles for context
-      const orders = ordersData || [];
-      const appointments = appointmentsData || [];
-      
-      const userIds = [...new Set([
-        ...orders.map((o: any) => o.user_id),
-        ...appointments.filter((a: any) => a.client_id).map((a: any) => a.client_id),
-      ])].filter(Boolean);
-
-      let profiles: any[] = [];
-      if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, full_name, email, phone, service_address, service_city, service_postal_code")
-          .in("user_id", userIds);
-        profiles = profilesData || [];
-      }
-
-      // Convert legacy orders to work_order-like format
-      const convertedOrders = orders.map((order: any) => {
-        const profile = profiles.find((p: any) => p.user_id === order.user_id);
-        return {
-          id: `order-${order.id}`,
-          work_order_number: order.order_number,
-          type: "installation" as const,
-          linked_order_id: order.id,
-          client_id: order.user_id,
-          client_name: profile?.full_name || order.client_email?.split('@')[0],
-          client_email: order.client_email || profile?.email,
-          client_phone: profile?.phone,
-          service_address: profile?.service_address,
-          service_city: profile?.service_city,
-          service_postal_code: profile?.service_postal_code,
-          scheduled_start: order.appointment_date,
-          assigned_technician_id: order.technician_id,
-          status: mapOrderStatusToWorkOrderStatus(order.status),
-          service_type: order.service_type,
-          notes: order.notes,
-          equipment_details: order.equipment_details || [],
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-          _source: "order",
-        };
-      });
-
-      // Convert legacy appointments to work_order-like format
-      const convertedAppointments = appointments
-        .filter((apt: any) => !orders.some((o: any) => o.id === apt.order_id)) // Avoid duplicates
-        .map((apt: any) => {
-          const profile = profiles.find((p: any) => p.user_id === apt.client_id);
-          return {
-            id: `appointment-${apt.id}`,
-            work_order_number: apt.appointment_number,
-            type: "installation" as const,
-            linked_appointment_id: apt.id,
-            client_id: apt.client_id,
-            client_name: profile?.full_name || apt.client_email?.split('@')[0],
-            client_email: apt.client_email || profile?.email,
-            client_phone: apt.client_phone || profile?.phone,
-            service_address: apt.service_address || profile?.service_address,
-            service_city: apt.service_city || profile?.service_city,
-            service_postal_code: apt.service_postal_code || profile?.service_postal_code,
-            scheduled_start: apt.scheduled_at,
-            assigned_technician_id: apt.technician_id,
-            status: mapAppointmentStatusToWorkOrderStatus(apt.status),
-            service_type: apt.service_type,
-            notes: apt.description,
-            equipment_details: apt.equipment_details || [],
-            created_at: apt.created_at,
-            updated_at: apt.updated_at,
-            _source: "appointment",
-          };
-        });
-
-      const combined = [...convertedOrders, ...convertedAppointments];
-      console.log("[TechnicianDashboard] Legacy items found:", combined.length);
-      return combined;
-    },
-  });
-
-  // Helper to map order status to work order status
-  const mapOrderStatusToWorkOrderStatus = (status: string): string => {
-    const mapping: Record<string, string> = {
-      pending: "assigned",
-      hold: "assigned",
-      verification: "assigned",
-      back_order: "assigned",
-      shipped: "scheduled",
-      processing: "in_progress",
-      completed: "completed",
-      completed_installation: "completed",
-      cancelled: "cancelled",
-    };
-    return mapping[status] || "assigned";
-  };
-
-  // Helper to map appointment status to work order status
-  const mapAppointmentStatusToWorkOrderStatus = (status: string): string => {
-    const mapping: Record<string, string> = {
-      scheduled: "scheduled",
-      technician_assigned: "assigned",
-      in_progress: "in_progress",
-      completed: "completed",
-      cancelled: "cancelled",
-    };
-    return mapping[status] || "assigned";
-  };
-
-  // Combine work orders with legacy items (prefer work_orders if both exist)
-  const allWorkOrders = useMemo(() => {
-    const workOrderIds = new Set((workOrders || []).map((wo: any) => wo.linked_order_id || wo.linked_appointment_id));
-    const legacyFiltered = (legacyOrders || []).filter((lo: any) => {
-      // Don't include legacy items that already have work orders
-      const linkedId = lo.linked_order_id || lo.linked_appointment_id;
-      return !workOrderIds.has(linkedId);
-    });
-    return [...(workOrders || []), ...legacyFiltered];
-  }, [workOrders, legacyOrders]);
+  // Extract current and history from the secure response
+  const currentWorkOrders = workOrdersData?.current || [];
+  const historyFromBackend = workOrdersData?.history || [];
+  
+  // All work orders from the secure endpoint
+  const allWorkOrders = [...currentWorkOrders, ...historyFromBackend];
 
   const isLoading = workOrdersLoading;
 
   const refetch = () => {
     console.log("[TechnicianDashboard] Manual refresh triggered for technician:", technicianSession?.id);
     refetchWorkOrders();
-    refetchLegacyOrders();
   };
 
   // Fetch work order updates/history for selected work order
@@ -335,7 +216,7 @@ const TechnicianDashboard = () => {
           filter: `assigned_technician_id=eq.${technicianSession.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
+          queryClient.invalidateQueries({ queryKey: ["technician-work-orders-secure"] });
         }
       )
       .subscribe();
@@ -450,8 +331,7 @@ const TechnicianDashboard = () => {
     },
     onSuccess: () => {
       toast({ title: "Statut mis à jour", description: "Le bon de travail a été modifié" });
-      queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["technician-legacy-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-work-orders-secure"] });
       setDetailsOpen(false);
       setConfirmAction(null);
       setWorkNotes("");
@@ -483,7 +363,7 @@ const TechnicianDashboard = () => {
     },
     onSuccess: () => {
       toast({ title: "Note ajoutée" });
-      queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-work-orders-secure"] });
       queryClient.invalidateQueries({ queryKey: ["work-order-updates"] });
       setWorkNotes("");
     },
@@ -704,11 +584,19 @@ const TechnicianDashboard = () => {
                 <CardContent className="py-12 text-center">
                   <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground">Aucun bon de travail assigné</p>
-                  <p className="text-sm text-muted-foreground mt-2">Appuyez sur Actualiser pour vérifier</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Les nouvelles assignations apparaîtront automatiquement.
+                  </p>
                   <Button variant="outline" className="mt-4" onClick={() => refetch()}>
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Actualiser
                   </Button>
+                  {/* Diagnostic info for debugging */}
+                  <div className="mt-6 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+                    <p>Technician ID: {technicianSession?.id?.slice(0, 8)}...</p>
+                    <p>Total: {workOrdersData?.counts?.total || 0} | Work Orders: {workOrdersData?.counts?.workOrders || 0}</p>
+                    <p>Legacy Orders: {workOrdersData?.counts?.legacyOrders || 0} | Legacy Appts: {workOrdersData?.counts?.legacyAppointments || 0}</p>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
