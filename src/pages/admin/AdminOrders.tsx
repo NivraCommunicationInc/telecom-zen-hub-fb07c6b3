@@ -521,18 +521,33 @@ const AdminOrders = () => {
   const verifyIdMutation = useMutation({
     mutationFn: async ({ orderId, status, notes }: { orderId: string; status: string; notes?: string }) => {
       const currentUser = (await supabase.auth.getUser()).data.user;
+      if (!currentUser?.id) throw new Error("Utilisateur non authentifié");
+      
       const { error } = await supabase
         .from("orders")
         .update({
           id_verification_status: status,
-          id_verification_notes: notes,
-          id_verified_by: currentUser?.id,
+          id_verification_notes: notes || null,
+          id_verified_by: currentUser.id,
           id_verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", orderId);
       if (error) throw error;
+      
+      return { status, notes };
     },
-    onSuccess: (_, { orderId, status }) => {
+    onSuccess: (data, { orderId, status }) => {
+      // Update local selectedOrder state immediately for instant UI feedback
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev: any) => prev ? {
+          ...prev,
+          id_verification_status: status,
+          id_verification_notes: data?.notes || prev.id_verification_notes,
+          id_verified_at: new Date().toISOString(),
+        } : prev);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       logActivity("id_verification", "order", orderId, { 
         verification_status: status 
@@ -541,10 +556,17 @@ const AdminOrders = () => {
         newValue: status,
         reason: status === "verified" ? "ID vérifié avec succès" : "ID rejeté"
       });
-      toast({ title: status === "verified" ? "ID vérifié" : "ID rejeté" });
+      toast({ 
+        title: status === "verified" ? "ID approuvé ✓" : "ID rejeté",
+        description: status === "verified" ? "Le statut a été mis à jour avec succès" : "L'identité a été rejetée"
+      });
     },
-    onError: () => {
-      toast({ title: "Erreur", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Erreur de vérification", 
+        description: error?.message || "Impossible de mettre à jour le statut",
+        variant: "destructive" 
+      });
     },
   });
 
