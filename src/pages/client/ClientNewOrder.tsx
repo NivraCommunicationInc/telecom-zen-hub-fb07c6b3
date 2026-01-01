@@ -107,9 +107,9 @@ const TERMINAL_CONFIG = {
 // SIM configuration for Mobile orders
 const SIM_CONFIG = {
   name: "Nivra eSIM / Physical SIM",
-  price: 25,
+  price: 60,
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
-  notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise",
+  notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
 };
 
 // Quebec phone prefixes (area codes)
@@ -259,8 +259,11 @@ const ClientNewOrder = () => {
   // Get selected TV service to determine free channel limit
   const selectedTVService = selectedServices.find(s => s.category === "TV");
   const freeChannelLimit = selectedTVService ? (
-    selectedTVService.name.toLowerCase().includes('premium') ? 20 :
-    selectedTVService.name.toLowerCase().includes('standard') ? 10 : 5
+    selectedTVService.name.toLowerCase().includes('25 choix') ? 25 :
+    selectedTVService.name.toLowerCase().includes('15 choix') ? 15 :
+    selectedTVService.name.toLowerCase().includes('10 choix') ? 10 :
+    selectedTVService.name.toLowerCase().includes('5 choix') ? 5 :
+    selectedTVService.name.toLowerCase().includes('giga') ? 5 : 5
   ) : 5;
 
   // Validate Quebec phone number for transfer
@@ -502,21 +505,38 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
         return prev.filter(s => s.id !== service.id);
       }
-      // Check if TV is selected without Internet
+      // Check if TV is selected without Internet (only for GIGA + TV Basic which doesn't include Internet)
       if (service.category === "TV") {
         const hasInternet = prev.some(s => s.category === "Internet");
-        if (!hasInternet) {
+        const isComboPlan = service.name.toLowerCase().includes('internet') || service.name.toLowerCase().includes('giga');
+        
+        // If it's a combo plan (includes Internet), no need to check for separate Internet
+        // If it's GIGA + TV Basic, it includes Internet 1 Gbps
+        if (!hasInternet && !isComboPlan) {
           toast.error("Les forfaits TV nécessitent un service Internet actif. Veuillez d'abord sélectionner un forfait Internet.");
           return prev;
         }
+        
+        // If selecting a TV combo plan that includes Internet, remove any standalone Internet plan
+        if (isComboPlan) {
+          const filteredPrev = prev.filter(s => s.category !== "Internet");
+          setTerminalQuantity(1);
+          return [...filteredPrev, service];
+        }
+        
         // Reset terminal quantity when adding TV
         setTerminalQuantity(1);
       }
-      // If removing Internet, also remove TV
+      // If removing Internet, also remove TV (unless TV is a combo plan)
       if (service.category === "Internet") {
-        const hasTVinSelection = prev.some(s => s.category === "TV");
-        if (!hasTVinSelection) {
-          return [...prev, service];
+        const tvInSelection = prev.find(s => s.category === "TV");
+        if (tvInSelection) {
+          const isTVComboPlan = tvInSelection.name.toLowerCase().includes('internet') || tvInSelection.name.toLowerCase().includes('giga');
+          if (isTVComboPlan) {
+            // Don't allow adding separate Internet if TV combo already selected
+            toast.info("Votre forfait TV inclut déjà Internet. Retirez-le d'abord pour sélectionner un autre forfait Internet.");
+            return prev;
+          }
         }
       }
       return [...prev, service];
@@ -765,13 +785,13 @@ END:VCALENDAR`;
               </div>
             ) : groupedServices && Object.keys(groupedServices).length > 0 ? (
               <div className="space-y-8">
-                {/* TV Requirement Notice */}
+                {/* TV Notice */}
                 <Card className="bg-amber-500/10 border-amber-500/30">
                   <CardContent className="py-4 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-muted-foreground">
-                      <strong className="text-foreground">Note:</strong> Les forfaits TV nécessitent un service Internet actif. 
-                      Les forfaits mobiles peuvent être commandés seuls.
+                      <strong className="text-foreground">Note:</strong> Les forfaits TV incluent Internet (500 Mbps ou 1 Gbps selon le plan). 
+                      Les forfaits mobiles incluent des frais SIM de 60$ (nouveau numéro ou transfert).
                     </p>
                   </CardContent>
                 </Card>
