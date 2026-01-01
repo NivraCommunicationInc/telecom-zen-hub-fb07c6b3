@@ -16,7 +16,8 @@ import {
   Briefcase,
   UserPlus,
   Ticket,
-  Tv
+  Tv,
+  Wrench
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,6 +42,7 @@ const navItems = [
   { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
   { icon: UserPlus, label: "Candidatures", href: "/admin/applications" },
   { icon: Activity, label: "Activité", href: "/admin/activity" },
+  { icon: Wrench, label: "Techniciens", href: "/admin/technicians" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {

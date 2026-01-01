@@ -6,6 +6,7 @@ import { BUSINESS_INFO } from "./contractPolicies";
 interface InvoiceData {
   invoiceNumber: string;
   orderNumber?: string;
+  paymentReference?: string;
   clientNumber?: string;
   clientName: string;
   clientEmail: string;
@@ -16,6 +17,8 @@ interface InvoiceData {
   deliveryFee?: number;
   activationFee?: number;
   installationFee?: number;
+  terminalFee?: number;
+  routerFee?: number;
   discountAmount?: number;
   tpsAmount?: number;
   tvqAmount?: number;
@@ -26,6 +29,7 @@ interface InvoiceData {
   paidAt?: string;
   notes?: string;
   equipmentId?: string;
+  serviceDescription?: string;
 }
 
 // Quebec tax rates
@@ -50,10 +54,12 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   const deliveryFee = data.deliveryFee || 0;
   const activationFee = data.activationFee || 0;
   const installationFee = data.installationFee || 0;
+  const terminalFee = data.terminalFee || 0;
+  const routerFee = data.routerFee || 0;
   const discountAmount = data.discountAmount || 0;
   const credits = data.credits || 0;
   
-  const baseAmount = subtotal + fees + deliveryFee + activationFee + installationFee - discountAmount;
+  const baseAmount = subtotal + fees + deliveryFee + activationFee + installationFee + terminalFee + routerFee - discountAmount;
   const tpsAmount = data.tpsAmount ?? Math.round(baseAmount * TPS_RATE * 100) / 100;
   const tvqAmount = data.tvqAmount ?? Math.round(baseAmount * TVQ_RATE * 100) / 100;
   const lateFeeAmount = data.lateFeeAmount || 0;
@@ -127,19 +133,28 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   if (data.orderNumber) {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...grayColor);
-    doc.text("COMMANDE N°", margin + 60, currentY + 8);
+    doc.text("COMMANDE N°", margin + 50, currentY + 8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkColor);
-    doc.text(data.orderNumber, margin + 60, currentY + 14);
+    doc.text(data.orderNumber, margin + 50, currentY + 14);
+  }
+
+  if (data.paymentReference) {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...grayColor);
+    doc.text("RÉF. PAIEMENT", margin + 100, currentY + 8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryColor);
+    doc.text(data.paymentReference, margin + 100, currentY + 14);
   }
 
   if (data.clientNumber) {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...grayColor);
-    doc.text("COMPTE CLIENT", margin + 120, currentY + 8);
+    doc.text("COMPTE CLIENT", margin + 150, currentY + 8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkColor);
-    doc.text(data.clientNumber, margin + 120, currentY + 14);
+    doc.text(data.clientNumber, margin + 150, currentY + 14);
   }
 
   doc.setFont("helvetica", "normal");
@@ -227,7 +242,9 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   };
 
   // Base services
-  if (subtotal > 0) {
+  if (data.serviceDescription) {
+    addLineItem(data.serviceDescription, subtotal);
+  } else if (subtotal > 0) {
     addLineItem("Services de courtage télécom", subtotal);
   }
   if (fees > 0) {
@@ -240,7 +257,13 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     addLineItem("Frais d'activation", activationFee);
   }
   if (installationFee > 0) {
-    addLineItem("Frais d'installation", installationFee);
+    addLineItem("Frais d'installation technicien", installationFee);
+  }
+  if (terminalFee > 0) {
+    addLineItem("Terminaux Nivra 4K Smart", terminalFee);
+  }
+  if (routerFee > 0) {
+    addLineItem("Routeur Nivra Born Wifi", routerFee);
   }
   if (discountAmount > 0) {
     addLineItem("Rabais appliqué", discountAmount, true);
