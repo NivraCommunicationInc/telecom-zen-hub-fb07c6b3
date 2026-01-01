@@ -521,6 +521,101 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string
+          created_at: string
+          details_json: Json | null
+          id: string
+          target_employee_email: string | null
+          target_employee_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role: string
+          created_at?: string
+          details_json?: Json | null
+          id?: string
+          target_employee_email?: string | null
+          target_employee_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string
+          created_at?: string
+          details_json?: Json | null
+          id?: string
+          target_employee_email?: string | null
+          target_employee_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_audit_logs_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          created_at: string
+          created_by_admin_id: string | null
+          email: string
+          failed_login_attempts: number | null
+          full_name: string
+          id: string
+          is_active: boolean
+          lockout_until: string | null
+          permissions_json: Json
+          phone: string | null
+          pin_hash: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_admin_id?: string | null
+          email: string
+          failed_login_attempts?: number | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          lockout_until?: string | null
+          permissions_json?: Json
+          phone?: string | null
+          pin_hash: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_admin_id?: string | null
+          email?: string
+          failed_login_attempts?: number | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          lockout_until?: string | null
+          permissions_json?: Json
+          phone?: string | null
+          pin_hash?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fulfillment_snapshots: {
         Row: {
           created_at: string
