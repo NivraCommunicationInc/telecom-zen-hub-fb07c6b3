@@ -79,6 +79,7 @@ const orderStatusConfig: Record<string, { color: string; label: string; icon: an
 
 const paymentStatusConfig: Record<string, { color: string; label: string }> = {
   pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente" },
+  pre_authorized: { color: "bg-blue-400/20 text-blue-400", label: "Pré-autorisé" },
   authorized: { color: "bg-blue-500/20 text-blue-500", label: "Autorisé" },
   captured: { color: "bg-emerald-500/20 text-emerald-500", label: "Capturé" },
   refunded: { color: "bg-red-500/20 text-red-500", label: "Remboursé" },
@@ -105,6 +106,7 @@ const orderStatusOptions = [
 
 const paymentStatusOptions = [
   { value: "pending", label: "En attente" },
+  { value: "pre_authorized", label: "Pré-autorisé" },
   { value: "authorized", label: "Autorisé" },
   { value: "captured", label: "Capturé" },
   { value: "refunded", label: "Remboursé" },
@@ -394,6 +396,8 @@ const AdminOrders = () => {
             payment_reference: paymentReference,
             related_order_number: order.order_number,
             notes: `Facture pour commande ${order.order_number}`,
+            preauth_discount: order.preauth_discount || 0,
+            preauth_discount_applied: (order.preauth_discount || 0) > 0,
           });
         }
       } else if (order?.id) {
@@ -999,16 +1003,18 @@ const AdminOrders = () => {
                       </div>
                     </div>
 
-                    {/* Technician Assignment Section */}
-                    {selectedOrder.installation_type === "technician" && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm flex items-center gap-2">
-                            <Wrench className="w-4 h-4" />
-                            Assignation technicien
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
+                    {/* Technician Assignment Section - Always visible for admin */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Wrench className="w-4 h-4" />
+                          Assignation technicien
+                          {selectedOrder.installation_type !== "technician" && (
+                            <Badge variant="outline" className="ml-2 text-xs">Optionnel</Badge>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label>Technicien</Label>
@@ -1049,7 +1055,6 @@ const AdminOrders = () => {
                           )}
                         </CardContent>
                       </Card>
-                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -1222,7 +1227,7 @@ const AdminOrders = () => {
 
                     {/* Payment Actions */}
                     <div className="flex flex-wrap gap-2">
-                      {selectedOrder.payment_status === "pending" && (
+                      {(selectedOrder.payment_status === "pending" || selectedOrder.payment_status === "pre_authorized") && (
                         <>
                           <Button
                             onClick={() => setConfirmAction({ type: "authorize", data: { orderId: selectedOrder.id } })}
@@ -1269,6 +1274,31 @@ const AdminOrders = () => {
                         </Button>
                       )}
                     </div>
+
+                    {/* Pre-authorized Card Info */}
+                    {(selectedOrder.preauth_card_id || selectedOrder.preauth_discount > 0) && (
+                      <Card className="border-blue-500/30 bg-blue-500/10">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-blue-500" />
+                            Paiement pré-autorisé
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Rabais mensuel:</span>
+                            <Badge className="bg-emerald-500/20 text-emerald-500">
+                              {selectedOrder.preauth_discount || 5}$/mois
+                            </Badge>
+                          </div>
+                          {selectedOrder.preauth_card_id && (
+                            <p className="text-xs text-muted-foreground">
+                              Carte enregistrée pour paiements automatiques
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {/* Add fees section */}
                     <Card>
