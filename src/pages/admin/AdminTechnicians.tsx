@@ -491,10 +491,11 @@ const AdminTechnicians = () => {
     },
   });
 
-  // Transfer appointment mutation
+  // Transfer appointment mutation - also updates work_order
   const transferAppointmentMutation = useMutation({
     mutationFn: async ({ appointmentId, newTechId }: { appointmentId: string; newTechId: string }) => {
       const newTech = technicians?.find((t: any) => t.id === newTechId);
+      const appointment = techAppointments?.find((a: any) => a.id === appointmentId);
       
       const { error } = await supabase
         .from("appointments")
@@ -507,13 +508,36 @@ const AdminTechnicians = () => {
         .eq("id", appointmentId);
       if (error) throw error;
       
+      // Update or create work order for new technician
+      const { createWorkOrder } = await import("@/hooks/useWorkOrderCreation");
+      const workOrderResult = await createWorkOrder({
+        type: "installation",
+        linkedAppointmentId: appointmentId,
+        linkedOrderId: (appointment as any)?.order_id || undefined,
+        clientId: appointment?.client_id || undefined,
+        clientName: (appointment as any)?.profiles?.full_name || undefined,
+        clientEmail: appointment?.client_email || (appointment as any)?.profiles?.email || undefined,
+        clientPhone: appointment?.client_phone || (appointment as any)?.profiles?.phone || undefined,
+        serviceAddress: appointment?.service_address || undefined,
+        serviceCity: appointment?.service_city || undefined,
+        servicePostalCode: appointment?.service_postal_code || undefined,
+        scheduledStart: appointment?.scheduled_at || undefined,
+        assignedTechnicianId: newTechId,
+        assignedBy: user?.id || undefined,
+        serviceType: appointment?.service_type || undefined,
+      });
+      
       await logActivity("transfer_appointment", "appointment", appointmentId, { 
         from_technician: selectedTech?.full_name,
         to_technician: newTech?.full_name,
+        work_order_number: workOrderResult.workOrderNumber,
       }, "Transfert de rendez-vous");
+
+      return { workOrderNumber: workOrderResult.workOrderNumber };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tech-appointments-full"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
       toast.success("Rendez-vous transféré");
       setTransferDialogOpen(false);
       setTransferTargetTech("");
