@@ -281,9 +281,46 @@ const ClientMyServices = () => {
     return "other";
   };
 
-  const activeServices = subscriptions?.filter((s: any) => s.status === "active" || s.status === "paused") || [];
-  const pausedServices = subscriptions?.filter((s: any) => s.status === "paused") || [];
-  const mobileServices = activeServices.filter((s: any) => getServiceCategory(s.plan_name) === "mobile");
+  // Active subscriptions
+  const activeSubscriptions = subscriptions?.filter((s: any) => s.status === "active" || s.status === "paused") || [];
+  
+  // Processed/completed orders that represent active services
+  const activeOrderServices = orders?.filter((o: any) => 
+    ["completed", "active", "installed", "delivered"].includes(o.status?.toLowerCase())
+  ).map((order: any) => {
+    // Extract plan info from order
+    const planInfo = getPlanInfoFromOrder(order);
+    return {
+      id: order.id,
+      source: "order",
+      order_number: order.order_number,
+      plan_name: planInfo.name || order.service_type,
+      amount: order.subtotal || order.total_amount || 0,
+      billing_cycle: "monthly",
+      status: order.status === "paused" ? "paused" : "active",
+      service_type: order.service_type,
+      category: order.category,
+      created_at: order.created_at,
+      // Mobile specific
+      data_allowance: planInfo.data,
+      calls_allowance: planInfo.calls,
+      texts_allowance: planInfo.texts,
+      data_used: order.data_used || 0, // Would come from carrier integration
+      // Equipment
+      equipment_details: order.equipment_details,
+      selected_channels: order.selected_channels,
+    };
+  }) || [];
+
+  // Combine subscriptions and order-based services
+  const allActiveServices = [
+    ...activeSubscriptions.map((s: any) => ({ ...s, source: "subscription" })),
+    ...activeOrderServices,
+  ];
+
+  const mobileServices = allActiveServices.filter((s: any) => 
+    getServiceCategory(s.plan_name || s.service_type) === "mobile"
+  );
   
   // Equipment from orders - exclude cancelled orders
   const equipmentOrders = orders?.filter((o: any) => 
@@ -299,6 +336,70 @@ const ClientMyServices = () => {
     b.status === "overdue" || (b.due_date && new Date(b.due_date) < new Date() && b.status !== "paid")
   ) || [];
   const clientCredit = Number(profile?.store_credit || 0);
+
+  // Helper to extract plan details from order service_type
+  function getPlanInfoFromOrder(order: any) {
+    const serviceType = order.service_type?.toLowerCase() || "";
+    const category = order.category?.toLowerCase() || "";
+    
+    // Mobile plans
+    if (serviceType.includes("mobile") || category === "mobile") {
+      if (serviceType.includes("60") || order.subtotal === 60) {
+        return { 
+          name: "Mobile 60$/30 jours", 
+          data: "75-80 GB 4G", 
+          calls: "Appels illimités Canada/US",
+          texts: "Textos illimités",
+          dataGB: 80
+        };
+      }
+      return { 
+        name: "Mobile 50$/30 jours", 
+        data: "50-55 GB 4G", 
+        calls: "Appels illimités Canada/US",
+        texts: "Textos illimités",
+        dataGB: 55
+      };
+    }
+    
+    // TV + Internet bundles
+    if (serviceType.includes("tv") && serviceType.includes("internet")) {
+      if (serviceType.includes("25")) {
+        return { name: "TV 25 chaînes + Internet 500", speed: "500 Mbps", channels: 25 };
+      }
+      if (serviceType.includes("15")) {
+        return { name: "TV 15 chaînes + Internet 500", speed: "500 Mbps", channels: 15 };
+      }
+      if (serviceType.includes("10")) {
+        return { name: "TV 10 chaînes + Internet 500", speed: "500 Mbps", channels: 10 };
+      }
+      if (serviceType.includes("5")) {
+        return { name: "TV 5 chaînes + Internet 500", speed: "500 Mbps", channels: 5 };
+      }
+      if (serviceType.includes("giga") || serviceType.includes("basic")) {
+        return { name: "GIGA + TV Basic", speed: "1 Gbps", channels: "Base" };
+      }
+      return { name: order.service_type, speed: "500 Mbps" };
+    }
+    
+    // Internet only
+    if (serviceType.includes("internet") || serviceType.includes("fibre")) {
+      if (serviceType.includes("1g") || serviceType.includes("fibre")) {
+        return { name: "Internet Fibre 1Gbps", speed: "1 Gbps fibre optique" };
+      }
+      if (serviceType.includes("500")) {
+        return { name: "Internet Résidentiel 500", speed: "500 Mbps ultra-rapide" };
+      }
+      return { name: "Internet Résidentiel 100", speed: "100 Mbps haute vitesse" };
+    }
+    
+    // TV only
+    if (serviceType.includes("tv")) {
+      return { name: order.service_type, channels: order.selected_channels?.length || 0 };
+    }
+    
+    return { name: order.service_type || "Service" };
+  }
 
   return (
     <div className="space-y-6">
@@ -381,71 +482,112 @@ const ClientMyServices = () => {
             <div className="space-y-3">
               {[1, 2].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />)}
             </div>
-          ) : activeServices.length > 0 ? (
+          ) : allActiveServices.length > 0 ? (
             <div className="space-y-4">
-              {activeServices.map((service: any) => {
-                const Icon = getServiceIcon(service.plan_name);
-                const category = getServiceCategory(service.plan_name);
+              {allActiveServices.map((service: any) => {
+                const Icon = getServiceIcon(service.plan_name || service.service_type);
+                const category = getServiceCategory(service.plan_name || service.service_type);
                 const isPaused = service.status === "paused";
+                const isMobile = category === "mobile";
                 
                 return (
                   <Card key={service.id} className="bg-card border-border">
                     <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                            isPaused ? "bg-amber-500/20" : "bg-cyan-500/20"
-                          }`}>
-                            <Icon className={`w-6 h-6 ${isPaused ? "text-amber-500" : "text-cyan-500"}`} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
-                              {isPaused && (
-                                <Badge className="bg-amber-500/20 text-amber-500">
-                                  <Pause className="w-3 h-3 mr-1" />
-                                  Suspendu
-                                </Badge>
+                      <div className="flex flex-col gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-start gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                              isPaused ? "bg-amber-500/20" : "bg-cyan-500/20"
+                            }`}>
+                              <Icon className={`w-6 h-6 ${isPaused ? "text-amber-500" : "text-cyan-500"}`} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
+                                <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
+                                {isPaused && (
+                                  <Badge className="bg-amber-500/20 text-amber-500">
+                                    <Pause className="w-3 h-3 mr-1" />
+                                    Suspendu
+                                  </Badge>
+                                )}
+                                {service.source === "order" && (
+                                  <span className="text-xs text-muted-foreground">
+                                    #{service.order_number}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/
+                                {service.billing_cycle === "monthly" ? "mois" : "an"}
+                              </p>
+                              {service.next_billing_date && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Prochaine facturation: {format(new Date(service.next_billing_date), "d MMM yyyy", { locale: fr })}
+                                </p>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {Number(service.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/
-                              {service.billing_cycle === "monthly" ? "mois" : "an"}
-                            </p>
-                            {service.next_billing_date && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Prochaine facturation: {format(new Date(service.next_billing_date), "d MMM yyyy", { locale: fr })}
-                              </p>
-                            )}
                           </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedService(service);
-                              setUpgradeDialogOpen(true);
-                            }}
-                          >
-                            <ArrowUpCircle className="w-4 h-4 mr-1" />
-                            Changer forfait
-                          </Button>
-                          {category === "mobile" && (
+                          
+                          <div className="flex flex-wrap gap-2">
                             <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => {
                                 setSelectedService(service);
-                                setMobileIssueDialogOpen(true);
+                                setUpgradeDialogOpen(true);
                               }}
                             >
-                              <Smartphone className="w-4 h-4 mr-1" />
-                              Gérer
+                              <ArrowUpCircle className="w-4 h-4 mr-1" />
+                              Changer forfait
                             </Button>
-                          )}
+                            {isMobile && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedService(service);
+                                  setMobileIssueDialogOpen(true);
+                                }}
+                              >
+                                <Smartphone className="w-4 h-4 mr-1" />
+                                Gérer
+                              </Button>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Mobile plan details */}
+                        {isMobile && service.data_allowance && (
+                          <div className="ml-16 grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Données</p>
+                              <p className="text-sm font-medium text-foreground">{service.data_allowance}</p>
+                              {service.data_used > 0 && (
+                                <p className="text-xs text-cyan-500">{service.data_used} GB utilisés</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Appels</p>
+                              <p className="text-sm font-medium text-foreground">{service.calls_allowance || "Illimités"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Textos</p>
+                              <p className="text-sm font-medium text-foreground">{service.texts_allowance || "Illimités"}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* TV channels info */}
+                        {service.selected_channels && Array.isArray(service.selected_channels) && service.selected_channels.length > 0 && (
+                          <div className="ml-16 p-3 bg-muted/50 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">Chaînes sélectionnées ({service.selected_channels.length})</p>
+                            <p className="text-sm text-foreground line-clamp-1">
+                              {service.selected_channels.slice(0, 5).map((ch: any) => ch.name || ch).join(", ")}
+                              {service.selected_channels.length > 5 && ` +${service.selected_channels.length - 5} autres`}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
