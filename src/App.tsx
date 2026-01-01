@@ -42,7 +42,7 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAppointments from "./pages/client/ClientAppointments";
 import ClientInvoices from "./pages/client/ClientInvoices";
 import ClientTickets from "./pages/client/ClientTickets";
-
+import ClientServices from "./pages/client/ClientServices";
 import ClientProfile from "./pages/client/ClientProfile";
 import ClientPayments from "./pages/client/ClientPayments";
 import ClientOrders from "./pages/client/ClientOrders";
@@ -100,7 +100,7 @@ const App = () => (
               <Route path="/portal/orders" element={<ClientProtectedRoute><ClientOrders /></ClientProtectedRoute>} />
               <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientNewOrder /></ClientProtectedRoute>} />
               <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientInvoices /></ClientProtectedRoute>} />
-              
+              <Route path="/portal/services" element={<ClientProtectedRoute><ClientServices /></ClientProtectedRoute>} />
               <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
               <Route path="/portal/channels" element={<ClientProtectedRoute><ClientChannels /></ClientProtectedRoute>} />
               <Route path="/portal/internet" element={<ClientProtectedRoute><ClientInternetOrder /></ClientProtectedRoute>} />
