@@ -11,9 +11,6 @@ import { Link } from "react-router-dom";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MINUTES = 15;
-
 const TechnicianAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -44,89 +41,35 @@ const TechnicianAuth = () => {
     setIsLoading(true);
 
     try {
-      // Step 1: Find technician by normalized email
-      const { data: techData, error: techError } = await supabase
-        .from("technicians")
-        .select("id, full_name, email, status, user_id, access_code, failed_login_attempts, lockout_until")
-        .ilike("email", normalizedEmail)
-        .maybeSingle();
+      // Call the secure edge function for authentication
+      const { data, error } = await supabase.functions.invoke("technician-auth", {
+        body: { email: normalizedEmail, accessCode },
+      });
 
-      if (techError) {
-        console.error("Database error:", techError);
+      if (error) {
+        console.error("Edge function error:", error);
         setErrorMessage("Erreur de connexion. Veuillez réessayer.");
         return;
       }
 
-      // Step 2: Check if technician exists
-      if (!techData) {
-        setErrorMessage("Aucun profil technicien trouvé pour ce courriel. Contactez l'administrateur.");
+      if (data?.error) {
+        setErrorMessage(data.error);
         return;
       }
 
-      // Step 3: Check if account is locked out
-      if (techData.lockout_until) {
-        const lockoutEnd = new Date(techData.lockout_until);
-        if (lockoutEnd > new Date()) {
-          const minutesRemaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / 60000);
-          setErrorMessage(`Compte temporairement verrouillé. Réessayez dans ${minutesRemaining} minute(s).`);
-          return;
-        }
-      }
-
-      // Step 4: Check if account is active
-      if (techData.status !== "active") {
-        setErrorMessage("Accès bloqué: compte désactivé. Contactez l'administrateur.");
+      if (!data?.success || !data?.token) {
+        setErrorMessage("Réponse invalide du serveur.");
         return;
       }
 
-      // Step 5: Verify access code
-      if (techData.access_code !== accessCode) {
-        // Increment failed attempts
-        const newAttempts = (techData.failed_login_attempts || 0) + 1;
-        const updates: { failed_login_attempts: number; lockout_until?: string } = {
-          failed_login_attempts: newAttempts,
-        };
-
-        // Lock account if max attempts exceeded
-        if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
-          const lockoutTime = new Date();
-          lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_DURATION_MINUTES);
-          updates.lockout_until = lockoutTime.toISOString();
-          
-          await supabase
-            .from("technicians")
-            .update(updates)
-            .eq("id", techData.id);
-
-          setErrorMessage(`Trop de tentatives échouées. Compte verrouillé pour ${LOCKOUT_DURATION_MINUTES} minutes.`);
-          return;
-        }
-
-        await supabase
-          .from("technicians")
-          .update(updates)
-          .eq("id", techData.id);
-
-        const remainingAttempts = MAX_LOGIN_ATTEMPTS - newAttempts;
-        setErrorMessage(`Code d'accès invalide. ${remainingAttempts} tentative(s) restante(s).`);
-        return;
-      }
-
-      // Step 6: Success - Reset failed attempts and create session
-      await supabase
-        .from("technicians")
-        .update({ 
-          failed_login_attempts: 0, 
-          lockout_until: null 
-        })
-        .eq("id", techData.id);
-
-      // Store technician session in localStorage
+      // Store signed session token and technician info
       const techSession = {
-        id: techData.id,
-        email: techData.email,
-        full_name: techData.full_name,
-        user_id: techData.user_id,
+        id: data.technician.id,
+        email: data.technician.email,
+        full_name: data.technician.full_name,
+        phone: data.technician.phone,
+        specializations: data.technician.specializations,
+        token: data.token,
         authenticated_at: new Date().toISOString(),
       };
       
@@ -134,7 +77,7 @@ const TechnicianAuth = () => {
 
       toast({ 
         title: "Connexion réussie", 
-        description: `Bienvenue, ${techData.full_name}` 
+        description: `Bienvenue, ${data.technician.full_name}` 
       });
       navigate("/technician");
     } catch (error: any) {

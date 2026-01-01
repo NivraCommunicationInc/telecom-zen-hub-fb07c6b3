@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.send-channel-notification]
 verify_jwt = false
+
+[functions.technician-auth]
+verify_jwt = false
+
+[functions.technician-work-orders]
+verify_jwt = false
