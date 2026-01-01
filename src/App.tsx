@@ -48,6 +48,7 @@ import ClientPayments from "./pages/client/ClientPayments";
 import ClientOrders from "./pages/client/ClientOrders";
 import ClientContracts from "./pages/client/ClientContracts";
 import ClientNewOrder from "./pages/client/ClientNewOrder";
+import ClientOrderConfirmation from "./pages/client/ClientOrderConfirmation";
 import ClientChannels from "./pages/client/ClientChannels";
 import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientAppointments /></ClientProtectedRoute>} />
               <Route path="/portal/orders" element={<ClientProtectedRoute><ClientOrders /></ClientProtectedRoute>} />
               <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientNewOrder /></ClientProtectedRoute>} />
+              <Route path="/portal/order-confirmation" element={<ClientProtectedRoute><ClientOrderConfirmation /></ClientProtectedRoute>} />
               <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientInvoices /></ClientProtectedRoute>} />
               <Route path="/portal/services" element={<ClientProtectedRoute><ClientServices /></ClientProtectedRoute>} />
               <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
