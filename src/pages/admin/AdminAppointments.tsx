@@ -547,9 +547,13 @@ const AdminAppointments = () => {
     },
   });
 
-  // Assign technician mutation
+  // Assign technician mutation - now creates work_order for technician portal
   const assignTechMutation = useMutation({
     mutationFn: async ({ appointmentId, technicianId, orderId }: { appointmentId: string; technicianId: string; orderId?: string }) => {
+      const appointment = appointments?.find(a => a.id === appointmentId);
+      const tech = technicians?.find(t => t.id === technicianId);
+      
+      // Update appointment
       const { error: aptError } = await supabase
         .from("appointments")
         .update({ 
@@ -560,6 +564,7 @@ const AdminAppointments = () => {
         .eq("id", appointmentId);
       if (aptError) throw aptError;
 
+      // Update order if linked
       if (orderId) {
         const { error: orderError } = await supabase
           .from("orders")
@@ -568,8 +573,33 @@ const AdminAppointments = () => {
         if (orderError) throw orderError;
       }
 
+      // Create work order for technician portal (single source of truth)
+      const { createWorkOrder } = await import("@/hooks/useWorkOrderCreation");
+      const workOrderResult = await createWorkOrder({
+        type: "installation",
+        linkedAppointmentId: appointmentId,
+        linkedOrderId: orderId || appointment?.order_id || undefined,
+        clientId: appointment?.client_id || undefined,
+        clientName: appointment?.profiles?.full_name || undefined,
+        clientEmail: appointment?.client_email || appointment?.profiles?.email || undefined,
+        clientPhone: appointment?.client_phone || appointment?.profiles?.phone || undefined,
+        serviceAddress: appointment?.service_address || appointment?.profiles?.service_address || undefined,
+        serviceCity: appointment?.service_city || appointment?.profiles?.service_city || undefined,
+        servicePostalCode: appointment?.service_postal_code || appointment?.profiles?.service_postal_code || undefined,
+        scheduledStart: appointment?.scheduled_at || undefined,
+        assignedTechnicianId: technicianId,
+        assignedBy: user?.id || undefined,
+        serviceType: appointment?.service_type || undefined,
+        notes: appointment?.description || undefined,
+        equipmentDetails: Array.isArray(appointment?.equipment_details) ? appointment.equipment_details : [],
+      });
+
+      if (!workOrderResult.success) {
+        console.error("Failed to create work order:", workOrderResult.error);
+      }
+
+      // Log activity
       if (user?.id) {
-        const tech = technicians?.find(t => t.id === technicianId);
         await supabase.from("activity_logs").insert({
           user_id: user.id,
           entity_type: "appointment",
@@ -580,14 +610,18 @@ const AdminAppointments = () => {
           reason: "Technicien assigné",
           actor_email: user.email,
           actor_role: "admin",
+          details: { work_order_number: workOrderResult.workOrderNumber },
         });
       }
+
+      return { technicianName: tech?.full_name, workOrderNumber: workOrderResult.workOrderNumber };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["technician-appointments"] });
-      toast.success("Technicien assigné");
+      queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
+      toast.success(`Technicien assigné${data?.workOrderNumber ? ` - ${data.workOrderNumber}` : ""}`);
       setAssignTechDialogOpen(false);
       setSelectedTechnician("");
     },

@@ -826,26 +826,61 @@ const AdminOrders = () => {
       if (orderError) throw orderError;
 
       // Create appointment for client if order has scheduled date
+      let appointmentId: string | undefined;
       if (order?.appointment_date) {
-        await supabase.from("appointments").insert({
+        const { data: aptData } = await supabase.from("appointments").insert({
           client_id: order.user_id,
           client_email: order.client_email || order.profiles?.email,
+          client_phone: order.profiles?.phone,
+          service_address: order.profiles?.service_address,
+          service_city: order.profiles?.service_city,
+          service_postal_code: order.profiles?.service_postal_code,
           title: `Installation - ${order.service_type}`,
           description: `Installation par technicien Nivra pour commande ${order.order_number}`,
           scheduled_at: order.appointment_date,
-          status: "scheduled",
-        });
+          status: "technician_assigned",
+          technician_id: technicianId,
+          order_id: orderId,
+        }).select("id").single();
+        appointmentId = aptData?.id;
       }
 
-      return { technicianName: technician?.full_name };
+      // Create work order for technician portal (single source of truth)
+      const { createWorkOrder } = await import("@/hooks/useWorkOrderCreation");
+      const workOrderResult = await createWorkOrder({
+        type: "installation",
+        linkedOrderId: orderId,
+        linkedAppointmentId: appointmentId,
+        clientId: order?.user_id,
+        clientName: order?.profiles?.full_name,
+        clientEmail: order?.client_email || order?.profiles?.email,
+        clientPhone: order?.profiles?.phone,
+        serviceAddress: order?.profiles?.service_address,
+        serviceCity: order?.profiles?.service_city,
+        servicePostalCode: order?.profiles?.service_postal_code,
+        scheduledStart: order?.appointment_date,
+        assignedTechnicianId: technicianId,
+        assignedBy: currentUser?.id,
+        serviceType: order?.service_type,
+        notes: order?.notes,
+        equipmentDetails: Array.isArray(order?.equipment_details) ? order.equipment_details : [],
+      });
+
+      if (!workOrderResult.success) {
+        console.error("Failed to create work order:", workOrderResult.error);
+      }
+
+      return { technicianName: technician?.full_name, workOrderNumber: workOrderResult.workOrderNumber };
     },
     onSuccess: (data, { orderId, technicianId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
       const order = orders?.find((o: any) => o.id === orderId);
       logActivity("technician_assigned", "order", orderId, { 
         technician_id: technicianId,
         technician_name: data?.technicianName,
-        order_number: order?.order_number
+        order_number: order?.order_number,
+        work_order_number: data?.workOrderNumber,
       }, {
         changedField: "technician",
         newValue: data?.technicianName,
@@ -853,7 +888,7 @@ const AdminOrders = () => {
       });
       toast({ 
         title: "Technicien assigné", 
-        description: data?.technicianName ? `${data.technicianName} assigné à cette commande` : undefined 
+        description: data?.workOrderNumber ? `${data.technicianName} - ${data.workOrderNumber}` : data?.technicianName 
       });
     },
     onError: () => {
