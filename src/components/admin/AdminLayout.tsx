@@ -37,6 +37,7 @@ const navItems = [
   { icon: Settings, label: "Services", href: "/admin/services" },
   { icon: Tv, label: "Chaînes TV", href: "/admin/channels" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
+  { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: Ticket, label: "Tickets", href: "/admin/tickets" },
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },

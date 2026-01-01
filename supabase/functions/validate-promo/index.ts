@@ -1,0 +1,270 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface CartItem {
+  type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
+  amount: number;
+  name: string;
+}
+
+interface ValidatePromoRequest {
+  code: string;
+  client_email: string;
+  client_id?: string;
+  cart_items: CartItem[];
+  subtotal_before_discount: number;
+}
+
+interface PromoValidationResult {
+  valid: boolean;
+  error?: string;
+  promo?: {
+    id: string;
+    code: string;
+    name: string;
+    discount_type: string;
+    discount_value: number;
+    applies_to: Record<string, boolean>;
+    stackable: boolean;
+  };
+  discount_amount?: number;
+  eligible_subtotal?: number;
+  breakdown?: {
+    services: number;
+    one_time_fees: number;
+    equipment: number;
+    delivery: number;
+    installation: number;
+  };
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { code, client_email, client_id, cart_items, subtotal_before_discount }: ValidatePromoRequest = await req.json();
+
+    console.log(`[validate-promo] Validating code: ${code} for client: ${client_email}`);
+
+    if (!code || !code.trim()) {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Code promo requis" } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const normalizedCode = code.trim().toUpperCase();
+
+    // Fetch promotion by code
+    const { data: promo, error: promoError } = await supabase
+      .from('promotions')
+      .select('*')
+      .ilike('code', normalizedCode)
+      .single();
+
+    if (promoError || !promo) {
+      console.log(`[validate-promo] Code not found: ${normalizedCode}`);
+      return new Response(
+        JSON.stringify({ valid: false, error: "Code promo invalide" } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if active
+    if (promo.status !== 'active') {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Ce code promo n'est plus actif" } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check date range
+    const now = new Date();
+    if (promo.start_at && new Date(promo.start_at) > now) {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Ce code promo n'est pas encore actif" } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (promo.end_at && new Date(promo.end_at) < now) {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Ce code promo a expiré" } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check scope restrictions
+    if (promo.scope === 'restricted') {
+      let allowed = false;
+
+      // Check client IDs
+      if (promo.restricted_client_ids && promo.restricted_client_ids.length > 0 && client_id) {
+        allowed = promo.restricted_client_ids.includes(client_id);
+      }
+
+      // Check email domains
+      if (!allowed && promo.restricted_email_domains && promo.restricted_email_domains.length > 0 && client_email) {
+        const emailDomain = client_email.split('@')[1]?.toLowerCase();
+        allowed = promo.restricted_email_domains.some((d: string) => d.toLowerCase() === emailDomain);
+      }
+
+      if (!allowed) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Ce code promo n'est pas disponible pour votre compte" } as PromoValidationResult),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Check total usage limit
+    if (promo.usage_limit_total !== null) {
+      const { count } = await supabase
+        .from('promotion_redemptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('promotion_id', promo.id);
+
+      if (count !== null && count >= promo.usage_limit_total) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Ce code promo a atteint sa limite d'utilisation" } as PromoValidationResult),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Check per-client usage limit
+    if (promo.usage_limit_per_client !== null && client_email) {
+      const { count } = await supabase
+        .from('promotion_redemptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('promotion_id', promo.id)
+        .eq('client_email', client_email.toLowerCase());
+
+      if (count !== null && count >= promo.usage_limit_per_client) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Vous avez déjà utilisé ce code promo" } as PromoValidationResult),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Calculate eligible subtotal based on applies_to flags
+    const appliesTo = promo.applies_to as Record<string, boolean>;
+    const breakdown = {
+      services: 0,
+      one_time_fees: 0,
+      equipment: 0,
+      delivery: 0,
+      installation: 0,
+    };
+
+    let eligibleSubtotal = 0;
+
+    for (const item of cart_items || []) {
+      let eligible = false;
+      
+      switch (item.type) {
+        case 'service':
+          eligible = appliesTo.services === true;
+          if (eligible) breakdown.services += item.amount;
+          break;
+        case 'one_time_fee':
+          eligible = appliesTo.one_time_fees === true;
+          if (eligible) breakdown.one_time_fees += item.amount;
+          break;
+        case 'equipment':
+          eligible = appliesTo.equipment === true;
+          if (eligible) breakdown.equipment += item.amount;
+          break;
+        case 'delivery':
+          eligible = appliesTo.delivery === true;
+          if (eligible) breakdown.delivery += item.amount;
+          break;
+        case 'installation':
+          eligible = appliesTo.installation === true;
+          if (eligible) breakdown.installation += item.amount;
+          break;
+      }
+
+      if (eligible) {
+        eligibleSubtotal += item.amount;
+      }
+    }
+
+    if (eligibleSubtotal <= 0) {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Aucun article éligible pour ce code promo" } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check minimum subtotal
+    if (promo.min_subtotal !== null && subtotal_before_discount < promo.min_subtotal) {
+      return new Response(
+        JSON.stringify({ 
+          valid: false, 
+          error: `Ce code promo nécessite un minimum de ${promo.min_subtotal.toFixed(2)} $ avant taxes` 
+        } as PromoValidationResult),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Calculate discount
+    let discountAmount = 0;
+
+    if (promo.discount_type === 'percent') {
+      discountAmount = eligibleSubtotal * (promo.discount_value / 100);
+    } else if (promo.discount_type === 'fixed_amount') {
+      discountAmount = Math.min(promo.discount_value, eligibleSubtotal);
+    }
+
+    // Apply cap if set
+    if (promo.max_discount_amount !== null && discountAmount > promo.max_discount_amount) {
+      discountAmount = promo.max_discount_amount;
+    }
+
+    // Round to 2 decimals
+    discountAmount = Math.round(discountAmount * 100) / 100;
+
+    console.log(`[validate-promo] Valid promo ${normalizedCode}: discount ${discountAmount} CAD`);
+
+    const result: PromoValidationResult = {
+      valid: true,
+      promo: {
+        id: promo.id,
+        code: promo.code.toUpperCase(),
+        name: promo.name,
+        discount_type: promo.discount_type,
+        discount_value: promo.discount_value,
+        applies_to: appliesTo,
+        stackable: promo.stackable,
+      },
+      discount_amount: discountAmount,
+      eligible_subtotal: eligibleSubtotal,
+      breakdown,
+    };
+
+    return new Response(
+      JSON.stringify(result),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error: unknown) {
+    console.error("[validate-promo] Error:", error);
+    const message = error instanceof Error ? error.message : "Erreur inattendue";
+    return new Response(
+      JSON.stringify({ valid: false, error: message } as PromoValidationResult),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

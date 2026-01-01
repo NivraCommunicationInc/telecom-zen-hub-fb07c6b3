@@ -1,0 +1,114 @@
+import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface CartItem {
+  type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
+  amount: number;
+  name: string;
+}
+
+interface AppliedPromo {
+  id: string;
+  code: string;
+  name: string;
+  discount_type: string;
+  discount_value: number;
+  discount_amount: number;
+  applies_to: Record<string, boolean>;
+  stackable: boolean;
+}
+
+interface PromoValidationResult {
+  valid: boolean;
+  error?: string;
+  promo?: AppliedPromo;
+  discount_amount?: number;
+  eligible_subtotal?: number;
+}
+
+export const usePromoValidation = () => {
+  const [isValidating, setIsValidating] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+
+  const validatePromo = useCallback(async (
+    code: string,
+    clientEmail: string,
+    clientId: string | undefined,
+    cartItems: CartItem[],
+    subtotalBeforeDiscount: number
+  ): Promise<PromoValidationResult> => {
+    setIsValidating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-promo", {
+        body: {
+          code: code.trim(),
+          client_email: clientEmail,
+          client_id: clientId,
+          cart_items: cartItems,
+          subtotal_before_discount: subtotalBeforeDiscount,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.valid && data.promo) {
+        const promo: AppliedPromo = {
+          id: data.promo.id,
+          code: data.promo.code,
+          name: data.promo.name,
+          discount_type: data.promo.discount_type,
+          discount_value: data.promo.discount_value,
+          discount_amount: data.discount_amount,
+          applies_to: data.promo.applies_to,
+          stackable: data.promo.stackable,
+        };
+        setAppliedPromo(promo);
+        return { valid: true, promo, discount_amount: data.discount_amount, eligible_subtotal: data.eligible_subtotal };
+      }
+
+      return { valid: false, error: data.error };
+    } catch (err: any) {
+      console.error("Error validating promo:", err);
+      return { valid: false, error: "Erreur lors de la validation" };
+    } finally {
+      setIsValidating(false);
+    }
+  }, []);
+
+  const clearPromo = useCallback(() => {
+    setAppliedPromo(null);
+  }, []);
+
+  const recordRedemption = useCallback(async (
+    orderId: string,
+    orderNumber: string,
+    clientId: string | undefined,
+    clientEmail: string
+  ) => {
+    if (!appliedPromo) return;
+
+    try {
+      await supabase.from("promotion_redemptions").insert({
+        promotion_id: appliedPromo.id,
+        order_id: orderId,
+        order_number: orderNumber,
+        client_id: clientId || null,
+        client_email: clientEmail.toLowerCase(),
+        discount_amount: appliedPromo.discount_amount,
+      });
+    } catch (err) {
+      console.error("Error recording promo redemption:", err);
+    }
+  }, [appliedPromo]);
+
+  return {
+    isValidating,
+    appliedPromo,
+    setAppliedPromo,
+    validatePromo,
+    clearPromo,
+    recordRedemption,
+  };
+};
+
+export default usePromoValidation;

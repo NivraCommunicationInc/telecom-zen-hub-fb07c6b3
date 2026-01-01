@@ -1018,6 +1018,9 @@ export type Database = {
           preauth_discount: number | null
           processed_at: string | null
           processed_by: string | null
+          promo_code: string | null
+          promo_details: Json | null
+          promo_discount_amount: number | null
           related_contract_id: string | null
           related_ticket_id: string | null
           risk_flags: Json | null
@@ -1083,6 +1086,9 @@ export type Database = {
           preauth_discount?: number | null
           processed_at?: string | null
           processed_by?: string | null
+          promo_code?: string | null
+          promo_details?: Json | null
+          promo_discount_amount?: number | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
           risk_flags?: Json | null
@@ -1148,6 +1154,9 @@ export type Database = {
           preauth_discount?: number | null
           processed_at?: string | null
           processed_by?: string | null
+          promo_code?: string | null
+          promo_details?: Json | null
+          promo_discount_amount?: number | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
           risk_flags?: Json | null
@@ -1383,6 +1392,122 @@ export type Database = {
           store_credit?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      promotion_redemptions: {
+        Row: {
+          client_email: string
+          client_id: string | null
+          currency: string
+          discount_amount: number
+          id: string
+          order_id: string | null
+          order_number: string | null
+          promotion_id: string
+          redeemed_at: string
+        }
+        Insert: {
+          client_email: string
+          client_id?: string | null
+          currency?: string
+          discount_amount: number
+          id?: string
+          order_id?: string | null
+          order_number?: string | null
+          promotion_id: string
+          redeemed_at?: string
+        }
+        Update: {
+          client_email?: string
+          client_id?: string | null
+          currency?: string
+          discount_amount?: number
+          id?: string
+          order_id?: string | null
+          order_number?: string | null
+          promotion_id?: string
+          redeemed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_redemptions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          applies_to: Json
+          code: string
+          created_at: string
+          created_by_admin_id: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_at: string | null
+          id: string
+          max_discount_amount: number | null
+          min_subtotal: number | null
+          name: string
+          restricted_client_ids: string[] | null
+          restricted_email_domains: string[] | null
+          scope: string
+          stackable: boolean
+          start_at: string | null
+          status: string
+          updated_at: string
+          usage_limit_per_client: number | null
+          usage_limit_total: number | null
+        }
+        Insert: {
+          applies_to?: Json
+          code: string
+          created_at?: string
+          created_by_admin_id?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          end_at?: string | null
+          id?: string
+          max_discount_amount?: number | null
+          min_subtotal?: number | null
+          name: string
+          restricted_client_ids?: string[] | null
+          restricted_email_domains?: string[] | null
+          scope?: string
+          stackable?: boolean
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+          usage_limit_per_client?: number | null
+          usage_limit_total?: number | null
+        }
+        Update: {
+          applies_to?: Json
+          code?: string
+          created_at?: string
+          created_by_admin_id?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_at?: string | null
+          id?: string
+          max_discount_amount?: number | null
+          min_subtotal?: number | null
+          name?: string
+          restricted_client_ids?: string[] | null
+          restricted_email_domains?: string[] | null
+          scope?: string
+          stackable?: boolean
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+          usage_limit_per_client?: number | null
+          usage_limit_total?: number | null
         }
         Relationships: []
       }
