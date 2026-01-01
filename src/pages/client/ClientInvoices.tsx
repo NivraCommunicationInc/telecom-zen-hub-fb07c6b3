@@ -517,9 +517,16 @@ const ClientInvoices = () => {
                                 </span>
                               </td>
                               <td className="py-3 px-4">
-                                <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-muted"}>
-                                  {isOverdue && inv.status !== "paid" ? "En retard" : statusLabels[inv.status] || inv.status}
-                                </Badge>
+                                <div className="flex flex-wrap gap-1">
+                                  <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-muted"}>
+                                    {isOverdue && inv.status !== "paid" ? "En retard" : statusLabels[inv.status] || inv.status}
+                                  </Badge>
+                                  {inv.preauth_discount_applied && (
+                                    <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
+                                      -5$/mois
+                                    </Badge>
+                                  )}
+                                </div>
                               </td>
                               <td className="py-3 px-4">
                                 <div className="flex gap-2">

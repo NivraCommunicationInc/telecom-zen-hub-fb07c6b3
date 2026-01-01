@@ -1129,7 +1129,16 @@ const AdminBilling = () => {
                             )}
                           </td>
                           <td className="py-3 px-4 text-sm text-muted-foreground">{bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "—"}</td>
-                          <td className="py-3 px-4"><Badge className={statusColors[bill.status] || "bg-muted"}>{statusLabels[bill.status] || bill.status}</Badge></td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1">
+                              <Badge className={statusColors[bill.status] || "bg-muted"}>{statusLabels[bill.status] || bill.status}</Badge>
+                              {bill.preauth_discount_applied && (
+                                <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
+                                  -5$/mois
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" onClick={() => handleViewDetails(bill)}><Eye className="w-4 h-4" /></Button>
@@ -1232,6 +1241,17 @@ const AdminBilling = () => {
                   </div>
                 </div>
                 
+                {/* Preauth Discount Badge */}
+                {selectedBill.preauth_discount_applied && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-500/20 text-emerald-500">Pré-autorisé</Badge>
+                      <span className="text-sm text-emerald-600">Rabais mensuel de 5$ appliqué</span>
+                    </div>
+                    <span className="font-medium text-emerald-500">-5,00 $</span>
+                  </div>
+                )}
+                
                 {/* Totals Summary */}
                 <div className="p-4 bg-muted rounded-lg space-y-1">
                   <div className="flex justify-between text-sm"><span>Base:</span><span>{Number(selectedBill.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
@@ -1240,6 +1260,9 @@ const AdminBilling = () => {
                   <div className="flex justify-between text-sm text-muted-foreground"><span>Activation:</span><span>+{Number(selectedBill.activation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
                   <div className="flex justify-between text-sm text-muted-foreground"><span>Autres frais:</span><span>+{Number(selectedBill.fees || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
                   <div className="flex justify-between text-sm text-emerald-500"><span>Crédits:</span><span>-{Number(selectedBill.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  {selectedBill.preauth_discount_applied && (
+                    <div className="flex justify-between text-sm text-emerald-500"><span>Rabais pré-autorisé:</span><span>-{Number(selectedBill.preauth_discount || 5).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  )}
                   <div className="flex justify-between font-bold mt-2 pt-2 border-t"><span>Total dû:</span><span>{calculateTotal(selectedBill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
                 </div>
                 
