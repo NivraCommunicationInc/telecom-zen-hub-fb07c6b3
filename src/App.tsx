@@ -52,8 +52,10 @@ import ClientOrderConfirmation from "./pages/client/ClientOrderConfirmation";
 import ClientChannels from "./pages/client/ClientChannels";
 import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
+import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacement";
 import TechnicianAuth from "./pages/technician/TechnicianAuth";
 import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
+import AdminReplacements from "./pages/admin/AdminReplacements";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +107,7 @@ const App = () => (
               <Route path="/admin/tickets" element={<ProtectedRoute requireAdmin><AdminTickets /></ProtectedRoute>} />
               <Route path="/admin/channels" element={<ProtectedRoute requireAdmin><AdminChannels /></ProtectedRoute>} />
               <Route path="/admin/technicians" element={<ProtectedRoute requireAdmin><AdminTechnicians /></ProtectedRoute>} />
+              <Route path="/admin/replacements" element={<ProtectedRoute requireAdmin><AdminReplacements /></ProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
@@ -118,6 +121,7 @@ const App = () => (
               <Route path="/portal/channels" element={<ClientProtectedRoute><ClientChannels /></ClientProtectedRoute>} />
               <Route path="/portal/internet" element={<ClientProtectedRoute><ClientInternetOrder /></ClientProtectedRoute>} />
               <Route path="/portal/tv-order" element={<ClientProtectedRoute><ClientTVOrder /></ClientProtectedRoute>} />
+              <Route path="/portal/replacement" element={<ClientProtectedRoute><ClientEquipmentReplacement /></ClientProtectedRoute>} />
               <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
               <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
               <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientContracts /></ClientProtectedRoute>} />

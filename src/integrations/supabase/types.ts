@@ -1062,6 +1062,241 @@ export type Database = {
         }
         Relationships: []
       }
+      replacement_orders: {
+        Row: {
+          admin_fee: number | null
+          approved_at: string | null
+          approved_by: string | null
+          client_email: string | null
+          created_at: string | null
+          created_by: string | null
+          delivered_at: string | null
+          delivery_fee: number | null
+          equipment_items: Json | null
+          equipment_total: number | null
+          id: string
+          internal_notes: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_status: string | null
+          order_number: string | null
+          order_type: Database["public"]["Enums"]["replacement_order_type"]
+          original_order_id: string | null
+          original_order_number: string | null
+          payment_confirmed: boolean | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
+          payment_reference: string | null
+          replacement_ticket_id: string | null
+          return_deadline: string | null
+          return_required: boolean | null
+          shipped_at: string | null
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_method: string | null
+          shipping_postal_code: string | null
+          status: Database["public"]["Enums"]["replacement_order_status"] | null
+          subtotal: number | null
+          total_amount: number | null
+          tps_amount: number | null
+          tracking_number: string | null
+          tracking_url: string | null
+          tvq_amount: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_fee?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          client_email?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_fee?: number | null
+          equipment_items?: Json | null
+          equipment_total?: number | null
+          id?: string
+          internal_notes?: string | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_status?: string | null
+          order_number?: string | null
+          order_type?: Database["public"]["Enums"]["replacement_order_type"]
+          original_order_id?: string | null
+          original_order_number?: string | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_reference?: string | null
+          replacement_ticket_id?: string | null
+          return_deadline?: string | null
+          return_required?: boolean | null
+          shipped_at?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_method?: string | null
+          shipping_postal_code?: string | null
+          status?:
+            | Database["public"]["Enums"]["replacement_order_status"]
+            | null
+          subtotal?: number | null
+          total_amount?: number | null
+          tps_amount?: number | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          tvq_amount?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_fee?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          client_email?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_fee?: number | null
+          equipment_items?: Json | null
+          equipment_total?: number | null
+          id?: string
+          internal_notes?: string | null
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_status?: string | null
+          order_number?: string | null
+          order_type?: Database["public"]["Enums"]["replacement_order_type"]
+          original_order_id?: string | null
+          original_order_number?: string | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_reference?: string | null
+          replacement_ticket_id?: string | null
+          return_deadline?: string | null
+          return_required?: boolean | null
+          shipped_at?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_method?: string | null
+          shipping_postal_code?: string | null
+          status?:
+            | Database["public"]["Enums"]["replacement_order_status"]
+            | null
+          subtotal?: number | null
+          total_amount?: number | null
+          tps_amount?: number | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          tvq_amount?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_orders_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_orders_replacement_ticket_id_fkey"
+            columns: ["replacement_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_tickets: {
+        Row: {
+          billable_acknowledged: boolean | null
+          client_email: string | null
+          created_at: string | null
+          equipment_id: string | null
+          equipment_name: string | null
+          equipment_serial: string | null
+          id: string
+          internal_notes: string | null
+          linked_order_id: string | null
+          linked_order_number: string | null
+          photo_urls: Json | null
+          preferred_address: string | null
+          preferred_city: string | null
+          preferred_postal_code: string | null
+          reason: Database["public"]["Enums"]["replacement_reason"]
+          reason_details: string | null
+          reason_text: string | null
+          status: string | null
+          ticket_number: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          billable_acknowledged?: boolean | null
+          client_email?: string | null
+          created_at?: string | null
+          equipment_id?: string | null
+          equipment_name?: string | null
+          equipment_serial?: string | null
+          id?: string
+          internal_notes?: string | null
+          linked_order_id?: string | null
+          linked_order_number?: string | null
+          photo_urls?: Json | null
+          preferred_address?: string | null
+          preferred_city?: string | null
+          preferred_postal_code?: string | null
+          reason?: Database["public"]["Enums"]["replacement_reason"]
+          reason_details?: string | null
+          reason_text?: string | null
+          status?: string | null
+          ticket_number?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          billable_acknowledged?: boolean | null
+          client_email?: string | null
+          created_at?: string | null
+          equipment_id?: string | null
+          equipment_name?: string | null
+          equipment_serial?: string | null
+          id?: string
+          internal_notes?: string | null
+          linked_order_id?: string | null
+          linked_order_number?: string | null
+          photo_urls?: Json | null
+          preferred_address?: string | null
+          preferred_city?: string | null
+          preferred_postal_code?: string | null
+          reason?: Database["public"]["Enums"]["replacement_reason"]
+          reason_details?: string | null
+          reason_text?: string | null
+          status?: string | null
+          ticket_number?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_tickets_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_replies: {
         Row: {
           content: string
@@ -1419,6 +1654,8 @@ export type Database = {
       generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_payment_reference: { Args: never; Returns: string }
+      generate_replacement_order_number: { Args: never; Returns: string }
+      generate_replacement_ticket_number: { Args: never; Returns: string }
       generate_request_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       has_role: {
@@ -1431,6 +1668,24 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client" | "technician" | "employee"
+      replacement_order_status:
+        | "open"
+        | "awaiting_decision"
+        | "awaiting_payment"
+        | "ready_to_ship"
+        | "shipped"
+        | "delivered"
+        | "cancelled"
+        | "closed"
+      replacement_order_type: "warranty_replacement" | "paid_replacement"
+      replacement_reason:
+        | "defective"
+        | "damaged"
+        | "lost"
+        | "theft"
+        | "malfunction"
+        | "upgrade"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1559,6 +1814,26 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client", "technician", "employee"],
+      replacement_order_status: [
+        "open",
+        "awaiting_decision",
+        "awaiting_payment",
+        "ready_to_ship",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "closed",
+      ],
+      replacement_order_type: ["warranty_replacement", "paid_replacement"],
+      replacement_reason: [
+        "defective",
+        "damaged",
+        "lost",
+        "theft",
+        "malfunction",
+        "upgrade",
+        "other",
+      ],
     },
   },
 } as const
