@@ -14,6 +14,122 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_service_locations: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          label: string
+          service_address: string
+          service_city: string | null
+          service_postal_code: string | null
+          service_province: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          service_address: string
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          service_address?: string
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_province?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_service_locations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounts: {
+        Row: {
+          account_name: string | null
+          account_number: string
+          billing_address: string | null
+          billing_city: string | null
+          billing_cycle_day: number | null
+          billing_cycle_timezone: string | null
+          billing_postal_code: string | null
+          billing_province: string | null
+          client_id: string
+          created_at: string
+          credit_class: string | null
+          credit_last_reviewed_at: string | null
+          credit_last_reviewed_by_admin_id: string | null
+          id: string
+          primary_service_address: string | null
+          primary_service_city: string | null
+          primary_service_postal_code: string | null
+          primary_service_province: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number: string
+          billing_address?: string | null
+          billing_city?: string | null
+          billing_cycle_day?: number | null
+          billing_cycle_timezone?: string | null
+          billing_postal_code?: string | null
+          billing_province?: string | null
+          client_id: string
+          created_at?: string
+          credit_class?: string | null
+          credit_last_reviewed_at?: string | null
+          credit_last_reviewed_by_admin_id?: string | null
+          id?: string
+          primary_service_address?: string | null
+          primary_service_city?: string | null
+          primary_service_postal_code?: string | null
+          primary_service_province?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string
+          billing_address?: string | null
+          billing_city?: string | null
+          billing_cycle_day?: number | null
+          billing_cycle_timezone?: string | null
+          billing_postal_code?: string | null
+          billing_province?: string | null
+          client_id?: string
+          created_at?: string
+          credit_class?: string | null
+          credit_last_reviewed_at?: string | null
+          credit_last_reviewed_by_admin_id?: string | null
+          id?: string
+          primary_service_address?: string | null
+          primary_service_city?: string | null
+          primary_service_postal_code?: string | null
+          primary_service_province?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
@@ -978,6 +1094,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          account_id: string | null
           activation_fee: number | null
           agreement_version: number | null
           amount_paid: number | null
@@ -1028,6 +1145,7 @@ export type Database = {
           savings_estimated: number | null
           selected_channels: Json | null
           serial_number: string | null
+          service_location_id: string | null
           service_type: string
           sim_number: string | null
           status: string
@@ -1046,6 +1164,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           activation_fee?: number | null
           agreement_version?: number | null
           amount_paid?: number | null
@@ -1096,6 +1215,7 @@ export type Database = {
           savings_estimated?: number | null
           selected_channels?: Json | null
           serial_number?: string | null
+          service_location_id?: string | null
           service_type: string
           sim_number?: string | null
           status?: string
@@ -1114,6 +1234,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           activation_fee?: number | null
           agreement_version?: number | null
           amount_paid?: number | null
@@ -1164,6 +1285,7 @@ export type Database = {
           savings_estimated?: number | null
           selected_channels?: Json | null
           serial_number?: string | null
+          service_location_id?: string | null
           service_type?: string
           sim_number?: string | null
           status?: string
@@ -1183,10 +1305,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_preauth_card_id_fkey"
             columns: ["preauth_card_id"]
             isOneToOne: false
             referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
           {
@@ -2315,6 +2451,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_account_number: { Args: never; Returns: string }
       generate_appointment_number: { Args: never; Returns: string }
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }

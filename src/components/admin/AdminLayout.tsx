@@ -19,7 +19,8 @@ import {
   Tv,
   Wrench,
   UserCog,
-  ExternalLink
+  ExternalLink,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +35,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/admin" },
   { icon: Package, label: "Commandes", href: "/admin/orders" },
   { icon: Users, label: "Clients", href: "/admin/clients" },
+  { icon: Building2, label: "Comptes", href: "/admin/accounts" },
   { icon: Settings, label: "Services", href: "/admin/services" },
   { icon: Tv, label: "Chaînes TV", href: "/admin/channels" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
