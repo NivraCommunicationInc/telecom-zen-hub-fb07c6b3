@@ -165,6 +165,7 @@ const ClientNewOrder = () => {
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null);
+  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   
   // ID verification state
   const [idType, setIdType] = useState("");
@@ -501,15 +502,23 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
-      queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
-      queryClient.invalidateQueries({ queryKey: ["client-payments"] });
-      setCreatedOrder(data as CreatedOrder);
-      // Go to completed step (dynamic based on service selection)
-      if (hasTVService && hasMobileService) setStep(6);
-      else if (hasTVService || hasMobileService) setStep(5);
-      else setStep(4);
+      // Set order data first, then flag confirmation, then change step
+      const orderData = data as CreatedOrder;
+      setCreatedOrder(orderData);
+      setIsOrderConfirmed(true);
+      
+      // Use setTimeout to ensure state is set before step change
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
+        queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
+        queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+        queryClient.invalidateQueries({ queryKey: ["client-payments"] });
+        
+        // Go to completed step (dynamic based on service selection)
+        if (hasTVService && hasMobileService) setStep(6);
+        else if (hasTVService || hasMobileService) setStep(5);
+        else setStep(4);
+      }, 0);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -2386,7 +2395,7 @@ END:VCALENDAR`;
         {/* Completed Step - Dynamic based on service selection */}
         {((step === 4 && !hasTVService && !hasMobileService) ||
           (step === 5 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
-          (step === 6 && hasTVService && hasMobileService)) && createdOrder && (
+          (step === 6 && hasTVService && hasMobileService)) && isOrderConfirmed && (
           <div className="space-y-6 max-w-4xl mx-auto">
             {/* Success Banner */}
             <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
@@ -2409,7 +2418,7 @@ END:VCALENDAR`;
                 <CardContent className="py-6 text-center">
                   <Receipt className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Numéro de commande</p>
-                  <p className="text-2xl font-mono font-bold text-cyan-500">{createdOrder.order_number}</p>
+                  <p className="text-2xl font-mono font-bold text-cyan-500">{createdOrder?.order_number || "En cours..."}</p>
                 </CardContent>
               </Card>
               <Card className="bg-card border-border">
@@ -2417,7 +2426,9 @@ END:VCALENDAR`;
                   <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Date de commande</p>
                   <p className="text-lg font-semibold text-foreground">
-                    {format(new Date(createdOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                    {createdOrder?.created_at 
+                      ? format(new Date(createdOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })
+                      : format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                   </p>
                 </CardContent>
               </Card>
