@@ -67,6 +67,23 @@ const paymentStatusColors: Record<string, string> = {
   disputed: "bg-red-500/20 text-red-500",
 };
 
+// E-Transfer specific status configuration
+const etransferStatusConfig: Record<string, { color: string; label: string }> = {
+  pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente" },
+  in_verification: { color: "bg-blue-500/20 text-blue-500", label: "En vérification" },
+  completed: { color: "bg-emerald-500/20 text-emerald-500", label: "Complété" },
+  declined: { color: "bg-red-500/20 text-red-500", label: "Refusé" },
+  fraud: { color: "bg-red-600/30 text-red-600", label: "Fraude" },
+};
+
+const etransferStatusOptions = [
+  { value: "pending", label: "En attente" },
+  { value: "in_verification", label: "En vérification" },
+  { value: "completed", label: "Complété" },
+  { value: "declined", label: "Refusé" },
+  { value: "fraud", label: "Fraude" },
+];
+
 // Generate payment reference in format NIVRA-PAY-QC-YYYY-#####
 const generatePaymentReference = () => {
   const year = new Date().getFullYear();
@@ -113,6 +130,9 @@ const AdminBilling = () => {
   const [clientProfileDialogOpen, setClientProfileDialogOpen] = useState(false);
   const [selectedClientProfile, setSelectedClientProfile] = useState<any>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
+  const [etransferPaymentsDialogOpen, setEtransferPaymentsDialogOpen] = useState(false);
+  const [selectedPaymentForStatus, setSelectedPaymentForStatus] = useState<any>(null);
+  const [etransferStatusUpdateReason, setEtransferStatusUpdateReason] = useState("");
   const [newInvoice, setNewInvoice] = useState({
     user_id: "",
     amount: "",
@@ -162,6 +182,35 @@ const AdminBilling = () => {
 
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Query for E-Transfer payments
+  const { data: etransferPayments, isLoading: etransferLoading } = useQuery({
+    queryKey: ["admin-etransfer-payments"],
+    queryFn: async () => {
+      const { data: paymentsData, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("payment_method", "etransfer")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (paymentsData && paymentsData.length > 0) {
+        const userIds = [...new Set(paymentsData.map((p: any) => p.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name, balance")
+          .in("user_id", userIds);
+
+        return paymentsData.map((payment: any) => ({
+          ...payment,
+          profiles: profilesData?.find((p: any) => p.user_id === payment.user_id) || null,
+        }));
+      }
+
+      return paymentsData || [];
     },
   });
 
@@ -395,6 +444,134 @@ const AdminBilling = () => {
       toast({ title: "Facture mise à jour" });
     },
     onError: () => {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+  });
+
+  // E-Transfer status update mutation
+  const updateEtransferStatusMutation = useMutation({
+    mutationFn: async ({ 
+      paymentId, 
+      newStatus, 
+      reason,
+      payment 
+    }: { 
+      paymentId: string; 
+      newStatus: string; 
+      reason: string;
+      payment: any;
+    }) => {
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      const oldStatus = payment.status;
+      
+      // Update payment status
+      const { error: paymentError } = await supabase
+        .from("payments")
+        .update({
+          status: newStatus,
+          notes: `${payment.notes || ""}\n[Statut: ${oldStatus} → ${newStatus}] ${reason ? `Raison: ${reason}` : ""} (${format(new Date(), "d MMM yyyy HH:mm", { locale: fr })})`.trim(),
+        })
+        .eq("id", paymentId);
+
+      if (paymentError) throw paymentError;
+
+      // Handle balance update only if status is "completed"
+      if (newStatus === "completed" && oldStatus !== "completed") {
+        // Get client profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("user_id", payment.user_id)
+          .maybeSingle();
+
+        const currentBalance = Number(profile?.balance || 0);
+        const paymentAmount = Number(payment.amount || 0);
+        
+        // Reduce balance when payment is completed
+        const newBalance = Math.max(0, currentBalance - paymentAmount);
+        
+        await supabase
+          .from("profiles")
+          .update({ balance: newBalance })
+          .eq("user_id", payment.user_id);
+
+        // Update linked billing if exists
+        if (payment.billing_id) {
+          await supabase
+            .from("billing")
+            .update({
+              status: "paid",
+              paid_at: new Date().toISOString(),
+            })
+            .eq("id", payment.billing_id);
+        }
+      }
+
+      // If status changed FROM completed to something else, reverse the balance
+      if (oldStatus === "completed" && newStatus !== "completed") {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("user_id", payment.user_id)
+          .maybeSingle();
+
+        const currentBalance = Number(profile?.balance || 0);
+        const paymentAmount = Number(payment.amount || 0);
+        
+        // Add back to balance
+        await supabase
+          .from("profiles")
+          .update({ balance: currentBalance + paymentAmount })
+          .eq("user_id", payment.user_id);
+
+        // Revert billing status if exists
+        if (payment.billing_id) {
+          await supabase
+            .from("billing")
+            .update({
+              status: "pending",
+              paid_at: null,
+            })
+            .eq("id", payment.billing_id);
+        }
+      }
+
+      // Log activity
+      await supabase.from("activity_logs").insert({
+        user_id: currentUser?.id || "00000000-0000-0000-0000-000000000000",
+        entity_type: "payment",
+        entity_id: paymentId,
+        action: "etransfer_status_update",
+        actor_email: currentUser?.email,
+        actor_name: currentUser?.user_metadata?.full_name || currentUser?.email,
+        actor_role: "admin",
+        changed_field: "status",
+        old_value: oldStatus,
+        new_value: newStatus,
+        reason: reason || null,
+        details: {
+          payment_reference: payment.reference_number,
+          amount: payment.amount,
+          sender_name: payment.etransfer_sender_name,
+          client_email: payment.profiles?.email,
+        },
+      });
+
+      return { oldStatus, newStatus };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-etransfer-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      toast({ 
+        title: "Statut E-Transfer mis à jour", 
+        description: `${etransferStatusConfig[data.oldStatus]?.label || data.oldStatus} → ${etransferStatusConfig[data.newStatus]?.label || data.newStatus}` 
+      });
+      setSelectedPaymentForStatus(null);
+      setEtransferStatusUpdateReason("");
+    },
+    onError: (error: any) => {
+      console.error("E-Transfer status update error:", error);
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
     },
   });
@@ -906,13 +1083,27 @@ const AdminBilling = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Facturation</h1>
             <p className="text-muted-foreground mt-1">Gérer les factures et paiements</p>
           </div>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="hero">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle facture
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setEtransferPaymentsDialogOpen(true)}
+              className="relative"
+            >
+              <Wallet className="w-4 h-4 mr-2" />
+              E-Transfers
+              {etransferPayments && etransferPayments.filter((p: any) => p.status === "pending" || p.status === "in_verification").length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {etransferPayments.filter((p: any) => p.status === "pending" || p.status === "in_verification").length}
+                </span>
+              )}
+            </Button>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="hero">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle facture
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Créer une facture</DialogTitle>
@@ -1001,6 +1192,7 @@ const AdminBilling = () => {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1462,6 +1654,211 @@ const AdminBilling = () => {
                 <Button className="w-full" variant="outline" onClick={() => setClientProfileDialogOpen(false)}>
                   Fermer
                 </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* E-Transfer Payments Dialog */}
+        <Dialog open={etransferPaymentsDialogOpen} onOpenChange={setEtransferPaymentsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-cyan-400" />
+                Paiements E-Transfer
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              {etransferLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-muted animate-pulse rounded" />)}
+                </div>
+              ) : etransferPayments && etransferPayments.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Réf.</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Client</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Expéditeur</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Montant</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Date</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Statut</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {etransferPayments.map((payment: any) => (
+                        <tr key={payment.id} className="border-b border-border/50 hover:bg-accent/30">
+                          <td className="py-2 px-3 text-xs font-mono">{payment.reference_number}</td>
+                          <td className="py-2 px-3">
+                            <div className="text-xs font-medium">{payment.profiles?.full_name || "N/A"}</div>
+                            <div className="text-xs text-muted-foreground">{payment.profiles?.email}</div>
+                          </td>
+                          <td className="py-2 px-3 text-xs">{payment.etransfer_sender_name || "—"}</td>
+                          <td className="py-2 px-3 text-xs font-medium">
+                            {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          </td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground">
+                            {format(new Date(payment.created_at), "d MMM yyyy", { locale: fr })}
+                          </td>
+                          <td className="py-2 px-3">
+                            <Badge className={etransferStatusConfig[payment.status]?.color || "bg-muted"}>
+                              {etransferStatusConfig[payment.status]?.label || payment.status}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedPaymentForStatus(payment);
+                                setEtransferStatusUpdateReason("");
+                              }}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Modifier
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">Aucun paiement E-Transfer</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* E-Transfer Status Update Dialog */}
+        <Dialog open={!!selectedPaymentForStatus} onOpenChange={(open) => !open && setSelectedPaymentForStatus(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-cyan-400" />
+                Modifier le statut E-Transfer
+              </DialogTitle>
+            </DialogHeader>
+            {selectedPaymentForStatus && (
+              <div className="space-y-4 mt-4">
+                {/* Payment Info */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Référence:</span>
+                    <span className="font-mono font-medium">{selectedPaymentForStatus.reference_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Client:</span>
+                    <span>{selectedPaymentForStatus.profiles?.full_name || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Expéditeur:</span>
+                    <span>{selectedPaymentForStatus.etransfer_sender_name || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Montant:</span>
+                    <span className="font-bold text-foreground">
+                      {Number(selectedPaymentForStatus.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span>{format(new Date(selectedPaymentForStatus.created_at), "d MMM yyyy HH:mm", { locale: fr })}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Statut actuel:</span>
+                    <Badge className={etransferStatusConfig[selectedPaymentForStatus.status]?.color || "bg-muted"}>
+                      {etransferStatusConfig[selectedPaymentForStatus.status]?.label || selectedPaymentForStatus.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Status Selector */}
+                <div className="space-y-2">
+                  <Label>Nouveau statut</Label>
+                  <Select 
+                    value={selectedPaymentForStatus.status} 
+                    onValueChange={(v) => setSelectedPaymentForStatus({ ...selectedPaymentForStatus, newStatus: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {etransferStatusOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${etransferStatusConfig[opt.value]?.color.replace("text-", "bg-").split(" ")[0]}`} />
+                            {opt.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Reason Field */}
+                <div className="space-y-2">
+                  <Label>Raison du changement (optionnel)</Label>
+                  <Textarea
+                    placeholder="Ex: Virement vérifié, correspondance confirmée..."
+                    value={etransferStatusUpdateReason}
+                    onChange={(e) => setEtransferStatusUpdateReason(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                {/* Warning for Fraud/Declined */}
+                {(selectedPaymentForStatus.newStatus === "fraud" || selectedPaymentForStatus.newStatus === "declined") && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-red-600">
+                      <p className="font-medium">Attention</p>
+                      <p>Ce statut ne mettra pas à jour le solde client. La commande restera en attente pour révision admin.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Completed notification */}
+                {selectedPaymentForStatus.newStatus === "completed" && selectedPaymentForStatus.status !== "completed" && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-emerald-600">
+                      <p className="font-medium">Mise à jour du solde</p>
+                      <p>Le solde client sera réduit de {Number(selectedPaymentForStatus.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    className="flex-1"
+                    variant="hero"
+                    onClick={() => {
+                      if (!selectedPaymentForStatus.newStatus || selectedPaymentForStatus.newStatus === selectedPaymentForStatus.status) {
+                        toast({ title: "Sélectionnez un nouveau statut", variant: "destructive" });
+                        return;
+                      }
+                      updateEtransferStatusMutation.mutate({
+                        paymentId: selectedPaymentForStatus.id,
+                        newStatus: selectedPaymentForStatus.newStatus,
+                        reason: etransferStatusUpdateReason,
+                        payment: selectedPaymentForStatus,
+                      });
+                    }}
+                    disabled={updateEtransferStatusMutation.isPending || !selectedPaymentForStatus.newStatus || selectedPaymentForStatus.newStatus === selectedPaymentForStatus.status}
+                  >
+                    {updateEtransferStatusMutation.isPending ? "Mise à jour..." : "Enregistrer"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setSelectedPaymentForStatus(null)}>
+                    Annuler
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
