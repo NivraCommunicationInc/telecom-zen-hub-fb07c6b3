@@ -507,6 +507,7 @@ export type Database = {
         Row: {
           activation_fee: number | null
           amount_paid: number | null
+          audit_timeline: Json | null
           category: string | null
           channel_assigned_by: string | null
           channel_selection_locked: boolean | null
@@ -517,19 +518,29 @@ export type Database = {
           delivery_fee: number | null
           discount_amount: number | null
           discount_code: string | null
+          equipment_details: Json | null
           equipment_id: string | null
           id: string
+          id_verification_notes: string | null
+          id_verification_status: string | null
+          id_verified_at: string | null
+          id_verified_by: string | null
           imei_number: string | null
           installation_credit: number | null
           installation_fee: number | null
+          installation_type: string | null
           internal_notes: string | null
           late_fee_amount: number | null
           late_fee_applied: boolean | null
           notes: string | null
           order_number: string | null
           payment_status: string | null
+          processed_at: string | null
+          processed_by: string | null
           related_contract_id: string | null
           related_ticket_id: string | null
+          risk_flags: Json | null
+          router_fee: number | null
           savings_estimated: number | null
           selected_channels: Json | null
           serial_number: string | null
@@ -537,6 +548,8 @@ export type Database = {
           sim_number: string | null
           status: string
           subtotal: number | null
+          terminal_count: number | null
+          terminal_fee: number | null
           total_amount: number | null
           tps_amount: number | null
           tps_rate: number | null
@@ -550,6 +563,7 @@ export type Database = {
         Insert: {
           activation_fee?: number | null
           amount_paid?: number | null
+          audit_timeline?: Json | null
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
@@ -560,19 +574,29 @@ export type Database = {
           delivery_fee?: number | null
           discount_amount?: number | null
           discount_code?: string | null
+          equipment_details?: Json | null
           equipment_id?: string | null
           id?: string
+          id_verification_notes?: string | null
+          id_verification_status?: string | null
+          id_verified_at?: string | null
+          id_verified_by?: string | null
           imei_number?: string | null
           installation_credit?: number | null
           installation_fee?: number | null
+          installation_type?: string | null
           internal_notes?: string | null
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
           order_number?: string | null
           payment_status?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
+          risk_flags?: Json | null
+          router_fee?: number | null
           savings_estimated?: number | null
           selected_channels?: Json | null
           serial_number?: string | null
@@ -580,6 +604,8 @@ export type Database = {
           sim_number?: string | null
           status?: string
           subtotal?: number | null
+          terminal_count?: number | null
+          terminal_fee?: number | null
           total_amount?: number | null
           tps_amount?: number | null
           tps_rate?: number | null
@@ -593,6 +619,7 @@ export type Database = {
         Update: {
           activation_fee?: number | null
           amount_paid?: number | null
+          audit_timeline?: Json | null
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
@@ -603,19 +630,29 @@ export type Database = {
           delivery_fee?: number | null
           discount_amount?: number | null
           discount_code?: string | null
+          equipment_details?: Json | null
           equipment_id?: string | null
           id?: string
+          id_verification_notes?: string | null
+          id_verification_status?: string | null
+          id_verified_at?: string | null
+          id_verified_by?: string | null
           imei_number?: string | null
           installation_credit?: number | null
           installation_fee?: number | null
+          installation_type?: string | null
           internal_notes?: string | null
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
           order_number?: string | null
           payment_status?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
+          risk_flags?: Json | null
+          router_fee?: number | null
           savings_estimated?: number | null
           selected_channels?: Json | null
           serial_number?: string | null
@@ -623,6 +660,8 @@ export type Database = {
           sim_number?: string | null
           status?: string
           subtotal?: number | null
+          terminal_count?: number | null
+          terminal_fee?: number | null
           total_amount?: number | null
           tps_amount?: number | null
           tps_rate?: number | null
