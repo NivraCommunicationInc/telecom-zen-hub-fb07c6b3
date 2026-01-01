@@ -646,17 +646,61 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         });
       }
 
+      // AUTO-CREATE APPOINTMENT for orders requiring installation (Internet/TV)
+      const shouldCreateAppointment = (hasInternetService || hasTVService || selectedServices.some(s => s.category === "Sécurité")) && selectedDate && selectedTime;
+      
+      if (shouldCreateAppointment) {
+        const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+        
+        const equipmentDetails = [];
+        if (hasInternetService || hasTVService) {
+          equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG.price });
+        }
+        if (hasTVService) {
+          equipmentDetails.push({ type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalQuantity, fee: terminalQuantity * TERMINAL_CONFIG.price });
+        }
+        
+        const appointmentResult = await createAppointmentFromOrder({
+          orderId: data.id,
+          orderNumber: data.order_number,
+          userId: user.id,
+          clientEmail: profile?.email || user.email || "",
+          clientPhone: profile?.phone || "",
+          clientName: profile?.full_name || user.email?.split("@")[0] || "",
+          serviceType: serviceNames,
+          category: categories,
+          serviceAddress: profile?.service_address || "",
+          serviceCity: profile?.service_city || "",
+          servicePostalCode: profile?.service_postal_code || "",
+          scheduledDate: selectedDate,
+          scheduledTime: selectedTime,
+          installationMethod: installationChoice || "auto",
+          deliveryFee: orderDeliveryFee,
+          installationFee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
+          equipmentDetails,
+          notes: notes || "",
+        });
+
+        if (!appointmentResult.success) {
+          console.error("Appointment creation failed:", appointmentResult.error);
+        } else {
+          console.log("Appointment created:", appointmentResult.appointment?.appointment_number);
+        }
+      }
+
       return { ...data, nivraPaymentRef };
     },
     onSuccess: (result) => {
       // Navigate to dedicated confirmation page with order ID
       const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
       
-      // Invalidate queries so orders/invoices appear in admin & client views
+      // Invalidate queries so orders/invoices/appointments appear in admin & client views
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
       queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       
       // Navigate to confirmation page with order ID
       navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
