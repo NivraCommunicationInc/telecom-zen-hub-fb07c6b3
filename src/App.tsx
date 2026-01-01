@@ -55,7 +55,18 @@ import ClientTVOrder from "./pages/client/ClientTVOrder";
 import TechnicianAuth from "./pages/technician/TechnicianAuth";
 import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 30000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
