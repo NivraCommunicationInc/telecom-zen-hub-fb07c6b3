@@ -35,6 +35,12 @@ import {
   Save,
   User,
   Receipt,
+  Trash2,
+  Ban,
+  CheckCircle,
+  RefreshCw,
+  DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,10 +58,11 @@ const creditClassLabels: Record<string, { label: string; color: string }> = {
   D: { label: "Mauvais", color: "bg-red-500" },
 };
 
-const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Actif", variant: "default" },
   suspended: { label: "Suspendu", variant: "secondary" },
   closed: { label: "Fermé", variant: "destructive" },
+  pending: { label: "En attente", variant: "outline" },
 };
 
 const AdminAccounts = () => {
@@ -75,27 +82,44 @@ const AdminAccounts = () => {
     service_city: "",
     service_postal_code: "",
   });
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [newStatus, setNewStatus] = useState("active");
+  const [statusReason, setStatusReason] = useState("");
+  const [editAccountOpen, setEditAccountOpen] = useState(false);
+  const [editedAccount, setEditedAccount] = useState<any>(null);
 
-  // Fetch all accounts with client info
+  // Fetch all accounts
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["admin-accounts"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch accounts first
+      const { data: accountsData, error: accountsError } = await supabase
         .from("accounts")
-        .select(`
-          *,
-          profiles:client_id (
-            id,
-            user_id,
-            full_name,
-            email,
-            phone,
-            client_number
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (accountsError) throw accountsError;
+      
+      // Get unique client IDs
+      const clientIds = [...new Set(accountsData?.map(a => a.client_id).filter(Boolean))];
+      
+      // Fetch profiles for those clients
+      let profilesMap: Record<string, any> = {};
+      if (clientIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, user_id, full_name, email, phone, client_number")
+          .in("user_id", clientIds);
+        
+        profilesData?.forEach(p => {
+          profilesMap[p.user_id] = p;
+        });
+      }
+      
+      // Merge accounts with profiles
+      return accountsData?.map(account => ({
+        ...account,
+        profiles: profilesMap[account.client_id] || null,
+      }));
     },
   });
 
@@ -229,6 +253,77 @@ const AdminAccounts = () => {
       toast({ title: "Adresse de service ajoutée" });
       setAddLocationOpen(false);
       setNewLocation({ label: "", service_address: "", service_city: "", service_postal_code: "" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Update account status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ accountId, status }: { accountId: string; status: string }) => {
+      const { error } = await supabase
+        .from("accounts")
+        .update({ status })
+        .eq("id", accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-accounts"] });
+      toast({ title: "Statut du compte mis à jour" });
+      setStatusDialogOpen(false);
+      if (selectedAccount) {
+        setSelectedAccount({ ...selectedAccount, status: newStatus });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Update account details
+  const updateAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from("accounts")
+        .update({
+          account_name: data.account_name,
+          billing_address: data.billing_address,
+          billing_city: data.billing_city,
+          billing_postal_code: data.billing_postal_code,
+          primary_service_address: data.primary_service_address,
+          primary_service_city: data.primary_service_city,
+          primary_service_postal_code: data.primary_service_postal_code,
+          billing_cycle_day: data.billing_cycle_day,
+        })
+        .eq("id", data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-accounts"] });
+      toast({ title: "Compte mis à jour" });
+      setEditAccountOpen(false);
+      if (selectedAccount && editedAccount) {
+        setSelectedAccount({ ...selectedAccount, ...editedAccount });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Delete service location
+  const deleteLocationMutation = useMutation({
+    mutationFn: async (locationId: string) => {
+      const { error } = await supabase
+        .from("account_service_locations")
+        .delete()
+        .eq("id", locationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchLocations();
+      toast({ title: "Adresse supprimée" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -378,9 +473,21 @@ const AdminAccounts = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Statut</Label>
-                    <Badge variant={statusLabels[selectedAccount?.status]?.variant || "default"}>
-                      {statusLabels[selectedAccount?.status]?.label || selectedAccount?.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={statusLabels[selectedAccount?.status]?.variant || "default"}>
+                        {statusLabels[selectedAccount?.status]?.label || selectedAccount?.status}
+                      </Badge>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => {
+                          setNewStatus(selectedAccount?.status || "active");
+                          setStatusDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Client</Label>
@@ -399,6 +506,82 @@ const AdminAccounts = () => {
                       <MapPin className="w-4 h-4" />
                       {selectedAccount?.billing_address}, {selectedAccount?.billing_city}, {selectedAccount?.billing_postal_code}
                     </p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground">Créé le</Label>
+                    <p className="text-sm">
+                      {selectedAccount?.created_at && format(new Date(selectedAccount.created_at), "d MMM yyyy à HH:mm", { locale: fr })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="border-t pt-4 mt-4">
+                  <Label className="text-muted-foreground mb-3 block">Actions rapides</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setEditedAccount({
+                          id: selectedAccount?.id,
+                          account_name: selectedAccount?.account_name || "",
+                          billing_address: selectedAccount?.billing_address || "",
+                          billing_city: selectedAccount?.billing_city || "",
+                          billing_postal_code: selectedAccount?.billing_postal_code || "",
+                          primary_service_address: selectedAccount?.primary_service_address || "",
+                          primary_service_city: selectedAccount?.primary_service_city || "",
+                          primary_service_postal_code: selectedAccount?.primary_service_postal_code || "",
+                          billing_cycle_day: selectedAccount?.billing_cycle_day || 1,
+                        });
+                        setEditAccountOpen(true);
+                      }}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Modifier le compte
+                    </Button>
+                    {selectedAccount?.status !== "suspended" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                        onClick={() => {
+                          setNewStatus("suspended");
+                          setStatusDialogOpen(true);
+                        }}
+                      >
+                        <Ban className="w-4 h-4 mr-2" />
+                        Suspendre
+                      </Button>
+                    )}
+                    {selectedAccount?.status === "suspended" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-green-600 border-green-300 hover:bg-green-50"
+                        onClick={() => {
+                          setNewStatus("active");
+                          setStatusDialogOpen(true);
+                        }}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Réactiver
+                      </Button>
+                    )}
+                    {selectedAccount?.status !== "closed" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                        onClick={() => {
+                          setNewStatus("closed");
+                          setStatusDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Fermer le compte
+                      </Button>
+                    )}
                   </div>
                 </div>
               </TabsContent>
@@ -424,14 +607,25 @@ const AdminAccounts = () => {
 
                 {/* Additional locations */}
                 {serviceLocations?.map((loc: any) => (
-                  <div key={loc.id} className="p-4 border rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline">{loc.label}</Badge>
-                      {!loc.is_active && <Badge variant="secondary">Inactif</Badge>}
+                  <div key={loc.id} className="p-4 border rounded-lg flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline">{loc.label}</Badge>
+                        {!loc.is_active && <Badge variant="secondary">Inactif</Badge>}
+                      </div>
+                      <p className="text-sm">
+                        {loc.service_address}, {loc.service_city}, {loc.service_postal_code}
+                      </p>
                     </div>
-                    <p className="text-sm">
-                      {loc.service_address}, {loc.service_city}, {loc.service_postal_code}
-                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteLocationMutation.mutate(loc.id)}
+                      disabled={deleteLocationMutation.isPending}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </TabsContent>
@@ -729,6 +923,165 @@ const AdminAccounts = () => {
               disabled={addLocationMutation.isPending || !newLocation.label || !newLocation.service_address}
             >
               Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Status Dialog */}
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Changer le statut du compte
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nouveau statut</Label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Actif</SelectItem>
+                  <SelectItem value="suspended">Suspendu</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="closed">Fermé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Raison (optionnel)</Label>
+              <Textarea
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                placeholder="Raison du changement de statut..."
+                rows={3}
+              />
+            </div>
+            {newStatus === "closed" && (
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                <p className="text-sm text-destructive flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Attention: La fermeture d'un compte est une action importante. Le client ne pourra plus accéder à ses services.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant={newStatus === "closed" ? "destructive" : "default"}
+              onClick={() => {
+                if (selectedAccount) {
+                  updateStatusMutation.mutate({ accountId: selectedAccount.id, status: newStatus });
+                }
+              }}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending ? "En cours..." : "Confirmer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Account Dialog */}
+      <Dialog open={editAccountOpen} onOpenChange={setEditAccountOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Modifier le compte</DialogTitle>
+          </DialogHeader>
+          {editedAccount && (
+            <div className="space-y-4">
+              <div>
+                <Label>Nom du compte</Label>
+                <Input
+                  value={editedAccount.account_name}
+                  onChange={(e) => setEditedAccount({ ...editedAccount, account_name: e.target.value })}
+                />
+              </div>
+              <div className="border-t pt-4">
+                <Label className="text-muted-foreground block mb-3">Adresse de facturation</Label>
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Adresse"
+                    value={editedAccount.billing_address}
+                    onChange={(e) => setEditedAccount({ ...editedAccount, billing_address: e.target.value })}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      placeholder="Ville"
+                      value={editedAccount.billing_city}
+                      onChange={(e) => setEditedAccount({ ...editedAccount, billing_city: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Code postal"
+                      value={editedAccount.billing_postal_code}
+                      onChange={(e) => setEditedAccount({ ...editedAccount, billing_postal_code: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <Label className="text-muted-foreground block mb-3">Adresse de service principale</Label>
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Adresse"
+                    value={editedAccount.primary_service_address}
+                    onChange={(e) => setEditedAccount({ ...editedAccount, primary_service_address: e.target.value })}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      placeholder="Ville"
+                      value={editedAccount.primary_service_city}
+                      onChange={(e) => setEditedAccount({ ...editedAccount, primary_service_city: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Code postal"
+                      value={editedAccount.primary_service_postal_code}
+                      onChange={(e) => setEditedAccount({ ...editedAccount, primary_service_postal_code: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label>Jour du cycle de facturation</Label>
+                <Select 
+                  value={editedAccount.billing_cycle_day?.toString()} 
+                  onValueChange={(v) => setEditedAccount({ ...editedAccount, billing_cycle_day: parseInt(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditAccountOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (editedAccount) {
+                  updateAccountMutation.mutate(editedAccount);
+                }
+              }}
+              disabled={updateAccountMutation.isPending}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>
