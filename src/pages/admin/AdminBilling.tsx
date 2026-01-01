@@ -1383,6 +1383,45 @@ const AdminBilling = () => {
                   )}
                 </div>
                 
+                {/* Linked E-Transfer Status */}
+                {(() => {
+                  const linkedEtransfer = etransferPayments?.find((p: any) => p.billing_id === selectedBill.id);
+                  if (linkedEtransfer) {
+                    const statusConfig = etransferStatusConfig[linkedEtransfer.status] || etransferStatusConfig.pending;
+                    return (
+                      <div className="p-3 bg-muted/30 rounded-lg border border-muted">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Wallet className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">Paiement E-Transfer lié</p>
+                              <p className="text-xs text-muted-foreground font-mono">{linkedEtransfer.reference_number}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPaymentForStatus(linkedEtransfer);
+                                setEtransferStatusUpdateReason("");
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        {linkedEtransfer.etransfer_sender_name && (
+                          <p className="text-xs text-muted-foreground mt-2">Expéditeur: {linkedEtransfer.etransfer_sender_name}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">Montant: {Number(linkedEtransfer.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Montant de base</Label>
