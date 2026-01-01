@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +22,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,11 +42,14 @@ import {
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,
   Loader2, CheckCircle, Clock, BarChart3, CreditCard, DollarSign,
-  Receipt, AlertCircle
+  Receipt, AlertCircle, CalendarIcon, History, Tag, Phone, ScanLine,
+  Upload, Lock, Eye, ShieldCheck, FileText, MapPin, Building2,
+  Crown, Star, Settings, Wrench, AlertOctagon, Info
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // Plans matching website exactly
 const AVAILABLE_PLANS = {
@@ -54,31 +72,58 @@ const AVAILABLE_PLANS = {
 };
 
 const EQUIPMENT_ISSUE_TYPES = [
-  { value: "defect", label: "Défaut de fabrication" },
-  { value: "damaged", label: "Équipement endommagé" },
-  { value: "stolen", label: "Équipement volé" },
-  { value: "lost", label: "Équipement perdu" },
-  { value: "return_rental", label: "Retour équipement de location" },
+  { value: "defect", label: "Défaut de fabrication", warrantyPath: true },
+  { value: "damaged", label: "Équipement endommagé", warrantyPath: true },
+  { value: "stolen", label: "Équipement volé", warrantyPath: true },
+  { value: "lost", label: "Équipement perdu", warrantyPath: true },
+  { value: "return_rental", label: "Retour équipement de location", warrantyPath: false },
+  { value: "not_returned", label: "Équipement non retourné (signaler)", warrantyPath: false },
 ];
 
 const MOBILE_ISSUE_TYPES = [
   { value: "sim_stolen", label: "Carte SIM volée" },
   { value: "sim_lost", label: "Carte SIM perdue" },
   { value: "phone_lost", label: "Téléphone perdu" },
-  { value: "request_new_sim", label: "Demande nouvelle SIM" },
+  { value: "request_new_sim", label: "Commander nouvelle SIM" },
+  { value: "request_esim", label: "Commander eSIM" },
+  { value: "number_change", label: "Demande changement de numéro" },
   { value: "pause_plan", label: "Suspendre le forfait (frais continuent)" },
 ];
+
+const SERVICE_TAGS = [
+  { value: "residential", label: "Résidentiel", color: "bg-blue-500/20 text-blue-500" },
+  { value: "business", label: "Business", color: "bg-purple-500/20 text-purple-500" },
+  { value: "multi_address", label: "Multi-adresse", color: "bg-amber-500/20 text-amber-500" },
+  { value: "vip", label: "VIP", color: "bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-600" },
+];
+
+const SLA_TIERS = [
+  { value: "standard", label: "Standard", icon: Settings },
+  { value: "priority", label: "Priorité", icon: Star },
+  { value: "vip", label: "VIP", icon: Crown },
+];
+
+// Quebec phone prefixes
+const QC_VALID_PREFIXES = ["418", "367", "514", "263", "450", "579", "354", "819", "873", "468"];
 
 const ClientMyServices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Dialog states
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [mobileIssueDialogOpen, setMobileIssueDialogOpen] = useState(false);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [numberChangeDialogOpen, setNumberChangeDialogOpen] = useState(false);
+  const [simOrderDialogOpen, setSimOrderDialogOpen] = useState(false);
+  const [documentUploadOpen, setDocumentUploadOpen] = useState(false);
   
+  // Form states
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [issueType, setIssueType] = useState("");
@@ -87,6 +132,12 @@ const ClientMyServices = () => {
   const [mobileIssueDescription, setMobileIssueDescription] = useState("");
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketDescription, setTicketDescription] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+  const [suspensionEndDate, setSuspensionEndDate] = useState<Date | undefined>();
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
+  const [phoneNumberError, setPhoneNumberError] = useState("");
+  const [simType, setSimType] = useState<"sim" | "esim">("sim");
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   // Fetch subscriptions
   const { data: subscriptions, isLoading: loadingSubs } = useQuery({
@@ -125,22 +176,22 @@ const ClientMyServices = () => {
         .from("support_tickets")
         .select("*, ticket_replies(*)")
         .order("updated_at", { ascending: false })
-        .limit(5);
+        .limit(10);
       if (error) throw error;
       return data || [];
     },
     enabled: !!user?.id,
   });
 
-  // Fetch profile for credit balance
+  // Fetch profile for credit balance and province
   const { data: profile } = useQuery({
     queryKey: ["client-profile-credit", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("store_credit, balance")
+        .select("store_credit, balance, service_province, service_city")
         .eq("user_id", user?.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -155,7 +206,7 @@ const ClientMyServices = () => {
         .from("billing")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(20);
       if (error) throw error;
       return data || [];
     },
@@ -170,7 +221,22 @@ const ClientMyServices = () => {
         .from("payments")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(1);
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch client documents
+  const { data: documents } = useQuery({
+    queryKey: ["client-documents", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_documents")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -179,7 +245,13 @@ const ClientMyServices = () => {
 
   // Create support ticket mutation
   const createTicketMutation = useMutation({
-    mutationFn: async (ticketData: { subject: string; description: string; priority?: string }) => {
+    mutationFn: async (ticketData: { 
+      subject: string; 
+      description: string; 
+      priority?: string;
+      relatedServiceId?: string;
+      relatedEquipmentId?: string;
+    }) => {
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
@@ -202,6 +274,10 @@ const ClientMyServices = () => {
       setIssueDialogOpen(false);
       setMobileIssueDialogOpen(false);
       setTicketDialogOpen(false);
+      setScheduleDialogOpen(false);
+      setSuspensionDialogOpen(false);
+      setNumberChangeDialogOpen(false);
+      setSimOrderDialogOpen(false);
       resetForms();
     },
     onError: () => {
@@ -212,7 +288,6 @@ const ClientMyServices = () => {
   // Request plan change/upgrade
   const requestPlanChangeMutation = useMutation({
     mutationFn: async (data: { currentPlan: string; newPlan: string; subscriptionId: string }) => {
-      // Create a ticket for plan change request
       const { error } = await supabase
         .from("support_tickets")
         .insert({
@@ -242,25 +317,104 @@ const ClientMyServices = () => {
     setTicketSubject("");
     setTicketDescription("");
     setSelectedService(null);
+    setScheduledDate(undefined);
+    setSuspensionEndDate(undefined);
+    setNewPhoneNumber("");
+    setPhoneNumberError("");
+  };
+
+  // Validate Quebec phone number
+  const validateQCPhoneNumber = (phone: string): boolean => {
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) return false;
+    const prefix = cleanPhone.substring(0, 3);
+    return QC_VALID_PREFIXES.includes(prefix);
+  };
+
+  const handlePhoneNumberChange = (value: string) => {
+    setNewPhoneNumber(value);
+    if (value.length >= 3) {
+      const cleanPhone = value.replace(/\D/g, "");
+      const prefix = cleanPhone.substring(0, 3);
+      if (!QC_VALID_PREFIXES.includes(prefix)) {
+        setPhoneNumberError(`Préfixe ${prefix} non valide au Québec. Préfixes valides: 418/367, 514/263, 450/579/354, 819/873/468`);
+      } else {
+        setPhoneNumberError("");
+      }
+    }
   };
 
   const handleEquipmentIssue = () => {
     if (!issueType || !selectedService) return;
-    const issueLabel = EQUIPMENT_ISSUE_TYPES.find(t => t.value === issueType)?.label || issueType;
+    const issueInfo = EQUIPMENT_ISSUE_TYPES.find(t => t.value === issueType);
+    const warrantyNote = issueInfo?.warrantyPath 
+      ? "\n\n[Chemin garantie: Remplacement sous garantie si applicable]" 
+      : "";
     createTicketMutation.mutate({
-      subject: `Problème équipement: ${issueLabel}`,
-      description: `Type de problème: ${issueLabel}\nÉquipement: ${selectedService.service_type || selectedService.plan_name}\nCommande: ${selectedService.order_number || "N/A"}\n\nDétails: ${issueDescription || "Aucun détail fourni"}`,
+      subject: `Problème équipement: ${issueInfo?.label}`,
+      description: `Type de problème: ${issueInfo?.label}\nÉquipement: ${selectedService.service_type || selectedService.plan_name}\nCommande: ${selectedService.order_number || "N/A"}\n\nDétails: ${issueDescription || "Aucun détail fourni"}${warrantyNote}`,
       priority: issueType === "stolen" ? "high" : "normal",
+      relatedEquipmentId: selectedService.equipment_id,
     });
   };
 
   const handleMobileIssue = () => {
     if (!mobileIssueType || !selectedService) return;
     const issueLabel = MOBILE_ISSUE_TYPES.find(t => t.value === mobileIssueType)?.label || mobileIssueType;
+    
+    let extraInfo = "";
+    if (mobileIssueType === "request_new_sim" || mobileIssueType === "request_esim") {
+      extraInfo = "\n\n[PAIEMENT REQUIS avant activation]";
+    }
+    if (mobileIssueType === "number_change") {
+      extraInfo = "\n\n[APPROBATION ADMIN requise]";
+    }
+    
     createTicketMutation.mutate({
       subject: `Mobile: ${issueLabel}`,
-      description: `Type de demande: ${issueLabel}\nForfait: ${selectedService.plan_name}\nID: ${selectedService.id}\n\nDétails: ${mobileIssueDescription || "Aucun détail fourni"}`,
+      description: `Type de demande: ${issueLabel}\nForfait: ${selectedService.plan_name}\nID: ${selectedService.id}${extraInfo}\n\nDétails: ${mobileIssueDescription || "Aucun détail fourni"}`,
       priority: mobileIssueType.includes("stolen") ? "high" : "normal",
+      relatedServiceId: selectedService.id,
+    });
+  };
+
+  const handleScheduleActivation = () => {
+    if (!scheduledDate || !selectedService) return;
+    createTicketMutation.mutate({
+      subject: `Activation différée programmée`,
+      description: `Demande d'activation programmée:\n- Service: ${selectedService.plan_name}\n- Date souhaitée: ${format(scheduledDate, "d MMMM yyyy", { locale: fr })}\n- ID: ${selectedService.id}`,
+      priority: "normal",
+      relatedServiceId: selectedService.id,
+    });
+  };
+
+  const handleSuspensionRequest = () => {
+    if (!suspensionEndDate || !selectedService) return;
+    createTicketMutation.mutate({
+      subject: `Suspension temporaire programmée`,
+      description: `Demande de suspension temporaire:\n- Service: ${selectedService.plan_name}\n- Suspendre jusqu'au: ${format(suspensionEndDate, "d MMMM yyyy", { locale: fr })}\n- ID: ${selectedService.id}\n\n[APPROBATION ADMIN requise]\n[Note: Les frais mensuels continuent pendant la suspension]`,
+      priority: "normal",
+      relatedServiceId: selectedService.id,
+    });
+  };
+
+  const handleNumberChangeRequest = () => {
+    if (!newPhoneNumber || phoneNumberError || !selectedService) return;
+    createTicketMutation.mutate({
+      subject: `Demande de changement de numéro`,
+      description: `Demande de changement de numéro:\n- Forfait: ${selectedService.plan_name}\n- Nouveau numéro souhaité: ${newPhoneNumber}\n- ID: ${selectedService.id}\n\n[APPROBATION ADMIN requise]`,
+      priority: "normal",
+      relatedServiceId: selectedService.id,
+    });
+  };
+
+  const handleSimOrder = () => {
+    if (!selectedService) return;
+    createTicketMutation.mutate({
+      subject: `Commander ${simType === "esim" ? "eSIM" : "nouvelle SIM"}`,
+      description: `Commande ${simType === "esim" ? "eSIM" : "carte SIM"}:\n- Forfait: ${selectedService.plan_name}\n- Type: ${simType.toUpperCase()}\n- ID: ${selectedService.id}\n\n[PAIEMENT REQUIS avant activation]`,
+      priority: "normal",
+      relatedServiceId: selectedService.id,
     });
   };
 
@@ -288,7 +442,6 @@ const ClientMyServices = () => {
   const activeOrderServices = orders?.filter((o: any) => 
     ["completed", "active", "installed", "delivered"].includes(o.status?.toLowerCase())
   ).map((order: any) => {
-    // Extract plan info from order
     const planInfo = getPlanInfoFromOrder(order);
     return {
       id: order.id,
@@ -301,12 +454,10 @@ const ClientMyServices = () => {
       service_type: order.service_type,
       category: order.category,
       created_at: order.created_at,
-      // Mobile specific
       data_allowance: planInfo.data,
       calls_allowance: planInfo.calls,
       texts_allowance: planInfo.texts,
-      data_used: order.data_used || 0, // Would come from carrier integration
-      // Equipment
+      data_used: order.data_used || 0,
       equipment_details: order.equipment_details,
       selected_channels: order.selected_channels,
     };
@@ -336,13 +487,24 @@ const ClientMyServices = () => {
     b.status === "overdue" || (b.due_date && new Date(b.due_date) < new Date() && b.status !== "paid")
   ) || [];
   const clientCredit = Number(profile?.store_credit || 0);
+  const accountBalance = Number(profile?.balance || 0);
 
-  // Helper to extract plan details from order service_type
+  // Calculate split billing totals
+  const billingTotals = billingRecords?.reduce((acc: any, b: any) => {
+    acc.total += Number(b.amount || 0);
+    acc.equipmentFees += Number(b.installation_fee || 0) + Number(b.activation_fee || 0);
+    acc.overdue += b.status === "overdue" ? Number(b.amount || 0) : 0;
+    acc.credits += Number(b.credits || 0);
+    return acc;
+  }, { total: 0, equipmentFees: 0, overdue: 0, credits: 0 }) || { total: 0, equipmentFees: 0, overdue: 0, credits: 0 };
+
+  // Check if service is in Quebec
+  const isQuebecService = profile?.service_province === "QC" || profile?.service_province === "Québec";
+
   function getPlanInfoFromOrder(order: any) {
     const serviceType = order.service_type?.toLowerCase() || "";
     const category = order.category?.toLowerCase() || "";
     
-    // Mobile plans
     if (serviceType.includes("mobile") || category === "mobile") {
       if (serviceType.includes("60") || order.subtotal === 60) {
         return { 
@@ -362,120 +524,168 @@ const ClientMyServices = () => {
       };
     }
     
-    // TV + Internet bundles
     if (serviceType.includes("tv") && serviceType.includes("internet")) {
-      if (serviceType.includes("25")) {
-        return { name: "TV 25 chaînes + Internet 500", speed: "500 Mbps", channels: 25 };
-      }
-      if (serviceType.includes("15")) {
-        return { name: "TV 15 chaînes + Internet 500", speed: "500 Mbps", channels: 15 };
-      }
-      if (serviceType.includes("10")) {
-        return { name: "TV 10 chaînes + Internet 500", speed: "500 Mbps", channels: 10 };
-      }
-      if (serviceType.includes("5")) {
-        return { name: "TV 5 chaînes + Internet 500", speed: "500 Mbps", channels: 5 };
-      }
-      if (serviceType.includes("giga") || serviceType.includes("basic")) {
-        return { name: "GIGA + TV Basic", speed: "1 Gbps", channels: "Base" };
-      }
+      if (serviceType.includes("25")) return { name: "TV 25 chaînes + Internet 500", speed: "500 Mbps", channels: 25 };
+      if (serviceType.includes("15")) return { name: "TV 15 chaînes + Internet 500", speed: "500 Mbps", channels: 15 };
+      if (serviceType.includes("10")) return { name: "TV 10 chaînes + Internet 500", speed: "500 Mbps", channels: 10 };
+      if (serviceType.includes("5")) return { name: "TV 5 chaînes + Internet 500", speed: "500 Mbps", channels: 5 };
+      if (serviceType.includes("giga") || serviceType.includes("basic")) return { name: "GIGA + TV Basic", speed: "1 Gbps", channels: "Base" };
       return { name: order.service_type, speed: "500 Mbps" };
     }
     
-    // Internet only
     if (serviceType.includes("internet") || serviceType.includes("fibre")) {
-      if (serviceType.includes("1g") || serviceType.includes("fibre")) {
-        return { name: "Internet Fibre 1Gbps", speed: "1 Gbps fibre optique" };
-      }
-      if (serviceType.includes("500")) {
-        return { name: "Internet Résidentiel 500", speed: "500 Mbps ultra-rapide" };
-      }
+      if (serviceType.includes("1g") || serviceType.includes("fibre")) return { name: "Internet Fibre 1Gbps", speed: "1 Gbps fibre optique" };
+      if (serviceType.includes("500")) return { name: "Internet Résidentiel 500", speed: "500 Mbps ultra-rapide" };
       return { name: "Internet Résidentiel 100", speed: "100 Mbps haute vitesse" };
     }
     
-    // TV only
-    if (serviceType.includes("tv")) {
-      return { name: order.service_type, channels: order.selected_channels?.length || 0 };
-    }
+    if (serviceType.includes("tv")) return { name: order.service_type, channels: order.selected_channels?.length || 0 };
     
     return { name: order.service_type || "Service" };
   }
 
   return (
     <div className="space-y-6">
+      {/* Province & Eligibility Notice */}
+      {profile && (
+        <div className="flex items-center gap-2 text-sm">
+          <MapPin className="w-4 h-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Province: </span>
+          <Badge variant="outline" className={isQuebecService ? "border-emerald-500 text-emerald-600" : "border-red-500 text-red-500"}>
+            {profile.service_province || "Non défini"}
+          </Badge>
+          {!isQuebecService && (
+            <span className="text-xs text-red-500">(Services limités au Québec uniquement)</span>
+          )}
+        </div>
+      )}
+
       {/* Billing & Credit Summary Card */}
       <Card className="bg-card border-border">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Receipt className="w-4 h-4" />
+            Facturation et crédits
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Crédit disponible</p>
+              <p className="text-lg font-semibold text-emerald-500">
+                {clientCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-muted-foreground">Solde compte</p>
+              <p className={`text-lg font-semibold ${accountBalance < 0 ? "text-red-500" : "text-foreground"}`}>
+                {accountBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-muted-foreground">Frais équipement</p>
+              <p className="text-sm font-medium text-foreground">
+                {billingTotals.equipmentFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-muted-foreground">En retard</p>
+              {overdueInvoices.length > 0 ? (
+                <div>
+                  <p className="text-sm font-medium text-red-500">
+                    {billingTotals.overdue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                  </p>
+                  <p className="text-xs text-red-400">+5% frais appliqué</p>
+                </div>
+              ) : (
+                <p className="text-sm font-medium text-emerald-500">0,00 $</p>
+              )}
+            </div>
+          </div>
+
+          {/* Last Payment Reference */}
+          {lastPayment && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Dernier paiement:</span>
+                <span className="font-mono text-foreground">
+                  {lastPayment.reference_number || lastPayment.payment_reference} 
+                  <span className="text-muted-foreground ml-2">
+                    ({Number(lastPayment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Partial Payment Indicator */}
+          {billingRecords?.some((b: any) => b.status === "partial") && (
+            <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Paiement partiel détecté - solde restant affiché
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Security & Settings Row */}
+      <Card className="bg-card border-border">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Crédit disponible</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {clientCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-cyan-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Dernier paiement</p>
-                <p className="text-sm font-medium text-foreground">
-                  {lastPayment ? (
-                    <>
-                      {lastPayment.reference_number || lastPayment.payment_reference || "N/A"}
-                      <span className="text-muted-foreground ml-1">
-                        ({Number(lastPayment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
-                      </span>
-                    </>
-                  ) : "Aucun paiement"}
-                </p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-foreground">Authentification 2FA</span>
+                <Switch 
+                  checked={twoFactorEnabled} 
+                  onCheckedChange={setTwoFactorEnabled}
+                />
+                <Badge variant="outline" className="text-xs">
+                  {twoFactorEnabled ? "Activé" : "Désactivé"}
+                </Badge>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                overdueInvoices.length > 0 ? "bg-red-500/20" : "bg-muted"
-              }`}>
-                <AlertCircle className={`w-5 h-5 ${overdueInvoices.length > 0 ? "text-red-500" : "text-muted-foreground"}`} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Factures en retard</p>
-                {overdueInvoices.length > 0 ? (
-                  <div>
-                    <p className="text-sm font-medium text-red-500">{overdueInvoices.length} facture(s)</p>
-                    <p className="text-xs text-red-400">+5% frais de retard appliqué</p>
-                  </div>
-                ) : (
-                  <p className="text-sm font-medium text-emerald-500">Aucune</p>
-                )}
-              </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setDocumentUploadOpen(true)}>
+                <Upload className="w-4 h-4 mr-1" />
+                Documents ({documents?.length || 0})
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <a href="/portal/tickets">
+                  <Eye className="w-4 h-4 mr-1" />
+                  Journal accès
+                </a>
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Tabs defaultValue="services" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="services">Mes services</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="equipment">Équipements</TabsTrigger>
           <TabsTrigger value="mobile">Mobile</TabsTrigger>
-          <TabsTrigger value="updates">Mises à jour</TabsTrigger>
+          <TabsTrigger value="billing">Facturation</TabsTrigger>
+          <TabsTrigger value="support">Support</TabsTrigger>
         </TabsList>
 
         {/* Active Services Tab */}
         <TabsContent value="services" className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-lg font-semibold text-foreground">Services actifs</h3>
-            <Button variant="outline" size="sm" onClick={() => setTicketDialogOpen(true)}>
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Nouveau ticket
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setTicketDialogOpen(true)}>
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Nouveau ticket
+              </Button>
+            </div>
           </div>
 
           {loadingSubs ? (
@@ -494,14 +704,14 @@ const ClientMyServices = () => {
                   <Card key={service.id} className="bg-card border-border">
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           <div className="flex items-start gap-4">
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                               isPaused ? "bg-amber-500/20" : "bg-cyan-500/20"
                             }`}>
                               <Icon className={`w-6 h-6 ${isPaused ? "text-amber-500" : "text-cyan-500"}`} />
                             </div>
-                            <div>
+                            <div className="flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
                                 <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
@@ -521,15 +731,25 @@ const ClientMyServices = () => {
                                 {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/
                                 {service.billing_cycle === "monthly" ? "mois" : "an"}
                               </p>
-                              {service.next_billing_date && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Prochaine facturation: {format(new Date(service.next_billing_date), "d MMM yyyy", { locale: fr })}
-                                </p>
-                              )}
+                              
+                              {/* Service Tags */}
+                              <div className="flex gap-1 mt-2">
+                                {SERVICE_TAGS.slice(0, 2).map(tag => (
+                                  <Badge key={tag.value} variant="outline" className="text-xs">
+                                    {tag.label}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              {/* SLA Tier */}
+                              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                                <ShieldCheck className="w-3 h-3" />
+                                <span>SLA: Standard</span>
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-col gap-2">
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -541,19 +761,39 @@ const ClientMyServices = () => {
                               <ArrowUpCircle className="w-4 h-4 mr-1" />
                               Changer forfait
                             </Button>
-                            {isMobile && (
+                            
+                            <div className="flex gap-1">
                               <Button 
-                                variant="outline" 
+                                variant="ghost" 
                                 size="sm"
                                 onClick={() => {
                                   setSelectedService(service);
-                                  setMobileIssueDialogOpen(true);
+                                  setScheduleDialogOpen(true);
                                 }}
                               >
-                                <Smartphone className="w-4 h-4 mr-1" />
-                                Gérer
+                                <CalendarIcon className="w-4 h-4" />
                               </Button>
-                            )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedService(service);
+                                  setSuspensionDialogOpen(true);
+                                }}
+                              >
+                                <Pause className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedService(service);
+                                  setHistoryDialogOpen(true);
+                                }}
+                              >
+                                <History className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
 
@@ -581,10 +821,10 @@ const ClientMyServices = () => {
                         {/* TV channels info */}
                         {service.selected_channels && Array.isArray(service.selected_channels) && service.selected_channels.length > 0 && (
                           <div className="ml-16 p-3 bg-muted/50 rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Chaînes sélectionnées ({service.selected_channels.length})</p>
+                            <p className="text-xs text-muted-foreground mb-1">Chaînes ({service.selected_channels.length})</p>
                             <p className="text-sm text-foreground line-clamp-1">
                               {service.selected_channels.slice(0, 5).map((ch: any) => ch.name || ch).join(", ")}
-                              {service.selected_channels.length > 5 && ` +${service.selected_channels.length - 5} autres`}
+                              {service.selected_channels.length > 5 && ` +${service.selected_channels.length - 5}`}
                             </p>
                           </div>
                         )}
@@ -615,7 +855,6 @@ const ClientMyServices = () => {
 
           {equipmentOrders.length > 0 ? (
             <div className="space-y-4">
-              {/* No issues message */}
               <Card className="bg-emerald-500/5 border-emerald-500/20">
                 <CardContent className="p-3 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -628,13 +867,12 @@ const ClientMyServices = () => {
                   ? order.equipment_details 
                   : [];
                 
-                // Calculate warranty status (1 year from order)
                 const orderDate = new Date(order.created_at);
                 const warrantyEnd = new Date(orderDate);
                 warrantyEnd.setFullYear(warrantyEnd.getFullYear() + 1);
                 const isUnderWarranty = new Date() < warrantyEnd;
+                const isNearEndOfLife = new Date() > new Date(warrantyEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-                // Check for equipment type display
                 const equipmentTypeName = order.service_type?.toLowerCase().includes("tv") 
                   ? "Nivra 4K Smart Terminal" 
                   : order.service_type?.toLowerCase().includes("internet") 
@@ -644,55 +882,65 @@ const ClientMyServices = () => {
                 return (
                   <Card key={order.id} className="bg-card border-border">
                     <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Package className="w-5 h-5 text-cyan-500" />
-                            <h4 className="font-semibold text-foreground">
-                              {equipmentTypeName}
-                            </h4>
-                            <Badge className={isUnderWarranty ? "bg-emerald-500/20 text-emerald-500" : "bg-muted text-muted-foreground"}>
-                              {isUnderWarranty ? "Sous garantie (1 an)" : "Garantie expirée"}
-                            </Badge>
-                          </div>
-                          
-                          <div className="space-y-1 text-sm">
-                            <p className="text-muted-foreground">
-                              Commande: {order.order_number || order.id.slice(0, 8)}
+                      <div className="flex flex-col gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <Package className="w-5 h-5 text-cyan-500" />
+                              <h4 className="font-semibold text-foreground">{equipmentTypeName}</h4>
+                              <Badge className={isUnderWarranty ? "bg-emerald-500/20 text-emerald-500" : "bg-muted text-muted-foreground"}>
+                                {isUnderWarranty ? "Sous garantie" : "Garantie expirée"}
+                              </Badge>
+                              {isNearEndOfLife && isUnderWarranty && (
+                                <Badge className="bg-amber-500/20 text-amber-500">
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  Fin de vie proche
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-1 text-sm">
+                              <p className="text-muted-foreground">Commande: {order.order_number || order.id.slice(0, 8)}</p>
+                              {order.equipment_id && <p className="text-muted-foreground">ID: {order.equipment_id}</p>}
+                              {order.serial_number && <p className="text-muted-foreground">Série: {order.serial_number}</p>}
+                              {order.imei_number && <p className="text-muted-foreground">IMEI: {order.imei_number}</p>}
+                              {equipmentList.map((eq: any, idx: number) => (
+                                <p key={idx} className="text-foreground">• {eq.name || eq}</p>
+                              ))}
+                            </div>
+                            
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Garantie fabricant: {format(warrantyEnd, "d MMM yyyy", { locale: fr })}
                             </p>
-                            {order.equipment_id && (
-                              <p className="text-muted-foreground">ID équipement: {order.equipment_id}</p>
-                            )}
-                            {order.serial_number && (
-                              <p className="text-muted-foreground">N° série: {order.serial_number}</p>
-                            )}
-                            {order.imei_number && (
-                              <p className="text-muted-foreground">IMEI: {order.imei_number}</p>
-                            )}
-                            {order.sim_number && (
-                              <p className="text-muted-foreground">SIM: {order.sim_number}</p>
-                            )}
-                            {equipmentList.length > 0 && equipmentList.map((eq: any, idx: number) => (
-                              <p key={idx} className="text-foreground">• {eq.name || eq}</p>
-                            ))}
+
+                            {/* Deposit tracking placeholder */}
+                            <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                              <span className="text-muted-foreground">Dépôt équipement: </span>
+                              <span className="text-foreground">0,00 $ (aucun dépôt requis)</span>
+                            </div>
                           </div>
                           
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Garantie fabricant jusqu'au: {format(warrantyEnd, "d MMM yyyy", { locale: fr })}
-                          </p>
+                          <div className="flex flex-col gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedService(order);
+                                setIssueDialogOpen(true);
+                              }}
+                            >
+                              <AlertTriangle className="w-4 h-4 mr-1" />
+                              Signaler problème
+                            </Button>
+                            
+                            {isNearEndOfLife && (
+                              <Button variant="ghost" size="sm" className="text-amber-600">
+                                <ArrowUpCircle className="w-4 h-4 mr-1" />
+                                Mise à niveau
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedService(order);
-                            setIssueDialogOpen(true);
-                          }}
-                        >
-                          <AlertTriangle className="w-4 h-4 mr-1" />
-                          Signaler un problème
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -709,7 +957,7 @@ const ClientMyServices = () => {
           )}
         </TabsContent>
 
-        {/* Mobile Management Tab */}
+        {/* Mobile Tab */}
         <TabsContent value="mobile" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">Forfaits mobiles</h3>
@@ -734,21 +982,27 @@ const ClientMyServices = () => {
                             <div>
                               <div className="flex items-center gap-2">
                                 <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
-                                {isPaused && (
-                                  <Badge className="bg-amber-500/20 text-amber-500">Suspendu</Badge>
-                                )}
+                                {isPaused && <Badge className="bg-amber-500/20 text-amber-500">Suspendu</Badge>}
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                {Number(service.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/30 jours
+                                {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/30 jours
                               </p>
+                              
+                              {/* Data usage */}
+                              {service.data_allowance && (
+                                <div className="mt-2">
+                                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                    <span>Données utilisées</span>
+                                    <span>{service.data_used || 0} GB / {service.data_allowance}</span>
+                                  </div>
+                                  <Progress value={(service.data_used || 0) / 80 * 100} className="h-2" />
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <Badge variant="outline" className="hidden sm:flex">
-                            <BarChart3 className="w-3 h-3 mr-1" />
-                            Données: Voir forfait
-                          </Badge>
                         </div>
                         
+                        {/* Mobile Actions Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <Button 
                             variant="outline" 
@@ -768,24 +1022,22 @@ const ClientMyServices = () => {
                             size="sm"
                             onClick={() => {
                               setSelectedService(service);
-                              setMobileIssueType("sim_lost");
-                              setMobileIssueDialogOpen(true);
+                              setSimOrderDialogOpen(true);
                             }}
                           >
-                            <RefreshCw className="w-4 h-4 mr-1" />
-                            SIM perdue
+                            <ScanLine className="w-4 h-4 mr-1" />
+                            Nouvelle SIM
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => {
                               setSelectedService(service);
-                              setMobileIssueType("phone_lost");
-                              setMobileIssueDialogOpen(true);
+                              setNumberChangeDialogOpen(true);
                             }}
                           >
-                            <Smartphone className="w-4 h-4 mr-1" />
-                            Tél. perdu
+                            <Phone className="w-4 h-4 mr-1" />
+                            Changer #
                           </Button>
                           <Button 
                             variant="outline" 
@@ -812,17 +1064,133 @@ const ClientMyServices = () => {
                 <Smartphone className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">Aucun forfait mobile actif</p>
                 <Button variant="hero" className="mt-4" asChild>
-                  <a href="/mobile-plans">Voir les forfaits mobiles</a>
+                  <a href="/mobile-plans">Voir les forfaits</a>
                 </Button>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        {/* Updates Tab */}
-        <TabsContent value="updates" className="space-y-4">
+        {/* Billing Tab */}
+        <TabsContent value="billing" className="space-y-4">
+          <h3 className="text-lg font-semibold text-foreground">Détails facturation</h3>
+          
+          {/* Split Billing View */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Card className="bg-card border-border">
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Total facturé</p>
+                <p className="text-xl font-bold text-foreground">
+                  {billingTotals.total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border">
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Frais équipement</p>
+                <p className="text-xl font-bold text-foreground">
+                  {billingTotals.equipmentFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-border">
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Crédits appliqués</p>
+                <p className="text-xl font-bold text-emerald-500">
+                  -{billingTotals.credits.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className={cn("border-border", billingTotals.overdue > 0 ? "bg-red-500/5" : "bg-card")}>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">En retard</p>
+                <p className={`text-xl font-bold ${billingTotals.overdue > 0 ? "text-red-500" : "text-foreground"}`}>
+                  {billingTotals.overdue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Invoices */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-sm">Factures récentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {billingRecords && billingRecords.length > 0 ? (
+                <div className="space-y-2">
+                  {billingRecords.slice(0, 5).map((invoice: any) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                      <div>
+                        <p className="text-sm font-medium">{invoice.invoice_number || invoice.id.slice(0, 8)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(invoice.created_at), "d MMM yyyy", { locale: fr })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {Number(invoice.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                        <Badge className={
+                          invoice.status === "paid" ? "bg-emerald-500/20 text-emerald-500" :
+                          invoice.status === "overdue" ? "bg-red-500/20 text-red-500" :
+                          invoice.status === "partial" ? "bg-amber-500/20 text-amber-500" :
+                          "bg-muted text-muted-foreground"
+                        }>
+                          {invoice.status === "paid" ? "Payée" : 
+                           invoice.status === "overdue" ? "En retard" :
+                           invoice.status === "partial" ? "Partiel" : "En attente"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Aucune facture</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment History */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-sm">Historique des paiements</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {payments && payments.length > 0 ? (
+                <div className="space-y-2">
+                  {payments.map((payment: any) => (
+                    <div key={payment.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                      <div>
+                        <p className="text-sm font-mono">{payment.reference_number || payment.payment_reference}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-emerald-500">
+                          {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{payment.payment_method}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Aucun paiement</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Support Tab */}
+        <TabsContent value="support" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Mises à jour récentes</h3>
+            <h3 className="text-lg font-semibold text-foreground">Support & Tickets</h3>
+            <Button variant="outline" size="sm" onClick={() => setTicketDialogOpen(true)}>
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Nouveau ticket
+            </Button>
           </div>
 
           {tickets && tickets.length > 0 ? (
@@ -837,7 +1205,7 @@ const ClientMyServices = () => {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="text-xs font-mono text-muted-foreground">
                               {ticket.ticket_number || ticket.id.slice(0, 8)}
                             </span>
@@ -849,13 +1217,41 @@ const ClientMyServices = () => {
                               {ticket.status === "open" ? "Ouvert" : 
                                ticket.status === "in_progress" ? "En cours" : "Fermé"}
                             </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {ticket.priority === "high" ? "Haute" : 
+                               ticket.priority === "urgent" ? "Urgent" : "Normal"}
+                            </Badge>
                           </div>
                           <h4 className="font-medium text-foreground">{ticket.subject}</h4>
-                          {latestReply && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                              <span className="font-medium">{latestReply.is_admin ? "Support:" : "Vous:"}</span> {latestReply.content}
-                            </p>
-                          )}
+                          
+                          {/* Full message history accordion */}
+                          <Accordion type="single" collapsible className="mt-2">
+                            <AccordionItem value="history" className="border-none">
+                              <AccordionTrigger className="text-xs text-muted-foreground py-1 hover:no-underline">
+                                Historique des messages ({ticket.ticket_replies?.length || 0})
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="space-y-2 mt-2">
+                                  <div className="p-2 bg-muted/50 rounded text-sm">
+                                    <p className="text-xs text-muted-foreground mb-1">Message initial</p>
+                                    <p>{ticket.description}</p>
+                                  </div>
+                                  {ticket.ticket_replies?.map((reply: any) => (
+                                    <div key={reply.id} className={cn(
+                                      "p-2 rounded text-sm",
+                                      reply.is_admin ? "bg-cyan-500/10" : "bg-muted/50"
+                                    )}>
+                                      <p className="text-xs text-muted-foreground mb-1">
+                                        {reply.is_admin ? "Support" : "Vous"} - {format(new Date(reply.created_at), "d MMM HH:mm", { locale: fr })}
+                                      </p>
+                                      <p>{reply.content}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                          
                           <p className="text-xs text-muted-foreground mt-2">
                             <Clock className="w-3 h-3 inline mr-1" />
                             {format(new Date(ticket.updated_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
@@ -874,20 +1270,252 @@ const ClientMyServices = () => {
             <Card className="bg-card border-border">
               <CardContent className="p-8 text-center">
                 <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucune mise à jour récente</p>
+                <p className="text-muted-foreground">Aucun ticket</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
       </Tabs>
 
-      {/* Upgrade/Change Plan Dialog */}
+      {/* Schedule Activation Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Programmer l'activation</DialogTitle>
+            <DialogDescription>
+              Choisissez une date pour activer ce service.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>Service</Label>
+              <p className="text-foreground font-medium">{selectedService?.plan_name}</p>
+            </div>
+            <div>
+              <Label>Date d'activation souhaitée</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !scheduledDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, "d MMMM yyyy", { locale: fr }) : "Choisir une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>Annuler</Button>
+            <Button variant="hero" onClick={handleScheduleActivation} disabled={!scheduledDate || createTicketMutation.isPending}>
+              {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Programmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspension Dialog */}
+      <Dialog open={suspensionDialogOpen} onOpenChange={setSuspensionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Suspendre temporairement</DialogTitle>
+            <DialogDescription>
+              Demande d'approbation admin requise. Les frais mensuels continuent.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-sm text-amber-600">
+                <AlertTriangle className="w-4 h-4 inline mr-1" />
+                Les frais mensuels continuent pendant la suspension.
+              </p>
+            </div>
+            <div>
+              <Label>Suspendre jusqu'au</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !suspensionEndDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {suspensionEndDate ? format(suspensionEndDate, "d MMMM yyyy", { locale: fr }) : "Choisir une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={suspensionEndDate}
+                    onSelect={setSuspensionEndDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setSuspensionDialogOpen(false)}>Annuler</Button>
+            <Button variant="hero" onClick={handleSuspensionRequest} disabled={!suspensionEndDate || createTicketMutation.isPending}>
+              {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Demander suspension
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Historique des modifications</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground">Création du service</p>
+              <p className="text-sm">{selectedService?.plan_name}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedService?.created_at && format(new Date(selectedService.created_at), "d MMM yyyy HH:mm", { locale: fr })}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              Historique complet disponible prochainement
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryDialogOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Number Change Dialog */}
+      <Dialog open={numberChangeDialogOpen} onOpenChange={setNumberChangeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Demande de changement de numéro</DialogTitle>
+            <DialogDescription>
+              Approbation admin requise. Numéros Québec uniquement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>Nouveau numéro souhaité</Label>
+              <Input
+                placeholder="514-XXX-XXXX"
+                value={newPhoneNumber}
+                onChange={(e) => handlePhoneNumberChange(e.target.value)}
+              />
+              {phoneNumberError && (
+                <p className="text-xs text-red-500 mt-1">{phoneNumberError}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Préfixes valides QC: 418/367, 514/263, 450/579/354, 819/873/468
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setNumberChangeDialogOpen(false)}>Annuler</Button>
+            <Button variant="hero" onClick={handleNumberChangeRequest} disabled={!newPhoneNumber || !!phoneNumberError || createTicketMutation.isPending}>
+              {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Soumettre demande
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SIM Order Dialog */}
+      <Dialog open={simOrderDialogOpen} onOpenChange={setSimOrderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Commander SIM/eSIM</DialogTitle>
+            <DialogDescription>
+              Paiement requis avant activation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-sm text-amber-600">
+                <Info className="w-4 h-4 inline mr-1" />
+                Paiement requis avant activation de la nouvelle SIM.
+              </p>
+            </div>
+            <div>
+              <Label>Type de carte</Label>
+              <Select value={simType} onValueChange={(v: "sim" | "esim") => setSimType(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sim">Carte SIM physique</SelectItem>
+                  <SelectItem value="esim">eSIM (numérique)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setSimOrderDialogOpen(false)}>Annuler</Button>
+            <Button variant="hero" onClick={handleSimOrder} disabled={createTicketMutation.isPending}>
+              {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Commander
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Upload Dialog */}
+      <Dialog open={documentUploadOpen} onOpenChange={setDocumentUploadOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mes documents</DialogTitle>
+            <DialogDescription>
+              Documents de vérification et preuves.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {documents && documents.length > 0 ? (
+              <div className="space-y-2">
+                {documents.map((doc: any) => (
+                  <div key={doc.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{doc.document_name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">Aucun document</p>
+            )}
+            <div className="p-4 border-2 border-dashed border-border rounded-lg text-center">
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Téléversement disponible prochainement
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDocumentUploadOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Dialog */}
       <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Changer de forfait</DialogTitle>
             <DialogDescription>
-              Sélectionnez votre nouveau forfait. Notre équipe vous contactera pour confirmer le changement.
+              Sélectionnez votre nouveau forfait.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -925,9 +1553,7 @@ const ClientMyServices = () => {
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setUpgradeDialogOpen(false)}>
-              Annuler
-            </Button>
+            <Button variant="outline" onClick={() => setUpgradeDialogOpen(false)}>Annuler</Button>
             <Button 
               variant="hero" 
               onClick={() => requestPlanChangeMutation.mutate({
@@ -950,7 +1576,7 @@ const ClientMyServices = () => {
           <DialogHeader>
             <DialogTitle>Signaler un problème d'équipement</DialogTitle>
             <DialogDescription>
-              Décrivez le problème rencontré avec votre équipement.
+              Décrivez le problème. Remplacement sous garantie si applicable.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -970,7 +1596,7 @@ const ClientMyServices = () => {
               </Select>
             </div>
             <div>
-              <Label>Détails (optionnel)</Label>
+              <Label>Détails</Label>
               <Textarea
                 placeholder="Décrivez le problème..."
                 value={issueDescription}
@@ -980,14 +1606,8 @@ const ClientMyServices = () => {
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button 
-              variant="hero" 
-              onClick={handleEquipmentIssue}
-              disabled={!issueType || createTicketMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>Annuler</Button>
+            <Button variant="hero" onClick={handleEquipmentIssue} disabled={!issueType || createTicketMutation.isPending}>
               {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Soumettre
             </Button>
@@ -1002,9 +1622,8 @@ const ClientMyServices = () => {
             <DialogTitle>Gestion forfait mobile</DialogTitle>
             <DialogDescription>
               {mobileIssueType === "pause_plan" 
-                ? "La suspension garde votre forfait actif. Les frais mensuels continuent d'être facturés."
-                : "Décrivez votre demande concernant votre forfait mobile."
-              }
+                ? "La suspension garde votre forfait actif. Les frais continuent."
+                : "Décrivez votre demande."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -1032,7 +1651,7 @@ const ClientMyServices = () => {
               </div>
             )}
             <div>
-              <Label>Détails (optionnel)</Label>
+              <Label>Détails</Label>
               <Textarea
                 placeholder="Informations supplémentaires..."
                 value={mobileIssueDescription}
@@ -1042,16 +1661,10 @@ const ClientMyServices = () => {
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setMobileIssueDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button 
-              variant="hero" 
-              onClick={handleMobileIssue}
-              disabled={!mobileIssueType || createTicketMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setMobileIssueDialogOpen(false)}>Annuler</Button>
+            <Button variant="hero" onClick={handleMobileIssue} disabled={!mobileIssueType || createTicketMutation.isPending}>
               {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Soumettre la demande
+              Soumettre
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1082,7 +1695,7 @@ const ClientMyServices = () => {
             <div>
               <Label>Description</Label>
               <Textarea
-                placeholder="Décrivez votre demande en détail..."
+                placeholder="Décrivez votre demande..."
                 value={ticketDescription}
                 onChange={(e) => setTicketDescription(e.target.value)}
                 rows={5}
@@ -1090,9 +1703,7 @@ const ClientMyServices = () => {
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setTicketDialogOpen(false)}>
-              Annuler
-            </Button>
+            <Button variant="outline" onClick={() => setTicketDialogOpen(false)}>Annuler</Button>
             <Button 
               variant="hero" 
               onClick={() => createTicketMutation.mutate({
