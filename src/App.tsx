@@ -57,6 +57,7 @@ import TechnicianAuth from "./pages/technician/TechnicianAuth";
 import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 import AdminReplacements from "./pages/admin/AdminReplacements";
 import AdminEmployees from "./pages/admin/AdminEmployees";
+import AdminPromotions from "./pages/admin/AdminPromotions";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/admin/technicians" element={<ProtectedRoute requireAdmin><AdminTechnicians /></ProtectedRoute>} />
               <Route path="/admin/replacements" element={<ProtectedRoute requireAdmin><AdminReplacements /></ProtectedRoute>} />
               <Route path="/admin/employees" element={<ProtectedRoute requireAdmin><AdminEmployees /></ProtectedRoute>} />
+              <Route path="/admin/promotions" element={<ProtectedRoute requireAdmin><AdminPromotions /></ProtectedRoute>} />
               {/* Employee Portal Routes */}
               <Route path="/employee/login" element={<EmployeeLogin />} />
               <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
