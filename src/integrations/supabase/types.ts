@@ -199,6 +199,68 @@ export type Database = {
           },
         ]
       }
+      channel_activity_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string
+          actor_name: string | null
+          actor_role: string | null
+          channel_id: string | null
+          client_email: string | null
+          client_id: string | null
+          created_at: string | null
+          field_changed: string | null
+          id: string
+          new_value: string | null
+          notified_client: boolean | null
+          old_value: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id: string
+          actor_name?: string | null
+          actor_role?: string | null
+          channel_id?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          notified_client?: boolean | null
+          old_value?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string
+          actor_name?: string | null
+          actor_role?: string | null
+          channel_id?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          notified_client?: boolean | null
+          old_value?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_activity_logs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_packages: {
         Row: {
           category: string
@@ -1199,35 +1261,64 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          incident_at: string | null
+          incident_reason: string | null
+          incident_type: string | null
           is_4k: boolean | null
           is_active: boolean | null
           is_hd: boolean | null
           name: string
           price: number | null
+          replacement_channel_id: string | null
+          status: string | null
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           category: string
           created_at?: string
           description?: string | null
           id?: string
+          incident_at?: string | null
+          incident_reason?: string | null
+          incident_type?: string | null
           is_4k?: boolean | null
           is_active?: boolean | null
           is_hd?: boolean | null
           name: string
           price?: number | null
+          replacement_channel_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           category?: string
           created_at?: string
           description?: string | null
           id?: string
+          incident_at?: string | null
+          incident_reason?: string | null
+          incident_type?: string | null
           is_4k?: boolean | null
           is_active?: boolean | null
           is_hd?: boolean | null
           name?: string
           price?: number | null
+          replacement_channel_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tv_channels_replacement_channel_id_fkey"
+            columns: ["replacement_channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
