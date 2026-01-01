@@ -20,11 +20,13 @@ import { generateContractPDF, downloadContractPDF } from "@/lib/contractPdfGener
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 const ClientContracts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logActivity } = useActivityLog();
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
@@ -62,21 +64,45 @@ const ClientContracts = () => {
     enabled: !!user?.id,
   });
 
-  // Sign contract mutation
+  // Sign contract mutation with activity logging
   const signContractMutation = useMutation({
     mutationFn: async (contractId: string) => {
+      const signedAt = new Date().toISOString();
       const { error } = await supabase
         .from("contracts")
         .update({
           is_signed: true,
-          signed_at: new Date().toISOString(),
+          signed_at: signedAt,
         })
         .eq("id", contractId)
         .eq("user_id", user?.id);
 
       if (error) throw error;
+      
+      // Return data for logging
+      return { contractId, signedAt };
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Log the signature activity
+      await logActivity(
+        "Signed",
+        "contract",
+        data.contractId,
+        {
+          signedAt: data.signedAt,
+          signatureActor: "Client",
+          clientName: profile?.full_name || user?.email,
+          clientEmail: profile?.email || user?.email,
+          contractName: selectedContract?.contract_name,
+          contractNumber: selectedContract?.contract_number || selectedContract?.contract_url,
+        },
+        {
+          changedField: "is_signed",
+          oldValue: "false",
+          newValue: "true",
+        }
+      );
+      
       // Invalidate with exact key used in query
       queryClient.invalidateQueries({ queryKey: ["client-contracts", user?.id] });
       toast({ title: "Contrat signé avec succès", description: "Vous pouvez maintenant télécharger votre contrat signé." });

@@ -18,6 +18,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { downloadTelecomContractPDF, viewTelecomContractPDF, TelecomContractData } from "@/lib/telecomContractGenerator";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 interface ContractFormData {
   user_id: string;
@@ -52,6 +54,8 @@ interface ActiveService {
 
 const AdminContracts = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { logActivity } = useActivityLog();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
@@ -413,14 +417,40 @@ const AdminContracts = () => {
   });
 
   const markAsSignedMutation = useMutation({
-    mutationFn: async (contractId: string) => {
+    mutationFn: async (contract: any) => {
+      const signedAt = new Date().toISOString();
       const { error } = await supabase
         .from("contracts")
-        .update({ is_signed: true, signed_at: new Date().toISOString() })
-        .eq("id", contractId);
+        .update({ is_signed: true, signed_at: signedAt })
+        .eq("id", contract.id);
       if (error) throw error;
+      return { contract, signedAt };
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      const { contract, signedAt } = data;
+      const client = contract.profiles;
+      
+      // Log the signature activity (Admin marking as signed)
+      await logActivity(
+        "Signed",
+        "contract",
+        contract.id,
+        {
+          signedAt,
+          signatureActor: "Admin",
+          adminEmail: user?.email,
+          clientName: client?.full_name || "N/A",
+          clientEmail: client?.email || "N/A",
+          contractName: contract.contract_name,
+          contractNumber: contract.contract_number || contract.contract_url,
+        },
+        {
+          changedField: "is_signed",
+          oldValue: "false",
+          newValue: "true",
+        }
+      );
+      
       toast.success("Contrat marqué comme signé");
       queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
       setIsPreviewDialogOpen(false);
@@ -858,7 +888,7 @@ const AdminContracts = () => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => markAsSignedMutation.mutate(c.id)}
+                          onClick={() => markAsSignedMutation.mutate(c)}
                           className="text-emerald-500 hover:text-emerald-600"
                           title="Marquer comme signé"
                         >
@@ -1194,7 +1224,7 @@ const AdminContracts = () => {
               {selectedContract && !selectedContract.is_signed && (
                 <Button
                   variant="outline"
-                  onClick={() => markAsSignedMutation.mutate(selectedContract.id)}
+                  onClick={() => markAsSignedMutation.mutate(selectedContract)}
                   className="text-emerald-500 border-emerald-500 hover:bg-emerald-500/10"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
