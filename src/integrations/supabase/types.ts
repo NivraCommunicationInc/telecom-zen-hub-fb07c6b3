@@ -3274,6 +3274,8 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          display_label: string | null
+          group_key: string | null
           id: string
           incident_at: string | null
           incident_reason: string | null
@@ -3292,6 +3294,8 @@ export type Database = {
           category: string
           created_at?: string
           description?: string | null
+          display_label?: string | null
+          group_key?: string | null
           id?: string
           incident_at?: string | null
           incident_reason?: string | null
@@ -3310,6 +3314,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          display_label?: string | null
+          group_key?: string | null
           id?: string
           incident_at?: string | null
           incident_reason?: string | null
