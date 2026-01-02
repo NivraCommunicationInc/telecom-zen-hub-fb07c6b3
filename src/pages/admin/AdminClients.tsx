@@ -45,7 +45,7 @@ import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
 import BackToTopButton from "@/components/ui/back-to-top-button";
 import { useAuth } from "@/hooks/useAuth";
-import ClientActivityLogTable from "@/components/admin/ClientActivityLogTable";
+import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import { useClientActivityLog } from "@/hooks/useClientActivityLog";
 
 // Public website plans mapping (must match exactly)
@@ -2044,9 +2044,9 @@ const AdminClients = () => {
                     </div>
                   </TabsContent>
 
-                  {/* Logs Tab - Admin Only */}
+                  {/* Logs Tab */}
                   <TabsContent value="logs" className="space-y-4 pr-4">
-                    <ClientActivityLogTable clientId={selectedClient.user_id} />
+                    <ClientLogsTab clientUserId={selectedClient.user_id} isAdmin={true} />
                   </TabsContent>
                 </div>
               </Tabs>
