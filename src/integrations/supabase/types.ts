@@ -506,6 +506,13 @@ export type Database = {
             referencedRelation: "tv_channels"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "channel_activity_logs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       channel_packages: {
@@ -3325,6 +3332,13 @@ export type Database = {
             referencedRelation: "tv_channels"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tv_channels_replacement_channel_id_fkey"
+            columns: ["replacement_channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -3600,6 +3614,72 @@ export type Database = {
           total: number | null
         }
         Relationships: []
+      }
+      tv_channels_public: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          incident_at: string | null
+          incident_reason: string | null
+          incident_type: string | null
+          is_4k: boolean | null
+          is_active: boolean | null
+          is_hd: boolean | null
+          name: string | null
+          replacement_channel_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          incident_at?: string | null
+          incident_reason?: string | null
+          incident_type?: string | null
+          is_4k?: boolean | null
+          is_active?: boolean | null
+          is_hd?: boolean | null
+          name?: string | null
+          replacement_channel_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          incident_at?: string | null
+          incident_reason?: string | null
+          incident_type?: string | null
+          is_4k?: boolean | null
+          is_active?: boolean | null
+          is_hd?: boolean | null
+          name?: string | null
+          replacement_channel_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_channels_replacement_channel_id_fkey"
+            columns: ["replacement_channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_channels_replacement_channel_id_fkey"
+            columns: ["replacement_channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
