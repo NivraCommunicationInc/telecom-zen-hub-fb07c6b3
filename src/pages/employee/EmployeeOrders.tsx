@@ -17,6 +17,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Package,
   LogOut,
   RefreshCw,
@@ -36,11 +42,16 @@ import {
   Wrench,
   UserCheck,
   Phone,
+  ChevronDown,
+  ShoppingCart,
+  Wifi,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
+import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: "En attente", color: "bg-yellow-500/20 text-yellow-600" },
@@ -89,6 +100,7 @@ const EmployeeOrders = () => {
   
   // Create order dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEquipmentDialog, setShowEquipmentDialog] = useState(false);
   const [newOrder, setNewOrder] = useState({
     client_email: "",
     service_type: "internet",
@@ -395,10 +407,25 @@ const EmployeeOrders = () => {
               <h1 className="font-display font-bold text-lg">Commandes</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowCreateDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle commande
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nouvelle commande
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowCreateDialog(true)}>
+                    <Wifi className="w-4 h-4 mr-2" />
+                    Commande service
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowEquipmentDialog(true)}>
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Commande équipement
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <span className="text-xs text-muted-foreground">
                 <Clock className="w-3 h-3 inline mr-1" />
                 {format(lastRefresh, "HH:mm")}
@@ -465,7 +492,17 @@ const EmployeeOrders = () => {
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.order_number || "N/A"}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {order.order_number || "N/A"}
+                          {order.order_type === "equipment" && (
+                            <Badge variant="secondary" className="text-xs">
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              Équip.
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{order.client_email || "N/A"}</TableCell>
                       <TableCell>{order.service_type || "N/A"}</TableCell>
                       <TableCell>
@@ -527,6 +564,17 @@ const EmployeeOrders = () => {
           </DialogHeader>
 
           {selectedOrder && (
+            <>
+            {/* Equipment Order - Use dedicated component */}
+            {selectedOrder.order_type === "equipment" ? (
+              <EquipmentOrderDetails 
+                order={selectedOrder} 
+                onUpdate={() => {
+                  fetchOrders();
+                  setSelectedOrder(null);
+                }} 
+              />
+            ) : (
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="details">Détails</TabsTrigger>
@@ -915,6 +963,8 @@ const EmployeeOrders = () => {
                 )}
               </TabsContent>
             </Tabs>
+            )}
+            </>
           )}
         </DialogContent>
       </Dialog>
@@ -994,6 +1044,14 @@ const EmployeeOrders = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Equipment Order Dialog */}
+      <EquipmentOrderDialog
+        open={showEquipmentDialog}
+        onOpenChange={setShowEquipmentDialog}
+        clients={clients.map(c => ({ user_id: c.user_id, email: c.email, full_name: c.full_name }))}
+        onSuccess={() => fetchOrders()}
+      />
     </div>
   );
 };
