@@ -49,6 +49,7 @@ import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import { useClientActivityLog } from "@/hooks/useClientActivityLog";
 import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
+import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1284,6 +1285,13 @@ const AdminClients = () => {
                     <ClientInternalNotes 
                       clientId={selectedClient.user_id} 
                       clientEmail={selectedClient.email}
+                    />
+
+                    {/* Authorized Contacts */}
+                    <AdminAuthorizedContacts 
+                      clientId={selectedClient.user_id}
+                      clientName={selectedClient.full_name}
+                      isEmployee={false}
                     />
 
                     <Card className="bg-card border-border">

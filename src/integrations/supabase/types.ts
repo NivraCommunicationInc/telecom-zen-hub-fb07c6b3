@@ -292,6 +292,8 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_primary: boolean | null
+          notification_opt_in: boolean | null
           permission_level: string
           phone: string | null
           relationship_label: string | null
@@ -305,6 +307,8 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: string
+          is_primary?: boolean | null
+          notification_opt_in?: boolean | null
           permission_level?: string
           phone?: string | null
           relationship_label?: string | null
@@ -318,6 +322,8 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_primary?: boolean | null
+          notification_opt_in?: boolean | null
           permission_level?: string
           phone?: string | null
           relationship_label?: string | null
@@ -3239,6 +3245,7 @@ export type Database = {
           id_files: Json | null
           id_verification_status: string | null
           internal_notes: string | null
+          point_of_contact_id: string | null
           priority: string
           requires_id_upload: boolean | null
           status: string
@@ -3258,6 +3265,7 @@ export type Database = {
           id_files?: Json | null
           id_verification_status?: string | null
           internal_notes?: string | null
+          point_of_contact_id?: string | null
           priority?: string
           requires_id_upload?: boolean | null
           status?: string
@@ -3277,6 +3285,7 @@ export type Database = {
           id_files?: Json | null
           id_verification_status?: string | null
           internal_notes?: string | null
+          point_of_contact_id?: string | null
           priority?: string
           requires_id_upload?: boolean | null
           status?: string
@@ -3285,7 +3294,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_point_of_contact_id_fkey"
+            columns: ["point_of_contact_id"]
+            isOneToOne: false
+            referencedRelation: "authorized_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_status: {
         Row: {
