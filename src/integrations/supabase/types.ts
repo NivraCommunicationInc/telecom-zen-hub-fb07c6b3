@@ -283,6 +283,48 @@ export type Database = {
           },
         ]
       }
+      authorized_users: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          created_by_role: string | null
+          email: string | null
+          full_name: string
+          id: string
+          permission_level: string
+          phone: string | null
+          relationship_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_role?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          permission_level?: string
+          phone?: string | null
+          relationship_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_role?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          permission_level?: string
+          phone?: string | null
+          relationship_label?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       billing: {
         Row: {
           activation_fee: number | null
@@ -554,6 +596,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_access_logs: {
+        Row: {
+          access_method: string
+          access_reason: string | null
+          client_id: string
+          client_name: string | null
+          created_at: string
+          failed_attempt_count: number | null
+          id: string
+          result: string
+          staff_email: string | null
+          staff_name: string
+          staff_role: string
+          staff_user_id: string
+        }
+        Insert: {
+          access_method: string
+          access_reason?: string | null
+          client_id: string
+          client_name?: string | null
+          created_at?: string
+          failed_attempt_count?: number | null
+          id?: string
+          result: string
+          staff_email?: string | null
+          staff_name: string
+          staff_role: string
+          staff_user_id: string
+        }
+        Update: {
+          access_method?: string
+          access_reason?: string | null
+          client_id?: string
+          client_name?: string | null
+          created_at?: string
+          failed_attempt_count?: number | null
+          id?: string
+          result?: string
+          staff_email?: string | null
+          staff_name?: string
+          staff_role?: string
+          staff_user_id?: string
+        }
+        Relationships: []
       }
       client_documents: {
         Row: {
@@ -1645,6 +1732,7 @@ export type Database = {
           account_status: string | null
           balance: number | null
           client_number: string | null
+          client_pin: string | null
           client_type: string | null
           created_at: string
           date_of_birth: string | null
@@ -1661,6 +1749,8 @@ export type Database = {
           internal_notes: string | null
           last_name: string | null
           phone: string | null
+          pin_failed_attempts: number | null
+          pin_lockout_until: string | null
           sector_tags: string[] | null
           service_address: string | null
           service_city: string | null
@@ -1674,6 +1764,7 @@ export type Database = {
           account_status?: string | null
           balance?: number | null
           client_number?: string | null
+          client_pin?: string | null
           client_type?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -1690,6 +1781,8 @@ export type Database = {
           internal_notes?: string | null
           last_name?: string | null
           phone?: string | null
+          pin_failed_attempts?: number | null
+          pin_lockout_until?: string | null
           sector_tags?: string[] | null
           service_address?: string | null
           service_city?: string | null
@@ -1703,6 +1796,7 @@ export type Database = {
           account_status?: string | null
           balance?: number | null
           client_number?: string | null
+          client_pin?: string | null
           client_type?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -1719,6 +1813,8 @@ export type Database = {
           internal_notes?: string | null
           last_name?: string | null
           phone?: string | null
+          pin_failed_attempts?: number | null
+          pin_lockout_until?: string | null
           sector_tags?: string[] | null
           service_address?: string | null
           service_city?: string | null
