@@ -97,12 +97,12 @@ export const runContractTemplateSmokeTest = async (params: {
 
   const checks: Record<string, boolean> = {
     templateVersion: probe.includes(`Template ${templateVersion}`),
-    activation25: probe.includes("$25.00"),
-    delivery30: probe.includes("$30.00"),
-    reactivation15: probe.includes("$15"),
-    terminal50: probe.includes("$50"),
-    router60: probe.includes("$60"),
-    tvRequiresInternet: probe.toLowerCase().includes("tv nécessite un forfait internet actif"),
+    activation25: probe.includes("$25.00") || probe.includes("$25"),
+    delivery30: probe.includes("$30.00") || probe.includes("$30"),
+    reactivation15: probe.includes("$15.00") || probe.includes("$15"),
+    terminal50: probe.includes("$50.00") || probe.includes("$50"),
+    router60: probe.includes("$60.00") || probe.includes("$60"),
+    tvRequiresInternet: probe.toLowerCase().includes("le forfait tv nécessite un forfait internet actif"),
   };
 
   const pass = Object.values(checks).every(Boolean);

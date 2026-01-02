@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { downloadTelecomContractPDF, viewTelecomContractPDF, TelecomContractData } from "@/lib/telecomContractGenerator";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
+import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -479,6 +480,10 @@ const AdminContracts = () => {
     const lastName = nameParts.slice(1).join(" ") || "";
     
     return {
+      contractId: contract.id,
+      templateId: (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id,
+      templateVersion: (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version,
+
       contractNumber: contract.contract_number || contract.contract_url || `NVR-CSA-QC-2026-${contract.id.slice(0, 5).toUpperCase()}`,
       clientFirstName: firstName,
       clientLastName: lastName,

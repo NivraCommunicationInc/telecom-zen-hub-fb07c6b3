@@ -16,10 +16,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { downloadTelecomContractPDF, generateTelecomContractPDF } from "@/lib/telecomContractGenerator";
+import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/telecomContractGenerator";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { hashBlobSHA256Hex } from "@/lib/pdfHash";
+import { safePDFDownload } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -124,24 +125,100 @@ const ClientContracts = () => {
         toast({ title: "Contrat non trouvé", variant: "destructive" });
         return;
       }
-      
-      await downloadContractPDF({
-        contractNumber: contract.contract_url || `NIVRA-${contract.id.slice(0, 8).toUpperCase()}`,
-        contractName: contract.contract_name || "Contrat de services",
+
+      const { data: linkedOrder } = await supabase
+        .from("orders")
+        .select("id, order_number, created_at, subtotal, tps_amount, tvq_amount, total_amount, activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee")
+        .eq("related_contract_id", contract.id)
+        .maybeSingle();
+
+      const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
+      const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
+
+      const contractData: TelecomContractData = {
+        contractId: contract.id,
+        templateId,
+        templateVersion,
+
+        contractNumber:
+          contract.contract_number ||
+          contract.contract_url ||
+          `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
+        orderReference: linkedOrder?.order_number || undefined,
+        orderDate: linkedOrder?.created_at || contract.created_at,
+
         clientName: profile?.full_name || "Client",
+        clientFirstName: (profile?.full_name || "Client").split(" ")[0] || "",
+        clientLastName: (profile?.full_name || "Client").split(" ").slice(1).join(" ") || "",
         clientEmail: profile?.email || user?.email || "",
         clientPhone: profile?.phone || "",
-        serviceDescription: `Contrat de services de courtage télécom - ${contract.contract_name || "Services"}`,
-        startDate: contract.created_at,
-        isSigned: contract.is_signed || false,
-        signedAt: contract.signed_at,
-        employeeName: "Représentant Nivra",
-        employeeTitle: "Conseiller Télécom",
-      });
+
+        billingAddress: profile?.service_address || "",
+        serviceAddress: profile?.service_address || "",
+        serviceCity: profile?.service_city || "",
+        serviceProvince: profile?.service_province || "QC",
+        servicePostalCode: profile?.service_postal_code || "",
+
+        servicePlan: contract.contract_name || "Services",
+
+        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activation),
+        deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
+        installationFee: Number(linkedOrder?.installation_fee ?? 0),
+        terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
+        terminalCount: Number(linkedOrder?.terminal_count ?? 0),
+        routerFee: Number(linkedOrder?.router_fee ?? 0),
+
+        subtotal: Number(linkedOrder?.subtotal ?? 0),
+        tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
+        tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
+        totalAmount: Number(linkedOrder?.total_amount ?? 0),
+
+        isSigned: Boolean(contract.is_signed),
+        signedAt: contract.signed_at || undefined,
+      };
+
+      const doc = generateTelecomContractPDF(contractData);
+      const blob = doc.output("blob");
+      const pdfHash = await hashBlobSHA256Hex(blob);
+      const generatedAt = new Date().toISOString();
+
+      await supabase
+        .from("contracts")
+        .update({
+          template_id: templateId,
+          template_version: templateVersion,
+          pdf_hash: pdfHash,
+          pdf_generated_at: generatedAt,
+        } as any)
+        .eq("id", contract.id)
+        .eq("user_id", user?.id);
+
+      await logActivity(
+        "Generated",
+        "contract_pdf",
+        contract.id,
+        {
+          orderId: linkedOrder?.id || null,
+          contractId: contract.id,
+          templateId,
+          templateVersion,
+          timestamp: generatedAt,
+          pdfHash,
+        },
+        { changedField: "pdf_generated_at", newValue: generatedAt }
+      );
+
+      const filename = `TSA-${contract.id}-${templateVersion}.pdf`;
+      safePDFDownload(blob, filename);
+
       toast({ title: "Contrat téléchargé" });
     } catch (error: any) {
       console.error("Download error:", error);
-      toast({ title: "Erreur lors du téléchargement", description: "Veuillez réessayer", variant: "destructive" });
+      toast({
+        title: "Erreur lors du téléchargement",
+        description: "Veuillez réessayer",
+        variant: "destructive",
+      });
     }
   };
 
@@ -152,33 +229,99 @@ const ClientContracts = () => {
         return;
       }
 
-      const contractData = {
-        contractNumber: contract.contract_number || contract.contract_url || `NIVRA-${contract.id.slice(0, 8).toUpperCase()}`,
-        contractName: contract.contract_name || "Contrat de services",
+      const { data: linkedOrder } = await supabase
+        .from("orders")
+        .select("id, order_number, created_at, subtotal, tps_amount, tvq_amount, total_amount, activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee")
+        .eq("related_contract_id", contract.id)
+        .maybeSingle();
+
+      const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
+      const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
+
+      const contractData: TelecomContractData = {
+        contractId: contract.id,
+        templateId,
+        templateVersion,
+
+        contractNumber:
+          contract.contract_number ||
+          contract.contract_url ||
+          `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
+        orderReference: linkedOrder?.order_number || undefined,
+        orderDate: linkedOrder?.created_at || contract.created_at,
+
         clientName: profile?.full_name || "Client",
+        clientFirstName: (profile?.full_name || "Client").split(" ")[0] || "",
+        clientLastName: (profile?.full_name || "Client").split(" ").slice(1).join(" ") || "",
         clientEmail: profile?.email || user?.email || "",
         clientPhone: profile?.phone || "",
-        clientAddress: profile?.service_address || "",
-        serviceDescription: `Contrat de services de courtage télécom - ${contract.contract_name || "Services"}`,
-        startDate: contract.created_at,
-        isSigned: contract.is_signed || false,
-        signedAt: contract.signed_at,
-        employeeName: "Représentant Nivra",
-        employeeTitle: "Conseiller Télécom",
+
+        billingAddress: profile?.service_address || "",
+        serviceAddress: profile?.service_address || "",
+        serviceCity: profile?.service_city || "",
+        serviceProvince: profile?.service_province || "QC",
+        servicePostalCode: profile?.service_postal_code || "",
+
+        servicePlan: contract.contract_name || "Services",
+
+        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activation),
+        deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
+        installationFee: Number(linkedOrder?.installation_fee ?? 0),
+        terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
+        terminalCount: Number(linkedOrder?.terminal_count ?? 0),
+        routerFee: Number(linkedOrder?.router_fee ?? 0),
+
+        subtotal: Number(linkedOrder?.subtotal ?? 0),
+        tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
+        tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
+        totalAmount: Number(linkedOrder?.total_amount ?? 0),
+
+        isSigned: Boolean(contract.is_signed),
+        signedAt: contract.signed_at || undefined,
       };
 
-      const filename = `Contrat-${contractData.contractNumber}.pdf`;
+      const filename = `TSA-${contract.id}-${templateVersion}.pdf`;
 
       await pdfViewer.openWithGenerator(
-        () => {
-          const doc = generateContractPDF(contractData);
-          return doc.output("blob");
+        async () => {
+          const doc = generateTelecomContractPDF(contractData);
+          const blob = doc.output("blob");
+          const pdfHash = await hashBlobSHA256Hex(blob);
+          const generatedAt = new Date().toISOString();
+
+          await supabase
+            .from("contracts")
+            .update({
+              template_id: templateId,
+              template_version: templateVersion,
+              pdf_hash: pdfHash,
+              pdf_generated_at: generatedAt,
+            } as any)
+            .eq("id", contract.id)
+            .eq("user_id", user?.id);
+
+          await logActivity(
+            "Generated",
+            "contract_pdf",
+            contract.id,
+            {
+              orderId: linkedOrder?.id || null,
+              contractId: contract.id,
+              templateId,
+              templateVersion,
+              timestamp: generatedAt,
+              pdfHash,
+            },
+            { changedField: "pdf_generated_at", newValue: generatedAt }
+          );
+
+          return blob;
         },
         `Contrat - ${contract.contract_name || contractData.contractNumber}`,
         filename
       );
     },
-    [profile, user?.email, pdfViewer, toast]
+    [profile, user?.email, user?.id, pdfViewer, toast, logActivity]
   );
 
   const openSignDialog = (contract: any) => {
