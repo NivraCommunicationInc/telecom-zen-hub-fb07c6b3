@@ -205,11 +205,23 @@ const generateQuebecPhoneNumber = (): string => {
 
 const ORDER_DRAFT_KEY = "nivra_order_draft";
 
+// Streaming service interface for Streaming+ add-ons
+interface StreamingService {
+  id: string;
+  name: string;
+  description: string | null;
+  monthly_price: number;
+  category: string;
+  features: string[];
+  is_active: boolean;
+}
+
 interface OrderDraft {
   step: number;
   selectedServices: Service[];
   selectedFreeChannels: Channel[];
   selectedPaidChannels: Channel[];
+  selectedStreamingServices: StreamingService[]; // Streaming+ add-ons
   terminalQuantity: number;
   mobileLineQuantities: Record<string, number>; // Per-plan quantities: { serviceId: quantity }
   mobileTransferChoice: "transfer" | "new" | null;
@@ -240,6 +252,217 @@ interface OrderDraft {
   serviceAddressProvince: string;
   serviceAddressPostalCode: string;
 }
+
+// Streaming+ Add-ons Section Component
+interface StreamingPlusSectionProps {
+  selectedStreamingServices: StreamingService[];
+  onStreamingServicesChange: (services: StreamingService[]) => void;
+}
+
+const StreamingPlusSection = ({ selectedStreamingServices, onStreamingServicesChange }: StreamingPlusSectionProps) => {
+  const { data: streamingServices = [], isLoading } = useQuery({
+    queryKey: ["streaming-services-checkout"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("streaming_services")
+        .select("*")
+        .eq("is_active", true)
+        .order("category", { ascending: true })
+        .order("monthly_price", { ascending: true });
+      if (error) throw error;
+      return data as StreamingService[];
+    },
+  });
+
+  const toggleStreamingService = (service: StreamingService) => {
+    const isSelected = selectedStreamingServices.some(s => s.id === service.id);
+    if (isSelected) {
+      onStreamingServicesChange(selectedStreamingServices.filter(s => s.id !== service.id));
+    } else {
+      onStreamingServicesChange([...selectedStreamingServices, service]);
+    }
+  };
+
+  const totalMonthly = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+  const videoServices = streamingServices.filter(s => s.category === "video");
+  const musicServices = streamingServices.filter(s => s.category === "music");
+
+  if (isLoading) {
+    return (
+      <div className="mt-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-cyan-500/20">
+            <MonitorPlay className="w-5 h-5 text-cyan-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Streaming+</h2>
+            <p className="text-xs text-cyan-500">Ajoutez des services de streaming à votre forfait</p>
+          </div>
+        </div>
+        <Card className="bg-card border-border">
+          <CardContent className="py-8 text-center">
+            <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Chargement des services...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (streamingServices.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-cyan-500/20">
+            <MonitorPlay className="w-5 h-5 text-cyan-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Streaming+ (optionnel)</h2>
+            <p className="text-xs text-cyan-500">Ajoutez des services de streaming à votre forfait mensuel</p>
+          </div>
+        </div>
+        {totalMonthly > 0 && (
+          <Badge className="bg-cyan-500">
+            +{totalMonthly.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+          </Badge>
+        )}
+      </div>
+
+      <Card className="bg-card border-cyan-500/30">
+        <CardContent className="p-4 space-y-4">
+          {/* Video Services */}
+          {videoServices.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <MonitorPlay className="w-4 h-4" /> Vidéo & Films
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {videoServices.map(service => {
+                  const isSelected = selectedStreamingServices.some(s => s.id === service.id);
+                  const features = Array.isArray(service.features) ? service.features : [];
+                  
+                  return (
+                    <div 
+                      key={service.id}
+                      className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                        isSelected 
+                          ? "border-cyan-500 bg-cyan-500/5" 
+                          : "border-border hover:border-cyan-500/50"
+                      }`}
+                      onClick={() => toggleStreamingService(service)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                          isSelected ? "bg-cyan-500 text-white" : "border-2 border-muted-foreground/30"
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold">{service.name}</span>
+                            <span className="font-bold text-cyan-500">
+                              {Number(service.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                            </span>
+                          </div>
+                          {service.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
+                          )}
+                          {features.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {features.slice(0, 3).map((feature, idx) => (
+                                <Badge key={idx} variant="outline" className="text-[10px] px-1.5">
+                                  {feature}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Music Services */}
+          {musicServices.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Star className="w-4 h-4" /> Musique
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {musicServices.map(service => {
+                  const isSelected = selectedStreamingServices.some(s => s.id === service.id);
+                  const features = Array.isArray(service.features) ? service.features : [];
+                  
+                  return (
+                    <div 
+                      key={service.id}
+                      className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                        isSelected 
+                          ? "border-cyan-500 bg-cyan-500/5" 
+                          : "border-border hover:border-cyan-500/50"
+                      }`}
+                      onClick={() => toggleStreamingService(service)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                          isSelected ? "bg-cyan-500 text-white" : "border-2 border-muted-foreground/30"
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold">{service.name}</span>
+                            <span className="font-bold text-cyan-500">
+                              {Number(service.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                            </span>
+                          </div>
+                          {service.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
+                          )}
+                          {features.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {features.slice(0, 3).map((feature, idx) => (
+                                <Badge key={idx} variant="outline" className="text-[10px] px-1.5">
+                                  {feature}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Selection Summary */}
+          {selectedStreamingServices.length > 0 && (
+            <div className="flex items-center justify-between p-3 bg-cyan-500/10 rounded-lg mt-4">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-cyan-500" />
+                <span className="text-sm font-medium">
+                  {selectedStreamingServices.length} service(s) Streaming+ sélectionné(s)
+                </span>
+              </div>
+              <span className="font-bold text-cyan-500">
+                +{totalMonthly.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const ClientNewOrder = () => {
   const { user } = useAuth();
@@ -290,6 +513,9 @@ const ClientNewOrder = () => {
   const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
   const [selectedPaidChannels, setSelectedPaidChannels] = useState<Channel[]>([]);
   
+  // Streaming+ add-ons state
+  const [selectedStreamingServices, setSelectedStreamingServices] = useState<StreamingService[]>([]);
+  
   // TV Terminal equipment state
   const [terminalQuantity, setTerminalQuantity] = useState<number>(1);
   
@@ -336,6 +562,7 @@ const ClientNewOrder = () => {
         if (draft.selectedServices?.length) setSelectedServices(draft.selectedServices);
         if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
         if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
+        if (draft.selectedStreamingServices?.length) setSelectedStreamingServices(draft.selectedStreamingServices);
         if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
         if (draft.mobileLineQuantities) setMobileLineQuantities(draft.mobileLineQuantities);
         if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
@@ -384,6 +611,7 @@ const ClientNewOrder = () => {
       selectedServices,
       selectedFreeChannels,
       selectedPaidChannels,
+      selectedStreamingServices,
       terminalQuantity,
       mobileLineQuantities,
       mobileTransferChoice,
@@ -414,10 +642,10 @@ const ClientNewOrder = () => {
       serviceAddressPostalCode,
     };
     
-    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length);
+    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "streaming:", selectedStreamingServices.length);
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
-    isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels,
+    isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
     terminalQuantity, mobileLineQuantities, mobileTransferChoice, transferPhoneNumber, transferCarrier,
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
@@ -690,6 +918,11 @@ const ClientNewOrder = () => {
         ? `\n\n**Livraison:**\n${deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.name : DELIVERY_CONFIG.standard.name}\nDélai: ${deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.timeframe : DELIVERY_CONFIG.standard.timeframe}\nFrais: ${deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee.toFixed(2) : DELIVERY_CONFIG.standard.fee.toFixed(2)}$`
         : '';
 
+      // Prepare Streaming+ add-ons info for notes
+      const streamingAddonsInfo = selectedStreamingServices.length > 0
+        ? `\n\n**Streaming+ (activation requise):**\n${selectedStreamingServices.map(s => `${s.name} — ${Number(s.monthly_price).toFixed(2)}$/mois`).join('\n')}\nTotal Streaming+: ${selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0).toFixed(2)}$/mois`
+        : '';
+
       const equipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
@@ -788,7 +1021,7 @@ const ClientNewOrder = () => {
         client_email: profile?.email || user.email,
         service_type: serviceNames,
         category: isDeliveryOnlyOrder ? "Delivery" : categories,
-        subtotal: subtotal + paidChannelTotal + equipmentSubtotal,
+        subtotal: subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0),
         delivery_fee: orderDeliveryFee,
         activation_fee: orderActivationFee,
         installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
@@ -799,7 +1032,7 @@ const ClientNewOrder = () => {
         payment_status: "pre_authorized",
         amount_paid: 0,
         created_by: "client",
-        notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + 
+        notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
           (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
@@ -1180,6 +1413,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     return sum + Number(s.price);
   }, 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
+  // Streaming+ add-ons monthly total
+  const streamingAddonsTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
   // SIM: Always physical, quantity matches total mobile lines
@@ -1203,9 +1438,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const activationFee = isEquipmentOnlyOrder ? 0 : 25;
   const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
   
-  // Calculate one-time fees vs monthly fees
+  // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
   const oneTimeFees = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
-  const monthlyRecurring = subtotal + paidChannelTotal;
+  const monthlyRecurring = subtotal + paidChannelTotal + streamingAddonsTotal;
   
   const baseAmount = monthlyRecurring + oneTimeFees;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
@@ -1595,6 +1830,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     );
                   })}
+                  
+                  {/* Streaming+ Add-ons Section */}
+                  <StreamingPlusSection 
+                    selectedStreamingServices={selectedStreamingServices}
+                    onStreamingServicesChange={setSelectedStreamingServices}
+                  />
                 </div>
               ) : (
                 <Card className="bg-card border-border">
@@ -1616,6 +1857,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   totalMobileLineQuantity={totalMobileLineQuantity}
                   selectedPaidChannels={selectedPaidChannels}
                   paidChannelTotal={paidChannelTotal}
+                  selectedStreamingAddons={selectedStreamingServices}
+                  streamingAddonsTotal={streamingAddonsTotal}
                   monthlyRecurring={monthlyRecurring}
                   oneTimeFees={oneTimeFees}
                   activationFee={activationFee}
@@ -1653,6 +1896,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     totalMobileLineQuantity={totalMobileLineQuantity}
                     selectedPaidChannels={selectedPaidChannels}
                     paidChannelTotal={paidChannelTotal}
+                    selectedStreamingAddons={selectedStreamingServices}
+                    streamingAddonsTotal={streamingAddonsTotal}
                     monthlyRecurring={monthlyRecurring}
                     oneTimeFees={oneTimeFees}
                     activationFee={activationFee}

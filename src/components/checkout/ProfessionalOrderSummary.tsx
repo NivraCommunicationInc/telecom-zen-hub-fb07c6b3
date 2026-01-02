@@ -37,6 +37,12 @@ interface Channel {
   price: number;
 }
 
+interface StreamingService {
+  id: string;
+  name: string;
+  monthly_price: number;
+}
+
 interface ProfessionalOrderSummaryProps {
   selectedServices: Service[];
   selectedMobileServices: Service[];
@@ -44,6 +50,8 @@ interface ProfessionalOrderSummaryProps {
   totalMobileLineQuantity: number;
   selectedPaidChannels: Channel[];
   paidChannelTotal: number;
+  selectedStreamingAddons?: StreamingService[];
+  streamingAddonsTotal?: number;
   monthlyRecurring: number;
   oneTimeFees: number;
   activationFee: number;
@@ -88,6 +96,8 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
   totalMobileLineQuantity,
   selectedPaidChannels,
   paidChannelTotal,
+  selectedStreamingAddons = [],
+  streamingAddonsTotal = 0,
   monthlyRecurring,
   oneTimeFees,
   activationFee,
@@ -195,6 +205,20 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
               <span className="text-foreground font-medium">{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
             </div>
           ))}
+          {/* Streaming+ Add-ons */}
+          {selectedStreamingAddons.length > 0 && (
+            <>
+              {selectedStreamingAddons.map(s => (
+                <div key={s.id} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <MonitorPlay className="w-3 h-3 text-cyan-500" />
+                    <span className="text-muted-foreground">Streaming+ — {s.name}</span>
+                  </div>
+                  <span className="text-cyan-500 font-medium">+{Number(s.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                </div>
+              ))}
+            </>
+          )}
           {/* Premium/Paid Channels */}
           {paidChannelTotal > 0 && (
             <div className="flex justify-between items-center">
