@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.validate-promo]
 verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = true

@@ -323,36 +323,27 @@ const AdminAppointments = () => {
     },
   });
 
-  // Create client mutation
+  // Create client mutation - uses server-side edge function for security
   const createClientMutation = useMutation({
     mutationFn: async (formData: typeof clientForm) => {
-      // Create auth user first
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: Math.random().toString(36).slice(-12) + "Aa1!", // Temporary password
-        options: {
-          data: { full_name: formData.full_name },
-        },
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Création utilisateur échouée");
-
-      // Update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
+      // Use server-side edge function for secure user creation
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: formData.email,
           full_name: formData.full_name,
           phone: formData.phone,
           service_address: formData.service_address,
           service_city: formData.service_city,
           service_postal_code: formData.service_postal_code,
-        })
-        .eq("user_id", authData.user.id);
+          service_province: "QC",
+          generate_password: true, // Let server generate secure password
+        },
+      });
 
-      if (profileError) throw profileError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      return authData.user;
+      return data.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-profiles"] });

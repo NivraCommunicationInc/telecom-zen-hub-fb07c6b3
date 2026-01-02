@@ -352,31 +352,28 @@ const AdminClients = () => {
   const createClientMutation = useMutation({
     mutationFn: async (client: typeof newClient) => {
       const fullName = `${client.first_name} ${client.last_name}`.trim();
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: client.email,
-        password: client.password,
-        options: { data: { full_name: fullName } },
+      
+      // Use server-side edge function for secure user creation
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: client.email,
+          password: client.password,
+          full_name: fullName,
+          first_name: client.first_name,
+          last_name: client.last_name,
+          phone: client.phone,
+          date_of_birth: client.date_of_birth || null,
+          service_address: client.service_address || null,
+          service_city: client.service_city || null,
+          service_postal_code: client.service_postal_code || null,
+          service_province: "QC",
+        },
       });
-      if (authError) throw authError;
 
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ 
-            phone: client.phone,
-            first_name: client.first_name,
-            last_name: client.last_name,
-            full_name: fullName,
-            date_of_birth: client.date_of_birth || null,
-            service_address: client.service_address || null,
-            service_city: client.service_city || null,
-            service_postal_code: client.service_postal_code || null,
-            service_province: "QC",
-          })
-          .eq("user_id", authData.user.id);
-        if (profileError) throw profileError;
-      }
-      return authData;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      return data;
     },
     onSuccess: async () => {
       const fullName = `${newClient.first_name} ${newClient.last_name}`.trim();
