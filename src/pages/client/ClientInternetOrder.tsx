@@ -50,7 +50,10 @@ import {
   OrderSummaryCard, 
   SecurityTrustBox, 
   CheckoutSection,
-  ConfirmationSuccess 
+  ConfirmationSuccess,
+  CheckoutPaymentSection,
+  CheckoutPhoneField,
+  validateCanadianPhone 
 } from "@/components/checkout";
 
 // Internet plan configurations
@@ -188,6 +191,23 @@ const ClientInternetOrder = () => {
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
   
+  // Phone field for checkout
+  const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+
+  // Payment method state
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new">("new");
+  const [selectedCardId, setSelectedCardId] = useState("");
+  const [savedCardCvv, setSavedCardCvv] = useState("");
+  const [cvvError, setCvvError] = useState("");
+  const [newCardData, setNewCardData] = useState({
+    cardNumber: "",
+    cardName: "",
+    expiry: "",
+    cvv: "",
+  });
+  const [saveNewCard, setSaveNewCard] = useState(false);
+  
   // ID verification data
   const [clientIdData, setClientIdData] = useState<ClientIDData>({
     firstName: "",
@@ -220,6 +240,40 @@ const ClientInternetOrder = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch saved payment methods
+  const { data: savedCards } = useQuery({
+    queryKey: ["client-payment-methods", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_methods")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Set default payment method and phone when cards/profile loaded
+  useEffect(() => {
+    if (savedCards && savedCards.length > 0) {
+      setSelectedPaymentMethod("saved");
+      const defaultCard = savedCards.find((c: any) => c.is_default) || savedCards[0];
+      setSelectedCardId(defaultCard.id);
+    }
+  }, [savedCards]);
+
+  useEffect(() => {
+    if (profile?.phone && !checkoutPhone) {
+      // Format the phone from profile
+      const digits = (profile.phone || "").replace(/\D/g, "").slice(0, 10);
+      if (digits.length === 10) {
+        setCheckoutPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+      }
+    }
+  }, [profile?.phone, checkoutPhone]);
 
   // Initialize client ID data from profile when available
   useEffect(() => {
@@ -321,13 +375,14 @@ const ClientInternetOrder = () => {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
 
-      // First, update the profile with ID information
+      // First, update the profile with ID information and phone
+      const phoneDigits = checkoutPhone.replace(/\D/g, "");
       const { error: profileError } = await supabase.from("profiles").update({
         first_name: clientIdData.firstName,
         last_name: clientIdData.lastName,
         full_name: `${clientIdData.firstName} ${clientIdData.lastName}`,
         email: clientIdData.email,
-        phone: clientIdData.phone,
+        phone: phoneDigits.length === 10 ? checkoutPhone : (clientIdData.phone || null),
         date_of_birth: clientIdData.dateOfBirth || null,
         service_address: address,
         service_city: addressValidation?.city || null,
@@ -343,27 +398,51 @@ const ClientInternetOrder = () => {
         console.error("Profile update error:", profileError);
       }
 
-      // Create the order
+      // Build payment reference info (without storing CVV)
+      const paymentInfo = selectedPaymentMethod === "saved" 
+        ? {
+            method: "saved_card",
+            card_id: selectedCardId,
+            card_type: savedCards?.find((c: any) => c.id === selectedCardId)?.card_type,
+            last_four: savedCards?.find((c: any) => c.id === selectedCardId)?.last_four,
+          }
+        : {
+            method: "new_card",
+            card_type: newCardData.cardNumber.startsWith("4") ? "Visa" : newCardData.cardNumber.startsWith("5") ? "Mastercard" : "Card",
+            last_four: newCardData.cardNumber.replace(/\s/g, "").slice(-4),
+          };
+
+      // Create the order with payment status and phone
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
         service_type: selectedPlan.name,
         category: "Internet",
         subtotal: planPrice,
+        total_amount: totalDueNow,
         delivery_fee: installationMethod === "auto" ? 30 : 0,
         activation_fee: activationFee,
         installation_fee: installationMethod === "technician" ? 50 : 0,
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
+        payment_status: "pre_authorized",
+        preauth_card_id: selectedPaymentMethod === "saved" ? selectedCardId : null,
+        preauth_discount: 0,
         installation_type: installationMethod,
         appointment_date: selectedDate ? new Date(selectedDate).toISOString() : null,
         created_by: "client",
-        notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
+        tps_amount: tpsAmount,
+        tvq_amount: tvqAmount,
+        notes: `${isFrench ? "Téléphone" : "Phone"}: ${checkoutPhone}
+${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
 ${isFrench ? "Date préférée" : "Preferred date"}: ${selectedDate ? format(new Date(selectedDate), "d MMMM yyyy", { locale: isFrench ? fr : undefined }) : "N/A"} ${selectedTime}
+${isFrench ? "Paiement" : "Payment"}: ${paymentInfo.card_type} ****${paymentInfo.last_four} (${isFrench ? "Dépôt préautorisé" : "Pre-authorized deposit"})
 ${notes || ""}`.trim(),
-        internal_notes: `Router: Nivra Born Wifi ($60 paid upfront)`,
+        internal_notes: `Router: Nivra Born Wifi ($60 paid upfront)
+Payment: ${JSON.stringify(paymentInfo)}
+Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       }).select().single();
 
       if (orderError) throw orderError;
@@ -423,6 +502,33 @@ ${notes || ""}`.trim(),
     if (!selectedPlan) {
       toast.error(isFrench ? "Veuillez sélectionner un forfait" : "Please select a plan");
       return;
+    }
+    
+    // Validate phone number
+    if (!validateCanadianPhone(checkoutPhone)) {
+      setPhoneError(isFrench ? "Numéro de téléphone canadien invalide" : "Invalid Canadian phone number");
+      toast.error(isFrench ? "Veuillez entrer un numéro de téléphone valide" : "Please enter a valid phone number");
+      return;
+    }
+    setPhoneError("");
+    
+    // Validate payment method
+    if (selectedPaymentMethod === "saved") {
+      if (!selectedCardId) {
+        toast.error(isFrench ? "Veuillez sélectionner une carte" : "Please select a card");
+        return;
+      }
+      if (!savedCardCvv || savedCardCvv.length < 3) {
+        setCvvError(isFrench ? "CVV requis (3-4 chiffres)" : "CVV required (3-4 digits)");
+        toast.error(isFrench ? "Veuillez entrer le CVV de votre carte" : "Please enter your card CVV");
+        return;
+      }
+      setCvvError("");
+    } else {
+      if (!newCardData.cardNumber || !newCardData.cardName || !newCardData.expiry || !newCardData.cvv) {
+        toast.error(isFrench ? "Veuillez compléter les informations de la carte" : "Please complete card information");
+        return;
+      }
     }
     
     // Validate ID data
@@ -947,6 +1053,42 @@ ${notes || ""}`.trim(),
                   />
                 </CardContent>
               </Card>
+
+              {/* Phone Number Field */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-cyan-500" />
+                    {isFrench ? "Coordonnées de contact" : "Contact Information"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CheckoutPhoneField
+                    isFrench={isFrench}
+                    phone={checkoutPhone}
+                    onChange={setCheckoutPhone}
+                    error={phoneError}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Payment Section */}
+              <CheckoutPaymentSection
+                isFrench={isFrench}
+                savedCards={savedCards || []}
+                selectedPaymentMethod={selectedPaymentMethod}
+                onPaymentMethodChange={setSelectedPaymentMethod}
+                selectedCardId={selectedCardId}
+                onSelectedCardChange={setSelectedCardId}
+                cvv={savedCardCvv}
+                onCvvChange={setSavedCardCvv}
+                newCardData={newCardData}
+                onNewCardChange={setNewCardData}
+                saveNewCard={saveNewCard}
+                onSaveNewCardChange={setSaveNewCard}
+                totalAmount={totalDueNow}
+                cvvError={cvvError}
+              />
             </div>
 
             {/* Order Summary Sidebar - Professional Telecom Style */}
@@ -971,7 +1113,14 @@ ${notes || ""}`.trim(),
                     className="w-full"
                     size="lg"
                     onClick={() => setStep(4)}
-                    disabled={!routerAcknowledged || !validateIDData(clientIdData, false).valid || !selectedDate || !selectedTime}
+                    disabled={
+                      !routerAcknowledged || 
+                      !validateIDData(clientIdData, false).valid || 
+                      !selectedDate || 
+                      !selectedTime || 
+                      !validateCanadianPhone(checkoutPhone) ||
+                      (selectedPaymentMethod === "saved" ? (!selectedCardId || savedCardCvv.length < 3) : (!newCardData.cardNumber || !newCardData.cvv))
+                    }
                   >
                     {isFrench ? "Continuer" : "Continue"}
                     <ArrowRight className="w-4 h-4 ml-2" />
