@@ -34,9 +34,11 @@ import {
   ToggleRight,
   Pencil,
   Copy,
-  Check
+  Check,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
+import EmployeeProfileDialog from "@/components/admin/EmployeeProfileDialog";
 
 interface Employee {
   id: string;
@@ -89,6 +91,7 @@ const AdminEmployees = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [tempPin, setTempPin] = useState<string | null>(null);
   const [copiedPin, setCopiedPin] = useState(false);
   
@@ -404,6 +407,17 @@ const AdminEmployees = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => {
+                              setSelectedEmployee(employee);
+                              setShowProfileDialog(true);
+                            }}
+                            title="Voir le profil"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => openEditDialog(employee)}
                             title="Modifier"
                           >
@@ -616,6 +630,17 @@ const AdminEmployees = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Employee Profile Dialog */}
+      <EmployeeProfileDialog
+        employee={selectedEmployee}
+        isOpen={showProfileDialog}
+        onClose={() => {
+          setShowProfileDialog(false);
+          setSelectedEmployee(null);
+        }}
+        onUpdate={fetchEmployees}
+      />
     </AdminLayout>
   );
 };
