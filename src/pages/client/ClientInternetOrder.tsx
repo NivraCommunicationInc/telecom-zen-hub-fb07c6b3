@@ -33,16 +33,25 @@ import {
   XCircle,
   Sparkles,
   Truck,
-  Wrench
+  Wrench,
+  Receipt
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
-import { format, addDays } from "date-fns";
+import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
+import { 
+  CheckoutLayout, 
+  CheckoutProgress, 
+  OrderSummaryCard, 
+  SecurityTrustBox, 
+  CheckoutSection,
+  ConfirmationSuccess 
+} from "@/components/checkout";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -461,46 +470,74 @@ ${notes || ""}`.trim(),
     purple: { bg: "bg-purple-500/15", text: "text-purple-500", border: "border-purple-500" },
   };
 
+  // Calculate next billing date
+  const getNextBillingDate = () => {
+    const nextMonth = addMonths(new Date(), 1);
+    return format(nextMonth, "d MMMM yyyy", { locale: isFrench ? fr : undefined });
+  };
+
+  // Build order summary items
+  const getMonthlyItems = () => {
+    if (!selectedPlan) return [];
+    return [{
+      label: selectedPlan.name,
+      amount: selectedPlan.price,
+      description: `${selectedPlan.speed} - ${isFrench ? "Internet haute vitesse" : "High-speed Internet"}`,
+    }];
+  };
+
+  const getOneTimeItems = () => {
+    const items = [];
+    items.push({ label: ROUTER_DETAILS.name, amount: routerFee, description: isFrench ? "Équipement requis" : "Required equipment" });
+    if (installationMethod === "auto") {
+      items.push({ label: isFrench ? "Livraison" : "Delivery", amount: deliveryFee });
+    }
+    items.push({ label: isFrench ? "Activation" : "Activation", amount: activationFee });
+    if (installationMethod === "technician") {
+      items.push({ label: isFrench ? "Installation technicien" : "Technician installation", amount: installationFee });
+    }
+    if (installationCredit > 0) {
+      items.push({ label: isFrench ? "Crédit promo" : "Promo credit", amount: installationCredit, isDiscount: true });
+    }
+    return items;
+  };
+
+  // Step configuration for progress indicator
+  const checkoutSteps = [
+    { id: 1, labelFr: "Adresse", labelEn: "Address" },
+    { id: 2, labelFr: "Forfait", labelEn: "Plan" },
+    { id: 3, labelFr: "Options", labelEn: "Options" },
+    { id: 4, labelFr: "Paiement", labelEn: "Payment" },
+    { id: 5, labelFr: "Confirmation", labelEn: "Confirmation" },
+  ];
+
   return (
     <ClientLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground flex items-center gap-3">
-            <Wifi className="w-8 h-8 text-cyan-500" />
-            {isFrench ? "Commander Internet" : "Order Internet"}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {isFrench ? "Service Internet haute vitesse au Québec" : "High-speed Internet service in Quebec"}
-          </p>
+        <div className="border-b border-border pb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Wifi className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+                {isFrench ? "Commander Internet" : "Order Internet"}
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                {isFrench ? "Service Internet haute vitesse au Québec" : "High-speed Internet service in Quebec"}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          {[
-            { num: 1, label: isFrench ? "Adresse" : "Address" },
-            { num: 2, label: isFrench ? "Forfait" : "Plan" },
-            { num: 3, label: isFrench ? "Équipement" : "Equipment" },
-            { num: 4, label: isFrench ? "Confirmation" : "Confirmation" },
-            { num: 5, label: isFrench ? "Terminé" : "Complete" },
-          ].map((s, i, arr) => (
-            <div key={s.num} className="flex items-center gap-2 flex-1">
-              <div className={`flex items-center gap-2 ${step >= s.num ? "text-cyan-500" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step > s.num ? "bg-emerald-500 text-white" : step === s.num ? "bg-cyan-500 text-white" : "bg-muted"
-                }`}>
-                  {step > s.num ? <Check className="w-4 h-4" /> : s.num}
-                </div>
-                <span className="text-xs font-medium hidden md:inline">{s.label}</span>
-              </div>
-              {i < arr.length - 1 && (
-                <div className="flex-1 h-0.5 bg-muted">
-                  <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : step === s.num ? "bg-cyan-500 w-1/2" : "w-0"}`} />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        {/* Progress Steps - Professional Telecom Style */}
+        <CheckoutProgress
+          currentStep={step}
+          steps={checkoutSteps}
+          isFrench={isFrench}
+          onStepClick={(s) => s < step && setStep(s)}
+        />
 
         {/* Step 1: Address Validation */}
         {step === 1 && (
@@ -912,111 +949,44 @@ ${notes || ""}`.trim(),
               </Card>
             </div>
 
-            {/* Order Summary Sidebar */}
+            {/* Order Summary Sidebar - Professional Telecom Style */}
             <div className="lg:col-span-1">
-              <Card className="bg-card border-cyan-500/30 sticky top-4">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Résumé de la commande" : "Order Summary"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Address */}
-                  <div className="p-3 bg-accent/30 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">{isFrench ? "Adresse d'installation" : "Installation Address"}</p>
-                    <p className="text-sm font-medium">{address}</p>
-                  </div>
+              <OrderSummaryCard
+                isFrench={isFrench}
+                monthlyItems={getMonthlyItems()}
+                oneTimeItems={getOneTimeItems()}
+                tpsAmount={tpsAmount}
+                tvqAmount={tvqAmount}
+                totalDueNow={totalDueNow}
+                monthlyTotal={planPrice}
+                nextBillingDate={getNextBillingDate()}
+                onEditSection={(section) => {
+                  if (section === "plan") setStep(2);
+                }}
+                className="border-primary/20"
+              >
+                <div className="pt-4 space-y-4">
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    size="lg"
+                    onClick={() => setStep(4)}
+                    disabled={!routerAcknowledged || !validateIDData(clientIdData, false).valid || !selectedDate || !selectedTime}
+                  >
+                    {isFrench ? "Continuer" : "Continue"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                  <Button variant="outline" className="w-full" onClick={() => setStep(2)}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    {isFrench ? "Modifier le forfait" : "Change plan"}
+                  </Button>
+                </div>
+              </OrderSummaryCard>
 
-                  {/* Plan */}
-                  {selectedPlan && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">{selectedPlan.name}</span>
-                        <span className="text-sm font-medium">${selectedPlan.price}/mois</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  {/* One-time fees */}
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">
-                      {isFrench ? "Frais uniques" : "One-time fees"}
-                    </p>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{ROUTER_DETAILS.name}</span>
-                      <span>${ROUTER_DETAILS.price}</span>
-                    </div>
-                    {installationMethod === "auto" && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{isFrench ? "Livraison" : "Delivery"}</span>
-                        <span>${deliveryFee}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{isFrench ? "Activation" : "Activation"}</span>
-                      <span>${activationFee}</span>
-                    </div>
-                    {installationMethod === "technician" && (
-                      <>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{isFrench ? "Installation technicien" : "Technician Installation"}</span>
-                          <span className={installationCredit > 0 ? "line-through text-muted-foreground" : ""}>
-                            $50
-                          </span>
-                        </div>
-                        {installationCredit > 0 && (
-                          <div className="flex justify-between text-sm text-emerald-500">
-                            <span>{isFrench ? "Rabais installation" : "Installation discount"}</span>
-                            <span>-${installationCredit}</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  {/* Taxes */}
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">TPS (5%)</span>
-                      <span>${tpsAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">TVQ (9.975%)</span>
-                      <span>${tvqAmount.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Total */}
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{isFrench ? "Total à payer maintenant" : "Total due now"}</span>
-                    <span className="text-xl font-bold text-cyan-500">${totalDueNow.toFixed(2)}</span>
-                  </div>
-
-                  <div className="pt-4 space-y-3">
-                    <Button
-                      variant="hero"
-                      className="w-full"
-                      size="lg"
-                      onClick={() => setStep(4)}
-                      disabled={!routerAcknowledged || !validateIDData(clientIdData, false).valid || !selectedDate || !selectedTime}
-                    >
-                      {isFrench ? "Continuer" : "Continue"}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                    <Button variant="outline" className="w-full" onClick={() => setStep(2)}>
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      {isFrench ? "Modifier le forfait" : "Change plan"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Security & Trust Box */}
+              <div className="mt-6">
+                <SecurityTrustBox isFrench={isFrench} />
+              </div>
             </div>
           </div>
         )}
