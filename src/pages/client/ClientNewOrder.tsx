@@ -206,6 +206,7 @@ interface OrderDraft {
   selectedFreeChannels: Channel[];
   selectedPaidChannels: Channel[];
   terminalQuantity: number;
+  mobileLineQuantity: number;
   mobileTransferChoice: "transfer" | "new" | null;
   transferPhoneNumber: string;
   transferCarrier: string;
@@ -268,6 +269,9 @@ const ClientNewOrder = () => {
   // TV Terminal equipment state
   const [terminalQuantity, setTerminalQuantity] = useState<number>(1);
   
+  // Mobile line quantity state
+  const [mobileLineQuantity, setMobileLineQuantity] = useState<number>(1);
+  
   // Mobile transfer state
   const [mobileTransferChoice, setMobileTransferChoice] = useState<"transfer" | "new" | null>(null);
   const [transferPhoneNumber, setTransferPhoneNumber] = useState("");
@@ -309,6 +313,7 @@ const ClientNewOrder = () => {
         if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
         if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
         if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
+        if (draft.mobileLineQuantity) setMobileLineQuantity(draft.mobileLineQuantity);
         if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
         if (draft.transferPhoneNumber) setTransferPhoneNumber(draft.transferPhoneNumber);
         if (draft.transferCarrier) setTransferCarrier(draft.transferCarrier);
@@ -349,6 +354,7 @@ const ClientNewOrder = () => {
       selectedFreeChannels,
       selectedPaidChannels,
       terminalQuantity,
+      mobileLineQuantity,
       mobileTransferChoice,
       transferPhoneNumber,
       transferCarrier,
@@ -375,7 +381,7 @@ const ClientNewOrder = () => {
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
     isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels,
-    terminalQuantity, mobileTransferChoice, transferPhoneNumber, transferCarrier,
+    terminalQuantity, mobileLineQuantity, mobileTransferChoice, transferPhoneNumber, transferCarrier,
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
     selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince
@@ -907,15 +913,43 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           setSelectedFreeChannels([]);
           setSelectedPaidChannels([]);
         }
+        // If removing Mobile, reset quantity
+        if (service.category === "Mobile") {
+          setMobileLineQuantity(1);
+        }
         return prev.filter(s => s.id !== service.id);
       }
-      // Check if TV is selected without Internet (only for GIGA + TV Basic which doesn't include Internet)
+      
+      // RULE: Only 1 Internet plan per order/address
+      if (service.category === "Internet") {
+        const hasInternet = prev.some(s => s.category === "Internet");
+        if (hasInternet) {
+          toast.error("Une seule offre Internet par adresse est autorisée par commande. Pour une autre adresse, veuillez finaliser cette commande puis créer une nouvelle commande dans le même compte.");
+          return prev;
+        }
+        // Check if TV combo already selected
+        const tvInSelection = prev.find(s => s.category === "TV");
+        if (tvInSelection) {
+          const isTVComboPlan = tvInSelection.name.toLowerCase().includes('internet') || tvInSelection.name.toLowerCase().includes('giga');
+          if (isTVComboPlan) {
+            toast.info("Votre forfait TV inclut déjà Internet. Retirez-le d'abord pour sélectionner un autre forfait Internet.");
+            return prev;
+          }
+        }
+      }
+      
+      // RULE: Only 1 TV plan per order/address
       if (service.category === "TV") {
+        const hasTV = prev.some(s => s.category === "TV");
+        if (hasTV) {
+          toast.error("Un seul forfait TV par adresse est autorisé par commande. Pour une autre adresse, veuillez finaliser cette commande puis créer une nouvelle commande dans le même compte.");
+          return prev;
+        }
+        
         const hasInternet = prev.some(s => s.category === "Internet");
         const isComboPlan = service.name.toLowerCase().includes('internet') || service.name.toLowerCase().includes('giga');
         
         // If it's a combo plan (includes Internet), no need to check for separate Internet
-        // If it's GIGA + TV Basic, it includes Internet 1 Gbps
         if (!hasInternet && !isComboPlan) {
           toast.error("Les forfaits TV nécessitent un service Internet actif. Veuillez d'abord sélectionner un forfait Internet.");
           return prev;
@@ -931,18 +965,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         // Reset terminal quantity when adding TV
         setTerminalQuantity(1);
       }
-      // If removing Internet, also remove TV (unless TV is a combo plan)
-      if (service.category === "Internet") {
-        const tvInSelection = prev.find(s => s.category === "TV");
-        if (tvInSelection) {
-          const isTVComboPlan = tvInSelection.name.toLowerCase().includes('internet') || tvInSelection.name.toLowerCase().includes('giga');
-          if (isTVComboPlan) {
-            // Don't allow adding separate Internet if TV combo already selected
-            toast.info("Votre forfait TV inclut déjà Internet. Retirez-le d'abord pour sélectionner un autre forfait Internet.");
-            return prev;
-          }
+      
+      // RULE: Only 1 Security plan per order/address
+      if (service.category === "Sécurité") {
+        const hasSecurity = prev.some(s => s.category === "Sécurité");
+        if (hasSecurity) {
+          toast.error("Un seul forfait Sécurité par adresse est autorisé par commande. Pour une autre adresse, veuillez finaliser cette commande puis créer une nouvelle commande dans le même compte.");
+          return prev;
         }
       }
+      
+      // RULE: Mobile - allow multiple but start with quantity 1
+      if (service.category === "Mobile") {
+        // Allow selecting Mobile, quantity managed separately
+        setMobileLineQuantity(1);
+      }
+      
       return [...prev, service];
     });
   };
@@ -994,12 +1032,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const isSelected = (serviceId: string) => selectedServices.some(s => s.id === serviceId);
 
+  // Get selected mobile service for calculations
+  const selectedMobileService = selectedServices.find(s => s.category === "Mobile");
+  const mobileMonthlyTotal = selectedMobileService ? Number(selectedMobileService.price) * mobileLineQuantity : 0;
+  
   // Calculate totals with fees and taxes based on installation/delivery choice
-  const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+  // For mobile, multiply by quantity
+  const subtotal = selectedServices.reduce((sum, s) => {
+    if (s.category === "Mobile") {
+      return sum + (Number(s.price) * mobileLineQuantity);
+    }
+    return sum + Number(s.price);
+  }, 0);
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
-  const simFee = hasMobileService ? SIM_CONFIG[simType].price : 0;
+  const simFee = hasMobileService ? SIM_CONFIG[simType].price * mobileLineQuantity : 0;
   
   // Fee logic based on installation choice OR delivery choice for delivery-only orders
   const calculateDeliveryFee = (): number => {
@@ -1018,10 +1066,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // For equipment-only orders, no activation fee
   const activationFee = isEquipmentOnlyOrder ? 0 : 25;
   const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
-  const baseAmount = subtotal + paidChannelTotal + deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
+  
+  // Calculate one-time fees vs monthly fees
+  const oneTimeFees = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
+  const monthlyRecurring = subtotal + paidChannelTotal;
+  
+  const baseAmount = monthlyRecurring + oneTimeFees;
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
+
+  // Separate tax calculations for bill preview
+  const oneTimeFeesWithTax = oneTimeFees + Math.round(oneTimeFees * 0.14975 * 100) / 100;
+  const monthlyRecurringWithTax = monthlyRecurring + Math.round(monthlyRecurring * 0.14975 * 100) / 100;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
@@ -1048,8 +1105,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     { value: "residency_card", label: "Carte de résidence permanente" },
   ];
 
-  // Group services by category
+  // Group services by category - filter out "Sécurité entreprise"
   const groupedServices = services?.reduce((acc, service) => {
+    // RULE: Remove "Sécurité entreprise" from catalog
+    if (service.name.toLowerCase().includes('entreprise') && service.category === 'Sécurité') {
+      return acc;
+    }
     if (!acc[service.category]) {
       acc[service.category] = [];
     }
@@ -1307,6 +1368,63 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
             )}
 
+            {/* Mobile Line Quantity Selector */}
+            {hasMobileService && selectedMobileService && (
+              <Card className="bg-blue-500/10 border-blue-500/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-blue-500" />
+                    Nombre de lignes mobiles
+                  </CardTitle>
+                  <CardDescription>
+                    Combien de lignes {selectedMobileService.name} souhaitez-vous?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <Smartphone className="w-6 h-6 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{selectedMobileService.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {Number(selectedMobileService.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois par ligne
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setMobileLineQuantity(Math.max(1, mobileLineQuantity - 1))}
+                        disabled={mobileLineQuantity <= 1}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="text-2xl font-bold text-blue-500 w-8 text-center">{mobileLineQuantity}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setMobileLineQuantity(Math.min(10, mobileLineQuantity + 1))}
+                        disabled={mobileLineQuantity >= 10}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-500/20 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-600 font-medium">Total mensuel Mobile ({mobileLineQuantity} ligne{mobileLineQuantity > 1 ? 's' : ''})</span>
+                      <span className="text-blue-600 font-bold text-lg">
+                        {mobileMonthlyTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Selected Services Summary */}
             {selectedServices.length > 0 && (
               <Card className="bg-card border-cyan-500/30 sticky bottom-4">
@@ -1315,11 +1433,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div>
                       <p className="text-sm text-muted-foreground">
                         {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} sélectionné{selectedServices.length > 1 ? "s" : ""}
+                        {hasMobileService && mobileLineQuantity > 1 && ` (${mobileLineQuantity} lignes mobiles)`}
                       </p>
-                      <p className="text-2xl font-bold text-foreground">
-                        {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        <span className="text-sm text-muted-foreground font-normal"> total</span>
-                      </p>
+                      <div className="flex flex-col">
+                        <p className="text-sm text-muted-foreground">
+                          Mensuel: <span className="font-bold text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Frais uniques: <span className="font-bold text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </p>
+                        <p className="text-lg font-bold text-cyan-500 mt-1">
+                          Total à payer: {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          <span className="text-xs text-muted-foreground font-normal"> (taxes incluses)</span>
+                        </p>
+                      </div>
                     </div>
                     <Button variant="hero" size="lg" onClick={() => setStep(2)}>
                       Continuer
@@ -2858,6 +2985,139 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardContent>
                 </Card>
               )}
+
+              {/* Bill Preview Section - 1st and 2nd Invoice */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* First Bill Preview - Today */}
+                <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-cyan-500" />
+                      <CardTitle className="text-base">Aperçu de la 1ère facture (aujourd'hui)</CardTitle>
+                    </div>
+                    <CardDescription className="text-xs">Frais uniques payables maintenant</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    {activationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Frais d'activation</span>
+                        <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {deliveryFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Livraison</span>
+                        <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {installationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Installation technicien</span>
+                        <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {terminalFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Terminal TV (×{terminalQuantity})</span>
+                        <span>{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {routerFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Routeur Nivra Born Wifi</span>
+                        <span>{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {simFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Carte SIM (×{mobileLineQuantity})</span>
+                        <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    <Separator className="my-2" />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sous-total frais uniques</span>
+                      <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">TPS + TVQ (14.975%)</span>
+                      <span>{(Math.round(oneTimeFees * 0.14975 * 100) / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-cyan-500/30">
+                      <span className="font-bold text-cyan-500">Total dû aujourd'hui</span>
+                      <span className="font-bold text-cyan-500">{oneTimeFeesWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 italic">Aucun prorata applicable</p>
+                  </CardContent>
+                </Card>
+
+                {/* Second Bill Preview - Monthly */}
+                <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-purple-500" />
+                      <CardTitle className="text-base">Aperçu de la 2e facture (mensuelle)</CardTitle>
+                    </div>
+                    <CardDescription className="text-xs">Services récurrents chaque mois</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    {selectedServices.filter(s => s.category === "Internet").map(s => (
+                      <div key={s.id} className="flex justify-between">
+                        <span className="text-muted-foreground">Internet — {s.name}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    ))}
+                    {selectedServices.filter(s => s.category === "TV").map(s => (
+                      <div key={s.id} className="flex justify-between">
+                        <span className="text-muted-foreground">TV — {s.name}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    ))}
+                    {selectedServices.filter(s => s.category === "Sécurité").map(s => (
+                      <div key={s.id} className="flex justify-between">
+                        <span className="text-muted-foreground">Sécurité — {s.name}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    ))}
+                    {selectedMobileService && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Mobile — {selectedMobileService.name} (×{mobileLineQuantity})</span>
+                        <span>{mobileMonthlyTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {selectedServices.filter(s => s.category === "Streaming").map(s => (
+                      <div key={s.id} className="flex justify-between">
+                        <span className="text-muted-foreground">Streaming — {s.name}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    ))}
+                    {selectedPaidChannels.length > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Chaînes payantes ({selectedPaidChannels.length})</span>
+                        <span>{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    <Separator className="my-2" />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sous-total mensuel</span>
+                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">TPS + TVQ (14.975%)</span>
+                      <span>{(Math.round(monthlyRecurring * 0.14975 * 100) / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-purple-500/30">
+                      <span className="font-bold text-purple-500">Total mensuel</span>
+                      <span className="font-bold text-purple-500">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 italic">Date de facturation: le 1er de chaque mois</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Montants estimatifs, taxes applicables selon votre adresse au Québec (TPS 5% + TVQ 9.975%).
+              </p>
 
               {/* Payment Section - Required before order submission */}
               <Card className="bg-card border-emerald-500/30">
