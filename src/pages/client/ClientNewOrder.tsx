@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -233,6 +234,7 @@ interface OrderDraft {
 
 const ClientNewOrder = () => {
   const { user } = useAuth();
+  const { isClient } = useRoleAccess();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
@@ -287,8 +289,8 @@ const ClientNewOrder = () => {
   const [transferValidationResult, setTransferValidationResult] = useState<"valid" | "invalid" | null>(null);
   const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string>("");
   
-  // SIM type selection state
-  const [simType, setSimType] = useState<"esim" | "physical">("esim");
+  // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
+  const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
   const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
@@ -327,7 +329,7 @@ const ClientNewOrder = () => {
         if (draft.transferImei) setTransferImei(draft.transferImei);
         if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
         if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
-        if (draft.simType) setSimType(draft.simType);
+        setSimType("physical"); // enforced: no SIM choice in client checkout
         if (draft.installationChoice) setInstallationChoice(draft.installationChoice);
         if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
         if (draft.selectedDate) setSelectedDate(draft.selectedDate);
@@ -368,7 +370,7 @@ const ClientNewOrder = () => {
       transferImei,
       transferValidationResult,
       assignedPhoneNumber,
-      simType,
+      simType: "physical",
       installationChoice,
       deliveryChoice,
       selectedDate,
@@ -1123,12 +1125,34 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     { value: "residency_card", label: "Carte de résidence permanente" },
   ];
 
-  // Group services by category - filter out "Sécurité entreprise"
+  // Group services by category - filter out "Sécurité entreprise" + hide equipment catalog for clients
   const groupedServices = services?.reduce((acc, service) => {
     // RULE: Remove "Sécurité entreprise" from catalog
-    if (service.name.toLowerCase().includes('entreprise') && service.category === 'Sécurité') {
+    if (service.name.toLowerCase().includes("entreprise") && service.category === "Sécurité") {
       return acc;
     }
+
+    const categoryLower = (service.category || "").toLowerCase();
+    const nameLower = (service.name || "").toLowerCase();
+
+    const isEquipmentCategory =
+      categoryLower.includes("équipement") ||
+      categoryLower.includes("equipement") ||
+      categoryLower === "equipment";
+
+    const isEquipmentName = [
+      "terminal nivra",
+      "router nivra",
+      "nivra born wifi",
+      "esim",
+      "physical sim",
+    ].some((k) => nameLower.includes(k));
+
+    // Defensive: never render equipment selection UI for clients
+    if (isClient && (isEquipmentCategory || isEquipmentName)) {
+      return acc;
+    }
+
     if (!acc[service.category]) {
       acc[service.category] = [];
     }
@@ -2081,65 +2105,26 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* SIM Card Selection */}
+              {/* SIM Cards (auto-attached; no manual selection) */}
               <Card className="bg-card border-blue-500/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Smartphone className="w-5 h-5 text-blue-500" />
-                    Carte SIM
+                    Cartes SIM
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Sélectionnez votre type de carte SIM:</p>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* eSIM Option */}
-                    <div
-                      onClick={() => setSimType("esim")}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        simType === "esim"
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-border hover:border-blue-500/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          simType === "esim" ? "border-blue-500" : "border-muted-foreground"
-                        }`}>
-                          {simType === "esim" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
-                        </div>
-                        <span className="font-medium">{SIM_CONFIG.esim.name}</span>
-                      </div>
-                      <p className="text-lg font-bold text-blue-500">
-                        {SIM_CONFIG.esim.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Activation instantanée</p>
-                    </div>
-                    
-                    {/* Physical SIM Option */}
-                    <div
-                      onClick={() => setSimType("physical")}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        simType === "physical"
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-border hover:border-blue-500/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          simType === "physical" ? "border-blue-500" : "border-muted-foreground"
-                        }`}>
-                          {simType === "physical" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
-                        </div>
-                        <span className="font-medium">{SIM_CONFIG.physical.name}</span>
-                      </div>
-                      <p className="text-lg font-bold text-blue-500">
-                        {SIM_CONFIG.physical.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Livraison incluse</p>
-                    </div>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Cartes SIM physiques incluses automatiquement selon le nombre de lignes mobiles.
+                  </p>
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-500">{SIM_CONFIG.physical.name} (×{totalMobileLineQuantity})</span>
+                    <span className="text-blue-500">
+                      {(SIM_CONFIG.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
                   </div>
-                  
+
                   <div className="text-sm text-muted-foreground space-y-1 pt-2">
                     <p>• {SIM_CONFIG.warranty}</p>
                     <p>• {SIM_CONFIG.notes}</p>
@@ -2178,8 +2163,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
-                      <span className="text-blue-500">{SIM_CONFIG[simType].price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-blue-500">{SIM_CONFIG.physical.name} (×{totalMobileLineQuantity})</span>
+                      <span className="text-blue-500">
+                        {(SIM_CONFIG.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </span>
                     </div>
                   </div>
 
