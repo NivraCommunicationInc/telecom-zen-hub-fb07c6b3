@@ -906,7 +906,11 @@ export type Database = {
           created_at: string
           id: string
           is_signed: boolean | null
+          pdf_generated_at: string | null
+          pdf_hash: string | null
           signed_at: string | null
+          template_id: string
+          template_version: string
           user_id: string
         }
         Insert: {
@@ -916,7 +920,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_signed?: boolean | null
+          pdf_generated_at?: string | null
+          pdf_hash?: string | null
           signed_at?: string | null
+          template_id?: string
+          template_version?: string
           user_id: string
         }
         Update: {
@@ -926,7 +934,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_signed?: boolean | null
+          pdf_generated_at?: string | null
+          pdf_hash?: string | null
           signed_at?: string | null
+          template_id?: string
+          template_version?: string
           user_id?: string
         }
         Relationships: []
