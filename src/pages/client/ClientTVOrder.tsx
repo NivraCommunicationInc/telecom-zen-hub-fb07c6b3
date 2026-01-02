@@ -46,6 +46,7 @@ import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
+import { PinSetupSection } from "@/components/checkout/PinSetupSection";
 
 // TV + Internet plan configurations
 const TV_PLANS = [
@@ -222,6 +223,10 @@ const ClientTVOrder = () => {
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
 
+  // Security PIN for new accounts
+  const [securityPin, setSecurityPin] = useState("");
+  const [confirmSecurityPin, setConfirmSecurityPin] = useState("");
+
   // ID verification data
   const [clientIdData, setClientIdData] = useState<ClientIDData>({
     firstName: "",
@@ -361,8 +366,8 @@ const ClientTVOrder = () => {
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
 
-      // First, update the profile with ID information
-      const { error: profileError } = await supabase.from("profiles").update({
+      // First, update the profile with ID information and PIN if provided
+      const profileUpdate: any = {
         first_name: clientIdData.firstName,
         last_name: clientIdData.lastName,
         full_name: `${clientIdData.firstName} ${clientIdData.lastName}`,
@@ -377,7 +382,16 @@ const ClientTVOrder = () => {
         id_number: clientIdData.idNumber,
         id_expiration: clientIdData.idExpiration || null,
         id_province: clientIdData.idProvince
-      }).eq("user_id", user.id);
+      };
+
+      // Save PIN if provided and valid
+      if (securityPin && securityPin.length === 4 && securityPin === confirmSecurityPin) {
+        profileUpdate.client_pin = securityPin;
+        profileUpdate.pin_failed_attempts = 0;
+        profileUpdate.pin_lockout_until = null;
+      }
+
+      const { error: profileError } = await supabase.from("profiles").update(profileUpdate).eq("user_id", user.id);
 
       if (profileError) {
         console.error("Profile update error:", profileError);

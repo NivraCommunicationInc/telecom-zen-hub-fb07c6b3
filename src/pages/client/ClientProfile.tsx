@@ -21,6 +21,7 @@ import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOf
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 
 const ClientProfile = () => {
   const { user } = useAuth();
@@ -397,6 +398,7 @@ const ClientProfile = () => {
 
           {/* Account Details */}
           <div className="space-y-6">
+            {/* Security Card with PIN Management */}
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -405,6 +407,9 @@ const ClientProfile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Client PIN Management */}
+                <ClientPinManagement />
+                
                 <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
                   <div>
                     <p className="font-medium text-foreground">Mot de passe</p>
