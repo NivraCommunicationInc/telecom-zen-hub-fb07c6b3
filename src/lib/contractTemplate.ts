@@ -1,7 +1,7 @@
 export const ACTIVE_CONTRACT_TEMPLATE = {
-  id: "contract_template_v2026_01_02",
-  version: "v2026.01.02-01",
-  updatedAt: "2026-01-02T00:00:00.000Z",
+  id: "contract_template_v2026_01_02_prepaid",
+  version: "v2026.01.02-Prepaid-01",
+  updatedAt: "2026-01-02T12:00:00.000Z",
 } as const;
 
 export const getContractEngineFooterLine = (params: {
