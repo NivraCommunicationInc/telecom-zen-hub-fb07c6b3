@@ -13,6 +13,7 @@ import {
   WARRANTY_POLICY,
   CANCELLATION_POLICY,
 } from "./contractPolicies";
+import { ACTIVE_CONTRACT_TEMPLATE, getContractEngineFooterLine } from "./contractTemplate";
 
 export interface ServiceItem {
   type: string;
@@ -45,6 +46,11 @@ export interface OneTimeFeeItem {
 }
 
 export interface TelecomContractData {
+  // Template metadata (for versioning + anti-cache proof)
+  contractId?: string;
+  templateId?: string;
+  templateVersion?: string;
+
   // A) Agreement Identification
   contractNumber: string;
   orderReference?: string;
@@ -236,7 +242,12 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
     doc.setDrawColor(...borderLight);
     doc.setLineWidth(0.3);
     doc.line(marginLeft, pageHeight - 18, pageWidth - marginRight, pageHeight - 18);
-    
+
+    const engineLine = getContractEngineFooterLine({
+      contractId: data.contractId || data.contractNumber,
+      templateVersion: data.templateVersion || ACTIVE_CONTRACT_TEMPLATE.version,
+    });
+
     doc.setFontSize(5);
     doc.setTextColor(...textMuted);
     doc.text(
@@ -245,6 +256,9 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
       pageHeight - 13,
       { align: "center" }
     );
+
+    doc.text(engineLine, pageWidth / 2, pageHeight - 9, { align: "center" });
+
     doc.setFont("helvetica", "bold");
     doc.text(`Page ${pageNumber}`, pageWidth - marginRight, pageHeight - 8, { align: "right" });
   };
@@ -623,11 +637,17 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   
   // ========== I) PREPAID BILLING & LATE PAYMENT ==========
   addSectionDivider("I", "Prepaid Billing & Late Payment");
-  
+
+  // Fixed fee schedule (must always appear for audits / regressions)
+  addParagraph(
+    `Standard fees (CAD): Activation $${CONTRACT_TERMS.fees.activation}, Delivery $${CONTRACT_TERMS.fees.delivery}, Reactivation $${CONTRACT_TERMS.fees.reactivation}, Nivra 4K Terminal $${CONTRACT_TERMS.fees.tvTerminal}, Nivra Born WiFi Router $${CONTRACT_TERMS.fees.router}.`
+  );
+  addParagraph(`Règle: Le forfait TV nécessite un forfait Internet actif.`);
+
   addParagraph(PREPAID_BILLING_SUMMARY.en);
   currentY += 4;
   addParagraph(LATE_PAYMENT_POLICY.en);
-  
+
   // ========== J) CANCELLATION / TERMINATION ==========
   addSectionDivider("J", "Cancellation (No Financing)");
   
@@ -778,7 +798,9 @@ export const downloadTelecomContractPDF = (data: TelecomContractData): void => {
   try {
     const doc = generateTelecomContractPDF(data);
     const blob = doc.output("blob");
-    const filename = `TSA-${data.contractNumber}.pdf`;
+    const version = data.templateVersion || ACTIVE_CONTRACT_TEMPLATE.version;
+    const idPart = data.contractId || data.contractNumber;
+    const filename = `TSA-${idPart}-${version}.pdf`;
     safePDFDownload(blob, filename);
   } catch (error) {
     console.error("Error generating PDF:", error);
@@ -790,7 +812,9 @@ export const viewTelecomContractPDF = (data: TelecomContractData): void => {
   try {
     const doc = generateTelecomContractPDF(data);
     const blob = doc.output("blob");
-    const filename = `TSA-${data.contractNumber}.pdf`;
+    const version = data.templateVersion || ACTIVE_CONTRACT_TEMPLATE.version;
+    const idPart = data.contractId || data.contractNumber;
+    const filename = `TSA-${idPart}-${version}.pdf`;
     safePDFOpen(blob, filename);
   } catch (error) {
     console.error("Error viewing PDF:", error);
