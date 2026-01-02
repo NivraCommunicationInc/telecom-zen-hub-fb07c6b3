@@ -55,6 +55,7 @@ import ClientChannels from "./pages/client/ClientChannels";
 import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
 import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacement";
+import ClientMonthlyInvoices from "./pages/client/ClientMonthlyInvoices";
 import TechnicianAuth from "./pages/technician/TechnicianAuth";
 import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 import AdminReplacements from "./pages/admin/AdminReplacements";
@@ -153,6 +154,7 @@ const App = () => (
               <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientSecurityCheck><ClientNewOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/order-confirmation" element={<ClientProtectedRoute><ClientSecurityCheck><ClientOrderConfirmation /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientSecurityCheck><ClientInvoices /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/monthly-invoices" element={<ClientProtectedRoute><ClientSecurityCheck><ClientMonthlyInvoices /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/services" element={<ClientProtectedRoute><ClientSecurityCheck><ClientServices /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/channels" element={<ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute>} />

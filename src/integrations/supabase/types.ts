@@ -1336,6 +1336,114 @@ export type Database = {
           },
         ]
       }
+      monthly_invoice_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          subscription_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          line_total: number
+          quantity?: number
+          subscription_id?: string | null
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number
+          subscription_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "monthly_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_invoice_lines_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monthly_invoices: {
+        Row: {
+          client_id: string
+          created_at: string
+          due_date: string
+          id: string
+          invoice_number: string | null
+          issue_date: string
+          notes: string | null
+          paid_at: string | null
+          payment_reference: string | null
+          period_end: string
+          period_start: string
+          status: string
+          subtotal: number
+          total: number
+          tps_amount: number | null
+          tvq_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_number?: string | null
+          issue_date?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          subtotal?: number
+          total?: number
+          tps_amount?: number | null
+          tvq_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_number?: string | null
+          issue_date?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          tps_amount?: number | null
+          tvq_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_documents: {
         Row: {
           created_at: string
@@ -2881,11 +2989,15 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          activation_date: string | null
           amount: number
+          bill_cycle_day: number | null
           billing_cycle: string
           created_at: string
           id: string
+          last_invoiced_through: string | null
           next_billing_date: string | null
+          next_invoice_date: string | null
           plan_name: string
           start_date: string
           status: string
@@ -2893,11 +3005,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activation_date?: string | null
           amount: number
+          bill_cycle_day?: number | null
           billing_cycle?: string
           created_at?: string
           id?: string
+          last_invoiced_through?: string | null
           next_billing_date?: string | null
+          next_invoice_date?: string | null
           plan_name: string
           start_date?: string
           status?: string
@@ -2905,11 +3021,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activation_date?: string | null
           amount?: number
+          bill_cycle_day?: number | null
           billing_cycle?: string
           created_at?: string
           id?: string
+          last_invoiced_through?: string | null
           next_billing_date?: string | null
+          next_invoice_date?: string | null
           plan_name?: string
           start_date?: string
           status?: string
@@ -3476,6 +3596,7 @@ export type Database = {
       generate_contract_number: { Args: never; Returns: string }
       generate_internal_ticket_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      generate_monthly_invoice_number: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_payment_reference: { Args: never; Returns: string }
