@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ import { TVChannelSelection } from "@/components/checkout/TVChannelSelection";
 import { StreamingServiceSelection } from "@/components/checkout/StreamingServiceSelection";
 import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone } from "@/components/checkout";
 import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
+import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
 
 // Channel interface
 interface Channel {
@@ -204,62 +205,131 @@ const ClientTVOrder = () => {
 
   const locationState = location.state as LocationState | null;
 
-  // Step management - now includes channel step
-  const [step, setStep] = useState(() => {
-    if (locationState?.validatedAddress && locationState?.addressDetails) {
-      return 2;
-    }
-    return 1;
+  // Use the order draft hook for persistent state
+  const {
+    draft,
+    isHydrated,
+    setStep,
+    setAddress: setDraftAddress,
+    selectPlan,
+    setFreeChannels,
+    setPremiumChannels,
+    setStreamingServices,
+    setTerminalCount: setDraftTerminalCount,
+    setInstallationMethod: setDraftInstallationMethod,
+    setSchedule,
+    setPromo,
+    setNotes: setDraftNotes,
+    clearDraft,
+  } = useOrderDraft({
+    orderType: 'tv',
+    initialAddress: locationState?.validatedAddress,
+    initialAddressDetails: locationState?.addressDetails,
+    initialPlanId: locationState?.selectedPlanId,
   });
+
+  // Derive step from draft
+  const step = draft.currentStep;
   
-  // Address validation state
-  const [address, setAddress] = useState(locationState?.validatedAddress || "");
-  const [addressValidation, setAddressValidation] = useState<AddressValidation | null>(() => {
-    if (locationState?.addressDetails) {
-      return {
-        isValid: true,
-        isQuebec: true,
-        formattedAddress: locationState.addressDetails.formattedAddress,
-        city: locationState.addressDetails.city || "",
-        province: "QC",
-        postalCode: locationState.addressDetails.postalCode || ""
-      };
+  // Derive address state from draft
+  const address = draft.address;
+  const addressValidation = draft.addressValidation;
+  const addressBlocked = draft.addressValidation?.isQuebec === false;
+  
+  // Derive selected plan from draft
+  const selectedPlan = useMemo(() => {
+    if (!draft.selectedPlanId) return null;
+    return TV_PLANS.find(p => p.id === draft.selectedPlanId) || null;
+  }, [draft.selectedPlanId]);
+  
+  // Channel selection state - derived from draft IDs + actual channel objects
+  const [selectedFreeChannels, setSelectedFreeChannelsState] = useState<Channel[]>([]);
+  const [selectedPremiumChannels, setSelectedPremiumChannelsState] = useState<Channel[]>([]);
+  
+  // Streaming services state - derived from draft IDs + actual service objects
+  const [selectedStreamingServices, setSelectedStreamingServicesState] = useState<StreamingService[]>([]);
+  
+  // Equipment - from draft
+  const terminalCount = draft.terminalCount;
+  const routerAcknowledged = true;
+  
+  // Installation method from draft
+  const installationMethod = draft.installationMethod;
+  
+  // Scheduling from draft
+  const selectedDate = draft.selectedDate;
+  const selectedTime = draft.selectedTime;
+  
+  // Promo from draft
+  const discountCode = draft.discountCode;
+  const installationCredit = draft.installationCredit;
+  
+  // Notes from draft
+  const notes = draft.notes;
+
+  // Wrapper functions to update draft state
+  const setAddress = useCallback((value: string) => {
+    if (!value) {
+      setDraftAddress('', null);
     }
-    return null;
-  });
-  const [addressBlocked, setAddressBlocked] = useState(false);
+  }, [setDraftAddress]);
+
+  const handleAddressValidation = useCallback((validation: OrderDraft['addressValidation'] | null, formattedAddress: string) => {
+    setDraftAddress(formattedAddress, validation);
+  }, [setDraftAddress]);
+
+  const setSelectedPlan = useCallback((plan: typeof TV_PLANS[0] | null) => {
+    selectPlan(plan?.id || null);
+    // Clear channel selections when plan changes
+    setSelectedFreeChannelsState([]);
+    setSelectedPremiumChannelsState([]);
+  }, [selectPlan]);
+
+  const setSelectedFreeChannels = useCallback((channels: Channel[]) => {
+    setSelectedFreeChannelsState(channels);
+    setFreeChannels(channels.map(c => c.id));
+  }, [setFreeChannels]);
+
+  const setSelectedPremiumChannels = useCallback((channels: Channel[]) => {
+    setSelectedPremiumChannelsState(channels);
+    setPremiumChannels(channels.map(c => c.id));
+  }, [setPremiumChannels]);
+
+  const setSelectedStreamingServices = useCallback((services: StreamingService[]) => {
+    setSelectedStreamingServicesState(services);
+    setStreamingServices(services.map(s => s.id));
+  }, [setStreamingServices]);
+
+  const setTerminalCount = useCallback((count: number) => {
+    setDraftTerminalCount(count);
+  }, [setDraftTerminalCount]);
+
+  const setInstallationMethod = useCallback((method: "auto" | "technician") => {
+    setDraftInstallationMethod(method);
+  }, [setDraftInstallationMethod]);
+
+  const setSelectedDate = useCallback((date: string) => {
+    setSchedule(date, selectedTime);
+  }, [setSchedule, selectedTime]);
+
+  const setSelectedTime = useCallback((time: string) => {
+    setSchedule(selectedDate, time);
+  }, [setSchedule, selectedDate]);
+
+  const setDiscountCode = useCallback((code: string) => {
+    setPromo(code, installationCredit);
+  }, [setPromo, installationCredit]);
+
+  const setInstallationCredit = useCallback((credit: number) => {
+    setPromo(discountCode, credit);
+  }, [setPromo, discountCode]);
+
+  const setNotes = useCallback((value: string) => {
+    setDraftNotes(value);
+  }, [setDraftNotes]);
   
-  // Plan selection
-  const [selectedPlan, setSelectedPlan] = useState<typeof TV_PLANS[0] | null>(() => {
-    if (locationState?.selectedPlanId) {
-      return TV_PLANS.find(p => p.id === locationState.selectedPlanId) || null;
-    }
-    return null;
-  });
-  
-  // Channel selection state
-  const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
-  const [selectedPremiumChannels, setSelectedPremiumChannels] = useState<Channel[]>([]);
-  
-  // Streaming services state
-  const [selectedStreamingServices, setSelectedStreamingServices] = useState<StreamingService[]>([]);
-  
-  // Equipment - auto-attached based on plan rules (no manual selection)
-  const [terminalCount, setTerminalCount] = useState(1);
-  const routerAcknowledged = true; // Equipment auto-acknowledged since it's plan-driven
-  
-  // Installation method
-  const [installationMethod, setInstallationMethod] = useState<"auto" | "technician">("auto");
-  
-  // Order details
-  const [notes, setNotes] = useState("");
-  const [discountCode, setDiscountCode] = useState("");
-  const [installationCredit, setInstallationCredit] = useState(0);
+  // Order details - local state (not persisted)
   const [termsAccepted, setTermsAccepted] = useState(false);
-  
-  // Installation scheduling
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
   
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
@@ -387,30 +457,23 @@ const ClientTVOrder = () => {
     const isQuebecProvince = province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
     const isQuebec = isQuebecPostal || isQuebecProvince;
     
+    const validation: OrderDraft['addressValidation'] = {
+      isValid: true,
+      isQuebec,
+      formattedAddress: details.formattedAddress,
+      city: details.city || "",
+      province: isQuebec ? "QC" : province,
+      postalCode: postalCode
+    };
+    
+    handleAddressValidation(validation, details.formattedAddress);
+    
     if (isQuebec) {
-      setAddressValidation({
-        isValid: true,
-        isQuebec: true,
-        formattedAddress: details.formattedAddress,
-        city: details.city || "",
-        province: "QC",
-        postalCode: postalCode
-      });
-      setAddressBlocked(false);
       toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
     } else {
-      setAddressValidation({
-        isValid: true,
-        isQuebec: false,
-        formattedAddress: details.formattedAddress,
-        city: details.city || "",
-        province: province,
-        postalCode: postalCode
-      });
-      setAddressBlocked(true);
       toast.error(isFrench ? "Désolé, nos services sont disponibles uniquement au Québec." : "Sorry, our services are only available in Quebec.");
     }
-  }, [isFrench]);
+  }, [isFrench, handleAddressValidation]);
 
   // Apply discount code
   const applyDiscountCode = () => {
@@ -615,6 +678,8 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       setCreatedOrder(data);
+      // Clear the draft after successful order
+      clearDraft();
       setStep(5);
     },
     onError: (error) => {
@@ -767,10 +832,8 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   <AddressAutocomplete
                     value={address}
                     onChange={(value) => {
-                      setAddress(value);
                       if (!value) {
-                        setAddressValidation(null);
-                        setAddressBlocked(false);
+                        setDraftAddress('', null);
                       }
                     }}
                     onAddressSelect={handleAddressSelect}
