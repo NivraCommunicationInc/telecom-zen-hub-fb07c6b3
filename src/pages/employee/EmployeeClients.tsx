@@ -71,6 +71,7 @@ import BackToTopButton from "@/components/ui/back-to-top-button";
 import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
+import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -772,6 +773,13 @@ const EmployeeClients = () => {
                   <ClientInternalNotes 
                     clientId={selectedClient.user_id} 
                     clientEmail={selectedClient.email}
+                  />
+
+                  {/* Authorized Contacts */}
+                  <AdminAuthorizedContacts 
+                    clientId={selectedClient.user_id}
+                    clientName={selectedClient.full_name}
+                    isEmployee={true}
                   />
 
                   {/* Profile Fields */}

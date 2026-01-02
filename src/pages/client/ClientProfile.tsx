@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
+import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
 
 const ClientProfile = () => {
   const { user } = useAuth();
@@ -493,6 +494,11 @@ const ClientProfile = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Authorized Contacts - Full Width */}
+          <div className="lg:col-span-2">
+            <ClientAuthorizedContacts />
           </div>
         </div>
       </div>
