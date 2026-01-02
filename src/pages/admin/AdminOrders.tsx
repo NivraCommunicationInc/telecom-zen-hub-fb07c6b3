@@ -64,6 +64,7 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
 
 // Status configurations
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
@@ -391,16 +392,33 @@ const AdminOrders = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_data, order) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-      logActivity("update", "order", selectedOrder?.id, { 
+      logActivity("update", "order", selectedOrder?.id, {
         status: selectedOrder?.status,
-        order_number: selectedOrder?.order_number 
+        order_number: selectedOrder?.order_number,
       }, {
         changedField: "status",
         newValue: selectedOrder?.status,
-        reason: "Mise à jour de commande"
+        reason: "Mise à jour de commande",
       });
+
+      // Force contract regeneration audit when reaching Processed/Completed flow
+      const shouldGenerate =
+        ["shipped", "completed", "completed_installation"].includes(order?.status) ||
+        order?.payment_status === "captured";
+
+      if (shouldGenerate) {
+        try {
+          await ensureOrderContractUpToDate({
+            orderId: order.id,
+            trigger: `admin_order_update:${order.status}`,
+          });
+        } catch (e) {
+          console.error("Failed to generate contract audit for order", order?.id, e);
+        }
+      }
+
       toast({ title: "Commande mise à jour" });
     },
     onError: () => {
@@ -563,7 +581,7 @@ const AdminOrders = () => {
 
       return { paymentReference };
     },
-    onSuccess: (data, { orderId, newStatus }) => {
+    onSuccess: async (data, { orderId, newStatus }) => {
       // Immediately update selectedOrder for instant UI feedback
       if (selectedOrder?.id === orderId) {
         setSelectedOrder((prev: any) => prev ? {
@@ -574,26 +592,38 @@ const AdminOrders = () => {
           amount_paid: newStatus === "captured" ? prev.total_amount : prev.amount_paid,
         } : prev);
       }
-      
+
       // Invalidate queries to sync with server
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-billing"] });
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
-      
+
+      // Contract regeneration audit when payment becomes captured
+      if (newStatus === "captured") {
+        try {
+          await ensureOrderContractUpToDate({
+            orderId,
+            trigger: "admin_payment_captured",
+          });
+        } catch (e) {
+          console.error("Failed to generate contract audit on payment capture", orderId, e);
+        }
+      }
+
       const order = orders?.find((o: any) => o.id === orderId);
-      logActivity("update", "order", orderId, { 
+      logActivity("update", "order", orderId, {
         payment_status: newStatus,
         payment_reference: data?.paymentReference,
-        order_number: order?.order_number
+        order_number: order?.order_number,
       }, {
         changedField: "payment_status",
         oldValue: order?.payment_status,
         newValue: newStatus,
-        reason: `Statut paiement changé à ${paymentStatusConfig[newStatus]?.label || newStatus}`
+        reason: `Statut paiement changé à ${paymentStatusConfig[newStatus]?.label || newStatus}`,
       });
-      toast({ 
+      toast({
         title: `Paiement ${paymentStatusConfig[newStatus]?.label || newStatus}`,
-        description: data?.paymentReference ? `Réf: ${data.paymentReference}` : undefined
+        description: data?.paymentReference ? `Réf: ${data.paymentReference}` : undefined,
       });
       setConfirmAction(null);
     },
