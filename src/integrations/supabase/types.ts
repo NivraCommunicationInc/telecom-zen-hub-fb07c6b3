@@ -828,40 +828,73 @@ export type Database = {
       }
       contact_requests: {
         Row: {
+          address_apartment: string | null
+          address_city: string | null
+          address_postal_code: string | null
+          address_province: string | null
+          address_street: string | null
+          consent_given: boolean | null
           created_at: string
           email: string
+          first_name: string | null
           id: string
           internal_notes: string | null
+          last_name: string | null
           name: string
           notes: string | null
           phone: string
+          preferred_contact: string | null
           priority: string | null
           request_number: string | null
+          source: string | null
           status: string
+          subject: string | null
         }
         Insert: {
+          address_apartment?: string | null
+          address_city?: string | null
+          address_postal_code?: string | null
+          address_province?: string | null
+          address_street?: string | null
+          consent_given?: boolean | null
           created_at?: string
           email: string
+          first_name?: string | null
           id?: string
           internal_notes?: string | null
+          last_name?: string | null
           name: string
           notes?: string | null
           phone: string
+          preferred_contact?: string | null
           priority?: string | null
           request_number?: string | null
+          source?: string | null
           status?: string
+          subject?: string | null
         }
         Update: {
+          address_apartment?: string | null
+          address_city?: string | null
+          address_postal_code?: string | null
+          address_province?: string | null
+          address_street?: string | null
+          consent_given?: boolean | null
           created_at?: string
           email?: string
+          first_name?: string | null
           id?: string
           internal_notes?: string | null
+          last_name?: string | null
           name?: string
           notes?: string | null
           phone?: string
+          preferred_contact?: string | null
           priority?: string | null
           request_number?: string | null
+          source?: string | null
           status?: string
+          subject?: string | null
         }
         Relationships: []
       }
