@@ -167,11 +167,10 @@ const DELIVERY_CONFIG = {
   }
 };
 
-// Quebec carriers for transfer selection
+// Quebec carriers for transfer selection (competitors only - Nivra is our brand)
 const QUEBEC_CARRIERS = [
   "Bell",
   "Rogers",
-  "Vidéotron",
   "Telus",
   "Fido",
   "Koodo",

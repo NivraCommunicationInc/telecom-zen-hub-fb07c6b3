@@ -28,6 +28,7 @@ interface Channel {
   is_hd: boolean;
   is_4k: boolean;
   is_active: boolean;
+  base_pack: string | null;
 }
 
 interface TVChannelSelectionProps {
@@ -77,9 +78,9 @@ export const TVChannelSelection = ({
     },
   });
 
-  // Categorize channels
+  // Categorize channels - La Base = only channels with base_pack = 'LA_BASE_23' (exactly 23)
   const baseChannels = useMemo(() => 
-    channels.filter(ch => ch.category === "base"), [channels]);
+    channels.filter(ch => ch.base_pack === "LA_BASE_23"), [channels]);
   const freeChoiceChannels = useMemo(() => 
     channels.filter(ch => ch.category === "free_choice"), [channels]);
   const paidChannels = useMemo(() => 
@@ -153,7 +154,7 @@ export const TVChannelSelection = ({
 
   return (
     <div className="space-y-6">
-      {/* Section A: La Base - 23+ chaînes HD (Included) */}
+      {/* Section A: La Base - 23 chaînes HD (Included) - Nivra official lineup */}
       <Card className="bg-card border-emerald-500/30">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -163,12 +164,12 @@ export const TVChannelSelection = ({
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  {isFrench ? "La Base" : "The Base"} — {baseChannels.length} {isFrench ? "chaînes HD" : "HD channels"}
+                  {isFrench ? "La Base" : "The Base"} — 23 {isFrench ? "chaînes HD" : "HD channels"}
                 </CardTitle>
                 <CardDescription>
                   {isFrench 
-                    ? "Incluant les réseaux généralistes canadiens. Toujours inclus."
-                    : "Including Canadian general networks. Always included."}
+                    ? "Incluant les réseaux généralistes canadiens. Toujours inclus avec votre forfait."
+                    : "Including Canadian general networks. Always included with your plan."}
                 </CardDescription>
               </div>
             </div>
@@ -405,7 +406,7 @@ export const TVChannelSelection = ({
                   {isFrench ? "Résumé des chaînes sélectionnées" : "Selected Channels Summary"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {baseChannels.length} {isFrench ? "chaînes de base" : "base channels"} + {" "}
+                  23 {isFrench ? "chaînes de base incluses" : "base channels included"} + {" "}
                   {selectedFreeChannels.length} {isFrench ? "au choix" : "choices"} + {" "}
                   {selectedPremiumChannels.length} premium
                 </p>

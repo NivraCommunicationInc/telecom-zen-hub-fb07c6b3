@@ -246,7 +246,7 @@ const ClientAppointments = () => {
     // Remove carrier names and consultation text
     return title
       .replace(/consultation/gi, 'Rendez-vous')
-      .replace(/Bell|Rogers|Telus|Vidéotron|Fido|Koodo|Virgin|Chatr|Freedom|Lucky|Public|Fizz/gi, '')
+      .replace(/Bell|Rogers|Telus|Fido|Koodo|Virgin|Chatr|Freedom|Lucky|Public|Fizz/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
   };
@@ -255,7 +255,7 @@ const ClientAppointments = () => {
     if (!description) return null;
     // Remove carrier names from description
     return description
-      .replace(/Bell|Rogers|Telus|Vidéotron|Fido|Koodo|Virgin|Chatr|Freedom|Lucky|Public|Fizz/gi, '')
+      .replace(/Bell|Rogers|Telus|Fido|Koodo|Virgin|Chatr|Freedom|Lucky|Public|Fizz/gi, '')
       .replace(/consultation/gi, 'rendez-vous')
       .replace(/\s+/g, ' ')
       .trim();
