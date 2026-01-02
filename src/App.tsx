@@ -36,8 +36,10 @@ import AdminChannels from "./pages/admin/AdminChannels";
 import AdminTechnicians from "./pages/admin/AdminTechnicians";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 import ClientProtectedRoute from "./components/client/ClientProtectedRoute";
+import ClientSecurityCheck from "./components/client/ClientSecurityCheck";
 import TechnicianProtectedRoute from "./components/technician/TechnicianProtectedRoute";
 import ClientAuth from "./pages/client/ClientAuth";
+import ClientSuspended from "./pages/client/ClientSuspended";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAppointments from "./pages/client/ClientAppointments";
 import ClientInvoices from "./pages/client/ClientInvoices";
@@ -144,21 +146,22 @@ const App = () => (
               <Route path="/employee/system-status" element={<EmployeeProtectedRoute><EmployeeSystemStatus /></EmployeeProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
-              <Route path="/portal" element={<ClientProtectedRoute><ClientDashboard /></ClientProtectedRoute>} />
-              <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientAppointments /></ClientProtectedRoute>} />
-              <Route path="/portal/orders" element={<ClientProtectedRoute><ClientOrders /></ClientProtectedRoute>} />
-              <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientNewOrder /></ClientProtectedRoute>} />
-              <Route path="/portal/order-confirmation" element={<ClientProtectedRoute><ClientOrderConfirmation /></ClientProtectedRoute>} />
-              <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientInvoices /></ClientProtectedRoute>} />
-              <Route path="/portal/services" element={<ClientProtectedRoute><ClientServices /></ClientProtectedRoute>} />
-              <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientTickets /></ClientProtectedRoute>} />
-              <Route path="/portal/channels" element={<ClientProtectedRoute><ClientChannels /></ClientProtectedRoute>} />
-              <Route path="/portal/internet" element={<ClientProtectedRoute><ClientInternetOrder /></ClientProtectedRoute>} />
-              <Route path="/portal/tv-order" element={<ClientProtectedRoute><ClientTVOrder /></ClientProtectedRoute>} />
-              <Route path="/portal/replacement" element={<ClientProtectedRoute><ClientEquipmentReplacement /></ClientProtectedRoute>} />
-              <Route path="/portal/profile" element={<ClientProtectedRoute><ClientProfile /></ClientProtectedRoute>} />
-              <Route path="/portal/payments" element={<ClientProtectedRoute><ClientPayments /></ClientProtectedRoute>} />
-              <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientContracts /></ClientProtectedRoute>} />
+              <Route path="/portal/suspended" element={<ClientSuspended />} />
+              <Route path="/portal" element={<ClientProtectedRoute><ClientSecurityCheck><ClientDashboard /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientSecurityCheck><ClientAppointments /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/orders" element={<ClientProtectedRoute><ClientSecurityCheck><ClientOrders /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientSecurityCheck><ClientNewOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/order-confirmation" element={<ClientProtectedRoute><ClientSecurityCheck><ClientOrderConfirmation /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientSecurityCheck><ClientInvoices /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/services" element={<ClientProtectedRoute><ClientSecurityCheck><ClientServices /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/channels" element={<ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/internet" element={<ClientProtectedRoute><ClientSecurityCheck><ClientInternetOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/tv-order" element={<ClientProtectedRoute><ClientSecurityCheck><ClientTVOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/replacement" element={<ClientProtectedRoute><ClientSecurityCheck><ClientEquipmentReplacement /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/profile" element={<ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/payments" element={<ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute>} />
               {/* Technician Portal Routes */}
               <Route path="/technician/auth" element={<TechnicianAuth />} />
               <Route path="/technician" element={<TechnicianProtectedRoute><TechnicianDashboard /></TechnicianProtectedRoute>} />

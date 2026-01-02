@@ -66,6 +66,7 @@ import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientAccessGateModal } from "@/components/admin/ClientAccessGateModal";
 import { useClientAccessGate } from "@/hooks/useClientAccessGate";
+import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -653,6 +654,15 @@ const EmployeeClients = () => {
 
                 {/* Profile Tab */}
                 <TabsContent value="profile" className="space-y-4 pr-4">
+                  {/* Security Alert Banner */}
+                  <SecurityAlertBanner
+                    alertLevel={selectedClient.security_alert_level || "none"}
+                    flaggedAt={selectedClient.security_flagged_at}
+                    flaggedOrderId={selectedClient.security_flagged_order_id}
+                    securityStatus={selectedClient.security_status}
+                    securityReason={selectedClient.security_reason}
+                  />
+
                   {selectedClient.account_status && selectedClient.account_status !== 'active' && (
                     <div className={`p-4 rounded-lg border ${
                       selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
