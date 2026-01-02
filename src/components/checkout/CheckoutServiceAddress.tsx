@@ -2,6 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MapPin, Home, Building, Mail } from "lucide-react";
+import AddressAutocomplete, { AddressDetails } from "@/components/AddressAutocomplete";
+import { useState } from "react";
 
 interface ServiceAddress {
   address: string;
@@ -45,6 +47,33 @@ export const CheckoutServiceAddress = ({
   onChange,
   errors = {},
 }: CheckoutServiceAddressProps) => {
+  const [addressInputValue, setAddressInputValue] = useState(address.address);
+
+  const handleAddressSelect = (details: AddressDetails) => {
+    // Build the street address from components
+    const streetAddress = [details.streetNumber, details.street]
+      .filter(Boolean)
+      .join(" ") || details.formattedAddress.split(",")[0];
+    
+    onChange("address", streetAddress);
+    setAddressInputValue(streetAddress);
+    
+    if (details.city) {
+      onChange("city", details.city);
+    }
+    if (details.province) {
+      onChange("province", details.province === "Quebec" || details.province === "Québec" ? "QC" : details.province);
+    }
+    if (details.postalCode) {
+      onChange("postalCode", formatPostalCode(details.postalCode));
+    }
+  };
+
+  const handleAddressInputChange = (value: string) => {
+    setAddressInputValue(value);
+    onChange("address", value);
+  };
+
   return (
     <Card className="bg-card border-border">
       <CardHeader>
@@ -63,12 +92,13 @@ export const CheckoutServiceAddress = ({
               <Home className="w-4 h-4 text-muted-foreground" />
               Adresse (numéro + rue) <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="service-address"
+            <AddressAutocomplete
+              value={addressInputValue}
+              onChange={handleAddressInputChange}
+              onAddressSelect={handleAddressSelect}
               placeholder="Ex: 123 Rue Saint-Laurent"
-              value={address.address}
-              onChange={(e) => onChange("address", e.target.value)}
               className={errors.address ? "border-destructive" : ""}
+              restrictToQuebec={true}
             />
             {errors.address && (
               <p className="text-xs text-destructive">{errors.address}</p>

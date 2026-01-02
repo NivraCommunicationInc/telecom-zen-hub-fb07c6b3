@@ -2,17 +2,24 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { MapPin, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
-interface AddressSuggestion {
-  place_id: string;
-  description: string;
-  structured_formatting: {
-    main_text: string;
-    secondary_text: string;
+interface MapboxSuggestion {
+  mapbox_id: string;
+  name: string;
+  full_address: string;
+  place_formatted: string;
+  context?: {
+    postcode?: { name: string };
+    place?: { name: string };
+    region?: { name: string; region_code: string };
+    country?: { name: string };
+    street?: { name: string };
+    address?: { street_number: string; address_number: string };
   };
 }
 
-interface AddressDetails {
+export interface AddressDetails {
   formattedAddress: string;
   streetNumber?: string;
   street?: string;
@@ -20,6 +27,8 @@ interface AddressDetails {
   province?: string;
   postalCode?: string;
   country?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface AddressAutocompleteProps {
@@ -32,107 +41,26 @@ interface AddressAutocompleteProps {
   restrictToQuebec?: boolean;
 }
 
-// Canada Post API simulation with common Quebec cities
-const QUEBEC_CITIES = [
-  "Montreal", "Montréal", "Laval", "Gatineau", "Longueuil", "Sherbrooke",
-  "Saguenay", "Lévis", "Trois-Rivières", "Terrebonne", "Saint-Jean-sur-Richelieu",
-  "Repentigny", "Brossard", "Drummondville", "Saint-Jérôme", "Granby",
-  "Blainville", "Saint-Hyacinthe", "Shawinigan", "Dollard-des-Ormeaux",
-  "Rimouski", "Châteauguay", "Victoriaville", "Alma", "Rouyn-Noranda",
-  "Mirabel", "Mascouche", "Chambly", "Varennes", "Candiac"
-];
-
-// Sample addresses for autocomplete simulation
-const generateSuggestions = (input: string): AddressSuggestion[] => {
-  if (!input || input.length < 3) return [];
-  
-  const inputLower = input.toLowerCase();
-  const suggestions: AddressSuggestion[] = [];
-  
-  // Check if input contains a number (street number)
-  const hasNumber = /\d/.test(input);
-  const numbers = input.match(/\d+/);
-  const streetNumber = numbers ? numbers[0] : Math.floor(Math.random() * 9000 + 100).toString();
-  
-  // Extract text part
-  const textPart = input.replace(/\d+/g, "").trim();
-  
-  // Generate Quebec suggestions
-  const matchingCities = QUEBEC_CITIES.filter(city => 
-    city.toLowerCase().includes(inputLower) || 
-    inputLower.includes(city.toLowerCase())
-  );
-  
-  const cityToUse = matchingCities.length > 0 ? matchingCities : QUEBEC_CITIES.slice(0, 5);
-  
-  // Common Quebec street names
-  const streetNames = ["Saint-Laurent", "Sainte-Catherine", "René-Lévesque", "Sherbrooke", "Mont-Royal", "Jean-Talon", "Notre-Dame", "Saint-Denis", "Maisonneuve", "Berri"];
-  
-  // Quebec postal code prefixes
-  const postalPrefixes = ["H1A", "H2B", "H3C", "H4D", "G1A", "J4B", "G1V", "H2X", "J3Y", "H9S"];
-  
-  cityToUse.slice(0, 4).forEach((city, index) => {
-    const street = streetNames[index % streetNames.length];
-    const postalPrefix = postalPrefixes[index % postalPrefixes.length];
-    const postalSuffix = `${Math.floor(Math.random() * 9)}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(Math.random() * 9)}`;
-    
-    suggestions.push({
-      place_id: `place_${index}_${Date.now()}`,
-      description: `${streetNumber} ${textPart || street}, ${city}, QC ${postalPrefix} ${postalSuffix}, Canada`,
-      structured_formatting: {
-        main_text: `${streetNumber} ${textPart || street}`,
-        secondary_text: `${city}, QC, Canada`
-      }
-    });
-  });
-  
-  return suggestions;
-};
-
-// Parse address from description
-const parseAddress = (description: string): AddressDetails => {
-  const parts = description.split(",").map(p => p.trim());
-  const streetPart = parts[0] || "";
-  const cityPart = parts[1] || "";
-  const provincePostalPart = parts[2] || "";
-  
-  // Extract postal code (Canadian format: A1A 1A1)
-  const postalMatch = provincePostalPart.match(/([A-Z]\d[A-Z]\s?\d[A-Z]\d)/i);
-  const postalCode = postalMatch ? postalMatch[1] : "";
-  const province = provincePostalPart.replace(postalCode, "").trim() || "QC";
-  
-  // Extract street number
-  const streetNumberMatch = streetPart.match(/^(\d+)/);
-  const streetNumber = streetNumberMatch ? streetNumberMatch[1] : "";
-  const street = streetPart.replace(/^\d+\s*/, "");
-  
-  return {
-    formattedAddress: description,
-    streetNumber,
-    street,
-    city: cityPart,
-    province,
-    postalCode,
-    country: "Canada"
-  };
-};
-
 const AddressAutocomplete = ({
   value,
   onChange,
   onAddressSelect,
-  placeholder = "Enter your address...",
+  placeholder = "Entrez votre adresse...",
   className,
   disabled = false,
-  restrictToQuebec = true
+  restrictToQuebec = false
 }: AddressAutocompleteProps) => {
-  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<MapboxSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [noResults, setNoResults] = useState(false);
+  const [hasValidSelection, setHasValidSelection] = useState(false);
+  
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
+  const sessionTokenRef = useRef<string>(crypto.randomUUID());
 
   // Handle click outside to close suggestions
   useEffect(() => {
@@ -145,8 +73,8 @@ const AddressAutocomplete = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch suggestions with debounce
-  const fetchSuggestions = useCallback((input: string) => {
+  // Fetch suggestions from Mapbox via edge function
+  const fetchSuggestions = useCallback(async (input: string) => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -154,33 +82,130 @@ const AddressAutocomplete = ({
     if (!input || input.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setNoResults(false);
       return;
     }
 
     setIsLoading(true);
+    setNoResults(false);
 
-    debounceRef.current = setTimeout(() => {
-      // Simulate API call delay
-      const results = generateSuggestions(input);
-      setSuggestions(results);
-      setShowSuggestions(results.length > 0);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('mapbox-address-autocomplete', {
+          body: {
+            action: 'suggest',
+            query: input,
+            session_token: sessionTokenRef.current
+          }
+        });
+
+        if (error) {
+          console.error('Mapbox suggest error:', error);
+          setSuggestions([]);
+          setNoResults(true);
+          setShowSuggestions(true);
+          setIsLoading(false);
+          return;
+        }
+
+        const results: MapboxSuggestion[] = data?.suggestions || [];
+        
+        // Filter to Quebec only if restricted
+        const filteredResults = restrictToQuebec 
+          ? results.filter(s => s.context?.region?.region_code === 'QC' || s.context?.region?.name?.includes('Quebec') || s.context?.region?.name?.includes('Québec'))
+          : results;
+
+        setSuggestions(filteredResults);
+        setNoResults(filteredResults.length === 0);
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error('Mapbox fetch error:', err);
+        setSuggestions([]);
+        setNoResults(true);
+        setShowSuggestions(true);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 250);
+  }, [restrictToQuebec]);
+
+  // Retrieve full address details from Mapbox
+  const retrieveAddressDetails = async (suggestion: MapboxSuggestion) => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mapbox-address-autocomplete', {
+        body: {
+          action: 'retrieve',
+          mapbox_id: suggestion.mapbox_id,
+          session_token: sessionTokenRef.current
+        }
+      });
+
+      if (error || !data?.features?.[0]) {
+        console.error('Mapbox retrieve error:', error);
+        // Fallback to suggestion data
+        return parseFromSuggestion(suggestion);
+      }
+
+      const feature = data.features[0];
+      const properties = feature.properties || {};
+      const context = properties.context || {};
+      const coordinates = feature.geometry?.coordinates || [];
+
+      const details: AddressDetails = {
+        formattedAddress: properties.full_address || suggestion.full_address,
+        streetNumber: context.address?.address_number || context.address?.street_number,
+        street: context.street?.name,
+        city: context.place?.name,
+        province: context.region?.region_code || context.region?.name,
+        postalCode: context.postcode?.name,
+        country: context.country?.name || 'Canada',
+        latitude: coordinates[1],
+        longitude: coordinates[0]
+      };
+
+      return details;
+    } catch (err) {
+      console.error('Retrieve error:', err);
+      return parseFromSuggestion(suggestion);
+    } finally {
       setIsLoading(false);
-    }, 300);
-  }, []);
+    }
+  };
+
+  // Fallback parser from suggestion data
+  const parseFromSuggestion = (suggestion: MapboxSuggestion): AddressDetails => {
+    const context = suggestion.context || {};
+    return {
+      formattedAddress: suggestion.full_address,
+      streetNumber: context.address?.address_number || context.address?.street_number,
+      street: context.street?.name,
+      city: context.place?.name,
+      province: context.region?.region_code || context.region?.name,
+      postalCode: context.postcode?.name,
+      country: context.country?.name || 'Canada'
+    };
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     onChange(newValue);
+    setHasValidSelection(false); // Invalidate previous selection
     fetchSuggestions(newValue);
     setHighlightedIndex(-1);
   };
 
-  const handleSuggestionClick = (suggestion: AddressSuggestion) => {
-    onChange(suggestion.description);
-    const details = parseAddress(suggestion.description);
-    onAddressSelect(details);
+  const handleSuggestionClick = async (suggestion: MapboxSuggestion) => {
+    onChange(suggestion.full_address);
     setShowSuggestions(false);
     setSuggestions([]);
+    setHasValidSelection(true);
+    
+    const details = await retrieveAddressDetails(suggestion);
+    onAddressSelect(details);
+    
+    // Generate new session token for next interaction
+    sessionTokenRef.current = crypto.randomUUID();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -211,6 +236,14 @@ const AddressAutocomplete = ({
     }
   };
 
+  const handleFocus = () => {
+    // Generate new session token on focus
+    sessionTokenRef.current = crypto.randomUUID();
+    if (suggestions.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
   return (
     <div ref={wrapperRef} className="relative w-full">
       <div className="relative">
@@ -220,7 +253,7 @@ const AddressAutocomplete = ({
           type="text"
           value={value}
           onChange={handleInputChange}
-          onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+          onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className={cn("pl-10 pr-10", className)}
@@ -232,36 +265,46 @@ const AddressAutocomplete = ({
         )}
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (
         <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.place_id}
-              type="button"
-              className={cn(
-                "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
-                highlightedIndex === index && "bg-muted/50"
-              )}
-              onClick={() => handleSuggestionClick(suggestion)}
-              onMouseEnter={() => setHighlightedIndex(index)}
-            >
-              <MapPin className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm truncate">
-                  {suggestion.structured_formatting.main_text}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {suggestion.structured_formatting.secondary_text}
+          {suggestions.length > 0 ? (
+            <>
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={suggestion.mapbox_id}
+                  type="button"
+                  className={cn(
+                    "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
+                    highlightedIndex === index && "bg-muted/50"
+                  )}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                >
+                  <MapPin className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm truncate">
+                      {suggestion.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {suggestion.place_formatted}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              <div className="px-4 py-2 bg-muted/30 border-t border-border">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {restrictToQuebec ? "Service au Québec seulement" : "Canada"}
                 </p>
               </div>
-            </button>
-          ))}
-          <div className="px-4 py-2 bg-muted/30 border-t border-border">
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {restrictToQuebec ? "Service au Québec seulement" : "Canada"}
-            </p>
-          </div>
+            </>
+          ) : noResults ? (
+            <div className="px-4 py-3 text-center">
+              <p className="text-sm text-muted-foreground">
+                Adresse introuvable — veuillez préciser
+              </p>
+            </div>
+          ) : null}
         </div>
       )}
     </div>
