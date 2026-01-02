@@ -69,6 +69,7 @@ import { useClientAccessGate } from "@/hooks/useClientAccessGate";
 import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import BackToTopButton from "@/components/ui/back-to-top-button";
 import ClientLogsTab from "@/components/admin/ClientLogsTab";
+import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -735,50 +736,33 @@ const EmployeeClients = () => {
                     </div>
                   )}
 
-                  {/* Balance & Credit Management */}
+                  {/* Balance Breakdown - Derived from Invoices */}
+                  <ClientBalanceBreakdown 
+                    clientUserId={selectedClient.user_id} 
+                    clientEmail={selectedClient.email}
+                  />
+
+                  {/* Store Credit Management */}
                   {session?.permissions?.can_edit_clients && (
-                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
-                      <div>
-                        <Label className="text-xs text-muted-foreground uppercase">Solde dû</Label>
-                        <p className="text-2xl font-bold text-amber-500 mt-1">
-                          {Number(selectedClient.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </p>
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            type="number"
-                            placeholder="Montant"
-                            value={balanceField === "balance" ? balanceAmount : ""}
-                            onChange={(e) => { setBalanceField("balance"); setBalanceAmount(e.target.value); }}
-                            className="w-24"
-                          />
-                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("balance"); handleAdjustBalance("add"); }} disabled={isSubmitting}>
-                            <PlusCircle className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("balance"); handleAdjustBalance("remove"); }} disabled={isSubmitting}>
-                            <MinusCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground uppercase">Crédit en magasin</Label>
-                        <p className="text-2xl font-bold text-emerald-500 mt-1">
-                          {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </p>
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            type="number"
-                            placeholder="Montant"
-                            value={balanceField === "store_credit" ? balanceAmount : ""}
-                            onChange={(e) => { setBalanceField("store_credit"); setBalanceAmount(e.target.value); }}
-                            className="w-24"
-                          />
-                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("store_credit"); handleAdjustBalance("add"); }} disabled={isSubmitting}>
-                            <PlusCircle className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => { setBalanceField("store_credit"); handleAdjustBalance("remove"); }} disabled={isSubmitting}>
-                            <MinusCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
+                    <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                      <Label className="text-xs text-muted-foreground uppercase">Crédit en magasin</Label>
+                      <p className="text-2xl font-bold text-emerald-500 mt-1">
+                        {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          type="number"
+                          placeholder="Montant"
+                          value={balanceField === "store_credit" ? balanceAmount : ""}
+                          onChange={(e) => { setBalanceField("store_credit"); setBalanceAmount(e.target.value); }}
+                          className="w-24"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => { setBalanceField("store_credit"); handleAdjustBalance("add"); }} disabled={isSubmitting}>
+                          <PlusCircle className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { setBalanceField("store_credit"); handleAdjustBalance("remove"); }} disabled={isSubmitting}>
+                          <MinusCircle className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   )}
