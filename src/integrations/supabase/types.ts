@@ -329,6 +329,7 @@ export type Database = {
         Row: {
           activation_fee: number | null
           amount: number
+          amount_paid: number | null
           client_email: string | null
           created_at: string
           credits: number | null
@@ -360,6 +361,7 @@ export type Database = {
         Insert: {
           activation_fee?: number | null
           amount: number
+          amount_paid?: number | null
           client_email?: string | null
           created_at?: string
           credits?: number | null
@@ -391,6 +393,7 @@ export type Database = {
         Update: {
           activation_fee?: number | null
           amount?: number
+          amount_paid?: number | null
           client_email?: string | null
           created_at?: string
           credits?: number | null
@@ -1386,6 +1389,7 @@ export type Database = {
       }
       monthly_invoices: {
         Row: {
+          amount_paid: number | null
           client_id: string
           created_at: string
           due_date: string
@@ -1405,6 +1409,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number | null
           client_id: string
           created_at?: string
           due_date?: string
@@ -1424,6 +1429,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number | null
           client_id?: string
           created_at?: string
           due_date?: string
@@ -3577,7 +3583,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      client_unpaid_invoices: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number | null
+          client_id: string | null
+          description: string | null
+          due_date: string | null
+          id: string | null
+          invoice_number: string | null
+          issue_date: string | null
+          period_end: string | null
+          period_start: string | null
+          source_table: string | null
+          status: string | null
+          total: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       flag_client_for_risk: {
@@ -3613,6 +3636,7 @@ export type Database = {
       generate_request_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
+      get_client_balance: { Args: { p_client_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
