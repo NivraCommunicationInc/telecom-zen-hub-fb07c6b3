@@ -23,10 +23,33 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2, Package, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+
+const EQUIPMENT_CATEGORIES = ['equipment_issue', 'sim_issue', 'lost_stolen'];
+
+const categoryConfig: Record<string, { label: string; requiresOrder: boolean }> = {
+  general: { label: "Question générale", requiresOrder: false },
+  billing: { label: "Facturation", requiresOrder: false },
+  technical: { label: "Support technique", requiresOrder: false },
+  equipment_issue: { label: "Problème d'équipement", requiresOrder: true },
+  sim_issue: { label: "Problème de carte SIM", requiresOrder: true },
+  lost_stolen: { label: "Appareil perdu/volé", requiresOrder: true },
+  other: { label: "Autre", requiresOrder: false },
+};
+
+const issueTypeConfig: Record<string, { label: string; category: string }> = {
+  equipment_broken: { label: "Équipement défectueux", category: "equipment_issue" },
+  equipment_not_working: { label: "Équipement ne fonctionne pas", category: "equipment_issue" },
+  equipment_damaged: { label: "Équipement endommagé", category: "equipment_issue" },
+  sim_not_working: { label: "SIM ne fonctionne pas", category: "sim_issue" },
+  sim_activation: { label: "Problème d'activation SIM", category: "sim_issue" },
+  device_lost: { label: "Appareil perdu", category: "lost_stolen" },
+  device_stolen: { label: "Appareil volé", category: "lost_stolen" },
+};
 
 const ClientTickets = () => {
   const { user } = useAuth();
@@ -34,7 +57,14 @@ const ClientTickets = () => {
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [newTicket, setNewTicket] = useState({ subject: "", description: "", priority: "normal" });
+  const [newTicket, setNewTicket] = useState({ 
+    subject: "", 
+    description: "", 
+    priority: "normal",
+    category: "general",
+    issue_type: "",
+    related_order_id: "",
+  });
   const [replyContent, setReplyContent] = useState("");
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +75,21 @@ const ClientTickets = () => {
       const { data, error } = await supabase
         .from("support_tickets")
         .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch client's orders for equipment/SIM tickets
+  const { data: clientOrders } = useQuery({
+    queryKey: ["client-orders-for-tickets", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, order_number, service_type, order_type, created_at")
+        .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -68,6 +113,17 @@ const ClientTickets = () => {
 
   const createTicketMutation = useMutation({
     mutationFn: async (ticket: typeof newTicket) => {
+      // Get related order reference if order is selected
+      let relatedOrderReference = null;
+      if (ticket.related_order_id) {
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("order_number")
+          .eq("id", ticket.related_order_id)
+          .single();
+        relatedOrderReference = orderData?.order_number || ticket.related_order_id;
+      }
+
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
@@ -75,6 +131,10 @@ const ClientTickets = () => {
           subject: ticket.subject,
           description: ticket.description,
           priority: ticket.priority,
+          category: ticket.category,
+          issue_type: ticket.issue_type || null,
+          related_order_id: ticket.related_order_id || null,
+          related_order_reference: relatedOrderReference,
         })
         .select()
         .single();
@@ -85,7 +145,7 @@ const ClientTickets = () => {
       queryClient.invalidateQueries({ queryKey: ["client-tickets-all"] });
       toast({ title: "Ticket créé avec succès" });
       setCreateDialogOpen(false);
-      setNewTicket({ subject: "", description: "", priority: "normal" });
+      setNewTicket({ subject: "", description: "", priority: "normal", category: "general", issue_type: "", related_order_id: "" });
     },
     onError: () => {
       toast({ title: "Erreur lors de la création du ticket", variant: "destructive" });
@@ -269,6 +329,24 @@ const ClientTickets = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Related Order Reference */}
+              {selectedTicket.related_order_reference && (
+                <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    <span className="text-sm">
+                      Commande concernée: <strong>{selectedTicket.related_order_reference}</strong>
+                    </span>
+                  </div>
+                  <Link to="/portal/orders">
+                    <Button variant="ghost" size="sm">
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Voir
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
               {/* Original Description */}
               <div className="p-4 bg-accent/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Description initiale</p>
@@ -427,8 +505,82 @@ const ClientTickets = () => {
                 <DialogTitle>Créer un ticket de support</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
+                {/* Category Selection */}
                 <div>
-                  <Label>Sujet</Label>
+                  <Label>Catégorie *</Label>
+                  <Select
+                    value={newTicket.category}
+                    onValueChange={(v) => setNewTicket({ 
+                      ...newTicket, 
+                      category: v,
+                      issue_type: "",
+                      related_order_id: "",
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(categoryConfig).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Issue Type - only for equipment/SIM categories */}
+                {EQUIPMENT_CATEGORIES.includes(newTicket.category) && (
+                  <div>
+                    <Label>Type de problème *</Label>
+                    <Select
+                      value={newTicket.issue_type}
+                      onValueChange={(v) => setNewTicket({ ...newTicket, issue_type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionnez le type de problème" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(issueTypeConfig)
+                          .filter(([_, config]) => config.category === newTicket.category)
+                          .map(([key, config]) => (
+                            <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Related Order Selection - required for equipment/SIM categories */}
+                {EQUIPMENT_CATEGORIES.includes(newTicket.category) && (
+                  <div>
+                    <Label>Commande concernée *</Label>
+                    {clientOrders && clientOrders.length > 0 ? (
+                      <Select
+                        value={newTicket.related_order_id}
+                        onValueChange={(v) => setNewTicket({ ...newTicket, related_order_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez la commande" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clientOrders.map((order: any) => (
+                            <SelectItem key={order.id} value={order.id}>
+                              {order.order_number || order.id.slice(0, 8)} - {order.service_type}
+                              {order.order_type === "equipment" && " (Équipement)"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-md text-sm text-amber-600">
+                        Aucune commande trouvée. Veuillez contacter le support directement.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <Label>Sujet *</Label>
                   <Input
                     placeholder="Décrivez brièvement votre problème"
                     value={newTicket.subject}
@@ -452,7 +604,7 @@ const ClientTickets = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label>Description</Label>
+                  <Label>Description *</Label>
                   <Textarea
                     placeholder="Décrivez votre problème en détail..."
                     value={newTicket.description}
@@ -464,7 +616,13 @@ const ClientTickets = () => {
                   className="w-full"
                   variant="hero"
                   onClick={() => createTicketMutation.mutate(newTicket)}
-                  disabled={!newTicket.subject || !newTicket.description || createTicketMutation.isPending}
+                  disabled={
+                    !newTicket.subject || 
+                    !newTicket.description || 
+                    (EQUIPMENT_CATEGORIES.includes(newTicket.category) && !newTicket.related_order_id) ||
+                    (EQUIPMENT_CATEGORIES.includes(newTicket.category) && !newTicket.issue_type) ||
+                    createTicketMutation.isPending
+                  }
                 >
                   Créer le ticket
                 </Button>
