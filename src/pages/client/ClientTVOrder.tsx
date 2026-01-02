@@ -37,7 +37,8 @@ import {
   Truck,
   Wrench,
   Plus,
-  Minus
+  Minus,
+  Play
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -47,7 +48,32 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { PinSetupSection } from "@/components/checkout/PinSetupSection";
+import { TVChannelSelection } from "@/components/checkout/TVChannelSelection";
+import { StreamingServiceSelection } from "@/components/checkout/StreamingServiceSelection";
 import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
+
+// Channel interface
+interface Channel {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  price: number;
+  is_hd: boolean;
+  is_4k: boolean;
+  is_active: boolean;
+}
+
+// Streaming service interface
+interface StreamingService {
+  id: string;
+  name: string;
+  description: string | null;
+  monthly_price: number;
+  category: string;
+  features: string[];
+  is_active: boolean;
+}
 
 // TV + Internet plan configurations
 const TV_PLANS = [
@@ -62,6 +88,7 @@ const TV_PLANS = [
     badgeEn: "VALUE",
     color: "blue",
     channelChoices: 0,
+    includesInternet: true,
   },
   {
     id: "tv-5choices",
@@ -75,6 +102,7 @@ const TV_PLANS = [
     badgeEn: "POPULAR",
     color: "cyan",
     channelChoices: 5,
+    includesInternet: true,
   },
   {
     id: "tv-10choices",
@@ -90,6 +118,7 @@ const TV_PLANS = [
     color: "emerald",
     channelChoices: 10,
     recommended: true,
+    includesInternet: true,
   },
   {
     id: "tv-15choices",
@@ -104,6 +133,7 @@ const TV_PLANS = [
     badgeEn: "SAVE 26%",
     color: "purple",
     channelChoices: 15,
+    includesInternet: true,
   },
   {
     id: "tv-25choices",
@@ -118,6 +148,7 @@ const TV_PLANS = [
     badgeEn: "PREMIUM",
     color: "amber",
     channelChoices: 25,
+    includesInternet: true,
   }
 ];
 
@@ -171,7 +202,7 @@ const ClientTVOrder = () => {
 
   const locationState = location.state as LocationState | null;
 
-  // Step management
+  // Step management - now includes channel step
   const [step, setStep] = useState(() => {
     if (locationState?.validatedAddress && locationState?.addressDetails) {
       return 2;
@@ -188,7 +219,7 @@ const ClientTVOrder = () => {
         isQuebec: true,
         formattedAddress: locationState.addressDetails.formattedAddress,
         city: locationState.addressDetails.city || "",
-        province: locationState.addressDetails.province || "QC",
+        province: "QC",
         postalCode: locationState.addressDetails.postalCode || ""
       };
     }
@@ -203,6 +234,13 @@ const ClientTVOrder = () => {
     }
     return null;
   });
+  
+  // Channel selection state
+  const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
+  const [selectedPremiumChannels, setSelectedPremiumChannels] = useState<Channel[]>([]);
+  
+  // Streaming services state
+  const [selectedStreamingServices, setSelectedStreamingServices] = useState<StreamingService[]>([]);
   
   // Equipment
   const [terminalCount, setTerminalCount] = useState(1);
@@ -283,20 +321,6 @@ const ClientTVOrder = () => {
     }
   }, [profile, user?.email, address]);
 
-  // Fetch available channels for selection
-  const { data: availableChannels = [] } = useQuery({
-    queryKey: ["tv-channels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tv_channels")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
   // Handle address selection
   const handleAddressSelect = useCallback((details: { 
     formattedAddress: string; 
@@ -350,30 +374,33 @@ const ClientTVOrder = () => {
     }
   };
 
-  // Calculate totals - fee logic based on installation method
+  // Calculate totals
   const planPrice = selectedPlan?.price || 0;
+  const premiumChannelsTotal = selectedPremiumChannels.reduce((sum, ch) => sum + (ch.price || 0), 0);
+  const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + s.monthly_price, 0);
+  const monthlyRecurring = planPrice + premiumChannelsTotal + streamingTotal;
+  
   const terminalFee = TERMINAL_DETAILS.price * terminalCount;
   const routerFee = ROUTER_DETAILS.price;
-  const deliveryFee = installationMethod === "auto" ? 30 : 0; // Only charge delivery for auto-installation
+  const deliveryFee = installationMethod === "auto" ? 30 : 0;
   const activationFee = 25;
-  const installationFee = installationMethod === "technician" ? Math.max(0, 50 - installationCredit) : 0; // Only charge installation for technician
+  const installationFee = installationMethod === "technician" ? Math.max(0, 50 - installationCredit) : 0;
   const oneTimeTotal = terminalFee + routerFee + deliveryFee + activationFee + installationFee;
   const tpsAmount = Math.round((oneTimeTotal) * 0.05 * 100) / 100;
   const tvqAmount = Math.round((oneTimeTotal) * 0.09975 * 100) / 100;
   const totalDueNow = oneTimeTotal + tpsAmount + tvqAmount;
 
-  // Create order mutation with automatic appointment creation
+  // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
 
-      // Security check before sensitive action
       const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
       if (!allowed) {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
 
-      // First, update the profile with ID information and PIN if provided
+      // Update profile
       const profileUpdate: any = {
         first_name: clientIdData.firstName,
         last_name: clientIdData.lastName,
@@ -391,7 +418,6 @@ const ClientTVOrder = () => {
         id_province: clientIdData.idProvince
       };
 
-      // Save PIN if provided and valid
       if (securityPin && securityPin.length === 4 && securityPin === confirmSecurityPin) {
         profileUpdate.client_pin = securityPin;
         profileUpdate.pin_failed_attempts = 0;
@@ -404,13 +430,33 @@ const ClientTVOrder = () => {
         console.error("Profile update error:", profileError);
       }
 
+      // Build selected channels data
+      const selectedChannelsData = [
+        ...selectedFreeChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          category: "free_choice",
+          price: 0,
+          is_hd: ch.is_hd,
+          is_4k: ch.is_4k,
+        })),
+        ...selectedPremiumChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          category: "premium",
+          price: ch.price,
+          is_hd: ch.is_hd,
+          is_4k: ch.is_4k,
+        })),
+      ];
+
       // Create the order
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
         service_type: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
         category: "TV + Internet",
-        subtotal: planPrice,
+        subtotal: monthlyRecurring,
         delivery_fee: installationMethod === "auto" ? 30 : 0,
         activation_fee: activationFee,
         installation_fee: installationMethod === "technician" ? 50 : 0,
@@ -420,18 +466,39 @@ const ClientTVOrder = () => {
         installation_type: installationMethod,
         appointment_date: selectedDate ? new Date(selectedDate).toISOString() : null,
         created_by: "client",
+        selected_channels: selectedChannelsData,
+        terminal_count: terminalCount,
+        terminal_fee: terminalFee,
+        router_fee: routerFee,
         notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
 ${isFrench ? "Date préférée" : "Preferred date"}: ${selectedDate ? format(new Date(selectedDate), "d MMMM yyyy", { locale: isFrench ? fr : undefined }) : "N/A"} ${selectedTime}
 ${isFrench ? "Nombre de terminaux" : "Number of terminals"}: ${terminalCount}
+${isFrench ? "Chaînes au choix" : "Free choice channels"}: ${selectedFreeChannels.length}
+${isFrench ? "Chaînes premium" : "Premium channels"}: ${selectedPremiumChannels.length}
+${isFrench ? "Services streaming" : "Streaming services"}: ${selectedStreamingServices.map(s => s.name).join(", ") || "Aucun"}
 ${notes || ""}`.trim(),
-        internal_notes: `Equipment: Nivra Born Wifi Router ($60) + ${terminalCount}x Nivra 4K Smart Terminal ($${terminalFee})`,
+        internal_notes: `Equipment: Nivra Born Wifi Router ($60) + ${terminalCount}x Nivra 4K Smart Terminal ($${terminalFee})
+Monthly: Plan $${planPrice} + Premium Channels $${premiumChannelsTotal} + Streaming $${streamingTotal} = $${monthlyRecurring}/mo`,
       }).select().single();
 
       if (orderError) throw orderError;
       if (!orderData) throw new Error("Order creation failed - no data returned");
 
-      // AUTO-CREATE APPOINTMENT for TV + Internet orders
+      // Create streaming subscriptions if any
+      if (selectedStreamingServices.length > 0) {
+        const subscriptions = selectedStreamingServices.map(service => ({
+          user_id: user.id,
+          streaming_service_id: service.id,
+          monthly_price: service.monthly_price,
+          status: "pending",
+          internal_notes: `Created with order ${orderData.order_number}`,
+        }));
+        
+        await supabase.from("client_streaming_subscriptions").insert(subscriptions);
+      }
+
+      // Create appointment if scheduled
       if (selectedDate && selectedTime) {
         const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
         
@@ -461,9 +528,6 @@ ${notes || ""}`.trim(),
 
         if (!appointmentResult.success) {
           console.error("Appointment creation failed:", appointmentResult.error);
-          // Don't throw - order was created successfully, appointment creation is secondary
-        } else {
-          console.log("Appointment created:", appointmentResult.appointment?.appointment_number);
         }
       }
 
@@ -473,9 +537,8 @@ ${notes || ""}`.trim(),
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       setCreatedOrder(data);
-      setStep(5);
+      setStep(6);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -489,7 +552,6 @@ ${notes || ""}`.trim(),
       return;
     }
     
-    // Validate ID data
     const idValidation = validateIDData(clientIdData, false);
     if (!idValidation.valid) {
       toast.error(isFrench ? "Veuillez compléter toutes les informations d'identité" : "Please complete all identity information");
@@ -536,6 +598,16 @@ ${notes || ""}`.trim(),
     amber: { bg: "bg-amber-500/15", text: "text-amber-500", border: "border-amber-500" },
   };
 
+  // Steps configuration - now with 6 steps
+  const steps = [
+    { num: 1, label: isFrench ? "Adresse" : "Address" },
+    { num: 2, label: isFrench ? "Forfait" : "Plan" },
+    { num: 3, label: isFrench ? "Chaînes TV" : "TV Channels" },
+    { num: 4, label: isFrench ? "Équipement" : "Equipment" },
+    { num: 5, label: isFrench ? "Confirmation" : "Confirmation" },
+    { num: 6, label: isFrench ? "Terminé" : "Complete" },
+  ];
+
   return (
     <ClientLayout>
       <div className="space-y-6">
@@ -551,15 +623,9 @@ ${notes || ""}`.trim(),
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          {[
-            { num: 1, label: isFrench ? "Adresse" : "Address" },
-            { num: 2, label: isFrench ? "Forfait" : "Plan" },
-            { num: 3, label: isFrench ? "Équipement" : "Equipment" },
-            { num: 4, label: isFrench ? "Confirmation" : "Confirmation" },
-            { num: 5, label: isFrench ? "Terminé" : "Complete" },
-          ].map((s, i, arr) => (
-            <div key={s.num} className="flex items-center gap-2 flex-1">
+        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-2">
+          {steps.map((s, i, arr) => (
+            <div key={s.num} className="flex items-center gap-2 flex-shrink-0">
               <div className={`flex items-center gap-2 ${step >= s.num ? "text-purple-500" : "text-muted-foreground"}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   step > s.num ? "bg-emerald-500 text-white" : step === s.num ? "bg-purple-500 text-white" : "bg-muted"
@@ -569,7 +635,7 @@ ${notes || ""}`.trim(),
                 <span className="text-xs font-medium hidden md:inline">{s.label}</span>
               </div>
               {i < arr.length - 1 && (
-                <div className="flex-1 h-0.5 bg-muted">
+                <div className="w-8 h-0.5 bg-muted flex-shrink-0">
                   <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : step === s.num ? "bg-purple-500 w-1/2" : "w-0"}`} />
                 </div>
               )}
@@ -612,7 +678,6 @@ ${notes || ""}`.trim(),
                   />
                 </div>
 
-                {/* Quebec Only Notice */}
                 <Card className="bg-amber-500/10 border-amber-500/30">
                   <CardContent className="py-4 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -629,7 +694,6 @@ ${notes || ""}`.trim(),
                   </CardContent>
                 </Card>
 
-                {/* Validation Result */}
                 {addressValidation && addressValidation.isQuebec && !addressBlocked && (
                   <Card className="bg-emerald-500/10 border-emerald-500/30">
                     <CardContent className="py-4 flex items-start gap-3">
@@ -644,7 +708,6 @@ ${notes || ""}`.trim(),
                   </Card>
                 )}
 
-                {/* Blocked */}
                 {addressBlocked && (
                   <Card className="bg-destructive/10 border-destructive/30">
                     <CardContent className="py-4 flex items-start gap-3">
@@ -665,7 +728,6 @@ ${notes || ""}`.trim(),
               </CardContent>
             </Card>
 
-            {/* Continue Button */}
             {addressValidation?.isQuebec && !addressBlocked && (
               <div className="flex justify-end">
                 <Button variant="hero" size="lg" onClick={() => setStep(2)}>
@@ -709,9 +771,13 @@ ${notes || ""}`.trim(),
                         ? `${colors.border} bg-card shadow-lg`
                         : "border-border hover:border-purple-500/50"
                     } ${plan.recommended ? "ring-2 ring-emerald-500" : ""}`}
-                    onClick={() => setSelectedPlan(plan)}
+                    onClick={() => {
+                      setSelectedPlan(plan);
+                      // Reset channel selections when plan changes
+                      setSelectedFreeChannels([]);
+                      setSelectedPremiumChannels([]);
+                    }}
                   >
-                    {/* Badge */}
                     <div className={`absolute top-0 right-0 ${colors.bg} ${colors.text} px-3 py-1 text-xs font-bold rounded-bl-lg`}>
                       {badge}
                     </div>
@@ -783,7 +849,25 @@ ${notes || ""}`.trim(),
               })}
             </div>
 
-            {/* Navigation */}
+            {/* Bundle conflict warning */}
+            {selectedPlan?.includesInternet && (
+              <Card className="bg-blue-500/10 border-blue-500/30">
+                <CardContent className="py-4 flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {isFrench ? "Forfait TV + Internet" : "TV + Internet Bundle"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {isFrench 
+                        ? "Ce forfait inclut déjà Internet. Vous ne pouvez pas ajouter un forfait Internet séparé."
+                        : "This plan already includes Internet. You cannot add a separate Internet plan."}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -802,8 +886,79 @@ ${notes || ""}`.trim(),
           </div>
         )}
 
-        {/* Step 3: Equipment & Installation */}
-        {step === 3 && (
+        {/* Step 3: TV Channels & Streaming */}
+        {step === 3 && selectedPlan && (
+          <div className="space-y-6">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tv className="w-5 h-5 text-purple-500" />
+                  {isFrench ? "Sélection des chaînes TV" : "TV Channel Selection"}
+                </CardTitle>
+                <CardDescription>
+                  {isFrench 
+                    ? "Personnalisez votre sélection de chaînes et ajoutez des services de streaming."
+                    : "Customize your channel selection and add streaming services."}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            {/* TV Channel Selection Component */}
+            <TVChannelSelection
+              channelChoicesLimit={selectedPlan.channelChoices}
+              selectedFreeChannels={selectedFreeChannels}
+              selectedPremiumChannels={selectedPremiumChannels}
+              onFreeChannelsChange={setSelectedFreeChannels}
+              onPremiumChannelsChange={setSelectedPremiumChannels}
+              isFrench={isFrench}
+            />
+
+            {/* Streaming Services */}
+            <StreamingServiceSelection
+              selectedServices={selectedStreamingServices}
+              onServicesChange={setSelectedStreamingServices}
+              isFrench={isFrench}
+            />
+
+            {/* Monthly summary for this step */}
+            <Card className="bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border-purple-500/30">
+              <CardContent className="py-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{isFrench ? "Récapitulatif mensuel" : "Monthly Summary"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isFrench ? "Forfait" : "Plan"}: ${planPrice} + 
+                      {premiumChannelsTotal > 0 && ` ${isFrench ? "Chaînes premium" : "Premium"}: $${premiumChannelsTotal}`}
+                      {streamingTotal > 0 && ` + Streaming: $${streamingTotal}`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">{isFrench ? "Total mensuel" : "Monthly total"}</p>
+                    <p className="text-2xl font-bold text-foreground">${monthlyRecurring.toFixed(2)}/{isFrench ? "mois" : "mo"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {isFrench ? "Retour" : "Back"}
+              </Button>
+              <Button 
+                variant="hero" 
+                size="lg" 
+                onClick={() => setStep(4)}
+              >
+                {isFrench ? "Continuer" : "Continue"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Equipment & Installation */}
+        {step === 4 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               {/* Terminal Selection */}
@@ -1071,6 +1226,33 @@ ${notes || ""}`.trim(),
                     </div>
                   )}
 
+                  {/* Channels & Streaming */}
+                  {(selectedFreeChannels.length > 0 || selectedPremiumChannels.length > 0 || selectedStreamingServices.length > 0) && (
+                    <div className="space-y-2 text-sm">
+                      {selectedFreeChannels.length > 0 && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>{selectedFreeChannels.length} {isFrench ? "chaînes au choix" : "free channels"}</span>
+                          <span className="text-emerald-500">{isFrench ? "Inclus" : "Included"}</span>
+                        </div>
+                      )}
+                      {selectedPremiumChannels.length > 0 && (
+                        <div className="flex justify-between">
+                          <span>{selectedPremiumChannels.length} {isFrench ? "chaînes premium" : "premium channels"}</span>
+                          <span>+${premiumChannelsTotal}/{isFrench ? "mois" : "mo"}</span>
+                        </div>
+                      )}
+                      {selectedStreamingServices.length > 0 && (
+                        <div className="flex justify-between">
+                          <span className="flex items-center gap-1">
+                            <Play className="w-3 h-3" />
+                            {selectedStreamingServices.length} streaming
+                          </span>
+                          <span>+${streamingTotal}/{isFrench ? "mois" : "mo"}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <Separator />
 
                   {/* One-time fees */}
@@ -1131,8 +1313,8 @@ ${notes || ""}`.trim(),
 
                   <p className="text-xs text-muted-foreground">
                     {isFrench 
-                      ? `Mensualité: $${planPrice}/mois (facturée après activation)`
-                      : `Monthly: $${planPrice}/month (billed after activation)`}
+                      ? `Mensualité: $${monthlyRecurring.toFixed(2)}/mois (facturée après activation)`
+                      : `Monthly: $${monthlyRecurring.toFixed(2)}/month (billed after activation)`}
                   </p>
 
                   {/* Terms */}
@@ -1169,7 +1351,7 @@ ${notes || ""}`.trim(),
                     </>
                   )}
                 </Button>
-                <Button variant="outline" onClick={() => setStep(2)}>
+                <Button variant="outline" onClick={() => setStep(3)}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {isFrench ? "Retour" : "Back"}
                 </Button>
@@ -1178,8 +1360,8 @@ ${notes || ""}`.trim(),
           </div>
         )}
 
-        {/* Step 5: Order Confirmation */}
-        {step === 5 && createdOrder && (
+        {/* Step 6: Order Confirmation */}
+        {step === 6 && createdOrder && (
           <div className="space-y-6">
             <Card className="bg-gradient-to-br from-emerald-500/10 via-card to-card border-emerald-500/30">
               <CardHeader className="text-center pb-2">
@@ -1211,6 +1393,18 @@ ${notes || ""}`.trim(),
                         <span className="font-medium">{terminalCount}x Nivra 4K Smart Terminal</span>
                       </div>
                       <div className="flex justify-between">
+                        <span className="text-muted-foreground">{isFrench ? "Chaînes" : "Channels"}</span>
+                        <span className="font-medium">
+                          {selectedFreeChannels.length + selectedPremiumChannels.length} {isFrench ? "sélectionnées" : "selected"}
+                        </span>
+                      </div>
+                      {selectedStreamingServices.length > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Streaming</span>
+                          <span className="font-medium">{selectedStreamingServices.map(s => s.name).join(", ")}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">{isFrench ? "Installation" : "Installation"}</span>
                         <span className="font-medium">{installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}</span>
                       </div>
@@ -1225,7 +1419,7 @@ ${notes || ""}`.trim(),
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <p className="text-3xl font-bold text-foreground">${totalDueNow.toFixed(2)}</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {isFrench ? `Mensualité: $${planPrice}/mois` : `Monthly: $${planPrice}/month`}
+                        {isFrench ? `Mensualité: $${monthlyRecurring.toFixed(2)}/mois` : `Monthly: $${monthlyRecurring.toFixed(2)}/month`}
                       </p>
                     </div>
                   </div>
