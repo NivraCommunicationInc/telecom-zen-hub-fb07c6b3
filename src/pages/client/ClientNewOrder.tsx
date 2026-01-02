@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import React from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -196,10 +196,45 @@ const generateQuebecPhoneNumber = (): string => {
   return `${prefix}-${middle}-${end}`;
 };
 
+const ORDER_DRAFT_KEY = "nivra_order_draft";
+
+interface OrderDraft {
+  step: number;
+  selectedServices: Service[];
+  selectedFreeChannels: Channel[];
+  selectedPaidChannels: Channel[];
+  terminalQuantity: number;
+  mobileTransferChoice: "transfer" | "new" | null;
+  transferPhoneNumber: string;
+  transferCarrier: string;
+  transferAccountNumber: string;
+  transferServiceAccount: string;
+  transferImei: string;
+  transferValidationResult: "valid" | "invalid" | null;
+  assignedPhoneNumber: string;
+  simType: "esim" | "physical";
+  installationChoice: "auto" | "technician" | null;
+  deliveryChoice: "standard" | "uber" | "shipHome" | null;
+  selectedDate: string;
+  selectedTime: string;
+  notes: string;
+  discountCode: string;
+  installationCredit: number;
+  idType: string;
+  idNumber: string;
+  idExpiration: string;
+  idProvince: string;
+}
+
 const ClientNewOrder = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  // Hydration flag to prevent step guards from redirecting before state is loaded
+  const [isHydrated, setIsHydrated] = useState(false);
+  const isInitialMount = useRef(true);
+  
   const [step, setStep] = useState(1);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [notes, setNotes] = useState("");
@@ -258,6 +293,97 @@ const ClientNewOrder = () => {
   // Pre-authorized payment state
   const [acceptPreauthorized, setAcceptPreauthorized] = useState(false);
   const PREAUTH_MONTHLY_DISCOUNT = 5;
+
+  // Hydrate state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = sessionStorage.getItem(ORDER_DRAFT_KEY);
+      if (savedDraft) {
+        const draft: OrderDraft = JSON.parse(savedDraft);
+        console.log("[OrderWizard] Hydrating from sessionStorage:", draft.step, "services:", draft.selectedServices?.length);
+        
+        if (draft.step) setStep(draft.step);
+        if (draft.selectedServices?.length) setSelectedServices(draft.selectedServices);
+        if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
+        if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
+        if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
+        if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
+        if (draft.transferPhoneNumber) setTransferPhoneNumber(draft.transferPhoneNumber);
+        if (draft.transferCarrier) setTransferCarrier(draft.transferCarrier);
+        if (draft.transferAccountNumber) setTransferAccountNumber(draft.transferAccountNumber);
+        if (draft.transferServiceAccount) setTransferServiceAccount(draft.transferServiceAccount);
+        if (draft.transferImei) setTransferImei(draft.transferImei);
+        if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
+        if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
+        if (draft.simType) setSimType(draft.simType);
+        if (draft.installationChoice) setInstallationChoice(draft.installationChoice);
+        if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
+        if (draft.selectedDate) setSelectedDate(draft.selectedDate);
+        if (draft.selectedTime) setSelectedTime(draft.selectedTime);
+        if (draft.notes) setNotes(draft.notes);
+        if (draft.discountCode) setDiscountCode(draft.discountCode);
+        if (draft.installationCredit) setInstallationCredit(draft.installationCredit);
+        if (draft.idType) setIdType(draft.idType);
+        if (draft.idNumber) setIdNumber(draft.idNumber);
+        if (draft.idExpiration) setIdExpiration(draft.idExpiration);
+        if (draft.idProvince) setIdProvince(draft.idProvince);
+      }
+    } catch (e) {
+      console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
+    }
+    
+    // Mark as hydrated after initial load
+    setIsHydrated(true);
+    isInitialMount.current = false;
+  }, []);
+
+  // Persist state to sessionStorage on changes (after hydration)
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    const draft: OrderDraft = {
+      step,
+      selectedServices,
+      selectedFreeChannels,
+      selectedPaidChannels,
+      terminalQuantity,
+      mobileTransferChoice,
+      transferPhoneNumber,
+      transferCarrier,
+      transferAccountNumber,
+      transferServiceAccount,
+      transferImei,
+      transferValidationResult,
+      assignedPhoneNumber,
+      simType,
+      installationChoice,
+      deliveryChoice,
+      selectedDate,
+      selectedTime,
+      notes,
+      discountCode,
+      installationCredit,
+      idType,
+      idNumber,
+      idExpiration,
+      idProvince,
+    };
+    
+    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length);
+    sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
+  }, [
+    isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels,
+    terminalQuantity, mobileTransferChoice, transferPhoneNumber, transferCarrier,
+    transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
+    assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
+    selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince
+  ]);
+
+  // Clear draft when order is completed (called after successful order creation)
+  const clearOrderDraft = () => {
+    sessionStorage.removeItem(ORDER_DRAFT_KEY);
+    console.log("[OrderWizard] Draft cleared");
+  };
 
   // Fetch available services
   const { data: services, isLoading } = useQuery({
@@ -728,6 +854,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return { ...data, nivraPaymentRef };
     },
     onSuccess: (result) => {
+      // Clear the order draft from sessionStorage
+      clearOrderDraft();
+      
       // Navigate to dedicated confirmation page with order ID
       const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
       
@@ -967,10 +1096,18 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Nouvelle commande</h1>
-          <p className="text-muted-foreground mt-1">Sélectionnez les services que vous souhaitez commander</p>
-        </div>
+        {/* Show loading while hydrating to prevent step guards from triggering */}
+        {!isHydrated ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+            <span className="ml-3 text-muted-foreground">Chargement...</span>
+          </div>
+        ) : (
+          <>
+            <div>
+              <h1 className="font-display text-3xl font-bold text-foreground">Nouvelle commande</h1>
+              <p className="text-muted-foreground mt-1">Sélectionnez les services que vous souhaitez commander</p>
+            </div>
 
         {/* Progress Steps */}
         <div className="flex items-center gap-2 sm:gap-4">
@@ -2965,6 +3102,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </ClientLayout>
