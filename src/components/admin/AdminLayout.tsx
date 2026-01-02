@@ -22,7 +22,8 @@ import {
   ExternalLink,
   Building2,
   Film,
-  Radio
+  Radio,
+  Mail
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const navItems = [
   { icon: Wrench, label: "Techniciens", href: "/admin/technicians" },
   { icon: UserCog, label: "Employés", href: "/admin/employees" },
   { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
+  { icon: Mail, label: "Emails", href: "/admin/email-activity" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
