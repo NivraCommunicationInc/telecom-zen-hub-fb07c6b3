@@ -3009,6 +3009,98 @@ export type Database = {
         }
         Relationships: []
       }
+      streaming_catalog: {
+        Row: {
+          category: string
+          created_at: string
+          currency: string
+          description: string | null
+          features: Json
+          id: string
+          logo_url: string | null
+          name: string
+          price_monthly: number
+          sort_order: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          logo_url?: string | null
+          name: string
+          price_monthly: number
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          logo_url?: string | null
+          name?: string
+          price_monthly?: number
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      streaming_catalog_audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_name: string | null
+          catalog_item_id: string | null
+          changed_fields: string[] | null
+          created_at: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          catalog_item_id?: string | null
+          changed_fields?: string[] | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          catalog_item_id?: string | null
+          changed_fields?: string[] | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streaming_catalog_audit_logs_catalog_item_id_fkey"
+            columns: ["catalog_item_id"]
+            isOneToOne: false
+            referencedRelation: "streaming_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streaming_services: {
         Row: {
           category: string | null

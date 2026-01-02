@@ -5,20 +5,17 @@ import { Separator } from "@/components/ui/separator";
 import { Play, Music, Film, Check } from "lucide-react";
 import { useStreamingCatalogActive, StreamingCatalogItem, calculateStreamingTotal } from "@/hooks/useStreamingCatalog";
 
-// Re-export the new component for backwards compatibility
-export { StreamingPlusSelector } from "./StreamingPlusSelector";
-
-interface StreamingServiceSelectionProps {
+interface StreamingPlusSelectorProps {
   selectedServices: StreamingCatalogItem[];
   onServicesChange: (services: StreamingCatalogItem[]) => void;
   isFrench: boolean;
 }
 
-export const StreamingServiceSelection = ({
+export const StreamingPlusSelector = ({
   selectedServices,
   onServicesChange,
   isFrench,
-}: StreamingServiceSelectionProps) => {
+}: StreamingPlusSelectorProps) => {
   const { data: services = [], isLoading, error } = useStreamingCatalogActive();
 
   const toggleService = (service: StreamingCatalogItem) => {
@@ -32,7 +29,6 @@ export const StreamingServiceSelection = ({
 
   const totalMonthly = calculateStreamingTotal(selectedServices);
 
-  // Group services by category
   const videoServices = services.filter(s => s.category === "video");
   const musicServices = services.filter(s => s.category === "music");
 
@@ -40,7 +36,7 @@ export const StreamingServiceSelection = ({
     return (
       <Card className="bg-card border-border">
         <CardContent className="py-8 text-center">
-          <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">
             {isFrench ? "Chargement des services..." : "Loading services..."}
           </p>
@@ -50,20 +46,20 @@ export const StreamingServiceSelection = ({
   }
 
   if (error || services.length === 0) {
-    return null; // Don't show section if no streaming services available
+    return null;
   }
 
   return (
-    <Card className="bg-card border-cyan-500/30">
+    <Card className="bg-card border-primary/30">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-              <Play className="w-5 h-5 text-cyan-500" />
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Play className="w-5 h-5 text-primary" />
             </div>
             <div>
               <CardTitle>
-                {isFrench ? "Services de Streaming" : "Streaming Services"}
+                {isFrench ? "Streaming+" : "Streaming+"}
               </CardTitle>
               <CardDescription>
                 {isFrench 
@@ -73,7 +69,7 @@ export const StreamingServiceSelection = ({
             </div>
           </div>
           {totalMonthly > 0 && (
-            <Badge className="bg-cyan-500">
+            <Badge className="bg-primary">
               +${totalMonthly.toFixed(2)}/{isFrench ? "mois" : "mo"}
             </Badge>
           )}
@@ -99,8 +95,8 @@ export const StreamingServiceSelection = ({
                     key={service.id}
                     className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       isSelected 
-                        ? "border-cyan-500 bg-cyan-500/5" 
-                        : "border-border hover:border-cyan-500/50"
+                        ? "border-primary bg-primary/5" 
+                        : "border-border hover:border-primary/50"
                     }`}
                     onClick={() => toggleService(service)}
                   >
@@ -112,7 +108,7 @@ export const StreamingServiceSelection = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold">{service.name}</span>
-                          <span className="font-bold text-cyan-600">
+                          <span className="font-bold text-primary">
                             ${service.price_monthly.toFixed(2)}/{isFrench ? "mois" : "mo"}
                           </span>
                         </div>
@@ -158,8 +154,8 @@ export const StreamingServiceSelection = ({
                       key={service.id}
                       className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
                         isSelected 
-                          ? "border-cyan-500 bg-cyan-500/5" 
-                          : "border-border hover:border-cyan-500/50"
+                          ? "border-primary bg-primary/5" 
+                          : "border-border hover:border-primary/50"
                       }`}
                       onClick={() => toggleService(service)}
                     >
@@ -171,7 +167,7 @@ export const StreamingServiceSelection = ({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-semibold">{service.name}</span>
-                            <span className="font-bold text-cyan-600">
+                            <span className="font-bold text-primary">
                               ${service.price_monthly.toFixed(2)}/{isFrench ? "mois" : "mo"}
                             </span>
                           </div>
@@ -201,14 +197,14 @@ export const StreamingServiceSelection = ({
         {selectedServices.length > 0 && (
           <>
             <Separator />
-            <div className="flex items-center justify-between p-3 bg-cyan-500/10 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-cyan-500" />
+                <Check className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium">
                   {selectedServices.length} {isFrench ? "service(s) sélectionné(s)" : "service(s) selected"}
                 </span>
               </div>
-              <span className="font-bold text-cyan-600">
+              <span className="font-bold text-primary">
                 +${totalMonthly.toFixed(2)}/{isFrench ? "mois" : "mo"}
               </span>
             </div>
@@ -218,3 +214,5 @@ export const StreamingServiceSelection = ({
     </Card>
   );
 };
+
+export default StreamingPlusSelector;
