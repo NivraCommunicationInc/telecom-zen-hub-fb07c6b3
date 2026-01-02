@@ -1646,7 +1646,7 @@ const AdminClients = () => {
                                       <Smartphone className="w-5 h-5 text-blue-500" />
                                       <div className="flex-1">
                                         <p className="font-medium text-sm">Carte SIM / eSIM</p>
-                                        <p className="text-xs text-muted-foreground">Frais unique: 60$</p>
+                                        <p className="text-xs text-muted-foreground">Frais unique: 25$</p>
                                       </div>
                                       <div className="text-right">
                                         {order.sim_number ? (
@@ -1852,16 +1852,16 @@ const AdminClients = () => {
                           <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {
                             const details = prompt("Détails du signalement SIM volée/perdue:");
                             if (details) {
-                              logActivity("incident_sim_lost", "client", selectedClient.id, { type: "sim_stolen_lost", details, fee: 60 }, {
+                              logActivity("incident_sim_lost", "client", selectedClient.id, { type: "sim_stolen_lost", details, fee: 25 }, {
                                 changedField: "incident",
                                 reason: `SIM volée/perdue: ${details}`
                               });
                               refetchActivityLogs();
-                              toast({ title: "Incident enregistré", description: "SIM volée/perdue - Frais 60$ applicable pour remplacement" });
+                              toast({ title: "Incident enregistré", description: "SIM volée/perdue - Frais 25$ applicable pour remplacement" });
                             }
                           }}>
                             <Smartphone className="w-4 h-4 mr-2" />
-                            SIM volée/perdue (60$)
+                            SIM volée/perdue (25$)
                           </Button>
                           
                           <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {

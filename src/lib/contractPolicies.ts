@@ -32,7 +32,7 @@ export const CONTRACT_TERMS = {
   
   // One-time fees (not plan-dependent)
   fees: {
-    simPhysical: 30,
+    simPhysical: 25,
     esim: 25,
     router: 60,
     tvTerminal: 50, // per terminal, max 4

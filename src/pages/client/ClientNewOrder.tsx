@@ -130,7 +130,7 @@ const SIM_CONFIG = {
   },
   physical: {
     name: "Nivra Physical SIM",
-    price: 30,
+    price: 25,
   },
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
   notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
