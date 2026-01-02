@@ -107,46 +107,98 @@ export const EmployeeProfileDialog = ({
   const [savingNotes, setSavingNotes] = useState(false);
 
   // Fetch employee's access logs (clients they accessed)
+  // Query by staff_user_id (employee table id), staff_email, or staff_name
   const { data: accessLogs, isLoading: accessLoading } = useQuery({
-    queryKey: ["employee-access-logs", employee?.email],
+    queryKey: ["employee-access-logs", employee?.id, employee?.email],
     queryFn: async () => {
       if (!employee) return [];
-      const { data, error } = await supabase
+      
+      // First try by staff_user_id (employee table id) which is what gets logged
+      const { data: byId, error: idError } = await supabase
+        .from("client_access_logs")
+        .select("*")
+        .eq("staff_user_id", employee.id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      
+      if (!idError && byId && byId.length > 0) {
+        return byId;
+      }
+      
+      // Fallback: Try by email
+      const { data: byEmail, error: emailError } = await supabase
         .from("client_access_logs")
         .select("*")
         .eq("staff_email", employee.email)
         .order("created_at", { ascending: false })
         .limit(200);
-      if (error) throw error;
-      return data || [];
+      
+      if (!emailError && byEmail && byEmail.length > 0) {
+        return byEmail;
+      }
+      
+      // Last fallback: try by name
+      const { data: byName } = await supabase
+        .from("client_access_logs")
+        .select("*")
+        .eq("staff_name", employee.full_name)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      
+      return byName || [];
     },
-    enabled: !!employee?.email && isOpen,
+    enabled: !!employee?.id && isOpen,
   });
 
   // Fetch employee's activity logs (changes they made)
+  // Query by actor_user_id (employee table id), or actor_name as fallback
   const { data: activityLogs, isLoading: activityLoading } = useQuery({
-    queryKey: ["employee-activity-logs", employee?.id],
+    queryKey: ["employee-activity-logs", employee?.id, employee?.email],
     queryFn: async () => {
       if (!employee) return [];
-      // Match by email in actor_name or by checking profiles
+      
+      // First: try by employee table id (what employees use as actor_user_id)
+      const { data: byEmployeeId, error: empIdError } = await supabase
+        .from("client_activity_logs")
+        .select("*")
+        .eq("actor_user_id", employee.id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      
+      if (!empIdError && byEmployeeId && byEmployeeId.length > 0) {
+        return byEmployeeId;
+      }
+      
+      // Second: try to find auth user_id via profiles (if employee also has a Supabase auth account)
       const { data: profile } = await supabase
         .from("profiles")
         .select("user_id")
         .eq("email", employee.email)
         .maybeSingle();
 
-      if (!profile?.user_id) return [];
-
-      const { data, error } = await supabase
+      if (profile?.user_id) {
+        const { data, error } = await supabase
+          .from("client_activity_logs")
+          .select("*")
+          .eq("actor_user_id", profile.user_id)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (!error && data && data.length > 0) {
+          return data;
+        }
+      }
+      
+      // Last fallback: query by actor_name matching email or full_name
+      const { data: byName } = await supabase
         .from("client_activity_logs")
         .select("*")
-        .eq("actor_user_id", profile.user_id)
+        .or(`actor_name.eq.${employee.email},actor_name.eq.${employee.full_name}`)
         .order("created_at", { ascending: false })
         .limit(200);
-      if (error) throw error;
-      return data || [];
+      
+      return byName || [];
     },
-    enabled: !!employee?.email && isOpen,
+    enabled: !!employee?.id && isOpen,
   });
 
   // Fetch audit logs for this employee
@@ -314,6 +366,36 @@ export const EmployeeProfileDialog = ({
           <ScrollArea className="flex-1 mt-4">
             {/* Overview Tab */}
             <TabsContent value="overview" className="m-0 space-y-4">
+              {/* Debug Panel - Admin only diagnostic info */}
+              <Card className="border-amber-500/30 bg-amber-500/5">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2 text-amber-600">
+                    <AlertTriangle className="w-4 h-4" />
+                    Diagnostic (Admin)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-1 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <span className="text-muted-foreground">Email employé:</span>
+                    <span className="font-mono">{employee.email}</span>
+                    <span className="text-muted-foreground">ID employé (table):</span>
+                    <span className="font-mono text-xs">{employee.id.slice(0, 8)}...</span>
+                    <span className="text-muted-foreground">Accès trouvés:</span>
+                    <span className={accessLogs?.length ? "text-emerald-500" : "text-red-500"}>
+                      {accessLoading ? "..." : accessLogs?.length || 0}
+                    </span>
+                    <span className="text-muted-foreground">Activités trouvées:</span>
+                    <span className={activityLogs?.length ? "text-emerald-500" : "text-red-500"}>
+                      {activityLoading ? "..." : activityLogs?.length || 0}
+                    </span>
+                  </div>
+                  {(!accessLogs?.length && !activityLogs?.length && !accessLoading && !activityLoading) && (
+                    <p className="text-amber-600 mt-2">
+                      ⚠️ Aucun log trouvé. Les actions doivent être effectuées avec les outils de journalisation.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -500,6 +582,9 @@ export const EmployeeProfileDialog = ({
                 <div className="text-center py-8">
                   <Eye className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                   <p className="text-muted-foreground">Aucun accès enregistré</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Les accès aux profils clients via la vérification NIP sont journalisés automatiquement.
+                  </p>
                 </div>
               )}
             </TabsContent>
