@@ -36,7 +36,7 @@ export const flagClientForRiskAtomic = async ({
   actionByRole = "admin",
 }: FlagClientParams): Promise<FlagClientResult> => {
   try {
-    // Step 1: Update profile with security status and verify
+    // Step 1: Update profile with security status AND account_status = 'hold'
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .update({
@@ -46,6 +46,7 @@ export const flagClientForRiskAtomic = async ({
         security_flagged_at: new Date().toISOString(),
         security_flagged_order_id: orderId || null,
         security_requires_pin_reset: true,
+        account_status: "hold", // FRAUD/RISK = HOLD
       })
       .eq("user_id", clientId)
       .select()
@@ -153,7 +154,7 @@ export const liftClientSuspensionAtomic = async (
   reason?: string
 ): Promise<FlagClientResult> => {
   try {
-    // Step 1: Update profile
+    // Step 1: Update profile - restore security AND account_status = 'active'
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .update({
@@ -163,6 +164,7 @@ export const liftClientSuspensionAtomic = async (
         security_flagged_at: null,
         security_flagged_order_id: null,
         security_requires_pin_reset: requirePinReset,
+        account_status: "active", // Fraud removed = ACTIVE
       })
       .eq("user_id", clientId)
       .select()
@@ -233,23 +235,31 @@ export const liftClientSuspensionAtomic = async (
 export const checkClientSecurityStatus = async (userId: string): Promise<{
   status: string;
   alertLevel: string;
+  accountStatus: string;
   isSuspended: boolean;
+  isOnHold: boolean;
 }> => {
   const { data, error } = await supabase
     .from("profiles")
-    .select("security_status, security_alert_level")
+    .select("security_status, security_alert_level, account_status")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error || !data) {
     console.error("Error checking security status:", error);
-    return { status: "active", alertLevel: "none", isSuspended: false };
+    return { status: "active", alertLevel: "none", accountStatus: "active", isSuspended: false, isOnHold: false };
   }
 
+  const securityStatus = data.security_status || "active";
+  const alertLevel = data.security_alert_level || "none";
+  const accountStatus = data.account_status || "active";
+
   return {
-    status: data.security_status || "active",
-    alertLevel: data.security_alert_level || "none",
-    isSuspended: data.security_status === "suspended",
+    status: securityStatus,
+    alertLevel,
+    accountStatus,
+    isSuspended: securityStatus === "suspended",
+    isOnHold: accountStatus === "hold",
   };
 };
 
@@ -261,14 +271,16 @@ export const verifySensitiveActionAllowed = async (userId: string): Promise<{
   allowed: boolean;
   reason?: string;
 }> => {
-  const { isSuspended, alertLevel } = await checkClientSecurityStatus(userId);
+  const { isSuspended, isOnHold, alertLevel } = await checkClientSecurityStatus(userId);
   
-  if (isSuspended) {
+  if (isSuspended || isOnHold) {
     return {
       allowed: false,
       reason: alertLevel === "fraud" 
         ? "Votre compte est suspendu pour vérification de fraude. Veuillez nous contacter."
-        : "Votre compte est suspendu pour vérification de sécurité. Veuillez nous contacter.",
+        : alertLevel === "risk"
+        ? "Votre compte est suspendu pour vérification de sécurité. Veuillez nous contacter."
+        : "Votre compte est en attente. Veuillez nous contacter.",
     };
   }
 
