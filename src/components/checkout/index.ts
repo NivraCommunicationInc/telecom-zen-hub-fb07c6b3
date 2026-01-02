@@ -13,3 +13,4 @@ export { TVChannelSelection } from './TVChannelSelection';
 export { StreamingServiceSelection } from './StreamingServiceSelection';
 export { CheckoutPaymentSection } from './CheckoutPaymentSection';
 export { CheckoutPhoneField, validateCanadianPhone } from './CheckoutPhoneField';
+export { CheckoutServiceAddress, validateCanadianPostalCode, formatPostalCode, isAddressComplete } from './CheckoutServiceAddress';

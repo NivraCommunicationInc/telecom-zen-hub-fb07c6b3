@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
   CheckCircle2, 
@@ -18,16 +19,25 @@ import {
   CalendarPlus,
   Truck,
   Zap,
-  Wrench
+  Wrench,
+  MapPin,
+  Copy,
+  MessageSquare,
+  Smartphone,
+  Wifi,
+  Tv,
+  MonitorPlay
 } from "lucide-react";
-import { format, addMonths } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface OrderData {
   id: string;
   order_number: string;
+  confirmation_number: string;
   service_type: string;
   category: string;
   subtotal: number;
@@ -35,6 +45,7 @@ interface OrderData {
   activation_fee: number;
   installation_fee: number;
   installation_credit: number;
+  installation_type: string;
   tps_amount: number;
   tvq_amount: number;
   total_amount: number;
@@ -44,6 +55,8 @@ interface OrderData {
   created_at: string;
   selected_channels?: any[];
   appointment_date?: string;
+  notes?: string;
+  equipment_details?: any;
 }
 
 const ClientOrderConfirmation = () => {
@@ -90,6 +103,13 @@ const ClientOrderConfirmation = () => {
     fetchOrder();
   }, [orderId, user?.id]);
 
+  const copyOrderNumber = () => {
+    if (order?.order_number) {
+      navigator.clipboard.writeText(order.order_number);
+      toast.success("Numéro de commande copié!");
+    }
+  };
+
   const generateICSFile = () => {
     if (!order?.appointment_date || !order) return;
     
@@ -127,6 +147,17 @@ END:VCALENDAR`;
     URL.revokeObjectURL(url);
   };
 
+  // Parse notes to extract service address and phone
+  const parseNotes = (notes: string | undefined) => {
+    if (!notes) return { address: null, phone: null };
+    const addressMatch = notes.match(/\*\*Adresse de service:\*\*\n([^\n]+)/);
+    const phoneMatch = notes.match(/\*\*Téléphone client:\*\* ([^\n]+)/);
+    return {
+      address: addressMatch ? addressMatch[1] : null,
+      phone: phoneMatch ? phoneMatch[1] : null,
+    };
+  };
+
   if (loading) {
     return (
       <ClientLayout>
@@ -151,218 +182,219 @@ END:VCALENDAR`;
   }
 
   const services = order.service_type.split(", ");
+  const { address: serviceAddress, phone: clientPhone } = parseNotes(order.notes);
   const deliveryFee = order.delivery_fee || 0;
   const activationFee = order.activation_fee ?? 0;
   const installationFee = order.installation_fee || 0;
   const tpsAmount = order.tps_amount || 0;
   const tvqAmount = order.tvq_amount || 0;
   const totalAmount = order.total_amount || 0;
+  const oneTimeFees = deliveryFee + activationFee + installationFee;
+  const monthlyRecurring = order.subtotal || 0;
+
+  // Determine next step content
+  const getNextStepContent = () => {
+    if (order.installation_type === "technician") {
+      if (order.appointment_date) {
+        return {
+          icon: Calendar,
+          title: "Rendez-vous confirmé",
+          description: `Installation prévue le ${format(new Date(order.appointment_date), "d MMMM yyyy", { locale: fr })}`,
+          color: "emerald"
+        };
+      }
+      return {
+        icon: Phone,
+        title: "Contact sous 2-24h",
+        description: "Un agent vous contactera pour confirmer votre rendez-vous d'installation.",
+        color: "cyan"
+      };
+    }
+    return {
+      icon: Truck,
+      title: "Livraison en cours",
+      description: "Votre équipement sera expédié sous 24-78 heures ouvrables.",
+      color: "purple"
+    };
+  };
+
+  const nextStep = getNextStepContent();
+  const NextStepIcon = nextStep.icon;
 
   return (
     <ClientLayout>
       <div className="space-y-6 max-w-4xl mx-auto">
-        {/* Success Banner */}
+        {/* Header - Commande confirmée */}
         <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
-          <CardContent className="py-8 text-center">
-            <div className="w-20 h-20 rounded-full bg-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+          <CardContent className="py-8">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="w-20 h-20 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+              </div>
+              <div className="text-center md:text-left flex-1">
+                <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                  <h2 className="font-display text-2xl font-bold text-foreground">
+                    Commande confirmée
+                  </h2>
+                  <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30">
+                    En traitement
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                  <span className="text-xl font-mono font-bold text-cyan-500">{order.order_number}</span>
+                  <Button variant="ghost" size="sm" onClick={copyOrderNumber} className="h-8 w-8 p-0">
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(order.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                </p>
+              </div>
             </div>
-            <h2 className="font-display text-2xl font-bold text-foreground mb-2">
-              Commande soumise!
-            </h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">
-              Merci pour votre commande. Votre commande est en attente d'approbation par notre équipe.
-            </p>
           </CardContent>
         </Card>
 
-        {/* Pending Approval Notice */}
-        <Card className="bg-amber-500/10 border-amber-500/30">
-          <CardContent className="py-4 flex items-center gap-3">
-            <Clock className="w-6 h-6 text-amber-500 flex-shrink-0" />
+        {/* Next Step Banner */}
+        <Card className={`bg-${nextStep.color}-500/10 border-${nextStep.color}-500/30`}>
+          <CardContent className="py-4 flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-full bg-${nextStep.color}-500/20 flex items-center justify-center flex-shrink-0`}>
+              <NextStepIcon className={`w-6 h-6 text-${nextStep.color}-500`} />
+            </div>
             <div>
-              <p className="font-medium text-amber-600">Commande en attente d'approbation</p>
-              <p className="text-sm text-muted-foreground">
-                Notre équipe examinera votre commande et vous contactera sous peu pour confirmer les prochaines étapes.
-              </p>
+              <p className={`font-semibold text-${nextStep.color}-500`}>{nextStep.title}</p>
+              <p className="text-sm text-muted-foreground">{nextStep.description}</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Order Numbers & References */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-card border-cyan-500/30">
-            <CardContent className="py-6 text-center">
-              <Receipt className="w-8 h-8 text-cyan-500 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Numéro de confirmation</p>
-              <p className="text-xl font-mono font-bold text-cyan-500">
-                {`CONF-${order.id.slice(0, 8).toUpperCase()}`}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="py-6 text-center">
-              <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Numéro de commande</p>
-              <p className="text-xl font-mono font-bold text-foreground">
-                {order.order_number}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-emerald-500/30">
-            <CardContent className="py-6 text-center">
-              <CreditCard className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Référence de paiement</p>
-              <p className="text-lg font-mono font-bold text-emerald-500">
-                {order.payment_reference || "En attente"}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Order Details Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Column - Service Details */}
+          <div className="space-y-6">
+            {/* Adresse de service */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-cyan-500" />
+                  Adresse de service
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-foreground">{serviceAddress || "Non spécifiée"}</p>
+                {clientPhone && (
+                  <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    {clientPhone}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Order Details */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-cyan-500" />
-              Détails de la commande
-            </CardTitle>
-            <CardDescription>
-              Commande passée le {format(new Date(order.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-medium text-foreground mb-2">Services commandés</h4>
-              <div className="space-y-2">
+            {/* Services sélectionnés */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-cyan-500" />
+                  Services mensuels
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
                 {services.map((service, index) => (
-                  <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div key={index} className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    {service}
+                    <span className="text-foreground">{service}</span>
                   </div>
                 ))}
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <h4 className="font-medium text-foreground mb-2">Statut</h4>
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-500 text-sm font-medium">
-                  En attente d'approbation
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* First Invoice / Payment Summary */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-cyan-500" />
-              Première facture - Frais initiaux
-            </CardTitle>
-            <CardDescription>
-              Montant dû avant l'activation de vos services
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Truck className="w-4 h-4" /> Frais de livraison (Québec)
-                </span>
-                <span className="font-medium">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-              </div>
-              {activationFee > 0 && (
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground flex items-center gap-2">
-                    <Zap className="w-4 h-4" /> Frais d'activation (unique)
-                  </span>
-                  <span className="font-medium">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                </div>
-              )}
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Wrench className="w-4 h-4" /> Frais d'installation
-                </span>
-                <span className="font-medium">{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">TPS (5%)</span>
-                <span className="font-medium">{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">TVQ (9.975%)</span>
-                <span className="font-medium">{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between py-3 bg-accent/50 rounded-lg px-4 -mx-4">
-                <span className="font-semibold text-foreground">Total première facture</span>
-                <span className="text-xl font-bold text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Équipement inclus */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-purple-500" />
+                  Équipement inclus
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                <p>Équipement attribué selon les règles du forfait.</p>
+                <p className="mt-1 text-xs">Visible dans les détails de la commande.</p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Next Steps */}
-        <Card className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowRight className="w-5 h-5 text-cyan-500" />
-              Prochaines étapes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-cyan-500 font-bold">1</span>
+          {/* Right Column - Financial Summary */}
+          <div className="space-y-6">
+            {/* Frais uniques */}
+            <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-cyan-500" />
+                  Frais uniques (aujourd'hui)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Livraison</span>
+                    <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                )}
+                {activationFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Activation</span>
+                    <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                )}
+                {installationFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Installation</span>
+                    <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                )}
+                <Separator className="my-2" />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">TPS (5%)</span>
+                  <span>{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
-                <div>
-                  <p className="font-medium text-foreground">Confirmation par courriel</p>
-                  <p className="text-sm text-muted-foreground">Vous recevrez un courriel de confirmation avec tous les détails dans les prochaines minutes.</p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">TVQ (9.975%)</span>
+                  <span>{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-cyan-500 font-bold">2</span>
+                <div className="flex justify-between pt-2 border-t border-cyan-500/30 font-bold">
+                  <span className="text-cyan-500">Total dû aujourd'hui</span>
+                  <span className="text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
-                <div>
-                  <p className="font-medium text-foreground">Vérification d'identité</p>
-                  <p className="text-sm text-muted-foreground">Notre équipe vous contactera pour la vérification d'identité dans les 24-48h.</p>
+              </CardContent>
+            </Card>
+
+            {/* Mensuel récurrent */}
+            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-500" />
+                  Mensuel récurrent
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Services mensuels</span>
+                  <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-cyan-500 font-bold">3</span>
+                <div className="flex justify-between pt-2 border-t border-purple-500/30 font-bold">
+                  <span className="text-purple-500">Total mensuel (+ taxes)</span>
+                  <span className="text-purple-500">{(monthlyRecurring * 1.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                 </div>
-                <div>
-                  <p className="font-medium text-foreground">Paiement des frais initiaux</p>
-                  <p className="text-sm text-muted-foreground">Une fois l'identité vérifiée, vous recevrez les instructions pour le paiement.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-emerald-500 font-bold">4</span>
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">Installation et activation</p>
-                  <p className="text-sm text-muted-foreground">Votre installation sera planifiée et vos services activés.</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-wrap gap-4 justify-center">
           <Button variant="outline" size="lg" className="gap-2" onClick={() => window.print()}>
             <Printer className="w-4 h-4" />
-            Imprimer la confirmation
+            Imprimer
           </Button>
           {order.appointment_date && (
             <Button variant="outline" size="lg" className="gap-2" onClick={generateICSFile}>
@@ -370,6 +402,10 @@ END:VCALENDAR`;
               Ajouter au calendrier
             </Button>
           )}
+          <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate("/portal/tickets/new")}>
+            <MessageSquare className="w-4 h-4" />
+            Ouvrir un billet
+          </Button>
           <Button variant="hero" size="lg" onClick={() => navigate("/portal/orders")} className="gap-2">
             Voir mes commandes
             <ArrowRight className="w-4 h-4" />
