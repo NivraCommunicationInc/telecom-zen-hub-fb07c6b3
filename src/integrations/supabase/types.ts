@@ -1790,6 +1790,12 @@ export type Database = {
           pin_is_default: boolean | null
           pin_lockout_until: string | null
           sector_tags: string[] | null
+          security_alert_level: string | null
+          security_flagged_at: string | null
+          security_flagged_order_id: string | null
+          security_reason: string | null
+          security_requires_pin_reset: boolean | null
+          security_status: string
           service_address: string | null
           service_city: string | null
           service_postal_code: string | null
@@ -1824,6 +1830,12 @@ export type Database = {
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           sector_tags?: string[] | null
+          security_alert_level?: string | null
+          security_flagged_at?: string | null
+          security_flagged_order_id?: string | null
+          security_reason?: string | null
+          security_requires_pin_reset?: boolean | null
+          security_status?: string
           service_address?: string | null
           service_city?: string | null
           service_postal_code?: string | null
@@ -1858,6 +1870,12 @@ export type Database = {
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           sector_tags?: string[] | null
+          security_alert_level?: string | null
+          security_flagged_at?: string | null
+          security_flagged_order_id?: string | null
+          security_reason?: string | null
+          security_requires_pin_reset?: boolean | null
+          security_status?: string
           service_address?: string | null
           service_city?: string | null
           service_postal_code?: string | null
@@ -2657,6 +2675,48 @@ export type Database = {
           },
         ]
       }
+      security_action_logs: {
+        Row: {
+          action: string
+          action_by_id: string | null
+          action_by_name: string | null
+          action_by_role: string | null
+          client_email: string | null
+          client_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          order_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          action_by_id?: string | null
+          action_by_name?: string | null
+          action_by_role?: string | null
+          client_email?: string | null
+          client_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          order_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          action_by_id?: string | null
+          action_by_name?: string | null
+          action_by_role?: string | null
+          client_email?: string | null
+          client_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          order_id?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       service_status: {
         Row: {
           description: string | null
@@ -3355,6 +3415,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      flag_client_for_risk: {
+        Args: {
+          p_alert_level?: string
+          p_client_id: string
+          p_order_id: string
+          p_reason?: string
+        }
+        Returns: undefined
+      }
       generate_account_number: { Args: never; Returns: string }
       generate_appointment_number: { Args: never; Returns: string }
       generate_client_number: { Args: never; Returns: string }
@@ -3389,6 +3458,10 @@ export type Database = {
       is_assigned_technician: {
         Args: { _work_order_id: string }
         Returns: boolean
+      }
+      lift_client_suspension: {
+        Args: { p_client_id: string; p_require_pin_reset?: boolean }
+        Returns: undefined
       }
       verify_pin: {
         Args: { pin_input: string; user_id_input: string }

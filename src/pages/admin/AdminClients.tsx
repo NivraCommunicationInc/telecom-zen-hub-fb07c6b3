@@ -41,6 +41,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { downloadInvoicePDF, viewInvoicePDF } from "@/lib/invoicePdfGenerator";
 import { downloadContractPDF, viewContractPDF } from "@/lib/contractPdfGenerator";
 import { AdminPinManagementCard } from "@/components/admin/AdminPinManagementCard";
+import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
+import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
 import { useAuth } from "@/hooks/useAuth";
 
 // Public website plans mapping (must match exactly)
@@ -994,6 +996,15 @@ const AdminClients = () => {
                 <ScrollArea className="flex-1 mt-4">
                   {/* Profile Tab */}
                   <TabsContent value="profile" className="space-y-4 pr-4">
+                    {/* Security Alert Banner */}
+                    <SecurityAlertBanner
+                      alertLevel={selectedClient.security_alert_level || "none"}
+                      flaggedAt={selectedClient.security_flagged_at}
+                      flaggedOrderId={selectedClient.security_flagged_order_id}
+                      securityStatus={selectedClient.security_status}
+                      securityReason={selectedClient.security_reason}
+                    />
+
                     {selectedClient.account_status && selectedClient.account_status !== 'active' && (
                       <div className={`p-4 rounded-lg border ${
                         selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
@@ -1130,6 +1141,20 @@ const AdminClients = () => {
                         role: "admin",
                       }}
                     />
+
+                    {/* Security Controls - Admin Only */}
+                    <AdminSecurityControls
+                      clientId={selectedClient.user_id}
+                      clientEmail={selectedClient.email}
+                      securityStatus={selectedClient.security_status || "active"}
+                      securityAlertLevel={selectedClient.security_alert_level || "none"}
+                      securityReason={selectedClient.security_reason}
+                      securityFlaggedAt={selectedClient.security_flagged_at}
+                      securityFlaggedOrderId={selectedClient.security_flagged_order_id}
+                      securityRequiresPinReset={selectedClient.security_requires_pin_reset || false}
+                      onUpdate={() => refetchClients()}
+                    />
+
                     <Card className="bg-card border-border">
                       <CardContent className="pt-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
