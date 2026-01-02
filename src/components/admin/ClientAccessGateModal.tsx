@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, AlertTriangle, Mail, Loader2, KeyRound, ShieldCheck, User, AlertCircle } from "lucide-react";
+import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";
 
 interface ClientAccessGateModalProps {
   isOpen: boolean;
@@ -108,12 +109,12 @@ export const ClientAccessGateModal = ({
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("client_pin, pin_failed_attempts, pin_lockout_until")
+        .select("client_pin_hash, pin_is_default, pin_failed_attempts, pin_lockout_until")
         .eq("user_id", client.user_id)
         .maybeSingle();
 
       // Check if no PIN is set
-      if (!profile?.client_pin) {
+      if (!profile?.client_pin_hash) {
         setHasNoPin(true);
         setActiveTab("recovery");
       } else {
@@ -161,10 +162,10 @@ export const ClientAccessGateModal = ({
 
     setIsLoading(true);
     try {
-      // Get client's PIN
+      // Get client profile for lockout check
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("client_pin, pin_failed_attempts, pin_lockout_until")
+        .select("client_pin_hash, pin_failed_attempts, pin_lockout_until")
         .eq("user_id", client.user_id)
         .maybeSingle();
 
@@ -178,15 +179,21 @@ export const ClientAccessGateModal = ({
         return;
       }
 
-      // Verify PIN
-      if (!profile?.client_pin) {
+      // Verify PIN using database function
+      if (!profile?.client_pin_hash) {
         toast({ title: "NIP non configuré", description: "Le client n'a pas encore configuré son NIP. Utilisez la récupération.", variant: "destructive" });
         setHasNoPin(true);
         setActiveTab("recovery");
         return;
       }
 
-      if (profile.client_pin === pin) {
+      // Use the verify_pin database function for secure comparison
+      const { data: isValid, error: verifyError } = await supabase
+        .rpc('verify_pin', { user_id_input: client.user_id, pin_input: pin });
+
+      if (verifyError) throw verifyError;
+
+      if (isValid) {
         // Success - reset failed attempts
         await supabase
           .from("profiles")
@@ -288,7 +295,7 @@ export const ClientAccessGateModal = ({
   };
 
   const handleSetNewPin = async () => {
-    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+    if (!isValidPin(newPin)) {
       toast({ title: "Le NIP doit contenir exactement 4 chiffres", variant: "destructive" });
       return;
     }
@@ -299,16 +306,30 @@ export const ClientAccessGateModal = ({
 
     setIsLoading(true);
     try {
+      const hashedPin = await hashPin(newPin);
+      
       const { error } = await supabase
         .from("profiles")
         .update({ 
-          client_pin: newPin,
+          client_pin_hash: hashedPin,
+          pin_is_default: false,
           pin_failed_attempts: 0,
           pin_lockout_until: null,
         })
         .eq("user_id", client.user_id);
 
       if (error) throw error;
+
+      // Log the PIN creation
+      await supabase.from("client_pin_logs").insert({
+        client_id: client.user_id,
+        client_email: client.email,
+        changed_by_id: staffUser.id,
+        changed_by_name: staffUser.name,
+        changed_by_role: staffUser.role,
+        action: "set",
+        reason: "Créé après récupération d'accès",
+      });
 
       toast({ title: "NIP créé avec succès", description: "Le client peut maintenant utiliser ce NIP." });
       onAccessGranted();

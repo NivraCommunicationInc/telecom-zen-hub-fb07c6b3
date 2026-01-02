@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -14,13 +15,19 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { KeyRound, Shield, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { KeyRound, Shield, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
+import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";
+
+interface PinStatus {
+  hasPin: boolean;
+  isDefault: boolean;
+}
 
 export const ClientPinManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [hasPin, setHasPin] = useState(false);
+  const [pinStatus, setPinStatus] = useState<PinStatus>({ hasPin: false, isDefault: false });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showPin, setShowPin] = useState(false);
@@ -30,30 +37,34 @@ export const ClientPinManagement = () => {
     confirmPin: "",
   });
 
-  useEffect(() => {
-    const checkPin = async () => {
-      if (!user?.id) return;
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("client_pin")
-          .eq("user_id", user.id)
-          .maybeSingle();
+  const checkPinStatus = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("client_pin_hash, pin_is_default")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-        if (error) throw error;
-        setHasPin(!!data?.client_pin);
-      } catch (error) {
-        console.error("Error checking PIN:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    checkPin();
+      if (error) throw error;
+      setPinStatus({
+        hasPin: !!data?.client_pin_hash,
+        isDefault: data?.pin_is_default || false,
+      });
+    } catch (error) {
+      console.error("Error checking PIN:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkPinStatus();
   }, [user?.id]);
 
   const handleSavePin = async () => {
-    // Validate
-    if (formData.newPin.length !== 4 || !/^\d{4}$/.test(formData.newPin)) {
+    // Validate new PIN
+    if (!isValidPin(formData.newPin)) {
       toast({ title: "Le NIP doit contenir exactement 4 chiffres", variant: "destructive" });
       return;
     }
@@ -63,15 +74,26 @@ export const ClientPinManagement = () => {
       return;
     }
 
-    if (hasPin) {
-      // Verify current PIN
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("client_pin")
-        .eq("user_id", user?.id)
-        .maybeSingle();
+    // If user already has a PIN (and it's not default for first change), verify current
+    if (pinStatus.hasPin && !pinStatus.isDefault) {
+      if (!formData.currentPin || formData.currentPin.length !== 4) {
+        toast({ title: "Veuillez entrer votre NIP actuel", variant: "destructive" });
+        return;
+      }
 
-      if (profile?.client_pin !== formData.currentPin) {
+      // Verify current PIN using the database function
+      const { data: isValid, error: verifyError } = await supabase
+        .rpc('verify_pin', { user_id_input: user?.id, pin_input: formData.currentPin });
+
+      if (verifyError || !isValid) {
+        toast({ title: "NIP actuel incorrect", variant: "destructive" });
+        return;
+      }
+    }
+
+    // For default PIN, verify it matches default
+    if (pinStatus.isDefault && formData.currentPin) {
+      if (formData.currentPin !== DEFAULT_PIN) {
         toast({ title: "NIP actuel incorrect", variant: "destructive" });
         return;
       }
@@ -79,10 +101,13 @@ export const ClientPinManagement = () => {
 
     setIsSaving(true);
     try {
+      const hashedPin = await hashPin(formData.newPin);
+
       const { error } = await supabase
         .from("profiles")
         .update({ 
-          client_pin: formData.newPin,
+          client_pin_hash: hashedPin,
+          pin_is_default: false,
           pin_failed_attempts: 0,
           pin_lockout_until: null,
         })
@@ -90,11 +115,19 @@ export const ClientPinManagement = () => {
 
       if (error) throw error;
 
+      // Log the change
+      await supabase.from("client_pin_logs").insert({
+        client_id: user?.id,
+        changed_by_id: user?.id,
+        changed_by_role: "client",
+        action: pinStatus.isDefault ? "forced_change" : (pinStatus.hasPin ? "change" : "set"),
+      });
+
       toast({ 
-        title: hasPin ? "NIP modifié avec succès" : "NIP créé avec succès",
+        title: pinStatus.hasPin ? "NIP modifié avec succès" : "NIP créé avec succès",
         description: "Ce NIP sera requis pour que notre personnel accède à votre profil."
       });
-      setHasPin(true);
+      setPinStatus({ hasPin: true, isDefault: false });
       setDialogOpen(false);
       setFormData({ currentPin: "", newPin: "", confirmPin: "" });
     } catch (error: any) {
@@ -123,6 +156,29 @@ export const ClientPinManagement = () => {
 
   return (
     <>
+      {/* Default PIN Warning Banner */}
+      {pinStatus.isDefault && (
+        <div className="p-4 rounded-lg bg-amber-500/15 border border-amber-500/30 mb-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-amber-600">Changez votre NIP pour votre sécurité</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Votre compte utilise le NIP par défaut. Pour protéger vos informations, veuillez créer un nouveau NIP personnel.
+              </p>
+              <Button
+                size="sm"
+                className="mt-3"
+                onClick={() => setDialogOpen(true)}
+              >
+                <KeyRound className="w-4 h-4 mr-2" />
+                Changer mon NIP maintenant
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
         <div>
           <div className="flex items-center gap-2">
@@ -130,21 +186,28 @@ export const ClientPinManagement = () => {
             <p className="font-medium text-foreground">NIP client (4 chiffres)</p>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {hasPin ? (
-              <span className="flex items-center gap-1 text-emerald-600">
-                <CheckCircle className="w-3 h-3" />
-                NIP configuré
-              </span>
+            {pinStatus.hasPin ? (
+              pinStatus.isDefault ? (
+                <span className="flex items-center gap-1 text-amber-600">
+                  <AlertCircle className="w-3 h-3" />
+                  NIP par défaut — À changer
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <CheckCircle className="w-3 h-3" />
+                  NIP personnalisé configuré
+                </span>
+              )
             ) : (
               <span className="flex items-center gap-1 text-amber-600">
                 <AlertCircle className="w-3 h-3" />
-                Non configuré - Recommandé pour votre sécurité
+                Non configuré — Recommandé pour votre sécurité
               </span>
             )}
           </p>
         </div>
         <Button variant="outline" onClick={() => setDialogOpen(true)}>
-          {hasPin ? "Modifier" : "Créer"}
+          {pinStatus.hasPin ? "Modifier" : "Créer"}
         </Button>
       </div>
 
@@ -153,17 +216,28 @@ export const ClientPinManagement = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              {hasPin ? "Modifier votre NIP client" : "Créer votre NIP client"}
+              {pinStatus.isDefault 
+                ? "Créer votre NIP personnel"
+                : pinStatus.hasPin 
+                  ? "Modifier votre NIP client" 
+                  : "Créer votre NIP client"}
             </DialogTitle>
             <DialogDescription>
-              Ce NIP sécurise l'accès à votre profil lorsque vous contactez notre service client ou que notre personnel a besoin d'accéder à vos informations.
+              {pinStatus.isDefault
+                ? "Remplacez le NIP par défaut par un NIP personnel de votre choix pour sécuriser votre compte."
+                : "Ce NIP sécurise l'accès à votre profil lorsque vous contactez notre service client."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {hasPin && (
+            {/* Current PIN - required if has non-default PIN */}
+            {pinStatus.hasPin && (
               <div className="space-y-2">
-                <Label>NIP actuel</Label>
+                <Label>
+                  {pinStatus.isDefault 
+                    ? `NIP actuel (par défaut: ${DEFAULT_PIN})`
+                    : "NIP actuel"}
+                </Label>
                 <div className="relative">
                   <Input
                     type={showPin ? "text" : "password"}
@@ -183,11 +257,16 @@ export const ClientPinManagement = () => {
                     {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
                 </div>
+                {pinStatus.isDefault && (
+                  <p className="text-xs text-muted-foreground">
+                    Le NIP par défaut est <strong>{DEFAULT_PIN}</strong>
+                  </p>
+                )}
               </div>
             )}
 
             <div className="space-y-2">
-              <Label>{hasPin ? "Nouveau NIP" : "NIP"} (4 chiffres)</Label>
+              <Label>{pinStatus.hasPin ? "Nouveau NIP" : "NIP"} (4 chiffres)</Label>
               <div className="relative">
                 <Input
                   type={showPin ? "text" : "password"}
@@ -237,7 +316,7 @@ export const ClientPinManagement = () => {
             </Button>
             <Button onClick={handleSavePin} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {hasPin ? "Modifier" : "Créer"}
+              {pinStatus.hasPin ? "Modifier" : "Créer"}
             </Button>
           </DialogFooter>
         </DialogContent>

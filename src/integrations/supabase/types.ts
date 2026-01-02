@@ -672,6 +672,42 @@ export type Database = {
         }
         Relationships: []
       }
+      client_pin_logs: {
+        Row: {
+          action: string
+          changed_by_id: string
+          changed_by_name: string | null
+          changed_by_role: string
+          client_email: string | null
+          client_id: string
+          created_at: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          changed_by_id: string
+          changed_by_name?: string | null
+          changed_by_role: string
+          client_email?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by_id?: string
+          changed_by_name?: string | null
+          changed_by_role?: string
+          client_email?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       client_streaming_subscriptions: {
         Row: {
           account_id: string | null
@@ -1733,6 +1769,7 @@ export type Database = {
           balance: number | null
           client_number: string | null
           client_pin: string | null
+          client_pin_hash: string | null
           client_type: string | null
           created_at: string
           date_of_birth: string | null
@@ -1750,6 +1787,7 @@ export type Database = {
           last_name: string | null
           phone: string | null
           pin_failed_attempts: number | null
+          pin_is_default: boolean | null
           pin_lockout_until: string | null
           sector_tags: string[] | null
           service_address: string | null
@@ -1765,6 +1803,7 @@ export type Database = {
           balance?: number | null
           client_number?: string | null
           client_pin?: string | null
+          client_pin_hash?: string | null
           client_type?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -1782,6 +1821,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
+          pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           sector_tags?: string[] | null
           service_address?: string | null
@@ -1797,6 +1837,7 @@ export type Database = {
           balance?: number | null
           client_number?: string | null
           client_pin?: string | null
+          client_pin_hash?: string | null
           client_type?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -1814,6 +1855,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
+          pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           sector_tags?: string[] | null
           service_address?: string | null
@@ -3343,8 +3385,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      hash_pin: { Args: { pin: string }; Returns: string }
       is_assigned_technician: {
         Args: { _work_order_id: string }
+        Returns: boolean
+      }
+      verify_pin: {
+        Args: { pin_input: string; user_id_input: string }
         Returns: boolean
       }
     }
