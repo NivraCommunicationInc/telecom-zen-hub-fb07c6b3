@@ -88,6 +88,8 @@ interface Channel {
   description: string;
   is_hd: boolean;
   is_4k: boolean;
+  group_key?: string | null;
+  display_label?: string | null;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -433,7 +435,26 @@ const ClientNewOrder = () => {
   // Categorize channels
   const baseChannels = tvChannels.filter(ch => ch.category === 'base');
   const freeChoiceChannels = tvChannels.filter(ch => ch.category === 'free_choice');
+  const premiumChannels = tvChannels.filter(ch => ch.category === 'premium');
   const paidChannels = tvChannels.filter(ch => ch.category === 'paid');
+
+  // Count unique selections for free_choice (bundled channels count as 1)
+  const countFreeChoiceSelections = (channels: Channel[]): number => {
+    const groupKeys = new Set<string>();
+    let nonBundledCount = 0;
+    
+    channels.forEach(ch => {
+      if (ch.group_key) {
+        groupKeys.add(ch.group_key);
+      } else {
+        nonBundledCount++;
+      }
+    });
+    
+    return groupKeys.size + nonBundledCount;
+  };
+  
+  const freeChoiceSelectionCount = countFreeChoiceSelections(selectedFreeChannels);
 
   // Check if TV service is selected
   const hasTVService = selectedServices.some(s => s.category === "TV");
@@ -932,9 +953,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       if (exists) {
         return prev.filter(ch => ch.id !== channel.id);
       }
-      if (prev.length >= freeChannelLimit) {
-        toast.error(`Vous avez atteint la limite de ${freeChannelLimit} chaînes gratuites pour votre forfait`);
+      
+      // Count unique selections (bundled channels count as 1)
+      const currentCount = countFreeChoiceSelections(prev);
+      
+      // Check if adding this channel would exceed the limit
+      // If this channel has a group_key that's already selected, it doesn't count as new
+      const wouldExceedLimit = channel.group_key 
+        ? !prev.some(ch => ch.group_key === channel.group_key) && currentCount >= freeChannelLimit
+        : currentCount >= freeChannelLimit;
+        
+      if (wouldExceedLimit) {
+        toast.error(`Vous avez atteint la limite de ${freeChannelLimit} chaînes au choix pour votre forfait`);
         return prev;
+      }
+      return [...prev, channel];
+    });
+  };
+
+  // Toggle premium channel (premium channels are paid separately)
+  const togglePremiumChannel = (channel: Channel) => {
+    setSelectedPaidChannels(prev => {
+      const exists = prev.find(ch => ch.id === channel.id);
+      if (exists) {
+        return prev.filter(ch => ch.id !== channel.id);
       }
       return [...prev, channel];
     });
@@ -1304,7 +1346,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                       <div>
                         <CardTitle className="flex items-center gap-2">
-                          La Base — 23 chaînes HD
+                          La Base — {baseChannels.length} chaînes HD
                         </CardTitle>
                         <CardDescription>
                           Incluant les réseaux généralistes canadiens. Toujours inclus avec votre forfait.
@@ -1339,7 +1381,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* Free-Choice Channels */}
+              {/* Free-Choice Channels (Populaires) */}
               {freeChannelLimit > 0 && (
               <Card className="bg-card border-cyan-500/30">
                 <CardHeader>
@@ -1350,17 +1392,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                       <div>
                         <CardTitle className="flex items-center gap-2">
-                          Chaînes au choix
+                          Chaînes au choix (Populaires)
                           <Badge variant="outline" className={`${
-                            selectedFreeChannels.length === freeChannelLimit 
+                            freeChoiceSelectionCount === freeChannelLimit 
                               ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" 
                               : "bg-cyan-500/10 text-cyan-500 border-cyan-500/30"
                           }`}>
-                            {selectedFreeChannels.length}/{freeChannelLimit} sélectionnées
+                            {freeChoiceSelectionCount}/{freeChannelLimit} sélectionnées
                           </Badge>
                         </CardTitle>
                         <CardDescription>
-                          Choisissez {freeChannelLimit} chaînes incluses avec votre forfait
+                          Choisissez {freeChannelLimit} chaînes incluses avec votre forfait. Les chaînes jumelées comptent comme 1 choix.
                         </CardDescription>
                       </div>
                     </div>
@@ -1377,7 +1419,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {freeChoiceChannels.map((channel) => {
                         const isChannelSelected = selectedFreeChannels.some(ch => ch.id === channel.id);
-                        const isDisabled = !isChannelSelected && selectedFreeChannels.length >= freeChannelLimit;
+                        const currentCount = freeChoiceSelectionCount;
+                        // Check if adding this channel would exceed limit
+                        const wouldExceedLimit = channel.group_key 
+                          ? !selectedFreeChannels.some(ch => ch.group_key === channel.group_key) && currentCount >= freeChannelLimit
+                          : currentCount >= freeChannelLimit;
+                        const isDisabled = !isChannelSelected && wouldExceedLimit;
+                        const displayName = channel.display_label || channel.name;
+                        const isBundled = !!channel.group_key;
+                        
                         return (
                           <div
                             key={channel.id}
@@ -1396,8 +1446,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                               {isChannelSelected && <Check className="w-3 h-3" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{channel.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
+                              <p className="font-medium text-sm truncate">{displayName}</p>
+                              {isBundled && (
+                                <p className="text-xs text-amber-500">Chaînes jumelées = 1 choix</p>
+                              )}
                             </div>
                             <div className="flex items-center gap-1">
                               {channel.is_hd && <Badge variant="outline" className="text-xs px-1">HD</Badge>}
@@ -1409,7 +1461,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </ScrollArea>
                   )}
-                  {selectedFreeChannels.length >= freeChannelLimit && (
+                  {freeChoiceSelectionCount >= freeChannelLimit && (
                     <div className="flex items-center gap-2 p-3 mt-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                       <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                       <p className="text-sm text-amber-700">
@@ -1420,7 +1472,70 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
               )}
-              {/* Paid Premium Channels */}
+
+              {/* Premium Channels */}
+              {premiumChannels.length > 0 && (
+              <Card className="bg-card border-purple-500/30">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                        <Star className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          Chaînes Premium
+                        </CardTitle>
+                        <CardDescription>
+                          Forfaits premium avec abonnement mensuel supplémentaire
+                        </CardDescription>
+                      </div>
+                    </div>
+                    {selectedPaidChannels.filter(ch => ch.category === 'premium').length > 0 && (
+                      <Badge className="bg-purple-500">
+                        +{selectedPaidChannels.filter(ch => ch.category === 'premium').reduce((sum, ch) => sum + Number(ch.price), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {premiumChannels.map((channel) => {
+                      const isChannelSelected = selectedPaidChannels.some(ch => ch.id === channel.id);
+                      return (
+                        <div
+                          key={channel.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            isChannelSelected
+                              ? "bg-purple-500/20 border border-purple-500"
+                              : "bg-accent/30 hover:bg-accent/50 border border-transparent"
+                          }`}
+                          onClick={() => togglePremiumChannel(channel)}
+                        >
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isChannelSelected ? "bg-purple-500 text-white" : "border-2 border-muted-foreground/30"
+                          }`}>
+                            {isChannelSelected && <Check className="w-3 h-3" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{channel.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {channel.is_hd && <Badge variant="outline" className="text-xs px-1">HD</Badge>}
+                            <Badge className="bg-purple-500/20 text-purple-500 border-0">
+                              {Number(channel.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+              )}
+
+              {/* Paid Channels (À la carte) */}
               <Card className="bg-card border-amber-500/30">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -1430,16 +1545,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                       <div>
                         <CardTitle className="flex items-center gap-2">
-                          Chaînes Premium & Sports
+                          Chaînes payantes (À la carte)
                         </CardTitle>
                         <CardDescription>
-                          Ajoutez des chaînes premium avec abonnement mensuel
+                          Chaînes avec frais mensuels supplémentaires
                         </CardDescription>
                       </div>
                     </div>
-                    {paidChannelTotal > 0 && (
+                    {selectedPaidChannels.filter(ch => ch.category === 'paid').length > 0 && (
                       <Badge className="bg-amber-500">
-                        +{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                        +{selectedPaidChannels.filter(ch => ch.category === 'paid').reduce((sum, ch) => sum + Number(ch.price), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                       </Badge>
                     )}
                   </div>
@@ -1448,7 +1563,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   {paidChannels.length === 0 ? (
                     <div className="text-center py-6">
                       <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">Chargement des chaînes premium...</p>
+                      <p className="text-sm text-muted-foreground">Chargement des chaînes...</p>
                     </div>
                   ) : (
                   <ScrollArea className="h-64">
