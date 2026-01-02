@@ -3271,6 +3271,7 @@ export type Database = {
       }
       tv_channels: {
         Row: {
+          base_pack: string | null
           category: string
           created_at: string
           description: string | null
@@ -3291,6 +3292,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          base_pack?: string | null
           category: string
           created_at?: string
           description?: string | null
@@ -3311,6 +3313,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          base_pack?: string | null
           category?: string
           created_at?: string
           description?: string | null

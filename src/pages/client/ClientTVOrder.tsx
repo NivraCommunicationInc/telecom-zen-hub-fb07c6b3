@@ -62,6 +62,7 @@ interface Channel {
   is_hd: boolean;
   is_4k: boolean;
   is_active: boolean;
+  base_pack: string | null;
 }
 
 // Streaming service interface
