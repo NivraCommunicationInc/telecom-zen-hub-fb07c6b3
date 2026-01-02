@@ -97,10 +97,13 @@ const priorityConfig: Record<string, { label: string; color: string; icon: any }
 };
 
 // Category tags
-const categoryConfig: Record<string, { label: string; color: string; icon: any }> = {
+const categoryConfig: Record<string, { label: string; color: string; icon: any; requiresOrder?: boolean }> = {
   billing: { label: "Facturation", color: "bg-green-500/20 text-green-400", icon: FileText },
   installation: { label: "Installation", color: "bg-blue-500/20 text-blue-400", icon: UserCog },
   equipment: { label: "Équipement", color: "bg-purple-500/20 text-purple-400", icon: Tag },
+  equipment_issue: { label: "Problème d'équipement", color: "bg-orange-500/20 text-orange-400", icon: Tag, requiresOrder: true },
+  sim_issue: { label: "Problème de SIM", color: "bg-red-500/20 text-red-400", icon: Phone, requiresOrder: true },
+  lost_stolen: { label: "Appareil perdu/volé", color: "bg-red-600/20 text-red-500", icon: AlertTriangle, requiresOrder: true },
   sim_lost: { label: "SIM/Téléphone perdu", color: "bg-red-500/20 text-red-400", icon: Phone },
   plan_pause: { label: "Pause de forfait", color: "bg-amber-500/20 text-amber-400", icon: Pause },
   number_change: { label: "Changement de numéro", color: "bg-cyan-500/20 text-cyan-400", icon: Hash },
@@ -108,6 +111,8 @@ const categoryConfig: Record<string, { label: string; color: string; icon: any }
   general: { label: "Support général", color: "bg-muted text-muted-foreground", icon: MessageSquare },
   technical: { label: "Technique", color: "bg-indigo-500/20 text-indigo-400", icon: Shield },
 };
+
+const EQUIPMENT_CATEGORIES = ['equipment_issue', 'sim_issue', 'lost_stolen'];
 
 // ID Verification status config
 const idVerificationStatusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -146,7 +151,10 @@ const AdminTickets = () => {
     priority: "normal",
     category: "general",
     requires_id_upload: false,
+    related_order_id: "",
+    issue_type: "",
   });
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
 
   // Fetch all support tickets with client info
   const { data: tickets, isLoading, refetch } = useQuery({
@@ -177,6 +185,19 @@ const AdminTickets = () => {
     },
   });
 
+  // Fetch clients for email lookup
+  const { data: clients } = useQuery({
+    queryKey: ["admin-clients-for-tickets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, email, full_name")
+        .order("full_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch replies for selected ticket
   const { data: replies, isLoading: repliesLoading } = useQuery({
     queryKey: ["admin-ticket-replies", selectedTicket?.id],
@@ -193,7 +214,20 @@ const AdminTickets = () => {
     enabled: !!selectedTicket?.id,
   });
 
-  // Filtered tickets
+  // Fetch orders for selected client (for equipment/SIM tickets)
+  const { data: clientOrders } = useQuery({
+    queryKey: ["admin-client-orders-for-ticket", selectedClientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, order_number, service_type, order_type, created_at")
+        .eq("user_id", selectedClientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedClientId,
+  });
   const filteredTickets = useMemo(() => {
     if (!tickets) return [];
     
@@ -322,6 +356,17 @@ const AdminTickets = () => {
 
       if (!profile) throw new Error("Client non trouvé avec cet email");
 
+      // Get related order reference if order is selected
+      let relatedOrderReference = null;
+      if (ticketData.related_order_id) {
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("order_number")
+          .eq("id", ticketData.related_order_id)
+          .single();
+        relatedOrderReference = orderData?.order_number || ticketData.related_order_id;
+      }
+
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
@@ -336,6 +381,9 @@ const AdminTickets = () => {
           created_by_user_id: user.id,
           created_by_role: 'admin',
           status: 'open',
+          related_order_id: ticketData.related_order_id || null,
+          related_order_reference: relatedOrderReference,
+          issue_type: ticketData.issue_type || null,
         })
         .select()
         .single();
@@ -358,7 +406,10 @@ const AdminTickets = () => {
         priority: "normal",
         category: "general",
         requires_id_upload: false,
+        related_order_id: "",
+        issue_type: "",
       });
+      setSelectedClientId("");
     },
     onError: (error: any) => {
       toast({ 
@@ -425,6 +476,29 @@ const AdminTickets = () => {
                     </TabsList>
 
                     <TabsContent value="conversation" className="mt-4 space-y-4">
+                      {/* Related Order Reference */}
+                      {selectedTicket.related_order_reference && (
+                        <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-primary" />
+                            <span className="text-sm">
+                              Commande: <strong>{selectedTicket.related_order_reference}</strong>
+                            </span>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              // Open order in new tab
+                              window.open(`/admin/orders`, '_blank');
+                            }}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            Voir commande
+                          </Button>
+                        </div>
+                      )}
+
                       {/* Original Message */}
                       <div className="p-4 bg-accent/50 rounded-lg border-l-4 border-cyan-500">
                         <div className="flex items-center gap-2 mb-2">
@@ -854,14 +928,21 @@ const AdminTickets = () => {
                 <DialogHeader>
                   <DialogTitle>Créer un ticket pour un client</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 mt-4">
+                <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-1">
                   <div>
                     <Label>Email du client *</Label>
                     <Input
                       type="email"
                       placeholder="client@exemple.com"
                       value={newTicket.client_email}
-                      onChange={(e) => setNewTicket({ ...newTicket, client_email: e.target.value })}
+                      onChange={(e) => {
+                        setNewTicket({ ...newTicket, client_email: e.target.value, related_order_id: "" });
+                        // Find client by email for order lookup
+                        const client = (clients || []).find((c: any) => 
+                          c.email?.toLowerCase() === e.target.value.toLowerCase()
+                        );
+                        setSelectedClientId(client?.user_id || "");
+                      }}
                     />
                   </div>
                   <div>
@@ -893,7 +974,12 @@ const AdminTickets = () => {
                       <Label>Catégorie</Label>
                       <Select
                         value={newTicket.category}
-                        onValueChange={(v) => setNewTicket({ ...newTicket, category: v })}
+                        onValueChange={(v) => setNewTicket({ 
+                          ...newTicket, 
+                          category: v, 
+                          related_order_id: "",
+                          issue_type: "",
+                        })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -906,6 +992,43 @@ const AdminTickets = () => {
                       </Select>
                     </div>
                   </div>
+
+                  {/* Related Order Selection - for equipment/SIM categories */}
+                  {EQUIPMENT_CATEGORIES.includes(newTicket.category) && (
+                    <div className="p-3 bg-orange-500/10 rounded-lg border border-orange-500/30 space-y-3">
+                      <div className="flex items-center gap-2 text-orange-500 text-sm font-medium">
+                        <Tag className="w-4 h-4" />
+                        Commande concernée (obligatoire)
+                      </div>
+                      {selectedClientId && clientOrders && clientOrders.length > 0 ? (
+                        <Select
+                          value={newTicket.related_order_id}
+                          onValueChange={(v) => setNewTicket({ ...newTicket, related_order_id: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionnez la commande" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {clientOrders.map((order: any) => (
+                              <SelectItem key={order.id} value={order.id}>
+                                {order.order_number || order.id.slice(0, 8)} - {order.service_type}
+                                {order.order_type === "equipment" && " (Équipement)"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : selectedClientId ? (
+                        <p className="text-sm text-muted-foreground">
+                          Aucune commande trouvée pour ce client
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Entrez l'email du client pour voir ses commandes
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <Label>Message *</Label>
                     <Textarea
@@ -937,7 +1060,13 @@ const AdminTickets = () => {
                     className="w-full"
                     variant="hero"
                     onClick={() => createTicketMutation.mutate(newTicket)}
-                    disabled={!newTicket.client_email || !newTicket.subject || !newTicket.description || createTicketMutation.isPending}
+                    disabled={
+                      !newTicket.client_email || 
+                      !newTicket.subject || 
+                      !newTicket.description || 
+                      (EQUIPMENT_CATEGORIES.includes(newTicket.category) && !newTicket.related_order_id) ||
+                      createTicketMutation.isPending
+                    }
                   >
                     {createTicketMutation.isPending ? "Création..." : "Créer le ticket"}
                   </Button>

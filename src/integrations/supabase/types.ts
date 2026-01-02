@@ -1646,6 +1646,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          link_id: string | null
+          link_target: string | null
+          message: string | null
+          title: string
+          type: string
+          user_id: string
+          user_role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link_id?: string | null
+          link_target?: string | null
+          message?: string | null
+          title: string
+          type?: string
+          user_id: string
+          user_role?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link_id?: string | null
+          link_target?: string | null
+          message?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+          user_role?: string
+        }
+        Relationships: []
+      }
       order_documents: {
         Row: {
           created_at: string
@@ -3371,8 +3410,11 @@ export type Database = {
           id_files: Json | null
           id_verification_status: string | null
           internal_notes: string | null
+          issue_type: string | null
           point_of_contact_id: string | null
           priority: string
+          related_order_id: string | null
+          related_order_reference: string | null
           requires_id_upload: boolean | null
           status: string
           subject: string
@@ -3391,8 +3433,11 @@ export type Database = {
           id_files?: Json | null
           id_verification_status?: string | null
           internal_notes?: string | null
+          issue_type?: string | null
           point_of_contact_id?: string | null
           priority?: string
+          related_order_id?: string | null
+          related_order_reference?: string | null
           requires_id_upload?: boolean | null
           status?: string
           subject: string
@@ -3411,8 +3456,11 @@ export type Database = {
           id_files?: Json | null
           id_verification_status?: string | null
           internal_notes?: string | null
+          issue_type?: string | null
           point_of_contact_id?: string | null
           priority?: string
+          related_order_id?: string | null
+          related_order_reference?: string | null
           requires_id_upload?: boolean | null
           status?: string
           subject?: string
@@ -3426,6 +3474,13 @@ export type Database = {
             columns: ["point_of_contact_id"]
             isOneToOne: false
             referencedRelation: "authorized_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -4026,6 +4081,18 @@ export type Database = {
       }
     }
     Functions: {
+      create_notification: {
+        Args: {
+          p_link_id?: string
+          p_link_target?: string
+          p_message?: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+          p_user_role: string
+        }
+        Returns: string
+      }
       flag_client_for_risk: {
         Args: {
           p_alert_level?: string

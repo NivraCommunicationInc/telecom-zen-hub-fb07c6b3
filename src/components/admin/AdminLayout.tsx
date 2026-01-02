@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -76,13 +77,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       <div className="flex-1 flex">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-card border-r border-border">
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-border flex items-center justify-between">
           <Link to="/admin" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
               <span className="text-navy-900 font-bold text-sm">N</span>
             </div>
             <span className="font-display font-bold text-lg text-foreground">Nivra Admin</span>
           </Link>
+          <NotificationBell />
         </div>
         
         <nav className="flex-1 p-4 space-y-1">

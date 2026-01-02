@@ -20,6 +20,7 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { SystemStatusBanner } from "@/components/SystemStatusBanner";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -64,9 +65,12 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
           </div>
           <span className="font-display font-bold text-foreground">Nivra</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
+        </div>
       </header>
 
       {/* Sidebar */}
@@ -76,13 +80,14 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="p-6 border-b border-border hidden lg:block">
+        <div className="p-6 border-b border-border hidden lg:flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
               <span className="font-display font-bold text-navy-900 text-xl">N</span>
             </div>
             <span className="font-display font-bold text-xl text-foreground">Nivra</span>
           </Link>
+          <NotificationBell />
         </div>
 
         <nav className="p-4 space-y-1 mt-16 lg:mt-0">
