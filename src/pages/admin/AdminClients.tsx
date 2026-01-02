@@ -962,13 +962,13 @@ const AdminClients = () => {
           }}
         >
           <DialogContent 
-            className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0"
+            className="max-w-6xl h-[90vh] flex flex-col p-0"
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Sticky Header */}
-            <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex-shrink-0">
+            <div className="flex-shrink-0 bg-background border-b border-border px-6 py-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
@@ -1032,8 +1032,8 @@ const AdminClients = () => {
             </div>
 
             {selectedClient && (
-              <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col px-6 pb-6">
-                <TabsList className="grid grid-cols-9 w-full flex-shrink-0 overflow-x-auto">
+              <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0 px-6 pb-6">
+                <TabsList className="grid grid-cols-9 w-full flex-shrink-0 overflow-x-auto sticky top-0 z-10 bg-background">
                   <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
                   <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
                   <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>
@@ -1045,7 +1045,7 @@ const AdminClients = () => {
                   <TabsTrigger value="logs" className="text-xs">Logs</TabsTrigger>
                 </TabsList>
 
-                <ScrollArea className="flex-1 mt-4 min-h-0">
+                <div className="flex-1 overflow-y-auto mt-4 min-h-0">
                   {/* Profile Tab */}
                   <TabsContent value="profile" className="space-y-4 pr-4">
                     {/* Security Alert Banner */}
@@ -1996,7 +1996,7 @@ const AdminClients = () => {
                       </CardContent>
                     </Card>
                   </TabsContent>
-                </ScrollArea>
+                </div>
               </Tabs>
             )}
             
