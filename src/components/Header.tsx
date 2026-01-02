@@ -18,6 +18,7 @@ const Header = () => {
     { label: "Internet", href: "/internet", isPage: true },
     { label: "TV", href: "/tv", isPage: true },
     { label: "Mobile", href: "/mobile", isPage: true },
+    { label: "Streaming+", href: "/streaming", isPage: true },
     { label: t('nav.contact'), href: "contact", isPage: false },
   ];
 
