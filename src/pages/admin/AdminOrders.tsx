@@ -34,6 +34,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Package,
   Plus,
   Eye,
@@ -56,7 +62,11 @@ import {
   FileText,
   Wrench,
   Phone,
+  ChevronDown,
+  ShoppingCart,
 } from "lucide-react";
+import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
+import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -146,6 +156,7 @@ const AdminOrders = () => {
 
   // State
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1097,13 +1108,26 @@ const AdminOrders = () => {
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
             </Button>
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button variant="hero">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouvelle commande
+                  <ChevronDown className="w-4 h-4 ml-2" />
                 </Button>
-              </DialogTrigger>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setCreateDialogOpen(true)}>
+                  <Wifi className="w-4 h-4 mr-2" />
+                  Commande service
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setEquipmentDialogOpen(true)}>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Commande équipement
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Créer une commande manuelle</DialogTitle>
@@ -1323,7 +1347,15 @@ const AdminOrders = () => {
                     {filteredOrders.map((order: any) => (
                       <tr key={order.id} className="border-b border-border/50 hover:bg-accent/50">
                         <td className="py-3 px-4">
-                          <p className="text-sm font-mono text-foreground">{order.order_number || `#${order.id.slice(0, 8)}`}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-mono text-foreground">{order.order_number || `#${order.id.slice(0, 8)}`}</p>
+                            {order.order_type === "equipment" && (
+                              <Badge variant="secondary" className="text-xs">
+                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                Équip.
+                              </Badge>
+                            )}
+                          </div>
                           {order.risk_flags && order.risk_flags.length > 0 && (
                             <AlertTriangle className="w-4 h-4 text-amber-500 inline ml-1" />
                           )}
@@ -1390,6 +1422,16 @@ const AdminOrders = () => {
 
             {selectedOrder && (
               <ScrollArea className="max-h-[70vh]">
+                {/* Equipment Order - Use dedicated component */}
+                {selectedOrder.order_type === "equipment" ? (
+                  <EquipmentOrderDetails 
+                    order={selectedOrder} 
+                    onUpdate={() => {
+                      refetch();
+                      setDetailsDialogOpen(false);
+                    }} 
+                  />
+                ) : (
                 <Tabs defaultValue="details" className="w-full">
                   <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="details">Détails</TabsTrigger>
@@ -2511,8 +2553,10 @@ const AdminOrders = () => {
                     </div>
                   </TabsContent>
                 </Tabs>
+                )}
 
-                {/* Save Actions */}
+                {/* Save Actions - only show for non-equipment orders */}
+                {selectedOrder.order_type !== "equipment" && (
                 <div className="flex gap-2 pt-4 border-t mt-4">
                   <Button
                     className="flex-1"
@@ -2531,6 +2575,7 @@ const AdminOrders = () => {
                     Notifier le client
                   </Button>
                 </div>
+                )}
               </ScrollArea>
             )}
           </DialogContent>
@@ -2569,6 +2614,14 @@ const AdminOrders = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Equipment Order Dialog */}
+        <EquipmentOrderDialog
+          open={equipmentDialogOpen}
+          onOpenChange={setEquipmentDialogOpen}
+          clients={clients || []}
+          onSuccess={() => refetch()}
+        />
       </div>
     </AdminLayout>
   );

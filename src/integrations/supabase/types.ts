@@ -1077,6 +1077,66 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_order_lines: {
+        Row: {
+          created_at: string
+          id: string
+          inventory_item_id: string | null
+          item_name: string
+          item_sku: string | null
+          line_total: number
+          order_id: string
+          quantity: number
+          requires_serial: boolean
+          serial_numbers: Json | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string | null
+          item_name: string
+          item_sku?: string | null
+          line_total?: number
+          order_id: string
+          quantity?: number
+          requires_serial?: boolean
+          serial_numbers?: Json | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string | null
+          item_name?: string
+          item_sku?: string | null
+          line_total?: number
+          order_id?: string
+          quantity?: number
+          requires_serial?: boolean
+          serial_numbers?: Json | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_order_lines_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fulfillment_snapshots: {
         Row: {
           created_at: string
@@ -1286,6 +1346,51 @@ export type Database = {
           status?: string
           subject?: string
           ticket_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          requires_serial: boolean
+          sku: string | null
+          sort_order: number | null
+          status: string
+          taxable: boolean
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price?: number
+          requires_serial?: boolean
+          sku?: string | null
+          sort_order?: number | null
+          status?: string
+          taxable?: boolean
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          requires_serial?: boolean
+          sku?: string | null
+          sort_order?: number | null
+          status?: string
+          taxable?: boolean
+          type?: string
           updated_at?: string
         }
         Relationships: []
@@ -1673,6 +1778,7 @@ export type Database = {
           appointment_date: string | null
           appointment_notes: string | null
           audit_timeline: Json | null
+          carrier: string | null
           category: string | null
           channel_assigned_by: string | null
           channel_selection_locked: boolean | null
@@ -1702,6 +1808,7 @@ export type Database = {
           late_fee_applied: boolean | null
           notes: string | null
           order_number: string | null
+          order_type: string | null
           payment_reference: string | null
           payment_status: string | null
           port_request: Json | null
@@ -1721,6 +1828,11 @@ export type Database = {
           serial_number: string | null
           service_location_id: string | null
           service_type: string
+          shipped_at: string | null
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_postal_code: string | null
+          shipping_province: string | null
           sim_number: string | null
           status: string
           subtotal: number | null
@@ -1745,6 +1857,7 @@ export type Database = {
           appointment_date?: string | null
           appointment_notes?: string | null
           audit_timeline?: Json | null
+          carrier?: string | null
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
@@ -1774,6 +1887,7 @@ export type Database = {
           late_fee_applied?: boolean | null
           notes?: string | null
           order_number?: string | null
+          order_type?: string | null
           payment_reference?: string | null
           payment_status?: string | null
           port_request?: Json | null
@@ -1793,6 +1907,11 @@ export type Database = {
           serial_number?: string | null
           service_location_id?: string | null
           service_type: string
+          shipped_at?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_postal_code?: string | null
+          shipping_province?: string | null
           sim_number?: string | null
           status?: string
           subtotal?: number | null
@@ -1817,6 +1936,7 @@ export type Database = {
           appointment_date?: string | null
           appointment_notes?: string | null
           audit_timeline?: Json | null
+          carrier?: string | null
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
@@ -1846,6 +1966,7 @@ export type Database = {
           late_fee_applied?: boolean | null
           notes?: string | null
           order_number?: string | null
+          order_type?: string | null
           payment_reference?: string | null
           payment_status?: string | null
           port_request?: Json | null
@@ -1865,6 +1986,11 @@ export type Database = {
           serial_number?: string | null
           service_location_id?: string | null
           service_type?: string
+          shipped_at?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_postal_code?: string | null
+          shipping_province?: string | null
           sim_number?: string | null
           status?: string
           subtotal?: number | null
