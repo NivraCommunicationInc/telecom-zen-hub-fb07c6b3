@@ -244,9 +244,9 @@ const ClientTVOrder = () => {
   // Streaming services state
   const [selectedStreamingServices, setSelectedStreamingServices] = useState<StreamingService[]>([]);
   
-  // Equipment
+  // Equipment - auto-attached based on plan rules (no manual selection)
   const [terminalCount, setTerminalCount] = useState(1);
-  const [routerAcknowledged, setRouterAcknowledged] = useState(false);
+  const routerAcknowledged = true; // Equipment auto-acknowledged since it's plan-driven
   
   // Installation method
   const [installationMethod, setInstallationMethod] = useState<"auto" | "technician">("auto");
@@ -615,7 +615,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       setCreatedOrder(data);
-      setStep(6);
+      setStep(5);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -662,10 +662,8 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       return;
     }
     
-    if (!routerAcknowledged) {
-      toast.error(isFrench ? "Veuillez confirmer l'achat de l'équipement" : "Please confirm equipment purchase");
-      return;
-    }
+    // Equipment is auto-attached based on plan rules - no manual confirmation needed
+    
     if (!selectedDate || !selectedTime) {
       toast.error(isFrench ? "Veuillez sélectionner une date et heure d'installation" : "Please select an installation date and time");
       return;
@@ -702,14 +700,13 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
     amber: { bg: "bg-amber-500/15", text: "text-amber-500", border: "border-amber-500" },
   };
 
-  // Steps configuration - now with 6 steps
+  // Steps configuration - equipment is auto-attached based on plan rules
   const steps = [
     { num: 1, label: isFrench ? "Adresse" : "Address" },
     { num: 2, label: isFrench ? "Forfait" : "Plan" },
     { num: 3, label: isFrench ? "Chaînes TV" : "TV Channels" },
-    { num: 4, label: isFrench ? "Équipement" : "Equipment" },
-    { num: 5, label: isFrench ? "Confirmation" : "Confirmation" },
-    { num: 6, label: isFrench ? "Terminé" : "Complete" },
+    { num: 4, label: isFrench ? "Confirmation" : "Confirmation" },
+    { num: 5, label: isFrench ? "Terminé" : "Complete" },
   ];
 
   return (
@@ -1061,95 +1058,23 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
           </div>
         )}
 
-        {/* Step 4: Equipment & Installation */}
+        {/* Step 4: Confirmation & Payment (equipment auto-attached) */}
         {step === 4 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {/* Terminal Selection */}
-              <Card className="bg-card border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Monitor className="w-5 h-5 text-purple-500" />
-                    Nivra 4K Smart Terminal
-                  </CardTitle>
-                  <CardDescription>
-                    {isFrench 
-                      ? "Terminal 4K avec télécommande vocale. Maximum 4 terminaux par adresse."
-                      : "4K terminal with voice control remote. Maximum 4 terminals per address."}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{isFrench ? "Nombre de terminaux" : "Number of terminals"}</p>
-                      <p className="text-sm text-muted-foreground">${TERMINAL_DETAILS.price} {isFrench ? "par terminal" : "per terminal"}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => setTerminalCount(Math.max(1, terminalCount - 1))}
-                        disabled={terminalCount <= 1}
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                      <span className="text-2xl font-bold w-8 text-center">{terminalCount}</span>
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => setTerminalCount(Math.min(TERMINAL_DETAILS.maxQuantity, terminalCount + 1))}
-                        disabled={terminalCount >= TERMINAL_DETAILS.maxQuantity}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
-                      <Shield className="w-3 h-3 mr-1" />
-                      {isFrench ? TERMINAL_DETAILS.warranty.fr : TERMINAL_DETAILS.warranty.en}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Router */}
-              <Card className="bg-card border-cyan-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Router className="w-5 h-5 text-cyan-500" />
-                    {ROUTER_DETAILS.name}
-                  </CardTitle>
-                  <CardDescription>
-                    {isFrench 
-                      ? "Routeur haute performance requis pour le service Internet."
-                      : "High-performance router required for Internet service."}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">${ROUTER_DETAILS.price} {isFrench ? "frais uniques" : "one-time fee"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {isFrench ? ROUTER_DETAILS.warranty.fr : ROUTER_DETAILS.warranty.en}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-cyan-500 border-cyan-500/30">
-                      <Shield className="w-3 h-3 mr-1" />
-                      {isFrench ? "Inclus" : "Included"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="router-ack" 
-                      checked={routerAcknowledged}
-                      onCheckedChange={(checked) => setRouterAcknowledged(checked === true)}
-                    />
-                    <Label htmlFor="router-ack" className="text-sm">
+              {/* Auto-attached Equipment Notice */}
+              <Card className="bg-emerald-500/10 border-emerald-500/30">
+                <CardContent className="py-4 flex items-start gap-3">
+                  <Package className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {isFrench ? "Équipement inclus automatiquement" : "Equipment automatically included"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
                       {isFrench 
-                        ? "Je confirme l'achat de l'équipement Nivra (terminal + routeur)"
-                        : "I confirm the purchase of Nivra equipment (terminal + router)"}
-                    </Label>
+                        ? `Votre commande inclut: ${terminalCount}× ${TERMINAL_DETAILS.name} ($${TERMINAL_DETAILS.price}/unité) + ${ROUTER_DETAILS.name} ($${ROUTER_DETAILS.price})`
+                        : `Your order includes: ${terminalCount}× ${TERMINAL_DETAILS.name} ($${TERMINAL_DETAILS.price}/unit) + ${ROUTER_DETAILS.name} ($${ROUTER_DETAILS.price})`}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -1500,8 +1425,8 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
           </div>
         )}
 
-        {/* Step 6: Order Confirmation */}
-        {step === 6 && createdOrder && (
+        {/* Step 5: Order Confirmation */}
+        {step === 5 && createdOrder && (
           <div className="space-y-6">
             <Card className="bg-gradient-to-br from-emerald-500/10 via-card to-card border-emerald-500/30">
               <CardHeader className="text-center pb-2">

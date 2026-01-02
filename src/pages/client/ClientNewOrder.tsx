@@ -1818,62 +1818,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
             </div>
 
-            {/* TV Terminal Equipment Selection */}
-            <div className="lg:col-span-2">
-              <Card className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-cyan-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MonitorPlay className="w-5 h-5 text-cyan-500" />
-                    Équipement TV - {TERMINAL_CONFIG.name}
-                  </CardTitle>
-                  <CardDescription>
-                    Terminal requis pour chaque téléviseur. Maximum {TERMINAL_CONFIG.maxQuantity} terminaux.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                        <MonitorPlay className="w-6 h-6 text-cyan-500" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{TERMINAL_CONFIG.name}</p>
-                        <p className="text-sm text-muted-foreground">{TERMINAL_CONFIG.warranty}</p>
-                        <p className="text-lg font-bold text-cyan-500 mt-1">
-                          {TERMINAL_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} 
-                          <span className="text-xs font-normal text-muted-foreground"> / terminal (frais unique)</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setTerminalQuantity(Math.max(1, terminalQuantity - 1))}
-                        disabled={terminalQuantity <= 1}
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                      <span className="text-xl font-bold w-8 text-center">{terminalQuantity}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setTerminalQuantity(Math.min(TERMINAL_CONFIG.maxQuantity, terminalQuantity + 1))}
-                        disabled={terminalQuantity >= TERMINAL_CONFIG.maxQuantity}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-cyan-500/10 rounded-lg">
-                    <span className="text-sm font-medium">Total équipement</span>
-                    <span className="font-bold text-cyan-500">
-                      {(terminalQuantity * TERMINAL_CONFIG.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Equipment is auto-attached based on plan rules - no manual selection */}
 
             {/* Channel Selection Summary */}
             <div className="lg:col-span-1">
@@ -1914,8 +1859,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     )}
                     <div className="flex justify-between text-cyan-500">
-                      <span>{TERMINAL_CONFIG.name} (×{terminalQuantity})</span>
-                      <span>{(terminalQuantity * TERMINAL_CONFIG.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{TERMINAL_CONFIG.name} (inclus)</span>
+                      <span>{TERMINAL_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between text-cyan-500">
+                      <span>{ROUTER_CONFIG.name} (inclus)</span>
+                      <span>{ROUTER_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
