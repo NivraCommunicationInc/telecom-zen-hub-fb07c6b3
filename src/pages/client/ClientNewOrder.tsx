@@ -50,7 +50,8 @@ import {
   Minus,
   CalendarPlus,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  MapPin
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -230,6 +231,13 @@ interface OrderDraft {
   idNumber: string;
   idExpiration: string;
   idProvince: string;
+  // New fields for phone + address
+  checkoutPhone: string;
+  serviceAddressStreet: string;
+  serviceAddressApartment: string;
+  serviceAddressCity: string;
+  serviceAddressProvince: string;
+  serviceAddressPostalCode: string;
 }
 
 const ClientNewOrder = () => {
@@ -258,6 +266,14 @@ const ClientNewOrder = () => {
   const [idNumber, setIdNumber] = useState("");
   const [idExpiration, setIdExpiration] = useState("");
   const [idProvince, setIdProvince] = useState("");
+  
+  // Checkout phone and service address state
+  const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [serviceAddressStreet, setServiceAddressStreet] = useState("");
+  const [serviceAddressApartment, setServiceAddressApartment] = useState("");
+  const [serviceAddressCity, setServiceAddressCity] = useState("");
+  const [serviceAddressProvince, setServiceAddressProvince] = useState("QC");
+  const [serviceAddressPostalCode, setServiceAddressPostalCode] = useState("");
   
   // Installation choice state
   const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>(null);
@@ -341,6 +357,13 @@ const ClientNewOrder = () => {
         if (draft.idNumber) setIdNumber(draft.idNumber);
         if (draft.idExpiration) setIdExpiration(draft.idExpiration);
         if (draft.idProvince) setIdProvince(draft.idProvince);
+        // New fields
+        if (draft.checkoutPhone) setCheckoutPhone(draft.checkoutPhone);
+        if (draft.serviceAddressStreet) setServiceAddressStreet(draft.serviceAddressStreet);
+        if (draft.serviceAddressApartment) setServiceAddressApartment(draft.serviceAddressApartment);
+        if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
+        if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
+        if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
       }
     } catch (e) {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
@@ -382,6 +405,12 @@ const ClientNewOrder = () => {
       idNumber,
       idExpiration,
       idProvince,
+      checkoutPhone,
+      serviceAddressStreet,
+      serviceAddressApartment,
+      serviceAddressCity,
+      serviceAddressProvince,
+      serviceAddressPostalCode,
     };
     
     console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length);
@@ -391,7 +420,8 @@ const ClientNewOrder = () => {
     terminalQuantity, mobileLineQuantities, mobileTransferChoice, transferPhoneNumber, transferCarrier,
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
-    selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince
+    selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
+    checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode
   ]);
 
   // Clear draft when order is completed (called after successful order creation)
@@ -444,6 +474,28 @@ const ClientNewOrder = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Pre-fill from client profile when profile loads (if not already set from draft)
+  useEffect(() => {
+    if (profile && isHydrated) {
+      // Only pre-fill if fields are empty (draft takes priority)
+      if (!checkoutPhone && profile.phone) {
+        setCheckoutPhone(profile.phone);
+      }
+      if (!serviceAddressStreet && profile.service_address) {
+        setServiceAddressStreet(profile.service_address);
+      }
+      if (!serviceAddressCity && profile.service_city) {
+        setServiceAddressCity(profile.service_city);
+      }
+      if (!serviceAddressProvince && profile.service_province) {
+        setServiceAddressProvince(profile.service_province);
+      }
+      if (!serviceAddressPostalCode && profile.service_postal_code) {
+        setServiceAddressPostalCode(profile.service_postal_code);
+      }
+    }
+  }, [profile, isHydrated, checkoutPhone, serviceAddressStreet, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode]);
 
   // Categorize channels
   const baseChannels = tvChannels.filter(ch => ch.category === 'base');
@@ -691,6 +743,17 @@ const ClientNewOrder = () => {
         }
       }
 
+      // Prepare service address for notes
+      const fullServiceAddress = [
+        serviceAddressStreet,
+        serviceAddressApartment,
+        serviceAddressCity,
+        serviceAddressProvince,
+        serviceAddressPostalCode
+      ].filter(Boolean).join(", ");
+      
+      const addressInfo = `\n\n**Adresse de service:**\n${fullServiceAddress}\n**Téléphone client:** ${checkoutPhone}`;
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
@@ -707,7 +770,7 @@ const ClientNewOrder = () => {
         payment_status: "pre_authorized",
         amount_paid: 0,
         created_by: "client",
-        notes: (notes || '') + routerInfo + equipmentInfo + simInfo + deliveryInfo + 
+        notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + 
           (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
@@ -718,6 +781,17 @@ const ClientNewOrder = () => {
       }).select().single();
 
       if (error) throw error;
+      
+      // Update client profile with phone and service address (for first orders or updates)
+      if (user?.id && (checkoutPhone || serviceAddressStreet)) {
+        await supabase.from("profiles").update({
+          phone: checkoutPhone || profile?.phone,
+          service_address: serviceAddressStreet || profile?.service_address,
+          service_city: serviceAddressCity || profile?.service_city,
+          service_province: serviceAddressProvince || profile?.service_province,
+          service_postal_code: serviceAddressPostalCode || profile?.service_postal_code,
+        }).eq("user_id", user.id);
+      }
 
       // Generate NIVRA payment reference
       const year = new Date().getFullYear();
@@ -2318,6 +2392,134 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardContent>
                 </Card>
               )}
+
+              {/* Phone and Service Address Section */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-cyan-500" />
+                    Coordonnées et adresse de service
+                  </CardTitle>
+                  <CardDescription>
+                    Ces informations seront utilisées pour la livraison et la facturation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Phone */}
+                  <div className="space-y-2">
+                    <Label htmlFor="checkout-phone" className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      Téléphone <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="checkout-phone"
+                      type="tel"
+                      placeholder="(514) 555-1234"
+                      value={checkoutPhone}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        if (digits.length === 0) {
+                          setCheckoutPhone("");
+                        } else if (digits.length <= 3) {
+                          setCheckoutPhone(`(${digits}`);
+                        } else if (digits.length <= 6) {
+                          setCheckoutPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
+                        } else {
+                          setCheckoutPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+                        }
+                      }}
+                      maxLength={14}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Nous vous contacterons à ce numéro pour coordonner l'installation.
+                    </p>
+                  </div>
+
+                  {/* Service Address */}
+                  <Separator />
+                  <div className="space-y-4 pt-2">
+                    <h4 className="font-medium text-foreground flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-cyan-500" />
+                      Adresse de service
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2 space-y-2">
+                        <Label htmlFor="service-address">Adresse (numéro + rue) <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="service-address"
+                          placeholder="Ex: 123 Rue Saint-Laurent"
+                          value={serviceAddressStreet}
+                          onChange={(e) => setServiceAddressStreet(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service-apartment">Appartement / Unité</Label>
+                        <Input
+                          id="service-apartment"
+                          placeholder="Ex: Apt 4B"
+                          value={serviceAddressApartment}
+                          onChange={(e) => setServiceAddressApartment(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service-city">Ville <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="service-city"
+                          placeholder="Ex: Montréal"
+                          value={serviceAddressCity}
+                          onChange={(e) => setServiceAddressCity(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service-province">Province <span className="text-destructive">*</span></Label>
+                        <select
+                          id="service-province"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                          value={serviceAddressProvince}
+                          onChange={(e) => setServiceAddressProvince(e.target.value)}
+                        >
+                          <option value="QC">Québec</option>
+                        </select>
+                        <p className="text-xs text-muted-foreground">Services disponibles au Québec uniquement</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service-postal-code">Code postal <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="service-postal-code"
+                          placeholder="Ex: H2X 1Y4"
+                          value={serviceAddressPostalCode}
+                          onChange={(e) => {
+                            const cleaned = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6);
+                            if (cleaned.length <= 3) {
+                              setServiceAddressPostalCode(cleaned);
+                            } else {
+                              setServiceAddressPostalCode(`${cleaned.slice(0, 3)} ${cleaned.slice(3)}`);
+                            }
+                          }}
+                          maxLength={7}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Taxes calculées selon l'adresse de service (TPS 5% + TVQ 9.975% pour le Québec).
+                    </p>
+                  </div>
+
+                  {/* Address complete indicator */}
+                  {checkoutPhone.replace(/\D/g, "").length === 10 && serviceAddressStreet && serviceAddressCity && serviceAddressPostalCode.replace(/\s/g, "").length === 6 && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Coordonnées complétées
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Delivery/Installation Choice Selector */}
               {isDeliveryOnlyOrder ? (
