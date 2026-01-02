@@ -642,6 +642,51 @@ export type Database = {
         }
         Relationships: []
       }
+      client_activity_logs: {
+        Row: {
+          action_type: string
+          actor_name: string | null
+          actor_role: string | null
+          actor_user_id: string
+          after_data: Json | null
+          before_data: Json | null
+          client_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          summary: string
+        }
+        Insert: {
+          action_type: string
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id: string
+          after_data?: Json | null
+          before_data?: Json | null
+          client_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          summary: string
+        }
+        Update: {
+          action_type?: string
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string
+          after_data?: Json | null
+          before_data?: Json | null
+          client_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          summary?: string
+        }
+        Relationships: []
+      }
       client_documents: {
         Row: {
           created_at: string

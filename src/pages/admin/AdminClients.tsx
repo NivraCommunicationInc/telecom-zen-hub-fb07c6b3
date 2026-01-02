@@ -45,6 +45,8 @@ import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
 import BackToTopButton from "@/components/ui/back-to-top-button";
 import { useAuth } from "@/hooks/useAuth";
+import ClientActivityLogTable from "@/components/admin/ClientActivityLogTable";
+import { useClientActivityLog } from "@/hooks/useClientActivityLog";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -79,6 +81,7 @@ const AdminClients = () => {
   const { logActivity } = useActivityLog();
   const { isAdmin, permissions } = useRoleAccess();
   const { user } = useAuth();
+  const { logClientActivity } = useClientActivityLog();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState<"all" | "name" | "email" | "phone" | "tag">("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -422,6 +425,17 @@ const AdminClients = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       refetchActivityLogs();
+      
+      // Log to client activity journal
+      if (selectedClient?.user_id) {
+        logClientActivity({
+          clientId: selectedClient.user_id,
+          actionType: "profile_update",
+          entityType: "profile",
+          summary: `Mise à jour du profil client: ${selectedClient?.full_name}`,
+        });
+      }
+      
       logActivity("update", "client", selectedClient?.id, { full_name: selectedClient?.full_name }, {
         changedField: "profile",
         reason: "Mise à jour du profil client"
@@ -455,6 +469,24 @@ const AdminClients = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
       setSelectedClient((prev: any) => prev ? { ...prev, [variables.field]: newValue } : prev);
       refetchActivityLogs();
+      
+      // Log to client activity journal
+      if (selectedClient?.user_id) {
+        const actionType = variables.field === 'balance' 
+          ? (variables.operation === 'add' ? 'balance_add' : 'balance_remove')
+          : (variables.operation === 'add' ? 'credit_add' : 'credit_remove');
+        const fieldLabel = variables.field === 'balance' ? 'solde' : 'crédit';
+        
+        logClientActivity({
+          clientId: selectedClient.user_id,
+          actionType: actionType as any,
+          entityType: "billing",
+          summary: `${variables.operation === 'add' ? 'Ajout' : 'Retrait'} de ${variables.amount}$ au ${fieldLabel}. Nouveau ${fieldLabel}: ${newValue}$`,
+          beforeData: { [variables.field]: selectedClient?.[variables.field] || 0 },
+          afterData: { [variables.field]: newValue },
+        });
+      }
+      
       logActivity("update", "client", selectedClient?.id, { field: variables.field, operation: variables.operation, amount: variables.amount }, {
         changedField: variables.field,
         oldValue: String(selectedClient?.[variables.field] || 0),
@@ -484,9 +516,20 @@ const AdminClients = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, file) => {
       refetchDocuments();
       refetchActivityLogs();
+      
+      // Log to client activity journal
+      if (selectedClient?.user_id) {
+        logClientActivity({
+          clientId: selectedClient.user_id,
+          actionType: "document_upload",
+          entityType: "document",
+          summary: `Document téléversé: ${file.name}`,
+        });
+      }
+      
       logActivity("upload", "document", selectedClient?.id, { document_name: "document" }, {
         changedField: "documents",
         reason: "Document téléversé"
@@ -507,6 +550,18 @@ const AdminClients = () => {
     onSuccess: (reason) => {
       refetchDocuments();
       refetchActivityLogs();
+      
+      // Log to client activity journal
+      if (selectedClient?.user_id) {
+        logClientActivity({
+          clientId: selectedClient.user_id,
+          actionType: "document_delete",
+          entityType: "document",
+          entityId: documentToDelete?.id,
+          summary: `Document supprimé: ${documentToDelete?.document_name}. Raison: ${reason || "Non spécifiée"}`,
+        });
+      }
+      
       logActivity("delete", "document", documentToDelete?.id, { document_name: documentToDelete?.document_name }, {
         changedField: "documents",
         reason: reason || "Document supprimé par admin"
@@ -540,6 +595,18 @@ const AdminClients = () => {
     onSuccess: () => {
       refetchOrders();
       refetchActivityLogs();
+      
+      // Log to client activity journal
+      if (selectedClient?.user_id) {
+        logClientActivity({
+          clientId: selectedClient.user_id,
+          actionType: "order_status_change",
+          entityType: "order",
+          entityId: selectedOrder?.id,
+          summary: `Commande ${selectedOrder?.order_number} mise à jour. Statut: ${selectedOrder?.status}`,
+        });
+      }
+      
       logActivity("update", "order", selectedOrder?.id, { order_number: selectedOrder?.order_number }, {
         changedField: "order",
         reason: "Commande mise à jour"
@@ -560,6 +627,19 @@ const AdminClients = () => {
     onSuccess: ({ id, status, reason }) => {
       refetchSubscriptions();
       refetchActivityLogs();
+      
+      // Log to client activity journal
+      if (selectedClient?.user_id) {
+        logClientActivity({
+          clientId: selectedClient.user_id,
+          actionType: "subscription_change",
+          entityType: "subscription",
+          entityId: id,
+          summary: `Abonnement ${status === 'active' ? 'activé' : status === 'paused' ? 'suspendu' : 'modifié'}. ${reason}`,
+          afterData: { status },
+        });
+      }
+      
       logActivity("update", "subscription", id, { status }, {
         changedField: "status",
         newValue: status,
@@ -1950,51 +2030,7 @@ const AdminClients = () => {
 
                   {/* Logs Tab - Admin Only */}
                   <TabsContent value="logs" className="space-y-4 pr-4">
-                    <Card className="bg-card border-border">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                          <History className="w-5 h-5 text-cyan-400" />
-                          Journal d'activité (Admin uniquement)
-                          <Button size="sm" variant="ghost" onClick={() => refetchActivityLogs()}>
-                            <RefreshCw className="w-4 h-4" />
-                          </Button>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {clientActivityLogs && clientActivityLogs.length > 0 ? (
-                          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                            {clientActivityLogs.map((log: any) => (
-                              <div key={log.id} className="p-3 border border-border rounded-lg text-sm">
-                                <div className="flex items-center justify-between mb-1">
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs">{log.actor_role || "Admin"}</Badge>
-                                    <span className="font-medium">{log.actor_name || "Système"}</span>
-                                  </div>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(new Date(log.created_at), "d MMM yyyy HH:mm", { locale: fr })}
-                                  </span>
-                                </div>
-                                <p className="text-muted-foreground">
-                                  <span className="font-medium text-foreground">{log.action}</span> sur {log.entity_type}
-                                  {log.changed_field && <span className="text-cyan-500"> ({log.changed_field})</span>}
-                                </p>
-                                {log.reason && <p className="text-xs text-muted-foreground mt-1">Raison: {log.reason}</p>}
-                                {log.old_value && log.new_value && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Avant: <span className="text-red-400">{log.old_value}</span> → Après: <span className="text-emerald-400">{log.new_value}</span>
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8">
-                            <History className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-muted-foreground">Aucune activité enregistrée</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    <ClientActivityLogTable clientId={selectedClient.user_id} />
                   </TabsContent>
                 </div>
               </Tabs>

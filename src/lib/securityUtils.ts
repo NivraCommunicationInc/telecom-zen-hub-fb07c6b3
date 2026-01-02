@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logClientActivityDirect } from "@/hooks/useClientActivityLog";
 
 export interface FlagClientParams {
   clientId: string;
@@ -111,7 +112,7 @@ export const flagClientForRiskAtomic = async ({
       // Continue - this is not critical
     }
 
-    // Step 5: Log the security action
+    // Step 5: Log to security_action_logs
     await supabase.from("security_action_logs").insert({
       client_id: clientId,
       client_email: profileData.email,
@@ -128,6 +129,29 @@ export const flagClientForRiskAtomic = async ({
         held_appointments: heldAppointments?.length || 0,
       },
     });
+
+    // Step 6: Log to client_activity_logs for admin journal
+    if (actionById) {
+      await logClientActivityDirect({
+        clientId,
+        actorUserId: actionById,
+        actorName: actionByName || "Admin",
+        actorRole: actionByRole || "admin",
+        actionType: alertLevel === "fraud" ? "fraud_flag" : "risk_flag",
+        entityType: "profile",
+        entityId: orderId,
+        summary: alertLevel === "fraud" 
+          ? `Compte signalé pour fraude. Statut: EN ATTENTE. ${reason}`
+          : `Compte signalé pour risque. Statut: EN ATTENTE. ${reason}`,
+        beforeData: { security_status: "active", account_status: "active" },
+        afterData: { 
+          security_status: "suspended", 
+          security_alert_level: alertLevel,
+          account_status: "hold",
+          suspended_services: (suspendedSubs?.length || 0) + (suspendedStreaming?.length || 0),
+        },
+      });
+    }
 
     return {
       success: true,
@@ -203,7 +227,7 @@ export const liftClientSuspensionAtomic = async (
       reactivatedCount = (reactivatedSubs?.length || 0) + (reactivatedStreaming?.length || 0);
     }
 
-    // Step 3: Log the action
+    // Step 3: Log to security_action_logs
     await supabase.from("security_action_logs").insert({
       client_id: clientId,
       client_email: profileData?.email,
@@ -214,6 +238,24 @@ export const liftClientSuspensionAtomic = async (
       reason: reason || "Suspension lifted by staff",
       details: {
         require_pin_reset: requirePinReset,
+        reactivated_services: reactivatedCount,
+      },
+    });
+
+    // Step 4: Log to client_activity_logs for admin journal
+    await logClientActivityDirect({
+      clientId,
+      actorUserId: actionById,
+      actorName: actionByName,
+      actorRole: actionByRole,
+      actionType: "fraud_removed",
+      entityType: "profile",
+      summary: `Signalement fraude/risque retiré. Statut: ACTIF. ${reason || "Suspension levée par staff"}`,
+      beforeData: { security_status: "suspended", account_status: "hold" },
+      afterData: { 
+        security_status: "active", 
+        security_alert_level: "none",
+        account_status: "active",
         reactivated_services: reactivatedCount,
       },
     });
