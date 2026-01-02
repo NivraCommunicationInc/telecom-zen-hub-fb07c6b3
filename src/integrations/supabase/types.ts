@@ -982,6 +982,54 @@ export type Database = {
         }
         Relationships: []
       }
+      email_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          event_key: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          provider_message_id: string | null
+          sent_at: string | null
+          status: string
+          template_key: string
+          template_vars: Json | null
+          to_email: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          event_key: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          template_key: string
+          template_vars?: Json | null
+          to_email: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          event_key?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          template_key?: string
+          template_vars?: Json | null
+          to_email?: string
+        }
+        Relationships: []
+      }
       employee_audit_logs: {
         Row: {
           action: string
@@ -2420,6 +2468,30 @@ export type Database = {
           updated_at?: string
           usage_limit_per_client?: number | null
           usage_limit_total?: number | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          action_type: string
+          id: string
+          identifier: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          id?: string
+          identifier: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          action_type?: string
+          id?: string
+          identifier?: string
+          request_count?: number
+          window_start?: string
         }
         Relationships: []
       }
@@ -4081,6 +4153,7 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       create_notification: {
         Args: {
           p_link_id?: string
@@ -4142,6 +4215,15 @@ export type Database = {
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
+      }
+      queue_email: {
+        Args: {
+          p_event_key: string
+          p_template_key: string
+          p_template_vars?: Json
+          p_to_email: string
+        }
+        Returns: string
       }
       verify_pin: {
         Args: { pin_input: string; user_id_input: string }

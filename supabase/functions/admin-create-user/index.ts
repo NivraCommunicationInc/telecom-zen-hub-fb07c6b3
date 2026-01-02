@@ -100,9 +100,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate or use provided password
+    // Generate cryptographically secure password
+    const generateSecurePassword = (length = 16): string => {
+      const array = new Uint8Array(length);
+      crypto.getRandomValues(array);
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+      let password = '';
+      for (let i = 0; i < length; i++) {
+        password += chars[array[i] % chars.length];
+      }
+      return password;
+    };
+
     const password = body.generate_password 
-      ? Math.random().toString(36).slice(-12) + "Aa1!"
+      ? generateSecurePassword(16)
       : body.password;
 
     if (!password || password.length < 8) {
