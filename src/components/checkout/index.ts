@@ -10,3 +10,5 @@ export { PinSetupSection } from './PinSetupSection';
 export { PromoCodeInput } from './PromoCodeInput';
 export { TVChannelSelection } from './TVChannelSelection';
 export { StreamingServiceSelection } from './StreamingServiceSelection';
+export { CheckoutPaymentSection } from './CheckoutPaymentSection';
+export { CheckoutPhoneField, validateCanadianPhone } from './CheckoutPhoneField';
