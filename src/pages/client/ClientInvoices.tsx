@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { downloadInvoicePDF, getInvoicePDFBlob, InvoiceData } from "@/lib/invoicePdfGenerator";
 import { safePDFPrint, safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
+import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -167,68 +168,47 @@ const ClientInvoices = () => {
 
         if (invoice) {
           const invoiceTotal = calculateTotal(invoice);
+          const currentAmountPaid = Number(invoice.amount_paid) || 0;
+          const newAmountPaid = currentAmountPaid + amount;
           
-          if (amount >= invoiceTotal) {
+          if (newAmountPaid >= invoiceTotal) {
             // Full payment - mark as paid
             await supabase
               .from("billing")
               .update({
                 status: "paid",
                 paid_at: new Date().toISOString(),
+                amount_paid: invoiceTotal,
                 notes: `${invoice.notes || ""}\n[Paiement reçu - ${method === "credit_card" ? `Carte ****${cardDetails?.lastFour}` : "Virement Interac"}] Réf: ${referenceNumber}`.trim(),
               })
               .eq("id", invoiceId);
 
-            // If overpayment, add to store credit
-            if (amount > invoiceTotal) {
-              const surplus = amount - invoiceTotal;
+            // If overpayment, add surplus to store credit
+            if (newAmountPaid > invoiceTotal) {
+              const surplus = newAmountPaid - invoiceTotal;
               await supabase
                 .from("profiles")
-                .update({ 
-                  store_credit: currentCredit + surplus,
-                  balance: Math.max(0, currentBalance - invoiceTotal)
-                })
-                .eq("user_id", user.id);
-            } else {
-              await supabase
-                .from("profiles")
-                .update({ balance: Math.max(0, currentBalance - invoiceTotal) })
+                .update({ store_credit: currentCredit + surplus })
                 .eq("user_id", user.id);
             }
           } else {
-            // Partial payment - update credits on invoice
-            const currentCredits = Number(invoice.credits) || 0;
+            // Partial payment - update amount_paid and set status to partial
             await supabase
               .from("billing")
               .update({
-                credits: currentCredits + amount,
+                status: "partial",
+                amount_paid: newAmountPaid,
                 notes: `${invoice.notes || ""}\n[Paiement partiel: $${amount.toFixed(2)} - ${method === "credit_card" ? `Carte ****${cardDetails?.lastFour}` : "Virement Interac"}] Réf: ${referenceNumber}`.trim(),
               })
               .eq("id", invoiceId);
-
-            await supabase
-              .from("profiles")
-              .update({ balance: Math.max(0, currentBalance - amount) })
-              .eq("user_id", user.id);
           }
         }
       } else {
-        // General payment - reduce balance, excess goes to credit
-        if (amount <= currentBalance) {
-          await supabase
-            .from("profiles")
-            .update({ balance: currentBalance - amount })
-            .eq("user_id", user.id);
-        } else {
-          const surplus = amount - currentBalance;
-          await supabase
-            .from("profiles")
-            .update({ 
-              balance: 0,
-              store_credit: currentCredit + surplus
-            })
-            .eq("user_id", user.id);
-        }
+        // General payment without a specific invoice - add to store credit
+        await supabase
+          .from("profiles")
+          .update({ store_credit: currentCredit + amount })
+          .eq("user_id", user.id);
       }
 
       return { referenceNumber, amount };
@@ -428,23 +408,9 @@ const ClientInvoices = () => {
           </Button>
         </div>
 
-        {/* Balance Summary */}
+        {/* Balance Summary - Derived from Invoices */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase">Solde dû</p>
-                  <p className="text-xl font-bold text-foreground">
-                    {Number(profile?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ClientBalanceSummary userId={user?.id || ""} userEmail={profile?.email} />
           <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">

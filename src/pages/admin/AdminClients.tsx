@@ -47,6 +47,7 @@ import BackToTopButton from "@/components/ui/back-to-top-button";
 import { useAuth } from "@/hooks/useAuth";
 import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import { useClientActivityLog } from "@/hooks/useClientActivityLog";
+import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1157,59 +1158,37 @@ const AdminClients = () => {
                       </div>
                     )}
 
-                    {/* Balance & Credit Management */}
-                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
-                      <div>
-                        <Label className="text-xs text-muted-foreground uppercase">Solde dû</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-2xl font-bold text-amber-500">
-                            {Number(selectedClient.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" variant="outline" onClick={() => {
-                            const amount = prompt("Montant à ajouter au solde:");
-                            if (amount && !isNaN(Number(amount))) {
-                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'add' });
-                            }
-                          }}>
-                            <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => {
-                            const amount = prompt("Montant à retirer du solde:");
-                            if (amount && !isNaN(Number(amount))) {
-                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'balance', amount: Number(amount), operation: 'remove' });
-                            }
-                          }}>
-                            <MinusCircle className="w-4 h-4 mr-1" /> Retirer
-                          </Button>
-                        </div>
+                    {/* Balance Breakdown - Derived from Invoices */}
+                    <ClientBalanceBreakdown 
+                      clientUserId={selectedClient.user_id} 
+                      clientEmail={selectedClient.email}
+                    />
+
+                    {/* Store Credit Management */}
+                    <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                      <Label className="text-xs text-muted-foreground uppercase">Crédit en magasin</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-2xl font-bold text-emerald-500">
+                          {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground uppercase">Crédit en magasin</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-2xl font-bold text-emerald-500">
-                            {Number(selectedClient.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" variant="outline" onClick={() => {
-                            const amount = prompt("Montant de crédit à ajouter:");
-                            if (amount && !isNaN(Number(amount))) {
-                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'add' });
-                            }
-                          }}>
-                            <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => {
-                            const amount = prompt("Montant de crédit à retirer:");
-                            if (amount && !isNaN(Number(amount))) {
-                              adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'remove' });
-                            }
-                          }}>
-                            <MinusCircle className="w-4 h-4 mr-1" /> Retirer
-                          </Button>
-                        </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const amount = prompt("Montant de crédit à ajouter:");
+                          if (amount && !isNaN(Number(amount))) {
+                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'add' });
+                          }
+                        }}>
+                          <PlusCircle className="w-4 h-4 mr-1" /> Ajouter
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const amount = prompt("Montant de crédit à retirer:");
+                          if (amount && !isNaN(Number(amount))) {
+                            adjustBalanceMutation.mutate({ clientId: selectedClient.id, field: 'store_credit', amount: Number(amount), operation: 'remove' });
+                          }
+                        }}>
+                          <MinusCircle className="w-4 h-4 mr-1" /> Retirer
+                        </Button>
                       </div>
                     </div>
 
@@ -1763,21 +1742,12 @@ const AdminClients = () => {
                   {/* Payments Tab */}
                   <TabsContent value="payments" className="space-y-4 pr-4">
                     {/* Credits Display */}
-                    {(Number(selectedClient?.store_credit || 0) > 0 || Number(selectedClient?.balance || 0) > 0) && (
-                      <div className="p-4 bg-muted/50 rounded-lg border border-border mb-4">
-                        <Label className="text-sm font-medium mb-2 block">État du compte avant nouveau paiement</Label>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Solde dû</p>
-                            <p className="font-bold text-lg text-amber-500">{Number(selectedClient?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Crédit disponible</p>
-                            <p className="font-bold text-lg text-emerald-500">{Number(selectedClient?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {/* Balance Breakdown before payments */}
+                    <ClientBalanceBreakdown 
+                      clientUserId={selectedClient.user_id} 
+                      clientEmail={selectedClient.email}
+                      compact={true}
+                    />
 
                     {/* Payment History */}
                     <Card className="bg-card border-border">
