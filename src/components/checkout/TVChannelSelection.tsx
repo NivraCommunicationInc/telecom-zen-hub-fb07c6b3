@@ -63,24 +63,29 @@ export const TVChannelSelection = ({
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showAllBase, setShowAllBase] = useState(false);
 
-  // Fetch all active channels from database
-  const { data: channels = [], isLoading, error } = useQuery({
+  // Fetch all active channels from database with error handling
+  const { data: channels = [], isLoading, error, refetch } = useQuery({
     queryKey: ["tv-channels-checkout"],
     queryFn: async () => {
+      console.log("[TVChannelSelection] fetch start");
       const { data, error } = await supabase
         .from("tv_channels")
         .select("*")
         .eq("is_active", true)
         .order("category", { ascending: true })
         .order("name", { ascending: true });
-      if (error) throw error;
+      if (error) {
+        console.error("[TVChannelSelection] fetch error", error);
+        throw error;
+      }
+      console.log("[TVChannelSelection] fetched", data?.length, "channels");
       return data as Channel[];
     },
   });
 
-  // Categorize channels - La Base = only channels with base_pack = 'LA_BASE_23' (exactly 23)
+  // Categorize channels - La Base = only channels with base_pack = 'LA_BASE_26' (exactly 26)
   const baseChannels = useMemo(() => 
-    channels.filter(ch => ch.base_pack === "LA_BASE_23"), [channels]);
+    channels.filter(ch => ch.base_pack === "LA_BASE_26"), [channels]);
   const freeChoiceChannels = useMemo(() => 
     channels.filter(ch => ch.category === "free_choice"), [channels]);
   const paidChannels = useMemo(() => 
@@ -143,9 +148,12 @@ export const TVChannelSelection = ({
             <p className="text-destructive font-medium">
               {isFrench ? "Erreur lors du chargement des chaînes" : "Error loading channels"}
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              {isFrench ? "Veuillez réessayer plus tard" : "Please try again later"}
+            <p className="text-sm text-muted-foreground mt-2 mb-4">
+              {isFrench ? "Veuillez réessayer" : "Please try again"}
             </p>
+            <Button variant="outline" onClick={() => refetch()}>
+              {isFrench ? "Réessayer" : "Retry"}
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -154,7 +162,7 @@ export const TVChannelSelection = ({
 
   return (
     <div className="space-y-6">
-      {/* Section A: La Base - 23 chaînes HD (Included) - Nivra official lineup */}
+      {/* Section A: La Base - 26 chaînes HD (Included) - Nivra official lineup */}
       <Card className="bg-card border-emerald-500/30">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -164,7 +172,7 @@ export const TVChannelSelection = ({
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  {isFrench ? "La Base" : "The Base"} — 23 {isFrench ? "chaînes HD" : "HD channels"}
+                  {isFrench ? "La Base" : "The Base"} — 26 {isFrench ? "chaînes HD" : "HD channels"}
                 </CardTitle>
                 <CardDescription>
                   {isFrench 
@@ -406,7 +414,7 @@ export const TVChannelSelection = ({
                   {isFrench ? "Résumé des chaînes sélectionnées" : "Selected Channels Summary"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  23 {isFrench ? "chaînes de base incluses" : "base channels included"} + {" "}
+                  26 {isFrench ? "chaînes de base incluses" : "base channels included"} + {" "}
                   {selectedFreeChannels.length} {isFrench ? "au choix" : "choices"} + {" "}
                   {selectedPremiumChannels.length} premium
                 </p>
