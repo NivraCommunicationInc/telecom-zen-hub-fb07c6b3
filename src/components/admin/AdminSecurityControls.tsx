@@ -5,8 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, ShieldAlert, Unlock, RotateCcw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ShieldCheck, ShieldAlert, Unlock, RotateCcw, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -21,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { flagClientForRiskAtomic, liftClientSuspensionAtomic } from "@/lib/securityUtils";
 
 interface AdminSecurityControlsProps {
   clientId: string;
@@ -48,55 +48,45 @@ const AdminSecurityControls = ({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [requirePinReset, setRequirePinReset] = useState(true);
+  const [reactivateServices, setReactivateServices] = useState(false);
   const [liftReason, setLiftReason] = useState("");
+  const [dialogOpen, setDialogOpen] = useState<"risk" | "fraud" | "lift" | null>(null);
 
   const isSuspended = securityStatus === "suspended";
   const hasAlert = securityAlertLevel !== "none" && securityAlertLevel;
 
-  const logSecurityAction = async (action: string, reason?: string) => {
-    try {
-      await supabase.from("security_action_logs").insert({
-        client_id: clientId,
-        client_email: clientEmail,
-        action,
-        action_by_id: user?.id,
-        action_by_name: user?.email,
-        action_by_role: "admin",
-        reason,
-        details: {
-          previous_status: securityStatus,
-          previous_alert_level: securityAlertLevel,
-        },
-      });
-    } catch (err) {
-      console.error("Error logging security action:", err);
-    }
-  };
-
   const handleLiftSuspension = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          security_status: "active",
-          security_alert_level: "none",
-          security_reason: null,
-          security_flagged_at: null,
-          security_flagged_order_id: null,
-          security_requires_pin_reset: requirePinReset,
-        })
-        .eq("user_id", clientId);
+      const result = await liftClientSuspensionAtomic(
+        clientId,
+        user?.id || "",
+        user?.email || "Admin",
+        "admin",
+        requirePinReset,
+        reactivateServices,
+        liftReason || undefined
+      );
 
-      if (error) throw error;
+      if (!result.success) {
+        toast.error(result.error || "Échec de la levée de suspension");
+        return;
+      }
 
-      await logSecurityAction("suspension_lifted", liftReason || "Admin lifted suspension");
+      toast.success(
+        reactivateServices && result.suspendedServicesCount 
+          ? `Suspension levée. ${result.suspendedServicesCount} service(s) réactivé(s).`
+          : "Suspension levée avec succès"
+      );
       
-      toast.success("Suspension lifted successfully");
+      setDialogOpen(null);
+      setLiftReason("");
+      
+      // Force refresh to get updated data
       onUpdate();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error lifting suspension:", err);
-      toast.error("Failed to lift suspension");
+      toast.error(`Erreur: ${err.message || "Échec de la levée de suspension"}`);
     } finally {
       setLoading(false);
     }
@@ -105,26 +95,38 @@ const AdminSecurityControls = ({
   const handleFlagClient = async (level: "risk" | "fraud") => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          security_status: "suspended",
-          security_alert_level: level,
-          security_reason: `Manually flagged as ${level} by admin`,
-          security_flagged_at: new Date().toISOString(),
-          security_requires_pin_reset: true,
-        })
-        .eq("user_id", clientId);
+      const result = await flagClientForRiskAtomic({
+        clientId,
+        alertLevel: level,
+        reason: `Manually flagged as ${level} by admin`,
+        actionById: user?.id,
+        actionByName: user?.email || "Admin",
+        actionByRole: "admin",
+      });
 
-      if (error) throw error;
+      if (!result.success) {
+        toast.error(result.error || `Échec du signalement ${level}`);
+        return;
+      }
 
-      await logSecurityAction(`flagged_${level}`, `Admin manually flagged client as ${level}`);
+      const servicesMsg = result.suspendedServicesCount 
+        ? ` ${result.suspendedServicesCount} service(s) suspendu(s).` 
+        : "";
+      const appointmentsMsg = result.suspendedAppointmentsCount 
+        ? ` ${result.suspendedAppointmentsCount} rendez-vous en attente.`
+        : "";
+
+      toast.success(
+        `Client signalé comme ${level === "fraud" ? "fraude" : "risque"}.${servicesMsg}${appointmentsMsg}`
+      );
       
-      toast.success(`Client flagged as ${level}`);
+      setDialogOpen(null);
+      
+      // Force refresh to get updated data
       onUpdate();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error flagging client:", err);
-      toast.error("Failed to flag client");
+      toast.error(`Erreur: ${err.message || "Échec du signalement"}`);
     } finally {
       setLoading(false);
     }
@@ -139,56 +141,59 @@ const AdminSecurityControls = ({
           ) : (
             <ShieldCheck className="h-5 w-5 text-green-500" />
           )}
-          Security Controls
+          Contrôles de sécurité
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Current Status */}
         <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-          <span className="font-medium">Status:</span>
+          <span className="font-medium">Statut:</span>
           <Badge variant={isSuspended ? "destructive" : "default"}>
-            {securityStatus?.toUpperCase() || "ACTIVE"}
+            {securityStatus === "suspended" ? "SUSPENDU" : "ACTIF"}
           </Badge>
         </div>
 
         {hasAlert && (
           <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-            <span className="font-medium">Alert Level:</span>
+            <span className="font-medium">Niveau d'alerte:</span>
             <Badge variant="destructive">
-              {securityAlertLevel?.toUpperCase()}
+              {securityAlertLevel === "fraud" ? "FRAUDE" : "RISQUE"}
             </Badge>
           </div>
         )}
 
         {securityFlaggedAt && (
           <div className="text-sm text-muted-foreground">
-            <p>Flagged: {format(new Date(securityFlaggedAt), "PPp")}</p>
-            {securityReason && <p>Reason: {securityReason}</p>}
+            <p>Signalé: {format(new Date(securityFlaggedAt), "PPp")}</p>
+            {securityReason && <p>Raison: {securityReason}</p>}
+            {securityFlaggedOrderId && (
+              <p className="font-mono text-xs">Commande: {securityFlaggedOrderId.slice(0, 8)}...</p>
+            )}
           </div>
         )}
 
         {securityRequiresPinReset && (
           <div className="flex items-center gap-2 text-sm text-amber-600">
             <RotateCcw className="h-4 w-4" />
-            PIN reset required on next login
+            Réinitialisation du NIP requise
           </div>
         )}
 
         {/* Actions */}
         <div className="space-y-3 pt-2">
           {isSuspended ? (
-            <AlertDialog>
+            <AlertDialog open={dialogOpen === "lift"} onOpenChange={(open) => setDialogOpen(open ? "lift" : null)}>
               <AlertDialogTrigger asChild>
                 <Button className="w-full" variant="default" disabled={loading}>
-                  <Unlock className="h-4 w-4 mr-2" />
-                  Lift Suspension
+                  {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Unlock className="h-4 w-4 mr-2" />}
+                  Lever la suspension
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Lift Client Suspension</AlertDialogTitle>
+                  <AlertDialogTitle>Lever la suspension du client</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will restore the client's access to their portal.
+                    Cela restaurera l'accès du client à son portail.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="space-y-4 py-4">
@@ -199,14 +204,24 @@ const AdminSecurityControls = ({
                       onCheckedChange={setRequirePinReset}
                     />
                     <Label htmlFor="require-pin-reset">
-                      Require PIN reset on next login
+                      Exiger la réinitialisation du NIP
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="reactivate-services"
+                      checked={reactivateServices}
+                      onCheckedChange={setReactivateServices}
+                    />
+                    <Label htmlFor="reactivate-services">
+                      Réactiver les services suspendus
                     </Label>
                   </div>
                   <div>
-                    <Label htmlFor="lift-reason">Reason (optional)</Label>
+                    <Label htmlFor="lift-reason">Raison (optionnel)</Label>
                     <Textarea
                       id="lift-reason"
-                      placeholder="Reason for lifting suspension..."
+                      placeholder="Raison de la levée de suspension..."
                       value={liftReason}
                       onChange={(e) => setLiftReason(e.target.value)}
                       className="mt-1"
@@ -214,54 +229,59 @@ const AdminSecurityControls = ({
                   </div>
                 </div>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={loading}>Annuler</AlertDialogCancel>
                   <AlertDialogAction onClick={handleLiftSuspension} disabled={loading}>
-                    Confirm
+                    {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Confirmer
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           ) : (
             <div className="flex gap-2">
-              <AlertDialog>
+              <AlertDialog open={dialogOpen === "risk"} onOpenChange={(open) => setDialogOpen(open ? "risk" : null)}>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" className="flex-1" disabled={loading}>
-                    Flag Risk
+                    {loading && dialogOpen === "risk" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Signaler Risque
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Flag as Risk?</AlertDialogTitle>
+                    <AlertDialogTitle>Signaler comme Risque?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will suspend the client's portal access and flag for risk review.
+                      Cela suspendra l'accès au portail client, suspendra tous les services actifs et signalera pour examen de risque.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleFlagClient("risk")}>
-                      Confirm
+                    <AlertDialogCancel disabled={loading}>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleFlagClient("risk")} disabled={loading}>
+                      {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Confirmer
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
 
-              <AlertDialog>
+              <AlertDialog open={dialogOpen === "fraud"} onOpenChange={(open) => setDialogOpen(open ? "fraud" : null)}>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" size="sm" className="flex-1" disabled={loading}>
-                    Flag Fraud
+                    {loading && dialogOpen === "fraud" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Signaler Fraude
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Flag as Fraud?</AlertDialogTitle>
+                    <AlertDialogTitle>Signaler comme Fraude?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will immediately suspend the client's portal access and flag for fraud investigation.
+                      Cela suspendra immédiatement l'accès au portail client, suspendra tous les services actifs et les rendez-vous, et signalera pour enquête de fraude.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleFlagClient("fraud")}>
-                      Confirm
+                    <AlertDialogCancel disabled={loading}>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleFlagClient("fraud")} disabled={loading}>
+                      {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Confirmer
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

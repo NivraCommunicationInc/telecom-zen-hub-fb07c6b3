@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
+import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
 
 interface Service {
   id: string;
@@ -406,6 +407,12 @@ const ClientNewOrder = () => {
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Not authenticated");
+
+      // Security check before sensitive action
+      const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
+      if (!allowed) {
+        throw new Error(reason || "Action non autorisée - compte suspendu");
+      }
 
       const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
       const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
