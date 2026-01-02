@@ -95,6 +95,7 @@ interface Channel {
   is_4k: boolean;
   group_key?: string | null;
   display_label?: string | null;
+  base_pack?: string | null;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -445,16 +446,21 @@ const ClientNewOrder = () => {
     },
   });
 
-  // Fetch TV channels for selection
-  const { data: tvChannels = [] } = useQuery({
+  // Fetch TV channels for selection with error handling + logging
+  const { data: tvChannels = [], isLoading: channelsLoading, error: channelsError, refetch: refetchChannels } = useQuery({
     queryKey: ["tv-channels-order"],
     queryFn: async () => {
+      console.log("[TVChannels] fetch start");
       const { data, error } = await supabase
         .from("tv_channels")
         .select("*")
         .eq("is_active", true)
         .order("name");
-      if (error) throw error;
+      if (error) {
+        console.error("[TVChannels] fetch error", error);
+        throw error;
+      }
+      console.log("[TVChannels] fetched", data?.length, "channels");
       return data as Channel[];
     },
   });
@@ -497,11 +503,14 @@ const ClientNewOrder = () => {
     }
   }, [profile, isHydrated, checkoutPhone, serviceAddressStreet, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode]);
 
-  // Categorize channels
-  const baseChannels = tvChannels.filter(ch => ch.category === 'base');
+  // Categorize channels - strict pack filter for La Base (26 channels)
+  const baseChannels = tvChannels.filter(ch => ch.base_pack === 'LA_BASE_26');
   const freeChoiceChannels = tvChannels.filter(ch => ch.category === 'free_choice');
   const premiumChannels = tvChannels.filter(ch => ch.category === 'premium');
   const paidChannels = tvChannels.filter(ch => ch.category === 'paid');
+  
+  // Log categorized counts for debugging
+  console.log("[TVChannels] baseChannels:", baseChannels.length, "freeChoice:", freeChoiceChannels.length, "premium:", premiumChannels.length, "paid:", paidChannels.length);
 
   // Count unique selections for free_choice (bundled channels count as 1)
   const countFreeChoiceSelections = (channels: Channel[]): number => {
@@ -1647,7 +1656,32 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         {step === 2 && hasTVService && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {/* Base Channels - "La Base" Always Included */}
+              {/* Global channel loading/error state */}
+              {channelsLoading && (
+                <Card className="bg-card border-border">
+                  <CardContent className="py-12 text-center">
+                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement des chaînes TV...</p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {channelsError && (
+                <Card className="bg-destructive/10 border-destructive/30">
+                  <CardContent className="py-8 text-center">
+                    <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+                    <p className="text-destructive font-medium mb-2">Erreur lors du chargement des chaînes</p>
+                    <p className="text-sm text-muted-foreground mb-4">Veuillez réessayer</p>
+                    <Button variant="outline" onClick={() => refetchChannels()}>
+                      Réessayer
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {!channelsLoading && !channelsError && (
+                <>
+              {/* Base Channels - "La Base" Always Included - strict 26 */}
               <Card className="bg-emerald-500/10 border-emerald-500/30">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -1657,7 +1691,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                       <div>
                         <CardTitle className="flex items-center gap-2">
-                          La Base — {baseChannels.length} chaînes HD
+                          La Base — 26 chaînes HD
                         </CardTitle>
                         <CardDescription>
                           Incluant les réseaux généralistes canadiens. Toujours inclus avec votre forfait.
@@ -1670,8 +1704,28 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <CardContent>
                   {baseChannels.length === 0 ? (
                     <div className="text-center py-6">
-                      <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">Chargement des chaînes...</p>
+                      <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-3" />
+                      <p className="text-sm text-amber-600 font-medium">Catalogue de base indisponible</p>
+                      <p className="text-xs text-muted-foreground mt-1">Veuillez réessayer ou contacter le support.</p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchChannels()}>
+                        Réessayer
+                      </Button>
+                    </div>
+                  ) : baseChannels.length < 26 ? (
+                    <div className="text-center py-6">
+                      <AlertCircle className="w-6 h-6 text-amber-500 mx-auto mb-2" />
+                      <p className="text-sm text-amber-600">Catalogue de base incomplet ({baseChannels.length}/26 chaînes)</p>
+                      <ScrollArea className="h-48 mt-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {baseChannels.map((channel) => (
+                            <div key={channel.id} className="flex items-center gap-2 p-2 bg-accent/30 rounded text-sm">
+                              <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                              <span className="truncate">{channel.name}</span>
+                              {channel.is_hd && <Badge variant="outline" className="text-[10px] px-1">HD</Badge>}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
                     </div>
                   ) : (
                     <ScrollArea className="h-48">
@@ -1914,6 +1968,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   )}
                 </CardContent>
               </Card>
+              </>
+              )}
             </div>
 
             {/* Equipment is auto-attached based on plan rules - no manual selection */}
