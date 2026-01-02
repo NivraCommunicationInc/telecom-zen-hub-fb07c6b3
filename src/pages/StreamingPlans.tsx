@@ -4,39 +4,18 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Film, Music, Tv, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const categoryIcons: Record<string, any> = {
-  video: Film,
-  music: Music,
-  streaming: Tv,
-};
+import { useStreamingCatalogActive, StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
 
 const categoryLabels: Record<string, { en: string; fr: string }> = {
   video: { en: "Video", fr: "Vidéo" },
   music: { en: "Music", fr: "Musique" },
-  streaming: { en: "Streaming", fr: "Streaming" },
 };
 
 const StreamingPlans = () => {
   const { language } = useLanguage();
-
-  const { data: services, isLoading } = useQuery({
-    queryKey: ["public-streaming-services"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("streaming_services")
-        .select("*")
-        .eq("is_active", true)
-        .order("category")
-        .order("monthly_price");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: services, isLoading } = useStreamingCatalogActive();
 
   const videoServices = services?.filter(s => s.category === "video") || [];
   const musicServices = services?.filter(s => s.category === "music") || [];
@@ -49,7 +28,6 @@ const StreamingPlans = () => {
       musicTitle: "Music Streaming",
       perMonth: "/month",
       subscribe: "Subscribe Now",
-      features: "Features",
       noServices: "No streaming services available at the moment",
       loading: "Loading services...",
       bundleTitle: "Bundle & Save",
@@ -63,7 +41,6 @@ const StreamingPlans = () => {
       musicTitle: "Streaming Musique",
       perMonth: "/mois",
       subscribe: "S'abonner",
-      features: "Fonctionnalités",
       noServices: "Aucun service de streaming disponible pour le moment",
       loading: "Chargement des services...",
       bundleTitle: "Combinez et économisez",
@@ -75,11 +52,12 @@ const StreamingPlans = () => {
   const t = texts[language];
 
   const CategoryIcon = ({ category }: { category: string }) => {
-    const Icon = categoryIcons[category] || Tv;
-    return <Icon className="w-6 h-6" />;
+    if (category === "video") return <Film className="w-6 h-6" />;
+    if (category === "music") return <Music className="w-6 h-6" />;
+    return <Tv className="w-6 h-6" />;
   };
 
-  const ServiceCard = ({ service }: { service: any }) => (
+  const ServiceCard = ({ service }: { service: StreamingCatalogItem }) => (
     <Card className="hover:shadow-lg transition-shadow border-border/50 hover:border-primary/30 h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
@@ -99,10 +77,9 @@ const StreamingPlans = () => {
       <CardContent className="flex-1 flex flex-col">
         <p className="text-muted-foreground text-sm mb-4">{service.description}</p>
         
-        {/* Features */}
         {Array.isArray(service.features) && service.features.length > 0 && (
           <div className="space-y-2 mb-4 flex-1">
-            {(service.features as string[]).map((feature, idx) => (
+            {service.features.map((feature, idx) => (
               <div key={idx} className="flex items-start gap-2 text-sm">
                 <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>{feature}</span>
@@ -111,12 +88,11 @@ const StreamingPlans = () => {
           </div>
         )}
         
-        {/* Price */}
         <div className="mt-auto pt-4 border-t">
           <div className="flex items-end justify-between">
             <div>
               <span className="text-3xl font-bold text-primary">
-                ${service.monthly_price?.toFixed(2)}
+                ${service.price_monthly.toFixed(2)}
               </span>
               <span className="text-muted-foreground text-sm">{t.perMonth}</span>
             </div>
@@ -133,7 +109,6 @@ const StreamingPlans = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Hero Section */}
       <section className="relative py-16 md:py-24 bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -159,7 +134,6 @@ const StreamingPlans = () => {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Video Streaming Section */}
             {videoServices.length > 0 && (
               <section>
                 <div className="flex items-center gap-3 mb-6">
@@ -174,7 +148,6 @@ const StreamingPlans = () => {
               </section>
             )}
 
-            {/* Music Streaming Section */}
             {musicServices.length > 0 && (
               <section>
                 <div className="flex items-center gap-3 mb-6">
@@ -189,7 +162,6 @@ const StreamingPlans = () => {
               </section>
             )}
 
-            {/* Bundle CTA */}
             <section className="mt-16">
               <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
                 <CardContent className="py-8 text-center">

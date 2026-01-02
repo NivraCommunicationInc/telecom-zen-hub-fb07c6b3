@@ -50,6 +50,7 @@ import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/compon
 import { PinSetupSection } from "@/components/checkout/PinSetupSection";
 import { TVChannelSelection } from "@/components/checkout/TVChannelSelection";
 import { StreamingServiceSelection } from "@/components/checkout/StreamingServiceSelection";
+import { StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
 import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone } from "@/components/checkout";
 import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
 import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
@@ -67,16 +68,7 @@ interface Channel {
   base_pack: string | null;
 }
 
-// Streaming service interface
-interface StreamingService {
-  id: string;
-  name: string;
-  description: string | null;
-  monthly_price: number;
-  category: string;
-  features: string[];
-  is_active: boolean;
-}
+// Using StreamingCatalogItem from useStreamingCatalog hook
 
 // TV + Internet plan configurations
 const TV_PLANS = [
@@ -247,7 +239,7 @@ const ClientTVOrder = () => {
   const [selectedPremiumChannels, setSelectedPremiumChannelsState] = useState<Channel[]>([]);
   
   // Streaming services state - derived from draft IDs + actual service objects
-  const [selectedStreamingServices, setSelectedStreamingServicesState] = useState<StreamingService[]>([]);
+  const [selectedStreamingServices, setSelectedStreamingServicesState] = useState<StreamingCatalogItem[]>([]);
   
   // Equipment - from draft
   const terminalCount = draft.terminalCount;
@@ -295,7 +287,7 @@ const ClientTVOrder = () => {
     setPremiumChannels(channels.map(c => c.id));
   }, [setPremiumChannels]);
 
-  const setSelectedStreamingServices = useCallback((services: StreamingService[]) => {
+  const setSelectedStreamingServices = useCallback((services: StreamingCatalogItem[]) => {
     setSelectedStreamingServicesState(services);
     setStreamingServices(services.map(s => s.id));
   }, [setStreamingServices]);
@@ -492,7 +484,7 @@ const ClientTVOrder = () => {
   // Calculate totals
   const planPrice = selectedPlan?.price || 0;
   const premiumChannelsTotal = selectedPremiumChannels.reduce((sum, ch) => sum + (ch.price || 0), 0);
-  const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + s.monthly_price, 0);
+  const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + s.price_monthly, 0);
   const monthlyRecurring = planPrice + premiumChannelsTotal + streamingTotal;
   
   const terminalFee = TERMINAL_DETAILS.price * terminalCount;
@@ -630,7 +622,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
         const subscriptions = selectedStreamingServices.map(service => ({
           user_id: user.id,
           streaming_service_id: service.id,
-          monthly_price: service.monthly_price,
+          monthly_price: service.price_monthly,
           status: "pending",
           internal_notes: `Created with order ${orderData.order_number}`,
         }));
