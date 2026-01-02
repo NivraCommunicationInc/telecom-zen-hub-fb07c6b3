@@ -154,7 +154,7 @@ const About = () => {
                 Notre mission
               </h2>
               <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                Offrir aux Canadiens un accès simple et transparent aux services télécom, 
+                Offrir aux Québécois un accès simple et transparent aux services télécom, 
                 sans les complications habituelles. Nous croyons qu'une bonne expérience client 
                 commence par la clarté et se maintient par un support réactif.
               </p>
