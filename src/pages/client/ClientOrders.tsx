@@ -12,7 +12,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy } from "lucide-react";
+import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -272,6 +272,56 @@ const ClientOrders = () => {
                       currency: "CAD",
                     })}
                   </span>
+                </div>
+              )}
+
+              {/* Port-In Info (Read-Only for Client) */}
+              {selectedOrder.port_request && (selectedOrder.port_request as any)?.port_in && (
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-cyan-500" />
+                    Transfert de numéro
+                  </h4>
+                  <div className="space-y-2 bg-cyan-500/10 p-3 rounded-lg">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Numéro à transférer</span>
+                      <span className="font-mono text-foreground">{(selectedOrder.port_request as any)?.phone_number || "—"}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Fournisseur actuel</span>
+                      <span className="text-foreground">{(selectedOrder.port_request as any)?.carrier || "Non spécifié"}</span>
+                    </div>
+                    <Badge className="bg-emerald-500/20 text-emerald-500 mt-2">En traitement</Badge>
+                  </div>
+                </div>
+              )}
+
+              {/* Identity Info (Read-Only, Masked for Client) */}
+              {selectedOrder.identity_snapshot && (
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-blue-500" />
+                    Identité vérifiée
+                  </h4>
+                  <div className="space-y-2 bg-blue-500/10 p-3 rounded-lg">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Type de pièce</span>
+                      <span className="text-foreground">
+                        {(selectedOrder.identity_snapshot as any)?.id_type === "drivers_license" ? "Permis de conduire" :
+                         (selectedOrder.identity_snapshot as any)?.id_type === "passport" ? "Passeport" :
+                         (selectedOrder.identity_snapshot as any)?.id_type === "health_card" ? "Carte assurance maladie" :
+                         (selectedOrder.identity_snapshot as any)?.id_type || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Numéro</span>
+                      <span className="font-mono text-foreground">
+                        {(selectedOrder.identity_snapshot as any)?.id_number 
+                          ? `••••${(selectedOrder.identity_snapshot as any).id_number.slice(-4)}` 
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
               

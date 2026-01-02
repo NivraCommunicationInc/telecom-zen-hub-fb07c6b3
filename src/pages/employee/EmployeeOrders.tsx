@@ -35,6 +35,7 @@ import {
   MapPin,
   Wrench,
   UserCheck,
+  Phone,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -679,6 +680,70 @@ const EmployeeOrders = () => {
               </TabsContent>
 
               <TabsContent value="verification" className="space-y-4 mt-4">
+                {/* Port-In / Transfer Section */}
+                {selectedOrder.port_request && (selectedOrder.port_request as any)?.port_in && (
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 p-4 rounded-lg space-y-3">
+                    <h4 className="font-medium flex items-center gap-2 text-cyan-600">
+                      <Phone className="w-4 h-4" />
+                      Transfert de numéro (portabilité)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Numéro à transférer</span>
+                        <p className="font-mono font-medium">{(selectedOrder.port_request as any)?.phone_number || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Fournisseur</span>
+                        <p className="font-medium">{(selectedOrder.port_request as any)?.carrier || "Non spécifié"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">No. compte</span>
+                        <p className="font-mono">{(selectedOrder.port_request as any)?.account_number || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">IMEI</span>
+                        <p className="font-mono">{(selectedOrder.port_request as any)?.imei || "—"}</p>
+                      </div>
+                    </div>
+                    {(selectedOrder.port_request as any)?.consent && (
+                      <Badge className="bg-emerald-500/20 text-emerald-600">Consentement confirmé</Badge>
+                    )}
+                  </div>
+                )}
+
+                {/* Identity Snapshot from Order */}
+                {selectedOrder.identity_snapshot && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg space-y-3">
+                    <h4 className="font-medium flex items-center gap-2 text-blue-600">
+                      <User className="w-4 h-4" />
+                      Identité soumise avec la commande
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Type de pièce</span>
+                        <p className="font-medium">
+                          {(selectedOrder.identity_snapshot as any)?.id_type === "drivers_license" ? "Permis de conduire" :
+                           (selectedOrder.identity_snapshot as any)?.id_type === "passport" ? "Passeport" :
+                           (selectedOrder.identity_snapshot as any)?.id_type === "health_card" ? "Carte assurance maladie" :
+                           (selectedOrder.identity_snapshot as any)?.id_type || "Non fourni"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Numéro</span>
+                        <p className="font-mono font-medium">{(selectedOrder.identity_snapshot as any)?.id_number || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Province</span>
+                        <p className="font-medium">{(selectedOrder.identity_snapshot as any)?.id_province || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Expiration</span>
+                        <p className="font-medium">{(selectedOrder.identity_snapshot as any)?.id_expiration || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Statut de vérification</span>
                   <Badge className={idVerificationLabels[selectedOrder.id_verification_status]?.color || "bg-yellow-500/20"}>

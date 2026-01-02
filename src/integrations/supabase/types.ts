@@ -1641,6 +1641,7 @@ export type Database = {
           id_verification_status: string | null
           id_verified_at: string | null
           id_verified_by: string | null
+          identity_snapshot: Json | null
           imei_number: string | null
           installation_credit: number | null
           installation_fee: number | null
@@ -1652,6 +1653,7 @@ export type Database = {
           order_number: string | null
           payment_reference: string | null
           payment_status: string | null
+          port_request: Json | null
           preauth_card_id: string | null
           preauth_discount: number | null
           processed_at: string | null
@@ -1711,6 +1713,7 @@ export type Database = {
           id_verification_status?: string | null
           id_verified_at?: string | null
           id_verified_by?: string | null
+          identity_snapshot?: Json | null
           imei_number?: string | null
           installation_credit?: number | null
           installation_fee?: number | null
@@ -1722,6 +1725,7 @@ export type Database = {
           order_number?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          port_request?: Json | null
           preauth_card_id?: string | null
           preauth_discount?: number | null
           processed_at?: string | null
@@ -1781,6 +1785,7 @@ export type Database = {
           id_verification_status?: string | null
           id_verified_at?: string | null
           id_verified_by?: string | null
+          identity_snapshot?: Json | null
           imei_number?: string | null
           installation_credit?: number | null
           installation_fee?: number | null
@@ -1792,6 +1797,7 @@ export type Database = {
           order_number?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          port_request?: Json | null
           preauth_card_id?: string | null
           preauth_discount?: number | null
           processed_at?: string | null
