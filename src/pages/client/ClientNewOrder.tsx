@@ -612,10 +612,9 @@ const ClientNewOrder = () => {
         ? `\n\n**Équipement TV:**\n${TERMINAL_CONFIG.name} x${terminalQuantity} = ${(terminalQuantity * TERMINAL_CONFIG.price).toFixed(2)}$\n${TERMINAL_CONFIG.warranty}`
         : '';
       
-      // Prepare SIM info for notes
-      const selectedSim = SIM_CONFIG[simType];
+      // Prepare SIM info for notes (always physical SIM, quantity matches mobile lines)
       const simInfo = hasMobileService
-        ? `\n\n**Carte SIM:**\n${selectedSim.name} = ${selectedSim.price.toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
+        ? `\n\n**Cartes SIM physiques:**\n${SIM_CONFIG.physical.name} x${mobileLineQuantity} = ${(SIM_CONFIG.physical.price * mobileLineQuantity).toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
         : '';
 
       // Prepare delivery info for notes
@@ -626,7 +625,7 @@ const ClientNewOrder = () => {
       const equipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-        (hasMobileService ? SIM_CONFIG[simType].price : 0);
+        (hasMobileService ? SIM_CONFIG.physical.price * mobileLineQuantity : 0);
 
       // Calculate delivery fee based on order type
       const orderDeliveryFee = isDeliveryOnlyOrder 
@@ -745,7 +744,7 @@ const ClientNewOrder = () => {
       const invoiceEquipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
         ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-        (hasMobileService ? SIM_CONFIG[simType].price : 0);
+        (hasMobileService ? SIM_CONFIG.physical.price * mobileLineQuantity : 0);
       const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
       
       // Calculate invoice delivery fee based on order type
@@ -783,7 +782,7 @@ const ClientNewOrder = () => {
         discount_amount: discountCode ? installationCredit : 0,
         tps_amount: invoiceTps,
         tvq_amount: invoiceTvq,
-        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? 'SIM' : null)),
+        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? `SIM-${mobileLineQuantity}x` : null)),
         status: "pending",
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}`,
@@ -1047,7 +1046,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
-  const simFee = hasMobileService ? SIM_CONFIG[simType].price * mobileLineQuantity : 0;
+  // SIM: Always physical, quantity matches mobile lines
+  const simFee = hasMobileService ? SIM_CONFIG.physical.price * mobileLineQuantity : 0;
   
   // Fee logic based on installation choice OR delivery choice for delivery-only orders
   const calculateDeliveryFee = (): number => {
@@ -1380,7 +1380,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     Combien de lignes {selectedMobileService.name} souhaitez-vous?
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
@@ -1413,7 +1413,37 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </Button>
                     </div>
                   </div>
-                  <div className="mt-4 p-3 bg-blue-500/20 rounded-lg">
+                  
+                  {/* Auto-included Physical SIM Cards */}
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                          <CreditCard className="w-5 h-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground flex items-center gap-2">
+                            Cartes SIM physiques
+                            <Badge className="bg-emerald-500/20 text-emerald-500 border-0 text-xs">Automatique</Badge>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Quantité: {mobileLineQuantity} (liée au nombre de lignes)
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {SIM_CONFIG.physical.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} / carte SIM (frais unique)
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-emerald-500">
+                          {(SIM_CONFIG.physical.price * mobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Frais unique</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 bg-blue-500/20 rounded-lg">
                     <div className="flex justify-between items-center">
                       <span className="text-blue-600 font-medium">Total mensuel Mobile ({mobileLineQuantity} ligne{mobileLineQuantity > 1 ? 's' : ''})</span>
                       <span className="text-blue-600 font-bold text-lg">
@@ -3030,7 +3060,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     {simFee > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Carte SIM (×{mobileLineQuantity})</span>
+                        <span className="text-muted-foreground">Cartes SIM physiques (×{mobileLineQuantity})</span>
                         <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
