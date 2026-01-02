@@ -68,6 +68,7 @@ import { ClientAccessGateModal } from "@/components/admin/ClientAccessGateModal"
 import { useClientAccessGate } from "@/hooks/useClientAccessGate";
 import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import BackToTopButton from "@/components/ui/back-to-top-button";
+import ClientLogsTab from "@/components/admin/ClientLogsTab";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -683,7 +684,7 @@ const EmployeeClients = () => {
 
           {selectedClient && (
             <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col px-6 pb-6">
-              <TabsList className="grid grid-cols-9 w-full flex-shrink-0 overflow-x-auto">
+              <TabsList className="grid grid-cols-10 w-full flex-shrink-0 overflow-x-auto">
                 <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
                 <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
                 <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>
@@ -693,6 +694,7 @@ const EmployeeClients = () => {
                 <TabsTrigger value="incidents" className="text-xs">Incidents</TabsTrigger>
                 <TabsTrigger value="documents" className="text-xs">Documents</TabsTrigger>
                 <TabsTrigger value="tickets" className="text-xs">Tickets</TabsTrigger>
+                <TabsTrigger value="logs" className="text-xs">Logs</TabsTrigger>
               </TabsList>
 
               <ScrollArea className="flex-1 mt-4 min-h-0">
@@ -1338,6 +1340,11 @@ const EmployeeClients = () => {
                       )}
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                {/* Logs Tab */}
+                <TabsContent value="logs" className="space-y-4 pr-4">
+                  <ClientLogsTab clientUserId={selectedClient.user_id} isAdmin={false} />
                 </TabsContent>
               </ScrollArea>
             </Tabs>
