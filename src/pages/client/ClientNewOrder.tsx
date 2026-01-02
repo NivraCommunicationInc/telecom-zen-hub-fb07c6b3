@@ -2335,7 +2335,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           (step === 4 && hasTVService && hasMobileService)) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {/* Fee Explanation Notice - Only in checkout, not in confirmation */}
+              {/* Fee Explanation Notice */}
               <Card className="bg-blue-500/10 border-blue-500/30">
                 <CardContent className="py-4 flex items-start gap-3">
                   <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
@@ -2345,109 +2345,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </p>
                 </CardContent>
               </Card>
-
-              {/* ID Verification - Skip for equipment-only orders */}
-              {!isEquipmentOnlyOrder ? (
-                <Card className="bg-card border-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="w-5 h-5 text-cyan-500" />
-                      Vérification d'identité
-                    </CardTitle>
-                    <CardDescription>
-                      Une pièce d'identité valide avec photo est requise pour les services télécom
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Card className="bg-amber-500/10 border-amber-500/30">
-                      <CardContent className="py-4 flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm">
-                          <p className="font-medium text-foreground mb-1">Important</p>
-                          <p className="text-muted-foreground">
-                            Nous n'effectuons aucune vérification de crédit. Une pièce d'identité valide sera vérifiée lors de la confirmation de votre commande.
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* ID Details Form */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="id-type">Type de pièce d'identité *</Label>
-                        <select
-                          id="id-type"
-                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                          value={idType}
-                          onChange={(e) => setIdType(e.target.value)}
-                        >
-                          <option value="">Sélectionner un type</option>
-                          {ID_TYPES.map((type) => (
-                            <option key={type.value} value={type.value}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="id-number">Numéro de pièce d'identité *</Label>
-                        <Input
-                          id="id-number"
-                          placeholder="Ex: A1234567"
-                          value={idNumber}
-                          onChange={(e) => setIdNumber(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="id-expiration">Date d'expiration *</Label>
-                        <Input
-                          id="id-expiration"
-                          type="date"
-                          value={idExpiration}
-                          onChange={(e) => setIdExpiration(e.target.value)}
-                          min={format(new Date(), "yyyy-MM-dd")}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="id-province">Province d'émission *</Label>
-                        <select
-                          id="id-province"
-                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                          value={idProvince}
-                          onChange={(e) => setIdProvince(e.target.value)}
-                        >
-                          <option value="">Sélectionner une province</option>
-                          {CANADIAN_PROVINCES.map((province) => (
-                            <option key={province.value} value={province.value}>
-                              {province.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {isIdComplete && (
-                      <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4" />
-                        Informations d'identité complétées
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="bg-emerald-500/10 border-emerald-500/30">
-                  <CardContent className="py-4 flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-emerald-600 mb-1">Commande d'équipement/accessoires</p>
-                      <p className="text-muted-foreground">
-                        Aucune vérification d'identité requise pour les commandes d'équipement et accessoires uniquement. 
-                        Aucun frais d'activation ne sera facturé.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Phone and Service Address Section */}
               <Card className="bg-card border-border">
@@ -2869,6 +2766,104 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </div>
                       </CardContent>
                     </Card>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* ID Verification - Only for telecom services, not equipment-only orders */}
+              {!isEquipmentOnlyOrder ? (
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-cyan-500" />
+                      Vérification d'identité
+                    </CardTitle>
+                    <CardDescription>
+                      Une pièce d'identité gouvernementale valide est requise pour les services télécom. Aucune vérification de crédit.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Card className="bg-amber-500/10 border-amber-500/30">
+                      <CardContent className="py-3 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-muted-foreground">
+                          <strong className="text-foreground">Important:</strong> Votre pièce d'identité sera vérifiée lors de la confirmation de votre commande. Aucune vérification de crédit n'est effectuée.
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="id-type">Type de pièce d'identité *</Label>
+                        <select
+                          id="id-type"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                          value={idType}
+                          onChange={(e) => setIdType(e.target.value)}
+                        >
+                          <option value="">Sélectionner un type</option>
+                          {ID_TYPES.map((type) => (
+                            <option key={type.value} value={type.value}>
+                              {type.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="id-number">Numéro de pièce d'identité *</Label>
+                        <Input
+                          id="id-number"
+                          placeholder="Ex: A1234567"
+                          value={idNumber}
+                          onChange={(e) => setIdNumber(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="id-expiration">Date d'expiration *</Label>
+                        <Input
+                          id="id-expiration"
+                          type="date"
+                          value={idExpiration}
+                          onChange={(e) => setIdExpiration(e.target.value)}
+                          min={format(new Date(), "yyyy-MM-dd")}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="id-province">Province d'émission *</Label>
+                        <select
+                          id="id-province"
+                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                          value={idProvince}
+                          onChange={(e) => setIdProvince(e.target.value)}
+                        >
+                          <option value="">Sélectionner une province</option>
+                          {CANADIAN_PROVINCES.map((province) => (
+                            <option key={province.value} value={province.value}>
+                              {province.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {isIdComplete && (
+                      <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Informations d'identité complétées
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-emerald-500/10 border-emerald-500/30">
+                  <CardContent className="py-4 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium text-emerald-600 mb-1">Commande d'équipement/accessoires</p>
+                      <p className="text-muted-foreground">
+                        Aucune vérification d'identité requise pour les commandes d'équipement et accessoires uniquement.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
