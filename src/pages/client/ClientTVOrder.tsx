@@ -50,6 +50,7 @@ import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/compon
 import { PinSetupSection } from "@/components/checkout/PinSetupSection";
 import { TVChannelSelection } from "@/components/checkout/TVChannelSelection";
 import { StreamingServiceSelection } from "@/components/checkout/StreamingServiceSelection";
+import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone } from "@/components/checkout";
 import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
 
 // Channel interface
@@ -263,6 +264,23 @@ const ClientTVOrder = () => {
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
 
+  // Phone field for checkout
+  const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+
+  // Payment method state
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new">("new");
+  const [selectedCardId, setSelectedCardId] = useState("");
+  const [savedCardCvv, setSavedCardCvv] = useState("");
+  const [cvvError, setCvvError] = useState("");
+  const [newCardData, setNewCardData] = useState({
+    cardNumber: "",
+    cardName: "",
+    expiry: "",
+    cvv: "",
+  });
+  const [saveNewCard, setSaveNewCard] = useState(false);
+
   // Security PIN for new accounts
   const [securityPin, setSecurityPin] = useState("");
   const [confirmSecurityPin, setConfirmSecurityPin] = useState("");
@@ -298,6 +316,39 @@ const ClientTVOrder = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch saved payment methods
+  const { data: savedCards } = useQuery({
+    queryKey: ["client-payment-methods", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_methods")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Set default payment method and phone when cards/profile loaded
+  useEffect(() => {
+    if (savedCards && savedCards.length > 0) {
+      setSelectedPaymentMethod("saved");
+      const defaultCard = savedCards.find((c: any) => c.is_default) || savedCards[0];
+      setSelectedCardId(defaultCard.id);
+    }
+  }, [savedCards]);
+
+  useEffect(() => {
+    if (profile?.phone && !checkoutPhone) {
+      const digits = (profile.phone || "").replace(/\D/g, "").slice(0, 10);
+      if (digits.length === 10) {
+        setCheckoutPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+      }
+    }
+  }, [profile?.phone, checkoutPhone]);
 
   // Initialize client ID data from profile when available
   useEffect(() => {
@@ -401,13 +452,14 @@ const ClientTVOrder = () => {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
 
-      // Update profile
+      // Update profile with phone
+      const phoneDigits = checkoutPhone.replace(/\D/g, "");
       const profileUpdate: any = {
         first_name: clientIdData.firstName,
         last_name: clientIdData.lastName,
         full_name: `${clientIdData.firstName} ${clientIdData.lastName}`,
         email: clientIdData.email,
-        phone: clientIdData.phone,
+        phone: phoneDigits.length === 10 ? checkoutPhone : (clientIdData.phone || null),
         date_of_birth: clientIdData.dateOfBirth || null,
         service_address: address,
         service_city: addressValidation?.city || null,
@@ -431,6 +483,20 @@ const ClientTVOrder = () => {
         console.error("Profile update error:", profileError);
       }
 
+      // Build payment reference info (without storing CVV)
+      const paymentInfo = selectedPaymentMethod === "saved" 
+        ? {
+            method: "saved_card",
+            card_id: selectedCardId,
+            card_type: savedCards?.find((c: any) => c.id === selectedCardId)?.card_type,
+            last_four: savedCards?.find((c: any) => c.id === selectedCardId)?.last_four,
+          }
+        : {
+            method: "new_card",
+            card_type: newCardData.cardNumber.startsWith("4") ? "Visa" : newCardData.cardNumber.startsWith("5") ? "Mastercard" : "Card",
+            last_four: newCardData.cardNumber.replace(/\s/g, "").slice(-4),
+          };
+
       // Build selected channels data
       const selectedChannelsData = [
         ...selectedFreeChannels.map(ch => ({
@@ -451,19 +517,25 @@ const ClientTVOrder = () => {
         })),
       ];
 
-      // Create the order
+      // Create the order with payment and phone info
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
         service_type: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
         category: "TV + Internet",
         subtotal: monthlyRecurring,
+        total_amount: totalDueNow,
         delivery_fee: installationMethod === "auto" ? 30 : 0,
         activation_fee: activationFee,
         installation_fee: installationMethod === "technician" ? 50 : 0,
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
+        payment_status: "pre_authorized",
+        preauth_card_id: selectedPaymentMethod === "saved" ? selectedCardId : null,
+        preauth_discount: 0,
+        tps_amount: tpsAmount,
+        tvq_amount: tvqAmount,
         installation_type: installationMethod,
         appointment_date: selectedDate ? new Date(selectedDate).toISOString() : null,
         created_by: "client",
@@ -471,16 +543,20 @@ const ClientTVOrder = () => {
         terminal_count: terminalCount,
         terminal_fee: terminalFee,
         router_fee: routerFee,
-        notes: `${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
+        notes: `${isFrench ? "Téléphone" : "Phone"}: ${checkoutPhone}
+${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
 ${isFrench ? "Date préférée" : "Preferred date"}: ${selectedDate ? format(new Date(selectedDate), "d MMMM yyyy", { locale: isFrench ? fr : undefined }) : "N/A"} ${selectedTime}
 ${isFrench ? "Nombre de terminaux" : "Number of terminals"}: ${terminalCount}
 ${isFrench ? "Chaînes au choix" : "Free choice channels"}: ${selectedFreeChannels.length}
 ${isFrench ? "Chaînes premium" : "Premium channels"}: ${selectedPremiumChannels.length}
 ${isFrench ? "Services streaming" : "Streaming services"}: ${selectedStreamingServices.map(s => s.name).join(", ") || "Aucun"}
+${isFrench ? "Paiement" : "Payment"}: ${paymentInfo.card_type} ****${paymentInfo.last_four} (${isFrench ? "Dépôt préautorisé" : "Pre-authorized deposit"})
 ${notes || ""}`.trim(),
         internal_notes: `Equipment: Nivra Born Wifi Router ($60) + ${terminalCount}x Nivra 4K Smart Terminal ($${terminalFee})
-Monthly: Plan $${planPrice} + Premium Channels $${premiumChannelsTotal} + Streaming $${streamingTotal} = $${monthlyRecurring}/mo`,
+Monthly: Plan $${planPrice} + Premium Channels $${premiumChannelsTotal} + Streaming $${streamingTotal} = $${monthlyRecurring}/mo
+Payment: ${JSON.stringify(paymentInfo)}
+Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       }).select().single();
 
       if (orderError) throw orderError;
@@ -551,6 +627,33 @@ Monthly: Plan $${planPrice} + Premium Channels $${premiumChannelsTotal} + Stream
     if (!selectedPlan) {
       toast.error(isFrench ? "Veuillez sélectionner un forfait" : "Please select a plan");
       return;
+    }
+
+    // Validate phone number
+    if (!validateCanadianPhone(checkoutPhone)) {
+      setPhoneError(isFrench ? "Numéro de téléphone canadien invalide" : "Invalid Canadian phone number");
+      toast.error(isFrench ? "Veuillez entrer un numéro de téléphone valide" : "Please enter a valid phone number");
+      return;
+    }
+    setPhoneError("");
+    
+    // Validate payment method
+    if (selectedPaymentMethod === "saved") {
+      if (!selectedCardId) {
+        toast.error(isFrench ? "Veuillez sélectionner une carte" : "Please select a card");
+        return;
+      }
+      if (!savedCardCvv || savedCardCvv.length < 3) {
+        setCvvError(isFrench ? "CVV requis (3-4 chiffres)" : "CVV required (3-4 digits)");
+        toast.error(isFrench ? "Veuillez entrer le CVV de votre carte" : "Please enter your card CVV");
+        return;
+      }
+      setCvvError("");
+    } else {
+      if (!newCardData.cardNumber || !newCardData.cardName || !newCardData.expiry || !newCardData.cvv) {
+        toast.error(isFrench ? "Veuillez compléter les informations de la carte" : "Please complete card information");
+        return;
+      }
     }
     
     const idValidation = validateIDData(clientIdData, false);
@@ -1207,6 +1310,42 @@ Monthly: Plan $${planPrice} + Premium Channels $${premiumChannelsTotal} + Stream
                   />
                 </CardContent>
               </Card>
+
+              {/* Phone Number Field */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-cyan-500" />
+                    {isFrench ? "Coordonnées de contact" : "Contact Information"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CheckoutPhoneField
+                    isFrench={isFrench}
+                    phone={checkoutPhone}
+                    onChange={setCheckoutPhone}
+                    error={phoneError}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Payment Section */}
+              <CheckoutPaymentSection
+                isFrench={isFrench}
+                savedCards={savedCards || []}
+                selectedPaymentMethod={selectedPaymentMethod}
+                onPaymentMethodChange={setSelectedPaymentMethod}
+                selectedCardId={selectedCardId}
+                onSelectedCardChange={setSelectedCardId}
+                cvv={savedCardCvv}
+                onCvvChange={setSavedCardCvv}
+                newCardData={newCardData}
+                onNewCardChange={setNewCardData}
+                saveNewCard={saveNewCard}
+                onSaveNewCardChange={setSaveNewCard}
+                totalAmount={totalDueNow}
+                cvvError={cvvError}
+              />
             </div>
 
             {/* Order Summary Sidebar */}
