@@ -18,7 +18,6 @@ import {
   Printer,
   CalendarPlus,
   Truck,
-  Zap,
   Wrench,
   MapPin,
   Copy,
@@ -26,9 +25,19 @@ import {
   Smartphone,
   Wifi,
   Tv,
-  MonitorPlay
+  MonitorPlay,
+  Shield,
+  User,
+  Building,
+  Package,
+  ExternalLink,
+  AlertCircle,
+  KeyRound,
+  RefreshCw,
+  Router,
+  Download
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,8 +64,37 @@ interface OrderData {
   created_at: string;
   selected_channels?: any[];
   appointment_date?: string;
+  appointment_notes?: string;
   notes?: string;
   equipment_details?: any;
+  router_fee?: number;
+  terminal_fee?: number;
+  terminal_count?: number;
+  delivery_method?: string;
+  promo_code?: string;
+  promo_discount_amount?: number;
+  preauth_discount?: number;
+  account_id?: string;
+}
+
+interface AccountData {
+  id: string;
+  account_number: string;
+  billing_cycle_day: number;
+  billing_cycle_timezone: string;
+}
+
+interface ProfileData {
+  full_name: string;
+  email: string;
+  phone: string;
+  service_address: string;
+  service_city: string;
+  service_province: string;
+  service_postal_code: string;
+  client_number: string;
+  client_pin_hash: string | null;
+  pin_is_default: boolean | null;
 }
 
 const ClientOrderConfirmation = () => {
@@ -64,13 +102,15 @@ const ClientOrderConfirmation = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [order, setOrder] = useState<OrderData | null>(null);
+  const [account, setAccount] = useState<AccountData | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const orderId = searchParams.get("orderId");
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchData = async () => {
       if (!orderId || !user?.id) {
         setError("Aucune commande trouvée");
         setLoading(false);
@@ -78,36 +118,55 @@ const ClientOrderConfirmation = () => {
       }
 
       try {
-        const { data, error: fetchError } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("id", orderId)
-          .eq("user_id", user.id)
-          .maybeSingle();
+        // Fetch order, account, and profile in parallel
+        const [orderRes, profileRes, accountRes] = await Promise.all([
+          supabase
+            .from("orders")
+            .select("*")
+            .eq("id", orderId)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("full_name, email, phone, service_address, service_city, service_province, service_postal_code, client_number, client_pin_hash, pin_is_default")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("accounts")
+            .select("id, account_number, billing_cycle_day, billing_cycle_timezone")
+            .eq("client_id", user.id)
+            .maybeSingle()
+        ]);
 
-        if (fetchError) throw fetchError;
+        if (orderRes.error) throw orderRes.error;
         
-        if (!data) {
+        if (!orderRes.data) {
           setError("Commande introuvable");
         } else {
-          setOrder(data as OrderData);
+          setOrder(orderRes.data as OrderData);
+        }
+        
+        if (profileRes.data) {
+          setProfile(profileRes.data as ProfileData);
+        }
+        
+        if (accountRes.data) {
+          setAccount(accountRes.data as AccountData);
         }
       } catch (err) {
-        console.error("Error fetching order:", err);
+        console.error("Error fetching data:", err);
         setError("Erreur lors du chargement de la commande");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrder();
+    fetchData();
   }, [orderId, user?.id]);
 
-  const copyOrderNumber = () => {
-    if (order?.order_number) {
-      navigator.clipboard.writeText(order.order_number);
-      toast.success("Numéro de commande copié!");
-    }
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copié!`);
   };
 
   const generateICSFile = () => {
@@ -131,7 +190,7 @@ DTSTART:${formatICSDate(startDate)}
 DTEND:${formatICSDate(endDate)}
 SUMMARY:Installation Nivra - ${order.order_number}
 DESCRIPTION:Installation de vos services Nivra.\\nCommande: ${order.order_number}\\nServices: ${order.service_type}
-LOCATION:Votre domicile
+LOCATION:${profile?.service_address || "Votre domicile"}
 STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR`;
@@ -147,14 +206,75 @@ END:VCALENDAR`;
     URL.revokeObjectURL(url);
   };
 
-  // Parse notes to extract service address and phone
-  const parseNotes = (notes: string | undefined) => {
-    if (!notes) return { address: null, phone: null };
-    const addressMatch = notes.match(/\*\*Adresse de service:\*\*\n([^\n]+)/);
-    const phoneMatch = notes.match(/\*\*Téléphone client:\*\* ([^\n]+)/);
+  // Parse notes to extract port-in details
+  const parsePortInDetails = (notes: string | undefined) => {
+    if (!notes) return null;
+    const portInMatch = notes.match(/\*\*Transfert de numéro.*?\*\*/);
+    const numberMatch = notes.match(/Numéro à transférer:\s*([^\n]+)/);
+    const providerMatch = notes.match(/Fournisseur actuel:\s*([^\n]+)/);
+    const accountMatch = notes.match(/Numéro de compte:\s*([^\n]+)/);
+    
+    if (numberMatch || notes.includes("Transfert de numéro")) {
+      return {
+        number: numberMatch ? numberMatch[1] : null,
+        provider: providerMatch ? providerMatch[1] : null,
+        accountNumber: accountMatch ? accountMatch[1] : null,
+      };
+    }
+    return null;
+  };
+
+  // Parse equipment from notes
+  const parseEquipment = (order: OrderData) => {
+    const equipment = [];
+    const services = order.service_type?.toLowerCase() || "";
+    
+    if (services.includes("internet") || services.includes("tv") || services.includes("télé")) {
+      equipment.push({ 
+        name: "Nivra Born Wifi Router", 
+        quantity: 1, 
+        fee: order.router_fee || 60,
+        type: "router"
+      });
+    }
+    
+    if (services.includes("tv") || services.includes("télé")) {
+      equipment.push({ 
+        name: "Nivra 4K Smart Terminal", 
+        quantity: order.terminal_count || 1, 
+        fee: order.terminal_fee || 50,
+        type: "terminal"
+      });
+    }
+    
+    if (services.includes("mobile") || services.includes("cellulaire")) {
+      // Count mobile lines from notes or default to 1
+      const mobileMatch = order.notes?.match(/(\d+)\s*ligne/i);
+      const lineCount = mobileMatch ? parseInt(mobileMatch[1]) : 1;
+      equipment.push({ 
+        name: "Carte SIM physique", 
+        quantity: lineCount, 
+        fee: 25 * lineCount,
+        type: "sim"
+      });
+    }
+    
+    return equipment;
+  };
+
+  // Calculate billing dates
+  const getBillingInfo = () => {
+    const billCycleDay = account?.billing_cycle_day || 1;
+    const today = new Date();
+    let nextBillingDate = new Date(today.getFullYear(), today.getMonth(), billCycleDay);
+    
+    if (nextBillingDate <= today) {
+      nextBillingDate = addMonths(nextBillingDate, 1);
+    }
+    
     return {
-      address: addressMatch ? addressMatch[1] : null,
-      phone: phoneMatch ? phoneMatch[1] : null,
+      cycleDay: billCycleDay,
+      nextBillingDate
     };
   };
 
@@ -172,6 +292,7 @@ END:VCALENDAR`;
     return (
       <ClientLayout>
         <div className="text-center py-12">
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-4">{error || "Erreur"}</h2>
           <Button onClick={() => navigate("/portal/orders")}>
             Voir mes commandes
@@ -181,239 +302,571 @@ END:VCALENDAR`;
     );
   }
 
-  const services = order.service_type.split(", ");
-  const { address: serviceAddress, phone: clientPhone } = parseNotes(order.notes);
+  const services = order.service_type?.split(", ") || [];
+  const portInDetails = parsePortInDetails(order.notes);
+  const equipment = parseEquipment(order);
+  const billingInfo = getBillingInfo();
+  const hasPinConfigured = profile?.client_pin_hash !== null;
+  
+  // Calculate fees
   const deliveryFee = order.delivery_fee || 0;
   const activationFee = order.activation_fee ?? 0;
-  const installationFee = order.installation_fee || 0;
+  const installationFee = Math.max(0, (order.installation_fee || 0) - (order.installation_credit || 0));
+  const routerFee = order.router_fee || 0;
+  const terminalFee = order.terminal_fee || 0;
+  const simFee = equipment.find(e => e.type === "sim")?.fee || 0;
+  const promoDiscount = order.promo_discount_amount || 0;
+  const preauthDiscount = order.preauth_discount || 0;
   const tpsAmount = order.tps_amount || 0;
   const tvqAmount = order.tvq_amount || 0;
   const totalAmount = order.total_amount || 0;
-  const oneTimeFees = deliveryFee + activationFee + installationFee;
   const monthlyRecurring = order.subtotal || 0;
+  const monthlyWithTaxes = monthlyRecurring * 1.14975;
 
-  // Determine next step content
-  const getNextStepContent = () => {
-    if (order.installation_type === "technician") {
-      if (order.appointment_date) {
-        return {
-          icon: Calendar,
-          title: "Rendez-vous confirmé",
-          description: `Installation prévue le ${format(new Date(order.appointment_date), "d MMMM yyyy", { locale: fr })}`,
-          color: "emerald"
-        };
-      }
-      return {
-        icon: Phone,
-        title: "Contact sous 2-24h",
-        description: "Un agent vous contactera pour confirmer votre rendez-vous d'installation.",
-        color: "cyan"
-      };
-    }
-    return {
-      icon: Truck,
-      title: "Livraison en cours",
-      description: "Votre équipement sera expédié sous 24-78 heures ouvrables.",
-      color: "purple"
-    };
-  };
-
-  const nextStep = getNextStepContent();
-  const NextStepIcon = nextStep.icon;
+  // Determine fulfillment type
+  const isDeliveryOnly = order.installation_type === "auto" || order.delivery_method?.toLowerCase().includes("livraison");
+  const hasAppointment = !!order.appointment_date;
 
   return (
     <ClientLayout>
-      <div className="space-y-6 max-w-4xl mx-auto">
-        {/* Header - Commande confirmée */}
-        <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30">
-          <CardContent className="py-8">
-            <div className="flex flex-col md:flex-row items-center gap-6">
+      <div className="space-y-6 max-w-5xl mx-auto pb-8">
+        {/* ===== HEADER SECTION ===== */}
+        <Card className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-500/30 overflow-hidden">
+          <CardContent className="py-8 relative">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
               <div className="w-20 h-20 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               </div>
-              <div className="text-center md:text-left flex-1">
-                <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+              
+              <div className="flex-1 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="font-display text-2xl font-bold text-foreground">
                     Commande confirmée
-                  </h2>
+                  </h1>
                   <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30">
-                    En traitement
+                    {order.status === "pending" ? "Reçue" : "En traitement"}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                  <span className="text-xl font-mono font-bold text-cyan-500">{order.order_number}</span>
-                  <Button variant="ghost" size="sm" onClick={copyOrderNumber} className="h-8 w-8 p-0">
-                    <Copy className="w-4 h-4" />
-                  </Button>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Numéro de commande</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-mono font-bold text-cyan-500">{order.order_number}</span>
+                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(order.order_number, "Numéro")} className="h-6 w-6 p-0">
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="text-muted-foreground">Numéro de compte</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-mono font-bold text-foreground">
+                        {account?.account_number || profile?.client_number || "En création"}
+                      </span>
+                      {(account?.account_number || profile?.client_number) && (
+                        <Button variant="ghost" size="sm" onClick={() => copyToClipboard(account?.account_number || profile?.client_number || "", "Compte")} className="h-6 w-6 p-0">
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="text-muted-foreground">Date & heure</span>
+                    <p className="font-medium text-foreground mt-1">
+                      {format(new Date(order.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <span className="text-muted-foreground">Référence paiement</span>
+                    <p className="font-mono text-foreground mt-1">
+                      {order.payment_reference || "—"}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(order.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                
+                <p className="text-sm text-muted-foreground pt-2">
+                  Merci. Votre commande a été reçue. Vous recevrez une confirmation par courriel/SMS.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Next Step Banner */}
-        <Card className={`bg-${nextStep.color}-500/10 border-${nextStep.color}-500/30`}>
-          <CardContent className="py-4 flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-full bg-${nextStep.color}-500/20 flex items-center justify-center flex-shrink-0`}>
-              <NextStepIcon className={`w-6 h-6 text-${nextStep.color}-500`} />
-            </div>
-            <div>
-              <p className={`font-semibold text-${nextStep.color}-500`}>{nextStep.title}</p>
-              <p className="text-sm text-muted-foreground">{nextStep.description}</p>
+        {/* ===== KEY INFO TILES ===== */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card className="bg-card border">
+            <CardContent className="py-4 text-center">
+              <MapPin className="w-5 h-5 text-cyan-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Adresse de service</p>
+              <p className="text-sm font-medium text-foreground line-clamp-2 mt-1">
+                {profile?.service_address || "Non spécifiée"}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border">
+            <CardContent className="py-4 text-center">
+              <Phone className="w-5 h-5 text-cyan-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Téléphone</p>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {profile?.phone || "—"}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border">
+            <CardContent className="py-4 text-center">
+              <Calendar className="w-5 h-5 text-purple-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Cycle facturation</p>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {billingInfo.cycleDay}e jour du mois
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border">
+            <CardContent className="py-4 text-center">
+              <FileText className="w-5 h-5 text-purple-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Prochaine facture</p>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {format(billingInfo.nextBillingDate, "d MMM yyyy", { locale: fr })}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border">
+            <CardContent className="py-4 text-center">
+              <CreditCard className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Dépôt préautorisé</p>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {(preauthDiscount > 0 ? `-${preauthDiscount.toFixed(0)}$` : "—")}
+              </p>
+              {preauthDiscount > 0 && (
+                <p className="text-[10px] text-muted-foreground">Remboursable</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ===== MAIN CONTENT GRID ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT COLUMN - Services & Fees */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Services (Monthly/Recurring) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-cyan-500" />
+                  Détails de la commande
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Monthly Recurring Services */}
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Services mensuels (récurrent)
+                  </h4>
+                  <div className="space-y-2">
+                    {services.map((service, index) => (
+                      <div key={index} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          <span className="text-foreground">{service}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <Separator className="my-4" />
+                  
+                  <div className="flex justify-between font-medium">
+                    <span>Sous-total mensuel</span>
+                    <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                    <span>TPS (5%) + TVQ (9.975%)</span>
+                    <span>+{(monthlyRecurring * 0.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-purple-500/30">
+                    <span className="text-purple-500">Total mensuel estimé</span>
+                    <span className="text-purple-500">{monthlyWithTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                  </div>
+                </div>
+                
+                <Separator className="my-4" />
+                
+                {/* One-time Fees (Today) */}
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Frais uniques (aujourd'hui)
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {activationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Frais d'activation</span>
+                        <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {deliveryFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Frais de livraison</span>
+                        <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {installationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Frais d'installation</span>
+                        <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {routerFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Routeur Nivra Born Wifi</span>
+                        <span>{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {terminalFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Terminal(s) Nivra 4K (×{order.terminal_count || 1})</span>
+                        <span>{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {simFee > 0 && (
+                      <div className="flex justify-between text-blue-500">
+                        <span>Carte(s) SIM physique (×{equipment.find(e => e.type === "sim")?.quantity || 1})</span>
+                        <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {promoDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-500">
+                        <span>Rabais promo ({order.promo_code})</span>
+                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    
+                    <Separator className="my-2" />
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">TPS (5%)</span>
+                      <span>{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">TVQ (9.975%)</span>
+                      <span>{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    
+                    <div className="flex justify-between font-bold text-lg pt-3 border-t border-cyan-500/30">
+                      <span className="text-cyan-500">Total dû aujourd'hui</span>
+                      <span className="text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Installation / Delivery Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  {isDeliveryOnly ? (
+                    <Truck className="w-4 h-4 text-purple-500" />
+                  ) : (
+                    <Wrench className="w-4 h-4 text-cyan-500" />
+                  )}
+                  {isDeliveryOnly ? "Livraison" : "Installation / Livraison"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {hasAppointment ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        <Calendar className="w-6 h-6 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">Rendez-vous confirmé</p>
+                        <p className="text-lg font-bold text-emerald-500">
+                          {format(new Date(order.appointment_date!), "EEEE d MMMM yyyy", { locale: fr })}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Heure: {format(new Date(order.appointment_date!), "HH:mm", { locale: fr })} (créneau de 2h)
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        <span>{profile?.service_address}, {profile?.service_city}, {profile?.service_province} {profile?.service_postal_code}</span>
+                      </div>
+                      {order.appointment_notes && (
+                        <p className="text-sm text-muted-foreground">
+                          Notes: {order.appointment_notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : isDeliveryOnly ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <Truck className="w-6 h-6 text-purple-500" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">Livraison en cours de préparation</p>
+                        <p className="text-sm text-muted-foreground">
+                          Délai estimé: 24–72 heures ouvrables
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Méthode: {order.delivery_method || "Livraison standard Québec"}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-muted/50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        <span>{profile?.service_address}, {profile?.service_city}, {profile?.service_province} {profile?.service_postal_code}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-6 h-6 text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Contact sous 2 à 24 h</p>
+                      <p className="text-sm text-muted-foreground">
+                        Un agent vous contactera pour confirmer votre rendez-vous d'installation.
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        <MapPin className="w-4 h-4 inline mr-1" />
+                        {profile?.service_address}, {profile?.service_city}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Port-in Section (if applicable) */}
+            {portInDetails && (
+              <Card className="border-amber-500/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-amber-500" />
+                    Transfert de numéro (portabilité)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                        À traiter
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                      {portInDetails.number && (
+                        <div>
+                          <p className="text-muted-foreground">Numéro à transférer</p>
+                          <p className="font-mono font-medium">{portInDetails.number}</p>
+                        </div>
+                      )}
+                      {portInDetails.provider && (
+                        <div>
+                          <p className="text-muted-foreground">Fournisseur actuel</p>
+                          <p className="font-medium">{portInDetails.provider}</p>
+                        </div>
+                      )}
+                      {portInDetails.accountNumber && (
+                        <div>
+                          <p className="text-muted-foreground">Numéro de compte</p>
+                          <p className="font-mono font-medium">{portInDetails.accountNumber}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                      La portabilité est généralement complétée dans un délai de 2 à 48 h.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN - Equipment, Security, Billing */}
+          <div className="space-y-6">
+            {/* Equipment Included */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="w-4 h-4 text-purple-500" />
+                  Équipement inclus
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {equipment.length > 0 ? equipment.map((item, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      {item.type === "router" && <Router className="w-5 h-5 text-cyan-500" />}
+                      {item.type === "terminal" && <Tv className="w-5 h-5 text-purple-500" />}
+                      {item.type === "sim" && <Smartphone className="w-5 h-5 text-blue-500" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantity > 1 ? `×${item.quantity} • ` : ""}
+                        {item.fee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </p>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground">Aucun équipement requis</p>
+                )}
+                
+                <Separator className="my-3" />
+                
+                <div className="text-xs text-muted-foreground">
+                  <p>Mode de fulfillment:</p>
+                  <Badge variant="outline" className="mt-1">
+                    {isDeliveryOnly ? "Livraison" : hasAppointment ? "Installation technicien" : "En attente"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Account Security (PIN) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-emerald-500" />
+                  Sécurité du compte
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasPinConfigured ? "bg-emerald-500/20" : "bg-amber-500/20"}`}>
+                    <KeyRound className={`w-5 h-5 ${hasPinConfigured ? "text-emerald-500" : "text-amber-500"}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      PIN configuré: {hasPinConfigured ? "Oui" : "Non"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Méthode: PIN à 4 chiffres
+                    </p>
+                  </div>
+                </div>
+                
+                {hasPinConfigured && (
+                  <p className="text-xs text-muted-foreground bg-emerald-500/10 rounded p-2">
+                    Votre PIN a été enregistré dans votre profil.
+                  </p>
+                )}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full gap-2"
+                  onClick={() => navigate("/portal/profile")}
+                >
+                  <KeyRound className="w-4 h-4" />
+                  Gérer mon PIN
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Billing */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-cyan-500" />
+                  Facturation
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Cycle de facturation</span>
+                    <span className="font-medium">{billingInfo.cycleDay}e du mois</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Prochaine facture</span>
+                    <span className="font-medium">{format(billingInfo.nextBillingDate, "d MMM yyyy", { locale: fr })}</span>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  Les factures sont générées automatiquement chaque mois selon vos services actifs.
+                </p>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full gap-2"
+                  onClick={() => navigate("/portal/invoices")}
+                >
+                  <FileText className="w-4 h-4" />
+                  Voir mes factures
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* ===== ACTION BUTTONS ===== */}
+        <Card className="bg-muted/30">
+          <CardContent className="py-6">
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate(`/portal/orders`)}>
+                <FileText className="w-4 h-4" />
+                Voir ma commande
+              </Button>
+              
+              <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate("/portal/dashboard")}>
+                <User className="w-4 h-4" />
+                Voir mon compte
+              </Button>
+              
+              <Button variant="outline" size="lg" className="gap-2" onClick={() => window.print()}>
+                <Printer className="w-4 h-4" />
+                Imprimer
+              </Button>
+              
+              {hasAppointment && (
+                <Button variant="outline" size="lg" className="gap-2" onClick={generateICSFile}>
+                  <CalendarPlus className="w-4 h-4" />
+                  Ajouter au calendrier
+                </Button>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="gap-2" 
+                onClick={() => navigate(`/portal/tickets/new?order=${order.order_number}`)}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Ouvrir un billet
+              </Button>
+              
+              <Button variant="hero" size="lg" onClick={() => navigate("/portal/dashboard")} className="gap-2">
+                Continuer
+                <ArrowRight className="w-4 h-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Order Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Column - Service Details */}
-          <div className="space-y-6">
-            {/* Adresse de service */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-cyan-500" />
-                  Adresse de service
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground">{serviceAddress || "Non spécifiée"}</p>
-                {clientPhone && (
-                  <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    {clientPhone}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Services sélectionnés */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-cyan-500" />
-                  Services mensuels
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {services.map((service, index) => (
-                  <div key={index} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-foreground">{service}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Équipement inclus */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Wifi className="w-4 h-4 text-purple-500" />
-                  Équipement inclus
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                <p>Équipement attribué selon les règles du forfait.</p>
-                <p className="mt-1 text-xs">Visible dans les détails de la commande.</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Financial Summary */}
-          <div className="space-y-6">
-            {/* Frais uniques */}
-            <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-cyan-500" />
-                  Frais uniques (aujourd'hui)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {deliveryFee > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Livraison</span>
-                    <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                )}
-                {activationFee > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Activation</span>
-                    <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                )}
-                {installationFee > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Installation</span>
-                    <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                )}
-                <Separator className="my-2" />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">TPS (5%)</span>
-                  <span>{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">TVQ (9.975%)</span>
-                  <span>{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-cyan-500/30 font-bold">
-                  <span className="text-cyan-500">Total dû aujourd'hui</span>
-                  <span className="text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Mensuel récurrent */}
-            <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-500" />
-                  Mensuel récurrent
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Services mensuels</span>
-                  <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-purple-500/30 font-bold">
-                  <span className="text-purple-500">Total mensuel (+ taxes)</span>
-                  <span className="text-purple-500">{(monthlyRecurring * 1.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 justify-center">
-          <Button variant="outline" size="lg" className="gap-2" onClick={() => window.print()}>
-            <Printer className="w-4 h-4" />
-            Imprimer
-          </Button>
-          {order.appointment_date && (
-            <Button variant="outline" size="lg" className="gap-2" onClick={generateICSFile}>
-              <CalendarPlus className="w-4 h-4" />
-              Ajouter au calendrier
-            </Button>
-          )}
-          <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate("/portal/tickets/new")}>
-            <MessageSquare className="w-4 h-4" />
-            Ouvrir un billet
-          </Button>
-          <Button variant="hero" size="lg" onClick={() => navigate("/portal/orders")} className="gap-2">
-            Voir mes commandes
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Contact Info */}
-        <Card className="bg-card border-border">
+        {/* ===== CONTACT INFO FOOTER ===== */}
+        <Card className="bg-card border">
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
