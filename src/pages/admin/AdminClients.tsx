@@ -40,6 +40,8 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { downloadInvoicePDF, viewInvoicePDF } from "@/lib/invoicePdfGenerator";
 import { downloadContractPDF, viewContractPDF } from "@/lib/contractPdfGenerator";
+import { AdminPinManagementCard } from "@/components/admin/AdminPinManagementCard";
+import { useAuth } from "@/hooks/useAuth";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -73,6 +75,7 @@ const AdminClients = () => {
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
   const { isAdmin, permissions } = useRoleAccess();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState<"all" | "name" | "email" | "phone" | "tag">("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -103,6 +106,12 @@ const AdminClients = () => {
     service_postal_code: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // PIN Status state
+  const [clientPinStatus, setClientPinStatus] = useState<{ hasPin: boolean; isDefault: boolean; lastUpdated?: string }>({
+    hasPin: false,
+    isDefault: false,
+  });
 
   // Fetch all clients - show ALL profiles regardless of role
   const { data: clients, isLoading, refetch: refetchClients } = useQuery({
@@ -1101,7 +1110,26 @@ const AdminClients = () => {
                       </CardContent>
                     </Card>
 
-                    {/* Profile Fields */}
+                    {/* PIN Management - Admin Only */}
+                    <AdminPinManagementCard
+                      client={{
+                        id: selectedClient.id,
+                        user_id: selectedClient.user_id,
+                        email: selectedClient.email,
+                        full_name: selectedClient.full_name,
+                      }}
+                      pinStatus={{
+                        hasPin: !!selectedClient.client_pin_hash,
+                        isDefault: selectedClient.pin_is_default || false,
+                        lastUpdated: selectedClient.updated_at,
+                      }}
+                      onPinChanged={() => refetchClients()}
+                      staffUser={{
+                        id: user?.id || "",
+                        name: "Admin",
+                        role: "admin",
+                      }}
+                    />
                     <Card className="bg-card border-border">
                       <CardContent className="pt-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
