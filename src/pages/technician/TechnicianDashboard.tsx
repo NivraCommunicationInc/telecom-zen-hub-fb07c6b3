@@ -226,111 +226,38 @@ const TechnicianDashboard = () => {
     };
   }, [technicianSession?.id, queryClient]);
 
-  // Update work order status mutation - handles both work_orders and legacy items
+  // Update work order status mutation - uses secure edge function
   const updateStatusMutation = useMutation({
     mutationFn: async ({ workOrderId, newStatus, note }: { workOrderId: string; newStatus: string; note?: string }) => {
-      const now = new Date().toISOString();
-      const workOrder = allWorkOrders?.find((wo: any) => wo.id === workOrderId);
+      console.log("[TechnicianDashboard] Updating status via edge function:", { workOrderId, newStatus });
       
-      console.log("[TechnicianDashboard] Updating status:", { workOrderId, newStatus, workOrder });
-      
-      // Handle legacy items (order-xxx or appointment-xxx)
-      if (workOrderId.startsWith("order-")) {
-        const orderId = workOrderId.replace("order-", "");
-        const orderStatus = newStatus === "completed" ? "completed_installation" : 
-                          newStatus === "in_progress" ? "processing" : 
-                          newStatus === "cancelled" ? "cancelled" : "shipped";
-        
-        const { error } = await supabase
-          .from("orders")
-          .update({ 
-            status: orderStatus,
-            updated_at: now,
-          })
-          .eq("id", orderId);
-        
-        if (error) throw error;
-        return;
-      }
-      
-      if (workOrderId.startsWith("appointment-")) {
-        const appointmentId = workOrderId.replace("appointment-", "");
-        const aptStatus = newStatus === "completed" ? "completed" : 
-                         newStatus === "in_progress" ? "in_progress" : 
-                         newStatus === "cancelled" ? "cancelled" : "technician_assigned";
-        
-        const { error } = await supabase
-          .from("appointments")
-          .update({ 
-            status: aptStatus,
-            updated_at: now,
-          })
-          .eq("id", appointmentId);
-        
-        if (error) throw error;
-        return;
-      }
-      
-      // Handle work_orders table
-      const updateData: any = {
-        status: newStatus,
-        updated_at: now,
-      };
-
-      if (newStatus === "in_progress") {
-        updateData.started_at = now;
-      } else if (newStatus === "completed") {
-        updateData.completed_at = now;
-        updateData.checklist = checklist;
-      }
-
-      const { error } = await supabase
-        .from("work_orders")
-        .update(updateData)
-        .eq("id", workOrderId);
-
-      if (error) throw error;
-
-      // Log the status change
-      await supabase.from("work_order_updates").insert({
-        work_order_id: workOrderId,
-        actor_id: technicianSession?.user_id,
-        actor_role: "technician",
-        actor_name: technicianSession?.full_name,
-        old_status: workOrder?.status,
-        new_status: newStatus,
-        action: "status_change",
-        note: note || workNotes,
+      const { data, error } = await supabase.functions.invoke("technician-update-status", {
+        headers: {
+          "x-technician-token": technicianSession.token,
+        },
+        body: {
+          workOrderId,
+          newStatus,
+          note: note || workNotes,
+          checklist,
+        },
       });
-
-      // Also update linked order if exists
-      if ((workOrder as any)?.linked_order_id) {
-        const orderStatus = newStatus === "completed" ? "completed_installation" : 
-                          newStatus === "in_progress" ? "processing" : (workOrder as any)?.status;
-        
-        await supabase
-          .from("orders")
-          .update({ 
-            status: orderStatus,
-            updated_at: now,
-          })
-          .eq("id", (workOrder as any).linked_order_id);
+      
+      if (error) {
+        console.error("[TechnicianDashboard] Edge function error:", error);
+        throw new Error(error.message || "Erreur lors de la mise à jour");
       }
-
-      // Also update linked appointment if exists
-      if ((workOrder as any)?.linked_appointment_id) {
-        await supabase
-          .from("appointments")
-          .update({ 
-            status: newStatus === "completed" ? "completed" : 
-                   newStatus === "in_progress" ? "in_progress" : "technician_assigned",
-            updated_at: now,
-          })
-          .eq("id", (workOrder as any).linked_appointment_id);
+      
+      if (data?.error) {
+        console.error("[TechnicianDashboard] Edge function returned error:", data.error);
+        throw new Error(data.error);
       }
+      
+      return data;
     },
-    onSuccess: () => {
-      toast({ title: "Statut mis à jour", description: "Le bon de travail a été modifié" });
+    onSuccess: (data) => {
+      const message = data?.message || "Statut mis à jour";
+      toast({ title: message, description: "Le bon de travail a été modifié" });
       queryClient.invalidateQueries({ queryKey: ["technician-work-orders-secure"] });
       setDetailsOpen(false);
       setConfirmAction(null);
@@ -846,8 +773,13 @@ const TechnicianDashboard = () => {
                   <Button 
                     className="w-full bg-amber-500 hover:bg-amber-600"
                     onClick={() => setConfirmAction({ type: "start" })}
+                    disabled={updateStatusMutation.isPending}
                   >
-                    <Play className="w-4 h-4 mr-2" />
+                    {updateStatusMutation.isPending ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
                     Commencer le travail
                   </Button>
                 ) : selectedWorkOrder.status === "in_progress" ? (
@@ -855,9 +787,13 @@ const TechnicianDashboard = () => {
                     <Button 
                       className="w-full bg-emerald-500 hover:bg-emerald-600"
                       onClick={() => setConfirmAction({ type: "complete" })}
-                      disabled={!allChecklistCompleted}
+                      disabled={!allChecklistCompleted || updateStatusMutation.isPending}
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {updateStatusMutation.isPending ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                      )}
                       Terminer le travail
                     </Button>
                     {!allChecklistCompleted && (
@@ -896,8 +832,9 @@ const TechnicianDashboard = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={updateStatusMutation.isPending}>Annuler</AlertDialogCancel>
             <AlertDialogAction
+              disabled={updateStatusMutation.isPending}
               onClick={() => {
                 if (confirmAction?.type === "start") {
                   updateStatusMutation.mutate({
@@ -912,7 +849,7 @@ const TechnicianDashboard = () => {
                 }
               }}
             >
-              Confirmer
+              {updateStatusMutation.isPending ? "En cours..." : "Confirmer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
