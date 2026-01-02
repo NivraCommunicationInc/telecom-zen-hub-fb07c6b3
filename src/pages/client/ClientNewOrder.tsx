@@ -1020,16 +1020,35 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </div>
             ) : groupedServices && Object.keys(groupedServices).length > 0 ? (
               <div className="space-y-8">
-                {/* TV Notice */}
-                <Card className="bg-amber-500/10 border-amber-500/30">
+                {/* TV + Internet Bundle Notice */}
+                <Card className="bg-blue-500/10 border-blue-500/30">
                   <CardContent className="py-4 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground">
-                      <strong className="text-foreground">Note:</strong> Les forfaits TV incluent Internet (500 Mbps ou 1 Gbps selon le plan). 
-                      Les forfaits mobiles incluent des frais SIM de 60$ (nouveau numéro ou transfert).
-                    </p>
+                    <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium text-foreground mb-1">Forfaits TV + Internet</p>
+                      <p className="text-muted-foreground">
+                        Les forfaits TV incluent déjà Internet (500 Mbps ou 1 Gbps). 
+                        Si vous sélectionnez un forfait TV, vous ne pouvez pas ajouter un forfait Internet séparé.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
+
+                {/* Conflict Warning - Show when TV bundle is selected and user tries to add Internet */}
+                {hasTVService && hasInternetService && (
+                  <Card className="bg-destructive/10 border-destructive/30">
+                    <CardContent className="py-4 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-destructive mb-1">Conflit de forfait détecté</p>
+                        <p className="text-muted-foreground">
+                          Votre forfait TV inclut déjà Internet. Vous ne pouvez pas ajouter un autre forfait Internet.
+                          Veuillez retirer le forfait Internet ou le forfait TV pour continuer.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {Object.entries(groupedServices).map(([category, categoryServices]) => {
                   const CategoryIcon = categoryIcons[category] || Package;
@@ -1042,7 +1061,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <div>
                           <h2 className="text-xl font-bold text-foreground">{category}</h2>
                           {category === "TV" && (
-                            <p className="text-xs text-amber-500">Requiert Internet • Inclut 34 chaînes de base gratuites</p>
+                            <p className="text-xs text-pink-500">Inclut Internet • La Base (23 chaînes HD) + chaînes au choix selon forfait</p>
+                          )}
+                          {category === "Internet" && hasTVService && (
+                            <p className="text-xs text-destructive">⚠️ Non disponible - votre forfait TV inclut déjà Internet</p>
                           )}
                           {category === "Mobile" && (
                             <p className="text-xs text-blue-500">Nivra Communications • Aucune vérification de crédit • ID gouvernemental requis</p>
@@ -1135,57 +1157,101 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         {step === 2 && hasTVService && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {/* Base Channels - Always Included */}
+              {/* Base Channels - "La Base" Always Included */}
               <Card className="bg-emerald-500/10 border-emerald-500/30">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MonitorPlay className="w-5 h-5 text-emerald-500" />
-                    Chaînes de base incluses ({baseChannels.length} chaînes)
-                  </CardTitle>
-                  <CardDescription>
-                    Ces chaînes sont automatiquement incluses avec votre forfait TV - GRATUITES
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <MonitorPlay className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          La Base — 23 chaînes HD
+                        </CardTitle>
+                        <CardDescription>
+                          Incluant les réseaux généralistes canadiens. Toujours inclus avec votre forfait.
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge className="bg-emerald-500">INCLUS</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-48">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {baseChannels.map((channel) => (
-                        <div key={channel.id} className="flex items-center gap-2 p-2 bg-accent/30 rounded text-sm">
-                          <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                          <span className="truncate">{channel.name}</span>
-                          {channel.is_hd && <Badge variant="outline" className="text-xs px-1">HD</Badge>}
-                        </div>
-                      ))}
+                  {baseChannels.length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">Chargement des chaînes...</p>
                     </div>
-                  </ScrollArea>
+                  ) : (
+                    <ScrollArea className="h-48">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {baseChannels.map((channel) => (
+                          <div key={channel.id} className="flex items-center gap-2 p-2 bg-accent/30 rounded text-sm">
+                            <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                            <span className="truncate">{channel.name}</span>
+                            {channel.is_hd && <Badge variant="outline" className="text-[10px] px-1">HD</Badge>}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    {baseChannels.length} chaînes de base disponibles dans votre région
+                  </p>
                 </CardContent>
               </Card>
 
               {/* Free-Choice Channels */}
+              {freeChannelLimit > 0 && (
               <Card className="bg-card border-cyan-500/30">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-cyan-500" />
-                    Chaînes au choix ({selectedFreeChannels.length}/{freeChannelLimit} sélectionnées)
-                  </CardTitle>
-                  <CardDescription>
-                    Choisissez jusqu'à {freeChannelLimit} chaînes supplémentaires incluses avec votre forfait
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                        <Star className="w-5 h-5 text-cyan-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          Chaînes au choix
+                          <Badge variant="outline" className={`${
+                            selectedFreeChannels.length === freeChannelLimit 
+                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" 
+                              : "bg-cyan-500/10 text-cyan-500 border-cyan-500/30"
+                          }`}>
+                            {selectedFreeChannels.length}/{freeChannelLimit} sélectionnées
+                          </Badge>
+                        </CardTitle>
+                        <CardDescription>
+                          Choisissez {freeChannelLimit} chaînes incluses avec votre forfait
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
+                  {freeChoiceChannels.length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">Chargement des chaînes...</p>
+                    </div>
+                  ) : (
                   <ScrollArea className="h-72">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {freeChoiceChannels.map((channel) => {
                         const isChannelSelected = selectedFreeChannels.some(ch => ch.id === channel.id);
+                        const isDisabled = !isChannelSelected && selectedFreeChannels.length >= freeChannelLimit;
                         return (
                           <div
                             key={channel.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
                               isChannelSelected
-                                ? "bg-cyan-500/20 border border-cyan-500"
-                                : "bg-accent/30 hover:bg-accent/50 border border-transparent"
+                                ? "bg-cyan-500/20 border border-cyan-500 cursor-pointer"
+                                : isDisabled 
+                                  ? "bg-muted/30 border border-transparent opacity-50 cursor-not-allowed"
+                                  : "bg-accent/30 hover:bg-accent/50 border border-transparent cursor-pointer"
                             }`}
-                            onClick={() => toggleFreeChannel(channel)}
+                            onClick={() => !isDisabled && toggleFreeChannel(channel)}
                           >
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
                               isChannelSelected ? "bg-cyan-500 text-white" : "border-2 border-muted-foreground/30"
@@ -1205,21 +1271,49 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       })}
                     </div>
                   </ScrollArea>
+                  )}
+                  {selectedFreeChannels.length >= freeChannelLimit && (
+                    <div className="flex items-center gap-2 p-3 mt-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      <p className="text-sm text-amber-700">
+                        Limite atteinte. Désélectionnez une chaîne pour en choisir une autre.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-
+              )}
               {/* Paid Premium Channels */}
               <Card className="bg-card border-amber-500/30">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-amber-500" />
-                    Chaînes premium / Sports (en option)
-                  </CardTitle>
-                  <CardDescription>
-                    Ajoutez des chaînes premium pour un abonnement mensuel additionnel
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <Star className="w-5 h-5 text-amber-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          Chaînes Premium & Sports
+                        </CardTitle>
+                        <CardDescription>
+                          Ajoutez des chaînes premium avec abonnement mensuel
+                        </CardDescription>
+                      </div>
+                    </div>
+                    {paidChannelTotal > 0 && (
+                      <Badge className="bg-amber-500">
+                        +{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
+                  {paidChannels.length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">Chargement des chaînes premium...</p>
+                    </div>
+                  ) : (
                   <ScrollArea className="h-64">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {paidChannels.map((channel) => {
@@ -1254,6 +1348,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       })}
                     </div>
                   </ScrollArea>
+                  )}
                 </CardContent>
               </Card>
             </div>
