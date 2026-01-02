@@ -31,7 +31,7 @@ interface AdminSecurityControlsProps {
   securityFlaggedAt?: string | null;
   securityFlaggedOrderId?: string | null;
   securityRequiresPinReset: boolean;
-  onUpdate: () => void;
+  onUpdate: (updatedProfile?: any) => void;
 }
 
 const AdminSecurityControls = ({
@@ -70,6 +70,7 @@ const AdminSecurityControls = ({
 
       if (!result.success) {
         toast.error(result.error || "Échec de la levée de suspension");
+        setLoading(false);
         return;
       }
 
@@ -82,8 +83,8 @@ const AdminSecurityControls = ({
       setDialogOpen(null);
       setLiftReason("");
       
-      // Force refresh to get updated data
-      onUpdate();
+      // Pass the updated profile data back to parent for immediate UI update
+      onUpdate(result.profile);
     } catch (err: any) {
       console.error("Error lifting suspension:", err);
       toast.error(`Erreur: ${err.message || "Échec de la levée de suspension"}`);
@@ -106,6 +107,7 @@ const AdminSecurityControls = ({
 
       if (!result.success) {
         toast.error(result.error || `Échec du signalement ${level}`);
+        setLoading(false);
         return;
       }
 
@@ -122,8 +124,8 @@ const AdminSecurityControls = ({
       
       setDialogOpen(null);
       
-      // Force refresh to get updated data
-      onUpdate();
+      // Pass the updated profile data back to parent for immediate UI update
+      onUpdate(result.profile);
     } catch (err: any) {
       console.error("Error flagging client:", err);
       toast.error(`Erreur: ${err.message || "Échec du signalement"}`);
