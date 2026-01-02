@@ -70,6 +70,7 @@ import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import BackToTopButton from "@/components/ui/back-to-top-button";
 import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
+import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -766,6 +767,12 @@ const EmployeeClients = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Internal Notes - Admin/Employee only */}
+                  <ClientInternalNotes 
+                    clientId={selectedClient.user_id} 
+                    clientEmail={selectedClient.email}
+                  />
 
                   {/* Profile Fields */}
                   <Card className="bg-card border-border">

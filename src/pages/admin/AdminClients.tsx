@@ -48,6 +48,7 @@ import { useAuth } from "@/hooks/useAuth";
 import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import { useClientActivityLog } from "@/hooks/useClientActivityLog";
 import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
+import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1277,6 +1278,12 @@ const AdminClients = () => {
                         // Also refetch the full list to ensure cache is updated
                         refetchClients();
                       }}
+                    />
+
+                    {/* Internal Notes - Admin/Employee only */}
+                    <ClientInternalNotes 
+                      clientId={selectedClient.user_id} 
+                      clientEmail={selectedClient.email}
                     />
 
                     <Card className="bg-card border-border">

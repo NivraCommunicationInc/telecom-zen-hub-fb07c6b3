@@ -31,6 +31,7 @@ const ClientProfile = () => {
     full_name: "",
     email: "",
     phone: "",
+    date_of_birth: "",
   });
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -153,6 +154,7 @@ const ClientProfile = () => {
         full_name: profile.full_name || "",
         email: profile.email || user?.email || "",
         phone: profile.phone || "",
+        date_of_birth: profile.date_of_birth || "",
       });
     }
   }, [profile, user]);
@@ -164,6 +166,7 @@ const ClientProfile = () => {
         .update({
           full_name: data.full_name,
           phone: data.phone,
+          date_of_birth: data.date_of_birth || null,
         })
         .eq("user_id", user?.id);
       if (error) throw error;
@@ -343,6 +346,16 @@ const ClientProfile = () => {
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="(514) 555-1234"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="date_of_birth">Date de naissance</Label>
+                    <Input
+                      id="date_of_birth"
+                      type="date"
+                      value={formData.date_of_birth}
+                      onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                      max={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   <Button

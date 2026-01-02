@@ -13,7 +13,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -60,6 +62,11 @@ import {
   AlertCircle,
   Pause,
   Shield,
+  Upload,
+  Download,
+  Eye,
+  Image,
+  Plus,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -97,8 +104,17 @@ const categoryConfig: Record<string, { label: string; color: string; icon: any }
   sim_lost: { label: "SIM/Téléphone perdu", color: "bg-red-500/20 text-red-400", icon: Phone },
   plan_pause: { label: "Pause de forfait", color: "bg-amber-500/20 text-amber-400", icon: Pause },
   number_change: { label: "Changement de numéro", color: "bg-cyan-500/20 text-cyan-400", icon: Hash },
+  id_verification: { label: "Vérification d'identité", color: "bg-amber-500/20 text-amber-400", icon: Shield },
   general: { label: "Support général", color: "bg-muted text-muted-foreground", icon: MessageSquare },
   technical: { label: "Technique", color: "bg-indigo-500/20 text-indigo-400", icon: Shield },
+};
+
+// ID Verification status config
+const idVerificationStatusConfig: Record<string, { label: string; color: string; icon: any }> = {
+  not_received: { label: "Non reçu", color: "bg-slate-500/20 text-slate-400", icon: Clock },
+  received: { label: "Reçu", color: "bg-amber-500/20 text-amber-500", icon: FileText },
+  verified: { label: "Vérifié", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle2 },
+  rejected: { label: "Refusé", color: "bg-red-500/20 text-red-500", icon: XCircle },
 };
 
 // Assignment roles
@@ -122,6 +138,15 @@ const AdminTickets = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("conversation");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newTicket, setNewTicket] = useState({
+    client_email: "",
+    subject: "",
+    description: "",
+    priority: "normal",
+    category: "general",
+    requires_id_upload: false,
+  });
 
   // Fetch all support tickets with client info
   const { data: tickets, isLoading, refetch } = useQuery({
@@ -279,6 +304,68 @@ const AdminTickets = () => {
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible d'envoyer la réponse", variant: "destructive" });
+    },
+  });
+
+  // Create ticket for client mutation
+  const createTicketMutation = useMutation({
+    mutationFn: async (ticketData: typeof newTicket) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Find client by email
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("user_id, email, full_name")
+        .eq("email", ticketData.client_email.toLowerCase())
+        .single();
+
+      if (!profile) throw new Error("Client non trouvé avec cet email");
+
+      const { data, error } = await supabase
+        .from("support_tickets")
+        .insert({
+          user_id: profile.user_id,
+          client_email: profile.email,
+          subject: ticketData.subject,
+          description: ticketData.description,
+          priority: ticketData.priority,
+          category: ticketData.category,
+          requires_id_upload: ticketData.requires_id_upload,
+          id_verification_status: ticketData.requires_id_upload ? 'not_received' : null,
+          created_by_user_id: user.id,
+          created_by_role: 'admin',
+          status: 'open',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
+      logActivity("create", "ticket", data.id, { subject: data.subject });
+      toast({ 
+        title: "Ticket créé", 
+        description: "Le client verra ce ticket dans son portail" 
+      });
+      setCreateDialogOpen(false);
+      setNewTicket({
+        client_email: "",
+        subject: "",
+        description: "",
+        priority: "normal",
+        category: "general",
+        requires_id_upload: false,
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erreur", 
+        description: error.message || "Impossible de créer le ticket", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -637,6 +724,103 @@ const AdminTickets = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* ID Documents Section - Only show if ticket requires ID upload */}
+              {selectedTicket.requires_id_upload && (
+                <Card className="bg-card border-amber-500/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-amber-500" />
+                      Documents d'identité
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Status */}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Statut de vérification</Label>
+                      <Select
+                        value={selectedTicket.id_verification_status || "not_received"}
+                        onValueChange={(v) => {
+                          setSelectedTicket({ ...selectedTicket, id_verification_status: v });
+                          updateTicketMutation.mutate({ ticketId: selectedTicket.id, id_verification_status: v });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(idVerificationStatusConfig).map(([key, { label, icon: Icon }]) => (
+                            <SelectItem key={key} value={key}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="w-4 h-4" />
+                                {label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Uploaded Files */}
+                    {((selectedTicket.id_files as any[]) || []).length > 0 ? (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Fichiers téléversés</Label>
+                        {((selectedTicket.id_files as any[]) || []).map((file: any, index: number) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-accent/50 rounded text-sm">
+                            {file.mime?.startsWith('image/') ? (
+                              <Image className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            <span className="flex-1 truncate text-xs">{file.filename}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={async () => {
+                                // Get signed URL for private bucket
+                                const { data } = await supabase.storage
+                                  .from("ticket-id-uploads")
+                                  .createSignedUrl(file.url, 300); // 5 min expiry
+                                if (data?.signedUrl) {
+                                  window.open(data.signedUrl, '_blank');
+                                }
+                              }}
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={async () => {
+                                const { data } = await supabase.storage
+                                  .from("ticket-id-uploads")
+                                  .createSignedUrl(file.url, 300);
+                                if (data?.signedUrl) {
+                                  const link = document.createElement('a');
+                                  link.href = data.signedUrl;
+                                  link.download = file.filename;
+                                  link.click();
+                                }
+                              }}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-accent/30 rounded text-center">
+                        <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
+                        <p className="text-xs text-muted-foreground">
+                          En attente du téléversement par le client
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
@@ -654,10 +838,113 @@ const AdminTickets = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Tickets de support</h1>
             <p className="text-muted-foreground mt-1">Gérer les demandes de support client</p>
           </div>
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCcw className="w-4 h-4 mr-2" />
-            Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => refetch()}>
+              <RefreshCcw className="w-4 h-4 mr-2" />
+              Actualiser
+            </Button>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="hero">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Créer un ticket
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Créer un ticket pour un client</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <Label>Email du client *</Label>
+                    <Input
+                      type="email"
+                      placeholder="client@exemple.com"
+                      value={newTicket.client_email}
+                      onChange={(e) => setNewTicket({ ...newTicket, client_email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Sujet *</Label>
+                    <Input
+                      placeholder="Sujet du ticket"
+                      value={newTicket.subject}
+                      onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Priorité</Label>
+                      <Select
+                        value={newTicket.priority}
+                        onValueChange={(v) => setNewTicket({ ...newTicket, priority: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(priorityConfig).map(([key, { label }]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Catégorie</Label>
+                      <Select
+                        value={newTicket.category}
+                        onValueChange={(v) => setNewTicket({ ...newTicket, category: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(categoryConfig).map(([key, { label }]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Message *</Label>
+                    <Textarea
+                      placeholder="Description du ticket..."
+                      value={newTicket.description}
+                      onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+                      rows={4}
+                    />
+                  </div>
+                  
+                  {/* ID Upload Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-5 h-5 text-amber-500" />
+                      <div>
+                        <p className="font-medium text-foreground">Demande de pièce d'identité</p>
+                        <p className="text-xs text-muted-foreground">
+                          Le client pourra téléverser ses documents d'identité
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={newTicket.requires_id_upload}
+                      onCheckedChange={(checked) => setNewTicket({ ...newTicket, requires_id_upload: checked })}
+                    />
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    variant="hero"
+                    onClick={() => createTicketMutation.mutate(newTicket)}
+                    disabled={!newTicket.client_email || !newTicket.subject || !newTicket.description || createTicketMutation.isPending}
+                  >
+                    {createTicketMutation.isPending ? "Création..." : "Créer le ticket"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats Grid */}
