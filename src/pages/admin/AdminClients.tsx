@@ -1284,7 +1284,23 @@ const AdminClients = () => {
                       securityFlaggedAt={selectedClient.security_flagged_at}
                       securityFlaggedOrderId={selectedClient.security_flagged_order_id}
                       securityRequiresPinReset={selectedClient.security_requires_pin_reset || false}
-                      onUpdate={() => refetchClients()}
+                      onUpdate={(updatedProfile) => {
+                        // Immediately update local state with the new profile data
+                        if (updatedProfile) {
+                          setSelectedClient((prev: any) => ({
+                            ...prev,
+                            security_status: updatedProfile.security_status,
+                            security_alert_level: updatedProfile.security_alert_level,
+                            security_reason: updatedProfile.security_reason,
+                            security_flagged_at: updatedProfile.security_flagged_at,
+                            security_flagged_order_id: updatedProfile.security_flagged_order_id,
+                            security_requires_pin_reset: updatedProfile.security_requires_pin_reset,
+                            account_status: updatedProfile.account_status,
+                          }));
+                        }
+                        // Also refetch the full list to ensure cache is updated
+                        refetchClients();
+                      }}
                     />
 
                     <Card className="bg-card border-border">

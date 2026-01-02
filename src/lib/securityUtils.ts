@@ -199,6 +199,11 @@ export const liftClientSuspensionAtomic = async (
       return { success: false, error: `Failed to update profile: ${profileError.message}` };
     }
 
+    if (!profileData) {
+      console.error("No profile found to update for client:", clientId);
+      return { success: false, error: "Profile not found - no rows updated" };
+    }
+
     let reactivatedCount = 0;
 
     // Step 2: Optionally reactivate services
