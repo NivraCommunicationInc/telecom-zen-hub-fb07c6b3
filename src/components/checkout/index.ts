@@ -8,3 +8,5 @@ export { CheckoutFormField } from './CheckoutFormField';
 export { ConfirmationSuccess } from './ConfirmationSuccess';
 export { PinSetupSection } from './PinSetupSection';
 export { PromoCodeInput } from './PromoCodeInput';
+export { TVChannelSelection } from './TVChannelSelection';
+export { StreamingServiceSelection } from './StreamingServiceSelection';
