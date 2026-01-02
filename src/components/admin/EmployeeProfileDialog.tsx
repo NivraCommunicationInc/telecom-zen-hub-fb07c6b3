@@ -218,6 +218,42 @@ export const EmployeeProfileDialog = ({
     enabled: !!employee?.id && isOpen,
   });
 
+  // Fetch client profiles to resolve names for activity logs
+  const clientIds = useMemo(() => {
+    const ids = new Set<string>();
+    activityLogs?.forEach((log) => {
+      if (log.client_id) ids.add(log.client_id);
+    });
+    accessLogs?.forEach((log) => {
+      if (log.client_id) ids.add(log.client_id);
+    });
+    return Array.from(ids);
+  }, [activityLogs, accessLogs]);
+
+  const { data: clientProfiles } = useQuery({
+    queryKey: ["client-profiles-for-employee-logs", clientIds],
+    queryFn: async () => {
+      if (clientIds.length === 0) return {};
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email, first_name, last_name")
+        .in("user_id", clientIds);
+      
+      const map: Record<string, string> = {};
+      data?.forEach((p) => {
+        map[p.user_id] = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || p.email || "Client";
+      });
+      return map;
+    },
+    enabled: clientIds.length > 0,
+  });
+
+  // Helper to get client name
+  const getClientName = (clientId: string | null, fallback?: string): string => {
+    if (!clientId) return fallback || "—";
+    return clientProfiles?.[clientId] || fallback || `Client ${clientId.slice(0, 8)}...`;
+  };
+
   // Compute KPIs
   const kpis = useMemo(() => {
     if (!accessLogs || !activityLogs) return null;
@@ -637,10 +673,17 @@ export const EmployeeProfileDialog = ({
                             ) : (
                               <ChevronRight className="w-4 h-4 text-muted-foreground" />
                             )}
-                            <div className="flex-1 grid grid-cols-4 gap-2">
+                            <div className="flex-1 grid grid-cols-5 gap-2 items-center">
                               <span className="text-sm text-muted-foreground">
                                 {format(new Date(log.created_at), "d MMM HH:mm", { locale: fr })}
                               </span>
+                              <Link 
+                                to={`/admin/clients?id=${log.client_id}`}
+                                className="text-sm font-medium text-primary hover:underline truncate"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {getClientName(log.client_id)}
+                              </Link>
                               <Badge variant="secondary" className="w-fit text-xs">
                                 {actionTypeLabels[log.action_type as ActionType] || log.action_type}
                               </Badge>
@@ -650,7 +693,16 @@ export const EmployeeProfileDialog = ({
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="px-10 pb-3 border-t border-border/50 pt-2 space-y-2">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Client: </span>
+                                <Link 
+                                  to={`/admin/clients?id=${log.client_id}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  {getClientName(log.client_id)}
+                                </Link>
+                              </div>
                               <div>
                                 <span className="text-muted-foreground">Entité: </span>
                                 <span>{log.entity_type || "—"}</span>
@@ -686,6 +738,9 @@ export const EmployeeProfileDialog = ({
                 <div className="text-center py-8">
                   <History className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                   <p className="text-muted-foreground">Aucune activité enregistrée</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Les modifications de profils clients, commandes, et facturation sont journalisées automatiquement.
+                  </p>
                 </div>
               )}
             </TabsContent>
