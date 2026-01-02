@@ -21,7 +21,7 @@ import {
   DollarSign, Clock, AlertCircle, Wallet, Ban, Pause, Play, MinusCircle, PlusCircle,
   Router, Monitor, Smartphone, Shield, CheckCircle, XCircle, AlertTriangle,
   Phone, MapPin, User, IdCard, Wrench, Hash, Download, Edit, History,
-  ExternalLink, Tv, Wifi, Save, RefreshCw, Printer, FilePlus, Receipt, Building2, Star
+  ExternalLink, Tv, Wifi, Save, RefreshCw, Printer, FilePlus, Receipt, Building2, Star, Mail
 } from "lucide-react";
 import {
   Select,
@@ -43,6 +43,7 @@ import { downloadContractPDF, viewContractPDF } from "@/lib/contractPdfGenerator
 import { AdminPinManagementCard } from "@/components/admin/AdminPinManagementCard";
 import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
+import BackToTopButton from "@/components/ui/back-to-top-button";
 import { useAuth } from "@/hooks/useAuth";
 
 // Public website plans mapping (must match exactly)
@@ -961,27 +962,78 @@ const AdminClients = () => {
           }}
         >
           <DialogContent 
-            className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+            className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0"
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}
           >
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-cyan-400" />
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex-shrink-0">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                    <User className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="font-semibold text-lg truncate">
+                      {selectedClient?.full_name || selectedClient?.email}
+                    </h2>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      {selectedClient?.client_number && (
+                        <span className="font-mono">{selectedClient.client_number}</span>
+                      )}
+                      {selectedClient?.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {selectedClient.phone}
+                        </span>
+                      )}
+                      {selectedClient?.email && (
+                        <span className="hidden md:flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {selectedClient.email}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="block">{selectedClient?.full_name || selectedClient?.email}</span>
-                  {selectedClient?.client_number && (
-                    <span className="text-xs text-muted-foreground font-normal">{selectedClient.client_number}</span>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Badge 
+                    variant="outline" 
+                    className={`border ${
+                      selectedClient?.account_status === 'active' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' :
+                      selectedClient?.account_status === 'suspended' ? 'bg-red-500/20 text-red-500 border-red-500/30' :
+                      selectedClient?.account_status === 'frozen' ? 'bg-blue-500/20 text-blue-500 border-blue-500/30' :
+                      selectedClient?.account_status === 'hold' ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' :
+                      'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {selectedClient?.account_status === 'active' ? 'Actif' :
+                     selectedClient?.account_status === 'suspended' ? 'Suspendu' :
+                     selectedClient?.account_status === 'frozen' ? 'Gelé' :
+                     selectedClient?.account_status === 'hold' ? 'En attente' :
+                     selectedClient?.account_status === 'deactivated' ? 'Désactivé' : 'Actif'}
+                  </Badge>
+                  {selectedClient?.security_status === 'suspended' && (
+                    <Badge variant="destructive" className="flex items-center gap-1">
+                      <Shield className="w-3 h-3" />
+                      {selectedClient?.security_alert_level === 'fraud' ? 'Fraude' : 'Risque'}
+                    </Badge>
+                  )}
+                  {selectedClient?.balance > 0 && (
+                    <Badge variant="outline" className="bg-amber-500/20 text-amber-500 border-amber-500/30">
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      {Number(selectedClient.balance).toFixed(2)}$
+                    </Badge>
                   )}
                 </div>
-              </DialogTitle>
-            </DialogHeader>
+              </div>
+            </div>
+
             {selectedClient && (
-              <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col">
-                <TabsList className="grid grid-cols-9 w-full flex-shrink-0">
+              <Tabs defaultValue="profile" className="flex-1 overflow-hidden flex flex-col px-6 pb-6">
+                <TabsList className="grid grid-cols-9 w-full flex-shrink-0 overflow-x-auto">
                   <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
                   <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
                   <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>
@@ -993,7 +1045,7 @@ const AdminClients = () => {
                   <TabsTrigger value="logs" className="text-xs">Logs</TabsTrigger>
                 </TabsList>
 
-                <ScrollArea className="flex-1 mt-4">
+                <ScrollArea className="flex-1 mt-4 min-h-0">
                   {/* Profile Tab */}
                   <TabsContent value="profile" className="space-y-4 pr-4">
                     {/* Security Alert Banner */}
@@ -1947,6 +1999,9 @@ const AdminClients = () => {
                 </ScrollArea>
               </Tabs>
             )}
+            
+            {/* Back to Top Button */}
+            {detailsDialogOpen && <BackToTopButton />}
           </DialogContent>
         </Dialog>
 
