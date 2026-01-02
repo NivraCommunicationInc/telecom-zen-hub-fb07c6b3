@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, AlertTriangle, Mail, Loader2, KeyRound, ShieldCheck, User } from "lucide-react";
+import { Lock, AlertTriangle, Mail, Loader2, KeyRound, ShieldCheck, User, AlertCircle } from "lucide-react";
 
 interface ClientAccessGateModalProps {
   isOpen: boolean;
@@ -34,6 +34,7 @@ interface ClientAccessGateModalProps {
     email?: string;
     date_of_birth?: string;
     service_postal_code?: string;
+    client_pin?: string | null;
   };
   staffUser: {
     id: string;
@@ -69,6 +70,7 @@ export const ClientAccessGateModal = ({
   const [isLockedOut, setIsLockedOut] = useState(false);
   const [lockoutEndTime, setLockoutEndTime] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<"pin" | "recovery">("pin");
+  const [hasNoPin, setHasNoPin] = useState(false);
   
   // Recovery form state
   const [recoveryMethod, setRecoveryMethod] = useState<"email_otp" | "dob_postal" | "email_postal">("dob_postal");
@@ -77,6 +79,11 @@ export const ClientAccessGateModal = ({
   const [recoveryPostal, setRecoveryPostal] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  
+  // Force PIN setup after no-pin recovery
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -90,18 +97,30 @@ export const ClientAccessGateModal = ({
       setRecoveryEmail("");
       setRecoveryDob("");
       setRecoveryPostal("");
-      checkLockoutStatus();
+      setShowPinSetup(false);
+      setNewPin("");
+      setConfirmPin("");
+      checkPinStatus();
     }
   }, [isOpen, client.user_id]);
 
-  const checkLockoutStatus = async () => {
+  const checkPinStatus = async () => {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("pin_failed_attempts, pin_lockout_until")
+        .select("client_pin, pin_failed_attempts, pin_lockout_until")
         .eq("user_id", client.user_id)
         .maybeSingle();
 
+      // Check if no PIN is set
+      if (!profile?.client_pin) {
+        setHasNoPin(true);
+        setActiveTab("recovery");
+      } else {
+        setHasNoPin(false);
+      }
+
+      // Check lockout status
       if (profile?.pin_lockout_until) {
         const lockoutEnd = new Date(profile.pin_lockout_until);
         if (lockoutEnd > new Date()) {
@@ -111,7 +130,7 @@ export const ClientAccessGateModal = ({
         }
       }
     } catch (error) {
-      console.error("Error checking lockout status:", error);
+      console.error("Error checking PIN status:", error);
     }
   };
 
@@ -161,7 +180,9 @@ export const ClientAccessGateModal = ({
 
       // Verify PIN
       if (!profile?.client_pin) {
-        toast({ title: "NIP non configuré", description: "Le client n'a pas encore configuré son NIP.", variant: "destructive" });
+        toast({ title: "NIP non configuré", description: "Le client n'a pas encore configuré son NIP. Utilisez la récupération.", variant: "destructive" });
+        setHasNoPin(true);
+        setActiveTab("recovery");
         return;
       }
 
@@ -244,9 +265,16 @@ export const ClientAccessGateModal = ({
       }
 
       if (verified) {
-        await logAccess(method, "success");
-        toast({ title: "Identité vérifiée", description: "Accès accordé pour cette session" });
-        onAccessGranted();
+        // If client has no PIN, prompt staff to set one (for admin/employee only)
+        if (hasNoPin && (staffUser.role === "admin" || staffUser.role === "employee")) {
+          await logAccess("no_pin_recovery", "success");
+          setShowPinSetup(true);
+          toast({ title: "Identité vérifiée", description: "Veuillez définir un NIP pour ce client." });
+        } else {
+          await logAccess(hasNoPin ? "no_pin_recovery" : method, "success");
+          toast({ title: "Identité vérifiée", description: "Accès accordé pour cette session" });
+          onAccessGranted();
+        }
       } else {
         await logAccess(method, "fail");
         toast({ title: "Vérification échouée", description: "Les informations ne correspondent pas", variant: "destructive" });
@@ -254,6 +282,38 @@ export const ClientAccessGateModal = ({
     } catch (error) {
       console.error("Error in recovery:", error);
       toast({ title: "Erreur", description: "Impossible de vérifier l'identité", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSetNewPin = async () => {
+    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      toast({ title: "Le NIP doit contenir exactement 4 chiffres", variant: "destructive" });
+      return;
+    }
+    if (newPin !== confirmPin) {
+      toast({ title: "Les NIP ne correspondent pas", variant: "destructive" });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          client_pin: newPin,
+          pin_failed_attempts: 0,
+          pin_lockout_until: null,
+        })
+        .eq("user_id", client.user_id);
+
+      if (error) throw error;
+
+      toast({ title: "NIP créé avec succès", description: "Le client peut maintenant utiliser ce NIP." });
+      onAccessGranted();
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -271,6 +331,7 @@ export const ClientAccessGateModal = ({
       setIsLoading(false);
     }
   };
+
 
   const formatLockoutTime = () => {
     if (!lockoutEndTime) return "";
@@ -313,7 +374,71 @@ export const ClientAccessGateModal = ({
             <p className="font-medium">{client.full_name || client.email}</p>
           </div>
 
-          {isAdminBypass && staffUser.role === "admin" && (
+          {/* No PIN warning */}
+          {hasNoPin && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                <span className="text-sm text-amber-600 font-medium">
+                  Ce client n'a pas encore configuré de NIP
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Utilisez la vérification d'identité pour accéder au profil.
+              </p>
+            </div>
+          )}
+
+          {/* PIN Setup after recovery */}
+          {showPinSetup && (
+            <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+              <p className="text-sm font-medium">Créer un NIP pour ce client:</p>
+              <div className="space-y-2">
+                <Label>Nouveau NIP (4 chiffres)</Label>
+                <Input
+                  type="password"
+                  maxLength={4}
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="••••"
+                  className="text-center text-xl tracking-[0.5em]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Confirmer le NIP</Label>
+                <Input
+                  type="password"
+                  maxLength={4}
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="••••"
+                  className="text-center text-xl tracking-[0.5em]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPinSetup(false);
+                    onAccessGranted();
+                  }}
+                  className="flex-1"
+                >
+                  Ignorer
+                </Button>
+                <Button
+                  onClick={handleSetNewPin}
+                  disabled={isLoading || newPin.length !== 4}
+                  className="flex-1"
+                >
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Créer NIP
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {isAdminBypass && staffUser.role === "admin" && !showPinSetup && (
             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-amber-500" />
@@ -334,7 +459,7 @@ export const ClientAccessGateModal = ({
             </div>
           )}
 
-          {isLockedOut ? (
+          {isLockedOut && !showPinSetup ? (
             <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
               <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
               <p className="font-medium text-red-600">Compte verrouillé</p>
@@ -349,7 +474,7 @@ export const ClientAccessGateModal = ({
                 Utiliser la récupération d'identité
               </Button>
             </div>
-          ) : (
+          ) : !showPinSetup && (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "pin" | "recovery")}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="pin" className="flex items-center gap-1">

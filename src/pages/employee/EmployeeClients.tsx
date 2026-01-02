@@ -58,11 +58,14 @@ import {
   History,
   Plus,
   UserPlus,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ClientAccessGateModal } from "@/components/admin/ClientAccessGateModal";
+import { useClientAccessGate } from "@/hooks/useClientAccessGate";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -102,6 +105,11 @@ const EmployeeClients = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // PIN Gate state
+  const [pinGateModalOpen, setPinGateModalOpen] = useState(false);
+  const [pendingClientAccess, setPendingClientAccess] = useState<any>(null);
+  const { isClientVerified, verifyClient, clearAllVerifications } = useClientAccessGate();
   
   // Client-specific data
   const [clientOrders, setClientOrders] = useState<any[]>([]);
@@ -249,6 +257,7 @@ const EmployeeClients = () => {
   };
 
   const handleLogout = () => {
+    clearAllVerifications(); // Clear PIN verifications on logout
     localStorage.removeItem("nivra_employee_session");
     navigate("/employee/login");
   };
@@ -285,10 +294,36 @@ const EmployeeClients = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // Handle client selection with PIN gate enforcement
   const handleSelectClient = (client: any) => {
-    setSelectedClient({ ...client, sector_tags: client.sector_tags || [] });
-    setDetailsDialogOpen(true);
-    fetchClientData(client);
+    // Check if client is already verified in this session
+    if (isClientVerified(client.user_id)) {
+      // Already verified, open directly
+      setSelectedClient({ ...client, sector_tags: client.sector_tags || [] });
+      setDetailsDialogOpen(true);
+      fetchClientData(client);
+    } else {
+      // Need to verify - show PIN gate modal
+      setPendingClientAccess(client);
+      setPinGateModalOpen(true);
+    }
+  };
+
+  // Handle successful PIN verification
+  const handlePinAccessGranted = () => {
+    if (pendingClientAccess) {
+      verifyClient(pendingClientAccess.user_id);
+      setSelectedClient({ ...pendingClientAccess, sector_tags: pendingClientAccess.sector_tags || [] });
+      setDetailsDialogOpen(true);
+      fetchClientData(pendingClientAccess);
+      setPinGateModalOpen(false);
+      setPendingClientAccess(null);
+    }
+  };
+
+  const handlePinGateClose = () => {
+    setPinGateModalOpen(false);
+    setPendingClientAccess(null);
   };
 
   const handleUpdateClient = async () => {
@@ -1477,6 +1512,30 @@ const EmployeeClients = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PIN Gate Modal for Client Access */}
+      {pendingClientAccess && (
+        <ClientAccessGateModal
+          isOpen={pinGateModalOpen}
+          onClose={handlePinGateClose}
+          onAccessGranted={handlePinAccessGranted}
+          client={{
+            id: pendingClientAccess.id,
+            user_id: pendingClientAccess.user_id,
+            full_name: pendingClientAccess.full_name,
+            email: pendingClientAccess.email,
+            date_of_birth: pendingClientAccess.date_of_birth,
+            service_postal_code: pendingClientAccess.service_postal_code,
+          }}
+          staffUser={{
+            id: session?.employee_id || "",
+            name: session?.full_name || session?.email || "Employee",
+            email: session?.email,
+            role: "employee",
+          }}
+          isAdminBypass={false}
+        />
+      )}
     </div>
   );
 };
