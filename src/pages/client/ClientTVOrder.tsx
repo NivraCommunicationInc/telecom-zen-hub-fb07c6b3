@@ -47,6 +47,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { PinSetupSection } from "@/components/checkout/PinSetupSection";
+import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
 
 // TV + Internet plan configurations
 const TV_PLANS = [
@@ -365,6 +366,12 @@ const ClientTVOrder = () => {
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
+
+      // Security check before sensitive action
+      const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
+      if (!allowed) {
+        throw new Error(reason || "Action non autorisée - compte suspendu");
+      }
 
       // First, update the profile with ID information and PIN if provided
       const profileUpdate: any = {

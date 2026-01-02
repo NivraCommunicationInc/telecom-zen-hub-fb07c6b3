@@ -42,6 +42,7 @@ import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
+import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -304,6 +305,12 @@ const ClientInternetOrder = () => {
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
+
+      // Security check before sensitive action
+      const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
+      if (!allowed) {
+        throw new Error(reason || "Action non autorisée - compte suspendu");
+      }
 
       // First, update the profile with ID information
       const { error: profileError } = await supabase.from("profiles").update({
