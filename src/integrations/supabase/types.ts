@@ -727,6 +727,39 @@ export type Database = {
         }
         Relationships: []
       }
+      client_internal_notes: {
+        Row: {
+          body: string
+          client_id: string
+          created_at: string
+          created_by_name: string | null
+          created_by_role: string
+          created_by_user_id: string
+          id: string
+          note_type: string
+        }
+        Insert: {
+          body: string
+          client_id: string
+          created_at?: string
+          created_by_name?: string | null
+          created_by_role: string
+          created_by_user_id: string
+          id?: string
+          note_type: string
+        }
+        Update: {
+          body?: string
+          client_id?: string
+          created_at?: string
+          created_by_name?: string | null
+          created_by_role?: string
+          created_by_user_id?: string
+          id?: string
+          note_type?: string
+        }
+        Relationships: []
+      }
       client_pin_logs: {
         Row: {
           action: string
@@ -3199,10 +3232,15 @@ export type Database = {
           category: string | null
           client_email: string | null
           created_at: string
+          created_by_role: string | null
+          created_by_user_id: string | null
           description: string
           id: string
+          id_files: Json | null
+          id_verification_status: string | null
           internal_notes: string | null
           priority: string
+          requires_id_upload: boolean | null
           status: string
           subject: string
           ticket_number: string | null
@@ -3213,10 +3251,15 @@ export type Database = {
           category?: string | null
           client_email?: string | null
           created_at?: string
+          created_by_role?: string | null
+          created_by_user_id?: string | null
           description: string
           id?: string
+          id_files?: Json | null
+          id_verification_status?: string | null
           internal_notes?: string | null
           priority?: string
+          requires_id_upload?: boolean | null
           status?: string
           subject: string
           ticket_number?: string | null
@@ -3227,10 +3270,15 @@ export type Database = {
           category?: string | null
           client_email?: string | null
           created_at?: string
+          created_by_role?: string | null
+          created_by_user_id?: string | null
           description?: string
           id?: string
+          id_files?: Json | null
+          id_verification_status?: string | null
           internal_notes?: string | null
           priority?: string
+          requires_id_upload?: boolean | null
           status?: string
           subject?: string
           ticket_number?: string | null
