@@ -2161,7 +2161,7 @@ const AdminOrders = () => {
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="esim">eSIM (25$)</SelectItem>
-                                      <SelectItem value="physical_sim">Carte SIM physique (30$)</SelectItem>
+                                      <SelectItem value="physical_sim">Carte SIM physique (25$)</SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -2182,7 +2182,7 @@ const AdminOrders = () => {
                                 <div className="p-3 bg-accent/30 rounded-lg">
                                   <p className="text-sm">
                                     <span className="font-medium">Type sélectionné:</span>{" "}
-                                    {equipmentForm.sim_type === "esim" ? "eSIM (25$)" : "Carte SIM physique (30$)"}
+                                    {equipmentForm.sim_type === "esim" ? "eSIM (25$)" : "Carte SIM physique (25$)"}
                                   </p>
                                   {equipmentForm.sim_serial_number && (
                                     <p className="text-sm mt-1">

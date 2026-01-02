@@ -398,10 +398,10 @@ const ClientMyServices = () => {
     
     let extraInfo = "";
     if (mobileIssueType === "request_new_sim" || mobileIssueType === "request_esim") {
-      extraInfo = "\n\n[PAIEMENT REQUIS: 60$ avant activation]";
+      extraInfo = "\n\n[PAIEMENT REQUIS: 25$ avant activation]";
     }
     if (mobileIssueType === "sim_stolen" || mobileIssueType === "sim_lost") {
-      extraInfo = "\n\n[Note: Remplacement SIM disponible - 60$ frais applicable]\n[Service reste actif, frais mensuels continuent]";
+      extraInfo = "\n\n[Note: Remplacement SIM disponible - 25$ frais applicable]\n[Service reste actif, frais mensuels continuent]";
     }
     if (mobileIssueType === "number_change") {
       extraInfo = "\n\n[APPROBATION ADMIN requise]";
@@ -451,8 +451,8 @@ const ClientMyServices = () => {
   const handleSimOrder = () => {
     if (!selectedService) return;
     createTicketMutation.mutate({
-      subject: `Commander ${simType === "esim" ? "eSIM" : "nouvelle SIM"} (60$)`,
-      description: `Commande ${simType === "esim" ? "eSIM" : "carte SIM"}:\n- Forfait: ${selectedService.plan_name}\n- Type: ${simType.toUpperCase()}\n- Frais: 60,00 $ CAD\n- ID: ${selectedService.id}\n\n[PAIEMENT REQUIS: 60$ avant activation]\n[Frais appliqué automatiquement au prochain checkout]`,
+      subject: `Commander ${simType === "esim" ? "eSIM" : "nouvelle SIM"} (25$)`,
+      description: `Commande ${simType === "esim" ? "eSIM" : "carte SIM"}:\n- Forfait: ${selectedService.plan_name}\n- Type: ${simType.toUpperCase()}\n- Frais: 25,00 $ CAD\n- ID: ${selectedService.id}\n\n[PAIEMENT REQUIS: 25$ avant activation]\n[Frais appliqué automatiquement au prochain checkout]`,
       priority: "normal",
       relatedServiceId: selectedService.id,
     });
@@ -1628,8 +1628,8 @@ const ClientMyServices = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sim">Carte SIM physique (60$)</SelectItem>
-                  <SelectItem value="esim">eSIM numérique (60$)</SelectItem>
+                  <SelectItem value="sim">Carte SIM physique (25$)</SelectItem>
+                  <SelectItem value="esim">eSIM numérique (25$)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1643,7 +1643,7 @@ const ClientMyServices = () => {
             <Button variant="outline" onClick={() => setSimOrderDialogOpen(false)}>Annuler</Button>
             <Button variant="hero" onClick={handleSimOrder} disabled={createTicketMutation.isPending}>
               {createTicketMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Commander (60$)
+              Commander (25$)
             </Button>
           </DialogFooter>
         </DialogContent>

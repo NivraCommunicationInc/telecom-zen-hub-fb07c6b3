@@ -112,7 +112,7 @@ const MobilePlans = () => {
               </Badge>
               <Badge variant="outline" className="px-4 py-2 text-sm border-blue-500/30 text-blue-500">
                 <CreditCard className="w-4 h-4 mr-2" />
-                {isFrench ? "60$ frais SIM unique" : "$60 one-time SIM fee"}
+                {isFrench ? "25$ frais SIM unique" : "$25 one-time SIM fee"}
               </Badge>
               <Badge variant="outline" className="px-4 py-2 text-sm border-purple-500/30 text-purple-500">
                 <Phone className="w-4 h-4 mr-2" />
@@ -218,12 +218,12 @@ const MobilePlans = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">
-                    {isFrench ? "Frais de carte SIM - 60$" : "SIM Card Fee - $60"}
+                    {isFrench ? "Frais de carte SIM - 25$" : "SIM Card Fee - $25"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {isFrench 
-                      ? "Un frais unique de 60$ est appliqué pour chaque nouveau numéro ou transfert de numéro. Ce frais inclut votre carte SIM ou eSIM et l'activation de votre ligne. Ce frais n'apparaît pas dans la confirmation finale mais est facturé lors du paiement."
-                      : "A one-time fee of $60 is applied for each new number or number transfer. This fee includes your SIM or eSIM card and line activation. This fee does not appear in the final confirmation but is charged at checkout."}
+                      ? "Un frais unique de 25$ est appliqué pour chaque nouveau numéro ou transfert de numéro. Ce frais inclut votre carte SIM ou eSIM et l'activation de votre ligne."
+                      : "A one-time fee of $25 is applied for each new number or number transfer. This fee includes your SIM or eSIM card and line activation."}
                   </p>
                 </div>
               </div>

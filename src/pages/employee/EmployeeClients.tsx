@@ -1218,7 +1218,7 @@ const EmployeeClients = () => {
                           toast({ title: "Incident SIM volée/perdue", description: "Créez un ticket de support pour ce signalement." });
                         }}>
                           <Smartphone className="w-4 h-4 mr-2" />
-                          SIM volée/perdue (60$)
+                          SIM volée/perdue (25$)
                         </Button>
                         
                         <Button variant="outline" className="justify-start border-red-500/30 text-red-500 hover:bg-red-500/10" onClick={() => {

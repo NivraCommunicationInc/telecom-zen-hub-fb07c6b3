@@ -291,7 +291,7 @@ const officialCatalogue = [
       texts: "Unlimited international SMS/MMS",
       features: ["Voicemail", "Call display", "Call waiting", "Call forwarding", "Conference calling"],
       delivery: "Delivery only",
-      sim_fees: { physical: 30, esim: 25 }
+      sim_fees: { physical: 25, esim: 25 }
     }
   },
   {
@@ -307,7 +307,7 @@ const officialCatalogue = [
       texts: "Unlimited international SMS/MMS",
       features: ["Voicemail", "Call display", "Call waiting", "Call forwarding", "Conference calling"],
       delivery: "Delivery only",
-      sim_fees: { physical: 30, esim: 25 }
+      sim_fees: { physical: 25, esim: 25 }
     }
   },
   // Equipment
@@ -339,7 +339,7 @@ const officialCatalogue = [
   {
     name: "Physical SIM",
     category: "Équipement",
-    price: 30,
+    price: 25,
     description: "Frais uniques, 1-year warranty defects covered",
     billing_type: "one_time",
     plan_details: {
