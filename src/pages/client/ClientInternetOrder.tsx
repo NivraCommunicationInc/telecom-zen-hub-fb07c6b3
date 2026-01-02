@@ -50,11 +50,14 @@ import {
   OrderSummaryCard, 
   SecurityTrustBox, 
   CheckoutSection,
-  ConfirmationSuccess,
+  ProfessionalConfirmation,
+  PinSetupSection,
+  validatePinSetup,
   CheckoutPaymentSection,
   CheckoutPhoneField,
   validateCanadianPhone 
 } from "@/components/checkout";
+import { hashPin } from "@/lib/pinUtils";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -207,6 +210,10 @@ const ClientInternetOrder = () => {
     cvv: "",
   });
   const [saveNewCard, setSaveNewCard] = useState(false);
+  
+  // PIN setup for new clients
+  const [clientPin, setClientPin] = useState("");
+  const [confirmClientPin, setConfirmClientPin] = useState("");
   
   // ID verification data
   const [clientIdData, setClientIdData] = useState<ClientIDData>({
@@ -1071,6 +1078,17 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   />
                 </CardContent>
               </Card>
+
+              {/* PIN Setup for New Clients */}
+              <PinSetupSection
+                userId={user?.id}
+                pin={clientPin}
+                onPinChange={setClientPin}
+                confirmPin={confirmClientPin}
+                onConfirmPinChange={setConfirmClientPin}
+                isFrench={isFrench}
+                checkFirstOrder={true}
+              />
 
               {/* Payment Section */}
               <CheckoutPaymentSection
