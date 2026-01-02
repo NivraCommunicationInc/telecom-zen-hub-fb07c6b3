@@ -12,6 +12,7 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
   const { user, isLoading: authLoading } = useAuth();
   const location = useLocation();
   const [securityStatus, setSecurityStatus] = useState<string | null>(null);
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(true);
 
   const checkSecurityStatus = useCallback(async () => {
@@ -23,19 +24,22 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("security_status")
+        .select("security_status, account_status")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) {
         console.error("Error checking security status:", error);
-        setSecurityStatus("active"); // Default to active if error
+        setSecurityStatus("active");
+        setAccountStatus("active");
       } else {
         setSecurityStatus(data?.security_status || "active");
+        setAccountStatus(data?.account_status || "active");
       }
     } catch (err) {
       console.error("Error in security check:", err);
       setSecurityStatus("active");
+      setAccountStatus("active");
     } finally {
       setIsChecking(false);
     }
@@ -64,9 +68,13 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newStatus = payload.new?.security_status;
-          if (newStatus) {
-            setSecurityStatus(newStatus);
+          const newSecurityStatus = payload.new?.security_status;
+          const newAccountStatus = payload.new?.account_status;
+          if (newSecurityStatus) {
+            setSecurityStatus(newSecurityStatus);
+          }
+          if (newAccountStatus) {
+            setAccountStatus(newAccountStatus);
           }
         }
       )
@@ -89,7 +97,8 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
     return <Navigate to="/portal/auth" replace />;
   }
 
-  if (securityStatus === "suspended") {
+  // Block if suspended OR on hold
+  if (securityStatus === "suspended" || accountStatus === "hold") {
     return <Navigate to="/portal/suspended" replace />;
   }
 
