@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import ClientLayout from "@/components/client/ClientLayout";
+import { ProfessionalOrderSummary } from "@/components/checkout/ProfessionalOrderSummary";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1267,337 +1268,282 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           })()}
         </div>
 
-        {/* Step 1: Service Selection */}
+        {/* Step 1: Service Selection - Professional 2-Column Layout */}
         {step === 1 && (
-          <>
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
-                ))}
-              </div>
-            ) : groupedServices && Object.keys(groupedServices).length > 0 ? (
-              <div className="space-y-8">
-                {/* TV + Internet Bundle Notice */}
-                <Card className="bg-blue-500/10 border-blue-500/30">
-                  <CardContent className="py-4 flex items-start gap-3">
-                    <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-foreground mb-1">Forfaits TV + Internet</p>
-                      <p className="text-muted-foreground">
-                        Les forfaits TV incluent déjà Internet (500 Mbps ou 1 Gbps). 
-                        Si vous sélectionnez un forfait TV, vous ne pouvez pas ajouter un forfait Internet séparé.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Conflict Warning - Show when TV bundle is selected and user tries to add Internet */}
-                {hasTVService && hasInternetService && (
-                  <Card className="bg-destructive/10 border-destructive/30">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: Service Selection */}
+            <div className="lg:col-span-2 space-y-6">
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+                  ))}
+                </div>
+              ) : groupedServices && Object.keys(groupedServices).length > 0 ? (
+                <div className="space-y-8">
+                  {/* TV + Internet Bundle Notice */}
+                  <Card className="bg-blue-500/10 border-blue-500/30">
                     <CardContent className="py-4 flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                      <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                       <div className="text-sm">
-                        <p className="font-medium text-destructive mb-1">Conflit de forfait détecté</p>
+                        <p className="font-medium text-foreground mb-1">Forfaits TV + Internet</p>
                         <p className="text-muted-foreground">
-                          Votre forfait TV inclut déjà Internet. Vous ne pouvez pas ajouter un autre forfait Internet.
-                          Veuillez retirer le forfait Internet ou le forfait TV pour continuer.
+                          Les forfaits TV incluent déjà Internet (500 Mbps ou 1 Gbps). 
+                          Si vous sélectionnez un forfait TV, vous ne pouvez pas ajouter un forfait Internet séparé.
                         </p>
                       </div>
                     </CardContent>
                   </Card>
-                )}
 
-                {Object.entries(groupedServices).map(([category, categoryServices]) => {
-                  const CategoryIcon = categoryIcons[category] || Package;
-                  return (
-                    <div key={category}>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${categoryColors[category]?.split(' ')[0] || 'bg-muted'}`}>
-                          <CategoryIcon className="w-5 h-5" />
+                  {/* Conflict Warning */}
+                  {hasTVService && hasInternetService && (
+                    <Card className="bg-destructive/10 border-destructive/30">
+                      <CardContent className="py-4 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium text-destructive mb-1">Conflit de forfait détecté</p>
+                          <p className="text-muted-foreground">
+                            Votre forfait TV inclut déjà Internet. Veuillez retirer le forfait Internet ou le forfait TV.
+                          </p>
                         </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-foreground">{category}</h2>
-                          {category === "TV" && (
-                            <p className="text-xs text-pink-500">Inclut Internet • La Base (23 chaînes HD) + chaînes au choix selon forfait</p>
-                          )}
-                          {category === "Internet" && hasTVService && (
-                            <p className="text-xs text-destructive">⚠️ Non disponible - votre forfait TV inclut déjà Internet</p>
-                          )}
-                          {category === "Mobile" && (
-                            <p className="text-xs text-blue-500">Nivra Communications • Aucune vérification de crédit • ID gouvernemental requis</p>
-                          )}
-                          {category === "Streaming" && (
-                            <p className="text-xs text-orange-500">Accès navigateur uniquement • Aucune application mobile</p>
-                          )}
-                          {category === "Extras" && (
-                            <p className="text-xs text-amber-500">Services et équipements additionnels</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {categoryServices.map((service) => (
-                          <Card
-                            key={service.id}
-                            className={`cursor-pointer transition-all hover:shadow-lg ${
-                              isSelected(service.id)
-                                ? "border-cyan-500 bg-cyan-500/5 shadow-cyan-500/20"
-                                : "border-border hover:border-cyan-500/50"
-                            }`}
-                            onClick={() => toggleService(service)}
-                          >
-                            <CardContent className="p-5">
-                              <div className="flex items-start justify-between mb-3">
-                                <div>
-                                  <h3 className="font-semibold text-foreground">{service.name}</h3>
-                                  <p className="text-sm text-muted-foreground mt-1">{service.description}</p>
-                                </div>
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                                  isSelected(service.id)
-                                    ? "bg-cyan-500 text-white"
-                                    : "border-2 border-muted-foreground/30"
-                                }`}>
-                                  {isSelected(service.id) && <Check className="w-4 h-4" />}
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Badge className={categoryColors[category] || "bg-muted"}>
-                                  {category}
-                                </Badge>
-                                <p className="text-lg font-bold text-cyan-500">
-                                  {Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                                  <span className="text-xs text-muted-foreground font-normal">/mois</span>
-                                </p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card className="bg-card border-border">
-                <CardContent className="py-12 text-center">
-                  <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Aucun service disponible pour le moment</p>
-                </CardContent>
-              </Card>
-            )}
+                      </CardContent>
+                    </Card>
+                  )}
 
-            {/* Mobile Line Quantity Selector - Per Plan */}
-            {hasMobileService && selectedMobileServices.length > 0 && (
-              <Card className="bg-blue-500/10 border-blue-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-blue-500" />
-                    Nombre de lignes mobiles
-                  </CardTitle>
-                  <CardDescription>
-                    Sélectionnez le nombre de lignes pour chaque forfait mobile
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Per-plan quantity selectors */}
-                  {selectedMobileServices.map((mobileService) => {
-                    const qty = mobileLineQuantities[mobileService.id] || 1;
+                  {/* Service Categories */}
+                  {Object.entries(groupedServices).map(([category, categoryServices]) => {
+                    const CategoryIcon = categoryIcons[category] || Package;
                     return (
-                      <div key={mobileService.id} className="flex items-center justify-between p-4 bg-card rounded-lg border border-border">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                            <Smartphone className="w-6 h-6 text-blue-500" />
+                      <div key={category}>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${categoryColors[category]?.split(' ')[0] || 'bg-muted'}`}>
+                            <CategoryIcon className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{mobileService.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {Number(mobileService.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois par ligne
-                            </p>
+                            <h2 className="text-xl font-bold text-foreground">{category}</h2>
+                            {category === "TV" && (
+                              <p className="text-xs text-pink-500">Inclut Internet • La Base (37 chaînes HD) + chaînes au choix</p>
+                            )}
+                            {category === "Internet" && hasTVService && (
+                              <p className="text-xs text-destructive">⚠️ Non disponible - votre forfait TV inclut déjà Internet</p>
+                            )}
+                            {category === "Mobile" && (
+                              <p className="text-xs text-blue-500">Aucune vérification de crédit • ID gouvernemental requis</p>
+                            )}
+                            {category === "Streaming" && (
+                              <p className="text-xs text-orange-500">Accès navigateur uniquement</p>
+                            )}
+                            {category === "Sécurité" && (
+                              <p className="text-xs text-emerald-500">Protection résidentielle complète</p>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setMobileLineQuantities(q => ({ ...q, [mobileService.id]: Math.max(1, qty - 1) }))}
-                            disabled={qty <= 1}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="text-2xl font-bold text-blue-500 w-8 text-center">{qty}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setMobileLineQuantities(q => ({ ...q, [mobileService.id]: Math.min(10, qty + 1) }))}
-                            disabled={qty >= 10}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {categoryServices.map((service) => {
+                            const isServiceSelected = isSelected(service.id);
+                            const qty = service.category === "Mobile" ? (mobileLineQuantities[service.id] || 1) : 1;
+                            const monthlyPrice = Number(service.price) * qty;
+                            
+                            // Calculate one-time fees for this specific service
+                            let serviceOneTimeFee = 0;
+                            if (service.category === "Mobile" && isServiceSelected) {
+                              serviceOneTimeFee = SIM_CONFIG.physical.price * qty;
+                            }
+                            if (service.category === "TV" && isServiceSelected) {
+                              serviceOneTimeFee = TERMINAL_CONFIG.price + ROUTER_CONFIG.price;
+                            }
+                            if (service.category === "Internet" && isServiceSelected && !hasTVService) {
+                              serviceOneTimeFee = ROUTER_CONFIG.price;
+                            }
+                            
+                            return (
+                              <Card
+                                key={service.id}
+                                className={`cursor-pointer transition-all hover:shadow-lg ${
+                                  isServiceSelected
+                                    ? "border-cyan-500 bg-cyan-500/5 shadow-cyan-500/20 ring-1 ring-cyan-500/30"
+                                    : "border-border hover:border-cyan-500/50"
+                                }`}
+                                onClick={() => toggleService(service)}
+                              >
+                                <CardContent className="p-4">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                      <h3 className="font-semibold text-foreground">{service.name}</h3>
+                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{service.description}</p>
+                                    </div>
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ml-2 ${
+                                      isServiceSelected
+                                        ? "bg-cyan-500 text-white"
+                                        : "border-2 border-muted-foreground/30"
+                                    }`}>
+                                      {isServiceSelected && <Check className="w-4 h-4" />}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Professional pricing display */}
+                                  <div className="space-y-1 pt-2 border-t border-border/50">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs text-muted-foreground">Mensuel (récurrent)</span>
+                                      <span className="text-lg font-bold text-cyan-500">
+                                        {monthlyPrice.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                        <span className="text-xs font-normal">/mois</span>
+                                      </span>
+                                    </div>
+                                    {isServiceSelected && serviceOneTimeFee > 0 && (
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-amber-500">Frais uniques (équipement)</span>
+                                        <span className="text-amber-500">{serviceOneTimeFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                                      </div>
+                                    )}
+                                    {!isEquipmentOnlyOrder && isServiceSelected && (
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-muted-foreground">+ Frais d'activation</span>
+                                        <span className="text-muted-foreground">25,00 $</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Mobile quantity selector inline */}
+                                  {service.category === "Mobile" && isServiceSelected && (
+                                    <div className="mt-3 pt-3 border-t border-border/50">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm text-muted-foreground">Lignes</span>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setMobileLineQuantities(q => ({ ...q, [service.id]: Math.max(1, qty - 1) }));
+                                            }}
+                                            disabled={qty <= 1}
+                                          >
+                                            <Minus className="w-3 h-3" />
+                                          </Button>
+                                          <span className="text-lg font-bold text-blue-500 w-6 text-center">{qty}</span>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setMobileLineQuantities(q => ({ ...q, [service.id]: Math.min(10, qty + 1) }));
+                                            }}
+                                            disabled={qty >= 10}
+                                          >
+                                            <Plus className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <p className="text-xs text-emerald-500 mt-1">
+                                        + {qty} carte(s) SIM incluse(s) automatiquement
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex items-center justify-between mt-3">
+                                    <Badge className={`${categoryColors[category] || "bg-muted"} text-xs`}>
+                                      {category}
+                                    </Badge>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
                         </div>
                       </div>
                     );
                   })}
-                  
-                  {/* Auto-included Physical SIM Cards */}
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                          <CreditCard className="w-5 h-5 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground flex items-center gap-2">
-                            Cartes SIM physiques
-                            <Badge className="bg-emerald-500/20 text-emerald-500 border-0 text-xs">Automatique</Badge>
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Quantité: {totalMobileLineQuantity} (liée au nombre de lignes)
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {SIM_CONFIG.physical.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} / carte SIM (frais unique)
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-emerald-500">
-                          {(SIM_CONFIG.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Frais unique</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-3 bg-blue-500/20 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-blue-600 font-medium">Total mensuel Mobile ({totalMobileLineQuantity} ligne{totalMobileLineQuantity > 1 ? 's' : ''})</span>
-                      <span className="text-blue-600 font-bold text-lg">
-                        {mobileMonthlyTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              ) : (
+                <Card className="bg-card border-border">
+                  <CardContent className="py-12 text-center">
+                    <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Aucun service disponible pour le moment</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-            {/* Selected Services Summary */}
-            {selectedServices.length > 0 && (
-              <Card className="bg-card border-cyan-500/30 sticky bottom-4">
-                <CardContent className="p-4 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="space-y-2 flex-1">
-                      <p className="text-sm text-muted-foreground">
-                        {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} sélectionné{selectedServices.length > 1 ? "s" : ""}
-                        {hasMobileService && totalMobileLineQuantity > 1 && ` (${totalMobileLineQuantity} lignes mobiles)`}
-                      </p>
-                      
-                      {/* Monthly recurring */}
-                      <div className="text-sm text-muted-foreground">
-                        Mensuel: <span className="font-bold text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
-                      </div>
-                      
-                      {/* One-time fees with detail toggle */}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            Frais uniques: <span className="font-bold text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                          </span>
-                          {oneTimeFees > 0 && (
-                            <button 
-                              onClick={() => setShowFeeDetails(!showFeeDetails)}
-                              className="text-xs text-cyan-500 hover:text-cyan-400 underline flex items-center gap-1"
-                            >
-                              {showFeeDetails ? 'Masquer' : 'Voir le détail'}
-                              {showFeeDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
-                          )}
-                        </div>
-                        
-                        {/* Fee breakdown dropdown */}
-                        {showFeeDetails && oneTimeFees > 0 && (
-                          <div className="mt-2 p-3 bg-accent/50 rounded-lg text-sm space-y-1 border border-border">
-                            <p className="text-xs font-medium text-muted-foreground mb-2">Détail des frais uniques:</p>
-                            {!isEquipmentOnlyOrder && activationFee > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Frais d'activation</span>
-                                <span className="text-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              </div>
-                            )}
-                            {deliveryFee > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">
-                                  {isDeliveryOnlyOrder 
-                                    ? (deliveryChoice === "uber" ? "Livraison Express Uber" : deliveryChoice === "shipHome" ? "Expédition à domicile" : "Livraison standard")
-                                    : "Frais de livraison"}
-                                </span>
-                                <span className="text-foreground">{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              </div>
-                            )}
-                            {installationFee > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Installation technicien</span>
-                                <span className="text-foreground">{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              </div>
-                            )}
-                            {terminalFee > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Terminal TV (×{terminalQuantity})</span>
-                                <span className="text-foreground">{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              </div>
-                            )}
-                            {routerFee > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Routeur Nivra Born Wifi</span>
-                                <span className="text-foreground">{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              </div>
-                            )}
-                            {simFee > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Carte(s) SIM physique(s) ×{totalMobileLineQuantity}</span>
-                                <span className="text-foreground">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                              </div>
-                            )}
-                            <Separator className="my-2" />
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Sous-total avant taxes</span>
-                              <span className="text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground italic mt-1">Les frais uniques sont facturés une seule fois.</p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Tax breakdown */}
-                      <div className="pt-2 border-t border-border space-y-1">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Sous-total avant taxes</span>
-                          <span>{baseAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>TPS (5%)</span>
-                          <span>{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>TVQ (9.975%)</span>
-                          <span>{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Total */}
-                      <p className="text-lg font-bold text-cyan-500 pt-2">
-                        Total à payer: {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        <span className="text-xs text-muted-foreground font-normal ml-1">(taxes incluses)</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground italic">Taxes calculées selon l'adresse de service.</p>
-                    </div>
-                    <Button variant="hero" size="lg" onClick={() => setStep(2)} className="shrink-0">
-                      Continuer
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
+            {/* Right Column: Professional Order Summary (Sticky) */}
+            <div className="lg:col-span-1">
+              <div className="hidden lg:block">
+                <ProfessionalOrderSummary
+                  selectedServices={selectedServices}
+                  selectedMobileServices={selectedMobileServices}
+                  mobileLineQuantities={mobileLineQuantities}
+                  totalMobileLineQuantity={totalMobileLineQuantity}
+                  selectedPaidChannels={selectedPaidChannels}
+                  paidChannelTotal={paidChannelTotal}
+                  monthlyRecurring={monthlyRecurring}
+                  oneTimeFees={oneTimeFees}
+                  activationFee={activationFee}
+                  deliveryFee={deliveryFee}
+                  installationFee={installationFee}
+                  terminalFee={terminalFee}
+                  routerFee={routerFee}
+                  simFee={simFee}
+                  terminalQuantity={terminalQuantity}
+                  baseAmount={baseAmount}
+                  tpsAmount={tpsAmount}
+                  tvqAmount={tvqAmount}
+                  totalAmount={totalAmount}
+                  oneTimeFeesWithTax={oneTimeFeesWithTax}
+                  monthlyRecurringWithTax={monthlyRecurringWithTax}
+                  hasMobileService={hasMobileService}
+                  hasTVService={hasTVService}
+                  hasInternetService={hasInternetService}
+                  isEquipmentOnlyOrder={isEquipmentOnlyOrder}
+                  isDeliveryOnlyOrder={isDeliveryOnlyOrder}
+                  deliveryChoice={deliveryChoice}
+                  installationChoice={installationChoice}
+                  onContinue={() => setStep(2)}
+                  continueDisabled={selectedServices.length === 0}
+                />
+              </div>
+              
+              {/* Mobile: Collapsible summary at bottom */}
+              <div className="lg:hidden">
+                {selectedServices.length > 0 && (
+                  <ProfessionalOrderSummary
+                    selectedServices={selectedServices}
+                    selectedMobileServices={selectedMobileServices}
+                    mobileLineQuantities={mobileLineQuantities}
+                    totalMobileLineQuantity={totalMobileLineQuantity}
+                    selectedPaidChannels={selectedPaidChannels}
+                    paidChannelTotal={paidChannelTotal}
+                    monthlyRecurring={monthlyRecurring}
+                    oneTimeFees={oneTimeFees}
+                    activationFee={activationFee}
+                    deliveryFee={deliveryFee}
+                    installationFee={installationFee}
+                    terminalFee={terminalFee}
+                    routerFee={routerFee}
+                    simFee={simFee}
+                    terminalQuantity={terminalQuantity}
+                    baseAmount={baseAmount}
+                    tpsAmount={tpsAmount}
+                    tvqAmount={tvqAmount}
+                    totalAmount={totalAmount}
+                    oneTimeFeesWithTax={oneTimeFeesWithTax}
+                    monthlyRecurringWithTax={monthlyRecurringWithTax}
+                    hasMobileService={hasMobileService}
+                    hasTVService={hasTVService}
+                    hasInternetService={hasInternetService}
+                    isEquipmentOnlyOrder={isEquipmentOnlyOrder}
+                    isDeliveryOnlyOrder={isDeliveryOnlyOrder}
+                    deliveryChoice={deliveryChoice}
+                    installationChoice={installationChoice}
+                    onContinue={() => setStep(2)}
+                    continueDisabled={selectedServices.length === 0}
+                    isMobile={true}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Step 2: Channel Selection (Only for TV orders) */}
