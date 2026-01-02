@@ -55,6 +55,7 @@ import {
   User,
   FileText,
   Wrench,
+  Phone,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -962,11 +963,13 @@ const AdminOrders = () => {
       sim_type: order.equipment_details?.sim_type || "",
       sim_serial_number: order.sim_number || "",
     });
+    // Populate identity form - prefer identity_snapshot from order, fallback to profile
+    const idSnapshot = order.identity_snapshot as any;
     setIdentityForm({
-      id_type: order.profiles?.id_type || "",
-      id_number: order.profiles?.id_number || "",
-      id_province: order.profiles?.id_province || "",
-      id_expiration: order.profiles?.id_expiration || "",
+      id_type: idSnapshot?.id_type || order.profiles?.id_type || "",
+      id_number: idSnapshot?.id_number || order.profiles?.id_number || "",
+      id_province: idSnapshot?.id_province || order.profiles?.id_province || "",
+      id_expiration: idSnapshot?.id_expiration || order.profiles?.id_expiration || "",
       id_issue_date: order.profiles?.id_issue_date || "",
       id_upload: order.profiles?.id_upload || "",
     });
@@ -1911,6 +1914,93 @@ const AdminOrders = () => {
 
                   {/* Identity Tab */}
                   <TabsContent value="identity" className="space-y-4 mt-4">
+                    {/* Port-In / Transfer Section - Show only if port_request exists */}
+                    {selectedOrder.port_request && (selectedOrder.port_request as any)?.port_in && (
+                      <Card className="border-cyan-500/30 bg-cyan-500/5">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-cyan-500" />
+                            Transfert de numéro (portabilité)
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Numéro à transférer</Label>
+                              <p className="font-mono font-medium">{(selectedOrder.port_request as any)?.phone_number || "—"}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Fournisseur actuel</Label>
+                              <p className="font-medium">{(selectedOrder.port_request as any)?.carrier || "Non spécifié"}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">No. compte fournisseur</Label>
+                              <p className="font-mono">{(selectedOrder.port_request as any)?.account_number || "—"}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">No. service</Label>
+                              <p className="font-mono">{(selectedOrder.port_request as any)?.service_account || "—"}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">IMEI</Label>
+                              <p className="font-mono">{(selectedOrder.port_request as any)?.imei || "—"}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Consentement</Label>
+                              <Badge className="bg-emerald-500/20 text-emerald-500">
+                                {(selectedOrder.port_request as any)?.consent ? "Confirmé" : "Non"}
+                              </Badge>
+                            </div>
+                          </div>
+                          {(selectedOrder.port_request as any)?.consent_at && (
+                            <p className="text-xs text-muted-foreground">
+                              Accepté le {format(new Date((selectedOrder.port_request as any).consent_at), "d MMM yyyy HH:mm", { locale: fr })}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Identity Snapshot from Order - Read-only display */}
+                    {selectedOrder.identity_snapshot && (
+                      <Card className="bg-blue-500/5 border-blue-500/30">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-xs text-blue-500 flex items-center gap-2">
+                            <FileText className="w-3 h-3" />
+                            Identité soumise avec la commande
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Type de pièce</Label>
+                            <p className="font-medium">
+                              {(selectedOrder.identity_snapshot as any)?.id_type === "drivers_license" ? "Permis de conduire" :
+                               (selectedOrder.identity_snapshot as any)?.id_type === "passport" ? "Passeport" :
+                               (selectedOrder.identity_snapshot as any)?.id_type === "health_card" ? "Carte assurance maladie" :
+                               (selectedOrder.identity_snapshot as any)?.id_type === "residency_card" ? "Carte résident permanent" :
+                               (selectedOrder.identity_snapshot as any)?.id_type || "Non fourni"}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Numéro</Label>
+                            <p className="font-mono font-medium">{(selectedOrder.identity_snapshot as any)?.id_number || "—"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Province</Label>
+                            <p className="font-medium">{(selectedOrder.identity_snapshot as any)?.id_province || "—"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Expiration</Label>
+                            <p className="font-medium">
+                              {(selectedOrder.identity_snapshot as any)?.id_expiration
+                                ? format(new Date((selectedOrder.identity_snapshot as any).id_expiration), "d MMM yyyy", { locale: fr })
+                                : "—"}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm flex items-center gap-2">
@@ -1931,7 +2021,7 @@ const AdminOrders = () => {
                           <CardHeader className="pb-2">
                             <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
                               <User className="w-3 h-3" />
-                              Information du client
+                              Information du client (profil)
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -1950,6 +2040,14 @@ const AdminOrders = () => {
                                   ? format(new Date(selectedOrder.profiles.date_of_birth), "d MMMM yyyy", { locale: fr })
                                   : "Non fourni"}
                               </p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Type ID (profil)</Label>
+                              <p className="font-medium">{selectedOrder.profiles?.id_type || "—"}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Numéro ID (profil)</Label>
+                              <p className="font-mono">{selectedOrder.profiles?.id_number || "—"}</p>
                             </div>
                           </CardContent>
                         </Card>

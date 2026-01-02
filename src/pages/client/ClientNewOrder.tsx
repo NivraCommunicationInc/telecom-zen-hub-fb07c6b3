@@ -763,6 +763,26 @@ const ClientNewOrder = () => {
       
       const addressInfo = `\n\n**Adresse de service:**\n${fullServiceAddress}\n**Téléphone client:** ${checkoutPhone}`;
 
+      // Build port-in request object if transfer selected
+      const portRequestData = (hasMobileService && mobileTransferChoice === "transfer" && transferPhoneNumber) ? {
+        port_in: true,
+        phone_number: transferPhoneNumber,
+        carrier: transferCarrier || null,
+        account_number: transferAccountNumber || null,
+        service_account: transferServiceAccount || null,
+        imei: transferImei || null,
+        consent: true,
+        consent_at: new Date().toISOString(),
+      } : null;
+
+      // Build identity snapshot object
+      const identitySnapshotData = (idType || idNumber || idExpiration || idProvince) ? {
+        id_type: idType || null,
+        id_number: idNumber || null,
+        id_expiration: idExpiration || null,
+        id_province: idProvince || null,
+      } : null;
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
@@ -787,19 +807,32 @@ const ClientNewOrder = () => {
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         preauth_card_id: savedPaymentMethodId,
+        port_request: portRequestData,
+        identity_snapshot: identitySnapshotData,
       }).select().single();
 
       if (error) throw error;
       
-      // Update client profile with phone and service address (for first orders or updates)
-      if (user?.id && (checkoutPhone || serviceAddressStreet)) {
-        await supabase.from("profiles").update({
-          phone: checkoutPhone || profile?.phone,
-          service_address: serviceAddressStreet || profile?.service_address,
-          service_city: serviceAddressCity || profile?.service_city,
-          service_province: serviceAddressProvince || profile?.service_province,
-          service_postal_code: serviceAddressPostalCode || profile?.service_postal_code,
-        }).eq("user_id", user.id);
+      // Update client profile with phone, service address, and identity (for first orders or updates)
+      if (user?.id) {
+        const profileUpdate: Record<string, any> = {};
+        
+        // Contact + Address
+        if (checkoutPhone) profileUpdate.phone = checkoutPhone;
+        if (serviceAddressStreet) profileUpdate.service_address = serviceAddressStreet;
+        if (serviceAddressCity) profileUpdate.service_city = serviceAddressCity;
+        if (serviceAddressProvince) profileUpdate.service_province = serviceAddressProvince;
+        if (serviceAddressPostalCode) profileUpdate.service_postal_code = serviceAddressPostalCode;
+        
+        // Identity fields - persist to profile for future orders
+        if (idType) profileUpdate.id_type = idType;
+        if (idNumber) profileUpdate.id_number = idNumber;
+        if (idExpiration) profileUpdate.id_expiration = idExpiration;
+        if (idProvince) profileUpdate.id_province = idProvince;
+        
+        if (Object.keys(profileUpdate).length > 0) {
+          await supabase.from("profiles").update(profileUpdate).eq("user_id", user.id);
+        }
       }
 
       // Generate NIVRA payment reference
