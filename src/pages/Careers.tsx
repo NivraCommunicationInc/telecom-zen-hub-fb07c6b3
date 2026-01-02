@@ -112,13 +112,13 @@ const Careers = () => {
               <Building2 className="w-3 h-3 mr-1" />
               Carrières chez Nivra
             </Badge>
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
               Bâtissez votre carrière dans les{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-300">
                 télécommunications
               </span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
+            <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed">
               Rejoignez une équipe dynamique au cœur de l'industrie télécom québécoise. 
               Nous recherchons des talents passionnés pour accompagner notre croissance.
             </p>
