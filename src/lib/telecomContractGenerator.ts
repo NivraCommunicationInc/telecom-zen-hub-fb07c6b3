@@ -7,6 +7,11 @@ import {
   ACCESS_PERMISSIONS,
   CLIENT_ACKNOWLEDGEMENT,
   PRIVACY_ACCESS_TERMS,
+  PREPAID_BILLING_SUMMARY,
+  LATE_PAYMENT_POLICY,
+  REGULATORY_NOTICES,
+  WARRANTY_POLICY,
+  CANCELLATION_POLICY,
 } from "./contractPolicies";
 
 export interface ServiceItem {
@@ -344,11 +349,11 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   doc.setTextColor(...white);
   doc.text("NIVRA COMMUNICATIONS INC.", pageWidth / 2, 15, { align: "center" });
   
-  // Subtitle
+  // Subtitle - Updated to Prepaid Agreement
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...accentTeal);
-  doc.text("Telecommunications Service Agreement — Client Copy", pageWidth / 2, 23, { align: "center" });
+  doc.text("Prepaid Telecommunications Service Agreement — Client Copy", pageWidth / 2, 23, { align: "center" });
   
   currentY = 36;
   
@@ -616,51 +621,66 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   // ========== PAGE 6: POLICIES ==========
   addNewPage();
   
-  // ========== I) LATE PAYMENT & SUSPENSION ==========
-  addSectionDivider("I", "Late Payment & Suspension");
+  // ========== I) PREPAID BILLING & LATE PAYMENT ==========
+  addSectionDivider("I", "Prepaid Billing & Late Payment");
   
-  addParagraph("Any payment not received within 30 days of billing date is considered late.");
-  addParagraph(`Late fee: ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month on unpaid balance.`);
-  addParagraph("Non-payment after 60 days may result in service suspension.");
-  addParagraph("Collection costs may be charged to the client where permitted.");
-  addParagraph("Admin override is permitted and logged internally.");
+  addParagraph(PREPAID_BILLING_SUMMARY.en);
+  currentY += 4;
+  addParagraph(LATE_PAYMENT_POLICY.en);
   
   // ========== J) CANCELLATION / TERMINATION ==========
-  addSectionDivider("J", "Cancellation / Termination");
+  addSectionDivider("J", "Cancellation (No Financing)");
   
-  addParagraph(`Client cancellation requires ${CONTRACT_TERMS.cancellation.noticeDays} days' notice.`);
-  addParagraph("If cancellation occurs after delivery/activation, one month of service charge may still apply (order category dependent).");
-  addParagraph("Provider may refuse fulfillment or terminate for non-payment, fraud indicators, or abuse.");
+  addParagraph(CANCELLATION_POLICY.en);
   
-  // ========== K) CONFIDENTIALITY ==========
-  addSectionDivider("K", "Confidentiality");
+  // ========== K) WARRANTY ==========
+  addSectionDivider("K", "Equipment Warranty (Limited)");
   
-  addParagraph("Nivra will keep client information confidential and will not share personal or commercial information with third parties without consent, except where required by law.");
+  addParagraph(WARRANTY_POLICY.en);
   
   // ========== L) PRIVACY & DATA PROTECTION ==========
-  addSectionDivider("L", "Privacy & Data Protection (Québec Law 25)");
+  addSectionDivider("L", "Privacy & Data Protection");
   
-  addParagraph("Client data is protected in accordance with Québec private-sector privacy law and Law 25. Data is used only for service delivery and stored securely.");
+  addParagraph(CONTRACT_TERMS.dataProtection);
   
-  // ========== M) LIMITATION OF LIABILITY ==========
-  addSectionDivider("M", "Limitation of Liability");
+  // ========== M) REGULATORY NOTICES ==========
+  addSectionDivider("M", "Regulatory Notices (CRTC / CCTS)");
   
-  addParagraph("Nivra provides recommendations based on information available at the time and does not guarantee specific outcomes. Nivra is not responsible for carrier decisions or offer changes; liability is limited to the fees paid by the client.");
+  addParagraph(REGULATORY_NOTICES.en);
+  
+  // ========== N) LIMITATION OF LIABILITY ==========
+  addSectionDivider("N", "Limitation of Liability");
+  
+  addParagraph(CONTRACT_TERMS.liability);
   
   addFooter();
   
   // ========== PAGE 7: JURISDICTION & SIGNATURES ==========
   addNewPage();
   
-  // ========== N) GOVERNING LAW & JURISDICTION ==========
-  addSectionDivider("N", "Governing Law & Jurisdiction");
+  // ========== O) GOVERNING LAW & JURISDICTION ==========
+  addSectionDivider("O", "Governing Law & Jurisdiction");
   
-  addParagraph("This Agreement is governed by Québec law and applicable federal laws of Canada. Disputes are submitted to the courts of Québec.");
+  addParagraph(CONTRACT_TERMS.jurisdiction);
   
-  // ========== O) SIGNATURES ==========
-  addSectionDivider("O", "Signatures (Electronic Where Enabled)");
+  // ========== P) ELECTRONIC SIGNATURE & ACCEPTANCE ==========
+  addSectionDivider("P", "Electronic Signature & Acceptance");
   
-  currentY += 4;
+  addParagraph("By signing electronically, Client confirms:");
+  
+  // Client acknowledgement list
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...textDark);
+  CLIENT_ACKNOWLEDGEMENT.forEach((ack, index) => {
+    checkPageBreak(5);
+    const bullet = `${index + 1}. ${ack}`;
+    const lines = doc.splitTextToSize(bullet, contentWidth - 10);
+    doc.text(lines, marginLeft + 5, currentY);
+    currentY += lines.length * 3.5;
+  });
+  
+  currentY += 6;
   
   const sigBoxWidth = (contentWidth - 10) / 2;
   const sigBoxHeight = 45;

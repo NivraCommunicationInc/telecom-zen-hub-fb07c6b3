@@ -357,7 +357,7 @@ export const generateContractPDF = (data: ContractData): jsPDF => {
   doc.text("⚠ AVERTISSEMENT", margin + 5, currentY + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  const lateLines = doc.splitTextToSize(LATE_PAYMENT_POLICY, contentWidth - 10);
+  const lateLines = doc.splitTextToSize(LATE_PAYMENT_POLICY.fr, contentWidth - 10);
   doc.text(lateLines, margin + 5, currentY + 12);
   
   currentY += 35;
