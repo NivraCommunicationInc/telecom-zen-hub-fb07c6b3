@@ -88,10 +88,10 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Check user_roles for employee role
+    // Step 2: Check user_roles for employee role and status
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
-      .select("role, is_active")
+      .select("role, is_active, status")
       .eq("user_id", profile.user_id)
       .eq("role", "employee")
       .maybeSingle();
@@ -112,6 +112,21 @@ serve(async (req) => {
       );
     }
 
+    // Check status field (new system)
+    const userStatus = roleData.status || "active";
+    if (userStatus !== "active") {
+      const statusMessages: Record<string, string> = {
+        disabled: "Votre compte employé est désactivé. Contactez l'administrateur.",
+        hold: "Votre compte employé est en attente. Contactez l'administrateur.",
+      };
+      console.log("[employee-auth] Employee status is not active:", userStatus);
+      return new Response(
+        JSON.stringify({ ok: false, step: "status_not_active", reason: statusMessages[userStatus] || "Accès refusé.", status: userStatus }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Legacy: check is_active (backwards compatibility)
     if (roleData.is_active === false) {
       console.log("[employee-auth] Employee role is disabled for user:", profile.user_id);
       return new Response(

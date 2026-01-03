@@ -3874,6 +3874,7 @@ export type Database = {
           permissions: Json | null
           require_password_change: boolean | null
           role: Database["public"]["Enums"]["app_role"]
+          status: string
           user_id: string
         }
         Insert: {
@@ -3884,6 +3885,7 @@ export type Database = {
           permissions?: Json | null
           require_password_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: string
           user_id: string
         }
         Update: {
@@ -3894,6 +3896,7 @@ export type Database = {
           permissions?: Json | null
           require_password_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: string
           user_id?: string
         }
         Relationships: []
