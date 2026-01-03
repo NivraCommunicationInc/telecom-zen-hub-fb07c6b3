@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -646,11 +647,33 @@ const AdminTechnicians = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* Centralized notice */}
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Wrench className="h-6 w-6 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Gestion centralisée</h3>
+                  <p className="text-sm text-muted-foreground">
+                    La gestion des techniciens est maintenant centralisée dans "Utilisateurs & Accès"
+                  </p>
+                </div>
+              </div>
+              <Button asChild>
+                <Link to="/admin/users-access">
+                  Ouvrir Utilisateurs & Accès
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground">Techniciens</h1>
-            <p className="text-muted-foreground mt-1">Gestion professionnelle des techniciens Nivra</p>
+            <p className="text-muted-foreground mt-1">Gestion avancée des techniciens (assignations, commandes)</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()}>
