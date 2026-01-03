@@ -5,12 +5,38 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 type StaffRole = "admin" | "employee" | "technician";
 
+interface PermissionSet {
+  view_clients?: boolean;
+  manage_clients?: boolean;
+  view_orders?: boolean;
+  manage_orders?: boolean;
+  view_billing?: boolean;
+  manage_billing?: boolean;
+  view_appointments?: boolean;
+  manage_appointments?: boolean;
+  view_tickets?: boolean;
+  manage_tickets?: boolean;
+  view_logs?: boolean;
+  view_internal_notes?: boolean;
+  export_data?: boolean;
+  manage_staff?: boolean;
+  manage_streaming?: boolean;
+  manage_channels?: boolean;
+}
+
 interface CreateStaffRequest {
   action: "create";
   email: string;
   full_name: string;
   role: StaffRole;
   require_password_change?: boolean;
+  permissions?: PermissionSet;
+}
+
+interface UpdatePermissionsRequest {
+  action: "update_permissions";
+  user_id: string;
+  permissions: PermissionSet;
 }
 
 interface DisableEnableRequest {
@@ -29,7 +55,7 @@ interface SendResetRequest {
   email: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest;
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest;
 
 type ApiError = {
   code: string;
@@ -400,11 +426,12 @@ serve(async (req: Request) => {
         const stepRoles = `${createStep}.db_upsert_role`;
         console.log(`[admin-manage-staff] ${stepRoles} user_id=${userId} role=${role}`);
 
-        // Delete existing roles then insert new one
+        // Delete existing roles then insert new one with permissions
         await adminClient.from("user_roles").delete().eq("user_id", userId);
         const { error: roleError } = await adminClient.from("user_roles").insert({
           user_id: userId,
           role: role,
+          permissions: body.permissions || {},
         });
 
         if (roleError) {
@@ -795,6 +822,62 @@ serve(async (req: Request) => {
             stack: err.stack,
           });
         }
+      }
+
+      case "update_permissions": {
+        const { user_id, permissions } = body as UpdatePermissionsRequest;
+        const stepBase = "update_permissions";
+
+        if (!user_id || !permissions) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id et permissions requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
+
+        // Get current permissions for audit
+        const { data: currentData } = await adminClient
+          .from("user_roles")
+          .select("permissions")
+          .eq("user_id", user_id)
+          .in("role", ["admin", "employee", "technician"])
+          .maybeSingle();
+
+        const { error: updateError } = await adminClient
+          .from("user_roles")
+          .update({ permissions })
+          .eq("user_id", user_id);
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} error:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: updateError.message, step: `${stepBase}.update` } satisfies ApiError,
+          });
+        }
+
+        const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
+
+        await logAction(
+          "staff_permissions_updated",
+          {
+            request_id: requestId,
+            old_permissions: currentData?.permissions || {},
+            new_permissions: permissions,
+          },
+          { type: "user", id: user_id, email: targetUser?.user?.email }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Permissions mises à jour",
+        });
       }
 
       default:

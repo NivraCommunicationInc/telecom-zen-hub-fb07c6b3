@@ -17,7 +17,8 @@ import {
   History,
   ExternalLink,
   Search,
-  Filter
+  Filter,
+  Settings2
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,7 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ALL_PERMISSIONS, PERMISSION_LABELS, DEFAULT_PERMISSIONS, type Permission, type PermissionSet } from "@/hooks/useUserPermissions";
 
 type StaffRole = "admin" | "employee" | "technician";
 
@@ -50,6 +52,7 @@ interface StaffUser {
   banned_until: string | null;
   is_active: boolean;
   source: "user_roles" | "employees" | "technicians";
+  permissions: Partial<PermissionSet>;
 }
 
 const createUserSchema = z.object({
@@ -72,8 +75,10 @@ const AdminUsersAccess = () => {
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [changeRoleDialogOpen, setChangeRoleDialogOpen] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
   const [newRole, setNewRole] = useState<StaffRole>("employee");
+  const [editingPermissions, setEditingPermissions] = useState<Partial<PermissionSet>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<StaffRole | "all">("all");
 
@@ -106,7 +111,7 @@ const AdminUsersAccess = () => {
       // 1. Get users with staff roles from user_roles
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
-        .select("user_id, role")
+        .select("user_id, role, permissions")
         .in("role", ["admin", "employee", "technician"]);
 
       if (rolesError) throw rolesError;
@@ -130,6 +135,7 @@ const AdminUsersAccess = () => {
             banned_until: null,
             is_active: true,
             source: "user_roles",
+            permissions: (roleRow.permissions as Partial<PermissionSet>) || {},
           });
         });
       }
@@ -153,6 +159,7 @@ const AdminUsersAccess = () => {
               banned_until: null,
               is_active: emp.is_active,
               source: "employees",
+              permissions: {},
             });
           } else {
             // Merge info
@@ -181,6 +188,7 @@ const AdminUsersAccess = () => {
               banned_until: null,
               is_active: tech.status === "active",
               source: "technicians",
+              permissions: {},
             });
           } else {
             // Merge info
@@ -380,6 +388,60 @@ const AdminUsersAccess = () => {
     }
   };
 
+  // Update permissions mutation
+  const updatePermissionsMutation = useMutation({
+    mutationFn: async ({ userId, permissions }: { userId: string; permissions: Partial<PermissionSet> }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "update_permissions", user_id: userId, permissions },
+      });
+
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
+        throw err;
+      }
+
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Succès", description: "Permissions mises à jour" });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+      setPermissionsDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const openPermissionsDialog = (user: StaffUser) => {
+    setSelectedUser(user);
+    // Initialize with user's current permissions merged with role defaults
+    const roleDefaults = DEFAULT_PERMISSIONS[user.role] || {};
+    const merged: Partial<PermissionSet> = {};
+    ALL_PERMISSIONS.forEach(perm => {
+      merged[perm] = user.permissions[perm] ?? roleDefaults[perm] ?? false;
+    });
+    setEditingPermissions(merged);
+    setPermissionsDialogOpen(true);
+  };
+
+  const handleSavePermissions = () => {
+    if (selectedUser) {
+      updatePermissionsMutation.mutate({ userId: selectedUser.id, permissions: editingPermissions });
+    }
+  };
+
+  const togglePermission = (perm: Permission) => {
+    setEditingPermissions(prev => ({
+      ...prev,
+      [perm]: !prev[perm],
+    }));
+  };
+
   // Filter users
   const filteredUsers = staffUsers?.filter(user => {
     const matchesSearch = 
@@ -577,6 +639,12 @@ const AdminUsersAccess = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem 
+                                    onClick={() => openPermissionsDialog(user)}
+                                  >
+                                    <Settings2 className="h-4 w-4 mr-2" />
+                                    Permissions
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     onClick={() => {
                                       setSelectedUser(user);
@@ -816,6 +884,55 @@ const AdminUsersAccess = () => {
             </div>
             <DialogFooter>
               <Button onClick={() => setErrorModalOpen(false)}>Fermer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Permissions Dialog */}
+        <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Permissions - {selectedUser?.full_name || selectedUser?.email}</DialogTitle>
+              <DialogDescription>
+                Configurez les permissions granulaires pour cet utilisateur. 
+                {selectedUser?.role === "admin" && (
+                  <span className="text-primary font-medium"> (Les administrateurs ont toutes les permissions par défaut)</span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {ALL_PERMISSIONS.map(perm => (
+                  <div 
+                    key={perm} 
+                    className="flex items-center space-x-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                  >
+                    <Checkbox
+                      id={`perm-${perm}`}
+                      checked={editingPermissions[perm] ?? false}
+                      onCheckedChange={() => togglePermission(perm)}
+                      disabled={selectedUser?.role === "admin"}
+                    />
+                    <label
+                      htmlFor={`perm-${perm}`}
+                      className="text-sm font-medium leading-none cursor-pointer flex-1"
+                    >
+                      {PERMISSION_LABELS[perm]}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleSavePermissions} 
+                disabled={updatePermissionsMutation.isPending || selectedUser?.role === "admin"}
+              >
+                {updatePermissionsMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
