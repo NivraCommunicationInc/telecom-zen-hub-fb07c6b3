@@ -67,6 +67,14 @@ const AdminUsers = () => {
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
   const [newRole, setNewRole] = useState<StaffRole>("employee");
 
+  const [resetErrorOpen, setResetErrorOpen] = useState(false);
+  const [resetErrorDetails, setResetErrorDetails] = useState<{
+    request_id?: string;
+    http_status?: number;
+    parsed?: unknown;
+    raw_body?: string | null;
+  } | null>(null);
+
   const form = useForm<CreateUserForm>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -207,67 +215,88 @@ const AdminUsers = () => {
   // Send reset mutation
   const sendResetMutation = useMutation({
     mutationFn: async (email: string) => {
-      try {
-        console.log("[sendResetMutation] Invoking admin-manage-staff with action: send_reset, email:", email);
-        const response = await supabase.functions.invoke("admin-manage-staff", {
-          body: { action: "send_reset", email },
-        });
-        
-        console.log("[sendResetMutation] Full response:", {
-          data: response.data,
-          error: response.error,
-        });
-        
-        if (response.error) {
-          const errorDetails = {
-            message: response.error.message,
-            context: response.error.context,
+      console.log("[sendResetMutation] Invoking admin-manage-staff with action: send_reset, email:", email);
+
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "send_reset", email },
+      });
+
+      const httpStatus = response.response?.status;
+      let rawBody: string | null = null;
+      let parsed: unknown = null;
+
+      if (response.error) {
+        try {
+          rawBody = response.response ? await response.response.clone().text() : null;
+          parsed = rawBody ? JSON.parse(rawBody) : null;
+        } catch {
+          parsed = null;
+        }
+
+        console.error("[sendResetMutation] Edge Function non-2xx:", {
+          httpStatus,
+          error: {
             name: response.error.name,
-            rawBody: JSON.stringify(response.data),
-          };
-          console.error("[sendResetMutation] Edge Function error:", errorDetails);
-          throw new Error(`Edge Function error: ${response.error.message} | Details: ${JSON.stringify(errorDetails)}`);
-        }
-        
-        if (response.data?.ok === false) {
-          const errorDetails = {
-            step: response.data.step,
-            status: response.data.status,
-            message: response.data.message,
-            stack: response.data.stack,
-            provider_error: response.data.provider_error,
-          };
-          console.error("[sendResetMutation] Backend error:", errorDetails);
-          throw new Error(`Backend error at step "${response.data.step}": ${response.data.message} | Provider: ${JSON.stringify(response.data.provider_error)}`);
-        }
-        
-        if (response.data?.error) {
-          console.error("[sendResetMutation] Legacy error format:", response.data.error);
-          throw new Error(response.data.error);
-        }
-        
-        return response.data;
-      } catch (err: unknown) {
-        const error = err as Error & { context?: unknown };
-        console.error("[sendResetMutation] Caught exception:", {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-          context: error.context,
+            message: response.error.message,
+          },
+          rawBody,
+          parsed,
         });
-        throw error;
+
+        const requestId = (parsed as any)?.request_id;
+        const message = (parsed as any)?.error?.message || response.error.message;
+
+        const err = Object.assign(new Error(message), {
+          details: {
+            request_id: requestId,
+            http_status: httpStatus,
+            parsed,
+            raw_body: rawBody,
+          },
+        });
+
+        throw err;
       }
+
+      // If the function returns 200 but ok=false
+      if ((response.data as any)?.ok === false) {
+        const requestId = (response.data as any)?.request_id;
+        const message = (response.data as any)?.error?.message || "Erreur lors de l'envoi";
+
+        console.error("[sendResetMutation] Backend ok=false:", response.data);
+
+        const err = Object.assign(new Error(message), {
+          details: {
+            request_id: requestId,
+            http_status: httpStatus,
+            parsed: response.data,
+            raw_body: JSON.stringify(response.data),
+          },
+        });
+
+        throw err;
+      }
+
+      return response.data;
     },
     onSuccess: () => {
       toast({ title: "Succès", description: "Email de réinitialisation envoyé" });
     },
-    onError: (error: Error) => {
-      console.error("[sendResetMutation] onError:", error);
-      toast({ 
-        title: "Erreur", 
-        description: error.message, 
+    onError: (error: Error & { details?: any }) => {
+      const details = (error as any).details as
+        | { request_id?: string; http_status?: number; parsed?: unknown; raw_body?: string | null }
+        | undefined;
+
+      console.error("[sendResetMutation] onError:", { error, details });
+
+      setResetErrorDetails(details || null);
+      setResetErrorOpen(true);
+
+      toast({
+        title: "Erreur",
+        description: error.message,
         variant: "destructive",
-        duration: 15000, // Keep visible longer for debugging
+        duration: 15000,
       });
     },
   });
@@ -533,6 +562,45 @@ const AdminUsers = () => {
               </Button>
               <Button onClick={handleChangeRole} disabled={changeRoleMutation.isPending}>
                 {changeRoleMutation.isPending ? "Modification..." : "Confirmer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Error Details */}
+        <Dialog open={resetErrorOpen} onOpenChange={setResetErrorOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Détails erreur</DialogTitle>
+              <DialogDescription>
+                Ouvrir Journal d’audit → filtrer <span className="font-mono">staff_password_reset_failed</span> et chercher ce <span className="font-mono">request_id</span>.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <div className="grid gap-2">
+                <div className="text-sm text-muted-foreground">request_id</div>
+                <div className="font-mono text-sm break-all">
+                  {resetErrorDetails?.request_id || (resetErrorDetails?.parsed as any)?.request_id || "—"}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <div className="text-sm text-muted-foreground">http_status</div>
+                <div className="font-mono text-sm">{resetErrorDetails?.http_status ?? "—"}</div>
+              </div>
+
+              <div className="grid gap-2">
+                <div className="text-sm text-muted-foreground">Erreur (JSON)</div>
+                <pre className="max-h-72 overflow-auto rounded-md border border-border bg-muted p-3 text-xs">
+{JSON.stringify(resetErrorDetails?.parsed ?? null, null, 2)}
+                </pre>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResetErrorOpen(false)}>
+                Fermer
               </Button>
             </DialogFooter>
           </DialogContent>
