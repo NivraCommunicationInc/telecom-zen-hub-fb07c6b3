@@ -2,10 +2,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 interface BootstrapRequest {
+  action?: "bootstrap" | "recover";
   email: string;
   password: string;
-  full_name: string;
+  full_name?: string;
+  pin?: string;
   bootstrap_token: string;
+}
+
+// PIN hashing function (must match client-side)
+const SALT = 'nivra_pin_salt_2026';
+async function hashPin(pin: string): Promise<string> {
+  const data = new TextEncoder().encode(SALT + pin);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 Deno.serve(async (req) => {
@@ -47,6 +58,136 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Parse request body
+    const body: BootstrapRequest = await req.json();
+    const action = body.action || "bootstrap";
+
+    // Verify bootstrap token first (applies to all actions)
+    if (body.bootstrap_token !== bootstrapToken) {
+      console.error("[admin-bootstrap] Invalid bootstrap token attempt");
+      return new Response(
+        JSON.stringify({ error: "Jeton bootstrap invalide" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // RECOVER ACTION - Reset existing admin credentials
+    if (action === "recover") {
+      console.log(`[admin-bootstrap] RECOVER action for email: ${body.email}`);
+      
+      if (!body.email || !body.password || !body.pin) {
+        return new Response(
+          JSON.stringify({ error: "email, password et pin requis" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate PIN format (8 digits)
+      if (!/^\d{8}$/.test(body.pin)) {
+        return new Response(
+          JSON.stringify({ error: "Le PIN admin doit être exactement 8 chiffres" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate password
+      if (body.password.length < 12) {
+        return new Response(
+          JSON.stringify({ error: "Le mot de passe doit contenir au moins 12 caractères" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const normalizedEmail = body.email.trim().toLowerCase();
+
+      // Find user by email
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id")
+        .ilike("email", normalizedEmail)
+        .maybeSingle();
+
+      if (!profile?.user_id) {
+        return new Response(
+          JSON.stringify({ error: "Utilisateur admin non trouvé" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Verify admin role exists
+      const { data: roleData } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", profile.user_id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!roleData) {
+        return new Response(
+          JSON.stringify({ error: "Ce compte n'est pas un compte administrateur" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Update password via auth admin
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(profile.user_id, {
+        password: body.password,
+      });
+
+      if (passwordError) {
+        console.error("[admin-bootstrap] Password update error:", passwordError);
+        return new Response(
+          JSON.stringify({ error: passwordError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Update PIN hash and clear change requirements
+      const pinHash = await hashPin(body.pin);
+      const { error: roleUpdateError } = await supabaseAdmin
+        .from("user_roles")
+        .update({
+          admin_pin_hash: pinHash,
+          require_password_change: false,
+          require_pin_change: false,
+          status: "active",
+        })
+        .eq("user_id", profile.user_id)
+        .eq("role", "admin");
+
+      if (roleUpdateError) {
+        console.error("[admin-bootstrap] Role update error:", roleUpdateError);
+        return new Response(
+          JSON.stringify({ error: roleUpdateError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Log the recovery action
+      await supabaseAdmin.from("admin_audit_log").insert({
+        admin_user_id: profile.user_id,
+        admin_email: normalizedEmail,
+        action: "admin_recovered",
+        details: { recovered_via: "bootstrap_token" },
+        target_type: "security",
+        target_id: profile.user_id,
+        target_email: normalizedEmail,
+      });
+
+      console.log(`[admin-bootstrap] Admin recovered successfully: ${normalizedEmail}`);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Compte admin récupéré avec succès",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // BOOTSTRAP ACTION - Create first admin (original behavior)
+    console.log(`[admin-bootstrap] BOOTSTRAP action for email: ${body.email}`);
+
     // Check if any admin already exists
     const { data: existingAdmins, error: checkError } = await supabaseAdmin
       .from("user_roles")
@@ -70,26 +211,13 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Parse request body
-    const body: BootstrapRequest = await req.json();
-    console.log(`[admin-bootstrap] Creating admin for email: ${body.email}`);
     
     // Validate required fields
-    if (!body.email || !body.password || !body.full_name || !body.bootstrap_token) {
+    if (!body.email || !body.password || !body.full_name) {
       console.error("[admin-bootstrap] Missing required fields");
       return new Response(
         JSON.stringify({ error: "Tous les champs sont requis" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verify bootstrap token
-    if (body.bootstrap_token !== bootstrapToken) {
-      console.error("[admin-bootstrap] Invalid bootstrap token attempt");
-      return new Response(
-        JSON.stringify({ error: "Jeton bootstrap invalide" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
