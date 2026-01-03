@@ -55,12 +55,10 @@ const navItems = [
   { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
   { icon: UserPlus, label: "Candidatures", href: "/admin/applications" },
   { icon: Activity, label: "Activité", href: "/admin/activity" },
-  { icon: Wrench, label: "Techniciens", href: "/admin/technicians" },
-  { icon: UserCog, label: "Employés", href: "/admin/employees" },
   { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
   { icon: Mail, label: "Emails", href: "/admin/email-activity" },
   { icon: Settings, label: "Mon compte", href: "/admin/account" },
-  { icon: Users, label: "Utilisateurs & Rôles", href: "/admin/users" },
+  { icon: Users, label: "Utilisateurs & Accès", href: "/admin/users-access" },
   { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
 ];
 

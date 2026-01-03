@@ -314,10 +314,32 @@ const AdminUsers = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* Centralized notice */}
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Users className="h-6 w-6 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Nouvelle page centralisée disponible</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Gérez tous les utilisateurs (Admin/Employé/Technicien) depuis "Utilisateurs & Accès"
+                  </p>
+                </div>
+              </div>
+              <Button asChild>
+                <a href="/admin/users-access">
+                  Ouvrir Utilisateurs & Accès
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Utilisateurs & Rôles</h1>
-            <p className="text-muted-foreground mt-1">Gérez les comptes du personnel administratif</p>
+            <p className="text-muted-foreground mt-1">Gérez les comptes du personnel administratif (ancienne page)</p>
           </div>
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

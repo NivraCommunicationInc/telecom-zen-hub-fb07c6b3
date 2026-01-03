@@ -333,10 +333,32 @@ const AdminEmployees = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* Centralized notice */}
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <UserCog className="h-6 w-6 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Gestion centralisée</h3>
+                  <p className="text-sm text-muted-foreground">
+                    La gestion des employés est maintenant centralisée dans "Utilisateurs & Accès"
+                  </p>
+                </div>
+              </div>
+              <Button asChild>
+                <a href="/admin/users-access">
+                  Ouvrir Utilisateurs & Accès
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Gestion des Employés</h1>
-            <p className="text-muted-foreground">Créer et gérer les comptes employés</p>
+            <p className="text-muted-foreground">Créer et gérer les comptes employés (détails avancés)</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={fetchEmployees} disabled={loading}>
