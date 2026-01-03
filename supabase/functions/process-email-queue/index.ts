@@ -163,18 +163,20 @@ const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEm
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td align="center">
-                    <p style="margin:0 0 8px; font-size:13px; color:${emailStyles.textSecondary};">
-                      <strong>Support:</strong> 
+                    <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:${emailStyles.textPrimary};">
+                      Nivra Telecom
+                    </p>
+                    <p style="margin:0 0 6px; font-size:12px; color:${emailStyles.textMuted};">
+                      Laval, QC, Canada
+                    </p>
+                    <p style="margin:0 0 12px; font-size:13px; color:${emailStyles.textSecondary};">
                       <a href="mailto:${email}" style="color:${emailStyles.accent}; text-decoration:none;">${email}</a> 
                       &nbsp;|&nbsp; 
                       <a href="tel:${phoneDigits}" style="color:${emailStyles.accent}; text-decoration:none;">${phone}</a>
                     </p>
-                    <p style="margin:0 0 12px; font-size:12px; color:${emailStyles.textMuted};">
-                      Nivra Telecom — Tous droits réservés © ${new Date().getFullYear()}
-                    </p>
                     <p style="margin:0; font-size:11px; color:${emailStyles.textMuted};">
-                      Vous recevez cet email car vous avez un compte Nivra.<br>
-                      <em>You are receiving this email because you have a Nivra account.</em>
+                      Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br>
+                      <em>You are receiving this email because of an action on your Nivra Telecom account.</em>
                     </p>
                   </td>
                 </tr>
@@ -373,7 +375,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // ORDER SHIPPED
   order_shipped: {
-    subject: "Nivra — Commande expédiée 🚚 (#{{order_number}})",
+    subject: "Nivra — Commande expédiée (#{{order_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '🚚', 'Commande expédiée!', 'Order shipped!',
@@ -390,7 +392,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // ORDER COMPLETED
   order_completed: {
-    subject: "Nivra — Commande terminée ✅ (#{{order_number}})",
+    subject: "Nivra — Commande terminée (#{{order_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '✅', 'Commande complétée!', 'Order completed!',
@@ -463,7 +465,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // PAYMENT RECEIVED
   payment_received: {
-    subject: "Nivra — Paiement reçu ✅ (#{{invoice_number}})",
+    subject: "Nivra — Paiement reçu (#{{invoice_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '✅', 'Paiement reçu!', 'Payment received!',
@@ -500,7 +502,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // INVOICE OVERDUE
   invoice_overdue: {
-    subject: "Nivra — ⚠️ Facture en retard (#{{invoice_number}})",
+    subject: "Nivra — Facture en retard (#{{invoice_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('warning', '⚠️', 'Facture en retard', 'Invoice overdue',
@@ -517,7 +519,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // PAYMENT FAILED
   payment_failed: {
-    subject: "Nivra — ❌ Échec du paiement (#{{invoice_number}})",
+    subject: "Nivra — Échec du paiement (#{{invoice_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('error', '❌', 'Paiement non réussi', 'Payment failed',
@@ -579,7 +581,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // APPOINTMENT SCHEDULED
   appointment_scheduled: {
-    subject: "Nivra — Rendez-vous confirmé 📅",
+    subject: "Nivra — Rendez-vous confirmé",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '📅', 'Rendez-vous confirmé', 'Appointment confirmed',
@@ -596,7 +598,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // APPOINTMENT UPDATED
   appointment_updated: {
-    subject: "Nivra — Rendez-vous mis à jour 📅",
+    subject: "Nivra — Rendez-vous mis à jour",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('warning', '📅', 'Rendez-vous modifié', 'Appointment updated',
@@ -632,7 +634,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // CONTRACT READY
   contract_ready: {
-    subject: "Nivra — Contrat prêt à signer 📝",
+    subject: "Nivra — Contrat prêt à signer",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('info', '📝', 'Contrat disponible', 'Contract ready',
@@ -648,7 +650,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
 
   // CONTRACT SIGNED
   contract_signed: {
-    subject: "Nivra — Contrat signé ✅ (#{{contract_number}})",
+    subject: "Nivra — Contrat signé (#{{contract_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '✅', 'Contrat signé!', 'Contract signed!',
