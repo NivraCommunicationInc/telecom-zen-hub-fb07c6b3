@@ -53,3 +53,9 @@ verify_jwt = false
 
 [functions.admin-bootstrap]
 verify_jwt = false
+
+[functions.admin-manage-staff]
+verify_jwt = false
+
+[functions.admin-change-password]
+verify_jwt = false
