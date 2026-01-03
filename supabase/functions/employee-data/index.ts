@@ -87,14 +87,19 @@ serve(async (req) => {
       // ==================== READ OPERATIONS ====================
       case "get_orders":
         if (!permissions?.can_view_orders) {
+          console.log(`[employee-data] get_orders DENIED for ${employeeEmail} - missing can_view_orders`);
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { data: orders } = await supabase
+        const { data: orders, error: ordersError, count: ordersCount } = await supabase
           .from("orders")
-          .select("*")
+          .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
           .limit(params?.limit || 100);
-        result = { orders };
+        if (ordersError) {
+          console.error(`[employee-data] get_orders ERROR:`, ordersError);
+        }
+        console.log(`[employee-data] get_orders returned ${orders?.length || 0} items (total: ${ordersCount})`);
+        result = { orders: orders || [], total_count: ordersCount || 0 };
         break;
 
       case "get_appointments":
@@ -111,14 +116,19 @@ serve(async (req) => {
 
       case "get_tickets":
         if (!permissions?.can_view_tickets) {
+          console.log(`[employee-data] get_tickets DENIED for ${employeeEmail} - missing can_view_tickets`);
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { data: tickets } = await supabase
+        const { data: tickets, error: ticketsError, count: ticketsCount } = await supabase
           .from("support_tickets")
-          .select("*")
+          .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
           .limit(params?.limit || 100);
-        result = { tickets };
+        if (ticketsError) {
+          console.error(`[employee-data] get_tickets ERROR:`, ticketsError);
+        }
+        console.log(`[employee-data] get_tickets returned ${tickets?.length || 0} items (total: ${ticketsCount})`);
+        result = { tickets: tickets || [], total_count: ticketsCount || 0 };
         break;
 
       case "get_ticket_replies":
@@ -135,14 +145,19 @@ serve(async (req) => {
 
       case "get_clients":
         if (!permissions?.can_view_clients) {
+          console.log(`[employee-data] get_clients DENIED for ${employeeEmail} - missing can_view_clients`);
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { data: clients } = await supabase
+        const { data: clients, error: clientsError, count: clientsCount } = await supabase
           .from("profiles")
-          .select("*")
+          .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
           .limit(params?.limit || 100);
-        result = { clients };
+        if (clientsError) {
+          console.error(`[employee-data] get_clients ERROR:`, clientsError);
+        }
+        console.log(`[employee-data] get_clients returned ${clients?.length || 0} items (total: ${clientsCount})`);
+        result = { clients: clients || [], total_count: clientsCount || 0 };
         break;
 
       case "get_client_details":
@@ -198,20 +213,36 @@ serve(async (req) => {
         break;
 
       case "get_dashboard_stats":
-        const [ordersCount, appointmentsCount, ticketsCount, clientsCount] = await Promise.all([
-          permissions?.can_view_orders ? supabase.from("orders").select("id", { count: "exact", head: true }) : { count: 0 },
-          permissions?.can_view_appointments ? supabase.from("appointments").select("id", { count: "exact", head: true }).gte("scheduled_at", new Date().toISOString()) : { count: 0 },
-          permissions?.can_view_tickets ? supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open") : { count: 0 },
-          permissions?.can_view_clients ? supabase.from("profiles").select("id", { count: "exact", head: true }) : { count: 0 },
+        console.log(`[employee-data] get_dashboard_stats for ${employeeEmail}, permissions:`, permissions);
+        const [dashOrdersRes, dashAppointmentsRes, dashTicketsRes, dashClientsRes] = await Promise.all([
+          permissions?.can_view_orders 
+            ? supabase.from("orders").select("id", { count: "exact", head: true }) 
+            : Promise.resolve({ count: 0, error: null }),
+          permissions?.can_view_appointments 
+            ? supabase.from("appointments").select("id", { count: "exact", head: true }).gte("scheduled_at", new Date().toISOString()) 
+            : Promise.resolve({ count: 0, error: null }),
+          permissions?.can_view_tickets 
+            ? supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open") 
+            : Promise.resolve({ count: 0, error: null }),
+          permissions?.can_view_clients 
+            ? supabase.from("profiles").select("id", { count: "exact", head: true }) 
+            : Promise.resolve({ count: 0, error: null }),
         ]);
-        result = {
-          stats: {
-            orders: ordersCount.count || 0,
-            upcomingAppointments: appointmentsCount.count || 0,
-            openTickets: ticketsCount.count || 0,
-            totalClients: clientsCount.count || 0,
-          }
+        
+        // Log any errors
+        if (dashOrdersRes.error) console.error("[employee-data] stats orders error:", dashOrdersRes.error);
+        if (dashAppointmentsRes.error) console.error("[employee-data] stats appointments error:", dashAppointmentsRes.error);
+        if (dashTicketsRes.error) console.error("[employee-data] stats tickets error:", dashTicketsRes.error);
+        if (dashClientsRes.error) console.error("[employee-data] stats clients error:", dashClientsRes.error);
+        
+        const statsResult = {
+          orders: dashOrdersRes.count || 0,
+          upcomingAppointments: dashAppointmentsRes.count || 0,
+          openTickets: dashTicketsRes.count || 0,
+          totalClients: dashClientsRes.count || 0,
         };
+        console.log(`[employee-data] get_dashboard_stats result:`, statsResult);
+        result = { stats: statsResult };
         break;
 
       // ==================== ORDER OPERATIONS ====================
@@ -568,6 +599,45 @@ serve(async (req) => {
           .select("*")
           .single();
         result = { status: statusData };
+        break;
+
+      // ==================== DIAGNOSTIC / DEBUG ====================
+      case "diagnostic_visibility_test":
+        console.log(`[employee-data] Running diagnostic_visibility_test for ${employeeEmail}`);
+        
+        // Get raw counts from database using service role (no RLS)
+        const [diagOrders, diagTickets, diagClients, diagAppointments] = await Promise.all([
+          supabase.from("orders").select("id", { count: "exact", head: true }),
+          supabase.from("support_tickets").select("id", { count: "exact", head: true }),
+          supabase.from("profiles").select("id", { count: "exact", head: true }),
+          supabase.from("appointments").select("id", { count: "exact", head: true }),
+        ]);
+        
+        const diagResult = {
+          timestamp: new Date().toISOString(),
+          employee: { id: employeeId, email: employeeEmail, name: employeeName },
+          permissions: permissions,
+          counts: {
+            orders: { total: diagOrders.count || 0, error: diagOrders.error?.message || null },
+            tickets: { total: diagTickets.count || 0, error: diagTickets.error?.message || null },
+            clients: { total: diagClients.count || 0, error: diagClients.error?.message || null },
+            appointments: { total: diagAppointments.count || 0, error: diagAppointments.error?.message || null },
+          }
+        };
+        
+        console.log(`[employee-data] diagnostic_visibility_test result:`, diagResult);
+        
+        // Log to admin_audit_log if params.log_to_audit is true
+        if (params?.log_to_audit) {
+          await supabase.from("admin_audit_log").insert({
+            admin_user_id: employeeId,
+            admin_email: employeeEmail,
+            action: "employee_visibility_diagnostic",
+            details: diagResult,
+          });
+        }
+        
+        result = { diagnostic: diagResult };
         break;
 
       default:

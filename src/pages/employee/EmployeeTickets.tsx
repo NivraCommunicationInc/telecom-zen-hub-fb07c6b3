@@ -33,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import EmployeeDebugPanel from "@/components/employee/EmployeeDebugPanel";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   open: { label: "Ouvert", color: "bg-blue-500/20 text-blue-600" },
@@ -517,6 +518,20 @@ const EmployeeTickets = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Debug Panel */}
+      {session && (
+        <EmployeeDebugPanel
+          session={{
+            token: session.token,
+            employeeId: session.employeeId,
+            email: session.email,
+            name: session.name,
+            permissions: session.permissions,
+          }}
+          currentCounts={{ tickets: tickets.length }}
+        />
+      )}
     </div>
   );
 };
