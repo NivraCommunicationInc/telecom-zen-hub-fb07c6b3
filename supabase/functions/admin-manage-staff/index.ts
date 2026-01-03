@@ -55,7 +55,12 @@ interface SendResetRequest {
   email: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest;
+interface ApplyRolePackRequest {
+  action: "apply_role_pack";
+  user_id: string;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest;
 
 type ApiError = {
   code: string;
@@ -877,6 +882,135 @@ serve(async (req: Request) => {
           request_id: requestId,
           success: true,
           message: "Permissions mises à jour",
+        });
+      }
+
+      case "apply_role_pack": {
+        const { user_id } = body as ApplyRolePackRequest;
+        const stepBase = "apply_role_pack";
+
+        if (!user_id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
+
+        // Get current role for this user
+        const { data: roleData, error: roleError } = await adminClient
+          .from("user_roles")
+          .select("role, permissions")
+          .eq("user_id", user_id)
+          .in("role", ["admin", "employee", "technician"])
+          .maybeSingle();
+
+        if (roleError || !roleData) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur ou rôle non trouvé", step: `${stepBase}.get_role` } satisfies ApiError,
+          });
+        }
+
+        const currentRole = roleData.role as StaffRole;
+        const oldPermissions = roleData.permissions || {};
+
+        // Define default permissions per role
+        const DEFAULT_PERMISSIONS: Record<StaffRole, PermissionSet> = {
+          admin: {
+            view_clients: true,
+            manage_clients: true,
+            view_orders: true,
+            manage_orders: true,
+            view_billing: true,
+            manage_billing: true,
+            view_appointments: true,
+            manage_appointments: true,
+            view_tickets: true,
+            manage_tickets: true,
+            view_logs: true,
+            view_internal_notes: true,
+            export_data: true,
+            manage_staff: true,
+            manage_streaming: true,
+            manage_channels: true,
+          },
+          employee: {
+            view_clients: true,
+            manage_clients: false,
+            view_orders: true,
+            manage_orders: true,
+            view_billing: true,
+            manage_billing: false,
+            view_appointments: true,
+            manage_appointments: true,
+            view_tickets: true,
+            manage_tickets: true,
+            view_logs: false,
+            view_internal_notes: false,
+            export_data: false,
+            manage_staff: false,
+            manage_streaming: true,
+            manage_channels: false,
+          },
+          technician: {
+            view_clients: false,
+            manage_clients: false,
+            view_orders: false,
+            manage_orders: false,
+            view_billing: false,
+            manage_billing: false,
+            view_appointments: true,
+            manage_appointments: false,
+            view_tickets: true,
+            manage_tickets: false,
+            view_logs: false,
+            view_internal_notes: false,
+            export_data: false,
+            manage_staff: false,
+            manage_streaming: false,
+            manage_channels: false,
+          },
+        };
+
+        const newPermissions = DEFAULT_PERMISSIONS[currentRole];
+
+        const { error: updateError } = await adminClient
+          .from("user_roles")
+          .update({ permissions: newPermissions })
+          .eq("user_id", user_id);
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} error:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: updateError.message, step: `${stepBase}.update` } satisfies ApiError,
+          });
+        }
+
+        const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
+
+        await logAction(
+          "staff_permissions_pack_applied",
+          {
+            request_id: requestId,
+            role: currentRole,
+            old_permissions: oldPermissions,
+            new_permissions: newPermissions,
+          },
+          { type: "user", id: user_id, email: targetUser?.user?.email }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: `Pack de permissions "${currentRole}" appliqué`,
+          role: currentRole,
         });
       }
 
