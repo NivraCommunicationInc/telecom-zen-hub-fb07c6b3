@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -32,6 +35,8 @@ const AdminEmailActivity = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testRecipient, setTestRecipient] = useState("nivratelecom@gmail.com");
 
   const fetchEmails = async () => {
     try {
@@ -55,22 +60,18 @@ const AdminEmailActivity = () => {
     fetchEmails();
   }, []);
 
+  const openTestModal = () => {
+    setShowTestModal(true);
+  };
+
   const handleSendTestEmail = async () => {
-    if (!user?.email) {
-      toast.error("Aucun email utilisateur trouvé");
+    if (!testRecipient || !testRecipient.includes("@")) {
+      toast.error("Veuillez entrer une adresse email valide");
       return;
     }
 
     setIsSendingTest(true);
     try {
-      const { data, error } = await supabase.functions.invoke("process-email-queue", {
-        body: { to_email: user.email },
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      // The function uses query params for test mode
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-email-queue?test=true`,
         {
@@ -79,7 +80,7 @@ const AdminEmailActivity = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           },
-          body: JSON.stringify({ to_email: user.email }),
+          body: JSON.stringify({ to_email: testRecipient }),
         }
       );
 
@@ -94,8 +95,21 @@ const AdminEmailActivity = () => {
             <p className="text-sm text-muted-foreground">ID Resend: {result.provider_message_id}</p>
           </div>
         );
+        setShowTestModal(false);
+        fetchEmails();
       } else {
-        toast.error(result.error || "Échec de l'envoi");
+        // Check for Resend test mode error
+        const errorMsg = result.error || "";
+        if (errorMsg.includes("testing emails") || errorMsg.includes("verify a domain")) {
+          toast.error(
+            <div className="space-y-1">
+              <p className="font-medium">Resend mode test</p>
+              <p className="text-sm">Vous ne pouvez envoyer qu'à nivratelecom@gmail.com tant qu'un domaine n'est pas vérifié.</p>
+            </div>
+          );
+        } else {
+          toast.error(result.error || "Échec de l'envoi");
+        }
       }
     } catch (err: any) {
       console.error("Test email error:", err);
@@ -204,14 +218,50 @@ const AdminEmailActivity = () => {
               {isProcessingQueue ? "Traitement..." : "Traiter la queue"}
             </Button>
             <Button
-              onClick={handleSendTestEmail}
+              onClick={openTestModal}
               disabled={isSendingTest}
             >
               <Send className="w-4 h-4 mr-2" />
-              {isSendingTest ? "Envoi..." : "Envoyer email test"}
+              Envoyer email test
             </Button>
           </div>
         </div>
+
+        {/* Test Email Modal */}
+        <Dialog open={showTestModal} onOpenChange={setShowTestModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Envoyer un email de test</DialogTitle>
+              <DialogDescription>
+                En mode test Resend, seul nivratelecom@gmail.com peut recevoir des emails.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="test-recipient">Email destinataire</Label>
+                <Input
+                  id="test-recipient"
+                  type="email"
+                  value={testRecipient}
+                  onChange={(e) => setTestRecipient(e.target.value)}
+                  placeholder="nivratelecom@gmail.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Après vérification de domaine, vous pourrez envoyer à d'autres adresses.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowTestModal(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSendTestEmail} disabled={isSendingTest}>
+                <Send className="w-4 h-4 mr-2" />
+                {isSendingTest ? "Envoi..." : "Envoyer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-4">
