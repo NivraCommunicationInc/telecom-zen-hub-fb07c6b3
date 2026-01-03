@@ -504,13 +504,28 @@ serve(async (req: Request) => {
             from: "Nivra Telecom <support@nivratelecom.ca>",
             reply_to: "support@nivratelecom.ca",
             to: [email],
-            subject: "Réinitialisation de votre mot de passe",
+            subject: "Réinitialisation de votre mot de passe - Nivra",
             html: `
-              <p>Bonjour,</p>
-              <p>Voici votre lien de réinitialisation de mot de passe :</p>
-              <p><a href="${resetLink}">${resetLink}</a></p>
-              <p>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
-              <p style="color:#6b7280;font-size:12px;">Request ID: ${requestId}</p>
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+                  <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Votre service, simplifié.</p>
+                </div>
+                <div style="padding: 30px; background: #f8fafc;">
+                  <h2>Bonjour,</h2>
+                  <p>Voici votre lien de réinitialisation de mot de passe :</p>
+                  <p><a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px;">Réinitialiser mon mot de passe</a></p>
+                  <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">Lien: <a href="${resetLink}" style="color: #0d9488;">${resetLink}</a></p>
+                  <p style="margin-top: 20px; color: #64748b;">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+                </div>
+                <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                  <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
+                  <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p>
+                  <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;"><a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">Support@nivratelecom.ca</a> | <a href="tel:4385442233" style="color: #0d9488; text-decoration: none;">438-544-2233</a></p>
+                  <p style="margin: 0; font-size: 11px; color: #71717a;">Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br><em>You are receiving this email because of an action on your Nivra Telecom account.</em></p>
+                  <p style="margin-top: 10px; color: #9ca3af; font-size: 10px;">Request ID: ${requestId}</p>
+                </div>
+              </div>
             `,
           });
 
