@@ -77,9 +77,11 @@ const AdminUsersAccess = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<StaffRole | "all">("all");
 
-  const [resetErrorOpen, setResetErrorOpen] = useState(false);
-  const [resetErrorDetails, setResetErrorDetails] = useState<{
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorModalDetails, setErrorModalDetails] = useState<{
     request_id?: string;
+    step?: string;
+    message?: string;
     http_status?: number;
     parsed?: unknown;
     raw_body?: string | null;
@@ -192,6 +194,31 @@ const AdminUsersAccess = () => {
     },
   });
 
+  // Helper to extract error details from response
+  const extractErrorDetails = async (response: { error?: { message: string }; data?: unknown; response?: Response }) => {
+    const httpStatus = response.response?.status;
+    let rawBody: string | null = null;
+    let parsed: unknown = null;
+
+    if (response.error) {
+      try {
+        rawBody = response.response ? await response.response.clone().text() : null;
+        parsed = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        parsed = null;
+      }
+    } else if (response.data && (response.data as any)?.ok === false) {
+      parsed = response.data;
+      rawBody = JSON.stringify(response.data);
+    }
+
+    const requestId = (parsed as any)?.request_id;
+    const step = (parsed as any)?.step;
+    const message = (parsed as any)?.message || (parsed as any)?.error?.message || response.error?.message || "Erreur inconnue";
+
+    return { request_id: requestId, step, message, http_status: httpStatus, parsed, raw_body: rawBody };
+  };
+
   // Create staff mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserForm) => {
@@ -204,8 +231,13 @@ const AdminUsersAccess = () => {
           require_password_change: data.require_password_change,
         },
       });
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
+        throw err;
+      }
+
       return response.data;
     },
     onSuccess: () => {
@@ -214,8 +246,11 @@ const AdminUsersAccess = () => {
       setCreateDialogOpen(false);
       form.reset();
     },
-    onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive", duration: 15000 });
     },
   });
 
@@ -225,15 +260,23 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "disable", user_id: userId },
       });
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
+        throw err;
+      }
+
       return response.data;
     },
     onSuccess: () => {
       toast({ title: "Succès", description: "Utilisateur désactivé" });
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
@@ -244,15 +287,23 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "enable", user_id: userId },
       });
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
+        throw err;
+      }
+
       return response.data;
     },
     onSuccess: () => {
       toast({ title: "Succès", description: "Utilisateur activé" });
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
@@ -263,8 +314,13 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "change_role", user_id: userId, new_role: newRole },
       });
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
+        throw err;
+      }
+
       return response.data;
     },
     onSuccess: () => {
@@ -273,7 +329,10 @@ const AdminUsersAccess = () => {
       setChangeRoleDialogOpen(false);
       setSelectedUser(null);
     },
-    onError: (error: Error) => {
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
@@ -285,33 +344,9 @@ const AdminUsersAccess = () => {
         body: { action: "send_reset", email },
       });
 
-      const httpStatus = response.response?.status;
-      let rawBody: string | null = null;
-      let parsed: unknown = null;
-
-      if (response.error) {
-        try {
-          rawBody = response.response ? await response.response.clone().text() : null;
-          parsed = rawBody ? JSON.parse(rawBody) : null;
-        } catch {
-          parsed = null;
-        }
-
-        const requestId = (parsed as any)?.request_id;
-        const message = (parsed as any)?.error?.message || response.error.message;
-
-        const err = Object.assign(new Error(message), {
-          details: { request_id: requestId, http_status: httpStatus, parsed, raw_body: rawBody },
-        });
-        throw err;
-      }
-
-      if ((response.data as any)?.ok === false) {
-        const requestId = (response.data as any)?.request_id;
-        const message = (response.data as any)?.error?.message || "Erreur lors de l'envoi";
-        const err = Object.assign(new Error(message), {
-          details: { request_id: requestId, http_status: httpStatus, parsed: response.data, raw_body: JSON.stringify(response.data) },
-        });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
         throw err;
       }
 
@@ -320,10 +355,10 @@ const AdminUsersAccess = () => {
     onSuccess: () => {
       toast({ title: "Succès", description: "Email de réinitialisation envoyé" });
     },
-    onError: (error: Error & { details?: any }) => {
-      const details = (error as any).details as { request_id?: string; http_status?: number; parsed?: unknown; raw_body?: string | null } | undefined;
-      setResetErrorDetails(details || null);
-      setResetErrorOpen(true);
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive", duration: 15000 });
     },
   });
@@ -744,27 +779,36 @@ const AdminUsersAccess = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Reset Error Dialog */}
-        <Dialog open={resetErrorOpen} onOpenChange={setResetErrorOpen}>
-          <DialogContent>
+        {/* Error Details Modal */}
+        <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Détails de l'erreur</DialogTitle>
             </DialogHeader>
-            <div className="space-y-2 text-sm">
-              {resetErrorDetails?.request_id && (
-                <p><strong>Request ID:</strong> {resetErrorDetails.request_id}</p>
+            <div className="space-y-3 text-sm">
+              {errorModalDetails?.request_id && (
+                <p><strong>Request ID:</strong> <code className="bg-muted px-1 rounded">{errorModalDetails.request_id}</code></p>
               )}
-              {resetErrorDetails?.http_status && (
-                <p><strong>HTTP Status:</strong> {resetErrorDetails.http_status}</p>
+              {errorModalDetails?.step && (
+                <p><strong>Étape:</strong> <code className="bg-muted px-1 rounded">{errorModalDetails.step}</code></p>
               )}
-              {resetErrorDetails?.raw_body && (
-                <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-40">
-                  {resetErrorDetails.raw_body}
-                </pre>
+              {errorModalDetails?.message && (
+                <p><strong>Message:</strong> {errorModalDetails.message}</p>
+              )}
+              {errorModalDetails?.http_status && (
+                <p><strong>HTTP Status:</strong> {errorModalDetails.http_status}</p>
+              )}
+              {errorModalDetails?.raw_body && (
+                <div>
+                  <p className="mb-1"><strong>Réponse JSON:</strong></p>
+                  <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-48">
+                    {errorModalDetails.raw_body}
+                  </pre>
+                </div>
               )}
             </div>
             <DialogFooter>
-              <Button onClick={() => setResetErrorOpen(false)}>Fermer</Button>
+              <Button onClick={() => setErrorModalOpen(false)}>Fermer</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
