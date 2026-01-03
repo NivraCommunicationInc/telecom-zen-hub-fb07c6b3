@@ -207,18 +207,68 @@ const AdminUsers = () => {
   // Send reset mutation
   const sendResetMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
-        body: { action: "send_reset", email },
-      });
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
-      return response.data;
+      try {
+        console.log("[sendResetMutation] Invoking admin-manage-staff with action: send_reset, email:", email);
+        const response = await supabase.functions.invoke("admin-manage-staff", {
+          body: { action: "send_reset", email },
+        });
+        
+        console.log("[sendResetMutation] Full response:", {
+          data: response.data,
+          error: response.error,
+        });
+        
+        if (response.error) {
+          const errorDetails = {
+            message: response.error.message,
+            context: response.error.context,
+            name: response.error.name,
+            rawBody: JSON.stringify(response.data),
+          };
+          console.error("[sendResetMutation] Edge Function error:", errorDetails);
+          throw new Error(`Edge Function error: ${response.error.message} | Details: ${JSON.stringify(errorDetails)}`);
+        }
+        
+        if (response.data?.ok === false) {
+          const errorDetails = {
+            step: response.data.step,
+            status: response.data.status,
+            message: response.data.message,
+            stack: response.data.stack,
+            provider_error: response.data.provider_error,
+          };
+          console.error("[sendResetMutation] Backend error:", errorDetails);
+          throw new Error(`Backend error at step "${response.data.step}": ${response.data.message} | Provider: ${JSON.stringify(response.data.provider_error)}`);
+        }
+        
+        if (response.data?.error) {
+          console.error("[sendResetMutation] Legacy error format:", response.data.error);
+          throw new Error(response.data.error);
+        }
+        
+        return response.data;
+      } catch (err: unknown) {
+        const error = err as Error & { context?: unknown };
+        console.error("[sendResetMutation] Caught exception:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          context: error.context,
+        });
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({ title: "Succès", description: "Email de réinitialisation envoyé" });
     },
     onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      console.error("[sendResetMutation] onError:", error);
+      toast({ 
+        title: "Erreur", 
+        description: error.message, 
+        variant: "destructive",
+        duration: 15000, // Keep visible longer for debugging
+      });
     },
   });
 

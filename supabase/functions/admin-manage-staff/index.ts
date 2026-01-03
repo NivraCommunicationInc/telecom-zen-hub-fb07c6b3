@@ -351,27 +351,66 @@ serve(async (req: Request) => {
       case "send_reset": {
         const { email } = body;
 
-        const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
-        const resetUrl = `${appBaseUrl}/admin/reset-password`;
-        console.log(`[admin-manage-staff] Sending reset email to ${email} with redirect: ${resetUrl}`);
-        const { error } = await adminClient.auth.resetPasswordForEmail(email, {
-          redirectTo: resetUrl,
-        });
+        try {
+          const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
+          const resetUrl = `${appBaseUrl}/admin/reset-password`;
+          console.log(`[admin-manage-staff] send_reset: Starting for email=${email}`);
+          console.log(`[admin-manage-staff] send_reset: APP_BASE_URL=${Deno.env.get("APP_BASE_URL")}, computed resetUrl=${resetUrl}`);
+          
+          const { data: resetData, error: resetError } = await adminClient.auth.resetPasswordForEmail(email, {
+            redirectTo: resetUrl,
+          });
+          
+          console.log(`[admin-manage-staff] send_reset: resetPasswordForEmail response:`, {
+            data: resetData,
+            error: resetError ? {
+              message: resetError.message,
+              status: resetError.status,
+              name: resetError.name,
+              cause: resetError.cause,
+            } : null,
+          });
 
-        if (error) {
-          console.error("[admin-manage-staff] Reset error:", error);
+          if (resetError) {
+            console.error("[admin-manage-staff] send_reset: Provider error:", resetError);
+            return new Response(
+              JSON.stringify({ 
+                ok: false, 
+                step: "send_reset", 
+                status: resetError.status,
+                message: resetError.message,
+                stack: resetError.stack,
+                provider_error: {
+                  name: resetError.name,
+                  cause: resetError.cause,
+                },
+              }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          await logAction("staff_password_reset_sent", { resetUrl }, { type: "user", email });
+
+          console.log(`[admin-manage-staff] send_reset: Success for ${email}`);
           return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            JSON.stringify({ ok: true, success: true, message: "Email de réinitialisation envoyé" }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } catch (sendResetError: unknown) {
+          const err = sendResetError as Error;
+          console.error("[admin-manage-staff] send_reset: Unexpected exception:", err);
+          return new Response(
+            JSON.stringify({ 
+              ok: false, 
+              step: "send_reset", 
+              status: 500,
+              message: err.message,
+              stack: err.stack,
+              provider_error: null,
+            }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-
-        await logAction("staff_password_reset_sent", {}, { type: "user", email });
-
-        return new Response(
-          JSON.stringify({ success: true, message: "Email de réinitialisation envoyé" }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
       }
 
       default:
