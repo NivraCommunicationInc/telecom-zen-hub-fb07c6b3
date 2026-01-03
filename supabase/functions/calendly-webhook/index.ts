@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 interface CalendlyPayload {
   event: string;
@@ -37,9 +33,12 @@ interface CalendlyPayload {
 const handler = async (req: Request): Promise<Response> => {
   console.log("Calendly webhook received");
   
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -52,20 +51,16 @@ const handler = async (req: Request): Promise<Response> => {
     const eventType = payload.event;
     const eventData = payload.payload;
 
-    // Handle different Calendly events
     if (eventType === "invitee.created" || eventType === "invitee_created") {
-      // New appointment booked
       const scheduledEvent = eventData.scheduled_event || eventData.event;
       const invitee = eventData.invitee;
 
-      // Check if user exists with this email
       const { data: existingProfile } = await supabase
         .from("profiles")
         .select("user_id")
         .eq("email", invitee.email)
         .single();
 
-      // Create appointment record - client_id is nullable, will be linked when user creates account
       const { data: appointment, error: insertError } = await supabase
         .from("appointments")
         .insert({
@@ -86,7 +81,6 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log("Appointment created:", appointment);
 
-      // Send confirmation email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
         try {
@@ -132,10 +126,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (eventType === "invitee.canceled" || eventType === "invitee_canceled") {
-      // Appointment cancelled
       const invitee = eventData.invitee;
       
-      // Update appointment status
       const { error: updateError } = await supabase
         .from("appointments")
         .update({ status: "cancelled" })
@@ -159,9 +151,10 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in calendly-webhook:", error);
+    const origin = req.headers.get('origin');
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(origin) } }
     );
   }
 };
