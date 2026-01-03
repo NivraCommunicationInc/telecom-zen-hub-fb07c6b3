@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ const loginSchema = z.object({
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { signIn, resetPassword, user, isAdmin, isLoading } = useAuth();
+  const { signIn, signOut, resetPassword, isLoading } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,11 +28,11 @@ const AdminLogin = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!isLoading && user && isAdmin) {
-      navigate("/admin");
-    }
-  }, [user, isAdmin, isLoading, navigate]);
+  // SECURITY: NO auto-login effect - user must always provide credentials
+  // Clear any stale session on mount to ensure clean login
+  useState(() => {
+    sessionStorage.removeItem("admin_last_auth_check");
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

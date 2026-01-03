@@ -107,6 +107,7 @@ const EmployeeLogin = () => {
       };
 
       localStorage.setItem("nivra_employee_session", JSON.stringify(employeeSession));
+      sessionStorage.setItem("employee_last_auth_check", Date.now().toString());
 
       toast({
         title: "Connexion réussie",

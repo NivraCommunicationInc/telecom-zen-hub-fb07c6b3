@@ -25,7 +25,6 @@ const AdminRecover = () => {
   const { toast } = useToast();
   
   const token = searchParams.get("token") || "";
-  const expectedToken = import.meta.env.VITE_BOOTSTRAP_TOKEN || "";
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,9 +32,10 @@ const AdminRecover = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
-  // Token validation
-  if (!token || token !== expectedToken) {
+  // Token validation - must be present
+  if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-hero p-4">
         <div className="w-full max-w-md text-center">
@@ -59,6 +59,7 @@ const AdminRecover = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setTokenError(null);
 
     const result = recoverSchema.safeParse({ email, password, pin });
     if (!result.success) {
@@ -75,7 +76,7 @@ const AdminRecover = () => {
     setIsSubmitting(true);
 
     try {
-      // Call edge function for admin recovery
+      // Call edge function for admin recovery - token validation happens server-side
       const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
         body: {
           action: "admin_recover",
@@ -86,12 +87,23 @@ const AdminRecover = () => {
         },
       });
 
-      if (error || data?.error) {
-        toast({
-          title: "Erreur",
-          description: data?.error || error?.message || "Une erreur est survenue",
-          variant: "destructive",
-        });
+      if (error) {
+        console.error("Recovery error:", error);
+        setTokenError(error.message || "Une erreur est survenue");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data?.error) {
+        if (data.error.includes("token") || data.error.includes("Token")) {
+          setTokenError(data.error);
+        } else {
+          toast({
+            title: "Erreur",
+            description: data.error,
+            variant: "destructive",
+          });
+        }
         setIsSubmitting(false);
         return;
       }
@@ -115,6 +127,25 @@ const AdminRecover = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (tokenError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-hero p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 mx-auto rounded-xl bg-destructive/20 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-8 h-8 text-destructive" />
+          </div>
+          <h1 className="font-display text-2xl font-bold text-primary-foreground mb-2">
+            Token invalide
+          </h1>
+          <p className="text-muted-foreground mb-6">{tokenError}</p>
+          <Link to="/">
+            <Button variant="hero">Retour à l'accueil</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-hero p-4">
