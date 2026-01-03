@@ -1118,47 +1118,62 @@ export type Database = {
       }
       employees: {
         Row: {
+          badge_number: string | null
           created_at: string
           created_by_admin_id: string | null
           email: string
           failed_login_attempts: number | null
           full_name: string
           id: string
+          internal_note: string | null
           is_active: boolean
+          job_title: string | null
           lockout_until: string | null
           permissions_json: Json
           phone: string | null
           pin_hash: string
+          pin_set_at: string | null
+          require_pin_change: boolean | null
           role: string
           updated_at: string
         }
         Insert: {
+          badge_number?: string | null
           created_at?: string
           created_by_admin_id?: string | null
           email: string
           failed_login_attempts?: number | null
           full_name: string
           id?: string
+          internal_note?: string | null
           is_active?: boolean
+          job_title?: string | null
           lockout_until?: string | null
           permissions_json?: Json
           phone?: string | null
           pin_hash: string
+          pin_set_at?: string | null
+          require_pin_change?: boolean | null
           role?: string
           updated_at?: string
         }
         Update: {
+          badge_number?: string | null
           created_at?: string
           created_by_admin_id?: string | null
           email?: string
           failed_login_attempts?: number | null
           full_name?: string
           id?: string
+          internal_note?: string | null
           is_active?: boolean
+          job_title?: string | null
           lockout_until?: string | null
           permissions_json?: Json
           phone?: string | null
           pin_hash?: string
+          pin_set_at?: string | null
+          require_pin_change?: boolean | null
           role?: string
           updated_at?: string
         }

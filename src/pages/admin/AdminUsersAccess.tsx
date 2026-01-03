@@ -16,9 +16,10 @@ import {
   RefreshCw,
   History,
   ExternalLink,
-  Search,
-  Filter,
-  Settings2
+  Settings2,
+  Eye,
+  BadgeCheck,
+  Phone,
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,20 +28,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { ALL_PERMISSIONS, PERMISSION_LABELS, DEFAULT_PERMISSIONS, type Permission, type PermissionSet } from "@/hooks/useUserPermissions";
-
-type StaffRole = "admin" | "employee" | "technician";
+import { 
+  CreateUserDialog, 
+  type CreateUserFormData,
+  SetPinDialog,
+  UserDetailsDrawer,
+  StaffFilters,
+  type StaffRole,
+  type StatusFilter,
+  type PinFilter,
+} from "@/components/admin/users";
 
 interface StaffUser {
   id: string;
@@ -53,16 +57,11 @@ interface StaffUser {
   is_active: boolean;
   source: "user_roles" | "employees" | "technicians";
   permissions: Partial<PermissionSet>;
+  phone?: string | null;
+  badge_number?: string | null;
+  job_title?: string | null;
+  pin_set_at?: string | null;
 }
-
-const createUserSchema = z.object({
-  email: z.string().email("Email invalide"),
-  full_name: z.string().min(2, "Nom requis (min 2 caractères)"),
-  role: z.enum(["admin", "employee", "technician"]),
-  require_password_change: z.boolean(),
-});
-
-type CreateUserForm = z.infer<typeof createUserSchema>;
 
 const roleConfig: Record<StaffRole, { label: string; icon: typeof Shield; variant: "default" | "secondary" | "outline" }> = {
   admin: { label: "Administrateur", icon: Shield, variant: "default" },
@@ -73,15 +72,27 @@ const roleConfig: Record<StaffRole, { label: string; icon: typeof Shield; varian
 const AdminUsersAccess = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [changeRoleDialogOpen, setChangeRoleDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinDialogMode, setPinDialogMode] = useState<"set" | "reset">("set");
+  const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+  
+  // Selected user
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
   const [newRole, setNewRole] = useState<StaffRole>("employee");
   const [editingPermissions, setEditingPermissions] = useState<Partial<PermissionSet>>({});
+  
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<StaffRole | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [pinFilter, setPinFilter] = useState<PinFilter>("all");
 
+  // Error modal
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorModalDetails, setErrorModalDetails] = useState<{
     request_id?: string;
@@ -91,16 +102,6 @@ const AdminUsersAccess = () => {
     parsed?: unknown;
     raw_body?: string | null;
   } | null>(null);
-
-  const form = useForm<CreateUserForm>({
-    resolver: zodResolver(createUserSchema),
-    defaultValues: {
-      email: "",
-      full_name: "",
-      role: "employee",
-      require_password_change: true,
-    },
-  });
 
   // Fetch all staff users from multiple sources
   const { data: staffUsers, isLoading, refetch } = useQuery({
@@ -140,10 +141,10 @@ const AdminUsersAccess = () => {
         });
       }
 
-      // 2. Get employees from employees table (if not already in user_roles)
+      // 2. Get employees from employees table (merge with existing)
       const { data: employeesData } = await supabase
         .from("employees")
-        .select("id, email, full_name, is_active, created_at, updated_at");
+        .select("id, email, full_name, is_active, created_at, updated_at, phone, badge_number, job_title, pin_set_at");
 
       if (employeesData) {
         employeesData.forEach(emp => {
@@ -160,11 +161,19 @@ const AdminUsersAccess = () => {
               is_active: emp.is_active,
               source: "employees",
               permissions: {},
+              phone: emp.phone,
+              badge_number: emp.badge_number,
+              job_title: emp.job_title,
+              pin_set_at: emp.pin_set_at,
             });
           } else {
-            // Merge info
+            // Merge employee info
             users[existingIndex].is_active = emp.is_active;
             users[existingIndex].last_sign_in_at = emp.updated_at;
+            users[existingIndex].phone = emp.phone;
+            users[existingIndex].badge_number = emp.badge_number;
+            users[existingIndex].job_title = emp.job_title;
+            users[existingIndex].pin_set_at = emp.pin_set_at;
           }
         });
       }
@@ -172,14 +181,14 @@ const AdminUsersAccess = () => {
       // 3. Get technicians from technicians table
       const { data: techniciansData } = await supabase
         .from("technicians")
-        .select("id, email, full_name, status, created_at, updated_at");
+        .select("id, user_id, email, full_name, status, created_at, updated_at, phone");
 
       if (techniciansData) {
         techniciansData.forEach(tech => {
           const existingIndex = users.findIndex(u => u.email.toLowerCase() === tech.email.toLowerCase());
           if (existingIndex === -1) {
             users.push({
-              id: tech.id,
+              id: tech.user_id || tech.id,
               email: tech.email,
               role: "technician",
               full_name: tech.full_name,
@@ -189,11 +198,13 @@ const AdminUsersAccess = () => {
               is_active: tech.status === "active",
               source: "technicians",
               permissions: {},
+              phone: tech.phone,
             });
           } else {
-            // Merge info
+            // Merge technician info
             users[existingIndex].is_active = tech.status === "active";
             users[existingIndex].last_sign_in_at = tech.updated_at;
+            if (tech.phone) users[existingIndex].phone = tech.phone;
           }
         });
       }
@@ -227,16 +238,25 @@ const AdminUsersAccess = () => {
     return { request_id: requestId, step, message, http_status: httpStatus, parsed, raw_body: rawBody };
   };
 
-  // Create staff mutation
+  // Create staff mutation (extended)
   const createMutation = useMutation({
-    mutationFn: async (data: CreateUserForm) => {
+    mutationFn: async (data: CreateUserFormData & { permissions: Partial<PermissionSet> }) => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: {
           action: "create",
           email: data.email,
           full_name: data.full_name,
           role: data.role,
-          require_password_change: data.require_password_change,
+          require_password_change: data.send_invitation,
+          permissions: data.permissions,
+          phone: data.phone || undefined,
+          badge_number: data.badge_number,
+          job_title: data.job_title || undefined,
+          pin: data.pin || undefined,
+          require_pin_change: data.require_pin_change,
+          is_active: data.is_active,
+          send_invitation: data.send_invitation,
+          internal_note: data.internal_note || undefined,
         },
       });
 
@@ -255,11 +275,9 @@ const AdminUsersAccess = () => {
         description: isPromoted 
           ? "Compte déjà existant — rôle mis à jour." 
           : "Utilisateur créé avec succès",
-        variant: isPromoted ? "default" : "default",
       });
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
       setCreateDialogOpen(false);
-      form.reset();
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
       const details = error.details;
@@ -275,13 +293,10 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "disable", user_id: userId },
       });
-
       if (response.error || (response.data as any)?.ok === false) {
         const details = await extractErrorDetails(response);
-        const err = Object.assign(new Error(details.message), { details });
-        throw err;
+        throw Object.assign(new Error(details.message), { details });
       }
-
       return response.data;
     },
     onSuccess: () => {
@@ -289,8 +304,7 @@ const AdminUsersAccess = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      const details = error.details;
-      setErrorModalDetails(details || null);
+      setErrorModalDetails(error.details || null);
       setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
@@ -302,13 +316,10 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "enable", user_id: userId },
       });
-
       if (response.error || (response.data as any)?.ok === false) {
         const details = await extractErrorDetails(response);
-        const err = Object.assign(new Error(details.message), { details });
-        throw err;
+        throw Object.assign(new Error(details.message), { details });
       }
-
       return response.data;
     },
     onSuccess: () => {
@@ -316,8 +327,7 @@ const AdminUsersAccess = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      const details = error.details;
-      setErrorModalDetails(details || null);
+      setErrorModalDetails(error.details || null);
       setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
@@ -329,13 +339,10 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "change_role", user_id: userId, new_role: newRole },
       });
-
       if (response.error || (response.data as any)?.ok === false) {
         const details = await extractErrorDetails(response);
-        const err = Object.assign(new Error(details.message), { details });
-        throw err;
+        throw Object.assign(new Error(details.message), { details });
       }
-
       return response.data;
     },
     onSuccess: () => {
@@ -345,8 +352,7 @@ const AdminUsersAccess = () => {
       setSelectedUser(null);
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      const details = error.details;
-      setErrorModalDetails(details || null);
+      setErrorModalDetails(error.details || null);
       setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
@@ -358,35 +364,21 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "send_reset", email },
       });
-
       if (response.error || (response.data as any)?.ok === false) {
         const details = await extractErrorDetails(response);
-        const err = Object.assign(new Error(details.message), { details });
-        throw err;
+        throw Object.assign(new Error(details.message), { details });
       }
-
       return response.data;
     },
     onSuccess: () => {
       toast({ title: "Succès", description: "Email de réinitialisation envoyé" });
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      const details = error.details;
-      setErrorModalDetails(details || null);
+      setErrorModalDetails(error.details || null);
       setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive", duration: 15000 });
     },
   });
-
-  const handleCreateSubmit = (data: CreateUserForm) => {
-    createMutation.mutate(data);
-  };
-
-  const handleChangeRole = () => {
-    if (selectedUser) {
-      changeRoleMutation.mutate({ userId: selectedUser.id, newRole });
-    }
-  };
 
   // Update permissions mutation
   const updatePermissionsMutation = useMutation({
@@ -394,13 +386,10 @@ const AdminUsersAccess = () => {
       const response = await supabase.functions.invoke("admin-manage-staff", {
         body: { action: "update_permissions", user_id: userId, permissions },
       });
-
       if (response.error || (response.data as any)?.ok === false) {
         const details = await extractErrorDetails(response);
-        const err = Object.assign(new Error(details.message), { details });
-        throw err;
+        throw Object.assign(new Error(details.message), { details });
       }
-
       return response.data;
     },
     onSuccess: () => {
@@ -410,8 +399,60 @@ const AdminUsersAccess = () => {
       setSelectedUser(null);
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      const details = error.details;
-      setErrorModalDetails(details || null);
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Apply role pack mutation
+  const applyRolePackMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "apply_role_pack", user_id: userId },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: (data: { role?: string }) => {
+      toast({ title: "Succès", description: `Pack de permissions "${data.role}" appliqué` });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Set/Reset PIN mutation
+  const setPinMutation = useMutation({
+    mutationFn: async ({ userId, pin, requireChange, isReset }: { userId: string; pin: string; requireChange: boolean; isReset: boolean }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { 
+          action: isReset ? "reset_pin" : "set_pin", 
+          user_id: userId, 
+          pin,
+          require_pin_change: requireChange,
+        },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Succès", description: pinDialogMode === "reset" ? "PIN réinitialisé" : "PIN défini" });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+      setPinDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
       setErrorModalOpen(true);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
@@ -419,7 +460,6 @@ const AdminUsersAccess = () => {
 
   const openPermissionsDialog = (user: StaffUser) => {
     setSelectedUser(user);
-    // Initialize with user's current permissions merged with role defaults
     const roleDefaults = DEFAULT_PERMISSIONS[user.role] || {};
     const merged: Partial<PermissionSet> = {};
     ALL_PERMISSIONS.forEach(perm => {
@@ -442,40 +482,49 @@ const AdminUsersAccess = () => {
     }));
   };
 
-  // Apply role pack mutation
-  const applyRolePackMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
-        body: { action: "apply_role_pack", user_id: userId },
+  const handleChangeRole = () => {
+    if (selectedUser) {
+      changeRoleMutation.mutate({ userId: selectedUser.id, newRole });
+    }
+  };
+
+  const openPinDialog = (user: StaffUser, mode: "set" | "reset") => {
+    setSelectedUser(user);
+    setPinDialogMode(mode);
+    setPinDialogOpen(true);
+  };
+
+  const handleSetPin = (pin: string, requireChange: boolean) => {
+    if (selectedUser) {
+      setPinMutation.mutate({ 
+        userId: selectedUser.id, 
+        pin, 
+        requireChange, 
+        isReset: pinDialogMode === "reset" 
       });
+    }
+  };
 
-      if (response.error || (response.data as any)?.ok === false) {
-        const details = await extractErrorDetails(response);
-        const err = Object.assign(new Error(details.message), { details });
-        throw err;
-      }
-
-      return response.data;
-    },
-    onSuccess: (data: { role?: string }) => {
-      toast({ title: "Succès", description: `Pack de permissions "${data.role}" appliqué` });
-      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
-    },
-    onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      const details = error.details;
-      setErrorModalDetails(details || null);
-      setErrorModalOpen(true);
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
+  const openDetailsDrawer = (user: StaffUser) => {
+    setSelectedUser(user);
+    setDetailsDrawerOpen(true);
+  };
 
   // Filter users
   const filteredUsers = staffUsers?.filter(user => {
     const matchesSearch = 
       user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.badge_number?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" && user.is_active) ||
+      (statusFilter === "disabled" && !user.is_active);
+    const matchesPin = pinFilter === "all" ||
+      (pinFilter === "defined" && user.pin_set_at) ||
+      (pinFilter === "not_defined" && !user.pin_set_at);
+    return matchesSearch && matchesRole && matchesStatus && matchesPin;
   });
 
   const countByRole = {
@@ -580,29 +629,16 @@ const AdminUsersAccess = () => {
                       Administrateurs, employés et techniciens avec accès au système
                     </CardDescription>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Rechercher..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 w-[200px]"
-                      />
-                    </div>
-                    <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as StaffRole | "all")}>
-                      <SelectTrigger className="w-[160px]">
-                        <Filter className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Tous les rôles" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les rôles</SelectItem>
-                        <SelectItem value="admin">Administrateurs</SelectItem>
-                        <SelectItem value="employee">Employés</SelectItem>
-                        <SelectItem value="technician">Techniciens</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <StaffFilters
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    roleFilter={roleFilter}
+                    onRoleFilterChange={setRoleFilter}
+                    statusFilter={statusFilter}
+                    onStatusFilterChange={setStatusFilter}
+                    pinFilter={pinFilter}
+                    onPinFilterChange={setPinFilter}
+                  />
                 </div>
               </CardHeader>
               <CardContent>
@@ -621,6 +657,9 @@ const AdminUsersAccess = () => {
                         <TableHead>Utilisateur</TableHead>
                         <TableHead>Rôle</TableHead>
                         <TableHead>Statut</TableHead>
+                        <TableHead>Badge</TableHead>
+                        <TableHead>Téléphone</TableHead>
+                        <TableHead>PIN</TableHead>
                         <TableHead>Créé le</TableHead>
                         <TableHead>Dernière activité</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -636,6 +675,9 @@ const AdminUsersAccess = () => {
                               <div>
                                 <p className="font-medium">{user.full_name || "—"}</p>
                                 <p className="text-sm text-muted-foreground">{user.email}</p>
+                                {user.job_title && (
+                                  <p className="text-xs text-muted-foreground">{user.job_title}</p>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -647,6 +689,27 @@ const AdminUsersAccess = () => {
                             <TableCell>
                               <Badge variant={user.is_active ? "default" : "secondary"}>
                                 {user.is_active ? "Actif" : "Désactivé"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {user.badge_number ? (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <BadgeCheck className="h-3 w-3 text-muted-foreground" />
+                                  {user.badge_number}
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {user.phone ? (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Phone className="h-3 w-3 text-muted-foreground" />
+                                  {user.phone}
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={user.pin_set_at ? "default" : "outline"} className="text-xs">
+                                {user.pin_set_at ? "Défini" : "Non"}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -666,9 +729,11 @@ const AdminUsersAccess = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem 
-                                    onClick={() => openPermissionsDialog(user)}
-                                  >
+                                  <DropdownMenuItem onClick={() => openDetailsDrawer(user)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Voir détails
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openPermissionsDialog(user)}>
                                     <Settings2 className="h-4 w-4 mr-2" />
                                     Permissions
                                   </DropdownMenuItem>
@@ -683,24 +748,33 @@ const AdminUsersAccess = () => {
                                     Changer le rôle
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
+                                    onClick={() => applyRolePackMutation.mutate(user.id)}
+                                    disabled={applyRolePackMutation.isPending}
+                                  >
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Appliquer pack du rôle
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {user.role !== "admin" && (
+                                    <>
+                                      <DropdownMenuItem onClick={() => openPinDialog(user, user.pin_set_at ? "reset" : "set")}>
+                                        <KeyRound className="h-4 w-4 mr-2" />
+                                        {user.pin_set_at ? "Réinitialiser PIN" : "Définir PIN"}
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  <DropdownMenuItem 
                                     onClick={() => sendResetMutation.mutate(user.email)}
                                     disabled={sendResetMutation.isPending}
                                   >
                                     <KeyRound className="h-4 w-4 mr-2" />
-                                    Envoyer réinitialisation
+                                    Envoyer réinit. mot de passe
                                   </DropdownMenuItem>
                                   <DropdownMenuItem asChild>
                                     <Link to={`/admin/audit-log?email=${encodeURIComponent(user.email)}`}>
                                       <History className="h-4 w-4 mr-2" />
                                       Voir l'historique
                                     </Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => applyRolePackMutation.mutate(user.id)}
-                                    disabled={applyRolePackMutation.isPending}
-                                  >
-                                    <Shield className="h-4 w-4 mr-2" />
-                                    Appliquer pack du rôle
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {user.is_active ? (
@@ -736,110 +810,29 @@ const AdminUsersAccess = () => {
         </Tabs>
 
         {/* Create User Dialog */}
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Créer un utilisateur</DialogTitle>
-              <DialogDescription>
-                Ajoutez un nouveau membre du personnel avec accès au système
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCreateSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" placeholder="nom@nivratelecom.ca" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="full_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nom complet</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Jean Dupont" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rôle</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un rôle" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="admin">
-                            <div className="flex items-center gap-2">
-                              <Shield className="h-4 w-4" />
-                              Administrateur
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="employee">
-                            <div className="flex items-center gap-2">
-                              <UserCog className="h-4 w-4" />
-                              Employé
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="technician">
-                            <div className="flex items-center gap-2">
-                              <Wrench className="h-4 w-4" />
-                              Technicien
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="require_password_change"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Exiger changement de mot de passe au premier login
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Création..." : "Créer"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <CreateUserDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onSubmit={(data) => createMutation.mutate(data)}
+          isPending={createMutation.isPending}
+        />
+
+        {/* Set/Reset PIN Dialog */}
+        <SetPinDialog
+          open={pinDialogOpen}
+          onOpenChange={setPinDialogOpen}
+          userName={selectedUser?.full_name || selectedUser?.email || ""}
+          isReset={pinDialogMode === "reset"}
+          onSubmit={handleSetPin}
+          isPending={setPinMutation.isPending}
+        />
+
+        {/* User Details Drawer */}
+        <UserDetailsDrawer
+          open={detailsDrawerOpen}
+          onOpenChange={setDetailsDrawerOpen}
+          user={selectedUser}
+        />
 
         {/* Change Role Dialog */}
         <Dialog open={changeRoleDialogOpen} onOpenChange={setChangeRoleDialogOpen}>
@@ -882,24 +875,55 @@ const AdminUsersAccess = () => {
                 Annuler
               </Button>
               <Button onClick={handleChangeRole} disabled={changeRoleMutation.isPending}>
-                {changeRoleMutation.isPending ? "Modification..." : "Confirmer"}
+                {changeRoleMutation.isPending ? "..." : "Confirmer"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Error Details Modal */}
-        <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
+        {/* Permissions Dialog */}
+        <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Détails de l'erreur</DialogTitle>
+              <DialogTitle>Gérer les permissions</DialogTitle>
+              <DialogDescription>
+                Configurer les permissions de {selectedUser?.full_name || selectedUser?.email}
+              </DialogDescription>
             </DialogHeader>
-            <div className="space-y-3 text-sm">
+            <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {ALL_PERMISSIONS.map(perm => (
+                <label key={perm} className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-2 rounded">
+                  <Checkbox
+                    checked={editingPermissions[perm] ?? false}
+                    onCheckedChange={() => togglePermission(perm)}
+                  />
+                  <span className="text-sm">{PERMISSION_LABELS[perm]}</span>
+                </label>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSavePermissions} disabled={updatePermissionsMutation.isPending}>
+                {updatePermissionsMutation.isPending ? "..." : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Error Modal */}
+        <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Détails de l'erreur</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 text-sm">
               {errorModalDetails?.request_id && (
-                <p><strong>Request ID:</strong> <code className="bg-muted px-1 rounded">{errorModalDetails.request_id}</code></p>
+                <p><strong>Request ID:</strong> {errorModalDetails.request_id}</p>
               )}
               {errorModalDetails?.step && (
-                <p><strong>Étape:</strong> <code className="bg-muted px-1 rounded">{errorModalDetails.step}</code></p>
+                <p><strong>Étape:</strong> {errorModalDetails.step}</p>
               )}
               {errorModalDetails?.message && (
                 <p><strong>Message:</strong> {errorModalDetails.message}</p>
@@ -907,66 +931,9 @@ const AdminUsersAccess = () => {
               {errorModalDetails?.http_status && (
                 <p><strong>HTTP Status:</strong> {errorModalDetails.http_status}</p>
               )}
-              {errorModalDetails?.raw_body && (
-                <div>
-                  <p className="mb-1"><strong>Réponse JSON:</strong></p>
-                  <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-48">
-                    {errorModalDetails.raw_body}
-                  </pre>
-                </div>
-              )}
             </div>
             <DialogFooter>
               <Button onClick={() => setErrorModalOpen(false)}>Fermer</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Permissions Dialog */}
-        <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Permissions - {selectedUser?.full_name || selectedUser?.email}</DialogTitle>
-              <DialogDescription>
-                Configurez les permissions granulaires pour cet utilisateur. 
-                {selectedUser?.role === "admin" && (
-                  <span className="text-primary font-medium"> (Les administrateurs ont toutes les permissions par défaut)</span>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {ALL_PERMISSIONS.map(perm => (
-                  <div 
-                    key={perm} 
-                    className="flex items-center space-x-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                  >
-                    <Checkbox
-                      id={`perm-${perm}`}
-                      checked={editingPermissions[perm] ?? false}
-                      onCheckedChange={() => togglePermission(perm)}
-                      disabled={selectedUser?.role === "admin"}
-                    />
-                    <label
-                      htmlFor={`perm-${perm}`}
-                      className="text-sm font-medium leading-none cursor-pointer flex-1"
-                    >
-                      {PERMISSION_LABELS[perm]}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button 
-                onClick={handleSavePermissions} 
-                disabled={updatePermissionsMutation.isPending || selectedUser?.role === "admin"}
-              >
-                {updatePermissionsMutation.isPending ? "Enregistrement..." : "Enregistrer"}
-              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

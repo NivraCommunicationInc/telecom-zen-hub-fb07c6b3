@@ -31,6 +31,15 @@ interface CreateStaffRequest {
   role: StaffRole;
   require_password_change?: boolean;
   permissions?: PermissionSet;
+  // Extended fields
+  phone?: string;
+  badge_number?: string;
+  job_title?: string;
+  pin?: string;
+  require_pin_change?: boolean;
+  is_active?: boolean;
+  send_invitation?: boolean;
+  internal_note?: string;
 }
 
 interface UpdatePermissionsRequest {
@@ -60,7 +69,32 @@ interface ApplyRolePackRequest {
   user_id: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest;
+interface SetPinRequest {
+  action: "set_pin" | "reset_pin";
+  user_id: string;
+  pin: string;
+  require_pin_change?: boolean;
+}
+
+interface UpdateProfileRequest {
+  action: "update_profile";
+  user_id: string;
+  full_name?: string;
+  phone?: string;
+  badge_number?: string;
+  job_title?: string;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest;
+
+// PIN hashing function (must match client-side)
+const SALT = 'nivra_pin_salt_2026';
+async function hashPin(pin: string): Promise<string> {
+  const data = new TextEncoder().encode(SALT + pin);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 type ApiError = {
   code: string;
@@ -206,7 +240,20 @@ serve(async (req: Request) => {
 
     switch (body.action) {
       case "create": {
-        const { email, full_name, role, require_password_change = true } = body;
+        const { 
+          email, 
+          full_name, 
+          role, 
+          require_password_change = true,
+          phone,
+          badge_number,
+          job_title,
+          pin,
+          require_pin_change = false,
+          is_active = true,
+          send_invitation = true,
+          internal_note,
+        } = body;
         const createStep = "create";
         console.log(`[admin-manage-staff] ${createStep}.start email=${email} role=${role} request_id=${requestId}`);
 
@@ -228,6 +275,36 @@ serve(async (req: Request) => {
             http_status: 400,
             supabase_error: null,
             details: { email, full_name, role },
+          });
+        }
+
+        // Validate badge_number uniqueness if provided
+        if (badge_number) {
+          const { data: existingBadge } = await adminClient
+            .from("employees")
+            .select("id")
+            .eq("badge_number", badge_number)
+            .maybeSingle();
+          
+          if (existingBadge) {
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              step: `${createStep}.validate_badge`,
+              message: "Ce numéro de badge est déjà utilisé",
+              http_status: 400,
+            });
+          }
+        }
+
+        // Validate PIN for non-admin roles
+        if (role !== "admin" && pin && !/^\d{4}$/.test(pin)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            step: `${createStep}.validate_pin`,
+            message: "Le PIN doit être exactement 4 chiffres",
+            http_status: 400,
           });
         }
 
@@ -467,12 +544,38 @@ serve(async (req: Request) => {
             user_id: userId,
             email,
             full_name,
-            status: "active",
+            status: is_active ? "active" : "inactive",
           }, { onConflict: "user_id" });
 
           if (techError) {
             console.error(`[admin-manage-staff] ${stepTech} error:`, techError);
             // Non-fatal, log but continue
+          }
+        }
+
+        // Handle employee table entry for employee/technician roles
+        if (role === "employee" || role === "technician") {
+          const stepEmp = `${createStep}.db_upsert_employee`;
+          const pinHash = pin ? await hashPin(pin) : await hashPin("3112"); // Default PIN
+          
+          const { error: empError } = await adminClient.from("employees").upsert({
+            email,
+            full_name,
+            phone: phone || null,
+            role,
+            is_active,
+            pin_hash: pinHash,
+            pin_set_at: pin ? new Date().toISOString() : null,
+            require_pin_change: require_pin_change || !pin,
+            badge_number: badge_number || null,
+            job_title: job_title || null,
+            internal_note: internal_note || null,
+            created_by_admin_id: callingUser.id,
+          }, { onConflict: "email" });
+
+          if (empError) {
+            console.error(`[admin-manage-staff] ${stepEmp} error:`, empError);
+            // Non-fatal for now, log but continue
           }
         }
 
@@ -483,7 +586,10 @@ serve(async (req: Request) => {
           auditAction,
           {
             role,
-            require_password_change,
+            require_password_change: send_invitation,
+            badge_number,
+            job_title,
+            has_pin: !!pin,
             request_id: requestId,
             mode,
           },
@@ -491,7 +597,7 @@ serve(async (req: Request) => {
         );
 
         // Send reset email if needed (for new users or if explicitly requested)
-        if (require_password_change && mode === "new_user_created") {
+        if (send_invitation && mode === "new_user_created") {
           const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
           let appBaseUrl = "https://nivratelecom.ca";
           if (rawAppBaseUrl) {
@@ -513,7 +619,9 @@ serve(async (req: Request) => {
 
         const successMessage = mode === "existing_user_promoted"
           ? "Compte existant trouvé — rôle mis à jour avec succès."
-          : "Utilisateur créé. Un email de configuration du mot de passe a été envoyé.";
+          : send_invitation 
+            ? "Utilisateur créé. Un email de configuration du mot de passe a été envoyé."
+            : "Utilisateur créé avec succès.";
 
         return json(200, {
           ok: true,
@@ -1011,6 +1119,160 @@ serve(async (req: Request) => {
           success: true,
           message: `Pack de permissions "${currentRole}" appliqué`,
           role: currentRole,
+        });
+      }
+
+      case "set_pin":
+      case "reset_pin": {
+        const { user_id, pin, require_pin_change = false } = body as SetPinRequest;
+        const isReset = body.action === "reset_pin";
+        const stepBase = isReset ? "reset_pin" : "set_pin";
+
+        if (!user_id || !pin) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id et pin requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        if (!/^\d{4}$/.test(pin)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Le PIN doit être exactement 4 chiffres", step: `${stepBase}.validate_format` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
+
+        const pinHash = await hashPin(pin);
+
+        // Update employees table
+        const { error: updateError } = await adminClient
+          .from("employees")
+          .update({
+            pin_hash: pinHash,
+            pin_set_at: new Date().toISOString(),
+            require_pin_change,
+          })
+          .or(`id.eq.${user_id},email.in.(select email from profiles where user_id = '${user_id}')`);
+
+        // Also try to get email for logging
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("email")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        // If no match in employees by user_id, try by email
+        if (!updateError && profile?.email) {
+          await adminClient
+            .from("employees")
+            .update({
+              pin_hash: pinHash,
+              pin_set_at: new Date().toISOString(),
+              require_pin_change,
+            })
+            .eq("email", profile.email);
+        }
+
+        await logAction(
+          isReset ? "staff_pin_reset" : "staff_pin_set",
+          {
+            request_id: requestId,
+            require_pin_change,
+          },
+          { type: "user", id: user_id, email: profile?.email }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: isReset ? "PIN réinitialisé" : "PIN défini",
+        });
+      }
+
+      case "update_profile": {
+        const { user_id, full_name, phone, badge_number, job_title } = body as UpdateProfileRequest;
+        const stepBase = "update_profile";
+
+        if (!user_id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
+
+        // Validate badge_number uniqueness if provided
+        if (badge_number) {
+          const { data: existingBadge } = await adminClient
+            .from("employees")
+            .select("id")
+            .eq("badge_number", badge_number)
+            .neq("id", user_id)
+            .maybeSingle();
+          
+          if (existingBadge) {
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "VALIDATION", message: "Ce numéro de badge est déjà utilisé", step: `${stepBase}.validate_badge` } satisfies ApiError,
+            });
+          }
+        }
+
+        // Get profile email for employee lookup
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("email")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        const updateData: Record<string, unknown> = {};
+        if (full_name !== undefined) updateData.full_name = full_name;
+        if (phone !== undefined) updateData.phone = phone;
+        if (badge_number !== undefined) updateData.badge_number = badge_number;
+        if (job_title !== undefined) updateData.job_title = job_title;
+
+        // Update profiles table
+        if (full_name !== undefined) {
+          await adminClient
+            .from("profiles")
+            .update({ full_name })
+            .eq("user_id", user_id);
+        }
+
+        // Update employees table
+        if (Object.keys(updateData).length > 0 && profile?.email) {
+          const { error: empError } = await adminClient
+            .from("employees")
+            .update(updateData)
+            .eq("email", profile.email);
+
+          if (empError) {
+            console.error(`[admin-manage-staff] ${stepBase} employees error:`, empError);
+          }
+        }
+
+        await logAction(
+          "staff_profile_updated",
+          {
+            request_id: requestId,
+            updated_fields: Object.keys(updateData),
+          },
+          { type: "user", id: user_id, email: profile?.email }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Profil mis à jour",
         });
       }
 
