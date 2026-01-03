@@ -27,15 +27,23 @@ async function signToken(payload: object, secret: string): Promise<string> {
   return `${data}.${signatureB64}`;
 }
 
-
 const PIN_SALT = "nivra_employee_salt_2025";
+const PIN_SALT_NEW = "nivra_pin_salt_2026";
 
-// Simple hash function for PIN verification
+// Hash function for PIN verification
 async function hashPin(pin: string, salt = ""): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(pin + salt);
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Hash function for token
+async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 serve(async (req) => {
@@ -47,7 +55,150 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const { email, pin } = await req.json();
+    const body = await req.json();
+    const { action } = body;
+    
+    // Create Supabase client with service role for admin access
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Handle PIN token validation
+    if (action === "validate_pin_token") {
+      const { token } = body;
+      
+      if (!token) {
+        return new Response(
+          JSON.stringify({ ok: false, message: "Token requis" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const tokenHash = await hashToken(token);
+
+      const { data: tokenData, error: tokenError } = await supabase
+        .from("pin_invite_tokens")
+        .select("*")
+        .eq("token_hash", tokenHash)
+        .eq("role", "employee")
+        .is("used_at", null)
+        .maybeSingle();
+
+      if (tokenError || !tokenData) {
+        console.log("[employee-auth] validate_pin_token: token not found or used");
+        return new Response(
+          JSON.stringify({ ok: false, message: "Lien invalide ou déjà utilisé" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check expiry
+      if (new Date(tokenData.expires_at) < new Date()) {
+        console.log("[employee-auth] validate_pin_token: token expired");
+        return new Response(
+          JSON.stringify({ ok: false, message: "Ce lien a expiré. Demandez un nouveau lien à l'administrateur." }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ ok: true, email: tokenData.email }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle PIN setup with token
+    if (action === "set_pin_with_token") {
+      const { token, pin } = body;
+      
+      if (!token || !pin) {
+        return new Response(
+          JSON.stringify({ ok: false, message: "Token et PIN requis" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!/^\d{4}$/.test(pin)) {
+        return new Response(
+          JSON.stringify({ ok: false, message: "Le PIN doit être exactement 4 chiffres" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const tokenHash = await hashToken(token);
+
+      const { data: tokenData, error: tokenError } = await supabase
+        .from("pin_invite_tokens")
+        .select("*")
+        .eq("token_hash", tokenHash)
+        .eq("role", "employee")
+        .is("used_at", null)
+        .maybeSingle();
+
+      if (tokenError || !tokenData) {
+        console.log("[employee-auth] set_pin_with_token: token not found or used");
+        return new Response(
+          JSON.stringify({ ok: false, message: "Lien invalide ou déjà utilisé" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (new Date(tokenData.expires_at) < new Date()) {
+        console.log("[employee-auth] set_pin_with_token: token expired");
+        return new Response(
+          JSON.stringify({ ok: false, message: "Ce lien a expiré" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Hash PIN with new salt
+      const pinHash = await hashPin(pin, PIN_SALT_NEW.replace("nivra_pin_salt_2026", "").length > 0 ? PIN_SALT_NEW : PIN_SALT);
+      const pinHashNew = await hashPin(PIN_SALT_NEW + pin);
+
+      // Update employee record
+      const { error: updateError } = await supabase
+        .from("employees")
+        .update({
+          pin_hash: pinHashNew,
+          pin_set_at: new Date().toISOString(),
+          require_pin_change: false,
+        })
+        .ilike("email", tokenData.email);
+
+      if (updateError) {
+        console.error("[employee-auth] set_pin_with_token: update error:", updateError);
+        return new Response(
+          JSON.stringify({ ok: false, message: "Erreur lors de la mise à jour du PIN" }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Mark token as used
+      await supabase
+        .from("pin_invite_tokens")
+        .update({ used_at: new Date().toISOString() })
+        .eq("id", tokenData.id);
+
+      // Log action
+      await supabase.from("employee_audit_logs").insert({
+        actor_role: "employee",
+        actor_id: tokenData.user_id,
+        actor_email: tokenData.email,
+        action: "PIN_SET_VIA_INVITE",
+        target_employee_email: tokenData.email,
+        details_json: { invite_id: tokenData.id },
+      });
+
+      console.log("[employee-auth] set_pin_with_token: PIN set successfully for", tokenData.email);
+
+      return new Response(
+        JSON.stringify({ ok: true, message: "PIN configuré avec succès" }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Default: login flow
+    const { email, pin } = body;
     
     if (!email || !pin) {
       console.log("[employee-auth] Missing email or PIN");
@@ -59,11 +210,6 @@ serve(async (req) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     console.log(`[employee-auth] Login attempt for: ${normalizedEmail}`);
-
-    // Create Supabase client with service role for admin access
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Step 1: Find profile by email (normalized)
     const { data: profile, error: profileError } = await supabase
@@ -180,11 +326,17 @@ serve(async (req) => {
       );
     }
 
-    // Verify PIN against hash
+    // Verify PIN against hash - try multiple salt patterns
     const inputPinHash = await hashPin(pin, PIN_SALT);
+    const inputPinHashNew = await hashPin(PIN_SALT_NEW + pin);
     const legacyInputPinHash = await hashPin(pin);
 
-    if (employee.pin_hash !== inputPinHash && employee.pin_hash !== legacyInputPinHash) {
+    const pinValid = 
+      employee.pin_hash === inputPinHash || 
+      employee.pin_hash === inputPinHashNew ||
+      employee.pin_hash === legacyInputPinHash;
+
+    if (!pinValid) {
       const newAttempts = (employee.failed_login_attempts || 0) + 1;
       const MAX_ATTEMPTS = 5;
       const LOCKOUT_MINUTES = 15;
