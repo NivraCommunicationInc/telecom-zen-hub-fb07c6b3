@@ -21,6 +21,7 @@ import StreamingPlans from "./pages/StreamingPlans";
 import NotFound from "./pages/NotFound";
 import NotAuthorized from "./pages/NotAuthorized";
 import AdminLogin from "./pages/admin/AdminLogin";
+import AdminBootstrap from "./pages/admin/AdminBootstrap";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminClients from "./pages/admin/AdminClients";
@@ -117,6 +118,7 @@ const App = () => (
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfUse />} />
               <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/bootstrap" element={<AdminBootstrap />} />
               <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
               <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
               <Route path="/admin/clients" element={<ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute>} />
