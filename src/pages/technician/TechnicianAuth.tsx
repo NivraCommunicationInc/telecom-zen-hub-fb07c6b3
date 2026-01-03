@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wrench, Mail, ArrowLeft, AlertCircle } from "lucide-react";
+import { Wrench, Mail, ArrowLeft, AlertCircle, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -17,7 +17,9 @@ const TechnicianAuth = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [accessCode, setAccessCode] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const normalizeEmail = (email: string): string => {
@@ -29,7 +31,7 @@ const TechnicianAuth = () => {
     setErrorMessage(null);
     
     if (accessCode.length !== 4) {
-      setErrorMessage("Le code d'accès doit contenir 4 chiffres.");
+      setErrorMessage("Le code PIN doit contenir 4 chiffres.");
       return;
     }
 
@@ -39,12 +41,22 @@ const TechnicianAuth = () => {
       return;
     }
 
+    if (!password || password.length < 6) {
+      setErrorMessage("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Call the secure edge function for authentication
+      // Call the secure edge function for authentication with password + PIN
       const { data, error } = await supabase.functions.invoke("technician-auth", {
-        body: { email: normalizedEmail, accessCode },
+        body: { 
+          email: normalizedEmail, 
+          password,
+          accessCode,
+          action: "login_with_password"
+        },
       });
 
       if (error) {
@@ -54,7 +66,6 @@ const TechnicianAuth = () => {
         if (error instanceof FunctionsHttpError) {
           try {
             const body = await error.context.json();
-            // New diagnostic format: { ok: false, step, reason }
             if (typeof body?.reason === "string" && body.reason.trim()) {
               message = body.reason;
             } else if (typeof body?.error === "string" && body.error.trim()) {
@@ -80,6 +91,14 @@ const TechnicianAuth = () => {
         return;
       }
 
+      // Check if password change is required
+      if (data.require_password_change) {
+        sessionStorage.setItem("technician_temp_token", data.token);
+        sessionStorage.setItem("technician_email", normalizedEmail);
+        navigate("/technician/change-password");
+        return;
+      }
+
       // Store signed session token and technician info
       const techSession = {
         id: data.technician.id,
@@ -89,6 +108,7 @@ const TechnicianAuth = () => {
         specializations: data.technician.specializations,
         token: data.token,
         authenticated_at: new Date().toISOString(),
+        lastAuthCheck: new Date().toISOString(),
       };
       
       localStorage.setItem("nivra_technician_session", JSON.stringify(techSession));
@@ -120,7 +140,7 @@ const TechnicianAuth = () => {
               <Wrench className="w-8 h-8 text-navy-900" />
             </div>
             <CardTitle className="text-2xl font-display">Portail Technicien</CardTitle>
-            <CardDescription>Connexion Technicien – Nivra</CardDescription>
+            <CardDescription>Connexion avec mot de passe et PIN</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -131,28 +151,58 @@ const TechnicianAuth = () => {
               </Alert>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Courriel</Label>
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Courriel
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="technicien@nivra.ca"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErrorMessage(null);
+                  }}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Mot de passe
+                </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="technicien@nivra.ca"
-                    value={email}
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
                     onChange={(e) => {
-                      setEmail(e.target.value);
+                      setPassword(e.target.value);
                       setErrorMessage(null);
                     }}
-                    className="pl-10"
+                    className="pr-10"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="access-code">Code d'accès (4 chiffres)</Label>
+                <Label className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4" />
+                  Code PIN (4 chiffres)
+                </Label>
                 <div className="flex justify-center">
                   <InputOTP
                     maxLength={4}
@@ -170,16 +220,13 @@ const TechnicianAuth = () => {
                     </InputOTPGroup>
                   </InputOTP>
                 </div>
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Entrez le code à 4 chiffres fourni par l'administrateur
-                </p>
               </div>
 
               <Button
                 type="submit"
                 className="w-full"
                 variant="hero"
-                disabled={isLoading || accessCode.length !== 4}
+                disabled={isLoading || accessCode.length !== 4 || !password}
               >
                 {isLoading ? "Connexion..." : "Se connecter"}
               </Button>

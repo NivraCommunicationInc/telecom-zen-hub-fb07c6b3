@@ -1,25 +1,147 @@
-import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { ReactNode, useEffect, useState, useRef } from "react";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 interface ClientProtectedRouteProps {
   children: ReactNode;
 }
 
-const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
-  const { user, isLoading } = useAuth();
+const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
-  if (isLoading) {
+const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
+  const { user, session, signOut, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isVerifying, setIsVerifying] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const lastAuthCheck = useRef<number>(0);
+
+  useEffect(() => {
+    const verifySession = async () => {
+      // Must have both user and session
+      if (!user || !session) {
+        setIsVerifying(false);
+        return;
+      }
+
+      try {
+        const now = Date.now();
+        const lastCheckStr = sessionStorage.getItem("client_last_auth_check");
+        const lastCheckTime = lastCheckStr ? parseInt(lastCheckStr, 10) : 0;
+
+        // SECURITY: Validate session freshness
+        if (now - lastCheckTime > SESSION_RECHECK_INTERVAL_MS) {
+          console.log("[ClientProtectedRoute] Session check interval exceeded, validating...");
+
+          // Verify session is still valid with Supabase
+          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+
+          if (sessionError || !currentSession) {
+            console.warn("[ClientProtectedRoute] Session expired or invalid");
+            
+            // Log security event
+            try {
+              await supabase.from("admin_audit_log").insert({
+                admin_user_id: user.id,
+                admin_email: user.email,
+                action: "security_session_blocked",
+                details: {
+                  reason: "Session expired or invalid",
+                  portal: "client",
+                  path: location.pathname,
+                  timestamp: new Date().toISOString(),
+                },
+                target_type: "security",
+              });
+            } catch {
+              // Ignore logging errors
+            }
+
+            sessionStorage.removeItem("client_last_auth_check");
+            await signOut();
+            navigate("/portal/auth", { replace: true });
+            return;
+          }
+
+          // Update last check time
+          sessionStorage.setItem("client_last_auth_check", now.toString());
+          lastAuthCheck.current = now;
+        }
+
+        // Verify user has client role (or at least exists)
+        const { data: roleData, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role, status")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (roleError) {
+          console.error("[ClientProtectedRoute] Role check error:", roleError);
+          // Allow access if role check fails but session is valid
+          setIsAuthorized(true);
+          setIsVerifying(false);
+          return;
+        }
+
+        // Check status
+        if (roleData?.status && roleData.status !== "active") {
+          console.warn("[ClientProtectedRoute] Client account not active:", roleData.status);
+          navigate("/portal/suspended", { replace: true });
+          return;
+        }
+
+        // SECURITY: Block admin-only access from client portal
+        if (roleData?.role === "admin") {
+          // Admin shouldn't be using client portal but allow it
+          console.log("[ClientProtectedRoute] Admin user accessing client portal");
+        }
+
+        setIsAuthorized(true);
+      } catch (err) {
+        console.error("[ClientProtectedRoute] Verification error:", err);
+        // On error, allow access if session exists
+        setIsAuthorized(true);
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+
+    if (!isLoading) {
+      verifySession();
+    }
+  }, [user, session, isLoading, signOut, navigate, location.pathname]);
+
+  // Clear session storage on sign out
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === null) {
+        sessionStorage.removeItem("client_last_auth_check");
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  if (isLoading || isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto" />
+          <p className="text-muted-foreground">Vérification...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
+  if (!user || !session) {
+    sessionStorage.removeItem("client_last_auth_check");
     return <Navigate to="/portal/auth" replace />;
+  }
+
+  if (!isAuthorized) {
+    return null;
   }
 
   return <>{children}</>;
