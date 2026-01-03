@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wrench, Mail, ArrowLeft, AlertCircle, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Wrench, Mail, ArrowLeft, AlertCircle, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -12,14 +12,32 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
+// Error reason to user-friendly message mapping
+const getErrorMessage = (reason: string): string => {
+  switch (reason) {
+    case "not_found":
+      return "Aucun compte technicien trouvé avec ce courriel.";
+    case "invalid_pin":
+      return "Code PIN invalide.";
+    case "pin_not_set":
+      return "Votre PIN n'est pas encore configuré. Contactez l'administrateur.";
+    case "status_hold":
+      return "Votre compte est temporairement suspendu.";
+    case "status_disabled":
+      return "Votre compte a été désactivé. Contactez l'administrateur.";
+    case "account_locked":
+      return "Compte verrouillé suite à trop de tentatives. Réessayez plus tard.";
+    default:
+      return reason || "Erreur de connexion.";
+  }
+};
+
 const TechnicianAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [accessCode, setAccessCode] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const normalizeEmail = (email: string): string => {
@@ -41,21 +59,15 @@ const TechnicianAuth = () => {
       return;
     }
 
-    if (!password || password.length < 6) {
-      setErrorMessage("Le mot de passe doit contenir au moins 6 caractères.");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      // Call the secure edge function for authentication with password + PIN
+      // Call the secure edge function for PIN-only authentication
       const { data, error } = await supabase.functions.invoke("technician-auth", {
         body: { 
+          action: "pin_login",
           email: normalizedEmail, 
-          password,
-          accessCode,
-          action: "login_with_password"
+          pin: accessCode,
         },
       });
 
@@ -67,7 +79,9 @@ const TechnicianAuth = () => {
           try {
             const body = await error.context.json();
             if (typeof body?.reason === "string" && body.reason.trim()) {
-              message = body.reason;
+              message = getErrorMessage(body.reason);
+            } else if (typeof body?.message === "string" && body.message.trim()) {
+              message = body.message;
             } else if (typeof body?.error === "string" && body.error.trim()) {
               message = body.error;
             }
@@ -82,30 +96,23 @@ const TechnicianAuth = () => {
 
       // Handle error response in data (2xx with ok:false)
       if (data?.ok === false) {
-        setErrorMessage(data.reason || data.error || "Erreur de connexion.");
+        setErrorMessage(getErrorMessage(data.reason || data.error));
         return;
       }
 
-      if (!data?.success || !data?.token) {
+      if (!data?.ok || !data?.user_id) {
         setErrorMessage("Réponse invalide du serveur.");
-        return;
-      }
-
-      // Check if password change is required
-      if (data.require_password_change) {
-        sessionStorage.setItem("technician_temp_token", data.token);
-        sessionStorage.setItem("technician_email", normalizedEmail);
-        navigate("/technician/change-password");
         return;
       }
 
       // Store signed session token and technician info
       const techSession = {
-        id: data.technician.id,
-        email: data.technician.email,
-        full_name: data.technician.full_name,
-        phone: data.technician.phone,
-        specializations: data.technician.specializations,
+        id: data.technician_id || data.user_id,
+        userId: data.user_id,
+        email: data.email,
+        full_name: data.full_name || data.email,
+        phone: data.phone,
+        specializations: data.specializations,
         token: data.token,
         authenticated_at: new Date().toISOString(),
         lastAuthCheck: new Date().toISOString(),
@@ -115,7 +122,7 @@ const TechnicianAuth = () => {
 
       toast({ 
         title: "Connexion réussie", 
-        description: `Bienvenue, ${data.technician.full_name}` 
+        description: `Bienvenue, ${data.full_name || data.email}` 
       });
       navigate("/technician");
     } catch (error: any) {
@@ -140,7 +147,7 @@ const TechnicianAuth = () => {
               <Wrench className="w-8 h-8 text-navy-900" />
             </div>
             <CardTitle className="text-2xl font-display">Portail Technicien</CardTitle>
-            <CardDescription>Connexion avec mot de passe et PIN</CardDescription>
+            <CardDescription>Connexion avec courriel et PIN</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -171,34 +178,6 @@ const TechnicianAuth = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Mot de passe
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setErrorMessage(null);
-                    }}
-                    className="pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <KeyRound className="w-4 h-4" />
                   Code PIN (4 chiffres)
@@ -226,7 +205,7 @@ const TechnicianAuth = () => {
                 type="submit"
                 className="w-full"
                 variant="hero"
-                disabled={isLoading || accessCode.length !== 4 || !password}
+                disabled={isLoading || accessCode.length !== 4}
               >
                 {isLoading ? "Connexion..." : "Se connecter"}
               </Button>

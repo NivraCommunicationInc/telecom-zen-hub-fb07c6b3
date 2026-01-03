@@ -4,21 +4,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Mail, ArrowLeft, AlertCircle, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Users, Mail, ArrowLeft, AlertCircle, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
+// Error reason to user-friendly message mapping
+const getErrorMessage = (reason: string): string => {
+  switch (reason) {
+    case "not_found":
+      return "Aucun compte employé trouvé avec ce courriel.";
+    case "invalid_pin":
+      return "Code PIN invalide.";
+    case "pin_not_set":
+      return "Votre PIN n'est pas encore configuré. Contactez l'administrateur.";
+    case "status_hold":
+      return "Votre compte est temporairement suspendu.";
+    case "status_disabled":
+      return "Votre compte a été désactivé. Contactez l'administrateur.";
+    case "account_locked":
+      return "Compte verrouillé suite à trop de tentatives. Réessayez plus tard.";
+    default:
+      return reason || "Erreur de connexion.";
+  }
+};
+
 const EmployeeLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -36,21 +54,15 @@ const EmployeeLogin = () => {
       return;
     }
 
-    if (!password || password.length < 6) {
-      setErrorMessage("Le mot de passe doit contenir au moins 6 caractères.");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      // Call edge function for employee login with password + PIN
+      // Call edge function for employee PIN-only login
       const { data, error } = await supabase.functions.invoke("employee-auth", {
         body: { 
+          action: "pin_login",
           email: normalizedEmail, 
-          password,
           pin,
-          action: "login_with_password"
         },
       });
 
@@ -61,7 +73,9 @@ const EmployeeLogin = () => {
           try {
             const body = await error.context.json();
             if (typeof body?.reason === "string" && body.reason.trim()) {
-              message = body.reason;
+              message = getErrorMessage(body.reason);
+            } else if (typeof body?.message === "string" && body.message.trim()) {
+              message = body.message;
             } else if (typeof body?.error === "string" && body.error.trim()) {
               message = body.error;
             }
@@ -76,31 +90,22 @@ const EmployeeLogin = () => {
 
       // Handle error response in data (2xx with ok:false)
       if (data?.ok === false) {
-        setErrorMessage(data.reason || data.error || "Erreur de connexion.");
+        setErrorMessage(getErrorMessage(data.reason || data.error));
         return;
       }
 
-      if (!data?.success || !data?.token) {
+      if (!data?.ok || !data?.user_id) {
         setErrorMessage("Réponse invalide du serveur.");
         return;
       }
 
-      // Check if password change is required
-      if (data.require_password_change) {
-        // Store token and redirect to change password page
-        sessionStorage.setItem("employee_temp_token", data.token);
-        sessionStorage.setItem("employee_email", normalizedEmail);
-        navigate("/employee/change-password");
-        return;
-      }
-
       const employeeSession = {
-        employeeId: data.employee.id,
-        email: data.employee.email,
-        name: data.employee.full_name,
-        phone: data.employee.phone,
+        employeeId: data.employee_id || data.user_id,
+        userId: data.user_id,
+        email: data.email,
+        name: data.full_name || data.email,
         role: "employee",
-        permissions: data.employee.permissions,
+        permissions: data.permissions || {},
         token: data.token,
         loginAt: new Date().toISOString(),
         lastAuthCheck: new Date().toISOString(),
@@ -111,7 +116,7 @@ const EmployeeLogin = () => {
 
       toast({
         title: "Connexion réussie",
-        description: `Bienvenue, ${data.employee.full_name}`,
+        description: `Bienvenue, ${data.full_name || data.email}`,
       });
       navigate("/employee");
     } catch (error) {
@@ -136,7 +141,7 @@ const EmployeeLogin = () => {
               <Users className="w-8 h-8 text-primary-foreground" />
             </div>
             <CardTitle className="text-2xl font-display">Portail Employé</CardTitle>
-            <CardDescription>Connexion avec mot de passe et PIN</CardDescription>
+            <CardDescription>Connexion avec courriel et PIN</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -167,34 +172,6 @@ const EmployeeLogin = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Mot de passe
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setErrorMessage(null);
-                    }}
-                    className="pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <KeyRound className="w-4 h-4" />
                   Code PIN (4 chiffres)
@@ -221,7 +198,7 @@ const EmployeeLogin = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || pin.length !== 4 || !password}
+                disabled={isLoading || pin.length !== 4}
               >
                 {isLoading ? "Connexion..." : "Se connecter"}
               </Button>
