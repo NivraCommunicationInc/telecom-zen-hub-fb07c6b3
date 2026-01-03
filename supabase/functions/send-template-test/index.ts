@@ -42,6 +42,20 @@ const formatDate = (dateStr: string, includeTime = false) => {
   return date.toLocaleDateString("fr-CA", { dateStyle: "long" });
 };
 
+// URL joining helper - guarantees exactly one slash between base and path
+const joinUrl = (baseUrl: string, path: string): string => {
+  const base = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+  const cleanPath = path.replace(/^\/+/, ''); // Remove leading slashes
+  const result = `${base}/${cleanPath}`;
+  
+  // Validation: check for common URL joining errors
+  if (result.includes('.appclient') || result.includes('.caclient')) {
+    console.error(`[URL ERROR] Invalid URL detected: ${result}`);
+  }
+  
+  return result;
+};
+
 const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string, supportPhone?: string) => {
   const email = supportEmail || "Support@nivratelecom.ca";
   const phone = supportPhone || "438-544-2233";
@@ -226,7 +240,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Ceci est un email de test à des fins de vérification interne.<br>
         <em style="color:${emailStyles.textMuted};">This is a test email for internal verification purposes.</em>
       </p>
-    `, `${config.baseUrl}/admin/email-activity`, "Voir l'activité / View activity", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/admin/email-activity"), "Voir l'activité / View activity", config.supportEmail, config.supportPhone),
   },
 
   account_created: {
@@ -241,7 +255,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Numéro client / Client #", value: vars.client_number || "À venir" },
         { label: "Email", value: vars.email || vars.client_email || "N/A" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}`, "Accéder au portail / Access portal", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Accéder au portail / Access portal", config.supportEmail, config.supportPhone),
   },
 
   email_verified: {
@@ -252,7 +266,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         "Votre adresse email a été vérifiée avec succès.",
         "Your email address has been successfully verified."
       )}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}`, "Ouvrir le portail / Open portal", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Ouvrir le portail / Open portal", config.supportEmail, config.supportPhone),
   },
 
   password_reset: {
@@ -263,7 +277,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         "Une demande de réinitialisation de mot de passe a été effectuée pour votre compte.",
         "A password reset request was made for your account."
       )}
-    `, vars.reset_link || `${config.baseUrl}/reset-password`, "Réinitialiser / Reset password", config.supportEmail, config.supportPhone),
+    `, vars.reset_link || joinUrl(config.baseUrl, "/reset-password"), "Réinitialiser / Reset password", config.supportEmail, config.supportPhone),
   },
 
   order_submitted: {
@@ -279,7 +293,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Montant / Amount", value: formatCurrency(vars.amount) },
         { label: "Statut / Status", value: vars.status || "En attente" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Voir ma commande / View my order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View my order", config.supportEmail, config.supportPhone),
   },
 
   order_processed: {
@@ -294,7 +308,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
         { label: "Statut / Status", value: "En traitement / Processing" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
   },
 
   order_shipped: {
@@ -309,7 +323,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
         { label: "Nº suivi / Tracking #", value: vars.tracking_number || "N/A" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Voir ma commande / View order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View order", config.supportEmail, config.supportPhone),
   },
 
   order_completed: {
@@ -324,7 +338,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
         { label: "Statut / Status", value: "Complétée / Completed" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Voir mes commandes / View orders", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir mes commandes / View orders", config.supportEmail, config.supportPhone),
   },
 
   order_cancelled: {
@@ -339,7 +353,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
         { label: "Statut / Status", value: "Annulée / Cancelled" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}`, "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
   },
 
   shipping_created: {
@@ -354,7 +368,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
         { label: "Nº suivi / Tracking #", value: vars.tracking_number || "N/A" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
   },
 
   invoice_created: {
@@ -370,7 +384,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Montant / Amount", value: formatCurrency(vars.amount) },
         { label: "Statut / Status", value: vars.status || "Pending" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
   },
 
   invoice_overdue: {
@@ -385,7 +399,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Montant dû / Amount due", value: formatCurrency(vars.amount) },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
   },
 
   payment_received: {
@@ -400,7 +414,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Montant payé / Amount paid", value: formatCurrency(vars.amount) },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
   },
 
   payment_status_changed: {
@@ -415,7 +429,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Nouveau statut / New status", value: vars.status || "N/A" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
   },
 
   payment_failed: {
@@ -430,7 +444,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Montant / Amount", value: formatCurrency(vars.amount) },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Réessayer / Retry", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Réessayer / Retry", config.supportEmail, config.supportPhone),
   },
 
   ticket_created: {
@@ -445,7 +459,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº ticket / Ticket #", value: vars.ticket_number || "N/A" },
         { label: "Statut / Status", value: vars.status || "Ouvert / Open" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/tickets`, "Voir mon ticket / View ticket", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir mon ticket / View ticket", config.supportEmail, config.supportPhone),
   },
 
   ticket_reply: {
@@ -459,7 +473,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: "Nº ticket / Ticket #", value: vars.ticket_number || "N/A" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/tickets`, "Voir la réponse / View reply", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir la réponse / View reply", config.supportEmail, config.supportPhone),
   },
 
   appointment_scheduled: {
@@ -474,7 +488,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Date et heure / Date & time", value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : "À confirmer / TBD" },
         { label: "Statut / Status", value: vars.status || "Confirmé / Confirmed" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/appointments`, "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
   },
 
   appointment_updated: {
@@ -488,7 +502,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: "Nouvelle date / New date", value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : "À confirmer / TBD" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/appointments`, "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
   },
 
   appointment_cancelled: {
@@ -503,7 +517,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Pour reprogrammer, veuillez nous contacter au ${config.supportPhone}.<br>
         <em style="color:${emailStyles.textMuted};">To reschedule, please contact us at ${config.supportPhone}.</em>
       </p>
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/appointments`, "Reprogrammer / Reschedule", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Reprogrammer / Reschedule", config.supportEmail, config.supportPhone),
   },
 
   contract_ready: {
@@ -517,7 +531,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: "Nº contrat / Contract #", value: vars.contract_number || "N/A" },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/contracts`, "Voir le contrat / View contract", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir le contrat / View contract", config.supportEmail, config.supportPhone),
   },
 
   contract_signed: {
@@ -532,7 +546,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº contrat / Contract #", value: vars.contract_number || "N/A" },
         { label: "Signé le / Signed on", value: formatDate(new Date().toISOString()) },
       ])}
-    `, `${config.baseUrl}${vars.portal_path || "/portal"}/contracts`, "Voir mes contrats / View contracts", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir mes contrats / View contracts", config.supportEmail, config.supportPhone),
   },
 };
 
