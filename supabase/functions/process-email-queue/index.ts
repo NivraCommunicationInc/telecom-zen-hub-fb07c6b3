@@ -656,7 +656,7 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   const emailFromAddress = Deno.env.get("EMAIL_FROM_ADDRESS") || "Nivra Telecom <onboarding@resend.dev>";
-  const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.com";
+  const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app";
 
   if (!resendApiKey) {
     console.error("RESEND_API_KEY not configured");
