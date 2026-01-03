@@ -107,7 +107,26 @@ interface InviteSetPinRequest {
   email: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest;
+interface VerifyAdminPinRequest {
+  action: "verify_admin_pin";
+  email: string;
+  pin: string;
+}
+
+interface UpdateAuthCheckRequest {
+  action: "update_auth_check";
+  email: string;
+}
+
+interface AdminRecoverRequest {
+  action: "admin_recover";
+  email: string;
+  password: string;
+  pin: string;
+  bootstrap_token: string;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest;
 
 // PIN hashing function (must match client-side)
 const SALT = 'nivra_pin_salt_2026';
@@ -1768,6 +1787,249 @@ serve(async (req: Request) => {
           success: true,
           message: `Utilisateur "${profile.full_name || normalizedEmail}" supprimé définitivement`,
           deleted_user: { user_id: userId, email: normalizedEmail, role: roleData?.role || "unknown" },
+        });
+      }
+
+      case "verify_admin_pin": {
+        // This action can be called without being fully authenticated - only need email+password to have worked
+        const { email, pin } = body as VerifyAdminPinRequest;
+        const stepBase = "verify_admin_pin";
+
+        if (!email || !pin) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "email et pin requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        if (!/^\d{8}$/.test(pin)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Le PIN admin doit être exactement 8 chiffres", step: `${stepBase}.validate_format` } satisfies ApiError,
+          });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
+
+        // Find user
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", normalizedEmail)
+          .maybeSingle();
+
+        if (!profile?.user_id) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur non trouvé", step: `${stepBase}.find_user` } satisfies ApiError,
+          });
+        }
+
+        // Verify admin role
+        const { data: roleData } = await adminClient
+          .from("user_roles")
+          .select("role, admin_pin_hash, require_password_change, require_pin_change, status")
+          .eq("user_id", profile.user_id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (!roleData) {
+          return json(403, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "FORBIDDEN", message: "Ce compte n'est pas un compte administrateur", step: `${stepBase}.verify_role` } satisfies ApiError,
+          });
+        }
+
+        // Check status
+        if (roleData.status && roleData.status !== "active") {
+          return json(403, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "FORBIDDEN", message: "Compte administrateur désactivé", step: `${stepBase}.check_status` } satisfies ApiError,
+          });
+        }
+
+        // Verify PIN
+        const inputPinHash = await hashPin(pin);
+        
+        if (!roleData.admin_pin_hash || roleData.admin_pin_hash !== inputPinHash) {
+          await logAction("admin_pin_invalid", { request_id: requestId }, { type: "user", id: profile.user_id, email: normalizedEmail });
+          return json(401, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "UNAUTHORIZED", message: "PIN invalide", step: `${stepBase}.verify_pin` } satisfies ApiError,
+          });
+        }
+
+        await logAction("admin_pin_verified", { request_id: requestId }, { type: "user", id: profile.user_id, email: normalizedEmail });
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          valid: true,
+          require_password_change: roleData.require_password_change || false,
+          require_pin_change: roleData.require_pin_change || false,
+        });
+      }
+
+      case "update_auth_check": {
+        const { email } = body as UpdateAuthCheckRequest;
+        const stepBase = "update_auth_check";
+
+        if (!email) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "email requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
+
+        // Update last_auth_check_at in user_roles
+        await adminClient
+          .from("user_roles")
+          .update({ last_auth_check_at: new Date().toISOString() })
+          .eq("user_id", callingUser.id);
+
+        // Also update profiles
+        await adminClient
+          .from("profiles")
+          .update({ last_auth_check_at: new Date().toISOString() })
+          .eq("user_id", callingUser.id);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+        });
+      }
+
+      case "admin_recover": {
+        const { email, password, pin, bootstrap_token } = body as AdminRecoverRequest;
+        const stepBase = "admin_recover";
+
+        // This is a special recovery action that bypasses normal auth
+        // Verify bootstrap token
+        const expectedToken = Deno.env.get("BOOTSTRAP_TOKEN");
+        if (!expectedToken || bootstrap_token !== expectedToken) {
+          console.error(`[admin-manage-staff] ${stepBase} invalid bootstrap token`);
+          return json(403, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "FORBIDDEN", message: "Token de récupération invalide", step: `${stepBase}.verify_token` } satisfies ApiError,
+          });
+        }
+
+        if (!email || !password || !pin) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "email, password et pin requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        if (!/^\d{8}$/.test(pin)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Le PIN admin doit être exactement 8 chiffres", step: `${stepBase}.validate_pin` } satisfies ApiError,
+          });
+        }
+
+        if (password.length < 12) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Le mot de passe doit contenir au moins 12 caractères", step: `${stepBase}.validate_password` } satisfies ApiError,
+          });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log(`[admin-manage-staff] ${stepBase} RECOVERY for admin email=${normalizedEmail} request_id=${requestId}`);
+
+        // Find user
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", normalizedEmail)
+          .maybeSingle();
+
+        if (!profile?.user_id) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur admin non trouvé", step: `${stepBase}.find_user` } satisfies ApiError,
+          });
+        }
+
+        // Verify admin role exists
+        const { data: roleData } = await adminClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", profile.user_id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (!roleData) {
+          return json(403, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "FORBIDDEN", message: "Ce compte n'est pas un compte administrateur", step: `${stepBase}.verify_role` } satisfies ApiError,
+          });
+        }
+
+        // Update password via auth admin
+        const { error: passwordError } = await adminClient.auth.admin.updateUserById(profile.user_id, {
+          password,
+        });
+
+        if (passwordError) {
+          console.error(`[admin-manage-staff] ${stepBase} password update error:`, passwordError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "AUTH_ERROR", message: passwordError.message, step: `${stepBase}.update_password` } satisfies ApiError,
+          });
+        }
+
+        // Update PIN hash and clear change requirements
+        const pinHash = await hashPin(pin);
+        const { error: roleUpdateError } = await adminClient
+          .from("user_roles")
+          .update({
+            admin_pin_hash: pinHash,
+            require_password_change: false,
+            require_pin_change: false,
+            status: "active",
+          })
+          .eq("user_id", profile.user_id)
+          .eq("role", "admin");
+
+        if (roleUpdateError) {
+          console.error(`[admin-manage-staff] ${stepBase} role update error:`, roleUpdateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: roleUpdateError.message, step: `${stepBase}.update_role` } satisfies ApiError,
+          });
+        }
+
+        await logAction("admin_recovered", { request_id: requestId }, { type: "user", id: profile.user_id, email: normalizedEmail });
+
+        console.log(`[admin-manage-staff] ${stepBase} SUCCESS admin recovered: ${normalizedEmail}`);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Compte admin récupéré avec succès",
         });
       }
 

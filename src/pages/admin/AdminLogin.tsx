@@ -5,12 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, KeyRound } from "lucide-react";
 import { z } from "zod";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Adresse courriel invalide"),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  pin: z.string().length(8, "Le PIN doit contenir 8 chiffres").regex(/^\d+$/, "Le PIN doit contenir uniquement des chiffres"),
 });
 
 const AdminLogin = () => {
@@ -19,6 +22,7 @@ const AdminLogin = () => {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -62,8 +66,8 @@ const AdminLogin = () => {
       setIsForgotPassword(false);
       setIsSubmitting(false);
     } else {
-      // Login flow
-      const result = loginSchema.safeParse({ email, password });
+      // Login flow: email + password + 8-digit PIN
+      const result = loginSchema.safeParse({ email, password, pin });
       if (!result.success) {
         const fieldErrors: Record<string, string> = {};
         result.error.errors.forEach((err) => {
@@ -76,23 +80,78 @@ const AdminLogin = () => {
       }
 
       setIsSubmitting(true);
-      const { error } = await signIn(email, password);
 
-      if (error) {
+      // Step 1: Authenticate with email/password via Supabase Auth
+      const { error: signInError } = await signIn(email, password);
+
+      if (signInError) {
         toast({
           title: "Erreur de connexion",
-          description: error.message === "Invalid login credentials" 
+          description: signInError.message === "Invalid login credentials" 
             ? "Identifiants invalides" 
-            : error.message,
+            : signInError.message,
           variant: "destructive",
         });
         setIsSubmitting(false);
         return;
       }
 
-      setTimeout(() => {
+      // Step 2: Verify admin PIN via edge function
+      try {
+        const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+          body: {
+            action: "verify_admin_pin",
+            email,
+            pin,
+          },
+        });
+
+        if (error || data?.error || !data?.valid) {
+          // Sign out since PIN verification failed
+          await supabase.auth.signOut();
+          toast({
+            title: "Erreur de connexion",
+            description: data?.error || "PIN invalide. Veuillez réessayer.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Check if password or PIN change is required
+        if (data.require_password_change || data.require_pin_change) {
+          // Store requirement flags and redirect to change page
+          sessionStorage.setItem("admin_require_password_change", data.require_password_change ? "true" : "false");
+          sessionStorage.setItem("admin_require_pin_change", data.require_pin_change ? "true" : "false");
+          navigate("/admin/change-credentials");
+          return;
+        }
+
+        // Update last_auth_check_at
+        await supabase.functions.invoke("admin-manage-staff", {
+          body: {
+            action: "update_auth_check",
+            email,
+          },
+        });
+
+        toast({
+          title: "Connexion réussie",
+          description: "Bienvenue dans le portail administrateur",
+        });
+
+        navigate("/admin");
+
+      } catch (err: any) {
+        await supabase.auth.signOut();
+        toast({
+          title: "Erreur",
+          description: "Erreur de vérification du PIN",
+          variant: "destructive",
+        });
+      } finally {
         setIsSubmitting(false);
-      }, 500);
+      }
     }
   };
 
@@ -118,7 +177,7 @@ const AdminLogin = () => {
           <p className="text-muted-foreground mt-2">
             {isForgotPassword 
               ? "Entrez votre courriel pour réinitialiser votre mot de passe" 
-              : "Connectez-vous pour accéder au tableau de bord"}
+              : "Connectez-vous avec vos identifiants et PIN"}
           </p>
         </div>
 
@@ -142,30 +201,58 @@ const AdminLogin = () => {
             </div>
 
             {!isForgotPassword && (
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-foreground flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Mot de passe
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-foreground flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Mot de passe
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
-                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-              </div>
+
+                <div className="space-y-2">
+                  <Label className="text-foreground flex items-center gap-2">
+                    <KeyRound className="w-4 h-4" />
+                    PIN Administrateur (8 chiffres)
+                  </Label>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={8}
+                      value={pin}
+                      onChange={(value) => setPin(value)}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={1} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={2} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={3} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={4} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={5} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={6} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                        <InputOTPSlot index={7} className="w-10 h-12 text-xl bg-background/50 border-border/50" />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  {errors.pin && <p className="text-sm text-destructive text-center">{errors.pin}</p>}
+                </div>
+              </>
             )}
 
             <Button
@@ -186,6 +273,7 @@ const AdminLogin = () => {
                 onClick={() => {
                   setIsForgotPassword(!isForgotPassword);
                   setErrors({});
+                  setPin("");
                 }}
                 className="text-sm text-muted-foreground hover:text-cyan-400 transition-colors"
               >
