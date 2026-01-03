@@ -91,9 +91,9 @@ Deno.serve(async (req) => {
       }
 
       // Validate password
-      if (body.password.length < 12) {
+      if (body.password.length < 8) {
         return new Response(
-          JSON.stringify({ error: "Le mot de passe doit contenir au moins 12 caractères" }),
+          JSON.stringify({ error: "Le mot de passe doit contenir au moins 8 caractères" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -142,14 +142,14 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Update PIN hash and clear change requirements
+      // Update PIN hash and enforce credential change after next login
       const pinHash = await hashPin(body.pin);
       const { error: roleUpdateError } = await supabaseAdmin
         .from("user_roles")
         .update({
           admin_pin_hash: pinHash,
-          require_password_change: false,
-          require_pin_change: false,
+          require_password_change: true,
+          require_pin_change: true,
           status: "active",
         })
         .eq("user_id", profile.user_id)
