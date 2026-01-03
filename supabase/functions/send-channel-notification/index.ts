@@ -27,7 +27,8 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
       body: JSON.stringify({
-        from: "Nivra <onboarding@resend.dev>",
+        from: "Nivra Telecom <support@nivratelecom.ca>",
+        reply_to: "support@nivratelecom.ca",
         to: [email],
         subject: config.subject,
         html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;"><h1 style="color: white;">📺 Nivra TV</h1></div><div style="padding: 30px; background: #f8fafc;"><h2>Bonjour ${name || "cher client"},</h2><div style="background: ${config.color}20; border-left: 4px solid ${config.color}; padding: 15px; margin: 20px 0;"><h3 style="color: ${config.color};">${config.icon} ${config.heading}</h3></div>${ticketNumber ? `<p><strong>Ticket:</strong> ${ticketNumber}</p>` : ''}<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;"><h4>Chaînes (${channels.length})</h4><table style="width: 100%;">${channelsListHtml}<tr style="background: #0891b210;"><td style="padding: 12px; font-weight: bold;">Total</td><td style="padding: 12px; text-align: right; font-weight: bold;">${formatCurrency(totalPrice)}/mois</td></tr></table></div>${notes ? `<p style="background: #fef3c7; padding: 15px; border-radius: 8px;">${notes}</p>` : ''}<p>L'équipe Nivra</p></div></div>`,

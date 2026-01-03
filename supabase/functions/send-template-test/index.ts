@@ -563,7 +563,8 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const emailFromAddress = Deno.env.get("EMAIL_FROM_ADDRESS") || "Nivra Telecom <onboarding@resend.dev>";
+  const emailFromAddress = "Nivra Telecom <support@nivratelecom.ca>";
+  const emailReplyTo = "support@nivratelecom.ca";
   const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app";
   const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "Support@nivratelecom.ca";
   const supportPhone = Deno.env.get("SUPPORT_PHONE") || "438-544-2233";
@@ -640,6 +641,7 @@ Deno.serve(async (req) => {
     const resend = new Resend(resendApiKey);
     const emailResult = await resend.emails.send({
       from: emailFromAddress,
+      reply_to: emailReplyTo,
       to: [recipient],
       subject: `[TEST] ${subject}`,
       html: htmlContent,
