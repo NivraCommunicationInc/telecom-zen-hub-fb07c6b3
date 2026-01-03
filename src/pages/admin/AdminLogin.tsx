@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -13,20 +13,15 @@ const loginSchema = z.object({
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 });
 
-const signupSchema = loginSchema.extend({
-  fullName: z.string().min(1, "Le nom est requis"),
-});
-
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user, isAdmin, isLoading } = useAuth();
+  const { signIn, resetPassword, user, isAdmin, isLoading } = useAuth();
   const { toast } = useToast();
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -39,28 +34,21 @@ const AdminLogin = () => {
     e.preventDefault();
     setErrors({});
 
-    if (isSignUp) {
-      const result = signupSchema.safeParse({ email, password, fullName });
-      if (!result.success) {
-        const fieldErrors: Record<string, string> = {};
-        result.error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(fieldErrors);
+    if (isForgotPassword) {
+      // Forgot password flow
+      const emailResult = z.string().email("Adresse courriel invalide").safeParse(email);
+      if (!emailResult.success) {
+        setErrors({ email: emailResult.error.errors[0].message });
         return;
       }
 
       setIsSubmitting(true);
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await resetPassword(email);
 
       if (error) {
         toast({
-          title: "Erreur d'inscription",
-          description: error.message === "User already registered" 
-            ? "Cet utilisateur existe déjà" 
-            : error.message,
+          title: "Erreur",
+          description: error.message,
           variant: "destructive",
         });
         setIsSubmitting(false);
@@ -68,12 +56,13 @@ const AdminLogin = () => {
       }
 
       toast({
-        title: "Compte créé!",
-        description: "Votre compte a été créé. Connectez-vous maintenant.",
+        title: "Courriel envoyé!",
+        description: "Vérifiez votre boîte de réception pour réinitialiser votre mot de passe.",
       });
-      setIsSignUp(false);
+      setIsForgotPassword(false);
       setIsSubmitting(false);
     } else {
+      // Login flow
       const result = loginSchema.safeParse({ email, password });
       if (!result.success) {
         const fieldErrors: Record<string, string> = {};
@@ -127,31 +116,15 @@ const AdminLogin = () => {
             Administration Nivra
           </h1>
           <p className="text-muted-foreground mt-2">
-            {isSignUp ? "Créez votre compte administrateur" : "Connectez-vous pour accéder au tableau de bord"}
+            {isForgotPassword 
+              ? "Entrez votre courriel pour réinitialiser votre mot de passe" 
+              : "Connectez-vous pour accéder au tableau de bord"}
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8">
           <div className="space-y-5">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-foreground flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Nom complet
-                </Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Jean Tremblay"
-                  className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
-                />
-                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground flex items-center gap-2">
                 <Mail className="w-4 h-4" />
@@ -168,30 +141,32 @@ const AdminLogin = () => {
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Mot de passe
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            {!isForgotPassword && (
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Mot de passe
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
               </div>
-              {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-            </div>
+            )}
 
             <Button
               type="submit"
@@ -201,22 +176,22 @@ const AdminLogin = () => {
               disabled={isSubmitting}
             >
               {isSubmitting 
-                ? (isSignUp ? "Création..." : "Connexion...") 
-                : (isSignUp ? "Créer le compte" : "Se connecter")}
+                ? (isForgotPassword ? "Envoi..." : "Connexion...") 
+                : (isForgotPassword ? "Envoyer le lien" : "Se connecter")}
             </Button>
 
-            <div className="text-center">
+            <div className="text-center space-y-2">
               <button
                 type="button"
                 onClick={() => {
-                  setIsSignUp(!isSignUp);
+                  setIsForgotPassword(!isForgotPassword);
                   setErrors({});
                 }}
                 className="text-sm text-muted-foreground hover:text-cyan-400 transition-colors"
               >
-                {isSignUp 
-                  ? "Déjà un compte? Se connecter" 
-                  : "Pas de compte? Créer un compte"}
+                {isForgotPassword 
+                  ? "Retour à la connexion" 
+                  : "Mot de passe oublié?"}
               </button>
             </div>
           </div>

@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.send-template-test]
 verify_jwt = false
+
+[functions.admin-bootstrap]
+verify_jwt = false
