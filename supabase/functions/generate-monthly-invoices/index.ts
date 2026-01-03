@@ -1,9 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Quebec tax rates
 const TPS_RATE = 0.05;
@@ -28,9 +24,11 @@ interface InvoiceResult {
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -219,9 +217,10 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("[generate-monthly-invoices] Fatal error:", error);
+    const origin = req.headers.get('origin');
     return new Response(
       JSON.stringify({ error: String(error) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
     );
   }
 });

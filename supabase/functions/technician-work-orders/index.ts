@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-technician-token',
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Verify and decode JWT-like token
 async function verifyToken(token: string, secret: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
@@ -26,7 +22,6 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
       ["verify"]
     );
 
-    // Decode signature
     const signatureStr = signatureB64.replace(/-/g, '+').replace(/_/g, '/');
     const signatureBytes = Uint8Array.from(atob(signatureStr), c => c.charCodeAt(0));
     
@@ -36,10 +31,8 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
       return { valid: false, error: "Invalid signature" };
     }
 
-    // Decode payload
     const payload = JSON.parse(atob(payloadB64));
     
-    // Check expiry
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
       return { valid: false, error: "Token expired" };
     }
@@ -53,12 +46,13 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    // Get token from header
     const token = req.headers.get('x-technician-token');
     
     if (!token) {
@@ -69,7 +63,6 @@ serve(async (req) => {
       );
     }
 
-    // Verify token
     const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const verification = await verifyToken(token, tokenSecret);
     
@@ -84,12 +77,10 @@ serve(async (req) => {
     const { technicianId, fullName } = verification.payload;
     console.log(`[technician-work-orders] Fetching for technician: ${fullName} (${technicianId})`);
 
-    // Create Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch work_orders for this technician
     const { data: workOrders, error: woError } = await supabase
       .from("work_orders")
       .select("*")
@@ -102,7 +93,6 @@ serve(async (req) => {
 
     console.log(`[technician-work-orders] work_orders found: ${workOrders?.length || 0}`);
 
-    // Fetch legacy orders assigned to this technician
     const { data: legacyOrders, error: ordersError } = await supabase
       .from("orders")
       .select("*")
@@ -113,7 +103,6 @@ serve(async (req) => {
       console.error("[technician-work-orders] orders query error:", ordersError);
     }
 
-    // Fetch legacy appointments assigned to this technician
     const { data: legacyAppointments, error: aptsError } = await supabase
       .from("appointments")
       .select("*")
@@ -124,7 +113,6 @@ serve(async (req) => {
       console.error("[technician-work-orders] appointments query error:", aptsError);
     }
 
-    // Fetch client profiles for context
     const orders = legacyOrders || [];
     const appointments = legacyAppointments || [];
     
@@ -142,7 +130,6 @@ serve(async (req) => {
       profiles = profilesData || [];
     }
 
-    // Map order status to work order status
     const mapOrderStatus = (status: string): string => {
       const mapping: Record<string, string> = {
         pending: "assigned",
@@ -158,7 +145,6 @@ serve(async (req) => {
       return mapping[status] || "assigned";
     };
 
-    // Map appointment status to work order status
     const mapAppointmentStatus = (status: string): string => {
       const mapping: Record<string, string> = {
         scheduled: "scheduled",
@@ -170,7 +156,6 @@ serve(async (req) => {
       return mapping[status] || "assigned";
     };
 
-    // Convert legacy orders to work order format
     const convertedOrders = orders.map((order: any) => {
       const profile = profiles.find((p: any) => p.user_id === order.user_id);
       return {
@@ -197,7 +182,6 @@ serve(async (req) => {
       };
     });
 
-    // Convert legacy appointments to work order format
     const convertedAppointments = appointments
       .filter((apt: any) => !orders.some((o: any) => o.id === apt.order_id))
       .map((apt: any) => {
@@ -226,7 +210,6 @@ serve(async (req) => {
         };
       });
 
-    // Combine work orders with legacy items (prefer work_orders if both exist)
     const workOrderIds = new Set((workOrders || []).map((wo: any) => wo.linked_order_id || wo.linked_appointment_id));
     const legacyFiltered = [...convertedOrders, ...convertedAppointments].filter((lo: any) => {
       const linkedId = lo.linked_order_id || lo.linked_appointment_id;
@@ -237,7 +220,6 @@ serve(async (req) => {
 
     console.log(`[technician-work-orders] Total items: ${allWorkOrders.length} (work_orders: ${workOrders?.length || 0}, legacy: ${legacyFiltered.length})`);
 
-    // Split into current and history
     const current = allWorkOrders.filter((wo: any) => 
       ["assigned", "scheduled", "in_progress"].includes(wo.status)
     );
@@ -265,9 +247,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("[technician-work-orders] Unexpected error:", error);
+    const origin = req.headers.get('origin');
     return new Response(
       JSON.stringify({ error: "Erreur inattendue. Veuillez réessayer." }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }
 });

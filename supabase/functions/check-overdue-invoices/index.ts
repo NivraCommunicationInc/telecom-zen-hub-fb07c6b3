@@ -1,17 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Check overdue invoices cron job started");
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  console.log("Check overdue invoices cron job started");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -28,7 +27,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get all pending invoices where due_date has passed
     const today = new Date().toISOString().split("T")[0];
     
     const { data: overdueInvoices, error: fetchError } = await supabase
@@ -51,7 +49,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get unique user IDs to fetch profiles
     const userIds = [...new Set(overdueInvoices.map((inv) => inv.user_id))];
     
     const { data: profiles, error: profilesError } = await supabase
@@ -77,9 +74,8 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // Update invoice status to overdue and apply late fee if not already applied
       if (!invoice.late_fee_applied) {
-        const lateFee = Number(invoice.amount) * 0.05; // 5% late fee
+        const lateFee = Number(invoice.amount) * 0.05;
         const { error: updateError } = await supabase
           .from("billing")
           .update({
@@ -96,7 +92,6 @@ const handler = async (req: Request): Promise<Response> => {
           console.log(`Updated invoice ${invoice.id} to overdue with late fee`);
         }
       } else {
-        // Just update status if late fee already applied
         await supabase
           .from("billing")
           .update({ status: "overdue" })
@@ -104,10 +99,8 @@ const handler = async (req: Request): Promise<Response> => {
         updatedCount++;
       }
 
-      // Calculate total
       const total = Number(invoice.amount) + (Number(invoice.fees) || 0) - (Number(invoice.credits) || 0);
 
-      // Send overdue notification email
       try {
         const formatCurrency = (value: number) => {
           return new Intl.NumberFormat("fr-CA", {
@@ -192,9 +185,10 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in check-overdue-invoices:", error);
+    const origin = req.headers.get('origin');
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(origin) } }
     );
   }
 };

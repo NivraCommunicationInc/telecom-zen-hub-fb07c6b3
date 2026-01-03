@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-technician-token',
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Verify and decode JWT-like token
 async function verifyToken(token: string, secret: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
@@ -26,7 +22,6 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
       ["verify"]
     );
 
-    // Decode signature
     const signatureStr = signatureB64.replace(/-/g, '+').replace(/_/g, '/');
     const signatureBytes = Uint8Array.from(atob(signatureStr), c => c.charCodeAt(0));
     
@@ -36,10 +31,8 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
       return { valid: false, error: "Invalid signature" };
     }
 
-    // Decode payload
     const payload = JSON.parse(atob(payloadB64));
     
-    // Check expiry
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
       return { valid: false, error: "Token expired" };
     }
@@ -56,18 +49,19 @@ const validTransitions: Record<string, string[]> = {
   assigned: ["in_progress", "cancelled"],
   scheduled: ["in_progress", "cancelled"],
   in_progress: ["completed", "cancelled"],
-  completed: [], // No transitions from completed
-  cancelled: [], // No transitions from cancelled
+  completed: [],
+  cancelled: [],
 };
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    // Get token from header
     const token = req.headers.get('x-technician-token');
     
     if (!token) {
@@ -78,7 +72,6 @@ serve(async (req) => {
       );
     }
 
-    // Verify token
     const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const verification = await verifyToken(token, tokenSecret);
     
@@ -92,7 +85,6 @@ serve(async (req) => {
 
     const { technicianId, fullName } = verification.payload;
     
-    // Parse request body
     const { workOrderId, newStatus, note, checklist } = await req.json();
     
     if (!workOrderId || !newStatus) {
@@ -104,7 +96,6 @@ serve(async (req) => {
 
     console.log(`[technician-update-status] Tech: ${fullName} (${technicianId}) updating ${workOrderId} to ${newStatus}`);
 
-    // Create Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -115,7 +106,6 @@ serve(async (req) => {
     if (workOrderId.startsWith("order-")) {
       const orderId = workOrderId.replace("order-", "");
       
-      // Verify the order is assigned to this technician
       const { data: order, error: orderFetchError } = await supabase
         .from("orders")
         .select("id, technician_id, status")
@@ -168,7 +158,6 @@ serve(async (req) => {
     if (workOrderId.startsWith("appointment-")) {
       const appointmentId = workOrderId.replace("appointment-", "");
       
-      // Verify the appointment is assigned to this technician
       const { data: appointment, error: aptFetchError } = await supabase
         .from("appointments")
         .select("id, technician_id, status")
@@ -219,7 +208,6 @@ serve(async (req) => {
     }
     
     // Handle work_orders table
-    // First, fetch the work order and verify ownership
     const { data: workOrder, error: fetchError } = await supabase
       .from("work_orders")
       .select("id, status, assigned_technician_id, linked_order_id, linked_appointment_id")
@@ -234,7 +222,6 @@ serve(async (req) => {
       );
     }
     
-    // Verify technician is assigned
     if (workOrder.assigned_technician_id !== technicianId) {
       console.log("[technician-update-status] Technician not assigned to work order");
       return new Response(
@@ -243,7 +230,6 @@ serve(async (req) => {
       );
     }
     
-    // Validate status transition
     const currentStatus = workOrder.status;
     const allowedTransitions = validTransitions[currentStatus] || [];
     
@@ -261,7 +247,6 @@ serve(async (req) => {
       );
     }
     
-    // Build update data
     const updateData: Record<string, any> = {
       status: newStatus,
       updated_at: now,
@@ -276,7 +261,6 @@ serve(async (req) => {
       }
     }
 
-    // Update work order
     const { error: updateError } = await supabase
       .from("work_orders")
       .update(updateData)
@@ -290,7 +274,6 @@ serve(async (req) => {
       );
     }
 
-    // Log the status change
     const { error: logError } = await supabase.from("work_order_updates").insert({
       work_order_id: workOrderId,
       actor_id: technicianId,
@@ -304,10 +287,8 @@ serve(async (req) => {
 
     if (logError) {
       console.warn("[technician-update-status] Log insert warning:", logError);
-      // Don't fail the request for logging errors
     }
 
-    // Update linked order if exists
     if (workOrder.linked_order_id) {
       const orderStatus = newStatus === "completed" ? "completed_installation" : 
                         newStatus === "in_progress" ? "processing" : undefined;
@@ -320,7 +301,6 @@ serve(async (req) => {
       }
     }
 
-    // Update linked appointment if exists
     if (workOrder.linked_appointment_id) {
       await supabase
         .from("appointments")
@@ -344,9 +324,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("[technician-update-status] Unexpected error:", error);
+    const origin = req.headers.get('origin');
     return new Response(
       JSON.stringify({ error: "Erreur inattendue. Veuillez réessayer." }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }
 });

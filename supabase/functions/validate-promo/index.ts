@@ -1,65 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface CartItem {
-  type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
-  amount: number;
-  name: string;
-}
-
-interface ValidatePromoRequest {
-  code: string;
-  client_email: string;
-  client_id?: string;
-  cart_items: CartItem[];
-  subtotal_before_discount: number;
-}
-
-interface PromoValidationResult {
-  valid: boolean;
-  error?: string;
-  promo?: {
-    id: string;
-    code: string;
-    name: string;
-    discount_type: string;
-    discount_value: number;
-    applies_to: Record<string, boolean>;
-    stackable: boolean;
-  };
-  discount_amount?: number;
-  eligible_subtotal?: number;
-  breakdown?: {
-    services: number;
-    one_time_fees: number;
-    equipment: number;
-    delivery: number;
-    installation: number;
-  };
-}
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { code, client_email, client_id, cart_items, subtotal_before_discount }: ValidatePromoRequest = await req.json();
+    const { code, client_email, client_id, cart_items, subtotal_before_discount } = await req.json();
 
     console.log(`[validate-promo] Validating code: ${code} for client: ${client_email}`);
 
     if (!code || !code.trim()) {
       return new Response(
-        JSON.stringify({ valid: false, error: "Code promo requis" } as PromoValidationResult),
+        JSON.stringify({ valid: false, error: "Code promo requis" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -76,7 +38,7 @@ serve(async (req) => {
     if (promoError || !promo) {
       console.log(`[validate-promo] Code not found: ${normalizedCode}`);
       return new Response(
-        JSON.stringify({ valid: false, error: "Code promo invalide" } as PromoValidationResult),
+        JSON.stringify({ valid: false, error: "Code promo invalide" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -84,7 +46,7 @@ serve(async (req) => {
     // Check if active
     if (promo.status !== 'active') {
       return new Response(
-        JSON.stringify({ valid: false, error: "Ce code promo n'est plus actif" } as PromoValidationResult),
+        JSON.stringify({ valid: false, error: "Ce code promo n'est plus actif" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -93,13 +55,13 @@ serve(async (req) => {
     const now = new Date();
     if (promo.start_at && new Date(promo.start_at) > now) {
       return new Response(
-        JSON.stringify({ valid: false, error: "Ce code promo n'est pas encore actif" } as PromoValidationResult),
+        JSON.stringify({ valid: false, error: "Ce code promo n'est pas encore actif" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     if (promo.end_at && new Date(promo.end_at) < now) {
       return new Response(
-        JSON.stringify({ valid: false, error: "Ce code promo a expiré" } as PromoValidationResult),
+        JSON.stringify({ valid: false, error: "Ce code promo a expiré" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -108,12 +70,10 @@ serve(async (req) => {
     if (promo.scope === 'restricted') {
       let allowed = false;
 
-      // Check client IDs
       if (promo.restricted_client_ids && promo.restricted_client_ids.length > 0 && client_id) {
         allowed = promo.restricted_client_ids.includes(client_id);
       }
 
-      // Check email domains
       if (!allowed && promo.restricted_email_domains && promo.restricted_email_domains.length > 0 && client_email) {
         const emailDomain = client_email.split('@')[1]?.toLowerCase();
         allowed = promo.restricted_email_domains.some((d: string) => d.toLowerCase() === emailDomain);
@@ -121,7 +81,7 @@ serve(async (req) => {
 
       if (!allowed) {
         return new Response(
-          JSON.stringify({ valid: false, error: "Ce code promo n'est pas disponible pour votre compte" } as PromoValidationResult),
+          JSON.stringify({ valid: false, error: "Ce code promo n'est pas disponible pour votre compte" }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -136,7 +96,7 @@ serve(async (req) => {
 
       if (count !== null && count >= promo.usage_limit_total) {
         return new Response(
-          JSON.stringify({ valid: false, error: "Ce code promo a atteint sa limite d'utilisation" } as PromoValidationResult),
+          JSON.stringify({ valid: false, error: "Ce code promo a atteint sa limite d'utilisation" }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -152,7 +112,7 @@ serve(async (req) => {
 
       if (count !== null && count >= promo.usage_limit_per_client) {
         return new Response(
-          JSON.stringify({ valid: false, error: "Vous avez déjà utilisé ce code promo" } as PromoValidationResult),
+          JSON.stringify({ valid: false, error: "Vous avez déjà utilisé ce code promo" }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -203,7 +163,7 @@ serve(async (req) => {
 
     if (eligibleSubtotal <= 0) {
       return new Response(
-        JSON.stringify({ valid: false, error: "Aucun article éligible pour ce code promo" } as PromoValidationResult),
+        JSON.stringify({ valid: false, error: "Aucun article éligible pour ce code promo" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -214,7 +174,7 @@ serve(async (req) => {
         JSON.stringify({ 
           valid: false, 
           error: `Ce code promo nécessite un minimum de ${promo.min_subtotal.toFixed(2)} $ avant taxes` 
-        } as PromoValidationResult),
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -238,7 +198,7 @@ serve(async (req) => {
 
     console.log(`[validate-promo] Valid promo ${normalizedCode}: discount ${discountAmount} CAD`);
 
-    const result: PromoValidationResult = {
+    const result = {
       valid: true,
       promo: {
         id: promo.id,
@@ -262,9 +222,10 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("[validate-promo] Error:", error);
     const message = error instanceof Error ? error.message : "Erreur inattendue";
+    const origin = req.headers.get('origin');
     return new Response(
-      JSON.stringify({ valid: false, error: message } as PromoValidationResult),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ valid: false, error: message }),
+      { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-employee-token',
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Verify and decode JWT-like token
 async function verifyToken(token: string, secret: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
@@ -49,9 +45,12 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+  
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
     const token = req.headers.get('x-employee-token');
@@ -153,7 +152,6 @@ serve(async (req) => {
         const clientUserId = params.userId;
         const clientEmail = params.email;
         
-        // Fetch all client-related data in parallel
         const [clientOrders, clientBilling, clientPayments, clientTickets, clientAppointments, clientSubscriptions, clientDocuments] = await Promise.all([
           supabase.from("orders").select("*").or(`user_id.eq.${clientUserId},client_email.eq.${clientEmail}`).order("created_at", { ascending: false }).limit(50),
           supabase.from("billing").select("*").or(`user_id.eq.${clientUserId},client_email.eq.${clientEmail}`).order("created_at", { ascending: false }).limit(50),
@@ -312,7 +310,6 @@ serve(async (req) => {
           .eq("id", params.orderId);
         if (assignTechOrderError) throw assignTechOrderError;
         
-        // Also create/update work order if technician is assigned
         if (params.technician_id) {
           const { data: existingWO } = await supabase
             .from("work_orders")
@@ -335,6 +332,7 @@ serve(async (req) => {
         }
         result = { success: true };
         break;
+
       case "update_appointment":
         if (!permissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -352,7 +350,6 @@ serve(async (req) => {
           return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         
-        // Update appointment
         const { error: assignAptError } = await supabase
           .from("appointments")
           .update({
@@ -364,7 +361,6 @@ serve(async (req) => {
           .eq("id", params.appointmentId);
         if (assignAptError) throw assignAptError;
         
-        // Create or update work order if technician assigned
         if (params.technician_id && params.order_id) {
           const { data: existingWO } = await supabase
             .from("work_orders")
@@ -410,11 +406,11 @@ serve(async (req) => {
             title: params.title,
             description: params.description,
             scheduled_at: params.scheduled_at,
+            status: "scheduled",
             service_type: params.service_type,
             service_address: params.service_address,
             service_city: params.service_city,
             service_postal_code: params.service_postal_code,
-            status: "scheduled",
             order_id: params.order_id,
             created_by: employeeId,
             internal_notes: `Créé par ${employeeName} le ${new Date().toLocaleDateString("fr-CA")}`
@@ -442,37 +438,57 @@ serve(async (req) => {
         if (!permissions?.can_manage_tickets) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        
-        // Get ticket to find user_id for the reply
-        const { data: ticketData } = await supabase
-          .from("support_tickets")
-          .select("user_id")
-          .eq("id", params.ticketId)
-          .single();
-        
         const { data: newReply, error: replyError } = await supabase
           .from("ticket_replies")
           .insert({
             ticket_id: params.ticketId,
-            user_id: ticketData?.user_id || employeeId,
             content: params.content,
-            is_admin: true
+            author_id: employeeId,
+            author_name: employeeName,
+            author_email: employeeEmail,
+            author_role: "employee",
+            is_internal_note: params.is_internal_note || false,
           })
           .select()
           .single();
         if (replyError) throw replyError;
         
-        // Update ticket status to in_progress if open
         await supabase
           .from("support_tickets")
-          .update({ 
-            status: params.newStatus || "in_progress", 
-            updated_at: new Date().toISOString() 
-          })
-          .eq("id", params.ticketId)
-          .eq("status", "open");
+          .update({ updated_at: new Date().toISOString(), status: params.newStatus || "in_progress" })
+          .eq("id", params.ticketId);
         
         result = { reply: newReply };
+        break;
+
+      // ==================== INVOICE OPERATIONS ====================
+      case "update_invoice":
+        if (!permissions?.can_edit_invoices) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour modifier les factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: invoiceUpdateError } = await supabase
+          .from("billing")
+          .update(params.updates)
+          .eq("id", params.invoiceId);
+        if (invoiceUpdateError) throw invoiceUpdateError;
+        result = { success: true };
+        break;
+
+      case "confirm_payment":
+        if (!permissions?.can_confirm_payments) {
+          return new Response(JSON.stringify({ error: "Permission refusée pour confirmer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error: confirmPaymentError } = await supabase
+          .from("billing")
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            amount_paid: params.amount_paid,
+            payment_reference: params.payment_reference,
+          })
+          .eq("id", params.invoiceId);
+        if (confirmPaymentError) throw confirmPaymentError;
+        result = { success: true };
         break;
 
       // ==================== CLIENT OPERATIONS ====================
@@ -482,255 +498,80 @@ serve(async (req) => {
         }
         const { error: clientUpdateError } = await supabase
           .from("profiles")
-          .update({ ...params.updates, updated_at: new Date().toISOString() })
-          .eq("id", params.clientId);
+          .update(params.updates)
+          .eq("user_id", params.userId);
         if (clientUpdateError) throw clientUpdateError;
         result = { success: true };
         break;
 
-      case "update_client_status":
-        if (!permissions?.can_edit_clients) {
+      // ==================== STREAMING OPERATIONS ====================
+      case "get_streaming_subscriptions":
+        if (!permissions?.can_view_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: clientStatusError } = await supabase
-          .from("profiles")
-          .update({ 
-            account_status: params.status, 
-            updated_at: new Date().toISOString(),
-            internal_notes: params.append_note 
-              ? (params.existing_notes ? `${params.existing_notes}\n\n[${new Date().toLocaleDateString("fr-CA")}] ${params.append_note}` : `[${new Date().toLocaleDateString("fr-CA")}] ${params.append_note}`)
-              : undefined
-          })
-          .eq("id", params.clientId);
-        if (clientStatusError) throw clientStatusError;
-        result = { success: true };
+        const { data: streamingSubs } = await supabase
+          .from("client_streaming_subscriptions")
+          .select("*, streaming_services(*)")
+          .order("created_at", { ascending: false })
+          .limit(params?.limit || 100);
+        result = { subscriptions: streamingSubs };
         break;
 
-      case "verify_client_identity":
+      case "get_streaming_services":
+        const { data: streamingServices } = await supabase
+          .from("streaming_services")
+          .select("*")
+          .eq("is_active", true)
+          .order("name", { ascending: true });
+        result = { services: streamingServices };
+        break;
+
+      case "update_streaming_subscription":
         if (!permissions?.can_edit_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: verifyClientIdError } = await supabase
-          .from("profiles")
+        const { error: streamingUpdateError } = await supabase
+          .from("client_streaming_subscriptions")
           .update({
-            id_type: params.id_type,
-            id_number: params.id_number,
-            id_province: params.id_province,
-            id_expiration: params.id_expiration,
+            ...params.updates,
             updated_at: new Date().toISOString()
           })
-          .eq("id", params.clientId);
-        if (verifyClientIdError) throw verifyClientIdError;
+          .eq("id", params.subscriptionId);
+        if (streamingUpdateError) throw streamingUpdateError;
         result = { success: true };
         break;
 
-      case "create_client_profile":
+      case "create_streaming_subscription":
         if (!permissions?.can_edit_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour créer des clients" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        
-        // Generate a placeholder user_id for manual client entries
-        const placeholderId = crypto.randomUUID();
-        
-        const { data: newProfile, error: createProfileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: placeholderId,
-            email: params.email,
-            first_name: params.first_name,
-            last_name: params.last_name,
-            full_name: `${params.first_name} ${params.last_name}`.trim(),
-            phone: params.phone,
-            date_of_birth: params.date_of_birth,
-            service_address: params.service_address,
-            service_city: params.service_city,
-            service_postal_code: params.service_postal_code,
-            service_province: params.service_province || "QC",
-            account_status: "pending",
-            internal_notes: `Client créé manuellement par ${employeeName} (${employeeEmail}) le ${new Date().toLocaleDateString("fr-CA")}`
-          })
-          .select()
-          .single();
-        if (createProfileError) throw createProfileError;
-        result = { client: newProfile };
-        break;
-
-      case "adjust_client_balance":
-        if (!permissions?.can_edit_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour modifier le solde" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        
-        // Get current value
-        const { data: currentProfile, error: fetchBalanceError } = await supabase
-          .from("profiles")
-          .select(params.field)
-          .eq("id", params.clientId)
-          .single();
-        if (fetchBalanceError) throw fetchBalanceError;
-        
-        const currentValue = Number(currentProfile?.[params.field] || 0);
-        const newBalanceValue = params.operation === 'add' 
-          ? currentValue + params.amount 
-          : Math.max(0, currentValue - params.amount);
-        
-        const { error: updateBalanceError } = await supabase
-          .from("profiles")
-          .update({ 
-            [params.field]: newBalanceValue,
-            updated_at: new Date().toISOString() 
-          })
-          .eq("id", params.clientId);
-        if (updateBalanceError) throw updateBalanceError;
-        
-        result = { success: true, newValue: newBalanceValue };
-        break;
-
-      // ==================== INVOICE/BILLING OPERATIONS ====================
-      case "create_invoice":
-        if (!permissions?.can_generate_invoices) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour créer des factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { data: newInvoice, error: createInvoiceError } = await supabase
-          .from("billing")
+        const { data: newStreamingSub, error: streamingCreateError } = await supabase
+          .from("client_streaming_subscriptions")
           .insert({
             user_id: params.user_id,
-            client_email: params.client_email,
-            subtotal: params.subtotal,
-            amount: params.subtotal, // Will be recalculated by trigger
-            delivery_fee: params.delivery_fee || 0,
-            activation_fee: params.activation_fee || 0,
-            installation_fee: params.installation_fee || 0,
-            due_date: params.due_date,
-            notes: params.notes ? `${params.notes}\n\nCréé par ${employeeName} (${employeeEmail})` : `Créé par ${employeeName} (${employeeEmail})`,
-            status: "pending"
+            streaming_service_id: params.streaming_service_id,
+            status: params.status || "pending",
+            monthly_price: params.monthly_price,
+            start_date: params.start_date || new Date().toISOString().split('T')[0],
+            internal_notes: `Créé par ${employeeName} le ${new Date().toLocaleDateString("fr-CA")}`
           })
-          .select()
+          .select("*, streaming_services(*)")
           .single();
-        if (createInvoiceError) throw createInvoiceError;
-        result = { invoice: newInvoice };
+        if (streamingCreateError) throw streamingCreateError;
+        result = { subscription: newStreamingSub };
         break;
 
-      case "update_invoice":
-        if (!permissions?.can_edit_invoices) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour modifier les factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: invoiceUpdateError } = await supabase
-          .from("billing")
-          .update({ ...params.updates })
-          .eq("id", params.invoiceId);
-        if (invoiceUpdateError) throw invoiceUpdateError;
-        result = { success: true };
-        break;
-
-      case "record_payment":
-        if (!permissions?.can_confirm_payments) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour enregistrer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        
-        // Create payment record
-        const { data: payment, error: paymentError } = await supabase
-          .from("payments")
-          .insert({
-            user_id: params.user_id,
-            billing_id: params.billing_id,
-            amount: params.amount,
-            payment_method: params.payment_method,
-            payment_reference: params.payment_reference,
-            card_last_four: params.card_last_four,
-            card_type: params.card_type,
-            notes: params.notes,
-            received_by: employeeName,
-            status: "completed"
-          })
-          .select()
-          .single();
-        if (paymentError) throw paymentError;
-        
-        // Update billing status
-        if (params.billing_id) {
-          await supabase
-            .from("billing")
-            .update({ 
-              status: "paid", 
-              paid_at: new Date().toISOString(),
-              payment_reference: payment.reference_number
-            })
-            .eq("id", params.billing_id);
-        }
-        
-        result = { payment };
-        break;
-
-      // ==================== INTERNAL TICKETS ====================
-      case "get_internal_tickets":
-        const { data: intTickets } = await supabase
-          .from("internal_tickets")
+      // ==================== SYSTEM STATUS ====================
+      case "get_system_status":
+        const { data: statusData } = await supabase
+          .from("system_status")
           .select("*")
-          .or(`assigned_to_department.eq.employee,assigned_to_department.eq.all,created_by_role.eq.employee`)
-          .order("created_at", { ascending: false })
-          .limit(100);
-        result = { tickets: intTickets || [] };
-        break;
-
-      case "get_internal_ticket_replies":
-        const { data: intReplies } = await supabase
-          .from("internal_ticket_replies")
-          .select("*")
-          .eq("ticket_id", params.ticketId)
-          .order("created_at", { ascending: true });
-        result = { replies: intReplies || [] };
-        break;
-
-      case "create_internal_ticket":
-        const { data: newIntTicket, error: createIntError } = await supabase
-          .from("internal_tickets")
-          .insert({
-            created_by_id: employeeId,
-            created_by_name: employeeName,
-            created_by_role: "employee",
-            created_by_email: employeeEmail,
-            subject: params.subject,
-            description: params.description,
-            category: params.category || "general",
-            priority: params.priority || "normal",
-            assigned_to_department: params.assigned_to_department || "all",
-            cc_departments: params.cc_departments || [],
-          })
-          .select()
           .single();
-        if (createIntError) throw createIntError;
-        result = { ticket: newIntTicket };
-        break;
-
-      case "add_internal_ticket_reply":
-        const { error: internalReplyError } = await supabase
-          .from("internal_ticket_replies")
-          .insert({
-            ticket_id: params.ticketId,
-            author_id: employeeId,
-            author_name: employeeName,
-            author_role: "employee",
-            author_email: employeeEmail,
-            content: params.content,
-          });
-        if (internalReplyError) throw internalReplyError;
-        result = { success: true };
-        break;
-
-      case "update_internal_ticket_status":
-        const { error: statusUpdateError } = await supabase
-          .from("internal_tickets")
-          .update({ status: params.status, updated_at: new Date().toISOString() })
-          .eq("id", params.ticketId);
-        if (statusUpdateError) throw statusUpdateError;
-        result = { success: true };
+        result = { status: statusData };
         break;
 
       default:
-        return new Response(
-          JSON.stringify({ error: "Action non reconnue" }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: "Action non reconnue" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(
@@ -741,9 +582,10 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("[employee-data] Error:", error);
     const message = error instanceof Error ? error.message : "Erreur inattendue";
+    const origin = req.headers.get('origin');
     return new Response(
       JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }
 });
