@@ -685,9 +685,28 @@ Deno.serve(async (req) => {
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   const emailFromAddress = "Nivra Telecom <support@nivratelecom.ca>";
   const emailReplyTo = "support@nivratelecom.ca";
-  const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app";
   const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "Support@nivratelecom.ca";
   const supportPhone = Deno.env.get("SUPPORT_PHONE") || "438-544-2233";
+  
+  // Validate APP_BASE_URL - must be single valid URL, never ALLOWED_ORIGINS
+  const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
+  let appBaseUrl = "https://nivratelecom.ca"; // Safe default
+  
+  if (rawAppBaseUrl) {
+    // Check for comma (multiple URLs) or invalid URL format
+    if (rawAppBaseUrl.includes(",")) {
+      console.error(`[EMAIL CONFIG ERROR] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
+    } else {
+      try {
+        new URL(rawAppBaseUrl); // Validate URL format
+        appBaseUrl = rawAppBaseUrl.replace(/\/+$/, ""); // Remove trailing slashes
+      } catch {
+        console.error(`[EMAIL CONFIG ERROR] APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
+      }
+    }
+  } else {
+    console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivratelecom.ca");
+  }
   
   const emailConfig: EmailConfig = {
     baseUrl: appBaseUrl,
