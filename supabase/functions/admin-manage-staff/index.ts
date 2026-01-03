@@ -177,14 +177,16 @@ serve(async (req: Request) => {
       case "create": {
         const { email, full_name, role, require_password_change = true } = body;
         const createStep = "create";
+        console.log(`[admin-manage-staff] ${createStep}.start email=${email} role=${role} request_id=${requestId}`);
 
+        // Step: validate_input
         if (!email || !full_name || !role) {
-          const step = `${createStep}.validate`;
+          const step = `${createStep}.validate_input`;
           await logAction("staff_create_failed", {
             request_id: requestId,
             step,
             message: "Email, nom complet et rôle requis",
-            supabase_error: null,
+            target_email: email,
           }, { type: "user", email });
 
           return json(400, {
@@ -199,12 +201,12 @@ serve(async (req: Request) => {
         }
 
         if (!(["admin", "employee", "technician"] as const).includes(role)) {
-          const step = `${createStep}.validate_role`;
+          const step = `${createStep}.validate_input`;
           await logAction("staff_create_failed", {
             request_id: requestId,
             step,
             message: "Rôle invalide",
-            supabase_error: null,
+            target_email: email,
           }, { type: "user", email });
 
           return json(400, {
@@ -241,62 +243,137 @@ serve(async (req: Request) => {
           },
         });
 
+        let userId: string;
+        let mode: "new_user_created" | "existing_user_promoted" = "new_user_created";
+
         if (authError) {
-          console.error(`[admin-manage-staff] ${stepAuthCreate} error:`, authError);
-          const msg = authError.message?.includes("already registered")
-            ? "Un utilisateur avec cet email existe déjà"
-            : authError.message;
-          const httpStatus = authError.message?.includes("already registered") ? 409 : 400;
+          const isEmailExists = 
+            authError.message?.toLowerCase().includes("already registered") ||
+            authError.message?.toLowerCase().includes("email_exists") ||
+            (authError as any).code === "email_exists";
 
-          await logAction("staff_create_failed", {
-            request_id: requestId,
-            step: stepAuthCreate,
-            message: msg,
-            supabase_error: { code: (authError as any).code, message: authError.message, status: (authError as any).status },
-          }, { type: "user", email });
+          if (isEmailExists) {
+            // Mode: promote existing user
+            console.log(`[admin-manage-staff] ${stepAuthCreate} email_exists - switching to promote mode`);
+            mode = "existing_user_promoted";
 
-          return json(httpStatus, {
-            ok: false,
-            request_id: requestId,
-            step: stepAuthCreate,
-            message: msg,
-            http_status: httpStatus,
-            supabase_error: { code: (authError as any).code, message: authError.message, status: (authError as any).status },
-            details: { email },
-          });
+            // Step: auth_lookup_existing_user
+            const stepLookup = `${createStep}.auth_lookup_existing_user`;
+            console.log(`[admin-manage-staff] ${stepLookup} searching for email=${email}`);
+
+            // List users and find by exact email match
+            const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({
+              perPage: 1000,
+            });
+
+            if (listError) {
+              console.error(`[admin-manage-staff] ${stepLookup} listUsers error:`, listError);
+              await logAction("staff_create_failed", {
+                request_id: requestId,
+                step: stepLookup,
+                message: listError.message,
+                target_email: email,
+                supabase_error: { code: (listError as any).code, message: listError.message },
+              }, { type: "user", email });
+
+              return json(500, {
+                ok: false,
+                request_id: requestId,
+                step: stepLookup,
+                message: `Erreur recherche utilisateur: ${listError.message}`,
+                http_status: 500,
+                supabase_error: { code: (listError as any).code, message: listError.message },
+                details: { email },
+                provider_response: { supabase_url: supabaseUrl?.slice(0, 50) },
+              });
+            }
+
+            const existingUser = listData?.users?.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase()
+            );
+
+            if (!existingUser) {
+              // This is strange - email_exists but user not found
+              console.error(`[admin-manage-staff] ${stepLookup} email_exists returned but user not found!`);
+              await logAction("staff_create_failed", {
+                request_id: requestId,
+                step: stepLookup,
+                message: "email_exists mais utilisateur introuvable",
+                target_email: email,
+                supabase_error: { original_error: authError.message },
+                users_count: listData?.users?.length || 0,
+              }, { type: "user", email });
+
+              return json(409, {
+                ok: false,
+                request_id: requestId,
+                step: stepLookup,
+                message: "Email marqué comme existant mais utilisateur introuvable. Veuillez réessayer.",
+                http_status: 409,
+                supabase_error: { code: (authError as any).code, message: authError.message },
+                details: { email, users_searched: listData?.users?.length || 0 },
+                provider_response: { supabase_url: supabaseUrl?.slice(0, 50) },
+              });
+            }
+
+            userId = existingUser.id;
+            console.log(`[admin-manage-staff] ${stepLookup} found existing user_id=${userId}`);
+          } else {
+            // Other auth error - fail normally
+            console.error(`[admin-manage-staff] ${stepAuthCreate} error:`, authError);
+            await logAction("staff_create_failed", {
+              request_id: requestId,
+              step: stepAuthCreate,
+              message: authError.message,
+              target_email: email,
+              supabase_error: { code: (authError as any).code, message: authError.message, status: (authError as any).status },
+            }, { type: "user", email });
+
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              step: stepAuthCreate,
+              message: authError.message,
+              http_status: 400,
+              supabase_error: { code: (authError as any).code, message: authError.message, status: (authError as any).status },
+              details: { email },
+              provider_response: { supabase_url: supabaseUrl?.slice(0, 50) },
+            });
+          }
+        } else {
+          if (!authData.user) {
+            const step = `${createStep}.no_user`;
+            await logAction("staff_create_failed", {
+              request_id: requestId,
+              step,
+              message: "Échec de création - aucun user retourné",
+              target_email: email,
+            }, { type: "user", email });
+
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              step,
+              message: "Échec de création - aucun user retourné",
+              http_status: 500,
+              supabase_error: null,
+              details: { email },
+            });
+          }
+          userId = authData.user.id;
         }
 
-        if (!authData.user) {
-          const step = `${createStep}.no_user`;
-          await logAction("staff_create_failed", {
-            request_id: requestId,
-            step,
-            message: "Échec de création - aucun user retourné",
-            supabase_error: null,
-          }, { type: "user", email });
-
-          return json(500, {
-            ok: false,
-            request_id: requestId,
-            step,
-            message: "Échec de création - aucun user retourné",
-            http_status: 500,
-            supabase_error: null,
-            details: { email },
-          });
-        }
-
-        // Step: db_insert_profiles
-        const stepProfiles = `${createStep}.db_insert_profiles`;
-        console.log(`[admin-manage-staff] ${stepProfiles} user_id=${authData.user.id}`);
+        // Step: db_upsert_profile
+        const stepProfiles = `${createStep}.db_upsert_profile`;
+        console.log(`[admin-manage-staff] ${stepProfiles} user_id=${userId}`);
 
         const { error: profileError } = await adminClient
           .from("profiles")
-          .update({
+          .upsert({
+            user_id: userId,
+            email,
             full_name,
-            is_staff: true,
-          })
-          .eq("user_id", authData.user.id);
+          }, { onConflict: "user_id" });
 
         if (profileError) {
           console.error(`[admin-manage-staff] ${stepProfiles} error:`, profileError);
@@ -304,8 +381,9 @@ serve(async (req: Request) => {
             request_id: requestId,
             step: stepProfiles,
             message: profileError.message,
+            target_email: email,
             supabase_error: { code: profileError.code, message: profileError.message, details: profileError.details },
-          }, { type: "user", id: authData.user.id, email });
+          }, { type: "user", id: userId, email });
 
           return json(500, {
             ok: false,
@@ -314,17 +392,18 @@ serve(async (req: Request) => {
             message: `Erreur mise à jour profil: ${profileError.message}`,
             http_status: 500,
             supabase_error: { code: profileError.code, message: profileError.message, details: profileError.details },
-            details: { user_id: authData.user.id },
+            details: { user_id: userId },
           });
         }
 
-        // Step: db_insert_user_roles
-        const stepRoles = `${createStep}.db_insert_user_roles`;
-        console.log(`[admin-manage-staff] ${stepRoles} user_id=${authData.user.id} role=${role}`);
+        // Step: db_upsert_role
+        const stepRoles = `${createStep}.db_upsert_role`;
+        console.log(`[admin-manage-staff] ${stepRoles} user_id=${userId} role=${role}`);
 
-        await adminClient.from("user_roles").delete().eq("user_id", authData.user.id);
+        // Delete existing roles then insert new one
+        await adminClient.from("user_roles").delete().eq("user_id", userId);
         const { error: roleError } = await adminClient.from("user_roles").insert({
-          user_id: authData.user.id,
+          user_id: userId,
           role: role,
         });
 
@@ -334,8 +413,9 @@ serve(async (req: Request) => {
             request_id: requestId,
             step: stepRoles,
             message: roleError.message,
+            target_email: email,
             supabase_error: { code: roleError.code, message: roleError.message, details: roleError.details },
-          }, { type: "user", id: authData.user.id, email });
+          }, { type: "user", id: userId, email });
 
           return json(500, {
             ok: false,
@@ -344,19 +424,19 @@ serve(async (req: Request) => {
             message: `Erreur assignation rôle: ${roleError.message}`,
             http_status: 500,
             supabase_error: { code: roleError.code, message: roleError.message, details: roleError.details },
-            details: { user_id: authData.user.id, role },
+            details: { user_id: userId, role },
           });
         }
 
+        // Handle technician table entry
         if (role === "technician") {
-          const stepTech = `${createStep}.db_insert_technicians`;
-          const { error: techError } = await adminClient.from("technicians").insert({
-            user_id: authData.user.id,
+          const stepTech = `${createStep}.db_upsert_technician`;
+          const { error: techError } = await adminClient.from("technicians").upsert({
+            user_id: userId,
             email,
             full_name,
             status: "active",
-            phone: null,
-          });
+          }, { onConflict: "user_id" });
 
           if (techError) {
             console.error(`[admin-manage-staff] ${stepTech} error:`, techError);
@@ -365,22 +445,23 @@ serve(async (req: Request) => {
         }
 
         // Step: audit_log_insert
-        const stepAudit = `${createStep}.audit_log_insert`;
+        const stepAudit = `${createStep}.done`;
+        const auditAction = mode === "existing_user_promoted" ? "staff_role_applied_existing_user" : "staff_created";
         await logAction(
-          "staff_created",
+          auditAction,
           {
             role,
             require_password_change,
             request_id: requestId,
+            mode,
           },
-          { type: "user", id: authData.user.id, email }
+          { type: "user", id: userId, email }
         );
 
-        // Keep existing behavior: send reset email if needed (via built-in provider)
-        if (require_password_change) {
-          // Validate APP_BASE_URL - must be single valid URL
+        // Send reset email if needed (for new users or if explicitly requested)
+        if (require_password_change && mode === "new_user_created") {
           const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-          let appBaseUrl = "https://nivratelecom.ca"; // Safe default
+          let appBaseUrl = "https://nivratelecom.ca";
           if (rawAppBaseUrl) {
             if (rawAppBaseUrl.includes(",")) {
               console.error(`[admin-manage-staff] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
@@ -398,12 +479,17 @@ serve(async (req: Request) => {
           await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
         }
 
+        const successMessage = mode === "existing_user_promoted"
+          ? "Compte existant trouvé — rôle mis à jour avec succès."
+          : "Utilisateur créé. Un email de configuration du mot de passe a été envoyé.";
+
         return json(200, {
           ok: true,
           request_id: requestId,
           success: true,
-          user: { id: authData.user.id, email },
-          message: "Utilisateur créé. Un email de configuration du mot de passe a été envoyé.",
+          mode,
+          user: { id: userId, email },
+          message: successMessage,
         });
       }
 

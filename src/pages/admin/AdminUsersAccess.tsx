@@ -240,8 +240,15 @@ const AdminUsersAccess = () => {
 
       return response.data;
     },
-    onSuccess: () => {
-      toast({ title: "Succès", description: "Utilisateur créé avec succès" });
+    onSuccess: (data: { mode?: string; message?: string }) => {
+      const isPromoted = data?.mode === "existing_user_promoted";
+      toast({ 
+        title: isPromoted ? "Compte existant mis à jour" : "Succès", 
+        description: isPromoted 
+          ? "Compte déjà existant — rôle mis à jour." 
+          : "Utilisateur créé avec succès",
+        variant: isPromoted ? "default" : "default",
+      });
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
       setCreateDialogOpen(false);
       form.reset();
