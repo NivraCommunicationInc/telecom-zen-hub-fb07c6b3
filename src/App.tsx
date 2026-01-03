@@ -77,6 +77,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminUsersAccess from "./pages/admin/AdminUsersAccess";
 import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import AdminResetPassword from "./pages/admin/AdminResetPassword";
+import AdminRecover from "./pages/admin/AdminRecover";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
 import EmployeeResetPassword from "./pages/employee/EmployeeResetPassword";
@@ -128,6 +129,7 @@ const App = () => (
               <Route path="/terms" element={<TermsOfUse />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin/reset-password" element={<AdminResetPassword />} />
+              <Route path="/admin/recover" element={<AdminRecover />} />
               <Route path="/admin/bootstrap" element={<AdminBootstrap />} />
               <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
               <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />

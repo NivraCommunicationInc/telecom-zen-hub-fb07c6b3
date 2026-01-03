@@ -1129,10 +1129,12 @@ export type Database = {
           is_active: boolean
           job_title: string | null
           lockout_until: string | null
+          password_hash: string | null
           permissions_json: Json
           phone: string | null
           pin_hash: string
           pin_set_at: string | null
+          require_password_change: boolean | null
           require_pin_change: boolean | null
           role: string
           updated_at: string
@@ -1149,10 +1151,12 @@ export type Database = {
           is_active?: boolean
           job_title?: string | null
           lockout_until?: string | null
+          password_hash?: string | null
           permissions_json?: Json
           phone?: string | null
           pin_hash: string
           pin_set_at?: string | null
+          require_password_change?: boolean | null
           require_pin_change?: boolean | null
           role?: string
           updated_at?: string
@@ -1169,10 +1173,12 @@ export type Database = {
           is_active?: boolean
           job_title?: string | null
           lockout_until?: string | null
+          password_hash?: string | null
           permissions_json?: Json
           phone?: string | null
           pin_hash?: string
           pin_set_at?: string | null
+          require_password_change?: boolean | null
           require_pin_change?: boolean | null
           role?: string
           updated_at?: string
@@ -2343,6 +2349,7 @@ export type Database = {
           id_province: string | null
           id_type: string | null
           internal_notes: string | null
+          last_auth_check_at: string | null
           last_name: string | null
           phone: string | null
           pin_failed_attempts: number | null
@@ -2383,6 +2390,7 @@ export type Database = {
           id_province?: string | null
           id_type?: string | null
           internal_notes?: string | null
+          last_auth_check_at?: string | null
           last_name?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
@@ -2423,6 +2431,7 @@ export type Database = {
           id_province?: string | null
           id_type?: string | null
           internal_notes?: string | null
+          last_auth_check_at?: string | null
           last_name?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
@@ -3717,7 +3726,9 @@ export type Database = {
           id: string
           lockout_until: string | null
           notes: string | null
+          password_hash: string | null
           phone: string | null
+          require_password_change: boolean | null
           specializations: string[] | null
           status: string
           updated_at: string
@@ -3732,7 +3743,9 @@ export type Database = {
           id?: string
           lockout_until?: string | null
           notes?: string | null
+          password_hash?: string | null
           phone?: string | null
+          require_password_change?: boolean | null
           specializations?: string[] | null
           status?: string
           updated_at?: string
@@ -3747,7 +3760,9 @@ export type Database = {
           id?: string
           lockout_until?: string | null
           notes?: string | null
+          password_hash?: string | null
           phone?: string | null
+          require_password_change?: boolean | null
           specializations?: string[] | null
           status?: string
           updated_at?: string
@@ -3903,34 +3918,43 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          admin_pin_hash: string | null
           created_at: string
           id: string
           is_active: boolean | null
+          last_auth_check_at: string | null
           last_login_at: string | null
           permissions: Json | null
           require_password_change: boolean | null
+          require_pin_change: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           status: string
           user_id: string
         }
         Insert: {
+          admin_pin_hash?: string | null
           created_at?: string
           id?: string
           is_active?: boolean | null
+          last_auth_check_at?: string | null
           last_login_at?: string | null
           permissions?: Json | null
           require_password_change?: boolean | null
+          require_pin_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: string
           user_id: string
         }
         Update: {
+          admin_pin_hash?: string | null
           created_at?: string
           id?: string
           is_active?: boolean | null
+          last_auth_check_at?: string | null
           last_login_at?: string | null
           permissions?: Json | null
           require_password_change?: boolean | null
+          require_pin_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: string
           user_id?: string

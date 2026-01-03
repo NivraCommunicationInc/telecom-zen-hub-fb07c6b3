@@ -8,6 +8,8 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
 }
 
+const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
   const { user, signOut, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAdminVerified, setIsAdminVerified] = useState(false);
   const hasLoggedBlockedAccess = useRef(false);
+  const lastAuthCheck = useRef<number>(0);
 
   useEffect(() => {
     const verifyAdminRole = async () => {
@@ -24,6 +27,50 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       }
 
       try {
+        // SECURITY: Check session freshness - require re-auth if stale
+        const now = Date.now();
+        const lastCheck = sessionStorage.getItem("admin_last_auth_check");
+        const lastCheckTime = lastCheck ? parseInt(lastCheck, 10) : 0;
+        
+        if (now - lastCheckTime > SESSION_RECHECK_INTERVAL_MS) {
+          console.log("[ProtectedRoute] Session check interval exceeded, validating with backend...");
+          
+          // Verify session is still valid with Supabase
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError || !session) {
+            console.warn("SECURITY: Session expired or invalid");
+            await signOut();
+            
+            // Log security event
+            try {
+              await supabase.from("admin_audit_log").insert({
+                admin_user_id: user.id,
+                admin_email: user.email,
+                action: "security_session_blocked",
+                details: {
+                  reason: "Session expired or invalid",
+                  portal: "admin",
+                  path: location.pathname,
+                  timestamp: new Date().toISOString(),
+                },
+                target_type: "security",
+                target_id: null,
+                target_email: user.email,
+              });
+            } catch (logErr) {
+              console.error("Failed to log session block:", logErr);
+            }
+            
+            navigate("/admin/login", { replace: true });
+            return;
+          }
+          
+          // Update last check time
+          sessionStorage.setItem("admin_last_auth_check", now.toString());
+          lastAuthCheck.current = now;
+        }
+
         // SECURITY: Always verify admin role from database - never trust client state
         const { data: roleData, error } = await supabase
           .from("user_roles")
@@ -95,6 +142,18 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     }
   }, [user, isLoading, signOut, navigate, location.pathname]);
 
+  // Clear session storage on sign out
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === null) {
+        // Storage was cleared
+        sessionStorage.removeItem("admin_last_auth_check");
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   // SECURITY: Show nothing while verifying - prevent any admin UI flash
   if (isLoading || isVerifying) {
     return (
@@ -109,6 +168,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   // Not logged in - redirect to admin login
   if (!user) {
+    // Clear any stale session data
+    sessionStorage.removeItem("admin_last_auth_check");
     return <Navigate to="/admin/login" replace />;
   }
 
