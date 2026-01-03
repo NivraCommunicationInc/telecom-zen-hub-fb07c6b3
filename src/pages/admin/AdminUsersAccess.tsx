@@ -442,6 +442,33 @@ const AdminUsersAccess = () => {
     }));
   };
 
+  // Apply role pack mutation
+  const applyRolePackMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "apply_role_pack", user_id: userId },
+      });
+
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        const err = Object.assign(new Error(details.message), { details });
+        throw err;
+      }
+
+      return response.data;
+    },
+    onSuccess: (data: { role?: string }) => {
+      toast({ title: "Succès", description: `Pack de permissions "${data.role}" appliqué` });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      const details = error.details;
+      setErrorModalDetails(details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Filter users
   const filteredUsers = staffUsers?.filter(user => {
     const matchesSearch = 
@@ -667,6 +694,13 @@ const AdminUsersAccess = () => {
                                       <History className="h-4 w-4 mr-2" />
                                       Voir l'historique
                                     </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => applyRolePackMutation.mutate(user.id)}
+                                    disabled={applyRolePackMutation.isPending}
+                                  >
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Appliquer pack du rôle
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {user.is_active ? (
