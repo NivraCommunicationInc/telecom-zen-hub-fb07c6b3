@@ -85,7 +85,13 @@ interface UpdateProfileRequest {
   job_title?: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest;
+interface ForcePasswordChangeRequest {
+  action: "force_password_change";
+  user_id: string;
+  require_change: boolean;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest;
 
 // PIN hashing function (must match client-side)
 const SALT = 'nivra_pin_salt_2026';
@@ -514,6 +520,8 @@ serve(async (req: Request) => {
           user_id: userId,
           role: role,
           permissions: body.permissions || {},
+          is_active: is_active,
+          require_password_change: require_password_change || send_invitation,
         });
 
         if (roleError) {
@@ -661,6 +669,12 @@ serve(async (req: Request) => {
           });
         }
 
+        // Update user_roles.is_active
+        await adminClient.from("user_roles").update({ is_active: false }).eq("user_id", user_id);
+
+        // Update employees table if exists
+        await adminClient.from("employees").update({ is_active: false }).eq("email", targetUser?.user?.email);
+
         await logAction("staff_disabled", { request_id: requestId }, {
           type: "user",
           id: user_id,
@@ -686,6 +700,12 @@ serve(async (req: Request) => {
             error: { code: "PROVIDER_ERROR", message: error.message, step: "enable.update" } satisfies ApiError,
           });
         }
+
+        // Update user_roles.is_active
+        await adminClient.from("user_roles").update({ is_active: true }).eq("user_id", user_id);
+
+        // Update employees table if exists
+        await adminClient.from("employees").update({ is_active: true }).eq("email", targetUser?.user?.email);
 
         await logAction("staff_enabled", { request_id: requestId }, {
           type: "user",
@@ -1273,6 +1293,52 @@ serve(async (req: Request) => {
           request_id: requestId,
           success: true,
           message: "Profil mis à jour",
+        });
+      }
+
+      case "force_password_change": {
+        const { user_id, require_change } = body as ForcePasswordChangeRequest;
+        const stepBase = "force_password_change";
+
+        if (!user_id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} require=${require_change} request_id=${requestId}`);
+
+        const { error: updateError } = await adminClient
+          .from("user_roles")
+          .update({ require_password_change: require_change })
+          .eq("user_id", user_id);
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} error:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: updateError.message, step: `${stepBase}.update` } satisfies ApiError,
+          });
+        }
+
+        const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
+
+        await logAction(
+          require_change ? "staff_force_password_change_enabled" : "staff_force_password_change_disabled",
+          { request_id: requestId },
+          { type: "user", id: user_id, email: targetUser?.user?.email }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: require_change 
+            ? "L'utilisateur devra changer son mot de passe à la prochaine connexion"
+            : "Exigence de changement de mot de passe désactivée",
         });
       }
 

@@ -3869,21 +3869,30 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_active: boolean | null
+          last_login_at: string | null
           permissions: Json | null
+          require_password_change: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
           permissions?: Json | null
+          require_password_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
           permissions?: Json | null
+          require_password_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
