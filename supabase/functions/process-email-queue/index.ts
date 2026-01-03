@@ -458,7 +458,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
         { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
   },
 
   // PAYMENT RECEIVED
@@ -479,7 +479,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Merci de faire confiance à Nivra Telecom!<br>
         <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
   },
 
   // PAYMENT STATUS CHANGED
@@ -495,7 +495,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
         { label: 'Nouveau statut / New status', value: vars.status || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
   },
 
   // INVOICE OVERDUE
@@ -512,7 +512,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Montant dû / Amount due', value: formatCurrency(vars.amount) },
         { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
   },
 
   // PAYMENT FAILED
@@ -532,7 +532,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Veuillez mettre à jour votre méthode de paiement et réessayer.<br>
         <em style="color:${emailStyles.textMuted};">Please update your payment method and try again.</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Réessayer / Retry", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Réessayer / Retry", config.supportEmail, config.supportPhone),
   },
 
   // TICKET CREATED
