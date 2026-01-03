@@ -273,8 +273,22 @@ serve(async (req: Request) => {
 
         // Keep existing behavior: send reset email if needed (via built-in provider)
         if (require_password_change) {
-          const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
-          const resetUrl = `${appBaseUrl}/admin/reset-password`;
+        // Validate APP_BASE_URL - must be single valid URL
+        const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
+        let appBaseUrl = "https://nivratelecom.ca"; // Safe default
+        if (rawAppBaseUrl) {
+          if (rawAppBaseUrl.includes(",")) {
+            console.error(`[admin-manage-staff] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
+          } else {
+            try {
+              new URL(rawAppBaseUrl);
+              appBaseUrl = rawAppBaseUrl.replace(/\/+$/, "");
+            } catch {
+              console.error(`[admin-manage-staff] APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
+            }
+          }
+        }
+        const resetUrl = `${appBaseUrl}/admin/reset-password`;
           console.log(`[admin-manage-staff] Sending reset email to ${email} with redirect: ${resetUrl}`);
           await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
         }
@@ -442,7 +456,21 @@ serve(async (req: Request) => {
           });
         }
 
-        const appBaseUrl = Deno.env.get("APP_BASE_URL")!;
+        // Validate APP_BASE_URL - must be single valid URL
+        const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
+        let appBaseUrl = "https://nivratelecom.ca"; // Safe default
+        if (rawAppBaseUrl) {
+          if (rawAppBaseUrl.includes(",")) {
+            console.error(`[admin-manage-staff] send_reset: APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
+          } else {
+            try {
+              new URL(rawAppBaseUrl);
+              appBaseUrl = rawAppBaseUrl.replace(/\/+$/, "");
+            } catch {
+              console.error(`[admin-manage-staff] send_reset: APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
+            }
+          }
+        }
         const redirectTo = joinUrl(appBaseUrl, "/admin/reset-password");
 
         console.log(`[admin-manage-staff] send_reset request_id=${requestId} email=${email} redirectTo=${redirectTo}`);
