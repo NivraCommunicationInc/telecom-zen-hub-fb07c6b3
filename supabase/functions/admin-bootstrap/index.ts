@@ -9,12 +9,24 @@ interface BootstrapRequest {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  console.log(`[admin-bootstrap] Request from origin: ${origin}, method: ${req.method}`);
+  
+  // Log environment check (without exposing values)
+  const bootstrapTokenPresent = !!Deno.env.get("BOOTSTRAP_TOKEN");
+  const allowedOriginsPresent = !!Deno.env.get("ALLOWED_ORIGINS");
+  console.log(`[admin-bootstrap] BOOTSTRAP_TOKEN present: ${bootstrapTokenPresent}`);
+  console.log(`[admin-bootstrap] ALLOWED_ORIGINS present: ${allowedOriginsPresent}`);
+  
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(req);
-  if (preflightResponse) return preflightResponse;
+  if (preflightResponse) {
+    console.log(`[admin-bootstrap] Returning preflight response`);
+    return preflightResponse;
+  }
   
-  const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  console.log(`[admin-bootstrap] CORS headers:`, JSON.stringify(corsHeaders));
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -23,7 +35,7 @@ Deno.serve(async (req) => {
 
     // Verify bootstrap token is configured
     if (!bootstrapToken) {
-      console.error("BOOTSTRAP_TOKEN not configured");
+      console.error("[admin-bootstrap] BOOTSTRAP_TOKEN not configured");
       return new Response(
         JSON.stringify({ error: "Bootstrap non configuré" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -43,7 +55,7 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (checkError) {
-      console.error("Error checking existing admins:", checkError);
+      console.error("[admin-bootstrap] Error checking existing admins:", checkError);
       return new Response(
         JSON.stringify({ error: "Erreur de vérification" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -52,7 +64,7 @@ Deno.serve(async (req) => {
 
     // If admin already exists, disable bootstrap
     if (existingAdmins && existingAdmins.length > 0) {
-      console.log("Bootstrap disabled - admin already exists");
+      console.log("[admin-bootstrap] Bootstrap disabled - admin already exists");
       return new Response(
         JSON.stringify({ error: "Bootstrap désactivé - Un administrateur existe déjà", disabled: true }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -61,9 +73,11 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body: BootstrapRequest = await req.json();
+    console.log(`[admin-bootstrap] Creating admin for email: ${body.email}`);
     
     // Validate required fields
     if (!body.email || !body.password || !body.full_name || !body.bootstrap_token) {
+      console.error("[admin-bootstrap] Missing required fields");
       return new Response(
         JSON.stringify({ error: "Tous les champs sont requis" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -72,7 +86,7 @@ Deno.serve(async (req) => {
 
     // Verify bootstrap token
     if (body.bootstrap_token !== bootstrapToken) {
-      console.error("Invalid bootstrap token attempt");
+      console.error("[admin-bootstrap] Invalid bootstrap token attempt");
       return new Response(
         JSON.stringify({ error: "Jeton bootstrap invalide" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -96,7 +110,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Bootstrap: Creating first admin user ${body.email}`);
+    console.log(`[admin-bootstrap] Creating first admin user ${body.email}`);
 
     // Create the admin user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -107,7 +121,7 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      console.error("Failed to create admin user:", authError);
+      console.error("[admin-bootstrap] Failed to create admin user:", authError);
       
       if (authError.message?.includes("already registered") || authError.message?.includes("duplicate")) {
         return new Response(
@@ -129,7 +143,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Admin user created: ${authData.user.id}`);
+    console.log(`[admin-bootstrap] Admin user created: ${authData.user.id}`);
 
     // Update user role to admin (the trigger creates with 'client' role by default)
     const { error: roleError } = await supabaseAdmin
@@ -138,7 +152,7 @@ Deno.serve(async (req) => {
       .eq("user_id", authData.user.id);
 
     if (roleError) {
-      console.error("Failed to set admin role:", roleError);
+      console.error("[admin-bootstrap] Failed to set admin role:", roleError);
       // Try to delete the user if role update fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return new Response(
@@ -163,7 +177,7 @@ Deno.serve(async (req) => {
       actor_role: "system",
     });
 
-    console.log(`Admin bootstrap completed successfully for ${body.email}`);
+    console.log(`[admin-bootstrap] Admin bootstrap completed successfully for ${body.email}`);
 
     return new Response(
       JSON.stringify({
@@ -178,8 +192,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Unexpected error:", error);
-    const origin = req.headers.get('origin');
+    console.error("[admin-bootstrap] Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "Erreur serveur inattendue" }),
       { status: 500, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
