@@ -59,6 +59,7 @@ const navItems = [
   { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
   { icon: Mail, label: "Emails", href: "/admin/email-activity" },
   { icon: Settings, label: "Mon compte", href: "/admin/account" },
+  { icon: Users, label: "Utilisateurs & Rôles", href: "/admin/users" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
