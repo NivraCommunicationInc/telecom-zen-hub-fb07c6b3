@@ -1,10 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { Resend } from "https://esm.sh/resend@2.0.0?target=deno";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 type StaffRole = "admin" | "employee" | "technician";
 
@@ -34,34 +31,87 @@ interface SendResetRequest {
 
 type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest;
 
+type ApiError = {
+  code: string;
+  message: string;
+  step: string;
+};
+
+const isMissingSecret = (name: string): boolean => {
+  const v = Deno.env.get(name);
+  return !v || v.trim() === "" || v === name;
+};
+
+const joinUrl = (base: string, path: string) => {
+  const b = base.replace(/\/+$/, "");
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${b}${p}`;
+};
+
 serve(async (req: Request) => {
+  const requestId = crypto.randomUUID();
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  const json = (status: number, body: Record<string, unknown>) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+    });
+
+  // Never return an empty body (even for preflight)
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return json(200, { ok: true, request_id: requestId, preflight: true });
   }
 
+  // Top-level safety net: any throw returns JSON
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Non autorisé" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json(401, {
+        ok: false,
+        request_id: requestId,
+        error: { code: "UNAUTHORIZED", message: "Non autorisé", step: "auth_header" } satisfies ApiError,
+      });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      const missing = [
+        ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
+        ...(isMissingSecret("SUPABASE_ANON_KEY") ? ["SUPABASE_ANON_KEY"] : []),
+        ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
+      ];
+
+      return json(500, {
+        ok: false,
+        request_id: requestId,
+        error: { code: "MISSING_SECRETS", message: "Secrets requis manquants", step: "init" } satisfies ApiError,
+        missing_secrets: missing,
+      });
+    }
 
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: callingUser }, error: userError } = await userClient.auth.getUser();
+    const {
+      data: { user: callingUser },
+      error: userError,
+    } = await userClient.auth.getUser();
+
     if (userError || !callingUser) {
-      return new Response(
-        JSON.stringify({ error: "Session invalide" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json(401, {
+        ok: false,
+        request_id: requestId,
+        error: { code: "INVALID_SESSION", message: "Session invalide", step: "get_user" } satisfies ApiError,
+      });
     }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -75,31 +125,52 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     if (!roleData) {
-      return new Response(
-        JSON.stringify({ error: "Accès réservé aux administrateurs" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json(403, {
+        ok: false,
+        request_id: requestId,
+        error: {
+          code: "FORBIDDEN",
+          message: "Accès réservé aux administrateurs",
+          step: "verify_admin",
+        } satisfies ApiError,
+      });
     }
 
-    const body: RequestBody = await req.json();
-    const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch (e: unknown) {
+      const err = e as Error;
+      return json(400, {
+        ok: false,
+        request_id: requestId,
+        error: { code: "BAD_REQUEST", message: "JSON invalide", step: "parse_body" } satisfies ApiError,
+        stack: err.stack,
+      });
+    }
 
-    // Helper to log action with target info
+    const ipAddress =
+      req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+
     const logAction = async (
-      action: string, 
+      action: string,
       details: Record<string, unknown>,
       target?: { type?: string; id?: string; email?: string }
     ) => {
-      await adminClient.from("admin_audit_log").insert({
-        admin_user_id: callingUser.id,
-        admin_email: callingUser.email,
-        action,
-        details,
-        ip_address: ipAddress,
-        target_type: target?.type || null,
-        target_id: target?.id || null,
-        target_email: target?.email || null,
-      });
+      try {
+        await adminClient.from("admin_audit_log").insert({
+          admin_user_id: callingUser.id,
+          admin_email: callingUser.email,
+          action,
+          details,
+          ip_address: ipAddress,
+          target_type: target?.type || null,
+          target_id: target?.id || null,
+          target_email: target?.email || null,
+        });
+      } catch (e) {
+        console.error("[admin-manage-staff] Failed to write admin_audit_log:", e);
+      }
     };
 
     switch (body.action) {
@@ -107,34 +178,39 @@ serve(async (req: Request) => {
         const { email, full_name, role, require_password_change = true } = body;
 
         if (!email || !full_name || !role) {
-          return new Response(
-            JSON.stringify({ error: "Email, nom complet et rôle requis" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: {
+              code: "VALIDATION",
+              message: "Email, nom complet et rôle requis",
+              step: "create.validate",
+            } satisfies ApiError,
+          });
         }
 
-        if (!["admin", "employee", "technician"].includes(role)) {
-          return new Response(
-            JSON.stringify({ error: "Rôle invalide" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+        if (!(["admin", "employee", "technician"] as const).includes(role)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Rôle invalide", step: "create.validate_role" } satisfies ApiError,
+          });
         }
 
         // Generate secure temporary password
         const array = new Uint8Array(20);
         crypto.getRandomValues(array);
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-        let tempPassword = '';
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        let tempPassword = "";
         for (let i = 0; i < 20; i++) {
           tempPassword += chars[array[i] % chars.length];
         }
 
-        // Create auth user
         const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
           email,
           password: tempPassword,
           email_confirm: true,
-          user_metadata: { 
+          user_metadata: {
             full_name,
             require_password_change,
           },
@@ -142,39 +218,39 @@ serve(async (req: Request) => {
 
         if (authError) {
           console.error("[admin-manage-staff] Create error:", authError);
-          if (authError.message?.includes("already registered")) {
-            return new Response(
-              JSON.stringify({ error: "Un utilisateur avec cet email existe déjà" }),
-              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          return new Response(
-            JSON.stringify({ error: authError.message }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          const msg = authError.message?.includes("already registered")
+            ? "Un utilisateur avec cet email existe déjà"
+            : authError.message;
+
+          return json(authError.message?.includes("already registered") ? 409 : 400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "PROVIDER_ERROR", message: msg, step: "create.auth_create_user" } satisfies ApiError,
+          });
         }
 
         if (!authData.user) {
-          return new Response(
-            JSON.stringify({ error: "Échec de création" }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "INTERNAL", message: "Échec de création", step: "create.no_user" } satisfies ApiError,
+          });
         }
 
-        // Update profile
-        await adminClient.from("profiles").update({
-          full_name,
-          is_staff: true,
-        }).eq("user_id", authData.user.id);
+        await adminClient
+          .from("profiles")
+          .update({
+            full_name,
+            is_staff: true,
+          })
+          .eq("user_id", authData.user.id);
 
-        // Set role (delete existing client role, insert new role)
         await adminClient.from("user_roles").delete().eq("user_id", authData.user.id);
         await adminClient.from("user_roles").insert({
           user_id: authData.user.id,
           role: role,
         });
 
-        // For technicians, create technician record
         if (role === "technician") {
           await adminClient.from("technicians").insert({
             user_id: authData.user.id,
@@ -185,119 +261,119 @@ serve(async (req: Request) => {
           });
         }
 
-        await logAction("staff_created", { 
-          role,
-          require_password_change,
-        }, { type: "user", id: authData.user.id, email });
+        await logAction(
+          "staff_created",
+          {
+            role,
+            require_password_change,
+            request_id: requestId,
+          },
+          { type: "user", id: authData.user.id, email }
+        );
 
-        // Send password reset email so user can set their own password
+        // Keep existing behavior: send reset email if needed (via built-in provider)
         if (require_password_change) {
           const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
           const resetUrl = `${appBaseUrl}/admin/reset-password`;
           console.log(`[admin-manage-staff] Sending reset email to ${email} with redirect: ${resetUrl}`);
-          await adminClient.auth.resetPasswordForEmail(email, {
-            redirectTo: resetUrl,
-          });
+          await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
         }
 
-        console.log(`[admin-manage-staff] Created staff user: ${email} with role ${role}`);
-
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            user: { id: authData.user.id, email },
-            message: "Utilisateur créé. Un email de configuration du mot de passe a été envoyé.",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          user: { id: authData.user.id, email },
+          message: "Utilisateur créé. Un email de configuration du mot de passe a été envoyé.",
+        });
       }
 
       case "disable": {
         const { user_id } = body;
-
-        // Prevent self-disable
         if (user_id === callingUser.id) {
-          return new Response(
-            JSON.stringify({ error: "Vous ne pouvez pas vous désactiver vous-même" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: {
+              code: "VALIDATION",
+              message: "Vous ne pouvez pas vous désactiver vous-même",
+              step: "disable.self",
+            } satisfies ApiError,
+          });
         }
 
-        // Get target user info for logging
         const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
-
         const { error } = await adminClient.auth.admin.updateUserById(user_id, {
-          ban_duration: "876000h", // ~100 years = effectively disabled
+          ban_duration: "876000h",
         });
 
         if (error) {
           console.error("[admin-manage-staff] Disable error:", error);
-          return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "PROVIDER_ERROR", message: error.message, step: "disable.update" } satisfies ApiError,
+          });
         }
 
-        await logAction("staff_disabled", {}, { 
-          type: "user", 
-          id: user_id, 
-          email: targetUser?.user?.email 
+        await logAction("staff_disabled", { request_id: requestId }, {
+          type: "user",
+          id: user_id,
+          email: targetUser?.user?.email,
         });
 
-        return new Response(
-          JSON.stringify({ success: true, message: "Utilisateur désactivé" }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return json(200, { ok: true, request_id: requestId, success: true, message: "Utilisateur désactivé" });
       }
 
       case "enable": {
         const { user_id } = body;
 
         const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
-
         const { error } = await adminClient.auth.admin.updateUserById(user_id, {
           ban_duration: "none",
         });
 
         if (error) {
           console.error("[admin-manage-staff] Enable error:", error);
-          return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "PROVIDER_ERROR", message: error.message, step: "enable.update" } satisfies ApiError,
+          });
         }
 
-        await logAction("staff_enabled", {}, { 
-          type: "user", 
-          id: user_id, 
-          email: targetUser?.user?.email 
+        await logAction("staff_enabled", { request_id: requestId }, {
+          type: "user",
+          id: user_id,
+          email: targetUser?.user?.email,
         });
 
-        return new Response(
-          JSON.stringify({ success: true, message: "Utilisateur activé" }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return json(200, { ok: true, request_id: requestId, success: true, message: "Utilisateur activé" });
       }
 
       case "change_role": {
         const { user_id, new_role } = body;
 
-        if (!["admin", "employee", "technician"].includes(new_role)) {
-          return new Response(
-            JSON.stringify({ error: "Rôle invalide" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+        if (!(["admin", "employee", "technician"] as const).includes(new_role)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Rôle invalide", step: "change_role.validate" } satisfies ApiError,
+          });
         }
 
-        // Prevent changing own role
         if (user_id === callingUser.id) {
-          return new Response(
-            JSON.stringify({ error: "Vous ne pouvez pas changer votre propre rôle" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: {
+              code: "VALIDATION",
+              message: "Vous ne pouvez pas changer votre propre rôle",
+              step: "change_role.self",
+            } satisfies ApiError,
+          });
         }
 
-        // Get current role
         const { data: currentRole } = await adminClient
           .from("user_roles")
           .select("role")
@@ -306,28 +382,13 @@ serve(async (req: Request) => {
 
         const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
 
-        // Update role
         await adminClient.from("user_roles").delete().eq("user_id", user_id);
-        await adminClient.from("user_roles").insert({
-          user_id,
-          role: new_role,
-        });
+        await adminClient.from("user_roles").insert({ user_id, role: new_role });
 
-        // Handle technician record
         if (new_role === "technician") {
-          const { data: existingTech } = await adminClient
-            .from("technicians")
-            .select("id")
-            .eq("user_id", user_id)
-            .maybeSingle();
-
+          const { data: existingTech } = await adminClient.from("technicians").select("id").eq("user_id", user_id).maybeSingle();
           if (!existingTech) {
-            const { data: profile } = await adminClient
-              .from("profiles")
-              .select("full_name, email")
-              .eq("user_id", user_id)
-              .maybeSingle();
-
+            const { data: profile } = await adminClient.from("profiles").select("full_name, email").eq("user_id", user_id).maybeSingle();
             await adminClient.from("technicians").insert({
               user_id,
               email: targetUser?.user?.email || profile?.email,
@@ -337,94 +398,186 @@ serve(async (req: Request) => {
           }
         }
 
-        await logAction("staff_role_changed", { 
-          old_role: currentRole?.role,
-          new_role,
-        }, { type: "user", id: user_id, email: targetUser?.user?.email });
-
-        return new Response(
-          JSON.stringify({ success: true, message: `Rôle changé en ${new_role}` }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        await logAction(
+          "staff_role_changed",
+          { old_role: currentRole?.role, new_role, request_id: requestId },
+          { type: "user", id: user_id, email: targetUser?.user?.email }
         );
+
+        return json(200, { ok: true, request_id: requestId, success: true, message: `Rôle changé en ${new_role}` });
       }
 
       case "send_reset": {
         const { email } = body;
+        const stepBase = "send_reset";
+
+        // Validate required secrets before doing anything
+        const missingSecrets = [
+          ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
+          ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
+          ...(isMissingSecret("RESEND_API_KEY") ? ["RESEND_API_KEY"] : []),
+          ...(isMissingSecret("APP_BASE_URL") ? ["APP_BASE_URL"] : []),
+        ];
+
+        if (missingSecrets.length > 0) {
+          await logAction(
+            "staff_password_reset_failed",
+            {
+              request_id: requestId,
+              step: `${stepBase}.validate_secrets`,
+              http_status: 500,
+              error_message: "Secrets requis manquants",
+              stack: null,
+              missing_secrets: missingSecrets,
+              provider_response: null,
+            },
+            { type: "staff_user", email }
+          );
+
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "MISSING_SECRETS", message: "Secrets requis manquants", step: `${stepBase}.validate_secrets` } satisfies ApiError,
+            missing_secrets: missingSecrets,
+          });
+        }
+
+        const appBaseUrl = Deno.env.get("APP_BASE_URL")!;
+        const redirectTo = joinUrl(appBaseUrl, "/admin/reset-password");
+
+        console.log(`[admin-manage-staff] send_reset request_id=${requestId} email=${email} redirectTo=${redirectTo}`);
 
         try {
-          const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
-          const resetUrl = `${appBaseUrl}/admin/reset-password`;
-          console.log(`[admin-manage-staff] send_reset: Starting for email=${email}`);
-          console.log(`[admin-manage-staff] send_reset: APP_BASE_URL=${Deno.env.get("APP_BASE_URL")}, computed resetUrl=${resetUrl}`);
-          
-          const { data: resetData, error: resetError } = await adminClient.auth.resetPasswordForEmail(email, {
-            redirectTo: resetUrl,
-          });
-          
-          console.log(`[admin-manage-staff] send_reset: resetPasswordForEmail response:`, {
-            data: resetData,
-            error: resetError ? {
-              message: resetError.message,
-              status: resetError.status,
-              name: resetError.name,
-              cause: resetError.cause,
-            } : null,
+          // Generate recovery link server-side (service role)
+          const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+            type: "recovery",
+            email,
+            options: { redirectTo },
           });
 
-          if (resetError) {
-            console.error("[admin-manage-staff] send_reset: Provider error:", resetError);
-            return new Response(
-              JSON.stringify({ 
-                ok: false, 
-                step: "send_reset", 
-                status: resetError.status,
-                message: resetError.message,
-                stack: resetError.stack,
-                provider_error: {
-                  name: resetError.name,
-                  cause: resetError.cause,
+          if (linkError || !linkData?.properties?.action_link) {
+            await logAction(
+              "staff_password_reset_failed",
+              {
+                request_id: requestId,
+                step: `${stepBase}.generate_link`,
+                http_status: 500,
+                error_message: linkError?.message || "Impossible de générer le lien de réinitialisation",
+                stack: linkError?.stack || null,
+                missing_secrets: [],
+                provider_response: {
+                  linkData,
+                  linkError: linkError
+                    ? {
+                        name: linkError.name,
+                        message: linkError.message,
+                        status: (linkError as any).status,
+                        cause: (linkError as any).cause,
+                      }
+                    : null,
                 },
-              }),
-              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              },
+              { type: "staff_user", email }
             );
+
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: {
+                code: "LINK_GENERATION_FAILED",
+                message: linkError?.message || "Impossible de générer le lien de réinitialisation",
+                step: `${stepBase}.generate_link`,
+              } satisfies ApiError,
+              provider_response: {
+                linkData,
+                linkError: linkError ? { name: linkError.name, message: linkError.message } : null,
+              },
+            });
           }
 
-          await logAction("staff_password_reset_sent", { resetUrl }, { type: "user", email });
+          const resetLink = linkData.properties.action_link;
 
-          console.log(`[admin-manage-staff] send_reset: Success for ${email}`);
-          return new Response(
-            JSON.stringify({ ok: true, success: true, message: "Email de réinitialisation envoyé" }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          // Send email via Resend
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
+          const fromEmail = Deno.env.get("SUPPORT_EMAIL") || "onboarding@resend.dev";
+
+          const resendResult = await resend.emails.send({
+            from: `Nivra <${fromEmail}>`,
+            to: [email],
+            subject: "Réinitialisation de votre mot de passe",
+            html: `
+              <p>Bonjour,</p>
+              <p>Voici votre lien de réinitialisation de mot de passe :</p>
+              <p><a href="${resetLink}">${resetLink}</a></p>
+              <p>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+              <p style="color:#6b7280;font-size:12px;">Request ID: ${requestId}</p>
+            `,
+          });
+
+          console.log("[admin-manage-staff] send_reset resendResult:", resendResult);
+
+          await logAction(
+            "staff_password_reset_sent",
+            {
+              request_id: requestId,
+              redirect_to: redirectTo,
+              provider_response: {
+                link: {
+                  verification_type: linkData.properties.verification_type,
+                  redirect_to: linkData.properties.redirect_to,
+                },
+                resend: resendResult,
+              },
+            },
+            { type: "staff_user", email }
           );
-        } catch (sendResetError: unknown) {
-          const err = sendResetError as Error;
-          console.error("[admin-manage-staff] send_reset: Unexpected exception:", err);
-          return new Response(
-            JSON.stringify({ 
-              ok: false, 
-              step: "send_reset", 
-              status: 500,
-              message: err.message,
+
+          return json(200, {
+            ok: true,
+            request_id: requestId,
+            success: true,
+            message: "Email de réinitialisation envoyé",
+          });
+        } catch (e: unknown) {
+          const err = e as Error;
+          await logAction(
+            "staff_password_reset_failed",
+            {
+              request_id: requestId,
+              step: `${stepBase}.send_email`,
+              http_status: 500,
+              error_message: err.message,
               stack: err.stack,
-              provider_error: null,
-            }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              missing_secrets: [],
+              provider_response: null,
+            },
+            { type: "staff_user", email }
           );
+
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "SEND_FAILED", message: err.message, step: `${stepBase}.send_email` } satisfies ApiError,
+            stack: err.stack,
+          });
         }
       }
 
       default:
-        return new Response(
-          JSON.stringify({ error: "Action non reconnue" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return json(400, {
+          ok: false,
+          request_id: requestId,
+          error: { code: "BAD_REQUEST", message: "Action non reconnue", step: "action" } satisfies ApiError,
+        });
     }
-
-  } catch (error: unknown) {
-    console.error("[admin-manage-staff] Unexpected error:", error);
-    return new Response(
-      JSON.stringify({ error: "Erreur inattendue" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.error("[admin-manage-staff] Top-level error request_id=", requestId, err);
+    return json(500, {
+      ok: false,
+      request_id: requestId,
+      error: { code: "INTERNAL", message: "Erreur inattendue", step: "top_level" } satisfies ApiError,
+      stack: err.stack,
+    });
   }
 });
