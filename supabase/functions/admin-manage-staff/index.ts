@@ -84,14 +84,21 @@ serve(async (req: Request) => {
     const body: RequestBody = await req.json();
     const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
 
-    // Helper to log action
-    const logAction = async (action: string, details: Record<string, unknown>) => {
+    // Helper to log action with target info
+    const logAction = async (
+      action: string, 
+      details: Record<string, unknown>,
+      target?: { type?: string; id?: string; email?: string }
+    ) => {
       await adminClient.from("admin_audit_log").insert({
         admin_user_id: callingUser.id,
         admin_email: callingUser.email,
         action,
         details,
         ip_address: ipAddress,
+        target_type: target?.type || null,
+        target_id: target?.id || null,
+        target_email: target?.email || null,
       });
     };
 
@@ -179,11 +186,9 @@ serve(async (req: Request) => {
         }
 
         await logAction("staff_created", { 
-          target_user_id: authData.user.id,
-          target_email: email, 
           role,
           require_password_change,
-        });
+        }, { type: "user", id: authData.user.id, email });
 
         // Send password reset email so user can set their own password
         if (require_password_change) {
@@ -231,9 +236,10 @@ serve(async (req: Request) => {
           );
         }
 
-        await logAction("staff_disabled", { 
-          target_user_id: user_id,
-          target_email: targetUser?.user?.email,
+        await logAction("staff_disabled", {}, { 
+          type: "user", 
+          id: user_id, 
+          email: targetUser?.user?.email 
         });
 
         return new Response(
@@ -259,9 +265,10 @@ serve(async (req: Request) => {
           );
         }
 
-        await logAction("staff_enabled", { 
-          target_user_id: user_id,
-          target_email: targetUser?.user?.email,
+        await logAction("staff_enabled", {}, { 
+          type: "user", 
+          id: user_id, 
+          email: targetUser?.user?.email 
         });
 
         return new Response(
@@ -329,11 +336,9 @@ serve(async (req: Request) => {
         }
 
         await logAction("staff_role_changed", { 
-          target_user_id: user_id,
-          target_email: targetUser?.user?.email,
           old_role: currentRole?.role,
           new_role,
-        });
+        }, { type: "user", id: user_id, email: targetUser?.user?.email });
 
         return new Response(
           JSON.stringify({ success: true, message: `Rôle changé en ${new_role}` }),
@@ -357,7 +362,7 @@ serve(async (req: Request) => {
           );
         }
 
-        await logAction("staff_password_reset_sent", { target_email: email });
+        await logAction("staff_password_reset_sent", {}, { type: "user", email });
 
         return new Response(
           JSON.stringify({ success: true, message: "Email de réinitialisation envoyé" }),

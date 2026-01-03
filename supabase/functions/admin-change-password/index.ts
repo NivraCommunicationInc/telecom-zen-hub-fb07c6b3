@@ -105,6 +105,9 @@ serve(async (req: Request) => {
         action: "password_change_failed",
         details: { reason: "invalid_current_password" },
         ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown",
+        target_type: "user",
+        target_id: user.id,
+        target_email: user.email,
       });
 
       return new Response(
@@ -127,6 +130,9 @@ serve(async (req: Request) => {
         action: "password_change_error",
         details: { error: updateError.message },
         ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown",
+        target_type: "user",
+        target_id: user.id,
+        target_email: user.email,
       });
 
       return new Response(
@@ -135,13 +141,15 @@ serve(async (req: Request) => {
       );
     }
 
-    // Log successful password change
     await adminClient.from("admin_audit_log").insert({
       admin_user_id: user.id,
       admin_email: user.email,
       action: "password_changed",
       details: { success: true },
       ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown",
+      target_type: "user",
+      target_id: user.id,
+      target_email: user.email,
     });
 
     console.log("[admin-change-password] Password changed successfully for:", user.email);

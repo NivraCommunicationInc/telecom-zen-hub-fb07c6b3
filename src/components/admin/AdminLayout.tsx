@@ -23,7 +23,8 @@ import {
   Building2,
   Film,
   Radio,
-  Mail
+  Mail,
+  History
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ const navItems = [
   { icon: Mail, label: "Emails", href: "/admin/email-activity" },
   { icon: Settings, label: "Mon compte", href: "/admin/account" },
   { icon: Users, label: "Utilisateurs & Rôles", href: "/admin/users" },
+  { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
