@@ -37,7 +37,8 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
       body: JSON.stringify({
-        from: "Nivra <onboarding@resend.dev>",
+        from: "Nivra Telecom <support@nivratelecom.ca>",
+        reply_to: "support@nivratelecom.ca",
         to: [email],
         subject: statusConfig.subject,
         html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;"><h1 style="color: white; margin: 0;">Nivra</h1></div><div style="padding: 30px; background: #f8fafc;"><h2 style="color: #0f172a;">Bonjour ${name || "cher client"},</h2><div style="background: ${statusConfig.color}20; border-left: 4px solid ${statusConfig.color}; padding: 15px; margin: 20px 0;"><h3 style="color: ${statusConfig.color}; margin: 0 0 10px;">${statusConfig.heading}</h3><p style="color: #475569; margin: 0;">${statusConfig.message}</p></div><div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;"><p style="margin: 0; color: #0f172a;"><strong>Rendez-vous:</strong> ${appointmentTitle}</p><p style="margin: 10px 0 0; color: #0f172a;"><strong>Date et heure:</strong> ${formattedDate}</p>${notes ? `<p style="margin: 10px 0 0; color: #64748b;"><strong>Notes:</strong> ${notes}</p>` : ""}</div><p style="color: #475569;">Cordialement,<br>L'équipe Nivra</p></div></div>`,

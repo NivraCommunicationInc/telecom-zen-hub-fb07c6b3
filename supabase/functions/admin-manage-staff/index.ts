@@ -499,10 +499,10 @@ serve(async (req: Request) => {
 
           // Send email via Resend
           const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-          const fromEmail = Deno.env.get("SUPPORT_EMAIL") || "onboarding@resend.dev";
 
           const resendResult = await resend.emails.send({
-            from: `Nivra <${fromEmail}>`,
+            from: "Nivra Telecom <support@nivratelecom.ca>",
+            reply_to: "support@nivratelecom.ca",
             to: [email],
             subject: "Réinitialisation de votre mot de passe",
             html: `
