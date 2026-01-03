@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 const TechnicianAuth = () => {
   const navigate = useNavigate();
@@ -48,12 +49,29 @@ const TechnicianAuth = () => {
 
       if (error) {
         console.error("Edge function error:", error);
-        setErrorMessage("Erreur de connexion. Veuillez réessayer.");
+        let message = "Erreur de connexion. Veuillez réessayer.";
+
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const body = await error.context.json();
+            // New diagnostic format: { ok: false, step, reason }
+            if (typeof body?.reason === "string" && body.reason.trim()) {
+              message = body.reason;
+            } else if (typeof body?.error === "string" && body.error.trim()) {
+              message = body.error;
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+
+        setErrorMessage(message);
         return;
       }
 
-      if (data?.error) {
-        setErrorMessage(data.error);
+      // Handle error response in data (2xx with ok:false)
+      if (data?.ok === false) {
+        setErrorMessage(data.reason || data.error || "Erreur de connexion.");
         return;
       }
 

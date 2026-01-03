@@ -52,7 +52,7 @@ serve(async (req) => {
     if (!email || !pin) {
       console.log("[employee-auth] Missing email or PIN");
       return new Response(
-        JSON.stringify({ error: "Email et code PIN requis" }),
+        JSON.stringify({ ok: false, step: "validate_input", reason: "Email et code PIN requis" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -65,7 +65,62 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find employee by email
+    // Step 1: Find profile by email (normalized)
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, email")
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("[employee-auth] Profile lookup error:", profileError);
+      return new Response(
+        JSON.stringify({ ok: false, step: "profile_lookup", reason: "Erreur de connexion" }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!profile) {
+      console.log("[employee-auth] No profile found for email:", normalizedEmail);
+      return new Response(
+        JSON.stringify({ ok: false, step: "profile_not_found", reason: "Aucun compte trouvé pour ce courriel" }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step 2: Check user_roles for employee role
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role, is_active")
+      .eq("user_id", profile.user_id)
+      .eq("role", "employee")
+      .maybeSingle();
+
+    if (roleError) {
+      console.error("[employee-auth] Role lookup error:", roleError);
+      return new Response(
+        JSON.stringify({ ok: false, step: "role_lookup", reason: "Erreur de vérification du rôle" }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!roleData) {
+      console.log("[employee-auth] No employee role for user:", profile.user_id);
+      return new Response(
+        JSON.stringify({ ok: false, step: "wrong_role", reason: "Ce compte n'est pas un compte employé. Utilisez le portail approprié." }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (roleData.is_active === false) {
+      console.log("[employee-auth] Employee role is disabled for user:", profile.user_id);
+      return new Response(
+        JSON.stringify({ ok: false, step: "role_disabled", reason: "Accès employé désactivé. Contactez l'administrateur." }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step 3: Find employee record by email for PIN and lockout info
     const { data: employee, error: empError } = await supabase
       .from("employees")
       .select("*")
@@ -73,17 +128,17 @@ serve(async (req) => {
       .maybeSingle();
 
     if (empError) {
-      console.error("[employee-auth] Database error:", empError);
+      console.error("[employee-auth] Employee lookup error:", empError);
       return new Response(
-        JSON.stringify({ error: "Erreur de connexion. Veuillez réessayer." }),
+        JSON.stringify({ ok: false, step: "employee_lookup", reason: "Erreur de connexion" }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!employee) {
-      console.log("[employee-auth] No employee found for email:", normalizedEmail);
+      console.log("[employee-auth] No employee record for email:", normalizedEmail);
       return new Response(
-        JSON.stringify({ error: "Aucun compte employé trouvé pour ce courriel." }),
+        JSON.stringify({ ok: false, step: "employee_not_found", reason: "Profil employé non configuré. Contactez l'administrateur." }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -95,23 +150,22 @@ serve(async (req) => {
         const minutesRemaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / 60000);
         console.log("[employee-auth] Account locked for:", minutesRemaining, "minutes");
         return new Response(
-          JSON.stringify({ error: `Compte temporairement verrouillé. Réessayez dans ${minutesRemaining} minute(s).` }),
+          JSON.stringify({ ok: false, step: "account_locked", reason: `Compte temporairement verrouillé. Réessayez dans ${minutesRemaining} minute(s).` }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // Check if active
+    // Check if employee is active
     if (!employee.is_active) {
-      console.log("[employee-auth] Account inactive");
+      console.log("[employee-auth] Employee account inactive");
       return new Response(
-        JSON.stringify({ error: "Accès bloqué: compte désactivé. Contactez l'administrateur." }),
+        JSON.stringify({ ok: false, step: "employee_disabled", reason: "Accès bloqué: compte désactivé. Contactez l'administrateur." }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify PIN
-    // Support both the new salted hash and the legacy unsalted hash (backward compatibility).
+    // Verify PIN against hash
     const inputPinHash = await hashPin(pin, PIN_SALT);
     const legacyInputPinHash = await hashPin(pin);
 
@@ -133,7 +187,7 @@ serve(async (req) => {
 
         console.log("[employee-auth] Account locked after", MAX_ATTEMPTS, "attempts");
         return new Response(
-          JSON.stringify({ error: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
+          JSON.stringify({ ok: false, step: "pin_lockout", reason: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -143,7 +197,7 @@ serve(async (req) => {
       const remaining = MAX_ATTEMPTS - newAttempts;
       console.log("[employee-auth] Invalid PIN. Remaining attempts:", remaining);
       return new Response(
-        JSON.stringify({ error: `Code PIN invalide. ${remaining} tentative(s) restante(s).` }),
+        JSON.stringify({ ok: false, step: "pin_invalid", reason: `Code PIN invalide. ${remaining} tentative(s) restante(s).` }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -153,6 +207,12 @@ serve(async (req) => {
       failed_login_attempts: 0, 
       lockout_until: null 
     }).eq("id", employee.id);
+
+    // Update last_login_at in user_roles
+    await supabase.from("user_roles")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("user_id", profile.user_id)
+      .eq("role", "employee");
 
     // Log the login
     await supabase.from("employee_audit_logs").insert({
@@ -170,6 +230,7 @@ serve(async (req) => {
     const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const sessionToken = await signToken({
       employeeId: employee.id,
+      userId: profile.user_id,
       email: employee.email,
       fullName: employee.full_name,
       role: "employee",
@@ -180,10 +241,12 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        ok: true,
         success: true,
         token: sessionToken,
         employee: {
           id: employee.id,
+          user_id: profile.user_id,
           email: employee.email,
           full_name: employee.full_name,
           phone: employee.phone,
@@ -197,7 +260,7 @@ serve(async (req) => {
     console.error("[employee-auth] Unexpected error:", error);
     const origin = req.headers.get('origin');
     return new Response(
-      JSON.stringify({ error: "Erreur inattendue. Veuillez réessayer." }),
+      JSON.stringify({ ok: false, step: "unexpected_error", reason: "Erreur inattendue. Veuillez réessayer." }),
       { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }

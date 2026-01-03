@@ -59,6 +59,7 @@ import ClientTVOrder from "./pages/client/ClientTVOrder";
 import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacement";
 import ClientMonthlyInvoices from "./pages/client/ClientMonthlyInvoices";
 import TechnicianAuth from "./pages/technician/TechnicianAuth";
+import TechnicianResetPassword from "./pages/technician/TechnicianResetPassword";
 import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 import AdminReplacements from "./pages/admin/AdminReplacements";
 import AdminEmployees from "./pages/admin/AdminEmployees";
@@ -76,6 +77,7 @@ import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import AdminResetPassword from "./pages/admin/AdminResetPassword";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
+import EmployeeResetPassword from "./pages/employee/EmployeeResetPassword";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeOrders from "./pages/employee/EmployeeOrders";
 import EmployeeAppointments from "./pages/employee/EmployeeAppointments";
@@ -154,6 +156,7 @@ const App = () => (
               <Route path="/admin/audit-log" element={<ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute>} />
               {/* Employee Portal Routes */}
               <Route path="/employee/login" element={<EmployeeLogin />} />
+              <Route path="/employee/reset-password" element={<EmployeeResetPassword />} />
               <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
               <Route path="/employee/orders" element={<EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute>} />
               <Route path="/employee/appointments" element={<EmployeeProtectedRoute><EmployeeAppointments /></EmployeeProtectedRoute>} />
@@ -184,6 +187,7 @@ const App = () => (
               <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute>} />
               {/* Technician Portal Routes */}
               <Route path="/technician/auth" element={<TechnicianAuth />} />
+              <Route path="/technician/reset-password" element={<TechnicianResetPassword />} />
               <Route path="/technician" element={<TechnicianProtectedRoute><TechnicianDashboard /></TechnicianProtectedRoute>} />
               <Route path="/not-authorized" element={<NotAuthorized />} />
               <Route path="*" element={<NotFound />} />
