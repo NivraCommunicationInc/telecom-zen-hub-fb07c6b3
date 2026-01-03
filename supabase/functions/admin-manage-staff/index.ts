@@ -65,7 +65,9 @@ interface SendResetRequest {
 
 interface ApplyRolePackRequest {
   action: "apply_role_pack";
-  user_id: string;
+  target_user_id?: string;
+  target_email?: string;
+  target_role?: StaffRole;
 }
 
 interface SetPinRequest {
@@ -1312,31 +1314,202 @@ serve(async (req: Request) => {
       }
 
       case "apply_role_pack": {
-        const { user_id } = body as ApplyRolePackRequest;
+        const { target_user_id, target_email, target_role } = body as ApplyRolePackRequest;
         const stepBase = "apply_role_pack";
 
-        if (!user_id) {
+        // Validate: need at least one identifier
+        if (!target_user_id && !target_email) {
+          await logAction("staff_permissions_pack_failed", {
+            request_id: requestId,
+            step: `${stepBase}.validate`,
+            message: "target_user_id ou target_email requis",
+          }, { type: "user" });
           return json(400, {
             ok: false,
             request_id: requestId,
-            error: { code: "VALIDATION", message: "user_id requis", step: `${stepBase}.validate` } satisfies ApiError,
+            step: `${stepBase}.validate`,
+            message: "target_user_id ou target_email requis",
+            http_status: 400,
           });
         }
 
-        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
+        console.log(`[admin-manage-staff] ${stepBase} target_user_id=${target_user_id} target_email=${target_email} target_role=${target_role} request_id=${requestId}`);
 
-        const { data: roleData, error: roleError } = await adminClient
-          .from("user_roles")
-          .select("role, permissions")
-          .eq("user_id", user_id)
-          .in("role", ["admin", "employee", "technician"])
-          .maybeSingle();
+        // Resolve user_id: prefer target_user_id, fallback to lookup via email
+        let resolvedUserId: string | null = target_user_id || null;
+        let resolvedEmail: string | null = target_email?.trim().toLowerCase() || null;
+        let resolvedRole: StaffRole | null = target_role || null;
 
-        if (roleError || !roleData) {
+        // If no user_id, lookup by email via profiles
+        if (!resolvedUserId && resolvedEmail) {
+          const { data: profileData } = await adminClient
+            .from("profiles")
+            .select("user_id, email")
+            .ilike("email", resolvedEmail)
+            .maybeSingle();
+
+          if (profileData?.user_id) {
+            resolvedUserId = profileData.user_id;
+            console.log(`[admin-manage-staff] ${stepBase} resolved user_id=${resolvedUserId} from email=${resolvedEmail}`);
+          }
+        }
+
+        // Still no user_id? Check if the target_user_id might be employees.id or technicians.id
+        if (!resolvedUserId && target_user_id) {
+          // Try employees table
+          const { data: empData } = await adminClient
+            .from("employees")
+            .select("email")
+            .eq("id", target_user_id)
+            .maybeSingle();
+          
+          if (empData?.email) {
+            resolvedEmail = empData.email.toLowerCase();
+            const { data: profileData } = await adminClient
+              .from("profiles")
+              .select("user_id")
+              .ilike("email", resolvedEmail!)
+              .maybeSingle();
+            if (profileData?.user_id) {
+              resolvedUserId = profileData.user_id;
+              resolvedRole = resolvedRole || "employee";
+              console.log(`[admin-manage-staff] ${stepBase} resolved from employees table user_id=${resolvedUserId}`);
+            }
+          }
+
+          // Try technicians table if still not found
+          if (!resolvedUserId) {
+            const { data: techData } = await adminClient
+              .from("technicians")
+              .select("user_id, email")
+              .eq("id", target_user_id)
+              .maybeSingle();
+            
+            if (techData) {
+              if (techData.user_id) {
+                resolvedUserId = techData.user_id;
+                resolvedEmail = techData.email?.toLowerCase() || null;
+                resolvedRole = resolvedRole || "technician";
+                console.log(`[admin-manage-staff] ${stepBase} resolved from technicians.user_id=${resolvedUserId}`);
+              } else if (techData.email) {
+                resolvedEmail = techData.email.toLowerCase();
+                const { data: profileData } = await adminClient
+                  .from("profiles")
+                  .select("user_id")
+                  .ilike("email", resolvedEmail!)
+                  .maybeSingle();
+                if (profileData?.user_id) {
+                  resolvedUserId = profileData.user_id;
+                  resolvedRole = resolvedRole || "technician";
+                  console.log(`[admin-manage-staff] ${stepBase} resolved from technicians email user_id=${resolvedUserId}`);
+                }
+              }
+            }
+          }
+        }
+
+        // Final check: still no user_id?
+        if (!resolvedUserId) {
+          await logAction("staff_permissions_pack_failed", {
+            request_id: requestId,
+            step: `${stepBase}.resolve_user`,
+            message: "Utilisateur Auth introuvable",
+            target_user_id,
+            target_email,
+          }, { type: "user", email: resolvedEmail || target_email });
           return json(404, {
             ok: false,
             request_id: requestId,
-            error: { code: "NOT_FOUND", message: "Utilisateur ou rôle non trouvé", step: `${stepBase}.get_role` } satisfies ApiError,
+            step: `${stepBase}.auth_user_missing`,
+            message: "Utilisateur Auth introuvable. Vérifiez que le compte existe.",
+            http_status: 404,
+            target: { user_id: target_user_id, email: target_email, role: target_role },
+          });
+        }
+
+        // Get or determine role from user_roles
+        let { data: roleData } = await adminClient
+          .from("user_roles")
+          .select("role, permissions, status")
+          .eq("user_id", resolvedUserId)
+          .in("role", ["admin", "employee", "technician"])
+          .maybeSingle();
+
+        // If user_roles row missing, try to upsert it
+        if (!roleData) {
+          // Determine role from employees/technicians tables or use provided
+          if (!resolvedRole) {
+            if (resolvedEmail) {
+              const { data: empCheck } = await adminClient
+                .from("employees")
+                .select("id")
+                .ilike("email", resolvedEmail)
+                .maybeSingle();
+              if (empCheck) resolvedRole = "employee";
+              
+              if (!resolvedRole) {
+                const { data: techCheck } = await adminClient
+                  .from("technicians")
+                  .select("id")
+                  .ilike("email", resolvedEmail)
+                  .maybeSingle();
+                if (techCheck) resolvedRole = "technician";
+              }
+            }
+          }
+
+          // Default to employee if still unknown
+          const roleToInsert: StaffRole = resolvedRole || "employee";
+
+          console.log(`[admin-manage-staff] ${stepBase} user_roles missing, upserting role=${roleToInsert} for user_id=${resolvedUserId}`);
+
+          const { error: upsertError } = await adminClient
+            .from("user_roles")
+            .upsert({
+              user_id: resolvedUserId,
+              role: roleToInsert,
+              status: "active",
+              is_active: true,
+            }, { onConflict: "user_id" });
+
+          if (upsertError) {
+            console.error(`[admin-manage-staff] ${stepBase} upsert error:`, upsertError);
+            await logAction("staff_permissions_pack_failed", {
+              request_id: requestId,
+              step: `${stepBase}.upsert_role`,
+              message: upsertError.message,
+            }, { type: "user", id: resolvedUserId, email: resolvedEmail || undefined });
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              step: `${stepBase}.upsert_role`,
+              message: `Erreur création user_roles: ${upsertError.message}`,
+              http_status: 500,
+            });
+          }
+
+          // Re-fetch after upsert
+          const { data: newRoleData } = await adminClient
+            .from("user_roles")
+            .select("role, permissions, status")
+            .eq("user_id", resolvedUserId)
+            .maybeSingle();
+          
+          roleData = newRoleData;
+        }
+
+        if (!roleData) {
+          await logAction("staff_permissions_pack_failed", {
+            request_id: requestId,
+            step: `${stepBase}.get_role_final`,
+            message: "Rôle utilisateur introuvable après upsert",
+          }, { type: "user", id: resolvedUserId, email: resolvedEmail || undefined });
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            step: `${stepBase}.get_role_final`,
+            message: "Rôle utilisateur introuvable après upsert",
+            http_status: 500,
           });
         }
 
@@ -1369,31 +1542,46 @@ serve(async (req: Request) => {
         const { error: updateError } = await adminClient
           .from("user_roles")
           .update({ permissions: newPermissions })
-          .eq("user_id", user_id);
+          .eq("user_id", resolvedUserId);
 
         if (updateError) {
-          console.error(`[admin-manage-staff] ${stepBase} error:`, updateError);
+          console.error(`[admin-manage-staff] ${stepBase} update error:`, updateError);
+          await logAction("staff_permissions_pack_failed", {
+            request_id: requestId,
+            step: `${stepBase}.update`,
+            message: updateError.message,
+          }, { type: "user", id: resolvedUserId, email: resolvedEmail || undefined });
           return json(500, {
             ok: false,
             request_id: requestId,
-            error: { code: "DB_ERROR", message: updateError.message, step: `${stepBase}.update` } satisfies ApiError,
+            step: `${stepBase}.update`,
+            message: updateError.message,
+            http_status: 500,
           });
         }
 
-        const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
+        // Get email for logging
+        let targetEmail = resolvedEmail;
+        if (!targetEmail) {
+          const { data: targetUser } = await adminClient.auth.admin.getUserById(resolvedUserId);
+          targetEmail = targetUser?.user?.email || null;
+        }
 
         await logAction(
           "staff_permissions_pack_applied",
-          { request_id: requestId, role: currentRole, old_permissions: oldPermissions, new_permissions: newPermissions },
-          { type: "user", id: user_id, email: targetUser?.user?.email }
+          { request_id: requestId, role: currentRole, old_permissions: oldPermissions, new_permissions: newPermissions, applied_pack: currentRole },
+          { type: "user", id: resolvedUserId, email: targetEmail || undefined }
         );
 
         return json(200, {
           ok: true,
           request_id: requestId,
-          success: true,
+          step: `${stepBase}.success`,
           message: `Pack de permissions "${currentRole}" appliqué`,
           role: currentRole,
+          target: { user_id: resolvedUserId, email: targetEmail, role: currentRole },
+          applied_pack: newPermissions,
+          http_status: 200,
         });
       }
 

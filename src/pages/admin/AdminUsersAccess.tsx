@@ -431,11 +431,18 @@ const AdminUsersAccess = () => {
     },
   });
 
-  // Apply role pack mutation
+  // Apply role pack mutation - sends both user_id and email for robustness
   const applyRolePackMutation = useMutation({
-    mutationFn: async (userId: string) => {
+    mutationFn: async (staff: StaffUser) => {
+      // Always send target_email + target_role for robustness
+      // staff.id may be Auth user_id (from user_roles) or employees.id/technicians.id
       const response = await supabase.functions.invoke("admin-manage-staff", {
-        body: { action: "apply_role_pack", user_id: userId },
+        body: { 
+          action: "apply_role_pack", 
+          target_user_id: staff.id,
+          target_email: staff.email,
+          target_role: staff.role,
+        },
       });
       if (response.error || (response.data as any)?.ok === false) {
         const details = await extractErrorDetails(response);
@@ -922,7 +929,7 @@ const AdminUsersAccess = () => {
                                     Changer le rôle
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
-                                    onClick={() => applyRolePackMutation.mutate(user.id)}
+                                    onClick={() => applyRolePackMutation.mutate(user)}
                                     disabled={applyRolePackMutation.isPending}
                                   >
                                     <Shield className="h-4 w-4 mr-2" />
