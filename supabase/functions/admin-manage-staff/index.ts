@@ -31,7 +31,6 @@ interface CreateStaffRequest {
   role: StaffRole;
   require_password_change?: boolean;
   permissions?: PermissionSet;
-  // Extended fields
   phone?: string;
   badge_number?: string;
   job_title?: string;
@@ -103,12 +102,25 @@ interface HardDeleteUserRequest {
   confirm_email: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest;
+interface InviteSetPinRequest {
+  action: "invite_set_pin";
+  email: string;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest;
 
 // PIN hashing function (must match client-side)
 const SALT = 'nivra_pin_salt_2026';
 async function hashPin(pin: string): Promise<string> {
   const data = new TextEncoder().encode(SALT + pin);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Token hash function
+async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -145,12 +157,10 @@ serve(async (req: Request) => {
       },
     });
 
-  // Never return an empty body (even for preflight)
   if (req.method === "OPTIONS") {
     return json(200, { ok: true, request_id: requestId, preflight: true });
   }
 
-  // Top-level safety net: any throw returns JSON
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -256,6 +266,25 @@ serve(async (req: Request) => {
       }
     };
 
+    // Helper to get APP_BASE_URL
+    const getAppBaseUrl = (): string => {
+      const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
+      let appBaseUrl = "https://nivratelecom.ca";
+      if (rawAppBaseUrl) {
+        if (rawAppBaseUrl.includes(",")) {
+          console.error(`[admin-manage-staff] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
+        } else {
+          try {
+            new URL(rawAppBaseUrl);
+            appBaseUrl = rawAppBaseUrl.replace(/\/+$/, "");
+          } catch {
+            console.error(`[admin-manage-staff] APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
+          }
+        }
+      }
+      return appBaseUrl;
+    };
+
     switch (body.action) {
       case "create": {
         const { 
@@ -275,7 +304,6 @@ serve(async (req: Request) => {
         const createStep = "create";
         console.log(`[admin-manage-staff] ${createStep}.start email=${email} role=${role} request_id=${requestId}`);
 
-        // Step: validate_input
         if (!email || !full_name || !role) {
           const step = `${createStep}.validate_input`;
           await logAction("staff_create_failed", {
@@ -296,7 +324,6 @@ serve(async (req: Request) => {
           });
         }
 
-        // Validate badge_number uniqueness if provided
         if (badge_number) {
           const { data: existingBadge } = await adminClient
             .from("employees")
@@ -315,7 +342,6 @@ serve(async (req: Request) => {
           }
         }
 
-        // Validate PIN for non-admin roles
         if (role !== "admin" && pin && !/^\d{4}$/.test(pin)) {
           return json(400, {
             ok: false,
@@ -346,7 +372,6 @@ serve(async (req: Request) => {
           });
         }
 
-        // Generate secure temporary password
         const array = new Uint8Array(20);
         crypto.getRandomValues(array);
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
@@ -355,7 +380,6 @@ serve(async (req: Request) => {
           tempPassword += chars[array[i] % chars.length];
         }
 
-        // Step: auth_create_user
         const stepAuthCreate = `${createStep}.auth_create_user`;
         console.log(`[admin-manage-staff] ${stepAuthCreate} email=${email}`);
 
@@ -379,15 +403,12 @@ serve(async (req: Request) => {
             (authError as any).code === "email_exists";
 
           if (isEmailExists) {
-            // Mode: promote existing user
             console.log(`[admin-manage-staff] ${stepAuthCreate} email_exists - switching to promote mode`);
             mode = "existing_user_promoted";
 
-            // Step: auth_lookup_existing_user
             const stepLookup = `${createStep}.auth_lookup_existing_user`;
             console.log(`[admin-manage-staff] ${stepLookup} searching for email=${email}`);
 
-            // List users and find by exact email match
             const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({
               perPage: 1000,
             });
@@ -410,7 +431,6 @@ serve(async (req: Request) => {
                 http_status: 500,
                 supabase_error: { code: (listError as any).code, message: listError.message },
                 details: { email },
-                provider_response: { supabase_url: supabaseUrl?.slice(0, 50) },
               });
             }
 
@@ -419,7 +439,6 @@ serve(async (req: Request) => {
             );
 
             if (!existingUser) {
-              // This is strange - email_exists but user not found
               console.error(`[admin-manage-staff] ${stepLookup} email_exists returned but user not found!`);
               await logAction("staff_create_failed", {
                 request_id: requestId,
@@ -438,14 +457,12 @@ serve(async (req: Request) => {
                 http_status: 409,
                 supabase_error: { code: (authError as any).code, message: authError.message },
                 details: { email, users_searched: listData?.users?.length || 0 },
-                provider_response: { supabase_url: supabaseUrl?.slice(0, 50) },
               });
             }
 
             userId = existingUser.id;
             console.log(`[admin-manage-staff] ${stepLookup} found existing user_id=${userId}`);
           } else {
-            // Other auth error - fail normally
             console.error(`[admin-manage-staff] ${stepAuthCreate} error:`, authError);
             await logAction("staff_create_failed", {
               request_id: requestId,
@@ -463,7 +480,6 @@ serve(async (req: Request) => {
               http_status: 400,
               supabase_error: { code: (authError as any).code, message: authError.message, status: (authError as any).status },
               details: { email },
-              provider_response: { supabase_url: supabaseUrl?.slice(0, 50) },
             });
           }
         } else {
@@ -489,7 +505,6 @@ serve(async (req: Request) => {
           userId = authData.user.id;
         }
 
-        // Step: db_upsert_profile
         const stepProfiles = `${createStep}.db_upsert_profile`;
         console.log(`[admin-manage-staff] ${stepProfiles} user_id=${userId}`);
 
@@ -522,11 +537,9 @@ serve(async (req: Request) => {
           });
         }
 
-        // Step: db_upsert_role
         const stepRoles = `${createStep}.db_upsert_role`;
         console.log(`[admin-manage-staff] ${stepRoles} user_id=${userId} role=${role}`);
 
-        // Delete existing roles then insert new one with permissions
         await adminClient.from("user_roles").delete().eq("user_id", userId);
         const { error: roleError } = await adminClient.from("user_roles").insert({
           user_id: userId,
@@ -557,7 +570,6 @@ serve(async (req: Request) => {
           });
         }
 
-        // Handle technician table entry
         if (role === "technician") {
           const stepTech = `${createStep}.db_upsert_technician`;
           const { error: techError } = await adminClient.from("technicians").upsert({
@@ -569,14 +581,12 @@ serve(async (req: Request) => {
 
           if (techError) {
             console.error(`[admin-manage-staff] ${stepTech} error:`, techError);
-            // Non-fatal, log but continue
           }
         }
 
-        // Handle employee table entry for employee/technician roles
         if (role === "employee" || role === "technician") {
           const stepEmp = `${createStep}.db_upsert_employee`;
-          const pinHash = pin ? await hashPin(pin) : await hashPin("3112"); // Default PIN
+          const pinHash = pin ? await hashPin(pin) : await hashPin("3112");
           
           const { error: empError } = await adminClient.from("employees").upsert({
             email,
@@ -595,12 +605,9 @@ serve(async (req: Request) => {
 
           if (empError) {
             console.error(`[admin-manage-staff] ${stepEmp} error:`, empError);
-            // Non-fatal for now, log but continue
           }
         }
 
-        // Step: audit_log_insert
-        const stepAudit = `${createStep}.done`;
         const auditAction = mode === "existing_user_promoted" ? "staff_role_applied_existing_user" : "staff_created";
         await logAction(
           auditAction,
@@ -616,31 +623,100 @@ serve(async (req: Request) => {
           { type: "user", id: userId, email }
         );
 
-        // Send reset email if needed (for new users or if explicitly requested)
+        // CHANGED: Only send password reset for admins, send PIN invite for employee/technician
         if (send_invitation && mode === "new_user_created") {
-          const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-          let appBaseUrl = "https://nivratelecom.ca";
-          if (rawAppBaseUrl) {
-            if (rawAppBaseUrl.includes(",")) {
-              console.error(`[admin-manage-staff] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
-            } else {
-              try {
-                new URL(rawAppBaseUrl);
-                appBaseUrl = rawAppBaseUrl.replace(/\/+$/, "");
-              } catch {
-                console.error(`[admin-manage-staff] APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
-              }
-            }
+          const appBaseUrl = getAppBaseUrl();
+          
+          if (role === "admin") {
+            // Admin gets password reset link
+            const resetUrl = `${appBaseUrl}/admin/reset-password`;
+            console.log(`[admin-manage-staff] Sending password reset email to admin ${email} with redirect: ${resetUrl}`);
+            await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
+          } else {
+            // Employee/Technician: send PIN setup invite instead
+            console.log(`[admin-manage-staff] Sending PIN invite to ${role} ${email}`);
+            
+            // Generate one-time token
+            const tokenBytes = new Uint8Array(32);
+            crypto.getRandomValues(tokenBytes);
+            const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            const tokenHash = await hashToken(token);
+            
+            // Store token hash
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 24);
+            
+            await adminClient.from("pin_invite_tokens").insert({
+              user_id: userId,
+              email,
+              role,
+              token_hash: tokenHash,
+              expires_at: expiresAt.toISOString(),
+              created_by_admin_id: callingUser.id,
+            });
+            
+            // Build link
+            const portalPath = role === "employee" ? "/employee/set-pin" : "/technician/set-pin";
+            const setPinLink = `${appBaseUrl}${portalPath}?token=${token}`;
+            const loginPath = role === "employee" ? "/employee/login" : "/technician/auth";
+            const loginLink = `${appBaseUrl}${loginPath}`;
+            
+            // Send onboarding email
+            const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
+            await resend.emails.send({
+              from: "Nivra Telecom <support@nivratelecom.ca>",
+              reply_to: "support@nivratelecom.ca",
+              to: [email],
+              subject: `Bienvenue chez Nivra - Configuration de votre accès ${role === "employee" ? "employé" : "technicien"}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+                    <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Bienvenue dans l'équipe!</p>
+                  </div>
+                  <div style="padding: 30px; background: #f8fafc;">
+                    <h2>Bonjour ${full_name},</h2>
+                    <p>Votre compte ${role === "employee" ? "employé" : "technicien"} a été créé.</p>
+                    <p><strong>Pour accéder au portail, vous devez d'abord configurer votre PIN (4 chiffres) :</strong></p>
+                    <p style="margin: 25px 0;">
+                      <a href="${setPinLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                        Configurer mon PIN
+                      </a>
+                    </p>
+                    <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 24 heures.</p>
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                    <p><strong>Comment vous connecter :</strong></p>
+                    <ol style="color: #374151; line-height: 1.8;">
+                      <li>Accédez à <a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></li>
+                      <li>Entrez votre email: <strong>${email}</strong></li>
+                      <li>Entrez votre PIN (4 chiffres)</li>
+                    </ol>
+                    <p style="margin-top: 20px; color: #64748b; font-size: 13px;">
+                      <em>Note: Vous n'avez pas de mot de passe. Votre connexion se fait uniquement avec email + PIN.</em>
+                    </p>
+                  </div>
+                  <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                    <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
+                    <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p>
+                    <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
+                      <a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">support@nivratelecom.ca</a> | 
+                      <a href="tel:4385442233" style="color: #0d9488; text-decoration: none;">438-544-2233</a>
+                    </p>
+                  </div>
+                </div>
+              `,
+            });
+            
+            await logAction("staff_pin_invite_sent", { request_id: requestId, role }, { type: "user", id: userId, email });
           }
-          const resetUrl = `${appBaseUrl}/admin/reset-password`;
-          console.log(`[admin-manage-staff] Sending reset email to ${email} with redirect: ${resetUrl}`);
-          await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
         }
 
         const successMessage = mode === "existing_user_promoted"
           ? "Compte existant trouvé — rôle mis à jour avec succès."
           : send_invitation 
-            ? "Utilisateur créé. Un email de configuration du mot de passe a été envoyé."
+            ? role === "admin" 
+              ? "Utilisateur créé. Un email de configuration du mot de passe a été envoyé."
+              : "Utilisateur créé. Un email de configuration du PIN a été envoyé."
             : "Utilisateur créé avec succès.";
 
         return json(200, {
@@ -681,10 +757,7 @@ serve(async (req: Request) => {
           });
         }
 
-        // Update user_roles.is_active
         await adminClient.from("user_roles").update({ is_active: false }).eq("user_id", user_id);
-
-        // Update employees table if exists
         await adminClient.from("employees").update({ is_active: false }).eq("email", targetUser?.user?.email);
 
         await logAction("staff_disabled", { request_id: requestId }, {
@@ -713,10 +786,7 @@ serve(async (req: Request) => {
           });
         }
 
-        // Update user_roles.is_active
         await adminClient.from("user_roles").update({ is_active: true }).eq("user_id", user_id);
-
-        // Update employees table if exists
         await adminClient.from("employees").update({ is_active: true }).eq("email", targetUser?.user?.email);
 
         await logAction("staff_enabled", { request_id: requestId }, {
@@ -788,7 +858,6 @@ serve(async (req: Request) => {
         const { email } = body;
         const stepBase = "send_reset";
 
-        // Validate required secrets before doing anything
         const missingSecrets = [
           ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
           ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
@@ -819,23 +888,9 @@ serve(async (req: Request) => {
           });
         }
 
-        // Validate APP_BASE_URL - must be single valid URL
-        const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-        let appBaseUrl = "https://nivratelecom.ca"; // Safe default
-        if (rawAppBaseUrl) {
-          if (rawAppBaseUrl.includes(",")) {
-            console.error(`[admin-manage-staff] send_reset: APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
-          } else {
-            try {
-              new URL(rawAppBaseUrl);
-              appBaseUrl = rawAppBaseUrl.replace(/\/+$/, "");
-            } catch {
-              console.error(`[admin-manage-staff] send_reset: APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
-            }
-          }
-        }
+        const appBaseUrl = getAppBaseUrl();
 
-        // Determine target user's role from user_roles table for role-based redirect
+        // Determine target user's role
         const normalizedTargetEmail = email.trim().toLowerCase();
         const { data: targetProfile } = await adminClient
           .from("profiles")
@@ -843,7 +898,7 @@ serve(async (req: Request) => {
           .ilike("email", normalizedTargetEmail)
           .maybeSingle();
 
-        let targetRole: StaffRole = "admin"; // Default fallback
+        let targetRole: StaffRole = "admin";
         if (targetProfile?.user_id) {
           const { data: roleData } = await adminClient
             .from("user_roles")
@@ -856,19 +911,96 @@ serve(async (req: Request) => {
           }
         }
 
-        // Role-based redirect paths
-        const roleResetPaths: Record<StaffRole, string> = {
-          admin: "/admin/reset-password",
-          employee: "/employee/reset-password",
-          technician: "/technician/reset-password",
-        };
-        const redirectTo = joinUrl(appBaseUrl, roleResetPaths[targetRole]);
+        // CHANGED: Only admin gets password reset. Employee/Technician get PIN invite.
+        if (targetRole !== "admin") {
+          // Send PIN invite instead
+          console.log(`[admin-manage-staff] send_reset for ${targetRole} - sending PIN invite instead`);
+          
+          if (!targetProfile?.user_id) {
+            return json(404, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "NOT_FOUND", message: "Utilisateur non trouvé", step: `${stepBase}.find_user` } satisfies ApiError,
+            });
+          }
+
+          // Generate one-time token
+          const tokenBytes = new Uint8Array(32);
+          crypto.getRandomValues(tokenBytes);
+          const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+          const tokenHash = await hashToken(token);
+          
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24);
+          
+          // Invalidate previous tokens for this user
+          await adminClient
+            .from("pin_invite_tokens")
+            .update({ used_at: new Date().toISOString() })
+            .eq("user_id", targetProfile.user_id)
+            .is("used_at", null);
+          
+          await adminClient.from("pin_invite_tokens").insert({
+            user_id: targetProfile.user_id,
+            email: normalizedTargetEmail,
+            role: targetRole,
+            token_hash: tokenHash,
+            expires_at: expiresAt.toISOString(),
+            created_by_admin_id: callingUser.id,
+          });
+          
+          const portalPath = targetRole === "employee" ? "/employee/set-pin" : "/technician/set-pin";
+          const setPinLink = `${appBaseUrl}${portalPath}?token=${token}`;
+          const loginPath = targetRole === "employee" ? "/employee/login" : "/technician/auth";
+          const loginLink = `${appBaseUrl}${loginPath}`;
+          
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
+          await resend.emails.send({
+            from: "Nivra Telecom <support@nivratelecom.ca>",
+            reply_to: "support@nivratelecom.ca",
+            to: [normalizedTargetEmail],
+            subject: "Réinitialisation de votre PIN - Nivra",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+                </div>
+                <div style="padding: 30px; background: #f8fafc;">
+                  <h2>Bonjour,</h2>
+                  <p>Une demande de réinitialisation de votre PIN a été effectuée.</p>
+                  <p>Cliquez sur le bouton ci-dessous pour configurer un nouveau PIN :</p>
+                  <p style="margin: 25px 0;">
+                    <a href="${setPinLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                      Configurer mon PIN
+                    </a>
+                  </p>
+                  <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 24 heures.</p>
+                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                  <p>Une fois votre PIN configuré, connectez-vous ici : <a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></p>
+                  <p style="margin-top: 20px; color: #64748b;">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+                </div>
+                <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                  <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
+                </div>
+              </div>
+            `,
+          });
+          
+          await logAction("staff_pin_invite_sent", { request_id: requestId, role: targetRole, reason: "reset_request" }, { type: "staff_user", email: normalizedTargetEmail });
+
+          return json(200, {
+            ok: true,
+            request_id: requestId,
+            success: true,
+            message: "Email de configuration du PIN envoyé",
+          });
+        }
+
+        // Admin password reset flow
+        const redirectTo = joinUrl(appBaseUrl, "/admin/reset-password");
         console.log(`[admin-manage-staff] send_reset target_role=${targetRole} redirect=${redirectTo}`);
 
-        console.log(`[admin-manage-staff] send_reset request_id=${requestId} email=${email} redirectTo=${redirectTo}`);
-
         try {
-          // Generate recovery link server-side (service role)
           const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
             type: "recovery",
             email,
@@ -885,17 +1017,7 @@ serve(async (req: Request) => {
                 error_message: linkError?.message || "Impossible de générer le lien de réinitialisation",
                 stack: linkError?.stack || null,
                 missing_secrets: [],
-                provider_response: {
-                  linkData,
-                  linkError: linkError
-                    ? {
-                        name: linkError.name,
-                        message: linkError.message,
-                        status: (linkError as any).status,
-                        cause: (linkError as any).cause,
-                      }
-                    : null,
-                },
+                provider_response: { linkData, linkError: linkError ? { name: linkError.name, message: linkError.message } : null },
               },
               { type: "staff_user", email }
             );
@@ -908,18 +1030,13 @@ serve(async (req: Request) => {
                 message: linkError?.message || "Impossible de générer le lien de réinitialisation",
                 step: `${stepBase}.generate_link`,
               } satisfies ApiError,
-              provider_response: {
-                linkData,
-                linkError: linkError ? { name: linkError.name, message: linkError.message } : null,
-              },
+              provider_response: { linkData, linkError: linkError ? { name: linkError.name, message: linkError.message } : null },
             });
           }
 
           const resetLink = linkData.properties.action_link;
 
-          // Send email via Resend
           const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-
           const resendResult = await resend.emails.send({
             from: "Nivra Telecom <support@nivratelecom.ca>",
             reply_to: "support@nivratelecom.ca",
@@ -929,21 +1046,15 @@ serve(async (req: Request) => {
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
                   <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
-                  <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Votre service, simplifié.</p>
                 </div>
                 <div style="padding: 30px; background: #f8fafc;">
                   <h2>Bonjour,</h2>
                   <p>Voici votre lien de réinitialisation de mot de passe :</p>
                   <p><a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px;">Réinitialiser mon mot de passe</a></p>
-                  <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">Lien: <a href="${resetLink}" style="color: #0d9488;">${resetLink}</a></p>
                   <p style="margin-top: 20px; color: #64748b;">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
                 </div>
                 <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
-                  <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
-                  <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p>
-                  <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;"><a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">Support@nivratelecom.ca</a> | <a href="tel:4385442233" style="color: #0d9488; text-decoration: none;">438-544-2233</a></p>
-                  <p style="margin: 0; font-size: 11px; color: #71717a;">Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br><em>You are receiving this email because of an action on your Nivra Telecom account.</em></p>
-                  <p style="margin-top: 10px; color: #9ca3af; font-size: 10px;">Request ID: ${requestId}</p>
+                  <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
                 </div>
               </div>
             `,
@@ -957,10 +1068,7 @@ serve(async (req: Request) => {
               request_id: requestId,
               redirect_to: redirectTo,
               provider_response: {
-                link: {
-                  verification_type: linkData.properties.verification_type,
-                  redirect_to: linkData.properties.redirect_to,
-                },
+                link: { verification_type: linkData.properties.verification_type, redirect_to: linkData.properties.redirect_to },
                 resend: resendResult,
               },
             },
@@ -998,6 +1106,125 @@ serve(async (req: Request) => {
         }
       }
 
+      case "invite_set_pin": {
+        const { email } = body as InviteSetPinRequest;
+        const stepBase = "invite_set_pin";
+
+        if (!email) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Email requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
+
+        // Find user
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", normalizedEmail)
+          .maybeSingle();
+
+        if (!profile?.user_id) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur non trouvé", step: `${stepBase}.find_user` } satisfies ApiError,
+          });
+        }
+
+        // Get role
+        const { data: roleData } = await adminClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", profile.user_id)
+          .in("role", ["employee", "technician"])
+          .maybeSingle();
+
+        if (!roleData) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Cette action est réservée aux employés/techniciens", step: `${stepBase}.check_role` } satisfies ApiError,
+          });
+        }
+
+        const targetRole = roleData.role as "employee" | "technician";
+
+        // Generate one-time token
+        const tokenBytes = new Uint8Array(32);
+        crypto.getRandomValues(tokenBytes);
+        const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        const tokenHash = await hashToken(token);
+        
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
+        
+        // Invalidate previous tokens
+        await adminClient
+          .from("pin_invite_tokens")
+          .update({ used_at: new Date().toISOString() })
+          .eq("user_id", profile.user_id)
+          .is("used_at", null);
+        
+        await adminClient.from("pin_invite_tokens").insert({
+          user_id: profile.user_id,
+          email: normalizedEmail,
+          role: targetRole,
+          token_hash: tokenHash,
+          expires_at: expiresAt.toISOString(),
+          created_by_admin_id: callingUser.id,
+        });
+        
+        const appBaseUrl = getAppBaseUrl();
+        const portalPath = targetRole === "employee" ? "/employee/set-pin" : "/technician/set-pin";
+        const setPinLink = `${appBaseUrl}${portalPath}?token=${token}`;
+        const loginPath = targetRole === "employee" ? "/employee/login" : "/technician/auth";
+        const loginLink = `${appBaseUrl}${loginPath}`;
+        
+        const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
+        await resend.emails.send({
+          from: "Nivra Telecom <support@nivratelecom.ca>",
+          reply_to: "support@nivratelecom.ca",
+          to: [normalizedEmail],
+          subject: "Configuration de votre PIN - Nivra",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+              </div>
+              <div style="padding: 30px; background: #f8fafc;">
+                <h2>Bonjour,</h2>
+                <p>Cliquez sur le bouton ci-dessous pour configurer votre PIN de connexion :</p>
+                <p style="margin: 25px 0;">
+                  <a href="${setPinLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    Configurer mon PIN
+                  </a>
+                </p>
+                <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 24 heures.</p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                <p>Une fois configuré, connectez-vous ici : <a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></p>
+              </div>
+              <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
+              </div>
+            </div>
+          `,
+        });
+        
+        await logAction("staff_pin_invite_sent", { request_id: requestId, role: targetRole }, { type: "user", id: profile.user_id, email: normalizedEmail });
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Email de configuration du PIN envoyé",
+        });
+      }
+
       case "update_permissions": {
         const { user_id, permissions } = body as UpdatePermissionsRequest;
         const stepBase = "update_permissions";
@@ -1012,7 +1239,6 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
 
-        // Get current permissions for audit
         const { data: currentData } = await adminClient
           .from("user_roles")
           .select("permissions")
@@ -1068,7 +1294,6 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
 
-        // Get current role for this user
         const { data: roleData, error: roleError } = await adminClient
           .from("user_roles")
           .select("role, permissions")
@@ -1087,61 +1312,24 @@ serve(async (req: Request) => {
         const currentRole = roleData.role as StaffRole;
         const oldPermissions = roleData.permissions || {};
 
-        // Define default permissions per role
         const DEFAULT_PERMISSIONS: Record<StaffRole, PermissionSet> = {
           admin: {
-            view_clients: true,
-            manage_clients: true,
-            view_orders: true,
-            manage_orders: true,
-            view_billing: true,
-            manage_billing: true,
-            view_appointments: true,
-            manage_appointments: true,
-            view_tickets: true,
-            manage_tickets: true,
-            view_logs: true,
-            view_internal_notes: true,
-            export_data: true,
-            manage_staff: true,
-            manage_streaming: true,
-            manage_channels: true,
+            view_clients: true, manage_clients: true, view_orders: true, manage_orders: true,
+            view_billing: true, manage_billing: true, view_appointments: true, manage_appointments: true,
+            view_tickets: true, manage_tickets: true, view_logs: true, view_internal_notes: true,
+            export_data: true, manage_staff: true, manage_streaming: true, manage_channels: true,
           },
           employee: {
-            view_clients: true,
-            manage_clients: false,
-            view_orders: true,
-            manage_orders: true,
-            view_billing: true,
-            manage_billing: false,
-            view_appointments: true,
-            manage_appointments: true,
-            view_tickets: true,
-            manage_tickets: true,
-            view_logs: false,
-            view_internal_notes: false,
-            export_data: false,
-            manage_staff: false,
-            manage_streaming: true,
-            manage_channels: false,
+            view_clients: true, manage_clients: false, view_orders: true, manage_orders: true,
+            view_billing: true, manage_billing: false, view_appointments: true, manage_appointments: true,
+            view_tickets: true, manage_tickets: true, view_logs: false, view_internal_notes: false,
+            export_data: false, manage_staff: false, manage_streaming: true, manage_channels: false,
           },
           technician: {
-            view_clients: false,
-            manage_clients: false,
-            view_orders: false,
-            manage_orders: false,
-            view_billing: false,
-            manage_billing: false,
-            view_appointments: true,
-            manage_appointments: false,
-            view_tickets: true,
-            manage_tickets: false,
-            view_logs: false,
-            view_internal_notes: false,
-            export_data: false,
-            manage_staff: false,
-            manage_streaming: false,
-            manage_channels: false,
+            view_clients: false, manage_clients: false, view_orders: false, manage_orders: false,
+            view_billing: false, manage_billing: false, view_appointments: true, manage_appointments: false,
+            view_tickets: true, manage_tickets: false, view_logs: false, view_internal_notes: false,
+            export_data: false, manage_staff: false, manage_streaming: false, manage_channels: false,
           },
         };
 
@@ -1165,12 +1353,7 @@ serve(async (req: Request) => {
 
         await logAction(
           "staff_permissions_pack_applied",
-          {
-            request_id: requestId,
-            role: currentRole,
-            old_permissions: oldPermissions,
-            new_permissions: newPermissions,
-          },
+          { request_id: requestId, role: currentRole, old_permissions: oldPermissions, new_permissions: newPermissions },
           { type: "user", id: user_id, email: targetUser?.user?.email }
         );
 
@@ -1209,7 +1392,6 @@ serve(async (req: Request) => {
 
         const pinHash = await hashPin(pin);
 
-        // Update employees table
         const { error: updateError } = await adminClient
           .from("employees")
           .update({
@@ -1219,14 +1401,12 @@ serve(async (req: Request) => {
           })
           .or(`id.eq.${user_id},email.in.(select email from profiles where user_id = '${user_id}')`);
 
-        // Also try to get email for logging
         const { data: profile } = await adminClient
           .from("profiles")
           .select("email")
           .eq("user_id", user_id)
           .maybeSingle();
 
-        // If no match in employees by user_id, try by email
         if (!updateError && profile?.email) {
           await adminClient
             .from("employees")
@@ -1240,10 +1420,7 @@ serve(async (req: Request) => {
 
         await logAction(
           isReset ? "staff_pin_reset" : "staff_pin_set",
-          {
-            request_id: requestId,
-            require_pin_change,
-          },
+          { request_id: requestId, require_pin_change },
           { type: "user", id: user_id, email: profile?.email }
         );
 
@@ -1269,7 +1446,6 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
 
-        // Validate badge_number uniqueness if provided
         if (badge_number) {
           const { data: existingBadge } = await adminClient
             .from("employees")
@@ -1287,7 +1463,6 @@ serve(async (req: Request) => {
           }
         }
 
-        // Get profile email for employee lookup
         const { data: profile } = await adminClient
           .from("profiles")
           .select("email")
@@ -1300,7 +1475,6 @@ serve(async (req: Request) => {
         if (badge_number !== undefined) updateData.badge_number = badge_number;
         if (job_title !== undefined) updateData.job_title = job_title;
 
-        // Update profiles table
         if (full_name !== undefined) {
           await adminClient
             .from("profiles")
@@ -1308,7 +1482,6 @@ serve(async (req: Request) => {
             .eq("user_id", user_id);
         }
 
-        // Update employees table
         if (Object.keys(updateData).length > 0 && profile?.email) {
           const { error: empError } = await adminClient
             .from("employees")
@@ -1322,10 +1495,7 @@ serve(async (req: Request) => {
 
         await logAction(
           "staff_profile_updated",
-          {
-            request_id: requestId,
-            updated_fields: Object.keys(updateData),
-          },
+          { request_id: requestId, updated_fields: Object.keys(updateData) },
           { type: "user", id: user_id, email: profile?.email }
         );
 
@@ -1413,7 +1583,6 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} status=${status} request_id=${requestId}`);
 
-        // Get current status for audit
         const { data: currentData } = await adminClient
           .from("user_roles")
           .select("status")
@@ -1435,7 +1604,6 @@ serve(async (req: Request) => {
           });
         }
 
-        // Also update is_active in employees/technicians tables for backwards compat
         const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
         const targetEmail = targetUser?.user?.email;
         
@@ -1447,19 +1615,11 @@ serve(async (req: Request) => {
 
         await logAction(
           "staff_status_changed",
-          {
-            request_id: requestId,
-            old_status: currentData?.status || "active",
-            new_status: status,
-          },
+          { request_id: requestId, old_status: currentData?.status || "active", new_status: status },
           { type: "user", id: user_id, email: targetEmail }
         );
 
-        const statusLabels: Record<string, string> = {
-          active: "Actif",
-          disabled: "Désactivé",
-          hold: "En attente",
-        };
+        const statusLabels: Record<string, string> = { active: "Actif", disabled: "Désactivé", hold: "En attente" };
 
         return json(200, {
           ok: true,
@@ -1495,7 +1655,6 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
 
-        // Step 1: Find user by email
         const { data: profile, error: profileError } = await adminClient
           .from("profiles")
           .select("user_id, email, full_name")
@@ -1512,7 +1671,6 @@ serve(async (req: Request) => {
 
         const userId = profile.user_id;
 
-        // Step 2: Get role
         const { data: roleData } = await adminClient
           .from("user_roles")
           .select("role")
@@ -1520,7 +1678,6 @@ serve(async (req: Request) => {
           .in("role", ["admin", "employee", "technician"])
           .maybeSingle();
 
-        // Step 3: Prevent self-deletion
         if (userId === callingUser.id) {
           return json(400, {
             ok: false,
@@ -1529,7 +1686,6 @@ serve(async (req: Request) => {
           });
         }
 
-        // Step 4: Prevent deletion of last admin
         if (roleData?.role === "admin") {
           const { count } = await adminClient
             .from("user_roles")
@@ -1545,7 +1701,6 @@ serve(async (req: Request) => {
           }
         }
 
-        // Step 5: Delete admin_audit_log entries for this user
         const { error: auditDeleteError } = await adminClient
           .from("admin_audit_log")
           .delete()
@@ -1560,7 +1715,9 @@ serve(async (req: Request) => {
           });
         }
 
-        // Step 6: Delete from user_roles
+        // Delete pin_invite_tokens
+        await adminClient.from("pin_invite_tokens").delete().eq("user_id", userId);
+
         const { error: rolesDeleteError } = await adminClient
           .from("user_roles")
           .delete()
@@ -1575,13 +1732,9 @@ serve(async (req: Request) => {
           });
         }
 
-        // Step 7: Delete from employees table
         await adminClient.from("employees").delete().ilike("email", normalizedEmail);
-
-        // Step 8: Delete from technicians table
         await adminClient.from("technicians").delete().or(`email.ilike.${normalizedEmail},user_id.eq.${userId}`);
 
-        // Step 9: Delete from profiles
         const { error: profilesDeleteError } = await adminClient
           .from("profiles")
           .delete()
@@ -1596,7 +1749,6 @@ serve(async (req: Request) => {
           });
         }
 
-        // Step 10: Delete auth user
         const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId);
 
         if (authDeleteError) {
@@ -1615,11 +1767,7 @@ serve(async (req: Request) => {
           request_id: requestId,
           success: true,
           message: `Utilisateur "${profile.full_name || normalizedEmail}" supprimé définitivement`,
-          deleted_user: {
-            user_id: userId,
-            email: normalizedEmail,
-            role: roleData?.role || "unknown",
-          },
+          deleted_user: { user_id: userId, email: normalizedEmail, role: roleData?.role || "unknown" },
         });
       }
 

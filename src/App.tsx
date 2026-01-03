@@ -60,6 +60,8 @@ import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacemen
 import ClientMonthlyInvoices from "./pages/client/ClientMonthlyInvoices";
 import TechnicianAuth from "./pages/technician/TechnicianAuth";
 import TechnicianResetPassword from "./pages/technician/TechnicianResetPassword";
+import EmployeeSetPin from "./pages/employee/EmployeeSetPin";
+import TechnicianSetPin from "./pages/technician/TechnicianSetPin";
 import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 import AdminReplacements from "./pages/admin/AdminReplacements";
 import AdminEmployees from "./pages/admin/AdminEmployees";
@@ -157,6 +159,7 @@ const App = () => (
               {/* Employee Portal Routes */}
               <Route path="/employee/login" element={<EmployeeLogin />} />
               <Route path="/employee/reset-password" element={<EmployeeResetPassword />} />
+              <Route path="/employee/set-pin" element={<EmployeeSetPin />} />
               <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
               <Route path="/employee/orders" element={<EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute>} />
               <Route path="/employee/appointments" element={<EmployeeProtectedRoute><EmployeeAppointments /></EmployeeProtectedRoute>} />
@@ -188,6 +191,7 @@ const App = () => (
               {/* Technician Portal Routes */}
               <Route path="/technician/auth" element={<TechnicianAuth />} />
               <Route path="/technician/reset-password" element={<TechnicianResetPassword />} />
+              <Route path="/technician/set-pin" element={<TechnicianSetPin />} />
               <Route path="/technician" element={<TechnicianProtectedRoute><TechnicianDashboard /></TechnicianProtectedRoute>} />
               <Route path="/not-authorized" element={<NotAuthorized />} />
               <Route path="*" element={<NotFound />} />
