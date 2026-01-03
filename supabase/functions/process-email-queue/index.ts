@@ -12,338 +12,638 @@ interface EmailQueueItem {
   max_attempts: number;
 }
 
-// Email templates with French/English support
+// =============================================
+// SHARED EMAIL LAYOUT COMPONENTS
+// =============================================
+
+const emailStyles = {
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  bgColor: "#f4f4f5",
+  cardBg: "#ffffff",
+  textPrimary: "#18181b",
+  textSecondary: "#52525b",
+  textMuted: "#71717a",
+  accent: "#0d9488",
+  accentLight: "#ccfbf1",
+  success: "#059669",
+  successBg: "#d1fae5",
+  warning: "#d97706",
+  warningBg: "#fef3c7",
+  error: "#dc2626",
+  errorBg: "#fee2e2",
+  info: "#0284c7",
+  infoBg: "#e0f2fe",
+  border: "#e4e4e7",
+};
+
+const formatCurrency = (amount: number) => 
+  new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
+
+const formatDate = (dateStr: string, includeTime = false) => {
+  if (!dateStr) return 'N/A';
+  const date = new Date(dateStr);
+  if (includeTime) {
+    return date.toLocaleString('fr-CA', { dateStyle: 'long', timeStyle: 'short' });
+  }
+  return date.toLocaleDateString('fr-CA', { dateStyle: 'long' });
+};
+
+// Professional email wrapper with header and footer
+const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string) => `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Nivra Telecom</title>
+  <!--[if mso]>
+  <style type="text/css">
+    table {border-collapse:collapse;border-spacing:0;margin:0;}
+    div, td {padding:0;}
+    div {margin:0 !important;}
+  </style>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+</head>
+<body style="margin:0; padding:0; background-color:${emailStyles.bgColor}; font-family:${emailStyles.fontFamily};">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:${emailStyles.bgColor};">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; width:100%;">
+          
+          <!-- HEADER -->
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; border-radius:12px 12px 0 0; padding:0;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="height:4px; background:linear-gradient(90deg, ${emailStyles.accent}, #14b8a6); border-radius:12px 12px 0 0;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px 20px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td>
+                          <h1 style="margin:0; font-size:26px; font-weight:700; color:${emailStyles.accent}; letter-spacing:-0.5px;">Nivra Telecom</h1>
+                          <p style="margin:4px 0 0; font-size:13px; color:${emailStyles.textMuted};">Votre service, simplifié.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- MAIN CONTENT -->
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; padding:0 32px 32px;">
+              ${content}
+            </td>
+          </tr>
+          
+          <!-- CTA BUTTON -->
+          ${ctaUrl ? `
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; padding:0 32px 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="border-radius:8px; background-color:${emailStyles.accent};">
+                          <a href="${ctaUrl}" target="_blank" style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:8px;">
+                            ${ctaText || "Ouvrir le portail"}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top:12px;">
+                    <p style="margin:0; font-size:12px; color:${emailStyles.textMuted};">
+                      <a href="${ctaUrl}" style="color:${emailStyles.textMuted}; text-decoration:underline;">${ctaUrl}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ` : ''}
+          
+          <!-- FOOTER -->
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; border-radius:0 0 12px 12px; padding:24px 32px; border-top:1px solid ${emailStyles.border};">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 8px; font-size:13px; color:${emailStyles.textSecondary};">
+                      <strong>Support:</strong> 
+                      <a href="mailto:support@nivratelecom.com" style="color:${emailStyles.accent}; text-decoration:none;">support@nivratelecom.com</a> 
+                      &nbsp;|&nbsp; 
+                      <a href="tel:4385442233" style="color:${emailStyles.accent}; text-decoration:none;">438-544-2233</a>
+                    </p>
+                    <p style="margin:0 0 12px; font-size:12px; color:${emailStyles.textMuted};">
+                      Nivra Telecom — Tous droits réservés © ${new Date().getFullYear()}
+                    </p>
+                    <p style="margin:0; font-size:11px; color:${emailStyles.textMuted};">
+                      Vous recevez cet email car vous avez un compte Nivra.<br>
+                      <em>You are receiving this email because you have a Nivra account.</em>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+// Reusable details card component
+const detailsCard = (items: Array<{ label: string; value: string }>) => `
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#fafafa; border-radius:8px; border:1px solid ${emailStyles.border}; margin:20px 0;">
+    ${items.map((item, idx) => `
+      <tr>
+        <td style="padding:14px 16px; ${idx < items.length - 1 ? `border-bottom:1px solid ${emailStyles.border};` : ''}">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="font-size:13px; color:${emailStyles.textMuted}; width:40%;">${item.label}</td>
+              <td style="font-size:14px; color:${emailStyles.textPrimary}; font-weight:500; text-align:right;">${item.value}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `).join('')}
+  </table>`;
+
+// Status badge component
+const statusBadge = (type: 'success' | 'warning' | 'error' | 'info', icon: string, titleFr: string, titleEn: string, messageFr: string, messageEn: string) => {
+  const colors = {
+    success: { bg: emailStyles.successBg, border: emailStyles.success, text: '#065f46' },
+    warning: { bg: emailStyles.warningBg, border: emailStyles.warning, text: '#92400e' },
+    error: { bg: emailStyles.errorBg, border: emailStyles.error, text: '#991b1b' },
+    info: { bg: emailStyles.infoBg, border: emailStyles.info, text: '#075985' },
+  };
+  const c = colors[type];
+  
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:20px 0;">
+      <tr>
+        <td style="background-color:${c.bg}; border-left:4px solid ${c.border}; border-radius:0 8px 8px 0; padding:16px 20px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="font-size:18px; font-weight:600; color:${c.text};">
+                ${icon} ${titleFr}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:14px; color:${c.text}; padding-top:6px;">
+                ${messageFr}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px; color:${c.text}; opacity:0.8; padding-top:8px; font-style:italic;">
+                ${messageEn}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+};
+
+// Greeting component
+const greeting = (name?: string) => `
+  <p style="margin:0 0 4px; font-size:16px; color:${emailStyles.textPrimary};">
+    Bonjour${name ? ` <strong>${name}</strong>` : ''}, <span style="color:${emailStyles.textMuted}; font-size:14px;">/ Hello${name ? ` ${name}` : ''},</span>
+  </p>`;
+
+// =============================================
+// EMAIL TEMPLATES
+// =============================================
+
 const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<string, any>, baseUrl: string) => string }> = {
-  order_submitted: {
-    subject: "Confirmation de commande - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2 style="color: #0f172a;">Bonjour ${vars.client_name || 'cher client'},</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981; margin: 0 0 10px;">✅ Commande reçue!</h3>
-            <p style="color: #475569; margin: 0;">Votre commande a été soumise avec succès.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Numéro de commande:</strong> ${vars.order_number || vars.order_id}</p>
-            <p><strong>Service:</strong> ${vars.service_type}</p>
-            <p><strong>Montant:</strong> ${new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(vars.total_amount || 0)}</p>
-          </div>
-          <p style="color: #475569;">Consultez votre portail client pour suivre votre commande: <a href="${baseUrl}/portal/orders" style="color: #0891b2;">${baseUrl}/portal/orders</a></p>
-          <p style="color: #475569;">L'équipe Nivra</p>
-        </div>
-        <div style="background: #0f172a; padding: 20px; text-align: center;">
-          <p style="color: #94a3b8; margin: 0; font-size: 12px;">© ${new Date().getFullYear()} Nivra. Tous droits réservés.</p>
-        </div>
-      </div>
-    `,
-  },
-  order_processed: {
-    subject: "Commande en traitement - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #0891b220; border-left: 4px solid #0891b2; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #0891b2;">📦 Commande en cours de traitement</h3>
-            <p>Votre commande ${vars.order_number} est maintenant en traitement.</p>
-          </div>
-          <p><a href="${baseUrl}/portal/orders">Suivre ma commande</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  order_shipped: {
-    subject: "Commande expédiée - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981;">🚚 Commande expédiée!</h3>
-            <p>Votre commande ${vars.order_number} a été expédiée.</p>
-          </div>
-          <p><a href="${baseUrl}/portal/orders">Suivre ma commande</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  order_completed: {
-    subject: "Commande terminée - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981;">✅ Commande terminée</h3>
-            <p>Votre commande ${vars.order_number} a été complétée avec succès!</p>
-          </div>
-          <p>Merci de faire confiance à Nivra!</p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  order_cancelled: {
-    subject: "Commande annulée - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #ef444420; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #ef4444;">❌ Commande annulée</h3>
-            <p>Votre commande ${vars.order_number} a été annulée.</p>
-          </div>
-          <p>Si vous avez des questions, contactez-nous au 438-544-2233.</p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  invoice_created: {
-    subject: "Nouvelle facture - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #0891b220; border-left: 4px solid #0891b2; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #0891b2;">📄 Nouvelle facture</h3>
-            <p>Une nouvelle facture a été créée pour votre compte.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Facture:</strong> ${vars.invoice_number}</p>
-            <p><strong>Montant:</strong> ${new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(vars.amount || 0)}</p>
-            ${vars.due_date ? `<p><strong>Date d'échéance:</strong> ${new Date(vars.due_date).toLocaleDateString('fr-CA')}</p>` : ''}
-          </div>
-          <p><a href="${baseUrl}/portal/invoices" style="color: #0891b2;">Voir ma facture</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  payment_received: {
-    subject: "Paiement reçu - Merci! - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981;">✅ Paiement reçu</h3>
-            <p>Nous avons bien reçu votre paiement. Merci!</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Facture:</strong> ${vars.invoice_number}</p>
-            <p><strong>Montant:</strong> ${new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(vars.amount || 0)}</p>
-          </div>
-          <p>Merci de faire confiance à Nivra!</p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  invoice_overdue: {
-    subject: "⚠️ Facture en retard - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #f59e0b20; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #f59e0b;">⚠️ Rappel de paiement</h3>
-            <p>Votre facture est maintenant en retard. Veuillez effectuer le paiement dès que possible.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Facture:</strong> ${vars.invoice_number}</p>
-            <p><strong>Montant dû:</strong> ${new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(vars.amount || 0)}</p>
-          </div>
-          <p><a href="${baseUrl}/portal/invoices" style="background: #0891b2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Payer maintenant</a></p>
-          <p style="margin-top: 20px;">L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  payment_failed: {
-    subject: "❌ Échec du paiement - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #ef444420; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #ef4444;">❌ Paiement non réussi</h3>
-            <p>Votre paiement n'a pas pu être traité.</p>
-          </div>
-          <p>Veuillez vérifier vos informations de paiement et réessayer.</p>
-          <p><a href="${baseUrl}/portal/invoices">Réessayer le paiement</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  ticket_created: {
-    subject: "Ticket de support créé - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #0891b220; border-left: 4px solid #0891b2; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #0891b2;">🎫 Ticket créé</h3>
-            <p>Votre demande de support a été reçue.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Ticket:</strong> ${vars.ticket_number}</p>
-            <p><strong>Sujet:</strong> ${vars.subject}</p>
-          </div>
-          <p>Notre équipe vous répondra dans les plus brefs délais.</p>
-          <p><a href="${baseUrl}/portal/tickets">Voir mon ticket</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  ticket_reply: {
-    subject: "Nouvelle réponse à votre ticket - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981;">💬 Nouvelle réponse</h3>
-            <p>Vous avez reçu une nouvelle réponse à votre ticket ${vars.ticket_number}.</p>
-          </div>
-          ${vars.reply_preview ? `<div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;"><p style="color: #64748b; font-style: italic;">"${vars.reply_preview}..."</p></div>` : ''}
-          <p><a href="${baseUrl}/portal/tickets" style="background: #0891b2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Voir la réponse</a></p>
-          <p style="margin-top: 20px;">L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  appointment_scheduled: {
-    subject: "Rendez-vous confirmé - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981;">📅 Rendez-vous confirmé</h3>
-            <p>Votre rendez-vous a été planifié avec succès.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Titre:</strong> ${vars.title}</p>
-            <p><strong>Date:</strong> ${vars.scheduled_at ? new Date(vars.scheduled_at).toLocaleString('fr-CA', { dateStyle: 'long', timeStyle: 'short' }) : 'À confirmer'}</p>
-            ${vars.service_address ? `<p><strong>Adresse:</strong> ${vars.service_address}</p>` : ''}
-          </div>
-          <p><a href="${baseUrl}/portal/appointments">Voir mes rendez-vous</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  appointment_updated: {
-    subject: "Rendez-vous mis à jour - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #f59e0b20; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #f59e0b;">📅 Rendez-vous mis à jour</h3>
-            <p>Votre rendez-vous a été modifié.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Titre:</strong> ${vars.title}</p>
-            <p><strong>Nouvelle date:</strong> ${vars.scheduled_at ? new Date(vars.scheduled_at).toLocaleString('fr-CA', { dateStyle: 'long', timeStyle: 'short' }) : 'À confirmer'}</p>
-          </div>
-          <p><a href="${baseUrl}/portal/appointments">Voir mes rendez-vous</a></p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
-  appointment_cancelled: {
-    subject: "Rendez-vous annulé - Nivra",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Bonjour ${vars.client_name},</h2>
-          <div style="background: #ef444420; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #ef4444;">❌ Rendez-vous annulé</h3>
-            <p>Votre rendez-vous a été annulé.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Titre:</strong> ${vars.title}</p>
-          </div>
-          <p>Pour reprogrammer, veuillez nous contacter au 438-544-2233.</p>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
-  },
+  
+  // TEST EMAIL
   test_email: {
-    subject: "Test Email - Nivra System",
-    getHtml: (vars, baseUrl) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0;">Nivra</h1>
-        </div>
-        <div style="padding: 30px; background: #f8fafc;">
-          <h2>Test Email</h2>
-          <div style="background: #10b98120; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-            <h3 style="color: #10b981;">✅ Email System Working</h3>
-            <p>This is a test email to verify the email system is configured correctly.</p>
-          </div>
-          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-            <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
-            <p><strong>To:</strong> ${vars.to_email}</p>
-            <p><strong>Base URL:</strong> ${baseUrl}</p>
-          </div>
-          <p>L'équipe Nivra</p>
-        </div>
-      </div>
-    `,
+    subject: "Nivra — Test du système de courriel",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting()}
+      ${statusBadge('success', '✅', 'Système fonctionnel', 'System working', 
+        'Le système d\'envoi de courriels Nivra fonctionne correctement.',
+        'The Nivra email system is working correctly.'
+      )}
+      ${detailsCard([
+        { label: 'Destinataire / Recipient', value: vars.to_email || 'N/A' },
+        { label: 'Envoyé le / Sent at', value: formatDate(new Date().toISOString(), true) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Ceci est un email de test à des fins de vérification interne.<br>
+        <em style="color:${emailStyles.textMuted};">This is a test email for internal verification purposes.</em>
+      </p>
+    `, `${baseUrl}/admin/email-activity`, "Voir l'activité / View activity"),
+  },
+
+  // ACCOUNT CREATED
+  account_created: {
+    subject: "Nivra — Bienvenue chez Nivra Telecom!",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '🎉', 'Compte créé avec succès!', 'Account created successfully!',
+        'Votre compte Nivra Telecom a été créé. Vous pouvez maintenant accéder à votre portail client.',
+        'Your Nivra Telecom account has been created. You can now access your client portal.'
+      )}
+      ${detailsCard([
+        { label: 'Numéro client / Client #', value: vars.client_number || 'À venir' },
+        { label: 'Email', value: vars.email || vars.client_email || 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Accédez à votre portail pour gérer vos services, factures et plus encore.<br>
+        <em style="color:${emailStyles.textMuted};">Access your portal to manage your services, invoices and more.</em>
+      </p>
+    `, `${baseUrl}/portal`, "Accéder au portail / Access portal"),
+  },
+
+  // EMAIL VERIFIED
+  email_verified: {
+    subject: "Nivra — Email vérifié",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Email vérifié!', 'Email verified!',
+        'Votre adresse email a été vérifiée avec succès.',
+        'Your email address has been successfully verified.'
+      )}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Vous pouvez maintenant profiter de toutes les fonctionnalités de votre compte.<br>
+        <em style="color:${emailStyles.textMuted};">You can now enjoy all the features of your account.</em>
+      </p>
+    `, `${baseUrl}/portal`, "Ouvrir le portail / Open portal"),
+  },
+
+  // PASSWORD RESET
+  password_reset: {
+    subject: "Nivra — Réinitialisation de mot de passe",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔐', 'Demande de réinitialisation', 'Password reset request',
+        'Une demande de réinitialisation de mot de passe a été effectuée pour votre compte.',
+        'A password reset request was made for your account.'
+      )}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Si vous n'avez pas fait cette demande, ignorez cet email.<br>
+        <em style="color:${emailStyles.textMuted};">If you did not make this request, please ignore this email.</em>
+      </p>
+    `, vars.reset_link || `${baseUrl}/reset-password`, "Réinitialiser / Reset password"),
+  },
+
+  // ORDER SUBMITTED
+  order_submitted: {
+    subject: "Nivra — Commande reçue (#{{order_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Commande reçue!', 'Order received!',
+        'Votre commande a été soumise avec succès et est en cours de traitement.',
+        'Your order has been submitted successfully and is being processed.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || vars.order_id?.substring(0, 8) || 'N/A' },
+        { label: 'Service', value: vars.service_type || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.total_amount) },
+        { label: 'Date', value: formatDate(new Date().toISOString()) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Suivez votre commande dans votre portail client.<br>
+        <em style="color:${emailStyles.textMuted};">Track your order in your client portal.</em>
+      </p>
+    `, `${baseUrl}/portal/orders`, "Voir ma commande / View my order"),
+  },
+
+  // ORDER PROCESSED
+  order_processed: {
+    subject: "Nivra — Commande en traitement (#{{order_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📦', 'Commande en traitement', 'Order processing',
+        'Votre commande est maintenant en cours de traitement par notre équipe.',
+        'Your order is now being processed by our team.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Statut / Status', value: 'En traitement / Processing' },
+      ])}
+    `, `${baseUrl}/portal/orders`, "Suivre ma commande / Track order"),
+  },
+
+  // ORDER SHIPPED
+  order_shipped: {
+    subject: "Nivra — Commande expédiée 🚚 (#{{order_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '🚚', 'Commande expédiée!', 'Order shipped!',
+        'Votre commande a été expédiée et est en route vers vous.',
+        'Your order has been shipped and is on its way to you.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Nº suivi / Tracking #', value: vars.tracking_number || 'N/A' },
+        ...(vars.tracking_url ? [{ label: 'Lien suivi / Tracking link', value: `<a href="${vars.tracking_url}" style="color:${emailStyles.accent};">Suivre / Track</a>` }] : []),
+      ])}
+    `, `${baseUrl}/portal/orders`, "Voir ma commande / View order"),
+  },
+
+  // ORDER COMPLETED
+  order_completed: {
+    subject: "Nivra — Commande terminée ✅ (#{{order_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Commande complétée!', 'Order completed!',
+        'Votre commande a été complétée avec succès. Merci de votre confiance!',
+        'Your order has been completed successfully. Thank you for your trust!'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Statut / Status', value: 'Complétée / Completed' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom!<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
+      </p>
+    `, `${baseUrl}/portal/orders`, "Voir mes commandes / View orders"),
+  },
+
+  // ORDER CANCELLED
+  order_cancelled: {
+    subject: "Nivra — Commande annulée (#{{order_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Commande annulée', 'Order cancelled',
+        'Votre commande a été annulée.',
+        'Your order has been cancelled.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Statut / Status', value: 'Annulée / Cancelled' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour toute question, contactez notre support.<br>
+        <em style="color:${emailStyles.textMuted};">For any questions, contact our support.</em>
+      </p>
+    `, `${baseUrl}/portal`, "Contacter support / Contact support"),
+  },
+
+  // SHIPPING CREATED
+  shipping_created: {
+    subject: "Nivra — Expédition créée (#{{order_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📦', 'Expédition préparée', 'Shipment prepared',
+        'L\'expédition de votre commande a été créée et sera bientôt en route.',
+        'The shipment for your order has been created and will be on its way soon.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Adresse / Address', value: vars.shipping_address || 'N/A' },
+      ])}
+    `, `${baseUrl}/portal/orders`, "Suivre ma commande / Track order"),
+  },
+
+  // INVOICE CREATED
+  invoice_created: {
+    subject: "Nivra — Nouvelle facture (#{{invoice_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📄', 'Nouvelle facture', 'New invoice',
+        'Une nouvelle facture a été générée pour votre compte.',
+        'A new invoice has been generated for your account.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+      ])}
+    `, `${baseUrl}/portal/invoices`, "Voir ma facture / View invoice"),
+  },
+
+  // PAYMENT RECEIVED
+  payment_received: {
+    subject: "Nivra — Paiement reçu ✅ (#{{invoice_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Paiement reçu!', 'Payment received!',
+        'Nous avons bien reçu votre paiement. Merci!',
+        'We have received your payment. Thank you!'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant payé / Amount paid', value: formatCurrency(vars.amount) },
+        { label: 'Date', value: formatDate(new Date().toISOString()) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom!<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
+      </p>
+    `, `${baseUrl}/portal/invoices`, "Voir mes factures / View invoices"),
+  },
+
+  // PAYMENT STATUS CHANGED
+  payment_status_changed: {
+    subject: "Nivra — Mise à jour de paiement (#{{invoice_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '💳', 'Statut de paiement mis à jour', 'Payment status updated',
+        `Le statut de votre paiement a été mis à jour: ${vars.status || 'N/A'}`,
+        `Your payment status has been updated: ${vars.status || 'N/A'}`
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Nouveau statut / New status', value: vars.status || 'N/A' },
+      ])}
+    `, `${baseUrl}/portal/invoices`, "Voir mes factures / View invoices"),
+  },
+
+  // INVOICE OVERDUE
+  invoice_overdue: {
+    subject: "Nivra — ⚠️ Facture en retard (#{{invoice_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '⚠️', 'Facture en retard', 'Invoice overdue',
+        'Votre facture est maintenant en retard. Veuillez effectuer le paiement dès que possible.',
+        'Your invoice is now overdue. Please make the payment as soon as possible.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+      ])}
+    `, `${baseUrl}/portal/invoices`, "Payer maintenant / Pay now"),
+  },
+
+  // PAYMENT FAILED
+  payment_failed: {
+    subject: "Nivra — ❌ Échec du paiement (#{{invoice_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Paiement non réussi', 'Payment failed',
+        'Votre paiement n\'a pas pu être traité. Veuillez vérifier vos informations.',
+        'Your payment could not be processed. Please verify your information.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Veuillez mettre à jour votre méthode de paiement et réessayer.<br>
+        <em style="color:${emailStyles.textMuted};">Please update your payment method and try again.</em>
+      </p>
+    `, `${baseUrl}/portal/invoices`, "Réessayer / Retry"),
+  },
+
+  // TICKET CREATED
+  ticket_created: {
+    subject: "Nivra — Ticket de support créé (#{{ticket_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🎫', 'Ticket créé', 'Ticket created',
+        'Votre demande de support a été reçue. Notre équipe vous répondra sous peu.',
+        'Your support request has been received. Our team will respond shortly.'
+      )}
+      ${detailsCard([
+        { label: 'Nº ticket / Ticket #', value: vars.ticket_number || 'N/A' },
+        { label: 'Sujet / Subject', value: vars.subject || 'N/A' },
+      ])}
+    `, `${baseUrl}/portal/tickets`, "Voir mon ticket / View ticket"),
+  },
+
+  // TICKET REPLY
+  ticket_reply: {
+    subject: "Nivra — Nouvelle réponse à votre ticket (#{{ticket_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '💬', 'Nouvelle réponse', 'New reply',
+        'Vous avez reçu une nouvelle réponse à votre ticket de support.',
+        'You have received a new reply to your support ticket.'
+      )}
+      ${detailsCard([
+        { label: 'Nº ticket / Ticket #', value: vars.ticket_number || 'N/A' },
+      ])}
+      ${vars.reply_preview ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#fafafa; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.accent};">
+              <p style="margin:0; font-size:14px; color:${emailStyles.textSecondary}; font-style:italic;">
+                "${vars.reply_preview.length > 150 ? vars.reply_preview.substring(0, 150) + '...' : vars.reply_preview}"
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+    `, `${baseUrl}/portal/tickets`, "Voir la réponse / View reply"),
+  },
+
+  // APPOINTMENT SCHEDULED
+  appointment_scheduled: {
+    subject: "Nivra — Rendez-vous confirmé 📅",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '📅', 'Rendez-vous confirmé', 'Appointment confirmed',
+        'Votre rendez-vous a été planifié avec succès.',
+        'Your appointment has been scheduled successfully.'
+      )}
+      ${detailsCard([
+        { label: 'Titre / Title', value: vars.title || 'N/A' },
+        { label: 'Date et heure / Date & time', value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : 'À confirmer / TBD' },
+        ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
+      ])}
+    `, `${baseUrl}/portal/appointments`, "Voir mes rendez-vous / View appointments"),
+  },
+
+  // APPOINTMENT UPDATED
+  appointment_updated: {
+    subject: "Nivra — Rendez-vous mis à jour 📅",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '📅', 'Rendez-vous modifié', 'Appointment updated',
+        'Votre rendez-vous a été modifié. Veuillez vérifier les nouveaux détails.',
+        'Your appointment has been updated. Please check the new details.'
+      )}
+      ${detailsCard([
+        { label: 'Titre / Title', value: vars.title || 'N/A' },
+        { label: 'Nouvelle date / New date', value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : 'À confirmer / TBD' },
+      ])}
+    `, `${baseUrl}/portal/appointments`, "Voir mes rendez-vous / View appointments"),
+  },
+
+  // APPOINTMENT CANCELLED
+  appointment_cancelled: {
+    subject: "Nivra — Rendez-vous annulé",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Rendez-vous annulé', 'Appointment cancelled',
+        'Votre rendez-vous a été annulé.',
+        'Your appointment has been cancelled.'
+      )}
+      ${detailsCard([
+        { label: 'Titre / Title', value: vars.title || 'N/A' },
+        ...(vars.cancellation_reason ? [{ label: 'Raison / Reason', value: vars.cancellation_reason }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour reprogrammer, veuillez nous contacter au 438-544-2233.<br>
+        <em style="color:${emailStyles.textMuted};">To reschedule, please contact us at 438-544-2233.</em>
+      </p>
+    `, `${baseUrl}/portal/appointments`, "Reprogrammer / Reschedule"),
+  },
+
+  // CONTRACT READY
+  contract_ready: {
+    subject: "Nivra — Contrat prêt à signer 📝",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📝', 'Contrat disponible', 'Contract ready',
+        'Votre contrat est prêt à être signé. Veuillez le consulter dans votre portail.',
+        'Your contract is ready to be signed. Please review it in your portal.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contrat / Contract #', value: vars.contract_number || 'N/A' },
+        { label: 'Nom / Name', value: vars.contract_name || 'N/A' },
+      ])}
+    `, `${baseUrl}/portal/contracts`, "Voir le contrat / View contract"),
+  },
+
+  // CONTRACT SIGNED
+  contract_signed: {
+    subject: "Nivra — Contrat signé ✅ (#{{contract_number}})",
+    getHtml: (vars, baseUrl) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Contrat signé!', 'Contract signed!',
+        'Votre contrat a été signé avec succès. Une copie est disponible dans votre portail.',
+        'Your contract has been signed successfully. A copy is available in your portal.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contrat / Contract #', value: vars.contract_number || 'N/A' },
+        { label: 'Signé le / Signed on', value: formatDate(vars.signed_at || new Date().toISOString()) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom!<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
+      </p>
+    `, `${baseUrl}/portal/contracts`, "Voir mes contrats / View contracts"),
   },
 };
+
+// =============================================
+// MAIN SERVER HANDLER
+// =============================================
 
 Deno.serve(async (req) => {
   const corsPreflightResponse = handleCorsPreflightRequest(req);
@@ -355,7 +655,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const emailFromAddress = Deno.env.get("EMAIL_FROM_ADDRESS") || "Nivra <onboarding@resend.dev>";
+  const emailFromAddress = Deno.env.get("EMAIL_FROM_ADDRESS") || "Nivra Telecom <onboarding@resend.dev>";
   const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.com";
 
   if (!resendApiKey) {
@@ -385,7 +685,13 @@ Deno.serve(async (req) => {
       }
 
       const template = emailTemplates.test_email;
+      
+      // Replace template variables in subject
+      let subject = template.subject;
+      
       const html = template.getHtml({ to_email: testEmail }, appBaseUrl);
+
+      console.log(`Sending test email to: ${testEmail}`);
 
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -396,7 +702,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: emailFromAddress,
           to: [testEmail],
-          subject: template.subject,
+          subject,
           html,
         }),
       });
@@ -404,6 +710,7 @@ Deno.serve(async (req) => {
       const result = await emailResponse.json();
 
       if (!emailResponse.ok) {
+        console.error("Test email failed:", result);
         return new Response(JSON.stringify({ 
           success: false, 
           error: result.message || "Failed to send test email",
@@ -413,6 +720,8 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log("Test email sent successfully:", result);
 
       return new Response(JSON.stringify({
         success: true,
@@ -459,6 +768,14 @@ Deno.serve(async (req) => {
         }
 
         const html = template.getHtml(email.template_vars || {}, appBaseUrl);
+        
+        // Replace template variables in subject
+        let subject = template.subject;
+        const vars = email.template_vars || {};
+        if (vars.order_number) subject = subject.replace('{{order_number}}', vars.order_number);
+        if (vars.invoice_number) subject = subject.replace('{{invoice_number}}', vars.invoice_number);
+        if (vars.ticket_number) subject = subject.replace('{{ticket_number}}', vars.ticket_number);
+        if (vars.contract_number) subject = subject.replace('{{contract_number}}', vars.contract_number);
 
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -469,7 +786,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: emailFromAddress,
             to: [email.to_email],
-            subject: template.subject,
+            subject,
             html,
           }),
         });
