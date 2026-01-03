@@ -11,9 +11,7 @@ import { z } from "zod";
 const passwordSchema = z.object({
   newPassword: z
     .string()
-    .min(12, "Minimum 12 caractères")
-    .regex(/\d/, "Doit contenir au moins un chiffre")
-    .regex(/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/, "Doit contenir au moins un caractère spécial"),
+    .min(8, "Minimum 8 caractères"),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Les mots de passe ne correspondent pas",
@@ -240,7 +238,7 @@ const AdminResetPassword = () => {
               </div>
               {errors.newPassword && <p className="text-sm text-destructive">{errors.newPassword}</p>}
               <p className="text-xs text-muted-foreground">
-                Min. 12 caractères, 1 chiffre, 1 caractère spécial
+                Min. 8 caractères
               </p>
             </div>
 
