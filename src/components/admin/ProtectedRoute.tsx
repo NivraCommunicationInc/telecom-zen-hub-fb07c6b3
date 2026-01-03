@@ -1,5 +1,5 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { ReactNode, useEffect, useState, useRef } from "react";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,8 +11,10 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
   const { user, signOut, isLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAdminVerified, setIsAdminVerified] = useState(false);
+  const hasLoggedBlockedAccess = useRef(false);
 
   useEffect(() => {
     const verifyAdminRole = async () => {
@@ -22,7 +24,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       }
 
       try {
-        // Always verify admin role from database for /admin routes
+        // SECURITY: Always verify admin role from database - never trust client state
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role, status")
@@ -32,21 +34,45 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
         if (error) {
           console.error("Error verifying admin role:", error);
-          // On error, sign out and redirect
           await signOut();
           navigate("/employee/login", { replace: true });
           return;
         }
 
+        // SECURITY: Non-admin attempting to access /admin/*
         if (!roleData || roleData.role !== "admin") {
-          // Not an admin - sign out immediately and redirect
-          console.warn("Non-admin user attempted to access admin route:", user.email);
+          console.warn("SECURITY: Non-admin user attempted to access admin route:", user.email, location.pathname);
+          
+          // Log blocked access attempt to audit log (only once per mount)
+          if (!hasLoggedBlockedAccess.current) {
+            hasLoggedBlockedAccess.current = true;
+            try {
+              await supabase.from("admin_audit_log").insert({
+                admin_user_id: user.id,
+                admin_email: user.email,
+                action: "admin_access_blocked",
+                details: {
+                  attempted_path: location.pathname,
+                  user_role: roleData?.role || "unknown",
+                  reason: "Non-admin attempted to access /admin/* route",
+                  timestamp: new Date().toISOString(),
+                },
+                target_type: "security",
+                target_id: null,
+                target_email: user.email,
+              });
+            } catch (logErr) {
+              console.error("Failed to log blocked access:", logErr);
+            }
+          }
+          
+          // Sign out immediately and redirect
           await signOut();
           navigate("/employee/login", { replace: true });
           return;
         }
 
-        // Check status
+        // Check status - only active admins allowed
         if (roleData.status !== "active") {
           console.warn("Admin account not active:", user.email, roleData.status);
           await signOut();
@@ -67,9 +93,9 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     if (!isLoading) {
       verifyAdminRole();
     }
-  }, [user, isLoading, signOut, navigate]);
+  }, [user, isLoading, signOut, navigate, location.pathname]);
 
-  // Show loading while auth or verification is in progress
+  // SECURITY: Show nothing while verifying - prevent any admin UI flash
   if (isLoading || isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -86,7 +112,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/admin/login" replace />;
   }
 
-  // Not verified as admin - don't render anything (already redirecting)
+  // SECURITY: Not verified as admin - render nothing (already redirecting)
   if (requireAdmin && !isAdminVerified) {
     return null;
   }
