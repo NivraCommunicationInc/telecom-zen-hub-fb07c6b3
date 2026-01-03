@@ -18,7 +18,7 @@ const loginSchema = z.object({
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { signIn, signOut, resetPassword, isLoading } = useAuth();
+  const { signIn, isLoading } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,7 +47,11 @@ const AdminLogin = () => {
       }
 
       setIsSubmitting(true);
-      const { error } = await resetPassword(email);
+
+      const redirectUrl = `${window.location.origin}/admin/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
 
       if (error) {
         toast({

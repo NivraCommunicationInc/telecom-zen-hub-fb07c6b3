@@ -13,9 +13,8 @@ const recoverSchema = z.object({
   email: z.string().email("Adresse courriel invalide"),
   password: z
     .string()
-    .min(12, "Minimum 12 caractères")
-    .regex(/\d/, "Doit contenir au moins un chiffre")
-    .regex(/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/, "Doit contenir au moins un caractère spécial"),
+    .min(8, "Minimum 8 caractères")
+    .regex(/\d/, "Doit contenir au moins un chiffre"),
   pin: z.string().length(8, "Le PIN doit contenir exactement 8 chiffres").regex(/^\d+$/, "Le PIN doit contenir uniquement des chiffres"),
 });
 
@@ -207,7 +206,7 @@ const AdminRecover = () => {
               </div>
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
               <p className="text-xs text-muted-foreground">
-                Min. 12 caractères, 1 chiffre, 1 caractère spécial
+                Min. 8 caractères, 1 chiffre
               </p>
             </div>
 
