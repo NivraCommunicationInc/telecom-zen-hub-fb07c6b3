@@ -1,0 +1,691 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// =============================================
+// SHARED EMAIL LAYOUT COMPONENTS
+// =============================================
+
+const emailStyles = {
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  bgColor: "#f4f4f5",
+  cardBg: "#ffffff",
+  textPrimary: "#18181b",
+  textSecondary: "#52525b",
+  textMuted: "#71717a",
+  accent: "#0d9488",
+  accentLight: "#ccfbf1",
+  success: "#059669",
+  successBg: "#d1fae5",
+  warning: "#d97706",
+  warningBg: "#fef3c7",
+  error: "#dc2626",
+  errorBg: "#fee2e2",
+  info: "#0284c7",
+  infoBg: "#e0f2fe",
+  border: "#e4e4e7",
+};
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
+
+const formatDate = (dateStr: string, includeTime = false) => {
+  if (!dateStr) return "N/A";
+  const date = new Date(dateStr);
+  if (includeTime) {
+    return date.toLocaleString("fr-CA", { dateStyle: "long", timeStyle: "short" });
+  }
+  return date.toLocaleDateString("fr-CA", { dateStyle: "long" });
+};
+
+const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string, supportPhone?: string) => {
+  const email = supportEmail || "Support@nivratelecom.ca";
+  const phone = supportPhone || "438-544-2233";
+  const phoneDigits = phone.replace(/[^0-9]/g, "");
+
+  return `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Nivra Telecom</title>
+</head>
+<body style="margin:0; padding:0; background-color:${emailStyles.bgColor}; font-family:${emailStyles.fontFamily};">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:${emailStyles.bgColor};">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; width:100%;">
+          
+          <!-- HEADER -->
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; border-radius:12px 12px 0 0; padding:0;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="height:4px; background:linear-gradient(90deg, ${emailStyles.accent}, #14b8a6); border-radius:12px 12px 0 0;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px 20px;">
+                    <h1 style="margin:0; font-size:26px; font-weight:700; color:${emailStyles.accent}; letter-spacing:-0.5px;">Nivra Telecom</h1>
+                    <p style="margin:4px 0 0; font-size:13px; color:${emailStyles.textMuted};">Votre service, simplifié.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- MAIN CONTENT -->
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; padding:0 32px 32px;">
+              ${content}
+            </td>
+          </tr>
+          
+          <!-- CTA BUTTON -->
+          ${ctaUrl ? `
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; padding:0 32px 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="border-radius:8px; background-color:${emailStyles.accent};">
+                          <a href="${ctaUrl}" target="_blank" style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:8px;">
+                            ${ctaText || "Ouvrir le portail"}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ` : ""}
+          
+          <!-- FOOTER -->
+          <tr>
+            <td style="background-color:${emailStyles.cardBg}; border-radius:0 0 12px 12px; padding:24px 32px; border-top:1px solid ${emailStyles.border};">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 8px; font-size:13px; color:${emailStyles.textSecondary};">
+                      <strong>Support:</strong> 
+                      <a href="mailto:${email}" style="color:${emailStyles.accent}; text-decoration:none;">${email}</a> 
+                      &nbsp;|&nbsp; 
+                      <a href="tel:${phoneDigits}" style="color:${emailStyles.accent}; text-decoration:none;">${phone}</a>
+                    </p>
+                    <p style="margin:0 0 12px; font-size:12px; color:${emailStyles.textMuted};">
+                      Nivra Telecom — Tous droits réservés © ${new Date().getFullYear()}
+                    </p>
+                    <p style="margin:0; font-size:11px; color:${emailStyles.textMuted};">
+                      Vous recevez cet email car vous avez un compte Nivra.<br>
+                      <em>You are receiving this email because you have a Nivra account.</em>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+const detailsCard = (items: Array<{ label: string; value: string }>) => `
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#fafafa; border-radius:8px; border:1px solid ${emailStyles.border}; margin:20px 0;">
+    ${items.map((item, idx) => `
+      <tr>
+        <td style="padding:14px 16px; ${idx < items.length - 1 ? `border-bottom:1px solid ${emailStyles.border};` : ""}">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="font-size:13px; color:${emailStyles.textMuted}; width:40%;">${item.label}</td>
+              <td style="font-size:14px; color:${emailStyles.textPrimary}; font-weight:500; text-align:right;">${item.value}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `).join("")}
+  </table>`;
+
+const statusBadge = (type: "success" | "warning" | "error" | "info", icon: string, titleFr: string, titleEn: string, messageFr: string, messageEn: string) => {
+  const colors = {
+    success: { bg: emailStyles.successBg, border: emailStyles.success, text: "#065f46" },
+    warning: { bg: emailStyles.warningBg, border: emailStyles.warning, text: "#92400e" },
+    error: { bg: emailStyles.errorBg, border: emailStyles.error, text: "#991b1b" },
+    info: { bg: emailStyles.infoBg, border: emailStyles.info, text: "#075985" },
+  };
+  const c = colors[type];
+
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:20px 0;">
+      <tr>
+        <td style="background-color:${c.bg}; border-left:4px solid ${c.border}; border-radius:0 8px 8px 0; padding:16px 20px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="font-size:18px; font-weight:600; color:${c.text};">
+                ${icon} ${titleFr}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:14px; color:${c.text}; padding-top:6px;">
+                ${messageFr}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px; color:${c.text}; opacity:0.8; padding-top:8px; font-style:italic;">
+                ${messageEn}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+};
+
+const greeting = (name?: string) => `
+  <p style="margin:0 0 4px; font-size:16px; color:${emailStyles.textPrimary};">
+    Bonjour${name ? ` <strong>${name}</strong>` : ""}, <span style="color:${emailStyles.textMuted}; font-size:14px;">/ Hello${name ? ` ${name}` : ""},</span>
+  </p>`;
+
+// =============================================
+// EMAIL TEMPLATES
+// =============================================
+
+interface EmailConfig {
+  baseUrl: string;
+  supportEmail: string;
+  supportPhone: string;
+}
+
+const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<string, any>, config: EmailConfig) => string }> = {
+  test_email: {
+    subject: "Nivra — Test du système de courriel",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting()}
+      ${statusBadge("success", "✅", "Système fonctionnel", "System working",
+        "Le système d'envoi de courriels Nivra fonctionne correctement.",
+        "The Nivra email system is working correctly."
+      )}
+      ${detailsCard([
+        { label: "Destinataire / Recipient", value: vars.to_email || "N/A" },
+        { label: "Template", value: vars.template_key || "test_email" },
+        { label: "Envoyé le / Sent at", value: formatDate(new Date().toISOString(), true) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Ceci est un email de test à des fins de vérification interne.<br>
+        <em style="color:${emailStyles.textMuted};">This is a test email for internal verification purposes.</em>
+      </p>
+    `, `${config.baseUrl}/admin/email-activity`, "Voir l'activité / View activity", config.supportEmail, config.supportPhone),
+  },
+
+  account_created: {
+    subject: "Nivra — Bienvenue chez Nivra Telecom!",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "🎉", "Compte créé avec succès!", "Account created successfully!",
+        "Votre compte Nivra Telecom a été créé. Vous pouvez maintenant accéder à votre portail client.",
+        "Your Nivra Telecom account has been created. You can now access your client portal."
+      )}
+      ${detailsCard([
+        { label: "Numéro client / Client #", value: vars.client_number || "À venir" },
+        { label: "Email", value: vars.email || vars.client_email || "N/A" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}`, "Accéder au portail / Access portal", config.supportEmail, config.supportPhone),
+  },
+
+  email_verified: {
+    subject: "Nivra — Email vérifié",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "✅", "Email vérifié!", "Email verified!",
+        "Votre adresse email a été vérifiée avec succès.",
+        "Your email address has been successfully verified."
+      )}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}`, "Ouvrir le portail / Open portal", config.supportEmail, config.supportPhone),
+  },
+
+  password_reset: {
+    subject: "Nivra — Réinitialisation de mot de passe",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "🔐", "Demande de réinitialisation", "Password reset request",
+        "Une demande de réinitialisation de mot de passe a été effectuée pour votre compte.",
+        "A password reset request was made for your account."
+      )}
+    `, vars.reset_link || `${config.baseUrl}/reset-password`, "Réinitialiser / Reset password", config.supportEmail, config.supportPhone),
+  },
+
+  order_submitted: {
+    subject: `Nivra — Commande reçue (#${"{order_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "✅", "Commande reçue!", "Order received!",
+        "Votre commande a été soumise avec succès et est en cours de traitement.",
+        "Your order has been submitted successfully and is being processed."
+      )}
+      ${detailsCard([
+        { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
+        { label: "Montant / Amount", value: formatCurrency(vars.amount) },
+        { label: "Statut / Status", value: vars.status || "En attente" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Voir ma commande / View my order", config.supportEmail, config.supportPhone),
+  },
+
+  order_processed: {
+    subject: `Nivra — Commande en traitement (#${"{order_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "📦", "Commande en traitement", "Order processing",
+        "Votre commande est maintenant en cours de traitement par notre équipe.",
+        "Your order is now being processed by our team."
+      )}
+      ${detailsCard([
+        { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
+        { label: "Statut / Status", value: "En traitement / Processing" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
+  },
+
+  order_shipped: {
+    subject: `Nivra — Commande expédiée 🚚 (#${"{order_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "🚚", "Commande expédiée!", "Order shipped!",
+        "Votre commande a été expédiée et est en route vers vous.",
+        "Your order has been shipped and is on its way to you."
+      )}
+      ${detailsCard([
+        { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
+        { label: "Nº suivi / Tracking #", value: vars.tracking_number || "N/A" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Voir ma commande / View order", config.supportEmail, config.supportPhone),
+  },
+
+  order_completed: {
+    subject: `Nivra — Commande terminée ✅ (#${"{order_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "✅", "Commande complétée!", "Order completed!",
+        "Votre commande a été complétée avec succès. Merci de votre confiance!",
+        "Your order has been completed successfully. Thank you for your trust!"
+      )}
+      ${detailsCard([
+        { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
+        { label: "Statut / Status", value: "Complétée / Completed" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Voir mes commandes / View orders", config.supportEmail, config.supportPhone),
+  },
+
+  order_cancelled: {
+    subject: `Nivra — Commande annulée (#${"{order_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("error", "❌", "Commande annulée", "Order cancelled",
+        "Votre commande a été annulée.",
+        "Your order has been cancelled."
+      )}
+      ${detailsCard([
+        { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
+        { label: "Statut / Status", value: "Annulée / Cancelled" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}`, "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+  },
+
+  shipping_created: {
+    subject: `Nivra — Expédition créée (#${"{order_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "📦", "Expédition préparée", "Shipment prepared",
+        "L'expédition de votre commande a été créée et sera bientôt en route.",
+        "The shipment for your order has been created and will be on its way soon."
+      )}
+      ${detailsCard([
+        { label: "Nº commande / Order #", value: vars.order_number || "N/A" },
+        { label: "Nº suivi / Tracking #", value: vars.tracking_number || "N/A" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/orders`, "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
+  },
+
+  invoice_created: {
+    subject: `Nivra — Nouvelle facture (#${"{invoice_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "📄", "Nouvelle facture", "New invoice",
+        "Une nouvelle facture a été générée pour votre compte.",
+        "A new invoice has been generated for your account."
+      )}
+      ${detailsCard([
+        { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
+        { label: "Montant / Amount", value: formatCurrency(vars.amount) },
+        { label: "Statut / Status", value: vars.status || "Pending" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
+  },
+
+  invoice_overdue: {
+    subject: `Nivra — ⚠️ Facture en retard (#${"{invoice_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("warning", "⚠️", "Facture en retard", "Invoice overdue",
+        "Votre facture est maintenant en retard. Veuillez effectuer le paiement dès que possible.",
+        "Your invoice is now overdue. Please make the payment as soon as possible."
+      )}
+      ${detailsCard([
+        { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
+        { label: "Montant dû / Amount due", value: formatCurrency(vars.amount) },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
+  },
+
+  payment_received: {
+    subject: `Nivra — Paiement reçu ✅ (#${"{invoice_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "✅", "Paiement reçu!", "Payment received!",
+        "Nous avons bien reçu votre paiement. Merci!",
+        "We have received your payment. Thank you!"
+      )}
+      ${detailsCard([
+        { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
+        { label: "Montant payé / Amount paid", value: formatCurrency(vars.amount) },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+  },
+
+  payment_status_changed: {
+    subject: `Nivra — Mise à jour de paiement (#${"{invoice_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "💳", "Statut de paiement mis à jour", "Payment status updated",
+        `Le statut de votre paiement a été mis à jour: ${vars.status || "N/A"}`,
+        `Your payment status has been updated: ${vars.status || "N/A"}`
+      )}
+      ${detailsCard([
+        { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
+        { label: "Nouveau statut / New status", value: vars.status || "N/A" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+  },
+
+  payment_failed: {
+    subject: `Nivra — ❌ Échec du paiement (#${"{invoice_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("error", "❌", "Paiement non réussi", "Payment failed",
+        "Votre paiement n'a pas pu être traité. Veuillez vérifier vos informations.",
+        "Your payment could not be processed. Please verify your information."
+      )}
+      ${detailsCard([
+        { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
+        { label: "Montant / Amount", value: formatCurrency(vars.amount) },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/invoices`, "Réessayer / Retry", config.supportEmail, config.supportPhone),
+  },
+
+  ticket_created: {
+    subject: `Nivra — Ticket de support créé (#${"{ticket_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "🎫", "Ticket créé", "Ticket created",
+        "Votre demande de support a été reçue. Notre équipe vous répondra sous peu.",
+        "Your support request has been received. Our team will respond shortly."
+      )}
+      ${detailsCard([
+        { label: "Nº ticket / Ticket #", value: vars.ticket_number || "N/A" },
+        { label: "Statut / Status", value: vars.status || "Ouvert / Open" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/tickets`, "Voir mon ticket / View ticket", config.supportEmail, config.supportPhone),
+  },
+
+  ticket_reply: {
+    subject: `Nivra — Nouvelle réponse à votre ticket (#${"{ticket_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "💬", "Nouvelle réponse", "New reply",
+        "Vous avez reçu une nouvelle réponse à votre ticket de support.",
+        "You have received a new reply to your support ticket."
+      )}
+      ${detailsCard([
+        { label: "Nº ticket / Ticket #", value: vars.ticket_number || "N/A" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/tickets`, "Voir la réponse / View reply", config.supportEmail, config.supportPhone),
+  },
+
+  appointment_scheduled: {
+    subject: "Nivra — Rendez-vous confirmé 📅",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "📅", "Rendez-vous confirmé", "Appointment confirmed",
+        "Votre rendez-vous a été planifié avec succès.",
+        "Your appointment has been scheduled successfully."
+      )}
+      ${detailsCard([
+        { label: "Date et heure / Date & time", value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : "À confirmer / TBD" },
+        { label: "Statut / Status", value: vars.status || "Confirmé / Confirmed" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/appointments`, "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
+  },
+
+  appointment_updated: {
+    subject: "Nivra — Rendez-vous mis à jour 📅",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("warning", "📅", "Rendez-vous modifié", "Appointment updated",
+        "Votre rendez-vous a été modifié. Veuillez vérifier les nouveaux détails.",
+        "Your appointment has been updated. Please check the new details."
+      )}
+      ${detailsCard([
+        { label: "Nouvelle date / New date", value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : "À confirmer / TBD" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/appointments`, "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
+  },
+
+  appointment_cancelled: {
+    subject: "Nivra — Rendez-vous annulé",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("error", "❌", "Rendez-vous annulé", "Appointment cancelled",
+        "Votre rendez-vous a été annulé.",
+        "Your appointment has been cancelled."
+      )}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour reprogrammer, veuillez nous contacter au ${config.supportPhone}.<br>
+        <em style="color:${emailStyles.textMuted};">To reschedule, please contact us at ${config.supportPhone}.</em>
+      </p>
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/appointments`, "Reprogrammer / Reschedule", config.supportEmail, config.supportPhone),
+  },
+
+  contract_ready: {
+    subject: "Nivra — Contrat prêt à signer 📝",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("info", "📝", "Contrat disponible", "Contract ready",
+        "Votre contrat est prêt à être signé. Veuillez le consulter dans votre portail.",
+        "Your contract is ready to be signed. Please review it in your portal."
+      )}
+      ${detailsCard([
+        { label: "Nº contrat / Contract #", value: vars.contract_number || "N/A" },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/contracts`, "Voir le contrat / View contract", config.supportEmail, config.supportPhone),
+  },
+
+  contract_signed: {
+    subject: `Nivra — Contrat signé ✅ (#${"{contract_number}"})`,
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge("success", "✅", "Contrat signé!", "Contract signed!",
+        "Votre contrat a été signé avec succès. Une copie est disponible dans votre portail.",
+        "Your contract has been signed successfully. A copy is available in your portal."
+      )}
+      ${detailsCard([
+        { label: "Nº contrat / Contract #", value: vars.contract_number || "N/A" },
+        { label: "Signé le / Signed on", value: formatDate(new Date().toISOString()) },
+      ])}
+    `, `${config.baseUrl}${vars.portal_path || "/portal"}/contracts`, "Voir mes contrats / View contracts", config.supportEmail, config.supportPhone),
+  },
+};
+
+// =============================================
+// MAIN SERVER HANDLER
+// =============================================
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  const emailFromAddress = Deno.env.get("EMAIL_FROM_ADDRESS") || "Nivra Telecom <onboarding@resend.dev>";
+  const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app";
+  const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "Support@nivratelecom.ca";
+  const supportPhone = Deno.env.get("SUPPORT_PHONE") || "438-544-2233";
+
+  const emailConfig: EmailConfig = {
+    baseUrl: appBaseUrl,
+    supportEmail,
+    supportPhone,
+  };
+
+  if (!resendApiKey) {
+    console.error("RESEND_API_KEY not configured");
+    return new Response(JSON.stringify({ success: false, error: "Email service not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  try {
+    const body = await req.json();
+    const { recipient, template_key, variables } = body;
+
+    console.log("[send-template-test] Request received:", { recipient, template_key, variables });
+
+    // Validate required fields
+    if (!recipient || !recipient.includes("@")) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid recipient email" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!template_key) {
+      return new Response(JSON.stringify({ success: false, error: "Template key is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if template exists
+    const template = emailTemplates[template_key];
+    if (!template) {
+      return new Response(JSON.stringify({ success: false, error: `Unknown template: ${template_key}` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Merge variables with defaults
+    const templateVars = {
+      client_name: "Client Test",
+      to_email: recipient,
+      template_key,
+      ...variables,
+    };
+
+    // Generate subject with variable substitution
+    let subject = template.subject;
+    if (templateVars.order_number) subject = subject.replace("{order_number}", templateVars.order_number);
+    if (templateVars.invoice_number) subject = subject.replace("{invoice_number}", templateVars.invoice_number);
+    if (templateVars.ticket_number) subject = subject.replace("{ticket_number}", templateVars.ticket_number);
+    if (templateVars.contract_number) subject = subject.replace("{contract_number}", templateVars.contract_number);
+
+    // Generate HTML
+    const htmlContent = template.getHtml(templateVars, emailConfig);
+
+    console.log("[send-template-test] Sending email to:", recipient, "with template:", template_key);
+
+    // Send via Resend
+    const resend = new Resend(resendApiKey);
+    const emailResult = await resend.emails.send({
+      from: emailFromAddress,
+      to: [recipient],
+      subject: `[TEST] ${subject}`,
+      html: htmlContent,
+    });
+
+    console.log("[send-template-test] Resend response:", emailResult);
+
+    const providerId = emailResult?.data?.id || null;
+    const eventKey = `template_test_${template_key}_${Date.now()}`;
+
+    if (emailResult.error) {
+      console.error("[send-template-test] Resend error:", emailResult.error);
+
+      // Log failed attempt to email_queue
+      await supabase.from("email_queue").insert({
+        event_key: eventKey,
+        to_email: recipient,
+        template_key,
+        template_vars: templateVars,
+        status: "failed",
+        attempts: 1,
+        max_attempts: 1,
+        last_error: emailResult.error.message || JSON.stringify(emailResult.error),
+      });
+
+      return new Response(
+        JSON.stringify({ success: false, error: emailResult.error.message || "Failed to send email" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Log success to email_queue
+    await supabase.from("email_queue").insert({
+      event_key: eventKey,
+      to_email: recipient,
+      template_key,
+      template_vars: templateVars,
+      status: "sent",
+      attempts: 1,
+      max_attempts: 1,
+      provider_message_id: providerId,
+      sent_at: new Date().toISOString(),
+    });
+
+    console.log("[send-template-test] Email sent successfully, provider_id:", providerId);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        recipient,
+        template_key,
+        provider_id: providerId,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err: any) {
+    console.error("[send-template-test] Error:", err);
+    return new Response(
+      JSON.stringify({ success: false, error: err.message || "Internal server error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

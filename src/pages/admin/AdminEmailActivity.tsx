@@ -7,11 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
+import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, FileText } from "lucide-react";
+import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface EmailQueueItem {
@@ -29,6 +31,31 @@ interface EmailQueueItem {
   created_at: string;
 }
 
+const TEMPLATE_OPTIONS = [
+  { key: "test_email", label: "Test du système", category: "Système" },
+  { key: "account_created", label: "Compte créé", category: "Compte" },
+  { key: "email_verified", label: "Email vérifié", category: "Compte" },
+  { key: "password_reset", label: "Réinitialisation mot de passe", category: "Compte" },
+  { key: "order_submitted", label: "Commande soumise", category: "Commande" },
+  { key: "order_processed", label: "Commande traitée", category: "Commande" },
+  { key: "order_shipped", label: "Commande expédiée", category: "Commande" },
+  { key: "order_completed", label: "Commande terminée", category: "Commande" },
+  { key: "order_cancelled", label: "Commande annulée", category: "Commande" },
+  { key: "shipping_created", label: "Expédition créée", category: "Commande" },
+  { key: "invoice_created", label: "Facture créée", category: "Facture" },
+  { key: "invoice_overdue", label: "Facture en retard", category: "Facture" },
+  { key: "payment_received", label: "Paiement reçu", category: "Paiement" },
+  { key: "payment_status_changed", label: "Statut paiement modifié", category: "Paiement" },
+  { key: "payment_failed", label: "Paiement échoué", category: "Paiement" },
+  { key: "ticket_created", label: "Ticket créé", category: "Support" },
+  { key: "ticket_reply", label: "Réponse au ticket", category: "Support" },
+  { key: "appointment_scheduled", label: "RDV planifié", category: "Rendez-vous" },
+  { key: "appointment_updated", label: "RDV modifié", category: "Rendez-vous" },
+  { key: "appointment_cancelled", label: "RDV annulé", category: "Rendez-vous" },
+  { key: "contract_ready", label: "Contrat prêt", category: "Contrat" },
+  { key: "contract_signed", label: "Contrat signé", category: "Contrat" },
+];
+
 const AdminEmailActivity = () => {
   const { user } = useAuth();
   const [emails, setEmails] = useState<EmailQueueItem[]>([]);
@@ -37,6 +64,25 @@ const AdminEmailActivity = () => {
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [testRecipient, setTestRecipient] = useState("nivratelecom@gmail.com");
+
+  // Template test modal state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [isSendingTemplate, setIsSendingTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("test_email");
+  const [templateRecipient, setTemplateRecipient] = useState("nivratelecom@gmail.com");
+  const [varsOpen, setVarsOpen] = useState(false);
+  const [templateVars, setTemplateVars] = useState({
+    order_number: "CMD-1001",
+    invoice_number: "FAC-2001",
+    ticket_number: "TCK-3001",
+    contract_number: "CTR-4001",
+    amount: "49.99",
+    currency: "CAD",
+    status: "Confirmed",
+    scheduled_at: addDays(new Date(), 1).toISOString(),
+    tracking_number: "TRK-123456",
+    portal_path: "/client",
+  });
 
   const fetchEmails = async () => {
     try {
@@ -98,7 +144,6 @@ const AdminEmailActivity = () => {
         setShowTestModal(false);
         fetchEmails();
       } else {
-        // Check for Resend test mode error
         const errorMsg = result.error || "";
         if (errorMsg.includes("testing emails") || errorMsg.includes("verify a domain")) {
           toast.error(
@@ -116,6 +161,67 @@ const AdminEmailActivity = () => {
       toast.error(err.message || "Erreur lors de l'envoi du test");
     } finally {
       setIsSendingTest(false);
+    }
+  };
+
+  const handleSendTemplateTest = async () => {
+    if (!templateRecipient || !templateRecipient.includes("@")) {
+      toast.error("Veuillez entrer une adresse email valide");
+      return;
+    }
+
+    setIsSendingTemplate(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-template-test`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            recipient: templateRecipient,
+            template_key: selectedTemplate,
+            variables: {
+              ...templateVars,
+              amount: parseFloat(templateVars.amount) || 0,
+            },
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(
+          <div className="space-y-1">
+            <p className="font-medium">Email de template envoyé!</p>
+            <p className="text-sm text-muted-foreground">Destinataire: {result.recipient}</p>
+            <p className="text-sm text-muted-foreground">Template: {result.template_key}</p>
+            <p className="text-sm text-muted-foreground">ID Resend: {result.provider_id}</p>
+          </div>
+        );
+        setShowTemplateModal(false);
+        fetchEmails();
+      } else {
+        const errorMsg = result.error || "";
+        if (errorMsg.includes("testing emails") || errorMsg.includes("verify a domain")) {
+          toast.error(
+            <div className="space-y-1">
+              <p className="font-medium">Resend mode test</p>
+              <p className="text-sm">Vous ne pouvez envoyer qu'à nivratelecom@gmail.com tant qu'un domaine n'est pas vérifié.</p>
+            </div>
+          );
+        } else {
+          toast.error(result.error || "Échec de l'envoi");
+        }
+      }
+    } catch (err: any) {
+      console.error("Template test error:", err);
+      toast.error(err.message || "Erreur lors de l'envoi du template");
+    } finally {
+      setIsSendingTemplate(false);
     }
   };
 
@@ -165,24 +271,8 @@ const AdminEmailActivity = () => {
   };
 
   const getTemplateLabel = (key: string) => {
-    const labels: Record<string, string> = {
-      order_submitted: "Commande soumise",
-      order_processed: "Commande traitée",
-      order_shipped: "Commande expédiée",
-      order_completed: "Commande terminée",
-      order_cancelled: "Commande annulée",
-      invoice_created: "Facture créée",
-      payment_received: "Paiement reçu",
-      invoice_overdue: "Facture en retard",
-      payment_failed: "Paiement échoué",
-      ticket_created: "Ticket créé",
-      ticket_reply: "Réponse ticket",
-      appointment_scheduled: "RDV planifié",
-      appointment_updated: "RDV modifié",
-      appointment_cancelled: "RDV annulé",
-      test_email: "Test",
-    };
-    return labels[key] || key;
+    const template = TEMPLATE_OPTIONS.find((t) => t.key === key);
+    return template?.label || key;
   };
 
   const stats = {
@@ -218,16 +308,24 @@ const AdminEmailActivity = () => {
               {isProcessingQueue ? "Traitement..." : "Traiter la queue"}
             </Button>
             <Button
+              variant="outline"
               onClick={openTestModal}
               disabled={isSendingTest}
             >
               <Send className="w-4 h-4 mr-2" />
               Envoyer email test
             </Button>
+            <Button
+              onClick={() => setShowTemplateModal(true)}
+              disabled={isSendingTemplate}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Tester un template
+            </Button>
           </div>
         </div>
 
-        {/* Test Email Modal */}
+        {/* Simple Test Email Modal */}
         <Dialog open={showTestModal} onOpenChange={setShowTestModal}>
           <DialogContent>
             <DialogHeader>
@@ -258,6 +356,135 @@ const AdminEmailActivity = () => {
               <Button onClick={handleSendTestEmail} disabled={isSendingTest}>
                 <Send className="w-4 h-4 mr-2" />
                 {isSendingTest ? "Envoi..." : "Envoyer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Template Test Modal */}
+        <Dialog open={showTemplateModal} onOpenChange={setShowTemplateModal}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Tester un template</DialogTitle>
+              <DialogDescription>
+                Sélectionnez un template et personnalisez les variables pour tester le rendu.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Template Selector */}
+              <div className="space-y-2">
+                <Label htmlFor="template-select">Template</Label>
+                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEMPLATE_OPTIONS.map((t) => (
+                      <SelectItem key={t.key} value={t.key}>
+                        <span className="text-muted-foreground text-xs mr-2">[{t.category}]</span>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Recipient */}
+              <div className="space-y-2">
+                <Label htmlFor="template-recipient">Destinataire</Label>
+                <Input
+                  id="template-recipient"
+                  type="email"
+                  value={templateRecipient}
+                  onChange={(e) => setTemplateRecipient(e.target.value)}
+                  placeholder="nivratelecom@gmail.com"
+                />
+              </div>
+
+              {/* Variables (Collapsible) */}
+              <Collapsible open={varsOpen} onOpenChange={setVarsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between">
+                    Variables
+                    <ChevronDown className={`w-4 h-4 transition-transform ${varsOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">order_number</Label>
+                      <Input
+                        value={templateVars.order_number}
+                        onChange={(e) => setTemplateVars({ ...templateVars, order_number: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">invoice_number</Label>
+                      <Input
+                        value={templateVars.invoice_number}
+                        onChange={(e) => setTemplateVars({ ...templateVars, invoice_number: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">ticket_number</Label>
+                      <Input
+                        value={templateVars.ticket_number}
+                        onChange={(e) => setTemplateVars({ ...templateVars, ticket_number: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">contract_number</Label>
+                      <Input
+                        value={templateVars.contract_number}
+                        onChange={(e) => setTemplateVars({ ...templateVars, contract_number: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">amount</Label>
+                      <Input
+                        value={templateVars.amount}
+                        onChange={(e) => setTemplateVars({ ...templateVars, amount: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">status</Label>
+                      <Input
+                        value={templateVars.status}
+                        onChange={(e) => setTemplateVars({ ...templateVars, status: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">tracking_number</Label>
+                      <Input
+                        value={templateVars.tracking_number}
+                        onChange={(e) => setTemplateVars({ ...templateVars, tracking_number: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">portal_path</Label>
+                      <Input
+                        value={templateVars.portal_path}
+                        onChange={(e) => setTemplateVars({ ...templateVars, portal_path: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">scheduled_at (ISO)</Label>
+                    <Input
+                      value={templateVars.scheduled_at}
+                      onChange={(e) => setTemplateVars({ ...templateVars, scheduled_at: e.target.value })}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowTemplateModal(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSendTemplateTest} disabled={isSendingTemplate}>
+                <Send className="w-4 h-4 mr-2" />
+                {isSendingTemplate ? "Envoi..." : "Envoyer"}
               </Button>
             </DialogFooter>
           </DialogContent>
