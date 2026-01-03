@@ -911,10 +911,10 @@ serve(async (req: Request) => {
           }
         }
 
-        // CHANGED: Only admin gets password reset. Employee/Technician get PIN invite.
+        // SECURITY: Only admin gets password reset. Employee/Technician get PIN invite - NEVER admin links.
         if (targetRole !== "admin") {
-          // Send PIN invite instead
-          console.log(`[admin-manage-staff] send_reset for ${targetRole} - sending PIN invite instead`);
+          // Send PIN invite instead - NEVER send /admin links to non-admins
+          console.log(`[admin-manage-staff] send_reset for ${targetRole} - sending PIN invite instead (no /admin links)`);
           
           if (!targetProfile?.user_id) {
             return json(404, {
@@ -933,7 +933,7 @@ serve(async (req: Request) => {
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 24);
           
-          // Invalidate previous tokens for this user
+          // Invalidate previous tokens
           await adminClient
             .from("pin_invite_tokens")
             .update({ used_at: new Date().toISOString() })
@@ -949,6 +949,7 @@ serve(async (req: Request) => {
             created_by_admin_id: callingUser.id,
           });
           
+          // Build links - NEVER use /admin paths for non-admins
           const portalPath = targetRole === "employee" ? "/employee/set-pin" : "/technician/set-pin";
           const setPinLink = `${appBaseUrl}${portalPath}?token=${token}`;
           const loginPath = targetRole === "employee" ? "/employee/login" : "/technician/auth";
@@ -959,7 +960,7 @@ serve(async (req: Request) => {
             from: "Nivra Telecom <support@nivratelecom.ca>",
             reply_to: "support@nivratelecom.ca",
             to: [normalizedTargetEmail],
-            subject: "Réinitialisation de votre PIN - Nivra",
+            subject: "Configuration de votre PIN - Nivra",
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -967,8 +968,7 @@ serve(async (req: Request) => {
                 </div>
                 <div style="padding: 30px; background: #f8fafc;">
                   <h2>Bonjour,</h2>
-                  <p>Une demande de réinitialisation de votre PIN a été effectuée.</p>
-                  <p>Cliquez sur le bouton ci-dessous pour configurer un nouveau PIN :</p>
+                  <p>Cliquez sur le bouton ci-dessous pour configurer votre PIN de connexion :</p>
                   <p style="margin: 25px 0;">
                     <a href="${setPinLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
                       Configurer mon PIN
@@ -976,8 +976,8 @@ serve(async (req: Request) => {
                   </p>
                   <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 24 heures.</p>
                   <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
-                  <p>Une fois votre PIN configuré, connectez-vous ici : <a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></p>
-                  <p style="margin-top: 20px; color: #64748b;">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+                  <p>Une fois configuré, connectez-vous ici : <a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></p>
+                  <p style="margin-top: 15px; color: #64748b; font-size: 13px;"><em>Note: Vous n'avez pas de mot de passe. Votre connexion se fait uniquement avec email + PIN.</em></p>
                 </div>
                 <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
                   <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
@@ -986,7 +986,7 @@ serve(async (req: Request) => {
             `,
           });
           
-          await logAction("staff_pin_invite_sent", { request_id: requestId, role: targetRole, reason: "reset_request" }, { type: "staff_user", email: normalizedTargetEmail });
+          await logAction("staff_pin_invite_sent", { request_id: requestId, role: targetRole }, { type: "user", id: targetProfile.user_id, email: normalizedTargetEmail });
 
           return json(200, {
             ok: true,
@@ -996,9 +996,9 @@ serve(async (req: Request) => {
           });
         }
 
-        // Admin password reset flow
+        // ADMIN ONLY: Password reset with /admin/reset-password link
         const redirectTo = joinUrl(appBaseUrl, "/admin/reset-password");
-        console.log(`[admin-manage-staff] send_reset target_role=${targetRole} redirect=${redirectTo}`);
+        console.log(`[admin-manage-staff] send_reset ADMIN ONLY target_role=${targetRole} redirect=${redirectTo}`);
 
         try {
           const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
