@@ -71,6 +71,7 @@ import AdminInternalTickets from "./pages/admin/AdminInternalTickets";
 import AdminEmailActivity from "./pages/admin/AdminEmailActivity";
 import AdminAccount from "./pages/admin/AdminAccount";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
@@ -146,6 +147,7 @@ const App = () => (
               <Route path="/admin/email-activity" element={<ProtectedRoute requireAdmin><AdminEmailActivity /></ProtectedRoute>} />
               <Route path="/admin/account" element={<ProtectedRoute requireAdmin><AdminAccount /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
+              <Route path="/admin/audit-log" element={<ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute>} />
               {/* Employee Portal Routes */}
               <Route path="/employee/login" element={<EmployeeLogin />} />
               <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
