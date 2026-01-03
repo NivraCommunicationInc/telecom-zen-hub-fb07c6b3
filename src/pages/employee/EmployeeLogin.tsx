@@ -49,7 +49,10 @@ const EmployeeLogin = () => {
         if (error instanceof FunctionsHttpError) {
           try {
             const body = await error.context.json();
-            if (typeof body?.error === "string" && body.error.trim()) {
+            // New diagnostic format: { ok: false, step, reason }
+            if (typeof body?.reason === "string" && body.reason.trim()) {
+              message = body.reason;
+            } else if (typeof body?.error === "string" && body.error.trim()) {
               message = body.error;
             }
           } catch {
@@ -61,8 +64,9 @@ const EmployeeLogin = () => {
         return;
       }
 
-      if (data?.error) {
-        setErrorMessage(data.error);
+      // Handle error response in data (2xx with ok:false)
+      if (data?.ok === false) {
+        setErrorMessage(data.reason || data.error || "Erreur de connexion.");
         return;
       }
 

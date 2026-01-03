@@ -822,7 +822,36 @@ serve(async (req: Request) => {
             }
           }
         }
-        const redirectTo = joinUrl(appBaseUrl, "/admin/reset-password");
+
+        // Determine target user's role from user_roles table for role-based redirect
+        const normalizedTargetEmail = email.trim().toLowerCase();
+        const { data: targetProfile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", normalizedTargetEmail)
+          .maybeSingle();
+
+        let targetRole: StaffRole = "admin"; // Default fallback
+        if (targetProfile?.user_id) {
+          const { data: roleData } = await adminClient
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", targetProfile.user_id)
+            .in("role", ["admin", "employee", "technician"])
+            .maybeSingle();
+          if (roleData?.role) {
+            targetRole = roleData.role as StaffRole;
+          }
+        }
+
+        // Role-based redirect paths
+        const roleResetPaths: Record<StaffRole, string> = {
+          admin: "/admin/reset-password",
+          employee: "/employee/reset-password",
+          technician: "/technician/reset-password",
+        };
+        const redirectTo = joinUrl(appBaseUrl, roleResetPaths[targetRole]);
+        console.log(`[admin-manage-staff] send_reset target_role=${targetRole} redirect=${redirectTo}`);
 
         console.log(`[admin-manage-staff] send_reset request_id=${requestId} email=${email} redirectTo=${redirectTo}`);
 
