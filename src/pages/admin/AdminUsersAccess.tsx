@@ -42,6 +42,7 @@ import {
   CreateUserDialog, 
   type CreateUserFormData,
   SetPinDialog,
+  SetPasswordDialog,
   UserDetailsDrawer,
   StaffFilters,
   type StaffRole,
@@ -93,6 +94,8 @@ const AdminUsersAccess = () => {
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinDialogMode, setPinDialogMode] = useState<"set" | "reset">("set");
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordDialogMode, setPasswordDialogMode] = useState<"set" | "reset">("set");
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -504,6 +507,58 @@ const AdminUsersAccess = () => {
     },
   });
 
+  // Set staff password mutation
+  const setStaffPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password, forceChange }: { userId: string; password: string; forceChange: boolean }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { 
+          action: "set_staff_password", 
+          user_id: userId, 
+          password,
+          force_change: forceChange,
+        },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Succès", description: passwordDialogMode === "reset" ? "Mot de passe réinitialisé" : "Mot de passe défini" });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+      setPasswordDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Send password reset email mutation (for staff - not PIN!)
+  const sendPasswordResetMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "send_password_reset", email },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Succès", description: "Email de réinitialisation du mot de passe envoyé" });
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive", duration: 15000 });
+    },
+  });
+
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: StaffStatus }) => {
@@ -598,6 +653,22 @@ const AdminUsersAccess = () => {
         pin, 
         requireChange, 
         isReset: pinDialogMode === "reset" 
+      });
+    }
+  };
+
+  const openPasswordDialog = (user: StaffUser, mode: "set" | "reset") => {
+    setSelectedUser(user);
+    setPasswordDialogMode(mode);
+    setPasswordDialogOpen(true);
+  };
+
+  const handleSetPassword = (data: { password: string; forceChange: boolean }) => {
+    if (selectedUser) {
+      setStaffPasswordMutation.mutate({ 
+        userId: selectedUser.id, 
+        password: data.password, 
+        forceChange: data.forceChange,
       });
     }
   };
@@ -864,14 +935,22 @@ const AdminUsersAccess = () => {
                                         <KeyRound className="h-4 w-4 mr-2" />
                                         {user.pin_set_at ? "Réinitialiser PIN" : "Définir PIN"}
                                       </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => openPasswordDialog(user, "set")}>
+                                        <KeyRound className="h-4 w-4 mr-2" />
+                                        Définir mot de passe
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => openPasswordDialog(user, "reset")}>
+                                        <KeyRound className="h-4 w-4 mr-2" />
+                                        Réinitialiser mot de passe
+                                      </DropdownMenuItem>
                                     </>
                                   )}
                                   <DropdownMenuItem 
-                                    onClick={() => sendResetMutation.mutate(user.email)}
-                                    disabled={sendResetMutation.isPending}
+                                    onClick={() => sendPasswordResetMutation.mutate(user.email)}
+                                    disabled={sendPasswordResetMutation.isPending}
                                   >
                                     <KeyRound className="h-4 w-4 mr-2" />
-                                    Envoyer réinit. mot de passe
+                                    Envoyer lien reset MDP
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
                                     onClick={() => forcePasswordChangeMutation.mutate({ 
@@ -963,6 +1042,17 @@ const AdminUsersAccess = () => {
           isReset={pinDialogMode === "reset"}
           onSubmit={handleSetPin}
           isPending={setPinMutation.isPending}
+        />
+
+        {/* Set/Reset Password Dialog */}
+        <SetPasswordDialog
+          open={passwordDialogOpen}
+          onOpenChange={setPasswordDialogOpen}
+          userEmail={selectedUser?.email || ""}
+          userName={selectedUser?.full_name || undefined}
+          isReset={passwordDialogMode === "reset"}
+          isPending={setStaffPasswordMutation.isPending}
+          onSubmit={handleSetPassword}
         />
 
         {/* User Details Drawer */}
