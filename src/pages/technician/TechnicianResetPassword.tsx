@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,8 @@ import { z } from "zod";
 const passwordSchema = z.object({
   newPassword: z
     .string()
-    .min(12, "Minimum 12 caractères")
-    .regex(/\d/, "Doit contenir au moins un chiffre")
-    .regex(/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/, "Doit contenir au moins un caractère spécial"),
+    .min(8, "Minimum 8 caractères")
+    .regex(/\d/, "Doit contenir au moins un chiffre"),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Les mots de passe ne correspondent pas",
@@ -22,7 +21,6 @@ const passwordSchema = z.object({
 
 const TechnicianResetPassword = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
   const [newPassword, setNewPassword] = useState("");
@@ -37,52 +35,65 @@ const TechnicianResetPassword = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait a moment for Supabase to process the URL hash
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // Listen for auth state changes first
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log("[TechnicianResetPassword] Auth event:", event);
+        if (event === "PASSWORD_RECOVERY" && session) {
+          console.log("[TechnicianResetPassword] PASSWORD_RECOVERY session received");
+          setIsCheckingSession(false);
+          setSessionError(null);
+        } else if (event === "SIGNED_IN" && session) {
+          console.log("[TechnicianResetPassword] SIGNED_IN session received");
+          setIsCheckingSession(false);
+          setSessionError(null);
+        }
+      });
+
+      // Check for existing session
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error("Session error:", error);
+        console.error("[TechnicianResetPassword] Session error:", error);
         setSessionError("Lien invalide ou expiré. Veuillez demander un nouveau lien de réinitialisation.");
-      } else if (!session) {
-        const errorParam = searchParams.get("error");
-        const errorDescription = searchParams.get("error_description");
-        
-        if (errorParam) {
-          setSessionError(errorDescription || "Lien invalide ou expiré.");
-        } else {
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === "PASSWORD_RECOVERY" && session) {
-              setIsCheckingSession(false);
-              setSessionError(null);
-            } else if (event === "SIGNED_IN" && session) {
-              setIsCheckingSession(false);
-              setSessionError(null);
-            }
-          });
-          
-          setTimeout(() => {
-            setIsCheckingSession(false);
-            if (!sessionError) {
-              supabase.auth.getSession().then(({ data }) => {
-                if (!data.session) {
-                  setSessionError("Lien invalide ou expiré. Veuillez demander un nouveau lien de réinitialisation.");
-                }
-              });
-            }
-          }, 2000);
-          
-          return () => subscription.unsubscribe();
-        }
-      } else {
         setIsCheckingSession(false);
+        return;
       }
       
-      setIsCheckingSession(false);
+      if (session) {
+        console.log("[TechnicianResetPassword] Session found");
+        setIsCheckingSession(false);
+        setSessionError(null);
+      } else {
+        // Check for error in URL
+        const hash = window.location.hash;
+        if (hash.includes("error=")) {
+          const errorMatch = hash.match(/error_description=([^&]*)/);
+          const errorDesc = errorMatch ? decodeURIComponent(errorMatch[1].replace(/\+/g, ' ')) : "Lien invalide ou expiré.";
+          setSessionError(errorDesc);
+          setIsCheckingSession(false);
+          return;
+        }
+
+        // Wait a bit more for the session to be established
+        setTimeout(() => {
+          supabase.auth.getSession().then(({ data }) => {
+            if (!data.session) {
+              console.log("[TechnicianResetPassword] No session after wait");
+              setSessionError("Lien invalide ou expiré. Veuillez demander un nouveau lien de réinitialisation.");
+            }
+            setIsCheckingSession(false);
+          });
+        }, 2000);
+      }
+
+      return () => subscription.unsubscribe();
     };
 
     checkSession();
-  }, [searchParams]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,6 +133,9 @@ const TechnicianResetPassword = () => {
         title: "Succès!",
         description: "Votre mot de passe a été réinitialisé.",
       });
+
+      // Sign out before redirecting
+      await supabase.auth.signOut();
 
       setTimeout(() => {
         navigate("/technician/auth");
@@ -214,7 +228,7 @@ const TechnicianResetPassword = () => {
                   type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="••••••••"
                   className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
                   autoComplete="new-password"
                 />
@@ -228,7 +242,7 @@ const TechnicianResetPassword = () => {
               </div>
               {errors.newPassword && <p className="text-sm text-destructive">{errors.newPassword}</p>}
               <p className="text-xs text-muted-foreground">
-                Min. 12 caractères, 1 chiffre, 1 caractère spécial
+                Min. 8 caractères, 1 chiffre
               </p>
             </div>
 
@@ -243,7 +257,7 @@ const TechnicianResetPassword = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="••••••••"
                   className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
                   autoComplete="new-password"
                 />

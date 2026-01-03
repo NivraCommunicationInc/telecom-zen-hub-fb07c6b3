@@ -126,7 +126,19 @@ interface AdminRecoverRequest {
   bootstrap_token: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest;
+interface SetStaffPasswordRequest {
+  action: "set_staff_password";
+  user_id: string;
+  password: string;
+  force_change?: boolean;
+}
+
+interface SendPasswordResetRequest {
+  action: "send_password_reset";
+  email: string;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest;
 
 // PIN hashing function (must match client-side)
 const SALT = 'nivra_pin_salt_2026';
@@ -2031,6 +2043,228 @@ serve(async (req: Request) => {
           success: true,
           message: "Compte admin récupéré avec succès",
         });
+      }
+
+      case "set_staff_password": {
+        const { user_id, password, force_change = true } = body as SetStaffPasswordRequest;
+        const stepBase = "set_staff_password";
+
+        if (!user_id || !password) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id et password requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        if (password.length < 8) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Le mot de passe doit contenir au moins 8 caractères", step: `${stepBase}.validate_password` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} force_change=${force_change} request_id=${requestId}`);
+
+        // Get target user info
+        const { data: targetUser, error: getUserError } = await adminClient.auth.admin.getUserById(user_id);
+        if (getUserError || !targetUser?.user) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur non trouvé", step: `${stepBase}.get_user` } satisfies ApiError,
+          });
+        }
+
+        // Update password in auth provider
+        const { error: updateError } = await adminClient.auth.admin.updateUserById(user_id, {
+          password,
+        });
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} update password error:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "AUTH_ERROR", message: updateError.message, step: `${stepBase}.update_password` } satisfies ApiError,
+          });
+        }
+
+        // Update require_password_change flag in user_roles
+        await adminClient
+          .from("user_roles")
+          .update({ require_password_change: force_change })
+          .eq("user_id", user_id);
+
+        // Also update employees table if applicable
+        await adminClient
+          .from("employees")
+          .update({ require_password_change: force_change })
+          .eq("email", targetUser.user.email);
+
+        await logAction("staff_password_set", { 
+          request_id: requestId, 
+          force_change,
+          target_role: "staff",
+        }, { type: "user", id: user_id, email: targetUser.user.email });
+
+        console.log(`[admin-manage-staff] ${stepBase} SUCCESS password set for: ${targetUser.user.email}`);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Mot de passe défini avec succès",
+        });
+      }
+
+      case "send_password_reset": {
+        const { email } = body as SendPasswordResetRequest;
+        const stepBase = "send_password_reset";
+
+        if (!email) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Email requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
+
+        const missingSecrets = [
+          ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
+          ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
+          ...(isMissingSecret("RESEND_API_KEY") ? ["RESEND_API_KEY"] : []),
+        ];
+
+        if (missingSecrets.length > 0) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "MISSING_SECRETS", message: "Secrets requis manquants", step: `${stepBase}.validate_secrets` } satisfies ApiError,
+            missing_secrets: missingSecrets,
+          });
+        }
+
+        // Find user and determine role
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", normalizedEmail)
+          .maybeSingle();
+
+        if (!profile?.user_id) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur non trouvé", step: `${stepBase}.find_user` } satisfies ApiError,
+          });
+        }
+
+        const { data: roleData } = await adminClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", profile.user_id)
+          .in("role", ["admin", "employee", "technician"])
+          .maybeSingle();
+
+        const targetRole = (roleData?.role as StaffRole) || "employee";
+        const appBaseUrl = getAppBaseUrl();
+
+        // Determine redirect URL based on role - NEVER send admin links to non-admins
+        let redirectPath: string;
+        if (targetRole === "admin") {
+          redirectPath = "/admin/reset-password";
+        } else if (targetRole === "employee") {
+          redirectPath = "/employee/reset-password";
+        } else {
+          redirectPath = "/technician/reset-password";
+        }
+
+        const redirectTo = joinUrl(appBaseUrl, redirectPath);
+        console.log(`[admin-manage-staff] ${stepBase} target_role=${targetRole} redirect=${redirectTo}`);
+
+        try {
+          const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+            type: "recovery",
+            email: normalizedEmail,
+            options: { redirectTo },
+          });
+
+          if (linkError || !linkData?.properties?.action_link) {
+            console.error(`[admin-manage-staff] ${stepBase} generate link error:`, linkError);
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "LINK_GENERATION_FAILED", message: linkError?.message || "Impossible de générer le lien", step: `${stepBase}.generate_link` } satisfies ApiError,
+            });
+          }
+
+          const resetLink = linkData.properties.action_link;
+          const loginPath = targetRole === "admin" ? "/admin/login" : targetRole === "employee" ? "/employee/login" : "/technician/auth";
+          const loginLink = joinUrl(appBaseUrl, loginPath);
+          const portalName = targetRole === "admin" ? "Administrateur" : targetRole === "employee" ? "Employé" : "Technicien";
+
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
+          await resend.emails.send({
+            from: "Nivra Telecom <support@nivratelecom.ca>",
+            reply_to: "support@nivratelecom.ca",
+            to: [normalizedEmail],
+            subject: "Réinitialisation de votre mot de passe - Nivra",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+                </div>
+                <div style="padding: 30px; background: #f8fafc;">
+                  <h2>Bonjour,</h2>
+                  <p>Vous avez demandé à réinitialiser votre mot de passe pour le portail <strong>${portalName}</strong>.</p>
+                  <p>Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :</p>
+                  <p style="margin: 25px 0;">
+                    <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                      Réinitialiser mon mot de passe
+                    </a>
+                  </p>
+                  <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 1 heure.</p>
+                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+                  <p>Une fois votre mot de passe défini, connectez-vous ici :</p>
+                  <p><a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></p>
+                  <p style="margin-top: 20px; color: #64748b; font-size: 13px;"><em>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</em></p>
+                </div>
+                <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                  <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
+                  <p style="margin: 0; font-size: 11px; color: #71717a;">Request ID: ${requestId}</p>
+                </div>
+              </div>
+            `,
+          });
+
+          await logAction("staff_password_reset_sent", { 
+            request_id: requestId, 
+            target_role: targetRole,
+            redirect_to: redirectTo,
+          }, { type: "user", id: profile.user_id, email: normalizedEmail });
+
+          console.log(`[admin-manage-staff] ${stepBase} SUCCESS email sent to: ${normalizedEmail}`);
+
+          return json(200, {
+            ok: true,
+            request_id: requestId,
+            success: true,
+            message: "Email de réinitialisation du mot de passe envoyé",
+          });
+        } catch (e: unknown) {
+          const err = e as Error;
+          console.error(`[admin-manage-staff] ${stepBase} error:`, err);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "SEND_FAILED", message: err.message, step: `${stepBase}.send_email` } satisfies ApiError,
+          });
+        }
       }
 
       default:
