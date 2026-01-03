@@ -77,9 +77,10 @@ const AdminRecover = () => {
 
     try {
       // Call edge function for admin recovery - token validation happens server-side
-      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+      // Uses admin-bootstrap function which doesn't require prior authentication
+      const { data, error } = await supabase.functions.invoke("admin-bootstrap", {
         body: {
-          action: "admin_recover",
+          action: "recover",
           email,
           password,
           pin,
