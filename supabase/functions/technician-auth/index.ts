@@ -63,6 +63,269 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // ========== PIN-ONLY LOGIN (Email + PIN) ==========
+    if (action === "pin_login") {
+      const { email, pin } = body;
+      
+      if (!email || !pin) {
+        console.log("[technician-auth] pin_login: Missing email or PIN");
+        return new Response(
+          JSON.stringify({ ok: false, reason: "not_found", message: "Email et PIN requis" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!/^\d{4}$/.test(pin)) {
+        return new Response(
+          JSON.stringify({ ok: false, reason: "invalid_pin", message: "Le PIN doit être exactement 4 chiffres" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      console.log(`[technician-auth] pin_login attempt for: ${normalizedEmail}`);
+
+      // Step 1: Find technician record by email
+      const { data: technician, error: techError } = await supabase
+        .from("technicians")
+        .select("id, full_name, email, status, user_id, access_code, pin_hash, failed_login_attempts, lockout_until, specializations, phone")
+        .ilike("email", normalizedEmail)
+        .maybeSingle();
+
+      if (techError) {
+        console.error("[technician-auth] pin_login: Technician lookup error:", techError);
+        return new Response(
+          JSON.stringify({ ok: false, reason: "not_found", message: "Erreur de connexion" }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!technician) {
+        console.log("[technician-auth] pin_login: No technician record for email:", normalizedEmail);
+        
+        // Log failed attempt
+        await supabase.from("admin_audit_log").insert({
+          action: "staff_pin_login_failed",
+          admin_user_id: "00000000-0000-0000-0000-000000000000",
+          admin_email: normalizedEmail,
+          target_email: normalizedEmail,
+          target_type: "technician",
+          details: { reason: "not_found", ip: req.headers.get("x-forwarded-for") || "unknown" },
+        });
+        
+        return new Response(
+          JSON.stringify({ ok: false, reason: "not_found", message: "Aucun compte technicien trouvé." }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check lockout
+      if (technician.lockout_until) {
+        const lockoutEnd = new Date(technician.lockout_until);
+        if (lockoutEnd > new Date()) {
+          const minutesRemaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / 60000);
+          return new Response(
+            JSON.stringify({ ok: false, reason: "account_locked", message: `Compte verrouillé. Réessayez dans ${minutesRemaining} minute(s).` }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Check if technician is active
+      if (technician.status !== "active") {
+        await supabase.from("admin_audit_log").insert({
+          action: "staff_pin_login_failed",
+          admin_user_id: technician.id,
+          admin_email: technician.email,
+          target_email: technician.email,
+          target_type: "technician",
+          details: { reason: "status_disabled", ip: req.headers.get("x-forwarded-for") || "unknown" },
+        });
+        
+        return new Response(
+          JSON.stringify({ ok: false, reason: "status_disabled", message: "Compte désactivé." }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check user_roles status
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .ilike("email", normalizedEmail)
+        .maybeSingle();
+
+      if (profile?.user_id) {
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("status")
+          .eq("user_id", profile.user_id)
+          .eq("role", "technician")
+          .maybeSingle();
+
+        if (userRole?.status === "hold") {
+          await supabase.from("admin_audit_log").insert({
+            action: "staff_pin_login_failed",
+            admin_user_id: technician.id,
+            admin_email: technician.email,
+            target_email: technician.email,
+            target_type: "technician",
+            details: { reason: "status_hold", ip: req.headers.get("x-forwarded-for") || "unknown" },
+          });
+          
+          return new Response(
+            JSON.stringify({ ok: false, reason: "status_hold", message: "Compte suspendu." }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (userRole?.status === "disabled") {
+          await supabase.from("admin_audit_log").insert({
+            action: "staff_pin_login_failed",
+            admin_user_id: technician.id,
+            admin_email: technician.email,
+            target_email: technician.email,
+            target_type: "technician",
+            details: { reason: "status_disabled", ip: req.headers.get("x-forwarded-for") || "unknown" },
+          });
+          
+          return new Response(
+            JSON.stringify({ ok: false, reason: "status_disabled", message: "Compte désactivé." }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Check if PIN is set (either pin_hash or legacy access_code)
+      if (!technician.pin_hash && !technician.access_code) {
+        await supabase.from("admin_audit_log").insert({
+          action: "staff_pin_login_failed",
+          admin_user_id: technician.id,
+          admin_email: technician.email,
+          target_email: technician.email,
+          target_type: "technician",
+          details: { reason: "pin_not_set", ip: req.headers.get("x-forwarded-for") || "unknown" },
+        });
+        
+        return new Response(
+          JSON.stringify({ ok: false, reason: "pin_not_set", message: "PIN non configuré. Contactez l'administrateur." }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verify PIN - try multiple hash formats for compatibility
+      let pinValid = false;
+      
+      if (technician.pin_hash) {
+        const inputPinHash = await hashPin(pin, PIN_SALT);
+        const inputPinHashNew = await hashPin(PIN_SALT_NEW + pin);
+        const legacyInputPinHash = await hashPin(pin);
+        pinValid = technician.pin_hash === inputPinHash || technician.pin_hash === inputPinHashNew || technician.pin_hash === legacyInputPinHash;
+      } else if (technician.access_code) {
+        // Legacy: plaintext access_code comparison
+        pinValid = technician.access_code === pin;
+      }
+
+      if (!pinValid) {
+        const newAttempts = (technician.failed_login_attempts || 0) + 1;
+        const MAX_ATTEMPTS = 5;
+        const LOCKOUT_MINUTES = 15;
+
+        const updates: { failed_login_attempts: number; lockout_until?: string } = {
+          failed_login_attempts: newAttempts,
+        };
+
+        if (newAttempts >= MAX_ATTEMPTS) {
+          const lockoutTime = new Date();
+          lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_MINUTES);
+          updates.lockout_until = lockoutTime.toISOString();
+          await supabase.from("technicians").update(updates).eq("id", technician.id);
+          
+          await supabase.from("admin_audit_log").insert({
+            action: "staff_pin_login_failed",
+            admin_user_id: technician.id,
+            admin_email: technician.email,
+            target_email: technician.email,
+            target_type: "technician",
+            details: { reason: "account_locked", attempts: newAttempts, ip: req.headers.get("x-forwarded-for") || "unknown" },
+          });
+          
+          return new Response(
+            JSON.stringify({ ok: false, reason: "account_locked", message: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        await supabase.from("technicians").update(updates).eq("id", technician.id);
+        
+        await supabase.from("admin_audit_log").insert({
+          action: "staff_pin_login_failed",
+          admin_user_id: technician.id,
+          admin_email: technician.email,
+          target_email: technician.email,
+          target_type: "technician",
+          details: { reason: "invalid_pin", attempts: newAttempts, ip: req.headers.get("x-forwarded-for") || "unknown" },
+        });
+        
+        return new Response(
+          JSON.stringify({ ok: false, reason: "invalid_pin", message: `PIN invalide. ${MAX_ATTEMPTS - newAttempts} tentative(s) restante(s).` }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Success - reset failed attempts
+      await supabase.from("technicians").update({ 
+        failed_login_attempts: 0, 
+        lockout_until: null 
+      }).eq("id", technician.id);
+
+      // Update last_login_at in user_roles
+      if (profile?.user_id) {
+        await supabase.from("user_roles")
+          .update({ last_login_at: new Date().toISOString() })
+          .eq("user_id", profile.user_id)
+          .eq("role", "technician");
+      }
+
+      // Log successful login
+      await supabase.from("admin_audit_log").insert({
+        action: "staff_pin_login_success",
+        admin_user_id: technician.id,
+        admin_email: technician.email,
+        target_email: technician.email,
+        target_type: "technician",
+        details: { ip: req.headers.get("x-forwarded-for") || "unknown" },
+      });
+
+      // Sign session token
+      const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const sessionToken = await signToken({
+        technicianId: technician.id,
+        userId: profile?.user_id,
+        email: technician.email,
+        fullName: technician.full_name,
+        role: "technician",
+      }, tokenSecret);
+
+      console.log("[technician-auth] pin_login successful for:", technician.full_name);
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          user_id: profile?.user_id || technician.id,
+          technician_id: technician.id,
+          email: technician.email,
+          full_name: technician.full_name,
+          phone: technician.phone,
+          specializations: technician.specializations,
+          role: "technician",
+          status: "active",
+          token: sessionToken,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Handle PIN token validation
     if (action === "validate_pin_token") {
       const { token } = body;
@@ -194,7 +457,7 @@ serve(async (req) => {
       );
     }
 
-    // Handle login with password + PIN (new auth model)
+    // Legacy login with password + PIN (kept for backwards compatibility, but not used by new UI)
     if (action === "login_with_password") {
       const { email, password, accessCode } = body;
       
@@ -206,489 +469,26 @@ serve(async (req) => {
         );
       }
 
-      if (!/^\d{4}$/.test(accessCode)) {
-        return new Response(
-          JSON.stringify({ ok: false, step: "validate_pin", reason: "Le PIN doit être exactement 4 chiffres" }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      console.log(`[technician-auth] login_with_password attempt for: ${normalizedEmail}`);
-
-      // Step 1: Find technician record by email
-      const { data: technician, error: techError } = await supabase
-        .from("technicians")
-        .select("id, full_name, email, status, user_id, access_code, pin_hash, password_hash, failed_login_attempts, lockout_until, specializations, phone, require_password_change")
-        .ilike("email", normalizedEmail)
-        .maybeSingle();
-
-      if (techError) {
-        console.error("[technician-auth] login_with_password: Technician lookup error:", techError);
-        return new Response(
-          JSON.stringify({ ok: false, step: "technician_lookup", reason: "Erreur de connexion" }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (!technician) {
-        console.log("[technician-auth] login_with_password: No technician record for email:", normalizedEmail);
-        return new Response(
-          JSON.stringify({ ok: false, step: "technician_not_found", reason: "Profil technicien non configuré. Contactez l'administrateur." }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Check lockout
-      if (technician.lockout_until) {
-        const lockoutEnd = new Date(technician.lockout_until);
-        if (lockoutEnd > new Date()) {
-          const minutesRemaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / 60000);
-          return new Response(
-            JSON.stringify({ ok: false, step: "account_locked", reason: `Compte temporairement verrouillé. Réessayez dans ${minutesRemaining} minute(s).` }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-
-      if (technician.status !== "active") {
-        return new Response(
-          JSON.stringify({ ok: false, step: "technician_disabled", reason: "Accès bloqué: compte désactivé." }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Step 2: Verify password
-      const passwordHash = technician.password_hash;
-      const inputPasswordHash = await hashPin(password, "");
-      
-      // Accept temporary password "Canada2026" or check stored hash
-      const passwordValid = !passwordHash 
-        ? (password === "Canada2026")
-        : (passwordHash === inputPasswordHash || password === "Canada2026");
-
-      if (!passwordValid) {
-        const newAttempts = (technician.failed_login_attempts || 0) + 1;
-        const MAX_ATTEMPTS = 5;
-        const LOCKOUT_MINUTES = 15;
-
-        const updates: { failed_login_attempts: number; lockout_until?: string } = {
-          failed_login_attempts: newAttempts,
-        };
-
-        if (newAttempts >= MAX_ATTEMPTS) {
-          const lockoutTime = new Date();
-          lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_MINUTES);
-          updates.lockout_until = lockoutTime.toISOString();
-          await supabase.from("technicians").update(updates).eq("id", technician.id);
-          return new Response(
-            JSON.stringify({ ok: false, step: "password_lockout", reason: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        await supabase.from("technicians").update(updates).eq("id", technician.id);
-        return new Response(
-          JSON.stringify({ ok: false, step: "password_invalid", reason: `Mot de passe invalide. ${MAX_ATTEMPTS - newAttempts} tentative(s) restante(s).` }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Step 3: Verify PIN
-      let pinValid = false;
-      
-      if (technician.pin_hash) {
-        const inputPinHash = await hashPin(accessCode, PIN_SALT);
-        const inputPinHashNew = await hashPin(PIN_SALT_NEW + accessCode);
-        const legacyInputPinHash = await hashPin(accessCode);
-        pinValid = technician.pin_hash === inputPinHash || technician.pin_hash === inputPinHashNew || technician.pin_hash === legacyInputPinHash;
-      } else if (technician.access_code) {
-        // Legacy: plaintext access_code comparison
-        pinValid = technician.access_code === accessCode;
-      }
-
-      if (!pinValid) {
-        const newAttempts = (technician.failed_login_attempts || 0) + 1;
-        const MAX_ATTEMPTS = 5;
-        const LOCKOUT_MINUTES = 15;
-
-        const updates: { failed_login_attempts: number; lockout_until?: string } = {
-          failed_login_attempts: newAttempts,
-        };
-
-        if (newAttempts >= MAX_ATTEMPTS) {
-          const lockoutTime = new Date();
-          lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_MINUTES);
-          updates.lockout_until = lockoutTime.toISOString();
-          await supabase.from("technicians").update(updates).eq("id", technician.id);
-          return new Response(
-            JSON.stringify({ ok: false, step: "pin_lockout", reason: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        await supabase.from("technicians").update(updates).eq("id", technician.id);
-        return new Response(
-          JSON.stringify({ ok: false, step: "pin_invalid", reason: `Code PIN invalide. ${MAX_ATTEMPTS - newAttempts} tentative(s) restante(s).` }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Check if password change is required
-      const requirePasswordChange = technician.require_password_change || (!passwordHash && password === "Canada2026");
-
-      // Success - reset failed attempts
-      await supabase.from("technicians").update({ 
-        failed_login_attempts: 0, 
-        lockout_until: null 
-      }).eq("id", technician.id);
-
-      // Find profile for user_id
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .ilike("email", normalizedEmail)
-        .maybeSingle();
-
-      if (profile?.user_id) {
-        await supabase.from("user_roles")
-          .update({ last_login_at: new Date().toISOString() })
-          .eq("user_id", profile.user_id)
-          .eq("role", "technician");
-      }
-
-      // Sign session token
-      const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const sessionToken = await signToken({
-        technicianId: technician.id,
-        userId: profile?.user_id,
-        email: technician.email,
-        fullName: technician.full_name,
-        role: "technician",
-      }, tokenSecret);
-
-      console.log("[technician-auth] login_with_password successful for:", technician.full_name);
-
+      // Redirect to pin_login since we no longer use password for technicians
+      console.log("[technician-auth] login_with_password: Redirecting to pin_login");
       return new Response(
-        JSON.stringify({
-          ok: true,
-          success: true,
-          token: sessionToken,
-          require_password_change: requirePasswordChange,
-          technician: {
-            id: technician.id,
-            user_id: profile?.user_id,
-            email: technician.email,
-            full_name: technician.full_name,
-            phone: technician.phone,
-            specializations: technician.specializations,
-          },
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Handle change_password action
-    if (action === "change_password") {
-      const { email, token, new_password } = body;
-      
-      if (!email || !token || !new_password) {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Email, token et nouveau mot de passe requis" }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (new_password.length < 12) {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Le mot de passe doit contenir au moins 12 caractères" }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      console.log(`[technician-auth] change_password for: ${normalizedEmail}`);
-
-      // Verify the token
-      try {
-        const [headerB64, payloadB64] = token.split('.');
-        const payload = JSON.parse(atob(payloadB64));
-        
-        if (payload.email?.toLowerCase() !== normalizedEmail) {
-          return new Response(
-            JSON.stringify({ ok: false, error: "Token invalide pour cet utilisateur" }),
-            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Check expiry
-        if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-          return new Response(
-            JSON.stringify({ ok: false, error: "Session expirée. Veuillez vous reconnecter." }),
-            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      } catch (e) {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Token invalide" }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Hash the new password
-      const PASSWORD_SALT = "nivra_password_salt_2026";
-      const passwordData = new TextEncoder().encode(PASSWORD_SALT + new_password);
-      const passwordHashBuffer = await crypto.subtle.digest('SHA-256', passwordData);
-      const newPasswordHash = Array.from(new Uint8Array(passwordHashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-      // Update technician password
-      const { error: updateError } = await supabase
-        .from("technicians")
-        .update({ 
-          password_hash: newPasswordHash,
-          require_password_change: false,
-        })
-        .ilike("email", normalizedEmail);
-
-      if (updateError) {
-        console.error("[technician-auth] change_password update error:", updateError);
-        return new Response(
-          JSON.stringify({ ok: false, error: "Échec de la mise à jour du mot de passe" }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log("[technician-auth] Password changed successfully for:", normalizedEmail);
-
-      return new Response(
-        JSON.stringify({ ok: true, success: true, message: "Mot de passe mis à jour avec succès" }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Default: legacy login flow (email + PIN only - for backwards compatibility)
-    const { email, accessCode } = body;
-    
-    if (!email || !accessCode) {
-      console.log("[technician-auth] Missing email or accessCode");
-      return new Response(
-        JSON.stringify({ ok: false, step: "validate_input", reason: "Email et code d'accès requis" }),
+        JSON.stringify({ ok: false, reason: "Le portail technicien utilise maintenant uniquement email et PIN." }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    console.log(`[technician-auth] Login attempt for: ${normalizedEmail}`);
-
-    // Step 1: Find profile by email (normalized)
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, email")
-      .ilike("email", normalizedEmail)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error("[technician-auth] Profile lookup error:", profileError);
-      return new Response(
-        JSON.stringify({ ok: false, step: "profile_lookup", reason: "Erreur de connexion" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!profile) {
-      console.log("[technician-auth] No profile found for email:", normalizedEmail);
-      return new Response(
-        JSON.stringify({ ok: false, step: "profile_not_found", reason: "Aucun compte trouvé pour ce courriel" }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 2: Check user_roles for technician role and status
-    const { data: roleData, error: roleError } = await supabase
-      .from("user_roles")
-      .select("role, is_active, status")
-      .eq("user_id", profile.user_id)
-      .eq("role", "technician")
-      .maybeSingle();
-
-    if (roleError) {
-      console.error("[technician-auth] Role lookup error:", roleError);
-      return new Response(
-        JSON.stringify({ ok: false, step: "role_lookup", reason: "Erreur de vérification du rôle" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!roleData) {
-      console.log("[technician-auth] No technician role for user:", profile.user_id);
-      return new Response(
-        JSON.stringify({ ok: false, step: "wrong_role", reason: "Ce compte n'est pas un compte technicien. Utilisez le portail approprié." }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check status field (new system)
-    const userStatus = roleData.status || "active";
-    if (userStatus !== "active") {
-      const statusMessages: Record<string, string> = {
-        disabled: "Votre compte technicien est désactivé. Contactez l'administrateur.",
-        hold: "Votre compte technicien est en attente. Contactez l'administrateur.",
-      };
-      console.log("[technician-auth] Technician status is not active:", userStatus);
-      return new Response(
-        JSON.stringify({ ok: false, step: "status_not_active", reason: statusMessages[userStatus] || "Accès refusé.", status: userStatus }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Legacy: check is_active (backwards compatibility)
-    if (roleData.is_active === false) {
-      console.log("[technician-auth] Technician role is disabled for user:", profile.user_id);
-      return new Response(
-        JSON.stringify({ ok: false, step: "role_disabled", reason: "Accès technicien désactivé. Contactez l'administrateur." }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 3: Find technician record by email for access code and lockout info
-    const { data: technician, error: techError } = await supabase
-      .from("technicians")
-      .select("id, full_name, email, status, user_id, access_code, pin_hash, failed_login_attempts, lockout_until, specializations, phone")
-      .ilike("email", normalizedEmail)
-      .maybeSingle();
-
-    if (techError) {
-      console.error("[technician-auth] Technician lookup error:", techError);
-      return new Response(
-        JSON.stringify({ ok: false, step: "technician_lookup", reason: "Erreur de connexion" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!technician) {
-      console.log("[technician-auth] No technician record for email:", normalizedEmail);
-      return new Response(
-        JSON.stringify({ ok: false, step: "technician_not_found", reason: "Profil technicien non configuré. Contactez l'administrateur." }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check lockout
-    if (technician.lockout_until) {
-      const lockoutEnd = new Date(technician.lockout_until);
-      if (lockoutEnd > new Date()) {
-        const minutesRemaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / 60000);
-        console.log("[technician-auth] Account locked for:", minutesRemaining, "minutes");
-        return new Response(
-          JSON.stringify({ ok: false, step: "account_locked", reason: `Compte temporairement verrouillé. Réessayez dans ${minutesRemaining} minute(s).` }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Check if technician is active
-    if (technician.status !== "active") {
-      console.log("[technician-auth] Technician account inactive:", technician.status);
-      return new Response(
-        JSON.stringify({ ok: false, step: "technician_disabled", reason: "Accès bloqué: compte désactivé." }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Verify access code - support both plaintext (legacy) and hashed
-    let codeValid = false;
-    
-    // Check if using hashed PIN
-    if (technician.pin_hash) {
-      const inputPinHash = await hashPin(accessCode, PIN_SALT);
-      const inputPinHashNew = await hashPin(PIN_SALT_NEW + accessCode);
-      const legacyInputPinHash = await hashPin(accessCode);
-      codeValid = technician.pin_hash === inputPinHash || technician.pin_hash === inputPinHashNew || technician.pin_hash === legacyInputPinHash;
-    } else if (technician.access_code) {
-      // Legacy: plaintext access_code comparison
-      codeValid = technician.access_code === accessCode;
-    }
-
-    if (!codeValid) {
-      const newAttempts = (technician.failed_login_attempts || 0) + 1;
-      const MAX_ATTEMPTS = 5;
-      const LOCKOUT_MINUTES = 15;
-
-      const updates: { failed_login_attempts: number; lockout_until?: string } = {
-        failed_login_attempts: newAttempts,
-      };
-
-      if (newAttempts >= MAX_ATTEMPTS) {
-        const lockoutTime = new Date();
-        lockoutTime.setMinutes(lockoutTime.getMinutes() + LOCKOUT_MINUTES);
-        updates.lockout_until = lockoutTime.toISOString();
-        
-        await supabase.from("technicians").update(updates).eq("id", technician.id);
-        
-        console.log("[technician-auth] Account locked after", MAX_ATTEMPTS, "attempts");
-        return new Response(
-          JSON.stringify({ ok: false, step: "code_lockout", reason: `Trop de tentatives. Compte verrouillé pour ${LOCKOUT_MINUTES} minutes.` }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      await supabase.from("technicians").update(updates).eq("id", technician.id);
-      
-      const remaining = MAX_ATTEMPTS - newAttempts;
-      console.log("[technician-auth] Invalid access code. Remaining attempts:", remaining);
-      return new Response(
-        JSON.stringify({ ok: false, step: "code_invalid", reason: `Code d'accès invalide. ${remaining} tentative(s) restante(s).` }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Success - reset failed attempts
-    await supabase.from("technicians").update({ 
-      failed_login_attempts: 0, 
-      lockout_until: null 
-    }).eq("id", technician.id);
-
-    // Update last_login_at in user_roles
-    await supabase.from("user_roles")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("user_id", profile.user_id)
-      .eq("role", "technician");
-
-    // Sign session token
-    const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const sessionToken = await signToken({
-      technicianId: technician.id,
-      userId: profile.user_id,
-      email: technician.email,
-      fullName: technician.full_name,
-      role: "technician",
-    }, tokenSecret);
-
-    console.log("[technician-auth] Login successful for:", technician.full_name);
-
+    // Default: Unknown action
+    console.log("[technician-auth] Unknown action:", action);
     return new Response(
-      JSON.stringify({
-        ok: true,
-        success: true,
-        token: sessionToken,
-        technician: {
-          id: technician.id,
-          user_id: profile.user_id,
-          email: technician.email,
-          full_name: technician.full_name,
-          phone: technician.phone,
-          specializations: technician.specializations,
-        },
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ ok: false, error: "Action non reconnue" }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error("[technician-auth] Unexpected error:", error);
-    const origin = req.headers.get('origin');
     return new Response(
-      JSON.stringify({ ok: false, step: "unexpected_error", reason: "Erreur inattendue. Veuillez réessayer." }),
-      { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
+      JSON.stringify({ ok: false, error: "Erreur serveur" }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
