@@ -20,6 +20,9 @@ import {
   Eye,
   BadgeCheck,
   Phone,
+  Trash2,
+  AlertTriangle,
+  Clock,
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +49,8 @@ import {
   type PinFilter,
 } from "@/components/admin/users";
 
+type StaffStatus = "active" | "disabled" | "hold";
+
 interface StaffUser {
   id: string;
   email: string;
@@ -55,6 +60,7 @@ interface StaffUser {
   last_sign_in_at: string | null;
   banned_until: string | null;
   is_active: boolean;
+  status: StaffStatus;
   source: "user_roles" | "employees" | "technicians";
   permissions: Partial<PermissionSet>;
   phone?: string | null;
@@ -64,6 +70,12 @@ interface StaffUser {
   require_password_change?: boolean;
   last_login_at?: string | null;
 }
+
+const statusConfig: Record<StaffStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  active: { label: "Actif", variant: "default" },
+  disabled: { label: "Désactivé", variant: "destructive" },
+  hold: { label: "En attente", variant: "outline" },
+};
 
 const roleConfig: Record<StaffRole, { label: string; icon: typeof Shield; variant: "default" | "secondary" | "outline" }> = {
   admin: { label: "Administrateur", icon: Shield, variant: "default" },
@@ -82,11 +94,15 @@ const AdminUsersAccess = () => {
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinDialogMode, setPinDialogMode] = useState<"set" | "reset">("set");
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   
   // Selected user
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
   const [newRole, setNewRole] = useState<StaffRole>("employee");
+  const [newStatus, setNewStatus] = useState<StaffStatus>("active");
   const [editingPermissions, setEditingPermissions] = useState<Partial<PermissionSet>>({});
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
   
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +130,7 @@ const AdminUsersAccess = () => {
       // 1. Get users with staff roles from user_roles
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
-        .select("user_id, role, permissions, is_active, require_password_change, last_login_at, created_at")
+        .select("user_id, role, permissions, is_active, status, require_password_change, last_login_at, created_at")
         .in("role", ["admin", "employee", "technician"]);
 
       if (rolesError) throw rolesError;
@@ -136,7 +152,8 @@ const AdminUsersAccess = () => {
             created_at: roleRow.created_at || profile?.created_at || new Date().toISOString(),
             last_sign_in_at: null,
             banned_until: null,
-            is_active: roleRow.is_active !== false, // Default to true if null
+            is_active: roleRow.is_active !== false,
+            status: (roleRow.status as StaffStatus) || "active",
             source: "user_roles",
             permissions: (roleRow.permissions as Partial<PermissionSet>) || {},
             require_password_change: roleRow.require_password_change || false,
@@ -163,6 +180,7 @@ const AdminUsersAccess = () => {
               last_sign_in_at: emp.updated_at,
               banned_until: null,
               is_active: emp.is_active,
+              status: emp.is_active ? "active" : "disabled",
               source: "employees",
               permissions: {},
               phone: emp.phone,
@@ -200,6 +218,7 @@ const AdminUsersAccess = () => {
               last_sign_in_at: tech.updated_at,
               banned_until: null,
               is_active: tech.status === "active",
+              status: tech.status === "active" ? "active" : "disabled",
               source: "technicians",
               permissions: {},
               phone: tech.phone,
@@ -485,6 +504,57 @@ const AdminUsersAccess = () => {
     },
   });
 
+  // Update status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: StaffStatus }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "update_status", user_id: userId, status },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: (data: { message?: string }) => {
+      toast({ title: "Succès", description: data?.message || "Statut mis à jour" });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+      setStatusDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Hard delete mutation
+  const hardDeleteMutation = useMutation({
+    mutationFn: async ({ email, confirmEmail }: { email: string; confirmEmail: string }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "hard_delete_user", email, confirm_email: confirmEmail },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: (data: { message?: string }) => {
+      toast({ title: "Succès", description: data?.message || "Utilisateur supprimé définitivement" });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+      setDeleteConfirmEmail("");
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
   const openPermissionsDialog = (user: StaffUser) => {
     setSelectedUser(user);
     const roleDefaults = DEFAULT_PERMISSIONS[user.role] || {};
@@ -546,8 +616,8 @@ const AdminUsersAccess = () => {
       user.badge_number?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && user.is_active) ||
-      (statusFilter === "disabled" && !user.is_active);
+      (statusFilter === "active" && user.status === "active") ||
+      (statusFilter === "disabled" && (user.status === "disabled" || user.status === "hold"));
     const matchesPin = pinFilter === "all" ||
       (pinFilter === "defined" && user.pin_set_at) ||
       (pinFilter === "not_defined" && !user.pin_set_at);
@@ -714,9 +784,15 @@ const AdminUsersAccess = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={user.is_active ? "default" : "secondary"}>
-                                {user.is_active ? "Actif" : "Désactivé"}
-                              </Badge>
+                              {(() => {
+                                const statusCfg = statusConfig[user.status];
+                                return (
+                                  <Badge variant={statusCfg.variant} className="gap-1">
+                                    {user.status === "hold" && <Clock className="h-3 w-3" />}
+                                    {statusCfg.label}
+                                  </Badge>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               {user.badge_number ? (
@@ -817,14 +893,24 @@ const AdminUsersAccess = () => {
                                     </Link>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  {user.is_active ? (
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setNewStatus(user.status);
+                                      setStatusDialogOpen(true);
+                                    }}
+                                  >
+                                    <AlertTriangle className="h-4 w-4 mr-2" />
+                                    Changer le statut
+                                  </DropdownMenuItem>
+                                  {user.status === "active" ? (
                                     <DropdownMenuItem 
                                       onClick={() => disableMutation.mutate(user.id)}
                                       disabled={disableMutation.isPending}
                                       className="text-destructive focus:text-destructive"
                                     >
                                       <Ban className="h-4 w-4 mr-2" />
-                                      Désactiver
+                                      Désactiver (legacy)
                                     </DropdownMenuItem>
                                   ) : (
                                     <DropdownMenuItem 
@@ -832,9 +918,21 @@ const AdminUsersAccess = () => {
                                       disabled={enableMutation.isPending}
                                     >
                                       <CheckCircle className="h-4 w-4 mr-2" />
-                                      Activer
+                                      Activer (legacy)
                                     </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setDeleteConfirmEmail("");
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Supprimer définitivement
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -947,6 +1045,113 @@ const AdminUsersAccess = () => {
               </Button>
               <Button onClick={handleSavePermissions} disabled={updatePermissionsMutation.isPending}>
                 {updatePermissionsMutation.isPending ? "..." : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Status Dialog */}
+        <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Changer le statut</DialogTitle>
+              <DialogDescription>
+                Modifier le statut de {selectedUser?.full_name || selectedUser?.email}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Select value={newStatus} onValueChange={(v) => setNewStatus(v as StaffStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Actif
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="disabled">
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-4 w-4 text-destructive" />
+                      Désactivé
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="hold">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-yellow-600" />
+                      En attente
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground mt-3">
+                {newStatus === "active" && "L'utilisateur peut accéder aux portails normalement."}
+                {newStatus === "disabled" && "L'utilisateur ne pourra plus se connecter aux portails."}
+                {newStatus === "hold" && "L'utilisateur est temporairement suspendu."}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={() => selectedUser && updateStatusMutation.mutate({ userId: selectedUser.id, status: newStatus })} 
+                disabled={updateStatusMutation.isPending}
+                variant={newStatus !== "active" ? "destructive" : "default"}
+              >
+                {updateStatusMutation.isPending ? "..." : "Confirmer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Hard Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
+                Supprimer définitivement
+              </DialogTitle>
+              <DialogDescription>
+                Cette action est <strong>irréversible</strong>. L'utilisateur sera supprimé de toutes les tables, 
+                son historique d'audit sera effacé, et son email sera libéré pour réutilisation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                <p className="text-sm font-medium">Utilisateur à supprimer :</p>
+                <p className="text-sm text-muted-foreground">{selectedUser?.full_name}</p>
+                <p className="text-sm font-mono">{selectedUser?.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Pour confirmer, retapez l'email :</label>
+                <input
+                  type="email"
+                  value={deleteConfirmEmail}
+                  onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
+                  placeholder={selectedUser?.email}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => selectedUser && hardDeleteMutation.mutate({ 
+                  email: selectedUser.email, 
+                  confirmEmail: deleteConfirmEmail 
+                })}
+                disabled={
+                  hardDeleteMutation.isPending || 
+                  deleteConfirmEmail.toLowerCase() !== selectedUser?.email.toLowerCase()
+                }
+              >
+                {hardDeleteMutation.isPending ? "Suppression..." : "Supprimer définitivement"}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -87,10 +87,10 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Check user_roles for technician role
+    // Step 2: Check user_roles for technician role and status
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
-      .select("role, is_active")
+      .select("role, is_active, status")
       .eq("user_id", profile.user_id)
       .eq("role", "technician")
       .maybeSingle();
@@ -111,6 +111,21 @@ serve(async (req) => {
       );
     }
 
+    // Check status field (new system)
+    const userStatus = roleData.status || "active";
+    if (userStatus !== "active") {
+      const statusMessages: Record<string, string> = {
+        disabled: "Votre compte technicien est désactivé. Contactez l'administrateur.",
+        hold: "Votre compte technicien est en attente. Contactez l'administrateur.",
+      };
+      console.log("[technician-auth] Technician status is not active:", userStatus);
+      return new Response(
+        JSON.stringify({ ok: false, step: "status_not_active", reason: statusMessages[userStatus] || "Accès refusé.", status: userStatus }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Legacy: check is_active (backwards compatibility)
     if (roleData.is_active === false) {
       console.log("[technician-auth] Technician role is disabled for user:", profile.user_id);
       return new Response(

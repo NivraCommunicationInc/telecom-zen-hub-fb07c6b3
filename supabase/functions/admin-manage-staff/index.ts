@@ -91,7 +91,19 @@ interface ForcePasswordChangeRequest {
   require_change: boolean;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest;
+interface UpdateStatusRequest {
+  action: "update_status";
+  user_id: string;
+  status: "active" | "disabled" | "hold";
+}
+
+interface HardDeleteUserRequest {
+  action: "hard_delete_user";
+  email: string;
+  confirm_email: string;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest;
 
 // PIN hashing function (must match client-side)
 const SALT = 'nivra_pin_salt_2026';
@@ -1368,6 +1380,246 @@ serve(async (req: Request) => {
           message: require_change 
             ? "L'utilisateur devra changer son mot de passe à la prochaine connexion"
             : "Exigence de changement de mot de passe désactivée",
+        });
+      }
+
+      case "update_status": {
+        const { user_id, status } = body as UpdateStatusRequest;
+        const stepBase = "update_status";
+
+        if (!user_id || !status) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id et status requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        if (!["active", "disabled", "hold"].includes(status)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Status invalide (active, disabled, hold)", step: `${stepBase}.validate_status` } satisfies ApiError,
+          });
+        }
+
+        if (user_id === callingUser.id && status !== "active") {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Vous ne pouvez pas désactiver votre propre compte", step: `${stepBase}.self` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} status=${status} request_id=${requestId}`);
+
+        // Get current status for audit
+        const { data: currentData } = await adminClient
+          .from("user_roles")
+          .select("status")
+          .eq("user_id", user_id)
+          .in("role", ["admin", "employee", "technician"])
+          .maybeSingle();
+
+        const { error: updateError } = await adminClient
+          .from("user_roles")
+          .update({ status })
+          .eq("user_id", user_id);
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} error:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: updateError.message, step: `${stepBase}.update` } satisfies ApiError,
+          });
+        }
+
+        // Also update is_active in employees/technicians tables for backwards compat
+        const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
+        const targetEmail = targetUser?.user?.email;
+        
+        if (targetEmail) {
+          const isActive = status === "active";
+          await adminClient.from("employees").update({ is_active: isActive }).ilike("email", targetEmail);
+          await adminClient.from("technicians").update({ status: isActive ? "active" : "inactive" }).ilike("email", targetEmail);
+        }
+
+        await logAction(
+          "staff_status_changed",
+          {
+            request_id: requestId,
+            old_status: currentData?.status || "active",
+            new_status: status,
+          },
+          { type: "user", id: user_id, email: targetEmail }
+        );
+
+        const statusLabels: Record<string, string> = {
+          active: "Actif",
+          disabled: "Désactivé",
+          hold: "En attente",
+        };
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: `Statut changé en "${statusLabels[status]}"`,
+          status,
+        });
+      }
+
+      case "hard_delete_user": {
+        const { email, confirm_email } = body as HardDeleteUserRequest;
+        const stepBase = "hard_delete_user";
+
+        if (!email || !confirm_email) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "email et confirm_email requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedConfirm = confirm_email.trim().toLowerCase();
+
+        if (normalizedEmail !== normalizedConfirm) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "L'email de confirmation ne correspond pas", step: `${stepBase}.validate_confirm` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
+
+        // Step 1: Find user by email
+        const { data: profile, error: profileError } = await adminClient
+          .from("profiles")
+          .select("user_id, email, full_name")
+          .ilike("email", normalizedEmail)
+          .maybeSingle();
+
+        if (profileError || !profile) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur non trouvé", step: `${stepBase}.find_user` } satisfies ApiError,
+          });
+        }
+
+        const userId = profile.user_id;
+
+        // Step 2: Get role
+        const { data: roleData } = await adminClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .in("role", ["admin", "employee", "technician"])
+          .maybeSingle();
+
+        // Step 3: Prevent self-deletion
+        if (userId === callingUser.id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "Vous ne pouvez pas supprimer votre propre compte", step: `${stepBase}.self_delete` } satisfies ApiError,
+          });
+        }
+
+        // Step 4: Prevent deletion of last admin
+        if (roleData?.role === "admin") {
+          const { count } = await adminClient
+            .from("user_roles")
+            .select("*", { count: "exact", head: true })
+            .eq("role", "admin");
+
+          if (count && count <= 1) {
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "VALIDATION", message: "Impossible de supprimer le dernier administrateur", step: `${stepBase}.last_admin` } satisfies ApiError,
+            });
+          }
+        }
+
+        // Step 5: Delete admin_audit_log entries for this user
+        const { error: auditDeleteError } = await adminClient
+          .from("admin_audit_log")
+          .delete()
+          .or(`target_id.eq.${userId},target_email.ilike.${normalizedEmail}`);
+
+        if (auditDeleteError) {
+          console.error(`[admin-manage-staff] ${stepBase} audit_log delete error:`, auditDeleteError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: `Erreur suppression audit_log: ${auditDeleteError.message}`, step: `${stepBase}.delete_audit_log` } satisfies ApiError,
+          });
+        }
+
+        // Step 6: Delete from user_roles
+        const { error: rolesDeleteError } = await adminClient
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId);
+
+        if (rolesDeleteError) {
+          console.error(`[admin-manage-staff] ${stepBase} user_roles delete error:`, rolesDeleteError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: `Erreur suppression user_roles: ${rolesDeleteError.message}`, step: `${stepBase}.delete_user_roles` } satisfies ApiError,
+          });
+        }
+
+        // Step 7: Delete from employees table
+        await adminClient.from("employees").delete().ilike("email", normalizedEmail);
+
+        // Step 8: Delete from technicians table
+        await adminClient.from("technicians").delete().or(`email.ilike.${normalizedEmail},user_id.eq.${userId}`);
+
+        // Step 9: Delete from profiles
+        const { error: profilesDeleteError } = await adminClient
+          .from("profiles")
+          .delete()
+          .eq("user_id", userId);
+
+        if (profilesDeleteError) {
+          console.error(`[admin-manage-staff] ${stepBase} profiles delete error:`, profilesDeleteError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: `Erreur suppression profiles: ${profilesDeleteError.message}`, step: `${stepBase}.delete_profiles` } satisfies ApiError,
+          });
+        }
+
+        // Step 10: Delete auth user
+        const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId);
+
+        if (authDeleteError) {
+          console.error(`[admin-manage-staff] ${stepBase} auth delete error:`, authDeleteError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "AUTH_ERROR", message: `Erreur suppression auth: ${authDeleteError.message}`, step: `${stepBase}.delete_auth` } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} SUCCESS user deleted: ${normalizedEmail} (${userId})`);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: `Utilisateur "${profile.full_name || normalizedEmail}" supprimé définitivement`,
+          deleted_user: {
+            user_id: userId,
+            email: normalizedEmail,
+            role: roleData?.role || "unknown",
+          },
         });
       }
 
