@@ -52,6 +52,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
 import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
+import EmployeeDebugPanel from "@/components/employee/EmployeeDebugPanel";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: "En attente", color: "bg-yellow-500/20 text-yellow-600" },
@@ -1052,6 +1053,20 @@ const EmployeeOrders = () => {
         clients={clients.map(c => ({ user_id: c.user_id, email: c.email, full_name: c.full_name }))}
         onSuccess={() => fetchOrders()}
       />
+
+      {/* Debug Panel */}
+      {session && (
+        <EmployeeDebugPanel
+          session={{
+            token: session.token,
+            employeeId: session.employeeId,
+            email: session.email,
+            name: session.name,
+            permissions: session.permissions,
+          }}
+          currentCounts={{ orders: orders.length }}
+        />
+      )}
     </div>
   );
 };

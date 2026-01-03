@@ -72,6 +72,7 @@ import ClientLogsTab from "@/components/admin/ClientLogsTab";
 import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
+import EmployeeDebugPanel from "@/components/employee/EmployeeDebugPanel";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -1603,6 +1604,20 @@ const EmployeeClients = () => {
             role: "employee",
           }}
           isAdminBypass={false}
+        />
+      )}
+
+      {/* Debug Panel */}
+      {session && (
+        <EmployeeDebugPanel
+          session={{
+            token: session.token,
+            employeeId: session.employeeId,
+            email: session.email,
+            name: session.name,
+            permissions: session.permissions,
+          }}
+          currentCounts={{ clients: clients.length }}
         />
       )}
     </div>
