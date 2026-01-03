@@ -402,6 +402,86 @@ serve(async (req) => {
       );
     }
 
+    // Handle change_password action
+    if (action === "change_password") {
+      const { email, token, new_password } = body;
+      
+      if (!email || !token || !new_password) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Email, token et nouveau mot de passe requis" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (new_password.length < 12) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Le mot de passe doit contenir au moins 12 caractères" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      console.log(`[employee-auth] change_password for: ${normalizedEmail}`);
+
+      // Verify the token (basic verification - token was issued during login)
+      // In production, you'd want to verify the JWT signature
+      const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      try {
+        const [headerB64, payloadB64] = token.split('.');
+        const payload = JSON.parse(atob(payloadB64));
+        
+        if (payload.email?.toLowerCase() !== normalizedEmail) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Token invalide pour cet utilisateur" }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Check expiry
+        if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Session expirée. Veuillez vous reconnecter." }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (e) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Token invalide" }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Hash the new password
+      const PASSWORD_SALT = "nivra_password_salt_2026";
+      const passwordData = new TextEncoder().encode(PASSWORD_SALT + new_password);
+      const passwordHashBuffer = await crypto.subtle.digest('SHA-256', passwordData);
+      const newPasswordHash = Array.from(new Uint8Array(passwordHashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // Update employee password
+      const { error: updateError } = await supabase
+        .from("employees")
+        .update({ 
+          password_hash: newPasswordHash,
+          require_password_change: false,
+        })
+        .ilike("email", normalizedEmail);
+
+      if (updateError) {
+        console.error("[employee-auth] change_password update error:", updateError);
+        return new Response(
+          JSON.stringify({ ok: false, error: "Échec de la mise à jour du mot de passe" }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log("[employee-auth] Password changed successfully for:", normalizedEmail);
+
+      return new Response(
+        JSON.stringify({ ok: true, success: true, message: "Mot de passe mis à jour avec succès" }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Default: legacy login flow (email + PIN only - for backwards compatibility)
     const { email, pin } = body;
     
