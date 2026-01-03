@@ -14,4 +14,8 @@ export function isValidPin(pin: string): boolean {
   return /^\d{4}$/.test(pin);
 }
 
+export function isValidAdminPin(pin: string): boolean {
+  return /^\d{8}$/.test(pin);
+}
+
 export const DEFAULT_PIN = '3112';
