@@ -48,6 +48,8 @@ interface StaffUser {
   badge_number?: string | null;
   job_title?: string | null;
   pin_set_at?: string | null;
+  require_password_change?: boolean;
+  last_login_at?: string | null;
 }
 
 interface UserDetailsDrawerProps {
@@ -139,7 +141,7 @@ export function UserDetailsDrawer({ open, onOpenChange, user }: UserDetailsDrawe
                 )}
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={config.variant} className="gap-1">
                   <Icon className="h-3 w-3" />
                   {config.label}
@@ -147,6 +149,11 @@ export function UserDetailsDrawer({ open, onOpenChange, user }: UserDetailsDrawe
                 <Badge variant={user.is_active ? "default" : "secondary"}>
                   {user.is_active ? "Actif" : "Désactivé"}
                 </Badge>
+                {user.require_password_change && (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300">
+                    Changement MDP requis
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -160,10 +167,10 @@ export function UserDetailsDrawer({ open, onOpenChange, user }: UserDetailsDrawe
                   <Calendar className="h-4 w-4" />
                   <span>Créé le: {format(new Date(user.created_at), "d MMM yyyy HH:mm", { locale: fr })}</span>
                 </div>
-                {user.last_sign_in_at && (
+                {(user.last_login_at || user.last_sign_in_at) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span>Dernière connexion: {format(new Date(user.last_sign_in_at), "d MMM yyyy HH:mm", { locale: fr })}</span>
+                    <span>Dernière connexion: {format(new Date(user.last_login_at || user.last_sign_in_at!), "d MMM yyyy HH:mm", { locale: fr })}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-muted-foreground">

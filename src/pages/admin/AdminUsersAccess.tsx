@@ -61,6 +61,8 @@ interface StaffUser {
   badge_number?: string | null;
   job_title?: string | null;
   pin_set_at?: string | null;
+  require_password_change?: boolean;
+  last_login_at?: string | null;
 }
 
 const roleConfig: Record<StaffRole, { label: string; icon: typeof Shield; variant: "default" | "secondary" | "outline" }> = {
@@ -112,7 +114,7 @@ const AdminUsersAccess = () => {
       // 1. Get users with staff roles from user_roles
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
-        .select("user_id, role, permissions")
+        .select("user_id, role, permissions, is_active, require_password_change, last_login_at, created_at")
         .in("role", ["admin", "employee", "technician"]);
 
       if (rolesError) throw rolesError;
@@ -131,12 +133,14 @@ const AdminUsersAccess = () => {
             email: profile?.email || "—",
             role: roleRow.role as StaffRole,
             full_name: profile?.full_name || null,
-            created_at: profile?.created_at || new Date().toISOString(),
+            created_at: roleRow.created_at || profile?.created_at || new Date().toISOString(),
             last_sign_in_at: null,
             banned_until: null,
-            is_active: true,
+            is_active: roleRow.is_active !== false, // Default to true if null
             source: "user_roles",
             permissions: (roleRow.permissions as Partial<PermissionSet>) || {},
+            require_password_change: roleRow.require_password_change || false,
+            last_login_at: roleRow.last_login_at || null,
           });
         });
       }
@@ -458,6 +462,29 @@ const AdminUsersAccess = () => {
     },
   });
 
+  // Force password change mutation
+  const forcePasswordChangeMutation = useMutation({
+    mutationFn: async ({ userId, requireChange }: { userId: string; requireChange: boolean }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "force_password_change", user_id: userId, require_change: requireChange },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: (data: { message?: string }) => {
+      toast({ title: "Succès", description: data?.message || "Paramètre mis à jour" });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
   const openPermissionsDialog = (user: StaffUser) => {
     setSelectedUser(user);
     const roleDefaults = DEFAULT_PERMISSIONS[user.role] || {};
@@ -716,8 +743,8 @@ const AdminUsersAccess = () => {
                               {format(new Date(user.created_at), "d MMM yyyy", { locale: fr })}
                             </TableCell>
                             <TableCell>
-                              {user.last_sign_in_at 
-                                ? format(new Date(user.last_sign_in_at), "d MMM yyyy HH:mm", { locale: fr })
+                              {(user.last_login_at || user.last_sign_in_at)
+                                ? format(new Date(user.last_login_at || user.last_sign_in_at!), "d MMM yyyy HH:mm", { locale: fr })
                                 : "—"
                               }
                             </TableCell>
@@ -769,6 +796,19 @@ const AdminUsersAccess = () => {
                                   >
                                     <KeyRound className="h-4 w-4 mr-2" />
                                     Envoyer réinit. mot de passe
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => forcePasswordChangeMutation.mutate({ 
+                                      userId: user.id, 
+                                      requireChange: !user.require_password_change 
+                                    })}
+                                    disabled={forcePasswordChangeMutation.isPending}
+                                  >
+                                    <KeyRound className="h-4 w-4 mr-2" />
+                                    {user.require_password_change 
+                                      ? "✓ Forcer changement MDP (actif)" 
+                                      : "Forcer changement MDP"
+                                    }
                                   </DropdownMenuItem>
                                   <DropdownMenuItem asChild>
                                     <Link to={`/admin/audit-log?email=${encodeURIComponent(user.email)}`}>
