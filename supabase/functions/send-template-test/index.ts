@@ -384,7 +384,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Montant / Amount", value: formatCurrency(vars.amount) },
         { label: "Statut / Status", value: vars.status || "Pending" },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
   },
 
   invoice_overdue: {
@@ -399,7 +399,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Montant dû / Amount due", value: formatCurrency(vars.amount) },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
   },
 
   payment_received: {
@@ -414,7 +414,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Montant payé / Amount paid", value: formatCurrency(vars.amount) },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
   },
 
   payment_status_changed: {
@@ -429,7 +429,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Nouveau statut / New status", value: vars.status || "N/A" },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
   },
 
   payment_failed: {
@@ -444,7 +444,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: "Nº facture / Invoice #", value: vars.invoice_number || "N/A" },
         { label: "Montant / Amount", value: formatCurrency(vars.amount) },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/invoices"), "Réessayer / Retry", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Réessayer / Retry", config.supportEmail, config.supportPhone),
   },
 
   ticket_created: {
