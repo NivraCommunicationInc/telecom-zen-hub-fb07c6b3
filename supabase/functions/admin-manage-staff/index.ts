@@ -193,8 +193,10 @@ serve(async (req: Request) => {
         // Send password reset email so user can set their own password
         if (require_password_change) {
           const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
+          const resetUrl = `${appBaseUrl}/admin/reset-password`;
+          console.log(`[admin-manage-staff] Sending reset email to ${email} with redirect: ${resetUrl}`);
           await adminClient.auth.resetPasswordForEmail(email, {
-            redirectTo: `${appBaseUrl}/admin/login?reset=true`,
+            redirectTo: resetUrl,
           });
         }
 
@@ -350,8 +352,10 @@ serve(async (req: Request) => {
         const { email } = body;
 
         const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
+        const resetUrl = `${appBaseUrl}/admin/reset-password`;
+        console.log(`[admin-manage-staff] Sending reset email to ${email} with redirect: ${resetUrl}`);
         const { error } = await adminClient.auth.resetPasswordForEmail(email, {
-          redirectTo: `${appBaseUrl}/admin/login?reset=true`,
+          redirectTo: resetUrl,
         });
 
         if (error) {
