@@ -49,6 +49,37 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
   }
 }
 
+// Normalize permissions to a unified format
+// Handles both "can_view_orders" and "view_orders" formats
+function normalizePermissions(perms: Record<string, boolean>): Record<string, boolean> {
+  if (!perms || typeof perms !== 'object') return {};
+  
+  const normalized: Record<string, boolean> = {};
+  
+  for (const [key, value] of Object.entries(perms)) {
+    // Add the original key
+    normalized[key] = value === true;
+    
+    // Also add normalized versions
+    if (key.startsWith('can_')) {
+      // can_view_orders -> view_orders
+      const withoutCan = key.replace('can_', '');
+      normalized[withoutCan] = value === true;
+    } else {
+      // view_orders -> can_view_orders
+      normalized[`can_${key}`] = value === true;
+    }
+  }
+  
+  return normalized;
+}
+
+// Check if user has permission (checks both formats)
+function hasPermission(perms: Record<string, boolean>, ...keys: string[]): boolean {
+  if (!perms) return false;
+  return keys.some(key => perms[key] === true);
+}
+
 // Resolve permissions with server-side fallback
 async function resolvePermissions(
   supabase: any,
@@ -56,10 +87,24 @@ async function resolvePermissions(
   employeeId: string,
   employeeEmail: string
 ): Promise<{ permissions: Record<string, boolean>; source: string; role: string; status: string }> {
-  // If token has permissions, use them
+  // Default result
+  const defaultResult = { 
+    permissions: normalizePermissions({
+      can_view_orders: true,
+      can_view_clients: true,
+      can_view_tickets: true,
+      can_view_appointments: true,
+    }), 
+    source: "default_employee", 
+    role: "employee",
+    status: "active"
+  };
+
+  // If token has permissions, use them (normalized)
   if (tokenPermissions && typeof tokenPermissions === 'object' && Object.keys(tokenPermissions).length > 0) {
+    console.log(`[resolvePermissions] Using token permissions for ${employeeEmail}`);
     return { 
-      permissions: tokenPermissions, 
+      permissions: normalizePermissions(tokenPermissions), 
       source: "token", 
       role: "employee",
       status: "active"
@@ -69,15 +114,20 @@ async function resolvePermissions(
   console.log(`[resolvePermissions] Token permissions empty, fetching from DB for ${employeeEmail}`);
 
   // Fallback 1: Try employees table
-  const { data: employee } = await supabase
+  const { data: employee, error: empError } = await supabase
     .from("employees")
     .select("permissions_json, role, is_active")
     .ilike("email", employeeEmail)
     .maybeSingle();
 
+  if (empError) {
+    console.error(`[resolvePermissions] employees query error:`, empError);
+  }
+
   if (employee?.permissions_json && Object.keys(employee.permissions_json).length > 0) {
+    console.log(`[resolvePermissions] Found permissions in employees table:`, JSON.stringify(employee.permissions_json));
     return { 
-      permissions: employee.permissions_json, 
+      permissions: normalizePermissions(employee.permissions_json), 
       source: "employees_table", 
       role: employee.role || "employee",
       status: employee.is_active ? "active" : "disabled"
@@ -85,23 +135,33 @@ async function resolvePermissions(
   }
 
   // Fallback 2: Try user_roles table via profile
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("user_id")
     .ilike("email", employeeEmail)
     .maybeSingle();
 
+  if (profileError) {
+    console.error(`[resolvePermissions] profiles query error:`, profileError);
+  }
+
   if (profile?.user_id) {
-    const { data: userRole } = await supabase
+    // Try to find user_roles for this user (any staff role)
+    const { data: userRole, error: roleError } = await supabase
       .from("user_roles")
       .select("permissions, role, status")
       .eq("user_id", profile.user_id)
-      .eq("role", "employee")
+      .in("role", ["employee", "admin", "technician"])
       .maybeSingle();
 
-    if (userRole?.permissions) {
+    if (roleError) {
+      console.error(`[resolvePermissions] user_roles query error:`, roleError);
+    }
+
+    if (userRole?.permissions && Object.keys(userRole.permissions).length > 0) {
+      console.log(`[resolvePermissions] Found permissions in user_roles table:`, JSON.stringify(userRole.permissions));
       return { 
-        permissions: userRole.permissions, 
+        permissions: normalizePermissions(userRole.permissions), 
         source: "user_roles_table", 
         role: userRole.role,
         status: userRole.status || "active"
@@ -111,21 +171,11 @@ async function resolvePermissions(
 
   // Default minimal permissions for employee if nothing found
   console.log(`[resolvePermissions] No permissions found, using default employee permissions`);
-  return { 
-    permissions: {
-      can_view_orders: true,
-      can_view_clients: true,
-      can_view_tickets: true,
-      can_view_appointments: true,
-    }, 
-    source: "default_employee", 
-    role: "employee",
-    status: "active"
-  };
+  return defaultResult;
 }
 
 // Return structured 403 response
-function forbidden(corsHeaders: Record<string, string>, requestId: string, neededPermission: string, resolvedPerms: any) {
+function forbidden(corsHeaders: Record<string, string>, requestId: string, neededPermission: string, resolvedPerms: any, appliedFilters: string[] = []) {
   return new Response(
     JSON.stringify({
       ok: false,
@@ -135,6 +185,7 @@ function forbidden(corsHeaders: Record<string, string>, requestId: string, neede
       message: `Permission requise: ${neededPermission}`,
       resolved_permissions: resolvedPerms.permissions,
       permission_source: resolvedPerms.source,
+      applied_filters: appliedFilters,
     }),
     { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
@@ -200,27 +251,66 @@ serve(async (req) => {
     let result: any = null;
 
     switch (action) {
+      // ==================== DIAGNOSTIC ====================
+      case "run_visibility_diagnostic": {
+        console.log(`[employee-data] Running visibility diagnostic for ${employeeEmail}`);
+        
+        // Count all tables
+        const [ordersCount, clientsCount, ticketsCount, appointmentsCount] = await Promise.all([
+          supabase.from("orders").select("id", { count: "exact", head: true }),
+          supabase.from("profiles").select("id", { count: "exact", head: true }),
+          supabase.from("support_tickets").select("id", { count: "exact", head: true }),
+          supabase.from("appointments").select("id", { count: "exact", head: true }),
+        ]);
+        
+        result = {
+          ok: true,
+          request_id: requestId,
+          diagnostic: {
+            employee_email: employeeEmail,
+            employee_id: employeeId,
+            resolved_permissions: resolvedPermissions,
+            permission_source: resolvedPerms.source,
+            role: resolvedPerms.role,
+            status: resolvedPerms.status,
+            db_counts: {
+              orders: ordersCount.count || 0,
+              clients: clientsCount.count || 0,
+              tickets: ticketsCount.count || 0,
+              appointments: appointmentsCount.count || 0,
+            },
+            permission_checks: {
+              can_view_orders: hasPermission(resolvedPermissions, 'can_view_orders', 'view_orders'),
+              can_view_clients: hasPermission(resolvedPermissions, 'can_view_clients', 'view_clients'),
+              can_view_tickets: hasPermission(resolvedPermissions, 'can_view_tickets', 'view_tickets'),
+              can_view_appointments: hasPermission(resolvedPermissions, 'can_view_appointments', 'view_appointments'),
+              can_manage_orders: hasPermission(resolvedPermissions, 'can_manage_orders', 'manage_orders', 'can_edit_orders_status'),
+              can_manage_clients: hasPermission(resolvedPermissions, 'can_manage_clients', 'manage_clients', 'can_edit_clients'),
+              can_manage_tickets: hasPermission(resolvedPermissions, 'can_manage_tickets', 'manage_tickets'),
+              can_manage_appointments: hasPermission(resolvedPermissions, 'can_manage_appointments', 'manage_appointments'),
+            },
+          },
+        };
+        break;
+      }
+
       // ==================== READ OPERATIONS ====================
       case "get_orders": {
-        // Check view permission
-        if (!resolvedPermissions?.can_view_orders && !resolvedPermissions?.manage_orders) {
-          console.log(`[employee-data] get_orders DENIED for ${employeeEmail}`);
-          return forbidden(corsHeaders, requestId, "can_view_orders", resolvedPerms);
+        // Check view permission (both formats)
+        if (!hasPermission(resolvedPermissions, 'can_view_orders', 'view_orders', 'manage_orders', 'can_manage_orders')) {
+          console.log(`[employee-data] get_orders DENIED for ${employeeEmail} - perms:`, resolvedPermissions);
+          return forbidden(corsHeaders, requestId, "can_view_orders", resolvedPerms, ["permission_denied"]);
         }
         
         // Build query with appropriate filters
         let query = supabase.from("orders").select("*", { count: "exact" });
         
         // If manage_orders = true -> all orders, otherwise filter by assigned/created
-        const hasManageOrders = resolvedPermissions?.manage_orders === true || 
-                                resolvedPermissions?.can_manage_orders === true;
+        const hasManageOrders = hasPermission(resolvedPermissions, 'manage_orders', 'can_manage_orders', 'can_edit_orders_status');
         
         let appliedFilters: string[] = [];
         
         if (!hasManageOrders) {
-          // Try to filter by created_by or processed_by (employee's orders)
-          // Note: We return all for now since there's no clear "assigned_to" for orders
-          // In real implementation, you'd filter by created_by matching employee ID
           appliedFilters.push("view_only_mode");
         } else {
           appliedFilters.push("manage_all");
@@ -241,48 +331,59 @@ serve(async (req) => {
           request_id: requestId,
           orders: orders || [], 
           total_count: ordersCount || 0,
+          total_count_db: ordersCount || 0,
+          total_count_returned: orders?.length || 0,
           resolved_permissions: resolvedPermissions,
+          permission_source: resolvedPerms.source,
           applied_filters: appliedFilters,
+          role: resolvedPerms.role,
         };
         break;
       }
 
       case "get_appointments": {
-        if (!resolvedPermissions?.can_view_appointments && !resolvedPermissions?.manage_appointments) {
-          return forbidden(corsHeaders, requestId, "can_view_appointments", resolvedPerms);
+        if (!hasPermission(resolvedPermissions, 'can_view_appointments', 'view_appointments', 'manage_appointments', 'can_manage_appointments')) {
+          return forbidden(corsHeaders, requestId, "can_view_appointments", resolvedPerms, ["permission_denied"]);
         }
         
-        const hasManageAppointments = resolvedPermissions?.manage_appointments === true || 
-                                      resolvedPermissions?.can_manage_appointments === true;
+        const hasManageAppointments = hasPermission(resolvedPermissions, 'manage_appointments', 'can_manage_appointments');
         let aptFilters: string[] = [];
         
-        const { data: appointments, count: appointmentsCount } = await supabase
+        const { data: appointments, error: aptError, count: appointmentsCount } = await supabase
           .from("appointments")
           .select("*, technicians(id, full_name, email)", { count: "exact" })
           .order("scheduled_at", { ascending: true })
           .limit(params?.limit || 300);
         
+        if (aptError) {
+          console.error(`[employee-data] get_appointments ERROR:`, aptError);
+        }
+        
         aptFilters.push(hasManageAppointments ? "manage_all" : "view_only");
+        console.log(`[employee-data] get_appointments returned ${appointments?.length || 0} items (total: ${appointmentsCount})`);
         
         result = { 
           ok: true,
           request_id: requestId,
           appointments: appointments || [],
           total_count: appointmentsCount || 0,
+          total_count_db: appointmentsCount || 0,
+          total_count_returned: appointments?.length || 0,
           resolved_permissions: resolvedPermissions,
+          permission_source: resolvedPerms.source,
           applied_filters: aptFilters,
+          role: resolvedPerms.role,
         };
         break;
       }
 
       case "get_tickets": {
-        if (!resolvedPermissions?.can_view_tickets && !resolvedPermissions?.manage_tickets) {
+        if (!hasPermission(resolvedPermissions, 'can_view_tickets', 'view_tickets', 'manage_tickets', 'can_manage_tickets')) {
           console.log(`[employee-data] get_tickets DENIED for ${employeeEmail}`);
-          return forbidden(corsHeaders, requestId, "can_view_tickets", resolvedPerms);
+          return forbidden(corsHeaders, requestId, "can_view_tickets", resolvedPerms, ["permission_denied"]);
         }
         
-        const hasManageTickets = resolvedPermissions?.manage_tickets === true || 
-                                 resolvedPermissions?.can_manage_tickets === true;
+        const hasManageTickets = hasPermission(resolvedPermissions, 'manage_tickets', 'can_manage_tickets');
         let ticketFilters: string[] = [];
         
         const { data: tickets, error: ticketsError, count: ticketsCount } = await supabase
@@ -303,14 +404,18 @@ serve(async (req) => {
           request_id: requestId,
           tickets: tickets || [], 
           total_count: ticketsCount || 0,
+          total_count_db: ticketsCount || 0,
+          total_count_returned: tickets?.length || 0,
           resolved_permissions: resolvedPermissions,
+          permission_source: resolvedPerms.source,
           applied_filters: ticketFilters,
+          role: resolvedPerms.role,
         };
         break;
       }
 
       case "get_ticket_replies": {
-        if (!resolvedPermissions?.can_view_tickets && !resolvedPermissions?.manage_tickets) {
+        if (!hasPermission(resolvedPermissions, 'can_view_tickets', 'view_tickets', 'manage_tickets', 'can_manage_tickets')) {
           return forbidden(corsHeaders, requestId, "can_view_tickets", resolvedPerms);
         }
         const { data: replies } = await supabase
@@ -323,13 +428,12 @@ serve(async (req) => {
       }
 
       case "get_clients": {
-        if (!resolvedPermissions?.can_view_clients && !resolvedPermissions?.manage_clients) {
+        if (!hasPermission(resolvedPermissions, 'can_view_clients', 'view_clients', 'manage_clients', 'can_manage_clients')) {
           console.log(`[employee-data] get_clients DENIED for ${employeeEmail}`);
-          return forbidden(corsHeaders, requestId, "can_view_clients", resolvedPerms);
+          return forbidden(corsHeaders, requestId, "can_view_clients", resolvedPerms, ["permission_denied"]);
         }
         
-        const hasManageClients = resolvedPermissions?.manage_clients === true || 
-                                 resolvedPermissions?.can_manage_clients === true;
+        const hasManageClients = hasPermission(resolvedPermissions, 'manage_clients', 'can_manage_clients', 'can_edit_clients');
         let clientFilters: string[] = [];
         
         const { data: clients, error: clientsError, count: clientsCount } = await supabase
@@ -350,15 +454,19 @@ serve(async (req) => {
           request_id: requestId,
           clients: clients || [], 
           total_count: clientsCount || 0,
+          total_count_db: clientsCount || 0,
+          total_count_returned: clients?.length || 0,
           resolved_permissions: resolvedPermissions,
+          permission_source: resolvedPerms.source,
           applied_filters: clientFilters,
+          role: resolvedPerms.role,
         };
         break;
       }
 
       case "get_client_details":
-        if (!resolvedPermissions?.can_view_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!hasPermission(resolvedPermissions, 'can_view_clients', 'view_clients')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée", request_id: requestId }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const clientUserId = params.userId;
         const clientEmail = params.email;
@@ -374,6 +482,8 @@ serve(async (req) => {
         ]);
         
         result = {
+          ok: true,
+          request_id: requestId,
           orders: clientOrders.data || [],
           billing: clientBilling.data || [],
           payments: clientPayments.data || [],
@@ -385,42 +495,48 @@ serve(async (req) => {
         break;
 
       case "get_invoices":
-        if (!resolvedPermissions?.can_generate_invoices && !resolvedPermissions?.can_edit_invoices) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!hasPermission(resolvedPermissions, 'can_generate_invoices', 'can_edit_invoices', 'view_billing', 'manage_billing')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée", request_id: requestId }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: invoices } = await supabase
           .from("billing")
           .select("*")
           .order("created_at", { ascending: false })
           .limit(params?.limit || 100);
-        result = { invoices };
+        result = { ok: true, invoices, request_id: requestId };
         break;
 
       case "get_technicians":
-        if (!resolvedPermissions?.can_view_appointments && !resolvedPermissions?.can_manage_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!hasPermission(resolvedPermissions, 'can_view_appointments', 'view_appointments', 'can_manage_appointments', 'manage_appointments')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée", request_id: requestId }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: technicians } = await supabase
           .from("technicians")
           .select("id, full_name, email, status, specializations")
           .eq("status", "active")
           .order("full_name", { ascending: true });
-        result = { technicians };
+        result = { ok: true, technicians, request_id: requestId };
         break;
 
       case "get_dashboard_stats":
         console.log(`[employee-data] get_dashboard_stats for ${employeeEmail}, permissions:`, resolvedPermissions);
+        
+        const canViewOrders = hasPermission(resolvedPermissions, 'can_view_orders', 'view_orders');
+        const canViewAppointments = hasPermission(resolvedPermissions, 'can_view_appointments', 'view_appointments');
+        const canViewTickets = hasPermission(resolvedPermissions, 'can_view_tickets', 'view_tickets');
+        const canViewClients = hasPermission(resolvedPermissions, 'can_view_clients', 'view_clients');
+        
         const [dashOrdersRes, dashAppointmentsRes, dashTicketsRes, dashClientsRes] = await Promise.all([
-          resolvedPermissions?.can_view_orders 
+          canViewOrders 
             ? supabase.from("orders").select("id", { count: "exact", head: true }) 
             : Promise.resolve({ count: 0, error: null }),
-          resolvedPermissions?.can_view_appointments 
+          canViewAppointments 
             ? supabase.from("appointments").select("id", { count: "exact", head: true }).gte("scheduled_at", new Date().toISOString()) 
             : Promise.resolve({ count: 0, error: null }),
-          resolvedPermissions?.can_view_tickets 
+          canViewTickets 
             ? supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open") 
             : Promise.resolve({ count: 0, error: null }),
-          resolvedPermissions?.can_view_clients 
+          canViewClients 
             ? supabase.from("profiles").select("id", { count: "exact", head: true }) 
             : Promise.resolve({ count: 0, error: null }),
         ]);
@@ -431,427 +547,351 @@ serve(async (req) => {
         if (dashTicketsRes.error) console.error("[employee-data] stats tickets error:", dashTicketsRes.error);
         if (dashClientsRes.error) console.error("[employee-data] stats clients error:", dashClientsRes.error);
         
-        const statsResult = {
-          orders: dashOrdersRes.count || 0,
-          upcomingAppointments: dashAppointmentsRes.count || 0,
-          openTickets: dashTicketsRes.count || 0,
-          totalClients: dashClientsRes.count || 0,
+        result = {
+          ok: true,
+          request_id: requestId,
+          stats: {
+            orders: dashOrdersRes.count || 0,
+            appointments: dashAppointmentsRes.count || 0,
+            tickets: dashTicketsRes.count || 0,
+            clients: dashClientsRes.count || 0,
+          },
+          permission_flags: {
+            can_view_orders: canViewOrders,
+            can_view_appointments: canViewAppointments,
+            can_view_tickets: canViewTickets,
+            can_view_clients: canViewClients,
+          },
+          resolved_permissions: resolvedPermissions,
+          permission_source: resolvedPerms.source,
         };
-        console.log(`[employee-data] get_dashboard_stats result:`, statsResult);
-        result = { stats: statsResult };
         break;
 
-      // ==================== ORDER OPERATIONS ====================
-      case "update_order_status":
-        if (!resolvedPermissions?.can_edit_orders_status) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // ==================== WRITE OPERATIONS ====================
+      case "update_order": {
+        if (!hasPermission(resolvedPermissions, 'can_edit_orders_status', 'manage_orders', 'can_manage_orders')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: orderStatusError } = await supabase
+        const { orderId, updates } = params;
+        const { data: updatedOrder, error: updateError } = await supabase
           .from("orders")
-          .update({ status: params.status, updated_at: new Date().toISOString() })
-          .eq("id", params.orderId);
-        if (orderStatusError) throw orderStatusError;
-        result = { success: true };
-        break;
-
-      case "update_order":
-        if (!resolvedPermissions?.can_edit_orders_status && !resolvedPermissions?.can_ship_orders) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: orderUpdateError } = await supabase
-          .from("orders")
-          .update({ ...params.updates, updated_at: new Date().toISOString() })
-          .eq("id", params.orderId);
-        if (orderUpdateError) throw orderUpdateError;
-        result = { success: true };
-        break;
-
-      case "update_order_payment":
-        if (!resolvedPermissions?.can_confirm_payments) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour confirmer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: paymentUpdateError } = await supabase
-          .from("orders")
-          .update({
-            payment_status: params.payment_status,
-            payment_reference: params.payment_reference,
-            amount_paid: params.amount_paid,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", params.orderId);
-        if (paymentUpdateError) throw paymentUpdateError;
-        result = { success: true };
-        break;
-
-      case "verify_order_identity":
-        if (!resolvedPermissions?.can_edit_orders_status) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: verifyIdError } = await supabase
-          .from("orders")
-          .update({
-            id_verification_status: params.status,
-            id_verification_notes: params.notes,
-            id_verified_at: new Date().toISOString(),
-            id_verified_by: employeeId,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", params.orderId);
-        if (verifyIdError) throw verifyIdError;
-        result = { success: true };
-        break;
-
-      case "create_order":
-        if (!resolvedPermissions?.can_view_orders) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { data: newOrder, error: createOrderError } = await supabase
-          .from("orders")
-          .insert({
-            user_id: params.user_id,
-            client_email: params.client_email,
-            service_type: params.service_type,
-            category: params.category,
-            subtotal: params.subtotal || 0,
-            status: params.status || "pending",
-            created_by: "employee",
-            notes: params.notes,
-            internal_notes: `Créé par ${employeeName} (${employeeEmail}) le ${new Date().toLocaleDateString("fr-CA")}`
-          })
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq("id", orderId)
           .select()
           .single();
-        if (createOrderError) throw createOrderError;
-        result = { order: newOrder };
+        if (updateError) {
+          return new Response(JSON.stringify({ error: updateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, order: updatedOrder, request_id: requestId };
         break;
+      }
 
-      case "assign_technician_to_order":
-        if (!resolvedPermissions?.can_manage_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      case "update_ticket": {
+        if (!hasPermission(resolvedPermissions, 'can_manage_tickets', 'manage_tickets')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: assignTechOrderError } = await supabase
-          .from("orders")
-          .update({
-            technician_id: params.technician_id || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", params.orderId);
-        if (assignTechOrderError) throw assignTechOrderError;
-        
-        if (params.technician_id) {
-          const { data: existingWO } = await supabase
-            .from("work_orders")
-            .select("id")
-            .eq("linked_order_id", params.orderId)
-            .maybeSingle();
-          
-          if (existingWO) {
-            await supabase
-              .from("work_orders")
-              .update({
-                assigned_technician_id: params.technician_id,
-                status: "assigned",
-                assigned_at: new Date().toISOString(),
-                assigned_by: employeeName,
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", existingWO.id);
-          }
-        }
-        result = { success: true };
-        break;
-
-      case "update_appointment":
-        if (!resolvedPermissions?.can_manage_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: aptError } = await supabase
-          .from("appointments")
-          .update({ ...params.updates, updated_at: new Date().toISOString(), updated_by: employeeId })
-          .eq("id", params.appointmentId);
-        if (aptError) throw aptError;
-        result = { success: true };
-        break;
-
-      case "assign_technician":
-        if (!resolvedPermissions?.can_manage_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        
-        const { error: assignAptError } = await supabase
-          .from("appointments")
-          .update({
-            technician_id: params.technician_id,
-            status: params.technician_id ? "technician_assigned" : "scheduled",
-            updated_at: new Date().toISOString(),
-            updated_by: employeeId
-          })
-          .eq("id", params.appointmentId);
-        if (assignAptError) throw assignAptError;
-        
-        if (params.technician_id && params.order_id) {
-          const { data: existingWO } = await supabase
-            .from("work_orders")
-            .select("id")
-            .eq("linked_appointment_id", params.appointmentId)
-            .maybeSingle();
-          
-          if (existingWO) {
-            await supabase
-              .from("work_orders")
-              .update({
-                assigned_technician_id: params.technician_id,
-                status: "assigned",
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", existingWO.id);
-          } else {
-            await supabase.from("work_orders").insert({
-              order_id: params.order_id,
-              appointment_id: params.appointmentId,
-              assigned_technician_id: params.technician_id,
-              work_type: "installation",
-              status: "assigned",
-              priority: "normal",
-              client_email: params.client_email,
-              service_address: params.service_address
-            });
-          }
-        }
-        result = { success: true };
-        break;
-
-      case "create_appointment":
-        if (!resolvedPermissions?.can_manage_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { data: newApt, error: createAptError } = await supabase
-          .from("appointments")
-          .insert({
-            client_id: params.client_id,
-            client_email: params.client_email,
-            client_phone: params.client_phone,
-            title: params.title,
-            description: params.description,
-            scheduled_at: params.scheduled_at,
-            status: "scheduled",
-            service_type: params.service_type,
-            service_address: params.service_address,
-            service_city: params.service_city,
-            service_postal_code: params.service_postal_code,
-            order_id: params.order_id,
-            created_by: employeeId,
-            internal_notes: `Créé par ${employeeName} le ${new Date().toLocaleDateString("fr-CA")}`
-          })
-          .select()
-          .single();
-        if (createAptError) throw createAptError;
-        result = { appointment: newApt };
-        break;
-
-      // ==================== TICKET OPERATIONS ====================
-      case "update_ticket":
-        if (!resolvedPermissions?.can_manage_tickets) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { error: ticketError } = await supabase
+        const { ticketId: updateTicketId, updates: ticketUpdates } = params;
+        const { data: updatedTicket, error: ticketUpdateError } = await supabase
           .from("support_tickets")
-          .update({ ...params.updates, updated_at: new Date().toISOString() })
-          .eq("id", params.ticketId);
-        if (ticketError) throw ticketError;
-        result = { success: true };
-        break;
-
-      case "add_ticket_reply":
-        if (!resolvedPermissions?.can_manage_tickets) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          .update({ ...ticketUpdates, updated_at: new Date().toISOString() })
+          .eq("id", updateTicketId)
+          .select()
+          .single();
+        if (ticketUpdateError) {
+          return new Response(JSON.stringify({ error: ticketUpdateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
+        result = { ok: true, ticket: updatedTicket, request_id: requestId };
+        break;
+      }
+
+      case "add_ticket_reply": {
+        if (!hasPermission(resolvedPermissions, 'can_view_tickets', 'view_tickets', 'can_manage_tickets', 'manage_tickets')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { ticketId: replyTicketId, content, isInternal } = params;
         const { data: newReply, error: replyError } = await supabase
           .from("ticket_replies")
           .insert({
-            ticket_id: params.ticketId,
-            content: params.content,
+            ticket_id: replyTicketId,
+            content,
             author_id: employeeId,
             author_name: employeeName,
             author_email: employeeEmail,
             author_role: "employee",
-            is_internal_note: params.is_internal_note || false,
+            is_internal: isInternal || false,
           })
           .select()
           .single();
-        if (replyError) throw replyError;
-        
-        await supabase
-          .from("support_tickets")
-          .update({ updated_at: new Date().toISOString(), status: params.newStatus || "in_progress" })
-          .eq("id", params.ticketId);
-        
-        result = { reply: newReply };
-        break;
-
-      // ==================== INVOICE OPERATIONS ====================
-      case "update_invoice":
-        if (!resolvedPermissions?.can_edit_invoices) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour modifier les factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (replyError) {
+          return new Response(JSON.stringify({ error: replyError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: invoiceUpdateError } = await supabase
+        result = { ok: true, reply: newReply, request_id: requestId };
+        break;
+      }
+
+      case "update_client": {
+        if (!hasPermission(resolvedPermissions, 'can_edit_clients', 'manage_clients', 'can_manage_clients')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { clientId, updates: clientUpdates } = params;
+        const { data: updatedClient, error: clientUpdateError } = await supabase
+          .from("profiles")
+          .update({ ...clientUpdates, updated_at: new Date().toISOString() })
+          .eq("user_id", clientId)
+          .select()
+          .single();
+        if (clientUpdateError) {
+          return new Response(JSON.stringify({ error: clientUpdateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, client: updatedClient, request_id: requestId };
+        break;
+      }
+
+      case "create_appointment": {
+        if (!hasPermission(resolvedPermissions, 'can_manage_appointments', 'manage_appointments')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: newAppointment, error: aptCreateError } = await supabase
+          .from("appointments")
+          .insert({
+            ...params.appointment,
+            created_by: employeeId,
+          })
+          .select()
+          .single();
+        if (aptCreateError) {
+          return new Response(JSON.stringify({ error: aptCreateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, appointment: newAppointment, request_id: requestId };
+        break;
+      }
+
+      case "update_appointment": {
+        if (!hasPermission(resolvedPermissions, 'can_manage_appointments', 'manage_appointments')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { appointmentId, updates: aptUpdates } = params;
+        const { data: updatedAppointment, error: aptUpdateError } = await supabase
+          .from("appointments")
+          .update({ ...aptUpdates, updated_by: employeeId, updated_at: new Date().toISOString() })
+          .eq("id", appointmentId)
+          .select()
+          .single();
+        if (aptUpdateError) {
+          return new Response(JSON.stringify({ error: aptUpdateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, appointment: updatedAppointment, request_id: requestId };
+        break;
+      }
+
+      case "ship_order": {
+        if (!hasPermission(resolvedPermissions, 'can_ship_orders', 'manage_orders', 'can_manage_orders')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { orderId: shipOrderId, trackingNumber, trackingUrl, carrier } = params;
+        const { data: shippedOrder, error: shipError } = await supabase
+          .from("orders")
+          .update({
+            status: "shipped",
+            tracking_number: trackingNumber,
+            tracking_url: trackingUrl,
+            carrier: carrier,
+            shipped_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", shipOrderId)
+          .select()
+          .single();
+        if (shipError) {
+          return new Response(JSON.stringify({ error: shipError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, order: shippedOrder, request_id: requestId };
+        break;
+      }
+
+      case "update_invoice": {
+        if (!hasPermission(resolvedPermissions, 'can_edit_invoices', 'manage_billing', 'can_manage_billing')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { invoiceId, updates: invoiceUpdates } = params;
+        const { data: updatedInvoice, error: invoiceUpdateError } = await supabase
           .from("billing")
-          .update(params.updates)
-          .eq("id", params.invoiceId);
-        if (invoiceUpdateError) throw invoiceUpdateError;
-        result = { success: true };
-        break;
-
-      case "confirm_payment":
-        if (!resolvedPermissions?.can_confirm_payments) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour confirmer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          .update(invoiceUpdates)
+          .eq("id", invoiceId)
+          .select()
+          .single();
+        if (invoiceUpdateError) {
+          return new Response(JSON.stringify({ error: invoiceUpdateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: confirmPaymentError } = await supabase
+        result = { ok: true, invoice: updatedInvoice, request_id: requestId };
+        break;
+      }
+
+      case "confirm_payment": {
+        if (!hasPermission(resolvedPermissions, 'can_confirm_payments', 'manage_billing', 'can_manage_billing')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { invoiceId: paymentInvoiceId, paymentReference, amountPaid } = params;
+        const { data: paidInvoice, error: paymentError } = await supabase
           .from("billing")
           .update({
             status: "paid",
+            payment_reference: paymentReference,
+            amount_paid: amountPaid,
             paid_at: new Date().toISOString(),
-            amount_paid: params.amount_paid,
-            payment_reference: params.payment_reference,
           })
-          .eq("id", params.invoiceId);
-        if (confirmPaymentError) throw confirmPaymentError;
-        result = { success: true };
-        break;
-
-      // ==================== CLIENT OPERATIONS ====================
-      case "update_client":
-        if (!resolvedPermissions?.can_edit_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée pour modifier les clients" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          .eq("id", paymentInvoiceId)
+          .select()
+          .single();
+        if (paymentError) {
+          return new Response(JSON.stringify({ error: paymentError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { error: clientUpdateError } = await supabase
-          .from("profiles")
-          .update(params.updates)
-          .eq("user_id", params.userId);
-        if (clientUpdateError) throw clientUpdateError;
-        result = { success: true };
+        result = { ok: true, invoice: paidInvoice, request_id: requestId };
         break;
+      }
 
-      // ==================== STREAMING OPERATIONS ====================
-      case "get_streaming_subscriptions":
-        if (!resolvedPermissions?.can_view_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { data: streamingSubs } = await supabase
-          .from("client_streaming_subscriptions")
-          .select("*, streaming_services(*)")
+      case "get_internal_tickets": {
+        // Internal tickets visible to all employees
+        const { data: internalTickets, error: intTicketsError, count: intTicketsCount } = await supabase
+          .from("internal_tickets")
+          .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
           .limit(params?.limit || 100);
-        result = { subscriptions: streamingSubs };
-        break;
-
-      case "get_streaming_services":
-        const { data: streamingServices } = await supabase
-          .from("streaming_services")
-          .select("*")
-          .eq("is_active", true)
-          .order("name", { ascending: true });
-        result = { services: streamingServices };
-        break;
-
-      case "update_streaming_subscription":
-        if (!resolvedPermissions?.can_edit_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          
+        if (intTicketsError) {
+          console.error(`[employee-data] get_internal_tickets ERROR:`, intTicketsError);
         }
-        const { error: streamingUpdateError } = await supabase
-          .from("client_streaming_subscriptions")
-          .update({
-            ...params.updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", params.subscriptionId);
-        if (streamingUpdateError) throw streamingUpdateError;
-        result = { success: true };
-        break;
-
-      case "create_streaming_subscription":
-        if (!resolvedPermissions?.can_edit_clients) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const { data: newStreamingSub, error: streamingCreateError } = await supabase
-          .from("client_streaming_subscriptions")
-          .insert({
-            user_id: params.user_id,
-            streaming_service_id: params.streaming_service_id,
-            status: params.status || "pending",
-            monthly_price: params.monthly_price,
-            start_date: params.start_date || new Date().toISOString().split('T')[0],
-            internal_notes: `Créé par ${employeeName} le ${new Date().toLocaleDateString("fr-CA")}`
-          })
-          .select("*, streaming_services(*)")
-          .single();
-        if (streamingCreateError) throw streamingCreateError;
-        result = { subscription: newStreamingSub };
-        break;
-
-      // ==================== SYSTEM STATUS ====================
-      case "get_system_status":
-        const { data: statusData } = await supabase
-          .from("system_status")
-          .select("*")
-          .single();
-        result = { status: statusData };
-        break;
-
-      // ==================== DIAGNOSTIC / DEBUG ====================
-      case "diagnostic_visibility_test":
-        console.log(`[employee-data] Running diagnostic_visibility_test for ${employeeEmail}`);
         
-        // Get raw counts from database using service role (no RLS)
-        const [diagOrders, diagTickets, diagClients, diagAppointments] = await Promise.all([
-          supabase.from("orders").select("id", { count: "exact", head: true }),
-          supabase.from("support_tickets").select("id", { count: "exact", head: true }),
-          supabase.from("profiles").select("id", { count: "exact", head: true }),
-          supabase.from("appointments").select("id", { count: "exact", head: true }),
-        ]);
-        
-        const diagResult = {
-          timestamp: new Date().toISOString(),
-          employee: { id: employeeId, email: employeeEmail, name: employeeName },
-          permissions: resolvedPermissions,
-          counts: {
-            orders: { total: diagOrders.count || 0, error: diagOrders.error?.message || null },
-            tickets: { total: diagTickets.count || 0, error: diagTickets.error?.message || null },
-            clients: { total: diagClients.count || 0, error: diagClients.error?.message || null },
-            appointments: { total: diagAppointments.count || 0, error: diagAppointments.error?.message || null },
-          }
+        result = { 
+          ok: true, 
+          request_id: requestId,
+          tickets: internalTickets || [],
+          total_count: intTicketsCount || 0,
         };
-        
-        console.log(`[employee-data] diagnostic_visibility_test result:`, diagResult);
-        
-        // Log to admin_audit_log if params.log_to_audit is true
-        if (params?.log_to_audit) {
-          await supabase.from("admin_audit_log").insert({
-            admin_user_id: employeeId,
-            admin_email: employeeEmail,
-            action: "employee_visibility_diagnostic",
-            details: diagResult,
-          });
-        }
-        
-        result = { diagnostic: diagResult };
         break;
+      }
+
+      case "create_internal_ticket": {
+        const { subject, description, priority, category, assignedToDepartment, ccDepartments } = params;
+        const { data: newIntTicket, error: intTicketError } = await supabase
+          .from("internal_tickets")
+          .insert({
+            subject,
+            description,
+            priority: priority || "medium",
+            category,
+            assigned_to_department: assignedToDepartment,
+            cc_departments: ccDepartments || [],
+            created_by_id: employeeId,
+            created_by_name: employeeName,
+            created_by_email: employeeEmail,
+            created_by_role: "employee",
+            status: "open",
+          })
+          .select()
+          .single();
+        if (intTicketError) {
+          return new Response(JSON.stringify({ error: intTicketError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, ticket: newIntTicket, request_id: requestId };
+        break;
+      }
+
+      case "update_internal_ticket": {
+        const { ticketId: intTicketId, updates: intTicketUpdates } = params;
+        const { data: updatedIntTicket, error: intTicketUpdateError } = await supabase
+          .from("internal_tickets")
+          .update({ ...intTicketUpdates, updated_at: new Date().toISOString() })
+          .eq("id", intTicketId)
+          .select()
+          .single();
+        if (intTicketUpdateError) {
+          return new Response(JSON.stringify({ error: intTicketUpdateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, ticket: updatedIntTicket, request_id: requestId };
+        break;
+      }
+
+      case "get_internal_ticket_replies": {
+        const { data: intReplies } = await supabase
+          .from("internal_ticket_replies")
+          .select("*")
+          .eq("ticket_id", params.ticketId)
+          .order("created_at", { ascending: true });
+        result = { ok: true, replies: intReplies || [], request_id: requestId };
+        break;
+      }
+
+      case "add_internal_ticket_reply": {
+        const { ticketId: intReplyTicketId, content: intReplyContent, isInternalNote } = params;
+        const { data: newIntReply, error: intReplyError } = await supabase
+          .from("internal_ticket_replies")
+          .insert({
+            ticket_id: intReplyTicketId,
+            content: intReplyContent,
+            author_id: employeeId,
+            author_name: employeeName,
+            author_email: employeeEmail,
+            author_role: "employee",
+            is_internal_note: isInternalNote || false,
+          })
+          .select()
+          .single();
+        if (intReplyError) {
+          return new Response(JSON.stringify({ error: intReplyError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, reply: newIntReply, request_id: requestId };
+        break;
+      }
+
+      case "get_streaming_subscriptions": {
+        if (!hasPermission(resolvedPermissions, 'manage_streaming', 'can_manage_streaming')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: subscriptions, count: subsCount } = await supabase
+          .from("client_streaming_subscriptions")
+          .select("*, streaming_services(*)", { count: "exact" })
+          .order("created_at", { ascending: false })
+          .limit(params?.limit || 200);
+        result = { ok: true, subscriptions: subscriptions || [], total_count: subsCount || 0, request_id: requestId };
+        break;
+      }
+
+      case "update_streaming_subscription": {
+        if (!hasPermission(resolvedPermissions, 'manage_streaming', 'can_manage_streaming')) {
+          return new Response(JSON.stringify({ ok: false, error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { subscriptionId, updates: subUpdates } = params;
+        const { data: updatedSub, error: subUpdateError } = await supabase
+          .from("client_streaming_subscriptions")
+          .update({ ...subUpdates, updated_at: new Date().toISOString() })
+          .eq("id", subscriptionId)
+          .select()
+          .single();
+        if (subUpdateError) {
+          return new Response(JSON.stringify({ error: subUpdateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        result = { ok: true, subscription: updatedSub, request_id: requestId };
+        break;
+      }
 
       default:
-        return new Response(JSON.stringify({ error: "Action non reconnue" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(
+          JSON.stringify({ ok: false, error: "Action non reconnue", request_id: requestId }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
     }
 
     return new Response(
-      JSON.stringify({ success: true, ...result }),
+      JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: unknown) {
-    console.error("[employee-data] Error:", error);
-    const message = error instanceof Error ? error.message : "Erreur inattendue";
-    const origin = req.headers.get('origin');
+  } catch (error) {
+    console.error("[employee-data] Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
+      JSON.stringify({ ok: false, error: "Erreur inattendue. Veuillez réessayer.", request_id: requestId }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

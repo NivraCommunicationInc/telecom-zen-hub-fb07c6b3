@@ -50,12 +50,14 @@ import {
   User,
   Hash,
   ClipboardCheck,
+  ShieldX,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isToday, isFuture, isPast, addHours, isAfter } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import TechnicianDebugPanel from "@/components/technician/TechnicianDebugPanel";
 
 // Work order status configuration
 const statusConfig: Record<string, { color: string; label: string; icon: any }> = {
@@ -97,6 +99,7 @@ const TechnicianDashboard = () => {
   const [activeTab, setActiveTab] = useState("assignments");
   const [workNotes, setWorkNotes] = useState("");
   const [checklist, setChecklist] = useState<typeof defaultChecklist>([]);
+  const [accessDenied, setAccessDenied] = useState<{ denied: boolean; reason?: string; neededPermission?: string; requestId?: string }>({ denied: false });
 
   // Session validation
   useEffect(() => {
@@ -140,6 +143,7 @@ const TechnicianDashboard = () => {
     refetchInterval: 30000,
     queryFn: async () => {
       console.log("[TechnicianDashboard] Fetching via secure edge function for technician:", technicianSession.id);
+      setAccessDenied({ denied: false });
       
       const { data, error } = await supabase.functions.invoke("technician-work-orders", {
         headers: {
@@ -155,6 +159,17 @@ const TechnicianDashboard = () => {
           navigate("/technician/auth");
         }
         throw error;
+      }
+      
+      // Check for 403 / access denied
+      if (data?.ok === false && data?.reason === "not_allowed") {
+        setAccessDenied({ 
+          denied: true, 
+          reason: data.reason, 
+          neededPermission: data.needed_permission,
+          requestId: data.request_id 
+        });
+        return data;
       }
       
       if (data?.error) {
@@ -441,33 +456,60 @@ const TechnicianDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Access Denied Card */}
+        {accessDenied.denied && (
+          <Card className="border-red-500/30 bg-red-500/5">
+            <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                <ShieldX className="w-8 h-8 text-red-500" />
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-semibold text-red-500">Accès non autorisé</h3>
+                <p className="text-muted-foreground max-w-md">
+                  Vous n'avez pas la permission de voir les bons de travail.
+                </p>
+                {accessDenied.neededPermission && (
+                  <p className="text-sm text-muted-foreground">
+                    Permission requise: <strong>{accessDenied.neededPermission}</strong>
+                  </p>
+                )}
+                {accessDenied.requestId && (
+                  <p className="text-xs text-muted-foreground/60">ID: {accessDenied.requestId}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-cyan-500">{activeWorkOrders.length}</div>
-              <div className="text-xs text-muted-foreground">Assignés</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-amber-500">{todayWorkOrders.length}</div>
-              <div className="text-xs text-muted-foreground">Aujourd'hui</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-500">{upcomingWorkOrders.length}</div>
-              <div className="text-xs text-muted-foreground">À venir</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-emerald-500">{historyWorkOrders.length}</div>
-              <div className="text-xs text-muted-foreground">Terminés</div>
-            </CardContent>
-          </Card>
-        </div>
+        {!accessDenied.denied && (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-cyan-500">{activeWorkOrders.length}</div>
+                  <div className="text-xs text-muted-foreground">Assignés</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-amber-500">{todayWorkOrders.length}</div>
+                  <div className="text-xs text-muted-foreground">Aujourd'hui</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-500">{upcomingWorkOrders.length}</div>
+                  <div className="text-xs text-muted-foreground">À venir</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-emerald-500">{historyWorkOrders.length}</div>
+                  <div className="text-xs text-muted-foreground">Terminés</div>
+                </CardContent>
+              </Card>
+            </div>
 
         {/* Today's Work Orders - Highlighted */}
         {todayWorkOrders.length > 0 && (
@@ -550,8 +592,10 @@ const TechnicianDashboard = () => {
                 ))}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+          </>
+        )}
       </main>
 
       {/* Work Order Details Dialog */}
@@ -854,6 +898,19 @@ const TechnicianDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Debug Panel */}
+      {technicianSession && (
+        <TechnicianDebugPanel
+          session={technicianSession}
+          lastResponse={workOrdersData}
+          currentCounts={{
+            current: currentWorkOrders.length,
+            history: historyWorkOrders.length,
+            total: allWorkOrders.length,
+          }}
+        />
+      )}
     </div>
   );
 };
