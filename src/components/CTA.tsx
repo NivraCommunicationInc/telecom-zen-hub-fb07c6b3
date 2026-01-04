@@ -4,8 +4,14 @@ import ContactForm from "./ContactForm";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const CTA = () => {
-  const { t, language } = useLanguage();
-  const isFr = language === 'fr';
+  const { t } = useLanguage();
+
+  const scrollToContact = () => {
+    const form = document.querySelector('form');
+    if (form) {
+      form.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <section id="contact" className="section-padding bg-hero relative overflow-hidden">
@@ -30,7 +36,15 @@ const CTA = () => {
             </p>
 
             {/* Phone CTA */}
-            <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
+            <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
+              <Button 
+                variant="heroOutline" 
+                size="default" 
+                className="gap-2 focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-primary" 
+                onClick={scrollToContact}
+              >
+                {t('hero.cta.order')}
+              </Button>
               <Button 
                 variant="heroOutline" 
                 size="default" 
@@ -39,16 +53,14 @@ const CTA = () => {
               >
                 <a href="tel:+14385442233">
                   <Phone className="w-4 h-4" />
-                  438-544-2233
+                  {t('cta.phone')}
                 </a>
               </Button>
             </div>
 
             {/* Response time */}
             <p className="text-xs text-cyan-100/40">
-              {isFr 
-                ? "Réponse sous 1 jour ouvrable" 
-                : "Response within 1 business day"}
+              {t('contact.success.text')}
             </p>
           </div>
 
