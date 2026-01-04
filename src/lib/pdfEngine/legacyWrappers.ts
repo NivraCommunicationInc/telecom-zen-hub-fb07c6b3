@@ -19,6 +19,7 @@ import {
 } from "./index";
 import { getCompanyInfo, calculateQuebecTaxes } from "./adapters";
 import { ACTIVE_CONTRACT_TEMPLATE } from "../contractTemplate";
+import { safePDFDownload, safePDFOpen } from "../pdfUtils";
 
 // ============= LEGACY INTERFACE: TelecomContractData =============
 
@@ -492,22 +493,14 @@ export function downloadTelecomContractPDF(data: LegacyTelecomContractData): voi
   const doc = generateTelecomContractPDFLegacy(data);
   const blob = doc.output("blob");
   const filename = `Contrat_${data.contractNumber}.pdf`;
-  
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  safePDFDownload(blob, filename);
 }
 
 export function viewTelecomContractPDF(data: LegacyTelecomContractData): void {
   const doc = generateTelecomContractPDFLegacy(data);
   const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const filename = `Contrat_${data.contractNumber}.pdf`;
+  safePDFOpen(blob, filename);
 }
 
 export function getTelecomContractBlob(data: LegacyTelecomContractData): Blob {
@@ -519,22 +512,14 @@ export function downloadInvoicePDFLegacy(data: LegacyInvoiceData): void {
   const doc = generateInvoicePDFLegacy(data);
   const blob = doc.output("blob");
   const filename = `Facture_${data.invoiceNumber}.pdf`;
-  
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  safePDFDownload(blob, filename);
 }
 
 export function viewInvoicePDFLegacy(data: LegacyInvoiceData): void {
   const doc = generateInvoicePDFLegacy(data);
   const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const filename = `Facture_${data.invoiceNumber}.pdf`;
+  safePDFOpen(blob, filename);
 }
 
 export function getInvoicePDFBlob(data: LegacyInvoiceData): Blob {

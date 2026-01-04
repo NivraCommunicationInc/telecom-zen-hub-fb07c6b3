@@ -909,6 +909,33 @@ const ClientNewOrder = () => {
       name: 'Frais d\'activation',
     });
 
+    // Add delivery fee if applicable
+    if (isDeliveryOnlyOrder && deliveryChoice) {
+      const deliveryFee = deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
+                          deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
+                          DELIVERY_CONFIG.standard.fee;
+      cartItems.push({
+        type: 'delivery',
+        amount: deliveryFee,
+        name: 'Frais de livraison',
+      });
+    } else if (!isDeliveryOnlyOrder && installationChoice === "auto") {
+      cartItems.push({
+        type: 'delivery',
+        amount: 30,
+        name: 'Frais de livraison',
+      });
+    }
+
+    // Add installation fee if technician
+    if (!isDeliveryOnlyOrder && installationChoice === "technician") {
+      cartItems.push({
+        type: 'installation',
+        amount: 50,
+        name: 'Frais d\'installation technicien',
+      });
+    }
+
     const subtotalBeforeDiscount = cartItems.reduce((sum, item) => sum + item.amount, 0);
 
     setIsValidatingPromo(true);
