@@ -169,3 +169,23 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// Safe version that returns null values if used outside AuthProvider (for public routes)
+export const useOptionalAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    return {
+      user: null,
+      session: null,
+      role: null,
+      isLoading: false,
+      isAdmin: false,
+      signIn: async () => ({ error: new Error("No auth provider") }),
+      signUp: async () => ({ error: new Error("No auth provider") }),
+      signOut: async () => {},
+      resetPassword: async () => ({ error: new Error("No auth provider") }),
+      updatePassword: async () => ({ error: new Error("No auth provider") }),
+    };
+  }
+  return context;
+};
