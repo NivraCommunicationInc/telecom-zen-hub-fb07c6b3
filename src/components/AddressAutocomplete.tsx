@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { MapPin, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,10 @@ interface AddressAutocompleteProps {
   restrictToQuebec?: boolean;
 }
 
+const AUTOCOMPLETE_MIN_CHARS = 3;
+const AUTOCOMPLETE_DEBOUNCE_MS = 300;
+const AUTOCOMPLETE_MAX_RESULTS = 8;
+
 const AddressAutocomplete = ({
   value,
   onChange,
@@ -48,102 +53,198 @@ const AddressAutocomplete = ({
   placeholder = "Entrez votre adresse...",
   className,
   disabled = false,
-  restrictToQuebec = false
+  restrictToQuebec = false,
 }: AddressAutocompleteProps) => {
   const [suggestions, setSuggestions] = useState<MapboxSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [noResults, setNoResults] = useState(false);
-  const [hasValidSelection, setHasValidSelection] = useState(false);
-  
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<number | null>(null);
   const sessionTokenRef = useRef<string>(crypto.randomUUID());
 
-  // Handle click outside to close suggestions
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(
+    null
+  );
+
+  const endpointForLogs = useMemo(() => {
+    const base = import.meta.env.VITE_SUPABASE_URL;
+    return base ? `${base}/functions/v1/mapbox-address-autocomplete` : "(unknown)";
+  }, []);
+
+  const updateDropdownPosition = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setDropdownRect({
+      top: Math.round(rect.bottom + 6),
+      left: Math.round(rect.left),
+      width: Math.round(rect.width),
+    });
+  }, []);
+
+  // Close dropdown on outside click (works with portal)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const wrapper = wrapperRef.current;
+      const dropdown = dropdownRef.current;
+      if (!wrapper) return;
+
+      const clickedInsideWrapper = wrapper.contains(target);
+      const clickedInsideDropdown = dropdown ? dropdown.contains(target) : false;
+
+      if (!clickedInsideWrapper && !clickedInsideDropdown) {
         setShowSuggestions(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
   }, []);
 
-  // Fetch suggestions from Mapbox via edge function
-  const fetchSuggestions = useCallback(async (input: string) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+  // Keep dropdown positioned + visible on scroll/resize when opened
+  useEffect(() => {
+    if (!showSuggestions) return;
+    updateDropdownPosition();
 
-    if (!input || input.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setNoResults(false);
-      return;
-    }
+    const onScroll = () => updateDropdownPosition();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
 
-    setIsLoading(true);
-    setNoResults(false);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [showSuggestions, updateDropdownPosition]);
 
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('mapbox-address-autocomplete', {
-          body: {
-            action: 'suggest',
-            query: input,
-            session_token: sessionTokenRef.current
-          }
-        });
+  const applyQuebecFilter = useCallback(
+    (results: MapboxSuggestion[]) => {
+      if (!restrictToQuebec) return results;
+      return results.filter(
+        (s) =>
+          s.context?.region?.region_code === "QC" ||
+          s.context?.region?.name?.toLowerCase().includes("québec") ||
+          s.context?.region?.name?.toLowerCase().includes("quebec")
+      );
+    },
+    [restrictToQuebec]
+  );
 
-        if (error) {
-          console.error('Mapbox suggest error:', error);
-          setSuggestions([]);
-          setNoResults(true);
-          setShowSuggestions(true);
-          setIsLoading(false);
-          return;
-        }
+  const fetchSuggestions = useCallback(
+    async (input: string) => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
 
-        const results: MapboxSuggestion[] = data?.suggestions || [];
-        
-        // Filter to Quebec only if restricted
-        const filteredResults = restrictToQuebec 
-          ? results.filter(s => s.context?.region?.region_code === 'QC' || s.context?.region?.name?.includes('Quebec') || s.context?.region?.name?.includes('Québec'))
-          : results;
-
-        setSuggestions(filteredResults);
-        setNoResults(filteredResults.length === 0);
-        setShowSuggestions(true);
-      } catch (err) {
-        console.error('Mapbox fetch error:', err);
+      const trimmed = input.trim();
+      if (!trimmed || trimmed.length < AUTOCOMPLETE_MIN_CHARS) {
         setSuggestions([]);
-        setNoResults(true);
-        setShowSuggestions(true);
-      } finally {
-        setIsLoading(false);
+        setShowSuggestions(false);
+        setNoResults(false);
+        setErrorMessage(null);
+        return;
       }
-    }, 250);
-  }, [restrictToQuebec]);
 
-  // Retrieve full address details from Mapbox
+      setIsLoading(true);
+      setNoResults(false);
+      setErrorMessage(null);
+
+      debounceRef.current = window.setTimeout(async () => {
+        try {
+          if (import.meta.env.DEV) {
+            console.debug("[Mapbox] query fired", {
+              url: endpointForLogs,
+              origin: window.location.origin,
+              query: trimmed,
+              queryLength: trimmed.length,
+            });
+          }
+
+          const { data, error } = await supabase.functions.invoke("mapbox-address-autocomplete", {
+            body: {
+              action: "suggest",
+              query: trimmed,
+              session_token: sessionTokenRef.current,
+            },
+          });
+
+          if (error) {
+            if (import.meta.env.DEV) {
+              console.debug("[Mapbox] suggest failed", { url: endpointForLogs, error });
+            }
+            setSuggestions([]);
+            setNoResults(false);
+            setErrorMessage("Service temporairement indisponible — saisie manuelle possible.");
+            setShowSuggestions(true);
+            return;
+          }
+
+          if (import.meta.env.DEV) {
+            console.debug("[Mapbox] suggest ok", {
+              url: endpointForLogs,
+              request_id: data?.request_id,
+              mapbox_status: data?.mapbox_status,
+              suggestions: data?.suggestions?.length ?? 0,
+            });
+          }
+
+          const results: MapboxSuggestion[] = (data?.suggestions || []).slice(0, AUTOCOMPLETE_MAX_RESULTS);
+          const filtered = applyQuebecFilter(results);
+
+          setSuggestions(filtered);
+          setNoResults(filtered.length === 0);
+          setShowSuggestions(true);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.debug("[Mapbox] suggest exception", { url: endpointForLogs, err });
+          }
+          setSuggestions([]);
+          setNoResults(false);
+          setErrorMessage("Service temporairement indisponible — saisie manuelle possible.");
+          setShowSuggestions(true);
+        } finally {
+          setIsLoading(false);
+        }
+      }, AUTOCOMPLETE_DEBOUNCE_MS);
+    },
+    [applyQuebecFilter, endpointForLogs]
+  );
+
+  const parseFromSuggestion = (suggestion: MapboxSuggestion): AddressDetails => {
+    const context = suggestion.context || {};
+    return {
+      formattedAddress: suggestion.full_address,
+      streetNumber: context.address?.address_number || context.address?.street_number,
+      street: context.street?.name,
+      city: context.place?.name,
+      province: context.region?.region_code || context.region?.name,
+      postalCode: context.postcode?.name,
+      country: context.country?.name || "Canada",
+    };
+  };
+
+  const toLine1 = (details: AddressDetails) =>
+    [details.streetNumber, details.street].filter(Boolean).join(" ").trim() || details.formattedAddress;
+
   const retrieveAddressDetails = async (suggestion: MapboxSuggestion) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('mapbox-address-autocomplete', {
+      const { data, error } = await supabase.functions.invoke("mapbox-address-autocomplete", {
         body: {
-          action: 'retrieve',
+          action: "retrieve",
           mapbox_id: suggestion.mapbox_id,
-          session_token: sessionTokenRef.current
-        }
+          session_token: sessionTokenRef.current,
+        },
       });
 
       if (error || !data?.features?.[0]) {
-        console.error('Mapbox retrieve error:', error);
-        // Fallback to suggestion data
+        if (import.meta.env.DEV) {
+          console.debug("[Mapbox] retrieve fallback", { url: endpointForLogs, error, request_id: data?.request_id });
+        }
         return parseFromSuggestion(suggestion);
       }
 
@@ -159,70 +260,58 @@ const AddressAutocomplete = ({
         city: context.place?.name,
         province: context.region?.region_code || context.region?.name,
         postalCode: context.postcode?.name,
-        country: context.country?.name || 'Canada',
+        country: context.country?.name || "Canada",
         latitude: coordinates[1],
-        longitude: coordinates[0]
+        longitude: coordinates[0],
       };
 
       return details;
     } catch (err) {
-      console.error('Retrieve error:', err);
+      if (import.meta.env.DEV) {
+        console.debug("[Mapbox] retrieve exception", { url: endpointForLogs, err });
+      }
       return parseFromSuggestion(suggestion);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fallback parser from suggestion data
-  const parseFromSuggestion = (suggestion: MapboxSuggestion): AddressDetails => {
-    const context = suggestion.context || {};
-    return {
-      formattedAddress: suggestion.full_address,
-      streetNumber: context.address?.address_number || context.address?.street_number,
-      street: context.street?.name,
-      city: context.place?.name,
-      province: context.region?.region_code || context.region?.name,
-      postalCode: context.postcode?.name,
-      country: context.country?.name || 'Canada'
-    };
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     onChange(newValue);
-    setHasValidSelection(false); // Invalidate previous selection
-    fetchSuggestions(newValue);
     setHighlightedIndex(-1);
+    fetchSuggestions(newValue);
   };
 
   const handleSuggestionClick = async (suggestion: MapboxSuggestion) => {
-    onChange(suggestion.full_address);
+    // Prefer line1 (numéro + rue) to avoid duplicating city/postal in separate fields
+    onChange(toLine1(parseFromSuggestion(suggestion)));
     setShowSuggestions(false);
     setSuggestions([]);
-    setHasValidSelection(true);
-    
+    setErrorMessage(null);
+
     const details = await retrieveAddressDetails(suggestion);
     onAddressSelect(details);
-    
-    // Generate new session token for next interaction
+
+    // New session token for next interaction
     sessionTokenRef.current = crypto.randomUUID();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions || suggestions.length === 0) return;
+    if (!showSuggestions) return;
+    if (suggestions.length === 0) {
+      if (e.key === "Escape") setShowSuggestions(false);
+      return;
+    }
 
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setHighlightedIndex(prev => 
-          prev < suggestions.length - 1 ? prev + 1 : 0
-        );
+        setHighlightedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setHighlightedIndex(prev => 
-          prev > 0 ? prev - 1 : suggestions.length - 1
-        );
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
         break;
       case "Enter":
         e.preventDefault();
@@ -237,12 +326,64 @@ const AddressAutocomplete = ({
   };
 
   const handleFocus = () => {
-    // Generate new session token on focus
     sessionTokenRef.current = crypto.randomUUID();
-    if (suggestions.length > 0) {
-      setShowSuggestions(true);
+    if (value.trim().length >= AUTOCOMPLETE_MIN_CHARS) {
+      fetchSuggestions(value);
     }
   };
+
+  const dropdown = showSuggestions && dropdownRect
+    ? createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: "fixed",
+            top: dropdownRect.top,
+            left: dropdownRect.left,
+            width: dropdownRect.width,
+          }}
+          className="z-[9999] rounded-lg border border-border bg-popover shadow-lg"
+          role="listbox"
+        >
+          {errorMessage ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">{errorMessage}</div>
+          ) : suggestions.length > 0 ? (
+            <div className="max-h-72 overflow-y-auto">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={suggestion.mapbox_id}
+                  type="button"
+                  className={cn(
+                    "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
+                    highlightedIndex === index && "bg-muted/50"
+                  )}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                >
+                  <MapPin className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm truncate">{suggestion.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{suggestion.place_formatted}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : noResults ? (
+            <div className="px-4 py-3 text-center">
+              <p className="text-sm text-muted-foreground">Aucun résultat — veuillez préciser</p>
+            </div>
+          ) : null}
+
+          <div className="px-4 py-2 border-t border-border">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {restrictToQuebec ? "Service au Québec seulement" : "Canada"}
+            </p>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
 
   return (
     <div ref={wrapperRef} className="relative w-full">
@@ -265,48 +406,7 @@ const AddressAutocomplete = ({
         )}
       </div>
 
-      {showSuggestions && (
-        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-          {suggestions.length > 0 ? (
-            <>
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={suggestion.mapbox_id}
-                  type="button"
-                  className={cn(
-                    "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
-                    highlightedIndex === index && "bg-muted/50"
-                  )}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                >
-                  <MapPin className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground text-sm truncate">
-                      {suggestion.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {suggestion.place_formatted}
-                    </p>
-                  </div>
-                </button>
-              ))}
-              <div className="px-4 py-2 bg-muted/30 border-t border-border">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {restrictToQuebec ? "Service au Québec seulement" : "Canada"}
-                </p>
-              </div>
-            </>
-          ) : noResults ? (
-            <div className="px-4 py-3 text-center">
-              <p className="text-sm text-muted-foreground">
-                Adresse introuvable — veuillez préciser
-              </p>
-            </div>
-          ) : null}
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 };
