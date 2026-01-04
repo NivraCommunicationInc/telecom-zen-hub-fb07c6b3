@@ -431,35 +431,7 @@ const AdminUsersAccess = () => {
     },
   });
 
-  // Apply role pack mutation - sends both user_id and email for robustness
-  const applyRolePackMutation = useMutation({
-    mutationFn: async (staff: StaffUser) => {
-      // Always send target_email + target_role for robustness
-      // staff.id may be Auth user_id (from user_roles) or employees.id/technicians.id
-      const response = await supabase.functions.invoke("admin-manage-staff", {
-        body: { 
-          action: "apply_role_pack", 
-          target_user_id: staff.id,
-          target_email: staff.email,
-          target_role: staff.role,
-        },
-      });
-      if (response.error || (response.data as any)?.ok === false) {
-        const details = await extractErrorDetails(response);
-        throw Object.assign(new Error(details.message), { details });
-      }
-      return response.data;
-    },
-    onSuccess: (data: { role?: string }) => {
-      toast({ title: "Succès", description: `Pack de permissions "${data.role}" appliqué` });
-      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
-    },
-    onError: (error: Error & { details?: typeof errorModalDetails }) => {
-      setErrorModalDetails(error.details || null);
-      setErrorModalOpen(true);
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
+  // Role pack mutation removed - permissions checkboxes are now the only source of truth
 
   // Set/Reset PIN mutation
   const setPinMutation = useMutation({
@@ -927,13 +899,6 @@ const AdminUsersAccess = () => {
                                   >
                                     <RefreshCw className="h-4 w-4 mr-2" />
                                     Changer le rôle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => applyRolePackMutation.mutate(user)}
-                                    disabled={applyRolePackMutation.isPending}
-                                  >
-                                    <Shield className="h-4 w-4 mr-2" />
-                                    Appliquer pack du rôle
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {user.role !== "admin" && (

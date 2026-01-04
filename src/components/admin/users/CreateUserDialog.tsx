@@ -117,14 +117,7 @@ export function CreateUserDialog({
 
   const selectedRole = form.watch("role");
 
-  const applyRolePack = () => {
-    const pack = DEFAULT_PERMISSIONS[selectedRole] || {};
-    const newPerms: Partial<PermissionSet> = {};
-    ALL_PERMISSIONS.forEach((perm) => {
-      newPerms[perm] = pack[perm] ?? false;
-    });
-    setPermissions(newPerms);
-  };
+  // Role pack removed - permissions checkboxes are now the only source of truth
 
   const togglePermission = (perm: Permission) => {
     setPermissions((prev) => ({
@@ -308,10 +301,6 @@ export function CreateUserDialog({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Permissions</span>
-                  <Button type="button" variant="outline" size="sm" onClick={applyRolePack}>
-                    <Shield className="h-3 w-3 mr-1" />
-                    Appliquer pack du rôle
-                  </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 p-3 bg-muted/50 rounded-lg max-h-40 overflow-y-auto">
                   {ALL_PERMISSIONS.map((perm) => (
