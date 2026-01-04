@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/portalClient";
 import { 
@@ -57,7 +57,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
-import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
+import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 
 interface Service {
   id: string;
@@ -466,7 +466,7 @@ const StreamingPlusSection = ({ selectedStreamingServices, onStreamingServicesCh
 
 const ClientNewOrder = () => {
   const { user } = useClientAuth();
-  const { isClient } = useRoleAccess();
+  const { isClient } = usePortalRoleAccess();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
@@ -858,7 +858,7 @@ const ClientNewOrder = () => {
       if (!user?.id) throw new Error("Not authenticated");
 
       // Security check before sensitive action
-      const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
+      const { allowed, reason } = await verifyPortalSensitiveActionAllowed(user.id);
       if (!allowed) {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }

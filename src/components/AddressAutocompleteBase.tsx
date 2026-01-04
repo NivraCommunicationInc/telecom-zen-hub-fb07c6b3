@@ -33,7 +33,7 @@ export interface AddressDetails {
   longitude?: number;
 }
 
-interface AddressAutocompleteProps {
+export interface AddressAutocompleteBaseProps {
   value: string;
   onChange: (value: string) => void;
   onAddressSelect: (details: AddressDetails) => void;
@@ -57,7 +57,7 @@ const AddressAutocompleteBase = ({
   disabled = false,
   restrictToQuebec = false,
   supabaseClient,
-}: AddressAutocompleteProps) => {
+}: AddressAutocompleteBaseProps) => {
   const [suggestions, setSuggestions] = useState<MapboxSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);

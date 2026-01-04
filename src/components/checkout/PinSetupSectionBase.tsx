@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Shield, CheckCircle, Eye, EyeOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface PinSetupSectionBaseProps {
+export interface PinSetupSectionBaseProps {
   userId: string | undefined;
   onPinChange: (pin: string) => void;
   pin: string;

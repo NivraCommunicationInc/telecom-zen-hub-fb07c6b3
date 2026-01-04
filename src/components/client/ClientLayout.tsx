@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { SystemStatusBanner } from "@/components/SystemStatusBanner";
-import { NotificationBell } from "@/components/ui/notification-bell";
+import { PortalSystemStatusBanner } from "@/components/client/PortalSystemStatusBanner";
+import { PortalNotificationBell } from "@/components/client/PortalNotificationBell";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -54,7 +54,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* System Status Banner */}
-      <SystemStatusBanner userType="client" />
+      <PortalSystemStatusBanner userType="client" />
       
       <div className="flex-1 relative">
       {/* Mobile Header */}
@@ -66,7 +66,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
           <span className="font-display font-bold text-foreground">Nivra</span>
         </div>
         <div className="flex items-center gap-1">
-          <NotificationBell />
+          <PortalNotificationBell />
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
@@ -87,7 +87,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
             </div>
             <span className="font-display font-bold text-xl text-foreground">Nivra</span>
           </Link>
-          <NotificationBell />
+          <PortalNotificationBell />
         </div>
 
         <nav className="p-4 space-y-1 mt-16 lg:mt-0">

@@ -45,14 +45,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
-import { PinSetupSection } from "@/components/checkout/PinSetupSection";
-import { TVChannelSelection } from "@/components/checkout/TVChannelSelection";
-import { StreamingServiceSelection } from "@/components/checkout/StreamingServiceSelection";
-import { StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
+import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSection";
+import { PortalTVChannelSelection } from "@/components/checkout/PortalTVChannelSelection";
+import { PortalStreamingServiceSelection } from "@/components/checkout/PortalStreamingServiceSelection";
+import { StreamingCatalogItem } from "@/hooks/usePortalStreamingCatalog";
 import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone } from "@/components/checkout";
-import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
+import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
 
 // Channel interface
@@ -502,7 +502,7 @@ const ClientTVOrder = () => {
     mutationFn: async () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
 
-      const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
+      const { allowed, reason } = await verifyPortalSensitiveActionAllowed(user.id);
       if (!allowed) {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
@@ -858,7 +858,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   <Label>
                     {isFrench ? "Adresse complète (incluant le code postal)" : "Full address (including postal code)"}
                   </Label>
-                  <AddressAutocomplete
+                  <PortalAddressAutocomplete
                     value={address}
                     onChange={(value) => {
                       if (!value) {
@@ -1097,7 +1097,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
             </Card>
 
             {/* TV Channel Selection Component */}
-            <TVChannelSelection
+            <PortalTVChannelSelection
               channelChoicesLimit={selectedPlan.channelChoices}
               selectedFreeChannels={selectedFreeChannels}
               selectedPremiumChannels={selectedPremiumChannels}
@@ -1107,7 +1107,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
             />
 
             {/* Streaming Services */}
-            <StreamingServiceSelection
+            <PortalStreamingServiceSelection
               selectedServices={selectedStreamingServices}
               onServicesChange={setSelectedStreamingServices}
               isFrench={isFrench}

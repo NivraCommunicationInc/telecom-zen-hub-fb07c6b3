@@ -32,7 +32,7 @@ interface Channel {
   base_pack: string | null;
 }
 
-interface TVChannelSelectionBaseProps {
+export interface TVChannelSelectionBaseProps {
   channelChoicesLimit: number;
   selectedFreeChannels: Channel[];
   selectedPremiumChannels: Channel[];

@@ -26,8 +26,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
-interface SystemStatusBannerProps {
-  userType: "client" | "employee" | "technician" | "admin";
+export interface SystemStatusBannerBaseProps {
+  userType: "public" | "client" | "employee" | "technician" | "admin";
   supabaseClient: SupabaseClient<Database>;
 }
 
@@ -65,7 +65,7 @@ const serviceStatusConfig: Record<string, { label: string; color: string; bgColo
   maintenance: { label: "Maintenance", color: "bg-blue-500", bgColor: "bg-blue-50" },
 };
 
-export const SystemStatusBanner = ({ userType, supabaseClient }: SystemStatusBannerProps) => {
+export const SystemStatusBannerBase = ({ userType, supabaseClient }: SystemStatusBannerBaseProps) => {
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
   const { data: statuses } = useQuery({
@@ -318,4 +318,4 @@ export const ServiceStatusCards = ({
   );
 };
 
-export default SystemStatusBanner;
+export default SystemStatusBannerBase;
