@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Bug, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { RefreshCw, Bug, CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DiagnosticResult {
@@ -15,6 +16,16 @@ interface DiagnosticResult {
     clients: { total: number; error: string | null };
     appointments: { total: number; error: string | null };
   };
+}
+
+interface LastResponse {
+  request_id?: string;
+  resolved_permissions?: Record<string, boolean>;
+  applied_filters?: string[];
+  total_count?: number;
+  ok?: boolean;
+  reason?: string;
+  needed_permission?: string;
 }
 
 interface EmployeeDebugPanelProps {
@@ -30,10 +41,12 @@ interface EmployeeDebugPanelProps {
     tickets?: number;
     clients?: number;
   };
+  lastResponse?: LastResponse;
 }
 
-const EmployeeDebugPanel = ({ session, currentCounts }: EmployeeDebugPanelProps) => {
+const EmployeeDebugPanel = ({ session, currentCounts, lastResponse }: EmployeeDebugPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,17 +86,24 @@ const EmployeeDebugPanel = ({ session, currentCounts }: EmployeeDebugPanelProps)
     );
   }
 
+  const keyPermissions = ["can_view_orders", "can_view_tickets", "can_view_clients", "can_view_appointments"];
+
   return (
-    <Card className="fixed bottom-4 right-4 z-50 w-96 max-h-[500px] overflow-auto shadow-xl border-amber-500/30 bg-background/95 backdrop-blur">
+    <Card className="fixed bottom-4 right-4 z-50 w-[420px] max-h-[600px] overflow-auto shadow-xl border-amber-500/30 bg-background/95 backdrop-blur">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <Bug className="w-4 h-4 text-amber-500" />
             Debug Panel (Employee)
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-            ✕
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
+              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+              ✕
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 text-xs">
@@ -93,6 +113,43 @@ const EmployeeDebugPanel = ({ session, currentCounts }: EmployeeDebugPanelProps)
           <p className="text-muted-foreground">{session.email}</p>
           <p className="text-muted-foreground">ID: {session.employeeId?.slice(0, 8)}...</p>
         </div>
+
+        {/* Last Response Info (NEW) */}
+        {lastResponse && (
+          <div className={`p-2 rounded ${lastResponse.ok === false ? 'bg-red-500/10 border border-red-500/30' : 'bg-cyan-500/10'}`}>
+            <p className="font-medium mb-1 flex items-center gap-2">
+              {lastResponse.ok === false ? (
+                <>
+                  <XCircle className="w-3 h-3 text-red-500" />
+                  Dernière requête refusée
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-3 h-3 text-cyan-500" />
+                  Dernière requête
+                </>
+              )}
+            </p>
+            {lastResponse.request_id && (
+              <p className="text-muted-foreground">ID: {lastResponse.request_id}</p>
+            )}
+            {lastResponse.reason && (
+              <p className="text-red-400">Raison: {lastResponse.reason}</p>
+            )}
+            {lastResponse.needed_permission && (
+              <p className="text-amber-400">Permission requise: {lastResponse.needed_permission}</p>
+            )}
+            {lastResponse.applied_filters && lastResponse.applied_filters.length > 0 && (
+              <div className="flex items-center gap-1 mt-1">
+                <Filter className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Filtres: {lastResponse.applied_filters.join(", ")}</span>
+              </div>
+            )}
+            {lastResponse.total_count !== undefined && (
+              <p className="text-muted-foreground">Total DB: {lastResponse.total_count}</p>
+            )}
+          </div>
+        )}
 
         {/* Current Counts from UI */}
         {currentCounts && (
@@ -117,9 +174,9 @@ const EmployeeDebugPanel = ({ session, currentCounts }: EmployeeDebugPanelProps)
 
         {/* Permissions */}
         <div className="bg-muted/50 p-2 rounded">
-          <p className="font-medium mb-1">Permissions clés</p>
+          <p className="font-medium mb-1">Permissions (token)</p>
           <div className="flex flex-wrap gap-1">
-            {["can_view_orders", "can_view_tickets", "can_view_clients"].map((perm) => (
+            {keyPermissions.map((perm) => (
               <Badge
                 key={perm}
                 variant={session.permissions?.[perm] ? "default" : "destructive"}
@@ -130,7 +187,28 @@ const EmployeeDebugPanel = ({ session, currentCounts }: EmployeeDebugPanelProps)
               </Badge>
             ))}
           </div>
+          
+          {/* Resolved permissions from last response */}
+          {lastResponse?.resolved_permissions && isExpanded && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <p className="font-medium mb-1 text-muted-foreground">Permissions résolues (serveur)</p>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(lastResponse.resolved_permissions).slice(0, 8).map(([perm, value]) => (
+                  <Badge
+                    key={perm}
+                    variant={value ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {value ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                    {perm.replace("can_", "").replace("_", " ")}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+
+        <Separator />
 
         {/* Run Diagnostic */}
         <Button 
