@@ -127,7 +127,7 @@ export const ensureOrderContractUpToDate = async (params: {
     for (const item of lineItems) {
       if (item.category === 'service') {
         const itemType = item.type?.toLowerCase() || '';
-        const price = item.unitPrice > 0 ? item.unitPrice : undefined;
+        const price = item.unit_price > 0 ? item.unit_price : undefined;
         
         if (itemType === 'internet') {
           internetPlan = item.name;

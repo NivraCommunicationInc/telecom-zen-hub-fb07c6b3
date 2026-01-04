@@ -65,6 +65,12 @@ export interface InvoiceData {
   issuedBy?: string;
   issuedByRole?: string;
   issuedAt?: string;
+  /** Payment method: credit_card, etransfer, cash, etc. */
+  paymentMethod?: "credit_card" | "etransfer" | "cash" | "other";
+  /** Last 4 digits of credit card if applicable */
+  cardLast4?: string;
+  /** Card type (Visa, Mastercard, etc.) */
+  cardType?: string;
 }
 
 export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
@@ -448,30 +454,68 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   currentY += 10;
 
   // ============ PAYMENT INFORMATION BOX ============
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, currentY, contentWidth, 28, 2, 2, "F");
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.3);
-  doc.line(margin, currentY, margin, currentY + 28);
+  // Determine payment method from data
+  const isCreditCardPayment = data.paymentMethod === "credit_card" || 
+    (data.cardLast4 && data.cardLast4.length === 4) ||
+    (data.paymentReference?.toLowerCase().includes("card"));
+  
+  if (isCreditCardPayment) {
+    // Credit card payment - show card info without security answer
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, currentY, contentWidth, 18, 2, 2, "F");
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.3);
+    doc.line(margin, currentY, margin, currentY + 18);
 
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...darkColor);
-  doc.text("Payment Instructions", margin + 6, currentY + 7);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkColor);
+    doc.text("Payment Method", margin + 6, currentY + 7);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.text("Interac e-Transfer:", margin + 6, currentY + 14);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryColor);
-  doc.text("Support@nivratelecom.ca", margin + 40, currentY + 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...grayColor);
+    
+    // Build card display string
+    let cardDisplay = "Credit Card";
+    if (data.cardType && data.cardLast4) {
+      cardDisplay = `${data.cardType} •••• ${data.cardLast4}`;
+    } else if (data.cardLast4) {
+      cardDisplay = `Card •••• ${data.cardLast4}`;
+    } else if (data.paymentReference) {
+      cardDisplay = data.paymentReference;
+    }
+    
+    doc.text(`Paid via: ${cardDisplay}`, margin + 6, currentY + 13);
 
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkColor);
-  doc.text("Security Question: Your full name or company name", margin + 6, currentY + 20);
-  doc.text("Security Answer: Your full name or company name (exactly as registered)", margin + 6, currentY + 25);
+    currentY += 24;
+  } else {
+    // Interac e-Transfer or pending payment - show transfer instructions
+    // DO NOT show security answer on invoices
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "F");
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.3);
+    doc.line(margin, currentY, margin, currentY + 22);
 
-  currentY += 35;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkColor);
+    doc.text("Payment Instructions — Interac e-Transfer", margin + 6, currentY + 7);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text("Email:", margin + 6, currentY + 14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryColor);
+    doc.text("Support@nivratelecom.ca", margin + 22, currentY + 14);
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...darkColor);
+    doc.text("Security Q&A: Your full name or company name (exactly as registered)", margin + 6, currentY + 19);
+
+    currentY += 28;
+  }
 
   // ============ LATE PAYMENT POLICY ============
   if (currentY < pageHeight - 55) {
