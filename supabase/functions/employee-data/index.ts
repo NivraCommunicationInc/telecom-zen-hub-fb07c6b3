@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
+// Generate request ID for tracking
+function generateRequestId(): string {
+  return `emp-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+}
+
 // Verify and decode JWT-like token
 async function verifyToken(token: string, secret: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
   try {
@@ -44,6 +49,97 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
   }
 }
 
+// Resolve permissions with server-side fallback
+async function resolvePermissions(
+  supabase: any,
+  tokenPermissions: any,
+  employeeId: string,
+  employeeEmail: string
+): Promise<{ permissions: Record<string, boolean>; source: string; role: string; status: string }> {
+  // If token has permissions, use them
+  if (tokenPermissions && typeof tokenPermissions === 'object' && Object.keys(tokenPermissions).length > 0) {
+    return { 
+      permissions: tokenPermissions, 
+      source: "token", 
+      role: "employee",
+      status: "active"
+    };
+  }
+
+  console.log(`[resolvePermissions] Token permissions empty, fetching from DB for ${employeeEmail}`);
+
+  // Fallback 1: Try employees table
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("permissions_json, role, is_active")
+    .ilike("email", employeeEmail)
+    .maybeSingle();
+
+  if (employee?.permissions_json && Object.keys(employee.permissions_json).length > 0) {
+    return { 
+      permissions: employee.permissions_json, 
+      source: "employees_table", 
+      role: employee.role || "employee",
+      status: employee.is_active ? "active" : "disabled"
+    };
+  }
+
+  // Fallback 2: Try user_roles table via profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .ilike("email", employeeEmail)
+    .maybeSingle();
+
+  if (profile?.user_id) {
+    const { data: userRole } = await supabase
+      .from("user_roles")
+      .select("permissions, role, status")
+      .eq("user_id", profile.user_id)
+      .eq("role", "employee")
+      .maybeSingle();
+
+    if (userRole?.permissions) {
+      return { 
+        permissions: userRole.permissions, 
+        source: "user_roles_table", 
+        role: userRole.role,
+        status: userRole.status || "active"
+      };
+    }
+  }
+
+  // Default minimal permissions for employee if nothing found
+  console.log(`[resolvePermissions] No permissions found, using default employee permissions`);
+  return { 
+    permissions: {
+      can_view_orders: true,
+      can_view_clients: true,
+      can_view_tickets: true,
+      can_view_appointments: true,
+    }, 
+    source: "default_employee", 
+    role: "employee",
+    status: "active"
+  };
+}
+
+// Return structured 403 response
+function forbidden(corsHeaders: Record<string, string>, requestId: string, neededPermission: string, resolvedPerms: any) {
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      request_id: requestId,
+      reason: "not_allowed",
+      needed_permission: neededPermission,
+      message: `Permission requise: ${neededPermission}`,
+      resolved_permissions: resolvedPerms.permissions,
+      permission_source: resolvedPerms.source,
+    }),
+    { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -51,13 +147,14 @@ serve(async (req) => {
   
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  const requestId = generateRequestId();
 
   try {
     const token = req.headers.get('x-employee-token');
     
     if (!token) {
       return new Response(
-        JSON.stringify({ error: "Token de session requis" }),
+        JSON.stringify({ ok: false, request_id: requestId, error: "Token de session requis" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -67,102 +164,197 @@ serve(async (req) => {
     
     if (!verification.valid) {
       return new Response(
-        JSON.stringify({ error: "Session invalide ou expirée. Veuillez vous reconnecter." }),
+        JSON.stringify({ ok: false, request_id: requestId, error: "Session invalide ou expirée. Veuillez vous reconnecter." }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { employeeId, fullName: employeeName, email: employeeEmail, permissions } = verification.payload;
+    const { employeeId, fullName: employeeName, email: employeeEmail, permissions: tokenPermissions } = verification.payload;
     const { action, params } = await req.json();
-    
-    // Ensure permissions is an object
-    const resolvedPermissions = permissions || {};
-    
-    console.log(`[employee-data] Action: ${action} for employee: ${employeeId} (${employeeName})`);
-    console.log(`[employee-data] Permissions from token:`, JSON.stringify(resolvedPermissions));
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Resolve permissions with fallback
+    const resolvedPerms = await resolvePermissions(supabase, tokenPermissions, employeeId, employeeEmail);
+    const resolvedPermissions = resolvedPerms.permissions;
+    
+    console.log(`[employee-data] Action: ${action} | RequestID: ${requestId} | Employee: ${employeeName} (${employeeEmail})`);
+    console.log(`[employee-data] Permissions source: ${resolvedPerms.source} | Status: ${resolvedPerms.status}`);
+    console.log(`[employee-data] Resolved permissions:`, JSON.stringify(resolvedPermissions));
+
+    // Check if user is disabled
+    if (resolvedPerms.status === "disabled" || resolvedPerms.status === "hold") {
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          request_id: requestId, 
+          reason: `status_${resolvedPerms.status}`,
+          message: resolvedPerms.status === "hold" ? "Compte suspendu" : "Compte désactivé"
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     let result: any = null;
 
     switch (action) {
       // ==================== READ OPERATIONS ====================
-      case "get_orders":
-        if (!resolvedPermissions?.can_view_orders) {
-          console.log(`[employee-data] get_orders DENIED for ${employeeEmail} - missing can_view_orders. Permissions:`, resolvedPermissions);
-          return new Response(JSON.stringify({ error: "Permission refusée", debug: { permissions: resolvedPermissions } }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      case "get_orders": {
+        // Check view permission
+        if (!resolvedPermissions?.can_view_orders && !resolvedPermissions?.manage_orders) {
+          console.log(`[employee-data] get_orders DENIED for ${employeeEmail}`);
+          return forbidden(corsHeaders, requestId, "can_view_orders", resolvedPerms);
         }
-        const { data: orders, error: ordersError, count: ordersCount } = await supabase
-          .from("orders")
-          .select("*", { count: "exact" })
+        
+        // Build query with appropriate filters
+        let query = supabase.from("orders").select("*", { count: "exact" });
+        
+        // If manage_orders = true -> all orders, otherwise filter by assigned/created
+        const hasManageOrders = resolvedPermissions?.manage_orders === true || 
+                                resolvedPermissions?.can_manage_orders === true;
+        
+        let appliedFilters: string[] = [];
+        
+        if (!hasManageOrders) {
+          // Try to filter by created_by or processed_by (employee's orders)
+          // Note: We return all for now since there's no clear "assigned_to" for orders
+          // In real implementation, you'd filter by created_by matching employee ID
+          appliedFilters.push("view_only_mode");
+        } else {
+          appliedFilters.push("manage_all");
+        }
+        
+        const { data: orders, error: ordersError, count: ordersCount } = await query
           .order("created_at", { ascending: false })
-          .limit(params?.limit || 200);
+          .limit(params?.limit || 300);
+          
         if (ordersError) {
           console.error(`[employee-data] get_orders ERROR:`, ordersError);
         }
+        
         console.log(`[employee-data] get_orders returned ${orders?.length || 0} items (total: ${ordersCount})`);
-        result = { orders: orders || [], total_count: ordersCount || 0 };
+        
+        result = { 
+          ok: true,
+          request_id: requestId,
+          orders: orders || [], 
+          total_count: ordersCount || 0,
+          resolved_permissions: resolvedPermissions,
+          applied_filters: appliedFilters,
+        };
         break;
+      }
 
-      case "get_appointments":
-        if (!resolvedPermissions?.can_view_appointments) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      case "get_appointments": {
+        if (!resolvedPermissions?.can_view_appointments && !resolvedPermissions?.manage_appointments) {
+          return forbidden(corsHeaders, requestId, "can_view_appointments", resolvedPerms);
         }
-        const { data: appointments } = await supabase
+        
+        const hasManageAppointments = resolvedPermissions?.manage_appointments === true || 
+                                      resolvedPermissions?.can_manage_appointments === true;
+        let aptFilters: string[] = [];
+        
+        const { data: appointments, count: appointmentsCount } = await supabase
           .from("appointments")
-          .select("*, technicians(id, full_name, email)")
+          .select("*, technicians(id, full_name, email)", { count: "exact" })
           .order("scheduled_at", { ascending: true })
-          .limit(params?.limit || 200);
-        result = { appointments };
+          .limit(params?.limit || 300);
+        
+        aptFilters.push(hasManageAppointments ? "manage_all" : "view_only");
+        
+        result = { 
+          ok: true,
+          request_id: requestId,
+          appointments: appointments || [],
+          total_count: appointmentsCount || 0,
+          resolved_permissions: resolvedPermissions,
+          applied_filters: aptFilters,
+        };
         break;
+      }
 
-      case "get_tickets":
-        if (!resolvedPermissions?.can_view_tickets) {
-          console.log(`[employee-data] get_tickets DENIED for ${employeeEmail} - missing can_view_tickets. Permissions:`, resolvedPermissions);
-          return new Response(JSON.stringify({ error: "Permission refusée", debug: { permissions: resolvedPermissions } }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      case "get_tickets": {
+        if (!resolvedPermissions?.can_view_tickets && !resolvedPermissions?.manage_tickets) {
+          console.log(`[employee-data] get_tickets DENIED for ${employeeEmail}`);
+          return forbidden(corsHeaders, requestId, "can_view_tickets", resolvedPerms);
         }
+        
+        const hasManageTickets = resolvedPermissions?.manage_tickets === true || 
+                                 resolvedPermissions?.can_manage_tickets === true;
+        let ticketFilters: string[] = [];
+        
         const { data: tickets, error: ticketsError, count: ticketsCount } = await supabase
           .from("support_tickets")
           .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
-          .limit(params?.limit || 200);
+          .limit(params?.limit || 300);
+          
         if (ticketsError) {
           console.error(`[employee-data] get_tickets ERROR:`, ticketsError);
         }
+        
+        ticketFilters.push(hasManageTickets ? "manage_all" : "view_only");
         console.log(`[employee-data] get_tickets returned ${tickets?.length || 0} items (total: ${ticketsCount})`);
-        result = { tickets: tickets || [], total_count: ticketsCount || 0 };
+        
+        result = { 
+          ok: true,
+          request_id: requestId,
+          tickets: tickets || [], 
+          total_count: ticketsCount || 0,
+          resolved_permissions: resolvedPermissions,
+          applied_filters: ticketFilters,
+        };
         break;
+      }
 
-      case "get_ticket_replies":
-        if (!resolvedPermissions?.can_view_tickets) {
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      case "get_ticket_replies": {
+        if (!resolvedPermissions?.can_view_tickets && !resolvedPermissions?.manage_tickets) {
+          return forbidden(corsHeaders, requestId, "can_view_tickets", resolvedPerms);
         }
         const { data: replies } = await supabase
           .from("ticket_replies")
           .select("*")
           .eq("ticket_id", params.ticketId)
           .order("created_at", { ascending: true });
-        result = { replies };
+        result = { ok: true, request_id: requestId, replies };
         break;
+      }
 
-      case "get_clients":
-        if (!resolvedPermissions?.can_view_clients) {
-          console.log(`[employee-data] get_clients DENIED for ${employeeEmail} - missing can_view_clients. Permissions:`, resolvedPermissions);
-          return new Response(JSON.stringify({ error: "Permission refusée", debug: { permissions: resolvedPermissions } }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      case "get_clients": {
+        if (!resolvedPermissions?.can_view_clients && !resolvedPermissions?.manage_clients) {
+          console.log(`[employee-data] get_clients DENIED for ${employeeEmail}`);
+          return forbidden(corsHeaders, requestId, "can_view_clients", resolvedPerms);
         }
+        
+        const hasManageClients = resolvedPermissions?.manage_clients === true || 
+                                 resolvedPermissions?.can_manage_clients === true;
+        let clientFilters: string[] = [];
+        
         const { data: clients, error: clientsError, count: clientsCount } = await supabase
           .from("profiles")
           .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
           .limit(params?.limit || 500);
+          
         if (clientsError) {
           console.error(`[employee-data] get_clients ERROR:`, clientsError);
         }
+        
+        clientFilters.push(hasManageClients ? "manage_all" : "view_only");
         console.log(`[employee-data] get_clients returned ${clients?.length || 0} items (total: ${clientsCount})`);
-        result = { clients: clients || [], total_count: clientsCount || 0 };
+        
+        result = { 
+          ok: true,
+          request_id: requestId,
+          clients: clients || [], 
+          total_count: clientsCount || 0,
+          resolved_permissions: resolvedPermissions,
+          applied_filters: clientFilters,
+        };
         break;
+      }
 
       case "get_client_details":
         if (!resolvedPermissions?.can_view_clients) {

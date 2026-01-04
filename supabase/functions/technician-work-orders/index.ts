@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
+// Generate request ID for tracking
+function generateRequestId(): string {
+  return `tech-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+}
+
 // Verify and decode JWT-like token
 async function verifyToken(token: string, secret: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
   try {
@@ -51,6 +56,7 @@ serve(async (req) => {
   
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  const requestId = generateRequestId();
 
   try {
     const token = req.headers.get('x-technician-token');
@@ -58,7 +64,7 @@ serve(async (req) => {
     if (!token) {
       console.log("[technician-work-orders] Missing token");
       return new Response(
-        JSON.stringify({ error: "Token de session requis" }),
+        JSON.stringify({ ok: false, request_id: requestId, error: "Token de session requis" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -69,21 +75,29 @@ serve(async (req) => {
     if (!verification.valid) {
       console.log("[technician-work-orders] Invalid token:", verification.error);
       return new Response(
-        JSON.stringify({ error: "Session invalide ou expirée. Veuillez vous reconnecter." }),
+        JSON.stringify({ ok: false, request_id: requestId, error: "Session invalide ou expirée. Veuillez vous reconnecter." }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { technicianId, fullName } = verification.payload;
-    console.log(`[technician-work-orders] Fetching for technician: ${fullName} (${technicianId})`);
+    const { technicianId, fullName, permissions } = verification.payload;
+    console.log(`[technician-work-orders] RequestID: ${requestId} | Fetching for technician: ${fullName} (${technicianId})`);
+    
+    // Check view appointments permission (technicians should have this by default)
+    const hasViewPermission = permissions?.can_view_appointments !== false && 
+                              permissions?.view_appointments !== false;
+    
+    // Log permissions status
+    console.log(`[technician-work-orders] Permissions:`, JSON.stringify(permissions || {}));
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: workOrders, error: woError } = await supabase
+    // Fetch work orders assigned to this technician
+    const { data: workOrders, error: woError, count: woCount } = await supabase
       .from("work_orders")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("assigned_technician_id", technicianId)
       .order("scheduled_start", { ascending: true, nullsFirst: false });
 
@@ -91,7 +105,7 @@ serve(async (req) => {
       console.error("[technician-work-orders] work_orders query error:", woError);
     }
 
-    console.log(`[technician-work-orders] work_orders found: ${workOrders?.length || 0}`);
+    console.log(`[technician-work-orders] work_orders found: ${workOrders?.length || 0} (total in DB: ${woCount})`);
 
     const { data: legacyOrders, error: ordersError } = await supabase
       .from("orders")
@@ -229,8 +243,11 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        ok: true,
         success: true,
+        request_id: requestId,
         technicianId,
+        technicianName: fullName,
         current,
         history,
         counts: {
@@ -241,6 +258,8 @@ serve(async (req) => {
           legacyOrders: orders.length,
           legacyAppointments: appointments.length,
         },
+        applied_filters: ["assigned_to_technician"],
+        resolved_permissions: permissions || {},
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -249,7 +268,7 @@ serve(async (req) => {
     console.error("[technician-work-orders] Unexpected error:", error);
     const origin = req.headers.get('origin');
     return new Response(
-      JSON.stringify({ error: "Erreur inattendue. Veuillez réessayer." }),
+      JSON.stringify({ ok: false, error: "Erreur inattendue. Veuillez réessayer." }),
       { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }

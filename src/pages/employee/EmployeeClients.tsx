@@ -73,6 +73,7 @@ import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 import EmployeeDebugPanel from "@/components/employee/EmployeeDebugPanel";
+import AccessDeniedCard from "@/components/employee/AccessDeniedCard";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: "Actif", color: "bg-emerald-500/20 text-emerald-600" },
@@ -153,6 +154,8 @@ const EmployeeClients = () => {
     service_postal_code: "",
     service_province: "QC",
   });
+  const [accessDenied, setAccessDenied] = useState<{ denied: boolean; reason?: string; neededPermission?: string; requestId?: string }>({ denied: false });
+  const [lastResponse, setLastResponse] = useState<any>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("nivra_employee_session");
@@ -176,13 +179,29 @@ const EmployeeClients = () => {
   const fetchClients = async () => {
     if (!session?.token) return;
     setIsLoading(true);
+    setAccessDenied({ denied: false });
     try {
       const { data, error } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
-        body: { action: "get_clients", params: { limit: 200 } },
+        body: { action: "get_clients", params: { limit: 500 } },
       });
+      
+      // Check for 403 / access denied
+      if (data?.ok === false && data?.reason === "not_allowed") {
+        setAccessDenied({ 
+          denied: true, 
+          reason: data.reason, 
+          neededPermission: data.needed_permission,
+          requestId: data.request_id 
+        });
+        setLastResponse(data);
+        setClients([]);
+        return;
+      }
+      
       if (error) throw error;
       setClients(data?.clients || []);
+      setLastResponse(data);
       setLastRefresh(new Date());
     } catch (error) {
       console.error("Error:", error);
@@ -551,7 +570,13 @@ const EmployeeClients = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {isLoading ? (
+            {accessDenied.denied ? (
+              <AccessDeniedCard 
+                neededPermission={accessDenied.neededPermission}
+                requestId={accessDenied.requestId}
+                showBackButton={true}
+              />
+            ) : isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="w-6 h-6 animate-spin text-primary" />
               </div>
