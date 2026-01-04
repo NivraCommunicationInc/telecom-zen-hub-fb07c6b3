@@ -134,13 +134,20 @@ export interface LegacyTelecomContractData {
  */
 export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData): jsPDF {
   // Build services array from legacy fields - include ALL selected services with prices
+  // IMPORTANT: Each service MUST be on its own row, never concatenated
   const services: ServiceLineItem[] = [];
+  
+  // Helper to determine if price is valid (not undefined and not 0 when it shouldn't be)
+  const hasValidPrice = (price: number | undefined): boolean => {
+    return price !== undefined && price !== null;
+  };
   
   if (data.internetPlan) {
     services.push({ 
       type: "Internet", 
       name: data.internetPlan, 
-      monthlyPrice: data.internetPrice || 0,
+      // Use -1 as sentinel for "Prix à confirmer" - will be handled in generator
+      monthlyPrice: hasValidPrice(data.internetPrice) ? data.internetPrice! : -1,
       priceLabel: "/mois",
     });
   }
@@ -149,7 +156,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
       type: "TV", 
       name: data.tvBundle, 
       description: "Requiert Internet", 
-      monthlyPrice: data.tvPrice || 0,
+      monthlyPrice: hasValidPrice(data.tvPrice) ? data.tvPrice! : -1,
       priceLabel: "/mois",
     });
   }
@@ -157,7 +164,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     services.push({ 
       type: "Mobile", 
       name: data.mobilePlan, 
-      monthlyPrice: data.mobilePrice || 0,
+      monthlyPrice: hasValidPrice(data.mobilePrice) ? data.mobilePrice! : -1,
       priceLabel: "/30 jours",
     });
   }
@@ -165,7 +172,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     services.push({ 
       type: "Streaming", 
       name: data.streamingPlan, 
-      monthlyPrice: data.streamingPrice || 0,
+      monthlyPrice: hasValidPrice(data.streamingPrice) ? data.streamingPrice! : -1,
       priceLabel: "/mois",
     });
   }
@@ -173,12 +180,44 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
   // Fallback to generic service only if no services found
   if (services.length === 0 && (data.servicePlan || data.serviceDescription || data.contractName)) {
     const planName = data.servicePlan || data.serviceDescription || data.contractName || "Services";
-    services.push({ 
-      type: "Other", 
-      name: planName, 
-      monthlyPrice: data.subtotal || data.monthlyAmount || 0,
-      priceLabel: "/mois",
-    });
+    // Try to split by comma or + to get individual services
+    const parts = planName.split(/[,+]/).map(s => s.trim()).filter(Boolean);
+    
+    if (parts.length > 1) {
+      // Multiple services detected in the string - create separate entries
+      parts.forEach(part => {
+        // Try to detect service type from the part name
+        const partLower = part.toLowerCase();
+        let type: "Mobile" | "Internet" | "TV" | "Streaming" | "Security" | "Other" = "Other";
+        let priceLabel = "/mois";
+        
+        if (partLower.includes('internet') || partLower.includes('fibre')) {
+          type = "Internet";
+        } else if (partLower.includes('tv') || partLower.includes('télé')) {
+          type = "TV";
+        } else if (partLower.includes('mobile') || partLower.includes('cellulaire')) {
+          type = "Mobile";
+          priceLabel = "/30 jours";
+        } else if (partLower.includes('streaming')) {
+          type = "Streaming";
+        }
+        
+        services.push({ 
+          type, 
+          name: part, 
+          monthlyPrice: -1, // Price unknown for parsed services
+          priceLabel,
+        });
+      });
+    } else {
+      // Single service or unparseable - use as-is
+      services.push({ 
+        type: "Other", 
+        name: planName, 
+        monthlyPrice: (data.subtotal && data.subtotal > 0) ? data.subtotal : (data.monthlyAmount || -1),
+        priceLabel: "/mois",
+      });
+    }
   }
   
   // Build equipment array
@@ -224,9 +263,17 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
   // Keep empty discounts array for type compatibility
   const discounts: DiscountItem[] = [];
   
-  // Calculate totals
+  // Calculate totals - ignore services with unknown price (-1)
   const equipmentTotal = equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
   const feesTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0);
+  
+  // Calculate services subtotal - only include services with known prices (not -1)
+  const servicesSubtotal = services.reduce((sum, s) => {
+    if (s.monthlyPrice > 0) {
+      return sum + s.monthlyPrice * (s.quantity || 1);
+    }
+    return sum;
+  }, 0);
   
   const unifiedData: UnifiedDocumentData = {
     docType: "contract",
@@ -258,7 +305,8 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     oneTimeFees,
     discounts,
     billing: {
-      subtotal: data.subtotal || data.monthlyAmount || 0,
+      // Use calculated services subtotal if available, otherwise fall back to data.subtotal
+      subtotal: servicesSubtotal > 0 ? servicesSubtotal : (data.subtotal || data.monthlyAmount || 0),
       oneTimeTotal: equipmentTotal + feesTotal,
       discountTotal: 0, // No discounts - always 0
       tps: data.tpsAmount || 0,

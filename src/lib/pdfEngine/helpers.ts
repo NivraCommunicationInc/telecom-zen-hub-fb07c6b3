@@ -503,7 +503,14 @@ export const addDocumentFooter = (
 
 // ============= FORMATTING HELPERS =============
 
+/**
+ * Formats a number as currency. 
+ * Returns "Prix à confirmer" if amount is -1 (unknown price sentinel value)
+ */
 export const formatCurrency = (amount: number): string => {
+  if (amount === -1) {
+    return "Prix à confirmer";
+  }
   return `${amount.toFixed(2)} $`;
 };
 

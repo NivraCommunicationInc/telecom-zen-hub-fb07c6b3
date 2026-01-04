@@ -101,12 +101,30 @@ export const ensureOrderContractUpToDate = async (params: {
   const [firstName, ...rest] = String(fullName).split(" ");
   const lastName = rest.join(" ");
 
-  // Parse service type to determine individual services and prices
+  // Parse service type and equipment details to determine individual services and prices
   const serviceType = String((order as any).service_type || "").toLowerCase();
   const subtotal = Number((order as any).subtotal ?? 0);
   
-  // Build individual service prices based on service type
-  // These should ideally come from the order, but we parse from service_type for now
+  // Try to extract structured service data from equipment_details if available
+  const equipmentDetails = (order as any).equipment_details;
+  let parsedServices: Array<{type: string; name: string; price?: number; priceLabel?: string}> = [];
+  
+  // Check if equipment_details contains line_items or services array
+  if (equipmentDetails && typeof equipmentDetails === 'object') {
+    const lineItems = equipmentDetails.line_items || equipmentDetails.services || [];
+    if (Array.isArray(lineItems)) {
+      parsedServices = lineItems.filter((item: any) => 
+        item && (item.type || item.name) && item.category !== 'equipment' && item.category !== 'fee'
+      ).map((item: any) => ({
+        type: item.type || 'Other',
+        name: item.name || item.description || 'Service',
+        price: item.unitPrice || item.price || item.monthlyPrice,
+        priceLabel: item.priceLabel || item.periodLabel || '/mois',
+      }));
+    }
+  }
+  
+  // Build individual service prices based on parsed data or service_type fallback
   let internetPlan: string | undefined;
   let internetPrice: number | undefined;
   let tvBundle: string | undefined;
@@ -116,22 +134,45 @@ export const ensureOrderContractUpToDate = async (params: {
   let streamingPlan: string | undefined;
   let streamingPrice: number | undefined;
   
-  // Parse service type to identify individual services
-  if (serviceType.includes("internet") || serviceType.includes("fibre")) {
-    internetPlan = "Internet Résidentiel";
-    internetPrice = subtotal > 0 ? subtotal : 50; // Fallback price
+  // First, use parsed services if available
+  if (parsedServices.length > 0) {
+    for (const svc of parsedServices) {
+      const svcType = (svc.type || '').toLowerCase();
+      if (svcType.includes('internet') || svcType === 'internet') {
+        internetPlan = svc.name;
+        internetPrice = svc.price;
+      } else if (svcType.includes('tv') || svcType === 'tv') {
+        tvBundle = svc.name;
+        tvPrice = svc.price;
+      } else if (svcType.includes('mobile') || svcType === 'mobile') {
+        mobilePlan = svc.name;
+        mobilePrice = svc.price;
+      } else if (svcType.includes('streaming') || svcType === 'streaming') {
+        streamingPlan = svc.name;
+        streamingPrice = svc.price;
+      }
+    }
   }
-  if (serviceType.includes("tv") || serviceType.includes("télé")) {
-    tvBundle = "Forfait TV";
-    tvPrice = 35; // Standard TV price
-  }
-  if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
-    mobilePlan = "Forfait Mobile Prépayé";
-    mobilePrice = 60; // Standard mobile price
-  }
-  if (serviceType.includes("streaming")) {
-    streamingPlan = "Streaming+";
-    streamingPrice = 15;
+  
+  // Fallback: Parse service_type string if no parsed services found
+  if (!internetPlan && !tvBundle && !mobilePlan && !streamingPlan) {
+    if (serviceType.includes("internet") || serviceType.includes("fibre")) {
+      internetPlan = "Internet Résidentiel";
+      // Don't set a hardcoded price - let it show "Prix à confirmer"
+      internetPrice = undefined;
+    }
+    if (serviceType.includes("tv") || serviceType.includes("télé")) {
+      tvBundle = "Forfait TV";
+      tvPrice = undefined;
+    }
+    if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
+      mobilePlan = "Forfait Mobile Prépayé";
+      mobilePrice = undefined;
+    }
+    if (serviceType.includes("streaming")) {
+      streamingPlan = "Streaming+";
+      streamingPrice = undefined;
+    }
   }
   
   // If we can't parse specific services, use the whole subtotal as one service
