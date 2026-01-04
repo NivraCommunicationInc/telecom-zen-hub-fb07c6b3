@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Shield, UserCog, Wrench, Eye, EyeOff } from "lucide-react";
+import { Shield, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,24 +24,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   ALL_PERMISSIONS,
   PERMISSION_LABELS,
-  DEFAULT_PERMISSIONS,
   type Permission,
   type PermissionSet,
 } from "@/hooks/useUserPermissions";
 
-type StaffRole = "admin" | "employee" | "technician";
+// Only admin role is supported now
+type StaffRole = "admin";
 
 const createUserSchema = z.object({
   // Identity
@@ -51,35 +44,19 @@ const createUserSchema = z.object({
   // Organization
   badge_number: z.string().min(1, "Numéro de badge requis"),
   job_title: z.string().optional(),
-  // Access
-  role: z.enum(["admin", "employee", "technician"]),
+  // Access - admin only
+  role: z.literal("admin"),
   is_active: z.boolean(),
-  // Security
-  pin: z.string().regex(/^\d{4}$/, "Le PIN doit être exactement 4 chiffres").optional().or(z.literal("")),
-  pin_confirm: z.string().optional().or(z.literal("")),
-  require_pin_change: z.boolean(),
   // Onboarding
   send_invitation: z.boolean(),
   internal_note: z.string().optional(),
-}).refine((data) => {
-  if (data.role !== "admin" && data.pin) {
-    return data.pin === data.pin_confirm;
-  }
-  return true;
-}, {
-  message: "Les PINs ne correspondent pas",
-  path: ["pin_confirm"],
-}).refine((data) => {
-  if (data.role !== "admin") {
-    return data.pin && data.pin.length === 4;
-  }
-  return true;
-}, {
-  message: "Le PIN est requis pour les employés et techniciens",
-  path: ["pin"],
 });
 
-export type CreateUserFormData = z.infer<typeof createUserSchema>;
+export type CreateUserFormData = z.infer<typeof createUserSchema> & {
+  pin?: string;
+  pin_confirm?: string;
+  require_pin_change?: boolean;
+};
 
 interface CreateUserDialogProps {
   open: boolean;
@@ -94,10 +71,9 @@ export function CreateUserDialog({
   onSubmit,
   isPending,
 }: CreateUserDialogProps) {
-  const [showPin, setShowPin] = useState(false);
   const [permissions, setPermissions] = useState<Partial<PermissionSet>>({});
 
-  const form = useForm<CreateUserFormData>({
+  const form = useForm<z.infer<typeof createUserSchema>>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
       full_name: "",
@@ -105,19 +81,12 @@ export function CreateUserDialog({
       phone: "",
       badge_number: "",
       job_title: "",
-      role: "employee",
+      role: "admin",
       is_active: true,
-      pin: "",
-      pin_confirm: "",
-      require_pin_change: false,
       send_invitation: true,
       internal_note: "",
     },
   });
-
-  const selectedRole = form.watch("role");
-
-  // Role pack removed - permissions checkboxes are now the only source of truth
 
   const togglePermission = (perm: Permission) => {
     setPermissions((prev) => ({
@@ -126,7 +95,7 @@ export function CreateUserDialog({
     }));
   };
 
-  const handleSubmit = (data: CreateUserFormData) => {
+  const handleSubmit = (data: z.infer<typeof createUserSchema>) => {
     onSubmit({ ...data, permissions });
   };
 
@@ -142,9 +111,9 @@ export function CreateUserDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Créer un utilisateur</DialogTitle>
+          <DialogTitle>Créer un administrateur</DialogTitle>
           <DialogDescription>
-            Ajoutez un nouveau membre du personnel avec ses accès et permissions
+            Ajoutez un nouveau compte administrateur avec ses permissions
           </DialogDescription>
         </DialogHeader>
 
@@ -215,9 +184,9 @@ export function CreateUserDialog({
                     <FormItem>
                       <FormLabel>Numéro de badge *</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="EMP-0001" />
+                        <Input {...field} placeholder="ADM-0001" />
                       </FormControl>
-                      <FormDescription>Identifiant unique de l'employé</FormDescription>
+                      <FormDescription>Identifiant unique de l'administrateur</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -229,7 +198,7 @@ export function CreateUserDialog({
                     <FormItem>
                       <FormLabel>Titre du poste</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Agent support" />
+                        <Input {...field} placeholder="Administrateur système" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -246,57 +215,22 @@ export function CreateUserDialog({
                 <Badge variant="outline">3</Badge>
                 Accès & Permissions
               </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rôle *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un rôle" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="admin">
-                            <div className="flex items-center gap-2">
-                              <Shield className="h-4 w-4" />
-                              Administrateur
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="employee">
-                            <div className="flex items-center gap-2">
-                              <UserCog className="h-4 w-4" />
-                              Employé
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="technician">
-                            <div className="flex items-center gap-2">
-                              <Wrench className="h-4 w-4" />
-                              Technicien
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="is_active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 pt-8">
-                      <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel>Compte actif dès la création</FormLabel>
-                    </FormItem>
-                  )}
-                />
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <Shield className="h-5 w-5 text-primary" />
+                <span className="font-medium">Rôle: Administrateur</span>
               </div>
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel>Compte actif dès la création</FormLabel>
+                  </FormItem>
+                )}
+              />
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -318,87 +252,10 @@ export function CreateUserDialog({
 
             <Separator />
 
-            {/* Section: Sécurité (PIN) */}
-            {selectedRole !== "admin" && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Badge variant="outline">4</Badge>
-                  Sécurité (PIN)
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="pin"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PIN (4 chiffres) *</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type={showPin ? "text" : "password"}
-                              maxLength={4}
-                              placeholder="****"
-                              inputMode="numeric"
-                              pattern="\d{4}"
-                            />
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full"
-                            onClick={() => setShowPin(!showPin)}
-                          >
-                            {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="pin_confirm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirmer PIN *</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type={showPin ? "text" : "password"}
-                            maxLength={4}
-                            placeholder="****"
-                            inputMode="numeric"
-                            pattern="\d{4}"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="require_pin_change"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel>Exiger changement de PIN au premier login</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-
-            <Separator />
-
             {/* Section: Onboarding */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Badge variant="outline">{selectedRole !== "admin" ? "5" : "4"}</Badge>
+                <Badge variant="outline">4</Badge>
                 Onboarding
               </h3>
               <FormField
@@ -442,7 +299,7 @@ export function CreateUserDialog({
                 Annuler
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Création..." : "Créer l'utilisateur"}
+                {isPending ? "Création..." : "Créer l'administrateur"}
               </Button>
             </DialogFooter>
           </form>
