@@ -136,6 +136,7 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   const contentWidth = pageWidth - marginLeft - marginRight;
   let currentY = 15;
   let pageNumber = 1;
+  let totalPages = 7; // Will be updated at the end
 
   // Color palette
   const primaryNavy: [number, number, number] = [15, 23, 42];
@@ -149,7 +150,6 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   // ========== HELPER FUNCTIONS ==========
 
   const addNewPage = () => {
-    addFooter();
     doc.addPage();
     pageNumber++;
     currentY = 20;
@@ -173,17 +173,17 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
       doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...white);
-      doc.text("NIVRA TELECOM — Prepaid Services Agreement", marginLeft, 9);
+      doc.text("NIVRA TELECOM — Contrat de services prépayés", marginLeft, 9);
 
       doc.setFontSize(6);
       doc.setFont("helvetica", "normal");
-      doc.text(`Order Ref: ${data.orderReference}`, pageWidth - marginRight, 9, { align: "right" });
+      doc.text(`Réf: ${data.orderReference}`, pageWidth - marginRight, 9, { align: "right" });
 
       currentY = 18;
     }
   };
 
-  const addFooter = () => {
+  const addFooter = (pageNum: number) => {
     doc.setDrawColor(...borderLight);
     doc.setLineWidth(0.3);
     doc.line(marginLeft, pageHeight - 18, pageWidth - marginRight, pageHeight - 18);
@@ -205,7 +205,27 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
     doc.text(engineLine, pageWidth / 2, pageHeight - 9, { align: "center" });
 
     doc.setFont("helvetica", "bold");
-    doc.text(`Page ${pageNumber}`, pageWidth - marginRight, pageHeight - 8, { align: "right" });
+    doc.text(`Page ${pageNum} / ${totalPages}`, pageWidth - marginRight, pageHeight - 8, { align: "right" });
+  };
+
+  const addAnnexeHeader = (letter: string, title: string) => {
+    doc.setFillColor(...primaryNavy);
+    doc.rect(0, 0, pageWidth, 25, "F");
+
+    doc.setFillColor(...accentTeal);
+    doc.rect(0, 25, pageWidth, 3, "F");
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...white);
+    doc.text(`Annexe ${letter}`, pageWidth / 2, 12, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...accentTeal);
+    doc.text(title, pageWidth / 2, 20, { align: "center" });
+
+    currentY = 35;
   };
 
   const addSectionHeader = (number: string, title: string) => {
@@ -220,7 +240,7 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryNavy);
-    doc.text(`${number}) ${title}`, marginLeft, currentY);
+    doc.text(`${number}. ${title}`, marginLeft, currentY);
 
     currentY += 2;
     doc.setDrawColor(...borderLight);
@@ -301,7 +321,7 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
     currentY += rowHeight;
   };
 
-  // ========== PAGE 1: CRITICAL INFORMATION SUMMARY ==========
+  // ========== PAGE 1: RÉSUMÉ DU CONTRAT ==========
 
   // Top accent
   doc.setFillColor(...accentTeal);
@@ -315,182 +335,217 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...white);
-  doc.text("Nivra Telecom — Prepaid Services Agreement", pageWidth / 2, 15, { align: "center" });
+  doc.text("Nivra Telecom — Contrat de services prépayés", pageWidth / 2, 15, { align: "center" });
 
   // Subtitle
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...accentTeal);
-  doc.text("(Mobile | Internet | TV Bundle | Streaming+)", pageWidth / 2, 23, { align: "center" });
+  doc.text("RÉSUMÉ DU CONTRAT", pageWidth / 2, 23, { align: "center" });
 
-  currentY = 36;
+  currentY = 38;
 
   // Page label
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
-  doc.text("Page 1 — Critical Information Summary (Required)", marginLeft, currentY);
+  doc.text("Page 1 — Résumé et acceptation du contrat", marginLeft, currentY);
   currentY += 8;
 
   // Provider info box
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
   doc.setLineWidth(0.5);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 18, 1, 1, "FD");
+  doc.roundedRect(marginLeft, currentY, contentWidth, 16, 1, 1, "FD");
 
   doc.setFontSize(6);
   doc.setTextColor(...textDark);
-  doc.text(`Provider (Legal Name): ${data.providerLegalName || BUSINESS_INFO.legalName}`, marginLeft + 3, currentY + 5);
-  doc.text(`Operating/Brand Name: Nivra Telecom ("Nivra")`, marginLeft + 3, currentY + 9);
-  doc.text(`Address: ${data.providerAddress || BUSINESS_INFO.address}`, marginLeft + 3, currentY + 13);
-  doc.text(`Support: ${data.supportPhone || BUSINESS_INFO.phone} | ${data.supportEmail || BUSINESS_INFO.email} | Client Portal Tickets`, marginLeft + 3, currentY + 17);
+  doc.text(`Fournisseur: ${data.providerLegalName || BUSINESS_INFO.legalName}`, marginLeft + 3, currentY + 5);
+  doc.text(`Adresse: ${data.providerAddress || BUSINESS_INFO.address}`, marginLeft + 3, currentY + 9);
+  doc.text(`Support: ${data.supportPhone || BUSINESS_INFO.phone} | ${data.supportEmail || BUSINESS_INFO.email}`, marginLeft + 3, currentY + 13);
 
-  currentY += 24;
+  currentY += 22;
 
   // Contract/Order info
-  addLabelValue("Contract ID", data.contractId || `CTR-PREP-${data.orderReference}`);
-  addLabelValue("Order ID", data.orderId);
-  addLabelValue("Order Reference #", data.orderReference);
-  addLabelValue("Issue Date", data.issueDate);
-  addLabelValue("Effective Date", data.effectiveDate);
-  addLabelValue("Client", `${data.clientFullName} | ${data.clientEmail} | ${data.clientPhone || "—"}`);
+  addLabelValue("Numéro de contrat", data.contractId || `CTR-PREP-${data.orderReference}`);
+  addLabelValue("Numéro de commande", data.orderId);
+  addLabelValue("Référence", data.orderReference);
+  addLabelValue("Date d'émission", data.issueDate);
+  addLabelValue("Date d'entrée en vigueur", data.effectiveDate);
 
   currentY += 4;
 
-  // 1) Prepaid & Cancellation
+  // Client info
+  addSubHeader("INFORMATIONS CLIENT");
+  addLabelValue("Nom complet", data.clientFullName);
+  addLabelValue("Courriel", data.clientEmail);
+  addLabelValue("Téléphone", data.clientPhone || "—");
+  addLabelValue("Adresse de service", data.serviceAddressFull || "—");
+  addLabelValue("Adresse de facturation", data.billingAddressFull || data.serviceAddressFull || "—");
+
+  currentY += 4;
+
+  // Services summary
+  addSubHeader("SERVICES SOUSCRITS");
+
+  const serviceColWidths = [35, 70, 50];
+  addTableHeader(["Service", "Forfait", "Prix/cycle"], serviceColWidths);
+
+  if (data.mobilePlan) {
+    addTableRow(["Mobile", data.mobilePlan.name, `${data.mobilePlan.cyclePrice.toFixed(2)} $`], serviceColWidths);
+  }
+  if (data.internetPlan) {
+    addTableRow(["Internet", data.internetPlan.name, `${data.internetPlan.cyclePrice.toFixed(2)} $`], serviceColWidths);
+  }
+  if (data.tvPlan) {
+    addTableRow(["TV", data.tvPlan.name, `${data.tvPlan.cyclePrice.toFixed(2)} $`], serviceColWidths);
+  }
+  if (data.streamingAddons && data.streamingAddons.length > 0) {
+    const streamingList = data.streamingAddons.map(s => s.name).join(", ");
+    const streamingTotal = data.streamingAddons.reduce((sum, s) => sum + s.priceMonthly, 0);
+    addTableRow(["Streaming+", streamingList, `${streamingTotal.toFixed(2)} $`], serviceColWidths);
+  }
+
+  currentY += 6;
+
+  // Totals box
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...borderLight);
+  doc.roundedRect(marginLeft, currentY, contentWidth, 22, 1, 1, "FD");
+
+  doc.setFontSize(6.5);
+  doc.setTextColor(...textDark);
+  let boxY = currentY + 5;
+  doc.text(`Sous-total récurrent: ${data.recurringSubtotal.toFixed(2)} $`, marginLeft + 5, boxY);
+  if (data.discountsTotal && data.discountsTotal > 0) {
+    boxY += 4;
+    doc.text(`Rabais: -${data.discountsTotal.toFixed(2)} $`, marginLeft + 5, boxY);
+  }
+  boxY += 4;
+  doc.text(`Taxes (TPS/TVQ): ${data.taxTotal.toFixed(2)} $`, marginLeft + 5, boxY);
+  boxY += 4;
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total récurrent par cycle: ${data.recurringTotal.toFixed(2)} $`, marginLeft + 5, boxY);
+
+  // One-time on right side
+  doc.setFont("helvetica", "normal");
+  boxY = currentY + 5;
+  doc.text(`Frais uniques: ${data.oneTimeSubtotal.toFixed(2)} $`, marginLeft + 100, boxY);
+  boxY += 4;
+  doc.text(`Taxes frais uniques: ${data.oneTimeTax.toFixed(2)} $`, marginLeft + 100, boxY);
+  boxY += 4;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryNavy);
+  doc.text(`TOTAL DÛ AUJOURD'HUI: ${data.totalDueToday.toFixed(2)} $ CAD`, marginLeft + 100, boxY);
+
+  currentY += 28;
+
+  // Acceptation des annexes
+  addSubHeader("ACCEPTATION DES ANNEXES");
+  doc.setFontSize(6.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...textDark);
+  const annexeText = "En signant ce contrat, le client reconnaît avoir lu et accepté les termes et conditions décrits dans les annexes suivantes:";
+  doc.text(annexeText, marginLeft, currentY);
+  currentY += 5;
+
+  const annexeList = [
+    "Annexe A — Services prépayés et tarification",
+    "Annexe B — Équipement et livraison",
+    "Annexe C — Annulation et remboursement",
+    "Annexe D — Responsabilité et confidentialité",
+    "Annexe E — Instantané de commande (Snapshot)"
+  ];
+
+  annexeList.forEach(annexe => {
+    doc.setFontSize(6);
+    doc.text(`• ${annexe}`, marginLeft + 5, currentY);
+    currentY += 4;
+  });
+
+  currentY += 6;
+
+  // Signatures section
+  addSubHeader("SIGNATURES");
+
+  const sigBoxWidth = (contentWidth - 10) / 2;
+  const sigBoxHeight = 35;
+
+  // Client signature box (LEFT)
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...borderLight);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(marginLeft, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "FD");
+
+  doc.setFillColor(...accentTeal);
+  doc.rect(marginLeft, currentY, 3, sigBoxHeight, "F");
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryNavy);
+  doc.text("CLIENT", marginLeft + 8, currentY + 7);
+
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...textDark);
+  doc.text(`Nom: ${data.clientFullName}`, marginLeft + 8, currentY + 13);
+  doc.text(`Signature: ${data.clientSignature || "____________________"}`, marginLeft + 8, currentY + 19);
+  doc.text(`Date: ${data.clientSignedDatetime || "____________________"}`, marginLeft + 8, currentY + 25);
+  doc.text(`IP: ${data.clientIp || "—"}`, marginLeft + 8, currentY + 31);
+
+  // Provider signature box (RIGHT)
+  const provSigX = marginLeft + sigBoxWidth + 10;
+  doc.setFillColor(...primaryNavy);
+  doc.roundedRect(provSigX, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "F");
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...accentTeal);
+  doc.text("NIVRA TELECOM", provSigX + 5, currentY + 7);
+
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...white);
+  doc.text(`Représentant: ${data.repNameTitle || "____________________"}`, provSigX + 5, currentY + 13);
+  doc.text(`Signature: ${data.repSignature || "____________________"}`, provSigX + 5, currentY + 19);
+  doc.text(`Date: ${data.repSignedDatetime || "____________________"}`, provSigX + 5, currentY + 25);
+
+  currentY += sigBoxHeight + 8;
+
+  // Signature status banner
+  if (data.isSigned && data.signedAt) {
+    doc.setFillColor(220, 252, 231);
+    doc.setDrawColor(34, 197, 94);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(marginLeft, currentY, contentWidth, 12, 3, 3, "FD");
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(22, 163, 74);
+    doc.text("CONTRAT SIGNÉ", pageWidth / 2, currentY + 7, { align: "center" });
+  } else {
+    doc.setFillColor(254, 249, 195);
+    doc.setDrawColor(234, 179, 8);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(marginLeft, currentY, contentWidth, 10, 3, 3, "FD");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(161, 98, 7);
+    doc.text("EN ATTENTE DE SIGNATURE", pageWidth / 2, currentY + 6, { align: "center" });
+  }
+
+  addFooter(1);
+
+  // ========== ANNEXE A: SERVICES PRÉPAYÉS ET TARIFICATION ==========
+  addNewPage();
+  addAnnexeHeader("A", "Services prépayés et tarification");
+
   addSectionHeader("1", "Prepaid & Cancellation");
   addParagraph("Prepaid service: recurring service fees are billed in advance for each service cycle.");
   addParagraph("Cancel anytime: you may cancel at any time. No device financing under this Agreement.");
   addParagraph("If you cancel, service typically remains active until the end of the already-paid period unless otherwise required by law.");
 
-  // 2) What you bought
-  addSectionHeader("2", "What you bought (from your processed order)");
-  addParagraph("This section must exactly match the processed order snapshot.");
-
-  addLabelValue("Service Address (Internet/TV)", data.serviceAddressFull || "—");
-  addLabelValue("Billing Address", data.billingAddressFull || data.serviceAddressFull || "—");
-
-  currentY += 4;
-  addSubHeader("Monthly / Cycle Services (Prepaid)");
-
-  const serviceColWidths = [35, 70, 50];
-  addTableHeader(["Service", "Plan", "Cycle Price"], serviceColWidths);
-
-  if (data.mobilePlan) {
-    addTableRow(["Mobile", data.mobilePlan.name, `$${data.mobilePlan.cyclePrice.toFixed(2)}`], serviceColWidths);
-  }
-  if (data.internetPlan) {
-    addTableRow(["Internet", data.internetPlan.name, `$${data.internetPlan.cyclePrice.toFixed(2)}`], serviceColWidths);
-  }
-  if (data.tvPlan) {
-    addTableRow(["TV (requires Internet)", data.tvPlan.name, `$${data.tvPlan.cyclePrice.toFixed(2)}`], serviceColWidths);
-  }
-  if (data.streamingAddons && data.streamingAddons.length > 0) {
-    const streamingList = data.streamingAddons.map(s => s.name).join(", ");
-    const streamingTotal = data.streamingAddons.reduce((sum, s) => sum + s.priceMonthly, 0);
-    addTableRow(["Streaming+ Add-ons", streamingList, `$${streamingTotal.toFixed(2)}`], serviceColWidths);
-  }
-
-  currentY += 4;
-
-  addLabelValue("Recurring subtotal (prepaid)", `$${data.recurringSubtotal.toFixed(2)}`);
-  if (data.discountsTotal && data.discountsTotal > 0) {
-    addLabelValue("Discounts (if any)", `-$${data.discountsTotal.toFixed(2)}`);
-  }
-  addLabelValue("Taxes (GST/QST)", `$${data.taxTotal.toFixed(2)}`);
-  addLabelValue("Recurring total per cycle", `$${data.recurringTotal.toFixed(2)}`);
-
-  addFooter();
-
-  // ========== PAGE 2: ONE-TIME CHARGES & PAYMENT ==========
-  addNewPage();
-
-  addSubHeader("One-Time Charges (if any)");
-
-  const feeColWidths = [60, 25, 35, 35];
-  addTableHeader(["Item", "Qty", "Unit Price", "Total"], feeColWidths);
-
-  if (data.activationQty && data.activationQty > 0) {
-    addTableRow(["Activation", String(data.activationQty), "$25.00", `$${(data.activationTotal || 25).toFixed(2)}`], feeColWidths);
-  }
-  if (data.deliveryQty && data.deliveryQty > 0) {
-    addTableRow(["Delivery", String(data.deliveryQty), "$30.00", `$${(data.deliveryTotal || 30).toFixed(2)}`], feeColWidths);
-  }
-  if (data.terminalQty && data.terminalQty > 0) {
-    addTableRow(["Nivra 4K Smart Terminal (purchase)", String(data.terminalQty), "$50.00", `$${(data.terminalTotal || 50).toFixed(2)}`], feeColWidths);
-  }
-  if (data.routerQty && data.routerQty > 0) {
-    addTableRow(["Nivra Born WiFi Router (purchase)", String(data.routerQty), "$60.00", `$${(data.routerTotal || 60).toFixed(2)}`], feeColWidths);
-  }
-  if (data.reactivationQty && data.reactivationQty > 0) {
-    addTableRow(["Reactivation (only if applicable)", String(data.reactivationQty), "$15.00", `$${(data.reactivationTotal || 15).toFixed(2)}`], feeColWidths);
-  }
-
-  currentY += 4;
-
-  addLabelValue("One-time subtotal", `$${data.oneTimeSubtotal.toFixed(2)}`);
-  addLabelValue("Taxes", `$${data.oneTimeTax.toFixed(2)}`);
-  addLabelValue("One-time total", `$${data.oneTimeTotal.toFixed(2)}`);
-
-  currentY += 6;
-
-  // 3) Amount Due Today
-  addSectionHeader("3", "Amount Due Today (must not be $0.00 unless truly free)");
-
-  // Total due box
-  doc.setFillColor(...primaryNavy);
-  doc.roundedRect(marginLeft, currentY - 2, contentWidth, 10, 1, 1, "F");
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...white);
-  doc.text("Total due today:", marginLeft + 5, currentY + 4);
-  doc.text(`$${data.totalDueToday.toFixed(2)} CAD`, pageWidth - marginRight - 5, currentY + 4, { align: "right" });
-  currentY += 14;
-
-  addLabelValue("Payment method", data.paymentMethod || "—");
-  addLabelValue("Payment status", data.paymentStatus || "Pending");
-
-  currentY += 4;
-
-  // 4) Late payment, suspension, reactivation
-  addSectionHeader("4", "Late payment, suspension, reactivation");
-  addParagraph("Late payment fee: 5% may apply to overdue invoices.");
-  addParagraph("Service suspension may occur after 30 days past due.");
-  addParagraph("Reactivation fee: $15 to restore service after suspension.");
-
-  currentY += 4;
-
-  // Client Acceptance signature box
-  addSubHeader("Client Acceptance (e-sign)");
-
-  doc.setFillColor(...bgLight);
-  doc.setDrawColor(...borderLight);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 20, 1, 1, "FD");
-
-  doc.setFontSize(6);
-  doc.setTextColor(...textDark);
-  doc.text(`Client Signature: ${data.clientSignature || "____________________"}`, marginLeft + 5, currentY + 8);
-  doc.text(`Signed Date/Time: ${data.clientSignedDatetime || "____________________"}`, marginLeft + 5, currentY + 14);
-
-  currentY += 26;
-
-  addFooter();
-
-  // ========== PAGE 3: FULL TERMS & CONDITIONS ==========
-  addNewPage();
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Full Terms & Conditions", pageWidth / 2, currentY, { align: "center" });
-  currentY += 8;
-
-  // 1) Parties and Definitions
-  addSectionHeader("1", "Parties and Definitions");
-  addParagraph(`This Agreement is between Nivra ("Provider") and ${data.clientFullName} ("Client").`);
-  addParagraph(`"Services" means Mobile, Internet, TV (with Internet), and Streaming+ add-ons purchased in the processed order.`);
-
-  // 2) Services Provided
   addSectionHeader("2", "Services Provided");
 
   if (data.mobilePlan) {
@@ -522,36 +577,28 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
     addParagraph("Important: Streaming content availability, libraries, device compatibility, and platform features are provided by third parties and may change. Nivra provides billing/provisioning support as applicable.");
   }
 
-  addFooter();
+  addSectionHeader("3", "Pricing, Billing, and Taxes");
+  addParagraph("3.1 Prepaid billing: recurring charges are billed in advance for each cycle.");
+  addParagraph("3.2 Invoices/Receipts: available in Client Portal.");
+  addParagraph("3.3 Taxes: GST/QST apply where required.");
 
-  // ========== PAGE 4: ORDER PROCESSING & BILLING ==========
-  addNewPage();
+  addSectionHeader("4", "Late Payment, Unpaid Invoices, Suspension");
+  addParagraph("4.1 If an invoice is overdue, Nivra may apply a 5% late fee on the overdue balance.");
+  addParagraph("4.2 If payment remains overdue for 30 days, Nivra may suspend impacted services until payment is received.");
+  addParagraph("4.3 Suspension does not remove the obligation to pay outstanding balances.");
 
-  // 3) Order Processing
-  addSectionHeader("3", "Order Processing and Contract Generation");
-  addParagraph("This contract is automatically generated when an order is marked Processed by Admin or Customer Service. The contract must reflect the order snapshot at that moment: plan names, prices, fees, taxes, totals, payment status.");
-  addParagraph("If the contract data differs from the processed order snapshot, the processed order snapshot prevails and the contract must be regenerated.");
-
-  // 4) Pricing, Billing, and Taxes
-  addSectionHeader("4", "Pricing, Billing, and Taxes");
-  addParagraph("4.1 Prepaid billing: recurring charges are billed in advance for each cycle.");
-  addParagraph("4.2 Invoices/Receipts: available in Client Portal.");
-  addParagraph("4.3 Taxes: GST/QST apply where required.");
-
-  // 5) Late Payment
-  addSectionHeader("5", "Late Payment, Unpaid Invoices, Suspension");
-  addParagraph("5.1 If an invoice is overdue, Nivra may apply a 5% late fee on the overdue balance.");
-  addParagraph("5.2 If payment remains overdue for 30 days, Nivra may suspend impacted services until payment is received.");
-  addParagraph("5.3 Suspension does not remove the obligation to pay outstanding balances.");
-
-  // 6) Reactivation
-  addSectionHeader("6", "Reactivation");
+  addSectionHeader("5", "Reactivation");
   addParagraph(`If service is suspended due to non-payment, a $15 reactivation fee applies to restore service (per account/order as configured: ${data.reactivationScope || "per account"}).`);
 
-  // 7) Equipment
-  addSectionHeader("7", "Equipment (Purchase vs Provider-Owned)");
+  addFooter(2);
 
-  addSubHeader("7.1 Purchased Equipment (your order)");
+  // ========== ANNEXE B: ÉQUIPEMENT ET LIVRAISON ==========
+  addNewPage();
+  addAnnexeHeader("B", "Équipement et livraison");
+
+  addSectionHeader("1", "Equipment (Purchase vs Provider-Owned)");
+
+  addSubHeader("1.1 Purchased Equipment (your order)");
   addParagraph("Purchased items (if any):");
   if (data.terminalQty && data.terminalQty > 0) {
     addParagraph(`  - Nivra 4K Smart Terminal: ${data.terminalQty} at $50 each`);
@@ -561,142 +608,100 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   }
   addParagraph("Purchased equipment is owned by the Client after payment, unless otherwise stated on the invoice.");
 
-  addSubHeader("7.2 Provider-Owned / Rental Equipment (if any)");
+  addSubHeader("1.2 Provider-Owned / Rental Equipment (if any)");
   addParagraph(`If Nivra provides loaned or rental equipment, it remains Nivra property and must be returned upon cancellation within ${data.returnWindowDays || 14} days, where applicable. (If you do not offer rentals, set this section to "Not applicable".)`);
 
-  addFooter();
+  addSectionHeader("2", "One-Time Charges");
 
-  // ========== PAGE 5: DELIVERY & CANCELLATION ==========
-  addNewPage();
+  const feeColWidths = [60, 25, 35, 35];
+  addTableHeader(["Item", "Qty", "Unit Price", "Total"], feeColWidths);
 
-  // 8) Delivery
-  addSectionHeader("8", "Delivery, Activation, Installation");
+  if (data.activationQty && data.activationQty > 0) {
+    addTableRow(["Activation", String(data.activationQty), "$25.00", `$${(data.activationTotal || 25).toFixed(2)}`], feeColWidths);
+  }
+  if (data.deliveryQty && data.deliveryQty > 0) {
+    addTableRow(["Delivery", String(data.deliveryQty), "$30.00", `$${(data.deliveryTotal || 30).toFixed(2)}`], feeColWidths);
+  }
+  if (data.terminalQty && data.terminalQty > 0) {
+    addTableRow(["Nivra 4K Smart Terminal (purchase)", String(data.terminalQty), "$50.00", `$${(data.terminalTotal || 50).toFixed(2)}`], feeColWidths);
+  }
+  if (data.routerQty && data.routerQty > 0) {
+    addTableRow(["Nivra Born WiFi Router (purchase)", String(data.routerQty), "$60.00", `$${(data.routerTotal || 60).toFixed(2)}`], feeColWidths);
+  }
+  if (data.reactivationQty && data.reactivationQty > 0) {
+    addTableRow(["Reactivation (only if applicable)", String(data.reactivationQty), "$15.00", `$${(data.reactivationTotal || 15).toFixed(2)}`], feeColWidths);
+  }
+
+  currentY += 6;
+
+  addLabelValue("One-time subtotal", `$${data.oneTimeSubtotal.toFixed(2)}`);
+  addLabelValue("Taxes", `$${data.oneTimeTax.toFixed(2)}`);
+  addLabelValue("One-time total", `$${data.oneTimeTotal.toFixed(2)}`);
+
+  addSectionHeader("3", "Delivery, Activation, Installation");
   addParagraph("Activation fee: $25 (if applicable to your order)");
   addParagraph("Delivery fee: $30 (if applicable)");
   addParagraph(`Installation details (if any): ${data.installationDetails || "—"}`);
 
-  // 9) Cancellation
-  addSectionHeader("9", "Cancellation (Cancel Anytime)");
+  addFooter(3);
+
+  // ========== ANNEXE C: ANNULATION ET REMBOURSEMENT ==========
+  addNewPage();
+  addAnnexeHeader("C", "Annulation et remboursement");
+
+  addSectionHeader("1", "Cancellation (Cancel Anytime)");
   addParagraph("Client may cancel at any time through portal or support.");
   addParagraph("Because services are prepaid, cancellation typically takes effect at the end of the already-paid period unless otherwise required by law. No device financing applies under this Agreement.");
 
-  // 10) Acceptable Use
-  addSectionHeader("10", "Acceptable Use and Fraud Prevention");
-  addParagraph("Client agrees not to use the Services for illegal purposes, fraud, abuse, or activities that materially degrade networks. Nivra may suspend services for suspected fraud or security risk, consistent with applicable law and fair process.");
+  addSectionHeader("2", "Amount Due Today");
 
-  // 11) Privacy
-  addSectionHeader("11", "Privacy and Confidentiality");
-  addParagraph("Nivra collects and uses personal information to provide services, billing, support, and fraud prevention.");
-  addParagraph(`Nivra handles personal information in accordance with applicable privacy laws. Privacy policy: ${data.privacyPolicyUrl || "www.nivra.ca/privacy"}.`);
+  // Total due box
+  doc.setFillColor(...primaryNavy);
+  doc.roundedRect(marginLeft, currentY - 2, contentWidth, 10, 1, 1, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...white);
+  doc.text("Total due today:", marginLeft + 5, currentY + 4);
+  doc.text(`$${data.totalDueToday.toFixed(2)} CAD`, pageWidth - marginRight - 5, currentY + 4, { align: "right" });
+  currentY += 14;
 
-  // 12) Complaints
-  addSectionHeader("12", "Complaints and Escalation (CCTS/CRTC)");
+  addLabelValue("Payment method", data.paymentMethod || "—");
+  addLabelValue("Payment status", data.paymentStatus || "Pending");
+
+  addSectionHeader("3", "Complaints and Escalation (CCTS/CRTC)");
   addParagraph("If you cannot resolve an issue with Nivra support, you may escalate a complaint to the CCTS (Commission for Complaints for Telecom-television Services).");
   addParagraph("CRTC also provides consumer information and complaint channels.");
 
-  addFooter();
+  addFooter(4);
 
-  // ========== PAGE 6: LIABILITY & SIGNATURES ==========
+  // ========== ANNEXE D: RESPONSABILITÉ ET CONFIDENTIALITÉ ==========
   addNewPage();
+  addAnnexeHeader("D", "Responsabilité et confidentialité");
 
-  // 13) Limitation of Liability
-  addSectionHeader("13", "Limitation of Liability");
+  addSectionHeader("1", "Acceptable Use and Fraud Prevention");
+  addParagraph("Client agrees not to use the Services for illegal purposes, fraud, abuse, or activities that materially degrade networks. Nivra may suspend services for suspected fraud or security risk, consistent with applicable law and fair process.");
+
+  addSectionHeader("2", "Privacy and Confidentiality");
+  addParagraph("Nivra collects and uses personal information to provide services, billing, support, and fraud prevention.");
+  addParagraph(`Nivra handles personal information in accordance with applicable privacy laws. Privacy policy: ${data.privacyPolicyUrl || "www.nivra.ca/privacy"}.`);
+
+  addSectionHeader("3", "Limitation of Liability");
   addParagraph(`To the maximum extent permitted by law, Nivra is not liable for indirect or consequential damages. Any direct liability is limited to ${data.liabilityCap || "fees paid in the 12 months preceding the claim"}.`);
 
-  // 14) Governing Law
-  addSectionHeader("14", "Governing Law");
+  addSectionHeader("4", "Governing Law");
   addParagraph("This Agreement is governed by the laws of Quebec and the applicable laws of Canada.");
 
-  currentY += 6;
+  addFooter(5);
 
-  // Signatures (Electronic)
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Signatures (Electronic)", marginLeft, currentY);
-  currentY += 8;
-
-  const sigBoxWidth = (contentWidth - 10) / 2;
-  const sigBoxHeight = 40;
-
-  // Client signature box (LEFT)
-  doc.setFillColor(...bgLight);
-  doc.setDrawColor(...borderLight);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(marginLeft, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "FD");
-
-  doc.setFillColor(...accentTeal);
-  doc.rect(marginLeft, currentY, 3, sigBoxHeight, "F");
-
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("CLIENT", marginLeft + 8, currentY + 8);
-
-  doc.setFontSize(6);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...textDark);
-  doc.text(`Name: ${data.clientFullName}`, marginLeft + 8, currentY + 14);
-  doc.text(`Signature: ${data.clientSignature || "____________________"}`, marginLeft + 8, currentY + 20);
-  doc.text(`Signed Date/Time: ${data.clientSignedDatetime || "____________________"}`, marginLeft + 8, currentY + 26);
-  doc.text(`IP (optional): ${data.clientIp || "—"}`, marginLeft + 8, currentY + 32);
-
-  // Provider signature box (RIGHT)
-  const provSigX = marginLeft + sigBoxWidth + 10;
-  doc.setFillColor(...primaryNavy);
-  doc.roundedRect(provSigX, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "F");
-
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...accentTeal);
-  doc.text("NIVRA REPRESENTATIVE", provSigX + 5, currentY + 8);
-
-  doc.setFontSize(6);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...white);
-  doc.text(`Name/Title: ${data.repNameTitle || "____________________"}`, provSigX + 5, currentY + 14);
-  doc.text(`Signature: ${data.repSignature || "____________________"}`, provSigX + 5, currentY + 20);
-  doc.text(`Signed Date/Time: ${data.repSignedDatetime || "____________________"}`, provSigX + 5, currentY + 26);
-
-  currentY += sigBoxHeight + 10;
-
-  // Signature status banner
-  if (data.isSigned && data.signedAt) {
-    doc.setFillColor(220, 252, 231);
-    doc.setDrawColor(34, 197, 94);
-    doc.setLineWidth(1.5);
-    doc.roundedRect(marginLeft, currentY, contentWidth, 15, 3, 3, "FD");
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(22, 163, 74);
-    doc.text("AGREEMENT EXECUTED", pageWidth / 2, currentY + 7, { align: "center" });
-
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.text(format(new Date(data.signedAt), "d MMMM yyyy 'at' HH:mm", { locale: fr }), pageWidth / 2, currentY + 12, { align: "center" });
-  } else {
-    doc.setFillColor(254, 249, 195);
-    doc.setDrawColor(234, 179, 8);
-    doc.setLineWidth(1.5);
-    doc.roundedRect(marginLeft, currentY, contentWidth, 12, 3, 3, "FD");
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(161, 98, 7);
-    doc.text("AWAITING CLIENT SIGNATURE", pageWidth / 2, currentY + 8, { align: "center" });
-  }
-
-  addFooter();
-
-  // ========== APPENDIX A: ORDER SNAPSHOT ==========
+  // ========== ANNEXE E: INSTANTANÉ DE COMMANDE (SNAPSHOT) ==========
   addNewPage();
+  addAnnexeHeader("E", "Instantané de commande (Snapshot)");
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Appendix A — Order Snapshot (Immutable)", marginLeft, currentY);
-  currentY += 8;
+  addSectionHeader("1", "Order Processing and Contract Generation");
+  addParagraph("This contract is automatically generated when an order is marked Processed by Admin or Customer Service. The contract must reflect the order snapshot at that moment: plan names, prices, fees, taxes, totals, payment status.");
+  addParagraph("If the contract data differs from the processed order snapshot, the processed order snapshot prevails and the contract must be regenerated.");
+
+  currentY += 4;
 
   addLabelValue("Order ID", data.orderId);
   addLabelValue("Reference", data.orderReference);
@@ -750,12 +755,22 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   currentY += 10;
 
   // End of Agreement
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
-  doc.text("— END OF AGREEMENT —", pageWidth / 2, currentY, { align: "center" });
+  doc.text("— FIN DU CONTRAT —", pageWidth / 2, currentY, { align: "center" });
 
-  addFooter();
+  addFooter(6);
+
+  // Update total pages - use pages array length
+  totalPages = (doc.internal as any).pages.length - 1;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    // Clear old footer area
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, pageHeight - 20, pageWidth, 20, "F");
+    addFooter(i);
+  }
 
   return doc;
 };
