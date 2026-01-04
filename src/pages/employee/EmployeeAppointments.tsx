@@ -34,6 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import AccessDeniedCard from "@/components/employee/AccessDeniedCard";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   scheduled: { label: "Planifié", color: "bg-blue-500/20 text-blue-600" },
@@ -64,6 +65,8 @@ const EmployeeAppointments = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accessDenied, setAccessDenied] = useState<{ denied: boolean; reason?: string; neededPermission?: string; requestId?: string }>({ denied: false });
+  const [lastResponse, setLastResponse] = useState<any>(null);
   
   // Create appointment dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -100,13 +103,29 @@ const EmployeeAppointments = () => {
   const fetchAppointments = async () => {
     if (!session?.token) return;
     setIsLoading(true);
+    setAccessDenied({ denied: false });
     try {
       const { data, error } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
         body: { action: "get_appointments", params: { limit: 200 } },
       });
+      
+      // Check for 403 / access denied
+      if (data?.ok === false && data?.reason === "not_allowed") {
+        setAccessDenied({ 
+          denied: true, 
+          reason: data.reason, 
+          neededPermission: data.needed_permission,
+          requestId: data.request_id 
+        });
+        setLastResponse(data);
+        setAppointments([]);
+        return;
+      }
+      
       if (error) throw error;
       setAppointments(data?.appointments || []);
+      setLastResponse(data);
       setLastRefresh(new Date());
     } catch (error) {
       console.error("Error:", error);
@@ -343,7 +362,13 @@ const EmployeeAppointments = () => {
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
+            {accessDenied.denied ? (
+              <AccessDeniedCard 
+                neededPermission={accessDenied.neededPermission} 
+                message="Vous n'avez pas la permission de voir les rendez-vous."
+                requestId={accessDenied.requestId}
+              />
+            ) : isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="w-6 h-6 animate-spin text-primary" />
               </div>

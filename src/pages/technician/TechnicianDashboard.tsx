@@ -552,7 +552,9 @@ const TechnicianDashboard = () => {
               <Card>
                 <CardContent className="py-12 text-center">
                   <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Aucun bon de travail assigné</p>
+                  <p className="text-muted-foreground">
+                    {workOrdersData?.message || "Aucun bon de travail assigné"}
+                  </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Les nouvelles assignations apparaîtront automatiquement.
                   </p>
@@ -561,10 +563,14 @@ const TechnicianDashboard = () => {
                     Actualiser
                   </Button>
                   {/* Diagnostic info for debugging */}
-                  <div className="mt-6 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
-                    <p>Technician ID: {technicianSession?.id?.slice(0, 8)}...</p>
+                  <div className="mt-6 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground text-left">
+                    <p><strong>Debug Info:</strong></p>
+                    <p>Technician ID: {workOrdersData?.technicianId || technicianSession?.id?.slice(0, 8) + '...'}</p>
+                    <p>DB Technician ID: {workOrdersData?.technicianDbId || 'N/A'}</p>
                     <p>Total: {workOrdersData?.counts?.total || 0} | Work Orders: {workOrdersData?.counts?.workOrders || 0}</p>
                     <p>Legacy Orders: {workOrdersData?.counts?.legacyOrders || 0} | Legacy Appts: {workOrdersData?.counts?.legacyAppointments || 0}</p>
+                    <p>Filters: {workOrdersData?.applied_filters?.join(', ') || 'N/A'}</p>
+                    <p>Permission Source: {workOrdersData?.permission_source || 'N/A'}</p>
                   </div>
                 </CardContent>
               </Card>

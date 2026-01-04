@@ -75,77 +75,86 @@ function hasPermission(perms: Record<string, boolean>, ...keys: string[]): boole
   return keys.some(key => perms[key] === true);
 }
 
-// Resolve technician permissions from token or DB
-async function resolvePermissions(
+// Resolve technician identity and permissions from DB
+async function resolveTechnicianInfo(
   supabase: any,
-  tokenPermissions: any,
   technicianId: string,
   technicianEmail: string
-): Promise<{ permissions: Record<string, boolean>; source: string; status: string }> {
-  // Default technician permissions
-  const defaultPerms = normalizePermissions({
-    can_view_appointments: true,
-    view_appointments: true,
-    can_update_work_orders: true,
-  });
+): Promise<{ 
+  permissions: Record<string, boolean>; 
+  source: string; 
+  status: string;
+  technicianDbId: string | null;
+  authUserId: string | null;
+}> {
+  console.log(`[resolveTechnicianInfo] Resolving for email=${technicianEmail}, tokenId=${technicianId}`);
 
-  // If token has permissions, use them
-  if (tokenPermissions && typeof tokenPermissions === 'object' && Object.keys(tokenPermissions).length > 0) {
-    console.log(`[resolvePermissions] Using token permissions for ${technicianEmail}`);
-    return { 
-      permissions: normalizePermissions(tokenPermissions), 
-      source: "token",
-      status: "active"
-    };
-  }
-
-  console.log(`[resolvePermissions] Token permissions empty, fetching from DB for ${technicianEmail}`);
-
-  // Fallback 1: Try technicians table
+  // Step 1: Find technician row by email
   const { data: technician, error: techError } = await supabase
     .from("technicians")
-    .select("status")
-    .eq("id", technicianId)
-    .maybeSingle();
-
-  if (techError) {
-    console.error(`[resolvePermissions] technicians query error:`, techError);
-  }
-
-  // Fallback 2: Try user_roles table
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
+    .select("id, user_id, email, status")
     .ilike("email", technicianEmail)
     .maybeSingle();
 
-  if (profile?.user_id) {
+  if (techError) {
+    console.error(`[resolveTechnicianInfo] technicians query error:`, techError);
+  }
+
+  let technicianDbId = technician?.id || null;
+  let authUserId = technician?.user_id || null;
+  const techStatus = technician?.status || "unknown";
+
+  console.log(`[resolveTechnicianInfo] technicians table: id=${technicianDbId}, user_id=${authUserId}, status=${techStatus}`);
+
+  // Step 2: Find profile to get auth user_id if not in technicians table
+  if (!authUserId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .ilike("email", technicianEmail)
+      .maybeSingle();
+    
+    if (profile?.user_id) {
+      authUserId = profile.user_id;
+      console.log(`[resolveTechnicianInfo] Found auth user_id from profiles: ${authUserId}`);
+    }
+  }
+
+  // Step 3: Get permissions from user_roles (SINGLE SOURCE OF TRUTH)
+  if (authUserId) {
     const { data: userRole, error: roleError } = await supabase
       .from("user_roles")
-      .select("permissions, role, status")
-      .eq("user_id", profile.user_id)
-      .in("role", ["technician", "admin"])
+      .select("permissions, role, status, is_active")
+      .eq("user_id", authUserId)
       .maybeSingle();
 
     if (roleError) {
-      console.error(`[resolvePermissions] user_roles query error:`, roleError);
+      console.error(`[resolveTechnicianInfo] user_roles query error:`, roleError);
     }
 
-    if (userRole?.permissions && Object.keys(userRole.permissions).length > 0) {
-      console.log(`[resolvePermissions] Found permissions in user_roles:`, JSON.stringify(userRole.permissions));
+    if (userRole) {
+      const isActive = userRole.is_active !== false && userRole.status !== 'disabled' && userRole.status !== 'hold';
+      console.log(`[resolveTechnicianInfo] user_roles: role=${userRole.role}, status=${userRole.status}`);
+      console.log(`[resolveTechnicianInfo] permissions:`, JSON.stringify(userRole.permissions));
+      
       return { 
-        permissions: normalizePermissions(userRole.permissions), 
+        permissions: normalizePermissions(userRole.permissions || {}), 
         source: "user_roles_table",
-        status: userRole.status || technician?.status || "active"
+        status: isActive ? "active" : (userRole.status || techStatus),
+        technicianDbId,
+        authUserId,
       };
     }
   }
 
-  console.log(`[resolvePermissions] No permissions found, using default technician permissions`);
+  // No user_roles found - use empty permissions
+  console.log(`[resolveTechnicianInfo] No user_roles found - returning empty permissions`);
   return { 
-    permissions: defaultPerms, 
-    source: "default_technician",
-    status: technician?.status || "active"
+    permissions: {}, 
+    source: "no_user_roles",
+    status: techStatus,
+    technicianDbId,
+    authUserId,
   };
 }
 
@@ -197,84 +206,113 @@ serve(async (req) => {
       );
     }
 
-    const { technicianId, fullName, email: technicianEmail, permissions: tokenPermissions } = verification.payload;
-    console.log(`[technician-work-orders] RequestID: ${requestId} | Technician: ${fullName} (${technicianId})`);
+    const { technicianId: tokenTechId, fullName, email: technicianEmail, permissions: tokenPermissions } = verification.payload;
+    console.log(`[technician-work-orders] RequestID: ${requestId} | Technician: ${fullName} (${technicianEmail})`);
     
+    // Use SERVICE ROLE KEY to bypass RLS
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Resolve permissions with fallback
-    const resolvedPerms = await resolvePermissions(supabase, tokenPermissions, technicianId, technicianEmail || '');
-    const resolvedPermissions = resolvedPerms.permissions;
+    // Resolve technician info and permissions from DB
+    const techInfo = await resolveTechnicianInfo(supabase, tokenTechId, technicianEmail || '');
+    const resolvedPermissions = techInfo.permissions;
     
-    console.log(`[technician-work-orders] Permissions source: ${resolvedPerms.source} | Status: ${resolvedPerms.status}`);
+    console.log(`[technician-work-orders] Resolved: technicianDbId=${techInfo.technicianDbId}, authUserId=${techInfo.authUserId}`);
+    console.log(`[technician-work-orders] Permissions source: ${techInfo.source} | Status: ${techInfo.status}`);
     console.log(`[technician-work-orders] Resolved permissions:`, JSON.stringify(resolvedPermissions));
+
+    // Check status
+    if (techInfo.status === "disabled" || techInfo.status === "hold" || techInfo.status === "inactive") {
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          request_id: requestId, 
+          reason: `status_${techInfo.status}`,
+          message: "Compte désactivé ou suspendu"
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Check view appointments permission
     if (!hasPermission(resolvedPermissions, 'can_view_appointments', 'view_appointments')) {
       console.log(`[technician-work-orders] DENIED - no view_appointments permission`);
-      return forbidden(corsHeaders, requestId, "can_view_appointments", resolvedPerms, ["permission_denied"]);
+      return forbidden(corsHeaders, requestId, "can_view_appointments", { permissions: resolvedPermissions, source: techInfo.source }, ["permission_denied"]);
     }
 
     // Track applied filters
     const appliedFilters: string[] = [];
     
-    // Determine if technician can see all or just assigned
-    const hasManageAppointments = hasPermission(resolvedPermissions, 'manage_appointments', 'can_manage_appointments');
+    // Determine technician ID to filter by
+    // Priority: technicians.id from DB > token technicianId
+    const techIdToFilter = techInfo.technicianDbId || tokenTechId;
     
-    // Fetch work orders
-    let workOrdersQuery = supabase
-      .from("work_orders")
-      .select("*", { count: "exact" });
-    
-    // Filter by technician if not manager
-    if (!hasManageAppointments) {
-      workOrdersQuery = workOrdersQuery.eq("assigned_technician_id", technicianId);
-      appliedFilters.push("filtered_by_assigned_technician_id");
-    } else {
-      appliedFilters.push("manage_all");
+    if (!techIdToFilter) {
+      console.log(`[technician-work-orders] No technician ID found for filtering`);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          success: true,
+          request_id: requestId,
+          technicianId: tokenTechId,
+          technicianName: fullName,
+          current: [],
+          history: [],
+          counts: { total: 0, current: 0, history: 0 },
+          db_counts: { work_orders: 0, orders: 0, appointments: 0 },
+          applied_filters: ["no_technician_id_found"],
+          resolved_permissions: resolvedPermissions,
+          permission_source: techInfo.source,
+          message: "Aucun ID technicien trouvé - impossible de filtrer les rendez-vous",
+          assignment_field_used: "none",
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-    
-    const { data: workOrders, error: woError, count: woCount } = await workOrdersQuery
+
+    console.log(`[technician-work-orders] Filtering by technician ID: ${techIdToFilter}`);
+    appliedFilters.push(`technician_id=${techIdToFilter}`);
+
+    // Fetch work orders assigned to this technician
+    const { data: workOrders, error: woError, count: woCount } = await supabase
+      .from("work_orders")
+      .select("*", { count: "exact" })
+      .eq("assigned_technician_id", techIdToFilter)
       .order("scheduled_start", { ascending: true, nullsFirst: false });
 
     if (woError) {
       console.error("[technician-work-orders] work_orders query error:", woError);
     }
+    appliedFilters.push("work_orders.assigned_technician_id");
 
     console.log(`[technician-work-orders] work_orders found: ${workOrders?.length || 0} (total matching: ${woCount})`);
 
     // Fetch legacy orders assigned to technician
-    let legacyOrdersQuery = supabase.from("orders").select("*", { count: "exact" });
-    if (!hasManageAppointments) {
-      legacyOrdersQuery = legacyOrdersQuery.eq("technician_id", technicianId);
-      appliedFilters.push("filtered_by_orders.technician_id");
-    }
-    
-    const { data: legacyOrders, error: ordersError, count: ordersCount } = await legacyOrdersQuery
+    const { data: legacyOrders, error: ordersError, count: ordersCount } = await supabase
+      .from("orders")
+      .select("*", { count: "exact" })
+      .eq("technician_id", techIdToFilter)
       .order("appointment_date", { ascending: true, nullsFirst: false });
 
     if (ordersError) {
       console.error("[technician-work-orders] orders query error:", ordersError);
     }
+    appliedFilters.push("orders.technician_id");
 
     console.log(`[technician-work-orders] legacy orders found: ${legacyOrders?.length || 0} (total matching: ${ordersCount})`);
 
-    // Fetch legacy appointments assigned to technician
-    // appointments table uses "technician_id" column (verified from schema)
-    let legacyAptsQuery = supabase.from("appointments").select("*", { count: "exact" });
-    if (!hasManageAppointments) {
-      legacyAptsQuery = legacyAptsQuery.eq("technician_id", technicianId);
-      appliedFilters.push("filtered_by_appointments.technician_id");
-    }
-    
-    const { data: legacyAppointments, error: aptsError, count: aptsCount } = await legacyAptsQuery
+    // Fetch appointments assigned to technician
+    const { data: legacyAppointments, error: aptsError, count: aptsCount } = await supabase
+      .from("appointments")
+      .select("*", { count: "exact" })
+      .eq("technician_id", techIdToFilter)
       .order("scheduled_at", { ascending: true });
 
     if (aptsError) {
       console.error("[technician-work-orders] appointments query error:", aptsError);
     }
+    appliedFilters.push("appointments.technician_id");
 
     console.log(`[technician-work-orders] legacy appointments found: ${legacyAppointments?.length || 0} (total matching: ${aptsCount})`);
 
@@ -393,12 +431,17 @@ serve(async (req) => {
       ["completed", "cancelled"].includes(wo.status)
     );
 
+    // Build response with explicit message if no assignments found
+    const hasNoAssignments = allWorkOrders.length === 0;
+    
     return new Response(
       JSON.stringify({
         ok: true,
         success: true,
         request_id: requestId,
-        technicianId,
+        technicianId: techIdToFilter,
+        technicianDbId: techInfo.technicianDbId,
+        authUserId: techInfo.authUserId,
         technicianName: fullName,
         current,
         history,
@@ -417,8 +460,9 @@ serve(async (req) => {
         },
         applied_filters: appliedFilters,
         resolved_permissions: resolvedPermissions,
-        permission_source: resolvedPerms.source,
-        assignment_field_used: "technician_id (appointments) / technician_id (orders) / assigned_technician_id (work_orders)",
+        permission_source: techInfo.source,
+        assignment_field_used: "technician_id (all tables)",
+        message: hasNoAssignments ? "Aucun rendez-vous assigné à ce technicien" : null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
