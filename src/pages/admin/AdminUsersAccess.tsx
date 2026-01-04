@@ -62,7 +62,7 @@ interface StaffUser {
   banned_until: string | null;
   is_active: boolean;
   status: StaffStatus;
-  source: "user_roles" | "employees" | "technicians";
+  source: "user_roles";
   permissions: Partial<PermissionSet>;
   phone?: string | null;
   badge_number?: string | null;
@@ -80,8 +80,6 @@ const statusConfig: Record<StaffStatus, { label: string; variant: "default" | "s
 
 const roleConfig: Record<StaffRole, { label: string; icon: typeof Shield; variant: "default" | "secondary" | "outline" }> = {
   admin: { label: "Administrateur", icon: Shield, variant: "default" },
-  employee: { label: "Employé", icon: UserCog, variant: "secondary" },
-  technician: { label: "Technicien", icon: Wrench, variant: "outline" },
 };
 
 const AdminUsersAccess = () => {
@@ -102,7 +100,7 @@ const AdminUsersAccess = () => {
   
   // Selected user
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
-  const [newRole, setNewRole] = useState<StaffRole>("employee");
+  const [newRole, setNewRole] = useState<StaffRole>("admin");
   const [newStatus, setNewStatus] = useState<StaffStatus>("active");
   const [editingPermissions, setEditingPermissions] = useState<Partial<PermissionSet>>({});
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
@@ -130,11 +128,11 @@ const AdminUsersAccess = () => {
     queryFn: async () => {
       const users: StaffUser[] = [];
 
-      // 1. Get users with staff roles from user_roles
+      // Get admin users from user_roles (admin only - employee/technician portals removed)
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role, permissions, is_active, status, require_password_change, last_login_at, created_at")
-        .in("role", ["admin", "employee", "technician"]);
+        .eq("role", "admin");
 
       if (rolesError) throw rolesError;
 
@@ -150,7 +148,7 @@ const AdminUsersAccess = () => {
           users.push({
             id: roleRow.user_id,
             email: profile?.email || "—",
-            role: roleRow.role as StaffRole,
+            role: "admin",
             full_name: profile?.full_name || null,
             created_at: roleRow.created_at || profile?.created_at || new Date().toISOString(),
             last_sign_in_at: null,
@@ -162,76 +160,6 @@ const AdminUsersAccess = () => {
             require_password_change: roleRow.require_password_change || false,
             last_login_at: roleRow.last_login_at || null,
           });
-        });
-      }
-
-      // 2. Get employees from employees table (merge with existing)
-      const { data: employeesData } = await supabase
-        .from("employees")
-        .select("id, email, full_name, is_active, created_at, updated_at, phone, badge_number, job_title, pin_set_at");
-
-      if (employeesData) {
-        employeesData.forEach(emp => {
-          const existingIndex = users.findIndex(u => u.email.toLowerCase() === emp.email.toLowerCase());
-          if (existingIndex === -1) {
-            users.push({
-              id: emp.id,
-              email: emp.email,
-              role: "employee",
-              full_name: emp.full_name,
-              created_at: emp.created_at,
-              last_sign_in_at: emp.updated_at,
-              banned_until: null,
-              is_active: emp.is_active,
-              status: emp.is_active ? "active" : "disabled",
-              source: "employees",
-              permissions: {},
-              phone: emp.phone,
-              badge_number: emp.badge_number,
-              job_title: emp.job_title,
-              pin_set_at: emp.pin_set_at,
-            });
-          } else {
-            // Merge employee info
-            users[existingIndex].is_active = emp.is_active;
-            users[existingIndex].last_sign_in_at = emp.updated_at;
-            users[existingIndex].phone = emp.phone;
-            users[existingIndex].badge_number = emp.badge_number;
-            users[existingIndex].job_title = emp.job_title;
-            users[existingIndex].pin_set_at = emp.pin_set_at;
-          }
-        });
-      }
-
-      // 3. Get technicians from technicians table
-      const { data: techniciansData } = await supabase
-        .from("technicians")
-        .select("id, user_id, email, full_name, status, created_at, updated_at, phone");
-
-      if (techniciansData) {
-        techniciansData.forEach(tech => {
-          const existingIndex = users.findIndex(u => u.email.toLowerCase() === tech.email.toLowerCase());
-          if (existingIndex === -1) {
-            users.push({
-              id: tech.user_id || tech.id,
-              email: tech.email,
-              role: "technician",
-              full_name: tech.full_name,
-              created_at: tech.created_at,
-              last_sign_in_at: tech.updated_at,
-              banned_until: null,
-              is_active: tech.status === "active",
-              status: tech.status === "active" ? "active" : "disabled",
-              source: "technicians",
-              permissions: {},
-              phone: tech.phone,
-            });
-          } else {
-            // Merge technician info
-            users[existingIndex].is_active = tech.status === "active";
-            users[existingIndex].last_sign_in_at = tech.updated_at;
-            if (tech.phone) users[existingIndex].phone = tech.phone;
-          }
         });
       }
 
@@ -676,8 +604,6 @@ const AdminUsersAccess = () => {
 
   const countByRole = {
     admin: staffUsers?.filter(u => u.role === "admin").length || 0,
-    employee: staffUsers?.filter(u => u.role === "employee").length || 0,
-    technician: staffUsers?.filter(u => u.role === "technician").length || 0,
     total: staffUsers?.length || 0,
   };
 
@@ -702,14 +628,14 @@ const AdminUsersAccess = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-2xl font-bold">{countByRole.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Staff</p>
+                  <p className="text-xs text-muted-foreground">Total Administrateurs</p>
                 </div>
               </div>
             </CardContent>
@@ -720,29 +646,7 @@ const AdminUsersAccess = () => {
                 <Shield className="h-5 w-5 text-primary" />
                 <div>
                   <p className="text-2xl font-bold">{countByRole.admin}</p>
-                  <p className="text-xs text-muted-foreground">Administrateurs</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2">
-                <UserCog className="h-5 w-5 text-secondary-foreground" />
-                <div>
-                  <p className="text-2xl font-bold">{countByRole.employee}</p>
-                  <p className="text-xs text-muted-foreground">Employés</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2">
-                <Wrench className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-2xl font-bold">{countByRole.technician}</p>
-                  <p className="text-xs text-muted-foreground">Techniciens</p>
+                  <p className="text-xs text-muted-foreground">Administrateurs Actifs</p>
                 </div>
               </div>
             </CardContent>

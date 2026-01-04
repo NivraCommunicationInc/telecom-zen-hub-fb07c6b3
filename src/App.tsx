@@ -39,7 +39,6 @@ import AdminTechnicians from "./pages/admin/AdminTechnicians";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 import ClientProtectedRoute from "./components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "./components/client/ClientSecurityCheck";
-import TechnicianProtectedRoute from "./components/technician/TechnicianProtectedRoute";
 import ClientAuth from "./pages/client/ClientAuth";
 import ClientSuspended from "./pages/client/ClientSuspended";
 import ClientDashboard from "./pages/client/ClientDashboard";
@@ -58,12 +57,6 @@ import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
 import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacement";
 import ClientMonthlyInvoices from "./pages/client/ClientMonthlyInvoices";
-import TechnicianAuth from "./pages/technician/TechnicianAuth";
-import TechnicianResetPassword from "./pages/technician/TechnicianResetPassword";
-import TechnicianChangePassword from "./pages/technician/TechnicianChangePassword";
-import EmployeeSetPin from "./pages/employee/EmployeeSetPin";
-import TechnicianSetPin from "./pages/technician/TechnicianSetPin";
-import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 import AdminReplacements from "./pages/admin/AdminReplacements";
 import AdminEmployees from "./pages/admin/AdminEmployees";
 import AdminPromotions from "./pages/admin/AdminPromotions";
@@ -78,19 +71,6 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminUsersAccess from "./pages/admin/AdminUsersAccess";
 import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import AdminResetPassword from "./pages/admin/AdminResetPassword";
-import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
-import EmployeeLogin from "./pages/employee/EmployeeLogin";
-import EmployeeResetPassword from "./pages/employee/EmployeeResetPassword";
-import EmployeeChangePassword from "./pages/employee/EmployeeChangePassword";
-import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
-import EmployeeOrders from "./pages/employee/EmployeeOrders";
-import EmployeeAppointments from "./pages/employee/EmployeeAppointments";
-import EmployeeTickets from "./pages/employee/EmployeeTickets";
-import EmployeeClients from "./pages/employee/EmployeeClients";
-import EmployeeInvoices from "./pages/employee/EmployeeInvoices";
-import EmployeeStreaming from "./pages/employee/EmployeeStreaming";
-import EmployeeInternalTickets from "./pages/employee/EmployeeInternalTickets";
-import EmployeeSystemStatus from "./pages/employee/EmployeeSystemStatus";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -158,20 +138,6 @@ const App = () => (
               <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
               <Route path="/admin/users-access" element={<ProtectedRoute requireAdmin><AdminUsersAccess /></ProtectedRoute>} />
               <Route path="/admin/audit-log" element={<ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute>} />
-              {/* Employee Portal Routes */}
-              <Route path="/employee/login" element={<EmployeeLogin />} />
-              <Route path="/employee/reset-password" element={<EmployeeResetPassword />} />
-              <Route path="/employee/change-password" element={<EmployeeChangePassword />} />
-              <Route path="/employee/set-pin" element={<EmployeeSetPin />} />
-              <Route path="/employee" element={<EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute>} />
-              <Route path="/employee/orders" element={<EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute>} />
-              <Route path="/employee/appointments" element={<EmployeeProtectedRoute><EmployeeAppointments /></EmployeeProtectedRoute>} />
-              <Route path="/employee/tickets" element={<EmployeeProtectedRoute><EmployeeTickets /></EmployeeProtectedRoute>} />
-              <Route path="/employee/clients" element={<EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute>} />
-              <Route path="/employee/invoices" element={<EmployeeProtectedRoute><EmployeeInvoices /></EmployeeProtectedRoute>} />
-              <Route path="/employee/streaming" element={<EmployeeProtectedRoute><EmployeeStreaming /></EmployeeProtectedRoute>} />
-              <Route path="/employee/internal-tickets" element={<EmployeeProtectedRoute><EmployeeInternalTickets /></EmployeeProtectedRoute>} />
-              <Route path="/employee/system-status" element={<EmployeeProtectedRoute><EmployeeSystemStatus /></EmployeeProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal/suspended" element={<ClientSuspended />} />
@@ -191,12 +157,6 @@ const App = () => (
               <Route path="/portal/profile" element={<ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/payments" element={<ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute>} />
               <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute>} />
-              {/* Technician Portal Routes */}
-              <Route path="/technician/auth" element={<TechnicianAuth />} />
-              <Route path="/technician/reset-password" element={<TechnicianResetPassword />} />
-              <Route path="/technician/change-password" element={<TechnicianChangePassword />} />
-              <Route path="/technician/set-pin" element={<TechnicianSetPin />} />
-              <Route path="/technician" element={<TechnicianProtectedRoute><TechnicianDashboard /></TechnicianProtectedRoute>} />
               <Route path="/not-authorized" element={<NotAuthorized />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
