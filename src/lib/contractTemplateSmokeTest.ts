@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/telecomContractGenerator";
+import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/pdfEngine";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 
 type SmokeTestResult = {
