@@ -911,288 +911,131 @@ const AdminBilling = () => {
     return base + fees + deliveryFee + installationFee + activationFee - credits;
   };
 
-  // Compact single-page PDF invoice
-  const exportInvoicePDF = (bill: any) => {
-    const subtotal = Number(bill.amount) || 0;
-    const fees = Number(bill.fees) || 0;
-    const credits = Number(bill.credits) || 0;
-    const taxRate = 0.14975;
-    const taxAmount = subtotal * taxRate;
-    const totalBeforeCredits = subtotal + fees + taxAmount;
-    const total = totalBeforeCredits - credits;
-    const remainingBalance = bill.status === "paid" ? 0 : total;
-    
-    const clientName = bill.profiles?.full_name || "Client";
-    const clientEmail = bill.profiles?.email || bill.client_email || "";
-    const clientPhone = bill.profiles?.phone || "";
-    const invoiceNum = bill.invoice_number || `INV-${bill.id.slice(0, 8).toUpperCase()}`;
-    const dueDate = bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "Sur réception";
-    const createdDate = format(new Date(bill.created_at), "d MMM yyyy", { locale: fr });
-    const paidDate = bill.paid_at ? format(new Date(bill.paid_at), "d MMM yyyy", { locale: fr }) : null;
-    const period = format(new Date(bill.created_at), "MMMM yyyy", { locale: fr });
-    
-    const paymentMethodMatch = bill.notes?.match(/\[Paiement reçu via (.*?)\]/);
-    const paymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : null;
-    const refMatch = bill.notes?.match(/Référence: (PAY-[A-Z0-9]+)/);
-    const refNumber = refMatch ? refMatch[1] : null;
-    const cardMatch = paymentMethod?.match(/\*\*\*\*(\d{4})/);
-    const cardLast4 = cardMatch ? `•••• ${cardMatch[1]}` : null;
-
-    const formatCurrency = (amount: number) => 
-      amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="fr">
-      <head>
-        <meta charset="UTF-8">
-        <title>Facture ${invoiceNum}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          @page { size: A4; margin: 0; }
-          body { 
-            font-family: 'Inter', sans-serif; 
-            font-size: 11px;
-            color: #1e293b;
-            background: #fff;
-            line-height: 1.4;
-          }
-          .page {
-            width: 210mm;
-            min-height: 297mm;
-            padding: 15mm;
-            margin: 0 auto;
-          }
-          .header {
-            text-align: center;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #0891b2;
-            margin-bottom: 15px;
-          }
-          .logo { font-size: 28px; font-weight: 700; color: #0891b2; letter-spacing: 3px; }
-          .tagline { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
-          .company-info { margin-top: 8px; font-size: 9px; color: #475569; }
-          .company-info p { margin: 1px 0; }
-          
-          .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-          }
-          .invoice-title h1 { font-size: 22px; font-weight: 700; color: #0f172a; }
-          .invoice-number { font-size: 12px; color: #0891b2; font-weight: 600; }
-          .status-badge {
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-          }
-          .status-paid { background: #d1fae5; color: #059669; }
-          .status-pending { background: #fef3c7; color: #d97706; }
-          .status-overdue { background: #fee2e2; color: #dc2626; }
-          
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 15px;
-          }
-          .info-section h3 {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #94a3b8;
-            margin-bottom: 6px;
-            font-weight: 600;
-          }
-          .client-name { font-size: 13px; font-weight: 600; color: #0f172a; }
-          .info-section p { color: #475569; margin: 2px 0; font-size: 10px; }
-          
-          .dates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-          .date-item label { display: block; font-size: 8px; text-transform: uppercase; color: #94a3b8; }
-          .date-item span { font-weight: 500; font-size: 10px; }
-          
-          .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-          .invoice-table thead { background: linear-gradient(135deg, #0f172a, #1e293b); }
-          .invoice-table th {
-            color: #fff;
-            padding: 8px 10px;
-            text-align: left;
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .invoice-table th:last-child { text-align: right; }
-          .invoice-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
-          .invoice-table td:last-child { text-align: right; font-weight: 500; }
-          .item-desc { font-weight: 500; color: #0f172a; }
-          .item-detail { font-size: 9px; color: #64748b; }
-          
-          .bottom-section { display: grid; grid-template-columns: 1fr 200px; gap: 20px; }
-          
-          .totals-table { width: 100%; }
-          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 10px; border-bottom: 1px solid #e2e8f0; }
-          .totals-row.total { border-top: 2px solid #0f172a; border-bottom: none; font-size: 14px; font-weight: 700; padding-top: 10px; margin-top: 5px; }
-          .totals-row.balance { background: ${remainingBalance > 0 ? '#fef2f2' : '#f0fdf4'}; margin: 8px -8px 0; padding: 8px; border-radius: 4px; font-weight: 600; color: ${remainingBalance > 0 ? '#dc2626' : '#059669'}; }
-          
-          .payment-info { background: #f8fafc; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
-          .payment-info h3 { font-size: 9px; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
-          .payment-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-          .payment-item label { display: block; font-size: 8px; color: #94a3b8; }
-          .payment-item span { font-size: 10px; font-weight: 600; }
-          
-          .notes-section { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 8px 12px; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
-          .notes-section h3 { font-size: 9px; font-weight: 600; color: #92400e; margin-bottom: 4px; }
-          .notes-section p { color: #78350f; font-size: 9px; }
-          
-          .policies { background: #f1f5f9; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
-          .policies h3 { font-size: 9px; font-weight: 600; color: #334155; margin-bottom: 6px; text-transform: uppercase; }
-          .policies ul { list-style: none; padding: 0; columns: 2; column-gap: 15px; }
-          .policies li { font-size: 8px; color: #475569; padding-left: 10px; position: relative; margin-bottom: 3px; break-inside: avoid; }
-          .policies li::before { content: "•"; position: absolute; left: 0; color: #0891b2; }
-          
-          .late-warning { background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 8px; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-          .late-warning p { color: #991b1b; font-size: 8px; font-weight: 500; }
-          
-          .footer { text-align: center; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 10px; }
-          .footer .thank-you { font-size: 12px; font-weight: 600; color: #0891b2; margin-bottom: 4px; }
-          .footer p { color: #94a3b8; font-size: 8px; margin: 2px 0; }
-          
-          @media print {
-            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            .page { padding: 10mm; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="page">
-          <div class="header">
-            <div class="logo">NIVRA</div>
-            <div class="tagline">Compagnie Télécom Indépendante</div>
-            <div class="company-info">
-              <p>Montréal, QC, Canada | Tél: 514-544-2233 | Support@nivratelecom.ca</p>
-              <p>TPS: 123456789 RT0001 | TVQ: 1234567890 TQ0001</p>
-            </div>
-          </div>
-          
-          <div class="invoice-header">
-            <div class="invoice-title">
-              <h1>FACTURE</h1>
-              <div class="invoice-number">${invoiceNum}</div>
-            </div>
-            <span class="status-badge status-${bill.status}">${statusLabels[bill.status] || bill.status}</span>
-          </div>
-          
-          <div class="info-grid">
-            <div class="info-section">
-              <h3>Facturer à</h3>
-              <div class="client-name">${clientName}</div>
-              <p>${clientEmail}</p>
-              ${clientPhone ? `<p>Tél: ${clientPhone}</p>` : ''}
-            </div>
-            <div class="info-section">
-              <div class="dates-grid">
-                <div class="date-item"><label>Émission</label><span>${createdDate}</span></div>
-                <div class="date-item"><label>Échéance</label><span>${dueDate}</span></div>
-                ${paidDate ? `<div class="date-item"><label>Payé le</label><span>${paidDate}</span></div>` : ''}
-                <div class="date-item"><label>Période</label><span>${period}</span></div>
-              </div>
-            </div>
-          </div>
-          
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th style="width:55%">Description</th>
-                <th style="width:15%">Qté</th>
-                <th style="width:15%">Prix unit.</th>
-                <th style="width:15%">Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><div class="item-desc">Services télécom</div><div class="item-detail">${bill.notes?.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || 'Services mensuels'} - ${period}</div></td>
-                <td>1</td>
-                <td>${formatCurrency(subtotal)}</td>
-                <td>${formatCurrency(subtotal)}</td>
-              </tr>
-              ${fees > 0 ? `<tr><td><div class="item-desc">Frais ${bill.late_fee_applied ? '(retard 5%)' : 'admin.'}</div></td><td>—</td><td>—</td><td style="color:#dc2626">+${formatCurrency(fees)}</td></tr>` : ''}
-            </tbody>
-          </table>
-          
-          <div class="bottom-section">
-            <div>
-              ${bill.status === "paid" && paymentMethod ? `
-              <div class="payment-info">
-                <h3>Paiement reçu</h3>
-                <div class="payment-grid">
-                  <div class="payment-item"><label>Méthode</label><span>${paymentMethod.split(' - ')[0]}</span></div>
-                  ${cardLast4 ? `<div class="payment-item"><label>Carte</label><span>${cardLast4}</span></div>` : ''}
-                  ${refNumber ? `<div class="payment-item"><label>Référence</label><span>${refNumber}</span></div>` : ''}
-                  <div class="payment-item"><label>Montant</label><span>${formatCurrency(total)}</span></div>
-                </div>
-              </div>
-              ` : ''}
-              
-              ${bill.notes && !bill.notes.includes('[Paiement') ? `
-              <div class="notes-section">
-                <h3>Notes</h3>
-                <p>${bill.notes.replace(/\[.*?\]/g, '').replace(/Référence:.*$/gm, '').trim()}</p>
-              </div>
-              ` : ''}
-              
-              <div class="policies">
-                <h3>Conditions</h3>
-                <ul>
-                  <li>Paiement dû à l'échéance indiquée</li>
-                  <li>Modes acceptés: Carte, Virement Interac</li>
-                  <li><strong>5% par mois</strong> sur solde en retard</li>
-                  <li>Intérêts composés mensuellement</li>
-                </ul>
-                ${bill.status !== "paid" ? `<div class="late-warning"><span>⚠️</span><p>Frais de 5% appliqués après l'échéance</p></div>` : ''}
-              </div>
-            </div>
-            
-            <div class="totals-table">
-              <div class="totals-row"><span>Sous-total</span><span>${formatCurrency(subtotal)}</span></div>
-              ${fees > 0 ? `<div class="totals-row" style="color:#dc2626"><span>Frais</span><span>+${formatCurrency(fees)}</span></div>` : ''}
-              <div class="totals-row"><span>TPS+TVQ (14.975%)</span><span>${formatCurrency(taxAmount)}</span></div>
-              ${credits > 0 ? `<div class="totals-row" style="color:#059669"><span>Crédits</span><span>-${formatCurrency(credits)}</span></div>` : ''}
-              <div class="totals-row total"><span>Total</span><span>${formatCurrency(total)}</span></div>
-              <div class="totals-row balance"><span>Solde ${remainingBalance > 0 ? 'dû' : ''}</span><span>${formatCurrency(remainingBalance)}</span></div>
-            </div>
-          </div>
-          
-          <div class="footer">
-            <p class="thank-you">Merci de votre confiance!</p>
-            <p>Nivra Inc. — Compagnie télécom indépendante, modèle client-payeur, aucune affiliation carrier</p>
-            <p>Facture générée électroniquement • Valide sans signature</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Use a safer approach for printing HTML content
-    const printWindow = window.open("", "_blank", "noopener,noreferrer");
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      printWindow.onload = () => {
-        try {
-          printWindow.print();
-        } catch (e) {
-          console.error("Print error:", e);
-        }
+  // PDF Invoice using jsPDF - no blank tabs
+  const exportInvoicePDF = async (bill: any) => {
+    try {
+      const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
+      const { safePDFDownload } = await import("@/lib/pdfUtils");
+      
+      const subtotal = Number(bill.amount) || 0;
+      const fees = Number(bill.fees) || 0;
+      const credits = Number(bill.credits) || 0;
+      const deliveryFee = Number(bill.delivery_fee) || 0;
+      const activationFee = Number(bill.activation_fee) || 0;
+      const installationFee = Number(bill.installation_fee) || 0;
+      
+      const invoiceNum = bill.invoice_number || `INV-${bill.id.slice(0, 8).toUpperCase()}`;
+      const clientName = bill.profiles?.full_name || "Client";
+      const clientEmail = bill.profiles?.email || bill.client_email || "";
+      const clientPhone = bill.profiles?.phone || "";
+      
+      // Parse promo from notes
+      const promoMatch = bill.notes?.match(/Promo:\s*(\w+)/i);
+      const promoCode = promoMatch ? promoMatch[1] : undefined;
+      
+      // Parse payment info
+      const paymentMethodMatch = bill.notes?.match(/\[Paiement reçu via (.*?)\]/);
+      const paymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : null;
+      const cardMatch = paymentMethod?.match(/\*\*\*\*(\d{4})/);
+      const cardLast4 = cardMatch ? cardMatch[1] : undefined;
+      
+      // Get service plan from notes or related order
+      const servicePlan = bill.notes?.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || "Services télécom";
+      
+      const invoiceData = {
+        invoiceNumber: invoiceNum,
+        orderNumber: bill.related_order_number,
+        paymentReference: bill.payment_reference,
+        clientNumber: bill.user_id?.slice(0, 8).toUpperCase(),
+        clientName,
+        clientEmail,
+        clientPhone,
+        subtotal,
+        fees,
+        credits,
+        deliveryFee,
+        activationFee,
+        installationFee,
+        discountAmount: Number(bill.discount_amount) || 0,
+        preauthDiscount: Number(bill.preauth_discount) || 0,
+        tpsAmount: Number(bill.tps_amount),
+        tvqAmount: Number(bill.tvq_amount),
+        lateFeeAmount: Number(bill.late_fee_amount) || 0,
+        dueDate: bill.due_date,
+        createdAt: bill.created_at,
+        status: bill.status,
+        paidAt: bill.paid_at,
+        notes: bill.notes,
+        servicePlan,
+        promoCode,
+        paymentMethod: paymentMethod?.includes("Interac") ? "etransfer" as const : 
+                       paymentMethod?.includes("Carte") ? "credit_card" as const : undefined,
+        cardLast4,
       };
-    } else {
-      toast({ title: "Fenêtre bloquée", description: "Autorisez les popups pour imprimer", variant: "destructive" });
-      return;
+      
+      const doc = generateInvoicePDF(invoiceData);
+      const blob = doc.output("blob");
+      
+      safePDFDownload(blob, `Facture_${invoiceNum}.pdf`);
+      toast({ title: "Facture téléchargée" });
+    } catch (error) {
+      console.error("Error generating invoice PDF:", error);
+      toast({ title: "Erreur lors de la génération", variant: "destructive" });
     }
-    toast({ title: "Facture PDF prête" });
+  };
+  
+  // View invoice PDF in new tab
+  const viewInvoicePDF = async (bill: any) => {
+    try {
+      const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
+      const { safePDFOpen } = await import("@/lib/pdfUtils");
+      
+      const subtotal = Number(bill.amount) || 0;
+      const fees = Number(bill.fees) || 0;
+      const credits = Number(bill.credits) || 0;
+      const deliveryFee = Number(bill.delivery_fee) || 0;
+      const activationFee = Number(bill.activation_fee) || 0;
+      const installationFee = Number(bill.installation_fee) || 0;
+      
+      const invoiceNum = bill.invoice_number || `INV-${bill.id.slice(0, 8).toUpperCase()}`;
+      const clientName = bill.profiles?.full_name || "Client";
+      const clientEmail = bill.profiles?.email || bill.client_email || "";
+      const clientPhone = bill.profiles?.phone || "";
+      
+      const servicePlan = bill.notes?.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || "Services télécom";
+      
+      const invoiceData = {
+        invoiceNumber: invoiceNum,
+        orderNumber: bill.related_order_number,
+        paymentReference: bill.payment_reference,
+        clientNumber: bill.user_id?.slice(0, 8).toUpperCase(),
+        clientName,
+        clientEmail,
+        clientPhone,
+        subtotal,
+        fees,
+        credits,
+        deliveryFee,
+        activationFee,
+        installationFee,
+        discountAmount: Number(bill.discount_amount) || 0,
+        preauthDiscount: Number(bill.preauth_discount) || 0,
+        dueDate: bill.due_date,
+        createdAt: bill.created_at,
+        status: bill.status,
+        paidAt: bill.paid_at,
+        notes: bill.notes,
+        servicePlan,
+      };
+      
+      const doc = generateInvoicePDF(invoiceData);
+      const blob = doc.output("blob");
+      
+      safePDFOpen(blob, `Facture_${invoiceNum}.pdf`);
+    } catch (error) {
+      console.error("Error viewing invoice PDF:", error);
+      toast({ title: "Erreur lors de l'ouverture", variant: "destructive" });
+    }
   };
 
   return (

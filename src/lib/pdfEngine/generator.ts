@@ -328,17 +328,50 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   // Total box
   addTotalBox(state, "TOTAL DÛ AUJOURD'HUI", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
 
-  // Estimated monthly (for contracts)
+  // Estimated monthly (for contracts) - MORE VISIBLE
   if (data.docType === "contract" && data.billing.subtotal > 0) {
-    const monthlyEstimate = data.billing.subtotal - (data.billing.discountTotal > 0 ? Math.min(data.billing.discountTotal, data.billing.subtotal * 0.1) : 0);
-    if (checkPageBreak(state, 8)) {
+    // Only include recurring services (exclude one-time fees/discounts)
+    const monthlyEstimate = data.billing.subtotal;
+    if (checkPageBreak(state, 22)) {
       addNewPage(state, addHeader);
     }
-    doc.setFontSize(fontSize.small);
-    doc.setFont("helvetica", "italic");
+    
+    state.currentY += 4;
+    
+    // Highlighted box for monthly estimate
+    const boxWidth = contentWidth;
+    const boxHeight = 16;
+    const pageWidth = getPageWidth(doc);
+    
+    // Light accent background with border
+    setColor(doc, "background", "fill");
+    setColor(doc, "accent", "draw");
+    doc.setLineWidth(1.2);
+    doc.roundedRect(marginLeft, state.currentY, boxWidth, boxHeight, 2, 2, "FD");
+    
+    // Left accent bar
+    setColor(doc, "accent", "fill");
+    doc.rect(marginLeft, state.currentY, 4, boxHeight, "F");
+    
+    // Label
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, "text");
+    doc.text("TOTAL MENSUEL ESTIMÉ", marginLeft + 10, state.currentY + 7);
+    
+    // Value - large and prominent
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, "primary");
+    doc.text(`~${formatCurrency(monthlyEstimate)}/mois`, pageWidth - marginRight - 8, state.currentY + 10, { align: "right" });
+    
+    // Subtitle
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "normal");
     setColor(doc, "muted");
-    doc.text(`* Total mensuel estimé : ~${formatCurrency(monthlyEstimate)}/mois (avant taxes, sujet à changement)`, marginLeft, state.currentY);
-    state.currentY += 6;
+    doc.text("(avant taxes, services récurrents uniquement)", marginLeft + 10, state.currentY + 13);
+    
+    state.currentY += boxHeight + 6;
   }
 
   // ========== PAYMENT STATUS (Invoice/Estimate only) ==========
