@@ -245,6 +245,9 @@ export const ensureOrderContractUpToDate = async (params: {
 
     isSigned: Boolean(contract.is_signed),
     signedAt: contract.signed_at || undefined,
+    
+    // CRITICAL: Pass structured line_items for dynamic PDF generation
+    equipmentDetails: equipmentDetails,
   };
 
   const doc = generateTelecomContractPDF(data);

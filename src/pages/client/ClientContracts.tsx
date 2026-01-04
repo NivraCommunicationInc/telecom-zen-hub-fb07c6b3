@@ -126,22 +126,28 @@ const ClientContracts = () => {
         return;
       }
 
-      // Fetch linked order with service details
+      // Fetch linked order with service details INCLUDING equipment_details for line_items
       const { data: linkedOrder } = await portalSupabase
         .from("orders")
         .select(`
           id, order_number, created_at, service_type,
           subtotal, tps_amount, tvq_amount, total_amount, 
-          activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee
+          activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee,
+          equipment_details, promo_code, discount_amount, preauth_discount
         `)
         .eq("related_contract_id", contract.id)
         .maybeSingle();
       
+      // Import line item utilities
+      const { extractLineItemsFromOrder, calculateLineItemTotals } = await import("@/lib/orderLineItems");
+      
       // Parse service type to determine individual services and prices
       const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
       const subtotal = Number(linkedOrder?.subtotal ?? 0);
+      const equipmentDetails = linkedOrder?.equipment_details;
+      const lineItems = extractLineItemsFromOrder(equipmentDetails);
       
-      // Build individual service prices based on service type
+      // Build individual service prices based on line_items OR fallback parsing
       let internetPlan: string | undefined;
       let internetPrice: number | undefined;
       let tvBundle: string | undefined;
@@ -151,21 +157,52 @@ const ClientContracts = () => {
       let streamingPlan: string | undefined;
       let streamingPrice: number | undefined;
       
-      if (serviceType.includes("internet") || serviceType.includes("fibre")) {
-        internetPlan = "Internet Résidentiel";
-        internetPrice = subtotal > 0 ? subtotal : 50;
-      }
-      if (serviceType.includes("tv") || serviceType.includes("télé")) {
-        tvBundle = "Forfait TV";
-        tvPrice = 35;
-      }
-      if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
-        mobilePlan = "Forfait Mobile Prépayé";
-        mobilePrice = 60;
-      }
-      if (serviceType.includes("streaming")) {
-        streamingPlan = "Streaming+";
-        streamingPrice = 15;
+      if (lineItems && lineItems.length > 0) {
+        // Use structured line_items as primary source
+        for (const item of lineItems) {
+          if (item.category === 'service') {
+            const itemType = item.type?.toLowerCase() || '';
+            const price = item.unit_price >= 0 ? item.unit_price : undefined;
+            
+            if (itemType === 'internet') {
+              internetPlan = item.name;
+              internetPrice = price;
+            } else if (itemType === 'tv') {
+              tvBundle = item.name;
+              tvPrice = price;
+            } else if (itemType === 'mobile') {
+              mobilePlan = item.name;
+              mobilePrice = price;
+            } else if (itemType === 'streaming') {
+              // Aggregate streaming services
+              if (!streamingPlan) {
+                streamingPlan = item.name;
+                streamingPrice = price;
+              } else {
+                streamingPlan += `, ${item.name}`;
+                streamingPrice = (streamingPrice || 0) + (price || 0);
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback: Parse service_type string if no line_items found
+        if (serviceType.includes("internet") || serviceType.includes("fibre")) {
+          internetPlan = "Internet Résidentiel";
+          internetPrice = subtotal > 0 ? subtotal : 0;
+        }
+        if (serviceType.includes("tv") || serviceType.includes("télé")) {
+          tvBundle = "Forfait TV";
+          tvPrice = 0;
+        }
+        if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
+          mobilePlan = "Forfait Mobile Prépayé";
+          mobilePrice = 0;
+        }
+        if (serviceType.includes("streaming")) {
+          streamingPlan = "Streaming+";
+          streamingPrice = 0;
+        }
       }
       
       const hasSpecificServices = internetPlan || tvBundle || mobilePlan || streamingPlan;
@@ -221,9 +258,17 @@ const ClientContracts = () => {
         tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
         tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
         totalAmount: Number(linkedOrder?.total_amount ?? 0),
+        
+        // Promo/discounts
+        promoCode: linkedOrder?.promo_code || undefined,
+        promoDiscount: Number(linkedOrder?.discount_amount ?? 0),
+        preauthDiscount: Number(linkedOrder?.preauth_discount ?? 0),
 
         isSigned: Boolean(contract.is_signed),
         signedAt: contract.signed_at || undefined,
+        
+        // CRITICAL: Pass structured line_items for dynamic PDF generation
+        equipmentDetails: equipmentDetails as { [key: string]: any; line_items?: any[] } | undefined,
       };
 
       const doc = generateTelecomContractPDF(contractData);

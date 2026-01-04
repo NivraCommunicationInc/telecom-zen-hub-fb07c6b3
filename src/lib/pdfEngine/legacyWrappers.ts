@@ -20,6 +20,12 @@ import {
 import { getCompanyInfo, calculateQuebecTaxes } from "./adapters";
 import { ACTIVE_CONTRACT_TEMPLATE } from "../contractTemplate";
 import { safePDFDownload, safePDFOpen } from "../pdfUtils";
+import { 
+  extractLineItemsFromOrder, 
+  formatPeriodLabel,
+  calculateLineItemTotals,
+  type OrderLineItem 
+} from "../orderLineItems";
 
 // ============= LEGACY INTERFACE: TelecomContractData =============
 
@@ -127,6 +133,74 @@ export interface LegacyTelecomContractData {
   internalStatus?: string;
   category?: string;
   bundleName?: string;
+  
+  // NEW: Structured line items from order.equipment_details
+  equipmentDetails?: {
+    line_items?: any[];
+    [key: string]: any;
+  };
+}
+
+/**
+ * Maps OrderLineItem to ServiceLineItem for PDF
+ */
+function lineItemToServiceItem(item: OrderLineItem): ServiceLineItem {
+  const typeMap: Record<string, ServiceLineItem['type']> = {
+    internet: "Internet",
+    tv: "TV",
+    mobile: "Mobile",
+    streaming: "Streaming",
+    security: "Security",
+    other: "Other",
+  };
+  
+  return {
+    type: typeMap[item.type] || "Other",
+    name: item.name,
+    monthlyPrice: item.unit_price >= 0 ? item.unit_price : 0, // Never use -1, show 0 instead
+    quantity: item.qty,
+    priceLabel: formatPeriodLabel(item.period),
+    description: item.description,
+    isOneTime: item.period === "one_time",
+  };
+}
+
+/**
+ * Maps OrderLineItem to EquipmentItem for PDF
+ */
+function lineItemToEquipment(item: OrderLineItem): EquipmentItem {
+  return {
+    name: item.name,
+    quantity: item.qty,
+    unitPrice: item.unit_price >= 0 ? item.unit_price : 0,
+    warranty: "1 an",
+  };
+}
+
+/**
+ * Maps OrderLineItem to OneTimeFee for PDF
+ */
+function lineItemToFee(item: OrderLineItem): OneTimeFee {
+  const price = item.unit_price >= 0 ? item.unit_price : 0;
+  return {
+    label: item.name,
+    amount: price * item.qty,
+    description: item.description,
+  };
+}
+
+/**
+ * Maps OrderLineItem (discount) to DiscountItem for PDF
+ */
+function lineItemToDiscount(item: OrderLineItem): DiscountItem {
+  const price = item.unit_price >= 0 ? item.unit_price : 0;
+  return {
+    label: item.name,
+    amount: price * item.qty,
+    promoCode: item.ref_id,
+    type: item.name.toLowerCase().includes('promo') ? 'promo' : 
+          item.name.toLowerCase().includes('préauto') ? 'preauth' : 'other',
+  };
 }
 
 /**
@@ -134,21 +208,94 @@ export interface LegacyTelecomContractData {
  * Wrapper for backward compatibility with existing code
  */
 export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData): jsPDF {
-  // Build services array from legacy fields - include ALL selected services with prices
-  // IMPORTANT: Each service MUST be on its own row, never concatenated
-  const services: ServiceLineItem[] = [];
+  // PRIORITY: Use structured line_items from equipmentDetails if available
+  const lineItems = extractLineItemsFromOrder(data.equipmentDetails);
+  const hasLineItems = lineItems && lineItems.length > 0;
   
-  // Helper to determine if price is valid (not undefined and not 0 when it shouldn't be)
+  // Build services, equipment, fees, and discounts from line_items OR fallback to legacy fields
+  let services: ServiceLineItem[] = [];
+  let equipment: EquipmentItem[] = [];
+  let oneTimeFees: OneTimeFee[] = [];
+  let discounts: DiscountItem[] = [];
+  
+  if (hasLineItems) {
+    // === PRIMARY PATH: Use structured line_items ===
+    for (const item of lineItems!) {
+      if (item.category === 'service') {
+        services.push(lineItemToServiceItem(item));
+      } else if (item.category === 'equipment') {
+        equipment.push(lineItemToEquipment(item));
+      } else if (item.category === 'fee') {
+        oneTimeFees.push(lineItemToFee(item));
+      } else if (item.category === 'discount') {
+        discounts.push(lineItemToDiscount(item));
+      }
+    }
+    
+    // Calculate totals from line items
+    const totals = calculateLineItemTotals(lineItems!);
+    const taxableAmount = Math.max(0, totals.serviceSubtotal + totals.equipmentSubtotal + totals.feeSubtotal - totals.discountTotal);
+    const taxes = calculateQuebecTaxes(taxableAmount);
+    
+    const unifiedData: UnifiedDocumentData = {
+      docType: "contract",
+      metadata: {
+        documentNumber: data.contractNumber,
+        orderNumber: data.orderReference || data.orderNumber,
+        date: data.issueDate || data.orderDate || data.startDate || new Date().toISOString(),
+        effectiveDate: data.effectiveDate || data.orderDate || data.startDate,
+        version: data.templateVersion || ACTIVE_CONTRACT_TEMPLATE.version,
+      },
+      client: {
+        fullName: data.clientName || `${data.clientFirstName || ""} ${data.clientLastName || ""}`.trim(),
+        email: data.clientEmail,
+        phone: data.clientPhone,
+        accountNumber: data.clientAccountNumber || data.accountKey,
+        serviceAddress: data.serviceAddress,
+        serviceCity: data.serviceCity,
+        serviceProvince: data.serviceProvince || "QC",
+        servicePostalCode: data.servicePostalCode,
+        billingAddress: data.billingAddress,
+      },
+      company: getCompanyInfo(),
+      agent: data.employeeName ? {
+        name: data.employeeName,
+        role: data.employeeRole,
+      } : undefined,
+      services,
+      equipment,
+      oneTimeFees,
+      discounts,
+      billing: {
+        subtotal: totals.serviceSubtotal,
+        oneTimeTotal: totals.equipmentSubtotal + totals.feeSubtotal,
+        discountTotal: totals.discountTotal,
+        tps: data.tpsAmount ?? taxes.tps,
+        tvq: data.tvqAmount ?? taxes.tvq,
+        total: data.totalAmount || (taxableAmount + taxes.tps + taxes.tvq),
+      },
+      payment: {
+        status: "pending",
+      },
+      isSigned: data.isSigned,
+      signedAt: data.signedAt,
+      signatureMethod: data.signatureMethod as "electronic" | "manual" | undefined,
+    };
+    
+    return generateUnifiedPDF(unifiedData);
+  }
+  
+  // === FALLBACK PATH: Use legacy individual fields ===
+  // Helper to determine if price is valid
   const hasValidPrice = (price: number | undefined): boolean => {
-    return price !== undefined && price !== null;
+    return price !== undefined && price !== null && price >= 0;
   };
   
   if (data.internetPlan) {
     services.push({ 
       type: "Internet", 
       name: data.internetPlan, 
-      // Use -1 as sentinel for "Prix à confirmer" - will be handled in generator
-      monthlyPrice: hasValidPrice(data.internetPrice) ? data.internetPrice! : -1,
+      monthlyPrice: hasValidPrice(data.internetPrice) ? data.internetPrice! : 0,
       priceLabel: "/mois",
     });
   }
@@ -157,7 +304,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
       type: "TV", 
       name: data.tvBundle, 
       description: "Requiert Internet", 
-      monthlyPrice: hasValidPrice(data.tvPrice) ? data.tvPrice! : -1,
+      monthlyPrice: hasValidPrice(data.tvPrice) ? data.tvPrice! : 0,
       priceLabel: "/mois",
     });
   }
@@ -165,7 +312,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     services.push({ 
       type: "Mobile", 
       name: data.mobilePlan, 
-      monthlyPrice: hasValidPrice(data.mobilePrice) ? data.mobilePrice! : -1,
+      monthlyPrice: hasValidPrice(data.mobilePrice) ? data.mobilePrice! : 0,
       priceLabel: "/30 jours",
     });
   }
@@ -173,7 +320,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     services.push({ 
       type: "Streaming", 
       name: data.streamingPlan, 
-      monthlyPrice: hasValidPrice(data.streamingPrice) ? data.streamingPrice! : -1,
+      monthlyPrice: hasValidPrice(data.streamingPrice) ? data.streamingPrice! : 0,
       priceLabel: "/mois",
     });
   }
@@ -187,7 +334,6 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     if (parts.length > 1) {
       // Multiple services detected in the string - create separate entries
       parts.forEach(part => {
-        // Try to detect service type from the part name
         const partLower = part.toLowerCase();
         let type: "Mobile" | "Internet" | "TV" | "Streaming" | "Security" | "Other" = "Other";
         let priceLabel = "/mois";
@@ -206,24 +352,21 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
         services.push({ 
           type, 
           name: part, 
-          monthlyPrice: -1, // Price unknown for parsed services
+          monthlyPrice: 0, // Unknown price shows as 0.00$
           priceLabel,
         });
       });
     } else {
-      // Single service or unparseable - use as-is
       services.push({ 
         type: "Other", 
         name: planName, 
-        monthlyPrice: (data.subtotal && data.subtotal > 0) ? data.subtotal : (data.monthlyAmount || -1),
+        monthlyPrice: (data.subtotal && data.subtotal > 0) ? data.subtotal : (data.monthlyAmount || 0),
         priceLabel: "/mois",
       });
     }
   }
   
-  // Build equipment array
-  const equipment: EquipmentItem[] = [];
-  
+  // Equipment from individual fields
   if (data.routerFee && data.routerFee > 0) {
     equipment.push({
       name: "Routeur Nivra Born WiFi",
@@ -244,9 +387,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     });
   }
   
-  // Build fees array
-  const oneTimeFees: OneTimeFee[] = [];
-  
+  // One-time fees from individual fields
   if (data.activationFee && data.activationFee > 0) {
     oneTimeFees.push({ label: "Frais d'activation", amount: data.activationFee });
   }
@@ -260,21 +401,45 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     oneTimeFees.push({ label: "Carte SIM", amount: data.simFee });
   }
   
-  // DISCOUNTS REMOVED - Per requirement, no discounts should appear in contracts
-  // Keep empty discounts array for type compatibility
-  const discounts: DiscountItem[] = [];
+  // Discounts from individual fields
+  if (data.promoDiscount && data.promoDiscount > 0) {
+    discounts.push({
+      label: "Rabais promotionnel",
+      amount: data.promoDiscount,
+      promoCode: data.promoCode,
+      type: "promo",
+    });
+  }
+  if (data.preauthDiscount && data.preauthDiscount > 0) {
+    discounts.push({
+      label: "Rabais paiement préautorisé",
+      amount: data.preauthDiscount,
+      type: "preauth",
+    });
+  }
+  if (data.loyaltyDiscount && data.loyaltyDiscount > 0) {
+    discounts.push({
+      label: "Rabais fidélité",
+      amount: data.loyaltyDiscount,
+      type: "loyalty",
+    });
+  }
+  if (data.multiLineDiscount && data.multiLineDiscount > 0) {
+    discounts.push({
+      label: "Rabais multi-services",
+      amount: data.multiLineDiscount,
+      type: "multiLine",
+    });
+  }
   
-  // Calculate totals - ignore services with unknown price (-1)
+  // Calculate totals
   const equipmentTotal = equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
   const feesTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0);
+  const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
+  const servicesSubtotal = services.reduce((sum, s) => sum + (s.monthlyPrice || 0) * (s.quantity || 1), 0);
   
-  // Calculate services subtotal - only include services with known prices (not -1)
-  const servicesSubtotal = services.reduce((sum, s) => {
-    if (s.monthlyPrice > 0) {
-      return sum + s.monthlyPrice * (s.quantity || 1);
-    }
-    return sum;
-  }, 0);
+  const taxableAmount = Math.max(0, servicesSubtotal + equipmentTotal + feesTotal - discountTotal);
+  const taxes = calculateQuebecTaxes(taxableAmount);
   
   const unifiedData: UnifiedDocumentData = {
     docType: "contract",
@@ -306,13 +471,12 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     oneTimeFees,
     discounts,
     billing: {
-      // Use calculated services subtotal if available, otherwise fall back to data.subtotal
       subtotal: servicesSubtotal > 0 ? servicesSubtotal : (data.subtotal || data.monthlyAmount || 0),
       oneTimeTotal: equipmentTotal + feesTotal,
-      discountTotal: 0, // No discounts - always 0
-      tps: data.tpsAmount || 0,
-      tvq: data.tvqAmount || 0,
-      total: data.totalAmount || data.monthlyAmount || 0,
+      discountTotal,
+      tps: data.tpsAmount ?? taxes.tps,
+      tvq: data.tvqAmount ?? taxes.tvq,
+      total: data.totalAmount || (taxableAmount + taxes.tps + taxes.tvq),
     },
     payment: {
       status: "pending",

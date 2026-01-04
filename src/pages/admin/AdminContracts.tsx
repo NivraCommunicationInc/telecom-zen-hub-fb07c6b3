@@ -81,15 +81,26 @@ const AdminContracts = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       
-      // Fetch profiles separately for each contract
+      // Fetch profiles and linked orders separately for each contract
       const contractsWithProfiles = await Promise.all(
         (data || []).map(async (contract) => {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("user_id", contract.user_id)
-            .maybeSingle();
-          return { ...contract, profiles: profile };
+          const [profileResult, orderResult] = await Promise.all([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("user_id", contract.user_id)
+              .maybeSingle(),
+            supabase
+              .from("orders")
+              .select("*, equipment_details, promo_code, discount_amount, preauth_discount")
+              .eq("related_contract_id", contract.id)
+              .maybeSingle(),
+          ]);
+          return { 
+            ...contract, 
+            profiles: profileResult.data,
+            linkedOrder: orderResult.data,
+          };
         })
       );
       
@@ -474,10 +485,14 @@ const AdminContracts = () => {
 
   const buildContractData = (contract: any): TelecomContractData => {
     const client = contract.profiles;
+    const linkedOrder = contract.linkedOrder;
     const fullName = client?.full_name || "Client";
     const nameParts = fullName.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
+    
+    // Get equipment details from linked order if available
+    const equipmentDetails = linkedOrder?.equipment_details;
     
     return {
       contractId: contract.id,
@@ -499,14 +514,34 @@ const AdminContracts = () => {
       idNumber: client?.id_number,
       idProvince: client?.id_province,
       idExpiration: client?.id_expiration,
-      orderDate: contract.created_at,
+      orderDate: linkedOrder?.created_at || contract.created_at,
+      orderReference: linkedOrder?.order_number,
       servicePlan: contract.contract_name,
-      subtotal: 0,
-      tpsAmount: 0,
-      tvqAmount: 0,
-      totalAmount: 0,
+      
+      // Fees from linked order
+      activationFee: Number(linkedOrder?.activation_fee ?? 0),
+      deliveryFee: Number(linkedOrder?.delivery_fee ?? 0),
+      installationFee: Number(linkedOrder?.installation_fee ?? 0),
+      terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
+      terminalCount: Number(linkedOrder?.terminal_count ?? 0),
+      routerFee: Number(linkedOrder?.router_fee ?? 0),
+      
+      // Billing from linked order
+      subtotal: Number(linkedOrder?.subtotal ?? 0),
+      tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
+      tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
+      totalAmount: Number(linkedOrder?.total_amount ?? 0),
+      
+      // Promo/discounts from linked order
+      promoCode: linkedOrder?.promo_code || undefined,
+      promoDiscount: Number(linkedOrder?.discount_amount ?? 0),
+      preauthDiscount: Number(linkedOrder?.preauth_discount ?? 0),
+      
       isSigned: contract.is_signed || false,
       signedAt: contract.signed_at,
+      
+      // CRITICAL: Pass structured line_items for dynamic PDF generation
+      equipmentDetails: equipmentDetails as { [key: string]: any; line_items?: any[] } | undefined,
     };
   };
 
