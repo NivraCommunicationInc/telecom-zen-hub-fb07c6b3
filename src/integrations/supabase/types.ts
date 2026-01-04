@@ -66,6 +66,7 @@ export type Database = {
           account_name: string | null
           account_number: string
           billing_address: string | null
+          billing_anchor_date: string | null
           billing_city: string | null
           billing_cycle_day: number | null
           billing_cycle_timezone: string | null
@@ -77,6 +78,7 @@ export type Database = {
           credit_last_reviewed_at: string | null
           credit_last_reviewed_by_admin_id: string | null
           id: string
+          next_invoice_date: string | null
           primary_service_address: string | null
           primary_service_city: string | null
           primary_service_postal_code: string | null
@@ -88,6 +90,7 @@ export type Database = {
           account_name?: string | null
           account_number: string
           billing_address?: string | null
+          billing_anchor_date?: string | null
           billing_city?: string | null
           billing_cycle_day?: number | null
           billing_cycle_timezone?: string | null
@@ -99,6 +102,7 @@ export type Database = {
           credit_last_reviewed_at?: string | null
           credit_last_reviewed_by_admin_id?: string | null
           id?: string
+          next_invoice_date?: string | null
           primary_service_address?: string | null
           primary_service_city?: string | null
           primary_service_postal_code?: string | null
@@ -110,6 +114,7 @@ export type Database = {
           account_name?: string | null
           account_number?: string
           billing_address?: string | null
+          billing_anchor_date?: string | null
           billing_city?: string | null
           billing_cycle_day?: number | null
           billing_cycle_timezone?: string | null
@@ -121,6 +126,7 @@ export type Database = {
           credit_last_reviewed_at?: string | null
           credit_last_reviewed_by_admin_id?: string | null
           id?: string
+          next_invoice_date?: string | null
           primary_service_address?: string | null
           primary_service_city?: string | null
           primary_service_postal_code?: string | null
@@ -4282,6 +4288,10 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_next_invoice_date: {
+        Args: { p_billing_day: number; p_from_date?: string }
+        Returns: string
+      }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       create_notification: {
         Args: {
