@@ -839,17 +839,128 @@ const ClientNewOrder = () => {
     return false;
   };
 
-  // Apply discount code
-  const applyDiscountCode = () => {
-    if (discountCode.toLowerCase() === "install50" || discountCode.toLowerCase() === "freeinstall") {
-      setInstallationCredit(50);
-      toast.success("Code promo appliqué! Installation gratuite.");
-    } else if (discountCode.toLowerCase() === "install25") {
-      setInstallationCredit(25);
-      toast.success("Code promo appliqué! 25$ de rabais sur l'installation.");
-    } else if (discountCode) {
-      toast.error("Code promo invalide");
+  // Promo state for database-validated promos
+  const [appliedPromo, setAppliedPromo] = useState<{
+    id: string;
+    code: string;
+    name: string;
+    discount_type: string;
+    discount_value: number;
+    discount_amount: number;
+  } | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+
+  // Apply discount code using validate-promo edge function
+  const applyDiscountCode = async () => {
+    if (!discountCode.trim()) {
+      toast.error("Veuillez entrer un code promo");
+      return;
     }
+
+    // Build cart items for promo validation
+    type CartItemType = 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
+    const cartItems: Array<{ type: CartItemType; amount: number; name: string }> = [];
+    
+    // Services
+    selectedServices.forEach(s => {
+      cartItems.push({
+        type: 'service',
+        amount: Number(s.price),
+        name: s.name,
+      });
+    });
+    
+    // Paid channels
+    selectedPaidChannels.forEach(ch => {
+      cartItems.push({
+        type: 'service',
+        amount: Number(ch.price),
+        name: ch.name,
+      });
+    });
+
+    // Add equipment fees
+    if (hasTVService && terminalQuantity > 0) {
+      cartItems.push({
+        type: 'equipment',
+        amount: terminalQuantity * TERMINAL_CONFIG.price,
+        name: `${TERMINAL_CONFIG.name} x${terminalQuantity}`,
+      });
+    }
+    if (hasInternetService || hasTVService) {
+      cartItems.push({
+        type: 'equipment',
+        amount: ROUTER_CONFIG.price,
+        name: ROUTER_CONFIG.name,
+      });
+    }
+    if (hasMobileService) {
+      cartItems.push({
+        type: 'equipment',
+        amount: SIM_CONFIG.physical.price * totalMobileLineQuantity,
+        name: `${SIM_CONFIG.physical.name} x${totalMobileLineQuantity}`,
+      });
+    }
+
+    // Add activation fee
+    cartItems.push({
+      type: 'one_time_fee',
+      amount: 25,
+      name: 'Frais d\'activation',
+    });
+
+    const subtotalBeforeDiscount = cartItems.reduce((sum, item) => sum + item.amount, 0);
+
+    setIsValidatingPromo(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("validate-promo", {
+        body: {
+          code: discountCode.trim(),
+          client_email: profile?.email || '',
+          client_id: user?.id,
+          cart_items: cartItems,
+          subtotal_before_discount: subtotalBeforeDiscount,
+        },
+      });
+
+      if (invokeError) throw invokeError;
+
+      if (!data.valid) {
+        toast.error(data.error || "Code promo invalide");
+        return;
+      }
+
+      // Apply the promo
+      setAppliedPromo({
+        id: data.promo.id,
+        code: data.promo.code,
+        name: data.promo.name,
+        discount_type: data.promo.discount_type,
+        discount_value: data.promo.discount_value,
+        discount_amount: data.discount_amount,
+      });
+
+      // If it applies to installation, set installation credit
+      if (data.promo.applies_to?.installation) {
+        const installCredit = Math.min(data.discount_amount, 50);
+        setInstallationCredit(installCredit);
+      }
+
+      toast.success(`Code promo "${data.promo.code}" appliqué! Réduction de ${data.discount_amount.toFixed(2)} $`);
+    } catch (err: any) {
+      console.error("Error validating promo:", err);
+      toast.error("Erreur lors de la validation du code promo");
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  // Remove promo
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setInstallationCredit(0);
+    setDiscountCode("");
+    toast.info("Code promo retiré");
   };
 
   // Create order mutation

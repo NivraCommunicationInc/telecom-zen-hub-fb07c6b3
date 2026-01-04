@@ -271,6 +271,22 @@ const AdminOrders = () => {
     },
   });
 
+  // Fetch activity logs for selected order
+  const { data: orderActivityLogs } = useQuery({
+    queryKey: ["order-activity-logs", selectedOrder?.id],
+    enabled: !!selectedOrder?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .or(`entity_id.eq.${selectedOrder.id},details->order_id.eq.${selectedOrder.id}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: technicians } = useQuery({
     queryKey: ["admin-technicians"],
     queryFn: async () => {
@@ -2434,73 +2450,145 @@ const AdminOrders = () => {
                     </Card>
                   </TabsContent>
 
-                  {/* Tracking Tab */}
+                  {/* Tracking Tab - Simplified: Only shipping OR technician info */}
                   <TabsContent value="tracking" className="space-y-4 mt-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Truck className="w-4 h-4" />
-                          Suivi de livraison
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Numéro de suivi</Label>
-                            <Input
-                              value={selectedOrder.tracking_number || ""}
-                              onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_number: e.target.value })}
-                              placeholder="Numéro de suivi..."
-                            />
+                    {/* Shipping Tracking - for shipped orders */}
+                    {(selectedOrder.installation_type !== "technician" || selectedOrder.status === "shipped") && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Truck className="w-4 h-4" />
+                            Suivi de livraison
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Transporteur</Label>
+                              <Select
+                                value={selectedOrder.carrier || ""}
+                                onValueChange={(v) => setSelectedOrder({ ...selectedOrder, carrier: v })}
+                              >
+                                <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="purolator">Purolator</SelectItem>
+                                  <SelectItem value="postes_canada">Postes Canada</SelectItem>
+                                  <SelectItem value="fedex">FedEx</SelectItem>
+                                  <SelectItem value="ups">UPS</SelectItem>
+                                  <SelectItem value="canpar">Canpar</SelectItem>
+                                  <SelectItem value="intelcom">Intelcom</SelectItem>
+                                  <SelectItem value="nivra_direct">Livraison Nivra</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Numéro de suivi</Label>
+                              <Input
+                                value={selectedOrder.tracking_number || ""}
+                                onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_number: e.target.value })}
+                                placeholder="Numéro de suivi..."
+                              />
+                            </div>
                           </div>
                           <div>
                             <Label>URL de suivi</Label>
                             <Input
                               value={selectedOrder.tracking_url || ""}
                               onChange={(e) => setSelectedOrder({ ...selectedOrder, tracking_url: e.target.value })}
-                              placeholder="https://..."
+                              placeholder="https://tracking.example.com/..."
                             />
                           </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
+                          {selectedOrder.tracking_url && (
+                            <Button variant="outline" size="sm" onClick={() => window.open(selectedOrder.tracking_url, "_blank")}>
+                              <Truck className="w-4 h-4 mr-2" />
+                              Ouvrir le suivi
+                            </Button>
+                          )}
+                          {selectedOrder.shipped_at && (
+                            <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+                              <p className="text-sm text-cyan-500">
+                                Expédié le {format(new Date(selectedOrder.shipped_at), "d MMMM yyyy à HH:mm", { locale: fr })}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Technician Installation Tracking */}
+                    {(selectedOrder.installation_type === "technician" || selectedOrder.technician_id) && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Wrench className="w-4 h-4" />
+                            Suivi d'installation technicien
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Technicien assigné</Label>
+                              <p className="font-medium mt-1">
+                                {technicians?.find((t: any) => t.id === selectedOrder.technician_id)?.full_name || "Non assigné"}
+                              </p>
+                            </div>
+                            <div>
+                              <Label>Date d'installation</Label>
+                              <p className="font-medium mt-1">
+                                {selectedOrder.appointment_date
+                                  ? format(new Date(selectedOrder.appointment_date), "d MMMM yyyy à HH:mm", { locale: fr })
+                                  : "Non planifiée"}
+                              </p>
+                            </div>
+                          </div>
                           <div>
-                            <Label>SIM</Label>
-                            <Input
-                              value={selectedOrder.sim_number || ""}
-                              onChange={(e) => setSelectedOrder({ ...selectedOrder, sim_number: e.target.value })}
-                              placeholder="Numéro SIM..."
-                            />
+                            <Label>Statut d'installation</Label>
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              {["scheduled", "en_route", "in_progress", "completed", "failed"].map((s) => (
+                                <Badge
+                                  key={s}
+                                  variant={selectedOrder.status === s || selectedOrder.status === `completed_installation` && s === "completed" ? "default" : "outline"}
+                                  className={`cursor-pointer ${
+                                    s === "completed" ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/30" :
+                                    s === "failed" ? "bg-red-500/20 text-red-500 border-red-500/30" :
+                                    s === "in_progress" ? "bg-amber-500/20 text-amber-500 border-amber-500/30" :
+                                    s === "en_route" ? "bg-cyan-500/20 text-cyan-500 border-cyan-500/30" :
+                                    "bg-muted"
+                                  }`}
+                                >
+                                  {s === "scheduled" && "Planifié"}
+                                  {s === "en_route" && "En route"}
+                                  {s === "in_progress" && "En cours"}
+                                  {s === "completed" && "Terminé"}
+                                  {s === "failed" && "Échoué"}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
                           <div>
-                            <Label>IMEI</Label>
-                            <Input
-                              value={selectedOrder.imei_number || ""}
-                              onChange={(e) => setSelectedOrder({ ...selectedOrder, imei_number: e.target.value })}
-                              placeholder="IMEI..."
+                            <Label>Notes d'installation</Label>
+                            <Textarea
+                              value={selectedOrder.appointment_notes || ""}
+                              onChange={(e) => setSelectedOrder({ ...selectedOrder, appointment_notes: e.target.value })}
+                              placeholder="Notes sur l'installation..."
+                              className="mt-1"
                             />
                           </div>
-                          <div>
-                            <Label>Numéro de série</Label>
-                            <Input
-                              value={selectedOrder.serial_number || ""}
-                              onChange={(e) => setSelectedOrder({ ...selectedOrder, serial_number: e.target.value })}
-                              placeholder="Série..."
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>ID équipement</Label>
-                          <Input
-                            value={selectedOrder.equipment_id || ""}
-                            onChange={(e) => setSelectedOrder({ ...selectedOrder, equipment_id: e.target.value })}
-                            placeholder="Référence équipement..."
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* No tracking info message */}
+                    {!selectedOrder.technician_id && !selectedOrder.tracking_number && selectedOrder.status !== "shipped" && (
+                      <div className="text-center py-8">
+                        <Truck className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Aucune information de suivi disponible</p>
+                        <p className="text-xs text-muted-foreground mt-1">Le suivi sera disponible une fois la commande expédiée ou un technicien assigné</p>
+                      </div>
+                    )}
                   </TabsContent>
 
-                  {/* Audit Tab */}
+                  {/* Audit Tab - Enhanced with activity_logs */}
                   <TabsContent value="audit" className="space-y-4 mt-4">
                     <Card>
                       <CardHeader>
@@ -2509,8 +2597,56 @@ const AdminOrders = () => {
                           Historique des actions
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        {selectedOrder.audit_timeline && selectedOrder.audit_timeline.length > 0 ? (
+                      <CardContent className="space-y-4">
+                        {/* Activity logs from database */}
+                        {orderActivityLogs && orderActivityLogs.length > 0 ? (
+                          <div className="space-y-3">
+                            {orderActivityLogs.map((log: any) => (
+                              <div key={log.id} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                                <div className={`w-2 h-2 rounded-full mt-2 ${
+                                  log.action?.includes("create") ? "bg-emerald-500" :
+                                  log.action?.includes("update") ? "bg-blue-500" :
+                                  log.action?.includes("delete") || log.action?.includes("cancel") ? "bg-red-500" :
+                                  log.action?.includes("payment") ? "bg-amber-500" :
+                                  "bg-primary"
+                                }`} />
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-medium">
+                                      {log.action === "create" && "Création"}
+                                      {log.action === "update" && "Mise à jour"}
+                                      {log.action === "id_verification" && "Vérification ID"}
+                                      {log.action === "payment_captured" && "Paiement capturé"}
+                                      {log.action === "technician_assigned" && "Technicien assigné"}
+                                      {log.action === "status_change" && "Changement de statut"}
+                                      {!["create", "update", "id_verification", "payment_captured", "technician_assigned", "status_change"].includes(log.action) && log.action}
+                                    </p>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(log.created_at), "d MMM yyyy HH:mm", { locale: fr })}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Par: {log.actor_name || log.actor_email || "Système"}
+                                    {log.actor_role && ` (${log.actor_role})`}
+                                  </p>
+                                  {log.changed_field && (
+                                    <p className="text-xs text-cyan-500 mt-1">
+                                      Champ: {log.changed_field}
+                                      {log.old_value && ` • Ancien: ${log.old_value}`}
+                                      {log.new_value && ` • Nouveau: ${log.new_value}`}
+                                    </p>
+                                  )}
+                                  {log.reason && (
+                                    <p className="text-xs text-muted-foreground mt-1 italic">
+                                      {log.reason}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : selectedOrder.audit_timeline && selectedOrder.audit_timeline.length > 0 ? (
+                          // Fallback to order's embedded audit_timeline
                           <div className="space-y-3">
                             {selectedOrder.audit_timeline.map((entry: any, i: number) => (
                               <div key={i} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
@@ -2520,10 +2656,15 @@ const AdminOrders = () => {
                                   <p className="text-xs text-muted-foreground">
                                     {format(new Date(entry.timestamp), "d MMM yyyy HH:mm", { locale: fr })}
                                   </p>
-                                  {entry.details && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {JSON.stringify(entry.details)}
-                                    </p>
+                                  {entry.user_email && (
+                                    <p className="text-xs text-muted-foreground">Par: {entry.user_email}</p>
+                                  )}
+                                  {entry.details && typeof entry.details === "object" && (
+                                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                      {Object.entries(entry.details).map(([key, val]) => (
+                                        <p key={key}>{key}: {String(val)}</p>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -2543,12 +2684,18 @@ const AdminOrders = () => {
                         <p className="font-medium">
                           {format(new Date(selectedOrder.created_at), "d MMMM yyyy HH:mm", { locale: fr })}
                         </p>
+                        {selectedOrder.created_by && (
+                          <p className="text-xs text-muted-foreground">Par: {selectedOrder.created_by}</p>
+                        )}
                       </div>
                       <div className="p-3 bg-muted rounded-lg">
                         <p className="text-muted-foreground">Dernière mise à jour</p>
                         <p className="font-medium">
                           {format(new Date(selectedOrder.updated_at), "d MMMM yyyy HH:mm", { locale: fr })}
                         </p>
+                        {selectedOrder.processed_by && (
+                          <p className="text-xs text-muted-foreground">Traité par: Admin</p>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
