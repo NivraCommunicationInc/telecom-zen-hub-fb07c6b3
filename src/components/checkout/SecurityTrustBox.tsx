@@ -1,5 +1,6 @@
 import { Shield, Lock, Phone, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
 
 interface SecurityTrustBoxProps {
   isFrench?: boolean;
@@ -11,8 +12,8 @@ interface SecurityTrustBoxProps {
 export const SecurityTrustBox = ({ 
   isFrench = true, 
   showSupport = true,
-  supportPhone = "1-888-NIVRA",
-  supportEmail = "support@nivra.ca"
+  supportPhone = COMPANY_CONTACT.supportPhoneDisplay,
+  supportEmail = COMPANY_CONTACT.supportEmailDisplay
 }: SecurityTrustBoxProps) => {
   return (
     <div className="space-y-4">
@@ -60,14 +61,14 @@ export const SecurityTrustBox = ({
                 </h4>
                 <div className="flex flex-wrap gap-3 text-xs">
                   <a 
-                    href={`tel:${supportPhone.replace(/[^0-9]/g, '')}`}
+                    href={getTelLink()}
                     className="flex items-center gap-1.5 text-primary hover:underline"
                   >
                     <Phone className="w-3 h-3" />
                     {supportPhone}
                   </a>
                   <a 
-                    href={`mailto:${supportEmail}`}
+                    href={getMailtoLink()}
                     className="flex items-center gap-1.5 text-primary hover:underline"
                   >
                     <Mail className="w-3 h-3" />

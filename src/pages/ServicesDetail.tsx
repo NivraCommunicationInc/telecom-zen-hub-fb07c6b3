@@ -246,7 +246,7 @@ const ServicesDetail = () => {
                 {isFrench ? "Demander une soumission" : "Request a quote"}
               </Button>
               <Button variant="outline" size="lg" asChild>
-                <a href="tel:+14385442233">
+                <a href="tel:+15145442233">
                   <Phone className="w-4 h-4 mr-2" />
                   {isFrench ? "Nous joindre" : "Contact us"}
                 </a>
@@ -506,9 +506,9 @@ const ServicesDetail = () => {
                     </Link>
                   </Button>
                   <Button variant="outline" size="lg" className="gap-2" asChild>
-                    <a href="tel:+14385442233">
+                    <a href="tel:+15145442233">
                       <Phone className="w-4 h-4" />
-                      438-544-2233
+                      514-544-2233
                     </a>
                   </Button>
                 </div>

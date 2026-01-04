@@ -1,15 +1,16 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { COMPANY_CONTACT, ETRANSFER_CONFIG } from "@/config/company";
 
 // Business Information
 const NIVRA_BUSINESS = {
-  name: "NIVRA COMMUNICATIONS INC.",
+  name: COMPANY_CONTACT.legalName.toUpperCase(),
   division: "Customer Service Agreement Billing Division",
   description: "Telecommunications Services Provider — Province of Québec",
-  address: "2352 Rue Monet, Laval, QC H7E 0E5",
-  email: "Nivratelecom@gmail.com",
-  phone: "(438) 351-8288",
+  address: COMPANY_CONTACT.fullAddress,
+  email: COMPANY_CONTACT.supportEmailDisplay,
+  phone: COMPANY_CONTACT.supportPhoneFormatted,
   neq: "2291249786",
 };
 
@@ -463,7 +464,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.text("Interac e-Transfer:", margin + 6, currentY + 14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryColor);
-  doc.text("NivraTelecom@gmail.com", margin + 40, currentY + 14);
+  doc.text("Support@nivratelecom.ca", margin + 40, currentY + 14);
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...darkColor);

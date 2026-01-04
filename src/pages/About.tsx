@@ -426,7 +426,7 @@ const About = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Téléphone</p>
-                      <p className="text-sm text-muted-foreground">438-544-2233</p>
+                      <p className="text-sm text-muted-foreground">514-544-2233</p>
                     </div>
                   </div>
                   
@@ -436,7 +436,7 @@ const About = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Courriel</p>
-                      <p className="text-sm text-muted-foreground">support@nivra.ca</p>
+                      <p className="text-sm text-muted-foreground">Support@nivratelecom.ca</p>
                     </div>
                   </div>
                   

@@ -871,11 +871,11 @@ END:VCALENDAR`;
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
-                1-888-NIVRA
+                514-544-2233
               </span>
               <span className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                support@nivra.ca
+                Support@nivratelecom.ca
               </span>
               <span className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
