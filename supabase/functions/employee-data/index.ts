@@ -75,7 +75,11 @@ serve(async (req) => {
     const { employeeId, fullName: employeeName, email: employeeEmail, permissions } = verification.payload;
     const { action, params } = await req.json();
     
+    // Ensure permissions is an object
+    const resolvedPermissions = permissions || {};
+    
     console.log(`[employee-data] Action: ${action} for employee: ${employeeId} (${employeeName})`);
+    console.log(`[employee-data] Permissions from token:`, JSON.stringify(resolvedPermissions));
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -86,15 +90,15 @@ serve(async (req) => {
     switch (action) {
       // ==================== READ OPERATIONS ====================
       case "get_orders":
-        if (!permissions?.can_view_orders) {
-          console.log(`[employee-data] get_orders DENIED for ${employeeEmail} - missing can_view_orders`);
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!resolvedPermissions?.can_view_orders) {
+          console.log(`[employee-data] get_orders DENIED for ${employeeEmail} - missing can_view_orders. Permissions:`, resolvedPermissions);
+          return new Response(JSON.stringify({ error: "Permission refusée", debug: { permissions: resolvedPermissions } }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: orders, error: ordersError, count: ordersCount } = await supabase
           .from("orders")
           .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
-          .limit(params?.limit || 100);
+          .limit(params?.limit || 200);
         if (ordersError) {
           console.error(`[employee-data] get_orders ERROR:`, ordersError);
         }
@@ -103,27 +107,27 @@ serve(async (req) => {
         break;
 
       case "get_appointments":
-        if (!permissions?.can_view_appointments) {
+        if (!resolvedPermissions?.can_view_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: appointments } = await supabase
           .from("appointments")
           .select("*, technicians(id, full_name, email)")
           .order("scheduled_at", { ascending: true })
-          .limit(params?.limit || 100);
+          .limit(params?.limit || 200);
         result = { appointments };
         break;
 
       case "get_tickets":
-        if (!permissions?.can_view_tickets) {
-          console.log(`[employee-data] get_tickets DENIED for ${employeeEmail} - missing can_view_tickets`);
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!resolvedPermissions?.can_view_tickets) {
+          console.log(`[employee-data] get_tickets DENIED for ${employeeEmail} - missing can_view_tickets. Permissions:`, resolvedPermissions);
+          return new Response(JSON.stringify({ error: "Permission refusée", debug: { permissions: resolvedPermissions } }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: tickets, error: ticketsError, count: ticketsCount } = await supabase
           .from("support_tickets")
           .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
-          .limit(params?.limit || 100);
+          .limit(params?.limit || 200);
         if (ticketsError) {
           console.error(`[employee-data] get_tickets ERROR:`, ticketsError);
         }
@@ -132,7 +136,7 @@ serve(async (req) => {
         break;
 
       case "get_ticket_replies":
-        if (!permissions?.can_view_tickets) {
+        if (!resolvedPermissions?.can_view_tickets) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: replies } = await supabase
@@ -144,15 +148,15 @@ serve(async (req) => {
         break;
 
       case "get_clients":
-        if (!permissions?.can_view_clients) {
-          console.log(`[employee-data] get_clients DENIED for ${employeeEmail} - missing can_view_clients`);
-          return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!resolvedPermissions?.can_view_clients) {
+          console.log(`[employee-data] get_clients DENIED for ${employeeEmail} - missing can_view_clients. Permissions:`, resolvedPermissions);
+          return new Response(JSON.stringify({ error: "Permission refusée", debug: { permissions: resolvedPermissions } }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: clients, error: clientsError, count: clientsCount } = await supabase
           .from("profiles")
           .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
-          .limit(params?.limit || 100);
+          .limit(params?.limit || 500);
         if (clientsError) {
           console.error(`[employee-data] get_clients ERROR:`, clientsError);
         }
@@ -161,7 +165,7 @@ serve(async (req) => {
         break;
 
       case "get_client_details":
-        if (!permissions?.can_view_clients) {
+        if (!resolvedPermissions?.can_view_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const clientUserId = params.userId;
@@ -189,7 +193,7 @@ serve(async (req) => {
         break;
 
       case "get_invoices":
-        if (!permissions?.can_generate_invoices && !permissions?.can_edit_invoices) {
+        if (!resolvedPermissions?.can_generate_invoices && !resolvedPermissions?.can_edit_invoices) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: invoices } = await supabase
@@ -201,7 +205,7 @@ serve(async (req) => {
         break;
 
       case "get_technicians":
-        if (!permissions?.can_view_appointments && !permissions?.can_manage_appointments) {
+        if (!resolvedPermissions?.can_view_appointments && !resolvedPermissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: technicians } = await supabase
@@ -213,18 +217,18 @@ serve(async (req) => {
         break;
 
       case "get_dashboard_stats":
-        console.log(`[employee-data] get_dashboard_stats for ${employeeEmail}, permissions:`, permissions);
+        console.log(`[employee-data] get_dashboard_stats for ${employeeEmail}, permissions:`, resolvedPermissions);
         const [dashOrdersRes, dashAppointmentsRes, dashTicketsRes, dashClientsRes] = await Promise.all([
-          permissions?.can_view_orders 
+          resolvedPermissions?.can_view_orders 
             ? supabase.from("orders").select("id", { count: "exact", head: true }) 
             : Promise.resolve({ count: 0, error: null }),
-          permissions?.can_view_appointments 
+          resolvedPermissions?.can_view_appointments 
             ? supabase.from("appointments").select("id", { count: "exact", head: true }).gte("scheduled_at", new Date().toISOString()) 
             : Promise.resolve({ count: 0, error: null }),
-          permissions?.can_view_tickets 
+          resolvedPermissions?.can_view_tickets 
             ? supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open") 
             : Promise.resolve({ count: 0, error: null }),
-          permissions?.can_view_clients 
+          resolvedPermissions?.can_view_clients 
             ? supabase.from("profiles").select("id", { count: "exact", head: true }) 
             : Promise.resolve({ count: 0, error: null }),
         ]);
@@ -247,7 +251,7 @@ serve(async (req) => {
 
       // ==================== ORDER OPERATIONS ====================
       case "update_order_status":
-        if (!permissions?.can_edit_orders_status) {
+        if (!resolvedPermissions?.can_edit_orders_status) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: orderStatusError } = await supabase
@@ -259,7 +263,7 @@ serve(async (req) => {
         break;
 
       case "update_order":
-        if (!permissions?.can_edit_orders_status && !permissions?.can_ship_orders) {
+        if (!resolvedPermissions?.can_edit_orders_status && !resolvedPermissions?.can_ship_orders) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: orderUpdateError } = await supabase
@@ -271,7 +275,7 @@ serve(async (req) => {
         break;
 
       case "update_order_payment":
-        if (!permissions?.can_confirm_payments) {
+        if (!resolvedPermissions?.can_confirm_payments) {
           return new Response(JSON.stringify({ error: "Permission refusée pour confirmer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: paymentUpdateError } = await supabase
@@ -288,7 +292,7 @@ serve(async (req) => {
         break;
 
       case "verify_order_identity":
-        if (!permissions?.can_edit_orders_status) {
+        if (!resolvedPermissions?.can_edit_orders_status) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: verifyIdError } = await supabase
@@ -306,7 +310,7 @@ serve(async (req) => {
         break;
 
       case "create_order":
-        if (!permissions?.can_view_orders) {
+        if (!resolvedPermissions?.can_view_orders) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: newOrder, error: createOrderError } = await supabase
@@ -329,7 +333,7 @@ serve(async (req) => {
         break;
 
       case "assign_technician_to_order":
-        if (!permissions?.can_manage_appointments) {
+        if (!resolvedPermissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: assignTechOrderError } = await supabase
@@ -365,7 +369,7 @@ serve(async (req) => {
         break;
 
       case "update_appointment":
-        if (!permissions?.can_manage_appointments) {
+        if (!resolvedPermissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: aptError } = await supabase
@@ -377,7 +381,7 @@ serve(async (req) => {
         break;
 
       case "assign_technician":
-        if (!permissions?.can_manage_appointments) {
+        if (!resolvedPermissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée pour assigner un technicien" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         
@@ -425,7 +429,7 @@ serve(async (req) => {
         break;
 
       case "create_appointment":
-        if (!permissions?.can_manage_appointments) {
+        if (!resolvedPermissions?.can_manage_appointments) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: newApt, error: createAptError } = await supabase
@@ -454,7 +458,7 @@ serve(async (req) => {
 
       // ==================== TICKET OPERATIONS ====================
       case "update_ticket":
-        if (!permissions?.can_manage_tickets) {
+        if (!resolvedPermissions?.can_manage_tickets) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: ticketError } = await supabase
@@ -466,7 +470,7 @@ serve(async (req) => {
         break;
 
       case "add_ticket_reply":
-        if (!permissions?.can_manage_tickets) {
+        if (!resolvedPermissions?.can_manage_tickets) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: newReply, error: replyError } = await supabase
@@ -494,7 +498,7 @@ serve(async (req) => {
 
       // ==================== INVOICE OPERATIONS ====================
       case "update_invoice":
-        if (!permissions?.can_edit_invoices) {
+        if (!resolvedPermissions?.can_edit_invoices) {
           return new Response(JSON.stringify({ error: "Permission refusée pour modifier les factures" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: invoiceUpdateError } = await supabase
@@ -506,7 +510,7 @@ serve(async (req) => {
         break;
 
       case "confirm_payment":
-        if (!permissions?.can_confirm_payments) {
+        if (!resolvedPermissions?.can_confirm_payments) {
           return new Response(JSON.stringify({ error: "Permission refusée pour confirmer les paiements" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: confirmPaymentError } = await supabase
@@ -524,7 +528,7 @@ serve(async (req) => {
 
       // ==================== CLIENT OPERATIONS ====================
       case "update_client":
-        if (!permissions?.can_edit_clients) {
+        if (!resolvedPermissions?.can_edit_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée pour modifier les clients" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: clientUpdateError } = await supabase
@@ -537,7 +541,7 @@ serve(async (req) => {
 
       // ==================== STREAMING OPERATIONS ====================
       case "get_streaming_subscriptions":
-        if (!permissions?.can_view_clients) {
+        if (!resolvedPermissions?.can_view_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: streamingSubs } = await supabase
@@ -558,7 +562,7 @@ serve(async (req) => {
         break;
 
       case "update_streaming_subscription":
-        if (!permissions?.can_edit_clients) {
+        if (!resolvedPermissions?.can_edit_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { error: streamingUpdateError } = await supabase
@@ -573,7 +577,7 @@ serve(async (req) => {
         break;
 
       case "create_streaming_subscription":
-        if (!permissions?.can_edit_clients) {
+        if (!resolvedPermissions?.can_edit_clients) {
           return new Response(JSON.stringify({ error: "Permission refusée" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const { data: newStreamingSub, error: streamingCreateError } = await supabase
@@ -616,7 +620,7 @@ serve(async (req) => {
         const diagResult = {
           timestamp: new Date().toISOString(),
           employee: { id: employeeId, email: employeeEmail, name: employeeName },
-          permissions: permissions,
+          permissions: resolvedPermissions,
           counts: {
             orders: { total: diagOrders.count || 0, error: diagOrders.error?.message || null },
             tickets: { total: diagTickets.count || 0, error: diagTickets.error?.message || null },
