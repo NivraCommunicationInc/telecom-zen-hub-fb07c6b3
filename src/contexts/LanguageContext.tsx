@@ -91,6 +91,8 @@ const translations: Record<Language, Record<string, string>> = {
     'benefits.trust.local': 'Équipe télécom québécoise',
     'benefits.trust.secure': 'Données sécurisées',
     'benefits.trust.nocredit': 'Sans vérification de crédit',
+    'benefits.trust.pricing': 'Prix compétitifs',
+    'benefits.nocredit.audience': 'Idéal pour étudiants, nouveaux arrivants et historique de crédit difficile',
     
     // How it works (Comment ça marche)
     'howitworks.badge': 'Comment ça marche',
@@ -304,6 +306,8 @@ const translations: Record<Language, Record<string, string>> = {
     'benefits.trust.local': 'Quebec-based telecom team',
     'benefits.trust.secure': 'Secured data',
     'benefits.trust.nocredit': 'No credit check',
+    'benefits.trust.pricing': 'Competitive pricing',
+    'benefits.nocredit.audience': 'Ideal for students, newcomers, and challenging credit history',
     
     // How it works
     'howitworks.badge': 'How it works',
