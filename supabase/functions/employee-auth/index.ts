@@ -276,12 +276,38 @@ serve(async (req) => {
         lockout_until: null 
       }).eq("id", employee.id);
 
-      // Update last_login_at in user_roles
+      // Get permissions from user_roles table (SINGLE SOURCE OF TRUTH)
+      let resolvedPermissions: Record<string, boolean> = {};
       if (profile?.user_id) {
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("permissions, status")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+        
+        if (userRole?.permissions && typeof userRole.permissions === 'object') {
+          // Normalize permissions: add both view_* and can_view_* formats
+          const rawPerms = userRole.permissions as Record<string, boolean>;
+          for (const [key, value] of Object.entries(rawPerms)) {
+            if (value === true) {
+              resolvedPermissions[key] = true;
+              // Add can_ prefix if not present
+              if (!key.startsWith('can_')) {
+                resolvedPermissions[`can_${key}`] = true;
+              }
+              // Remove can_ prefix to add normalized version
+              if (key.startsWith('can_')) {
+                resolvedPermissions[key.replace('can_', '')] = true;
+              }
+            }
+          }
+        }
+        console.log("[employee-auth] user_roles permissions loaded:", JSON.stringify(resolvedPermissions));
+        
+        // Update last_login_at
         await supabase.from("user_roles")
           .update({ last_login_at: new Date().toISOString() })
-          .eq("user_id", profile.user_id)
-          .eq("role", "employee");
+          .eq("user_id", profile.user_id);
       }
 
       // Log successful login
@@ -291,12 +317,10 @@ serve(async (req) => {
         admin_email: employee.email,
         target_email: employee.email,
         target_type: "employee",
-        details: { ip: req.headers.get("x-forwarded-for") || "unknown" },
+        details: { ip: req.headers.get("x-forwarded-for") || "unknown", permissions: Object.keys(resolvedPermissions) },
       });
 
-      // Ensure permissions_json is an object (handle null/undefined)
-      const resolvedPermissions = employee.permissions_json || {};
-      console.log("[employee-auth] pin_login: resolved permissions:", resolvedPermissions);
+      console.log("[employee-auth] pin_login: resolved permissions from user_roles:", resolvedPermissions);
 
       // Sign session token
       const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
