@@ -8,9 +8,10 @@ import LanguageSelector from "./LanguageSelector";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const { t } = useLanguage();
 
   const navLinks = [
@@ -18,20 +19,25 @@ const Header = () => {
     { label: "Internet", href: "/internet", isPage: true },
     { label: "TV", href: "/tv", isPage: true },
     { label: "Mobile", href: "/mobile", isPage: true },
-    { label: "Streaming+", href: "/streaming", isPage: true },
-    { label: t('nav.contact'), href: "contact", isPage: false },
+    { label: t('nav.about'), href: "/about", isPage: true },
   ];
 
-  // Determine the portal link based on auth status
   const portalLink = user ? "/portal" : "/portal/auth";
+
+  // Track scroll for header styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const scrollToSection = (sectionId: string) => {
     setIsMenuOpen(false);
     
-    // If we're not on the home page, navigate there first
     if (location.pathname !== "/") {
       navigate("/");
-      // Wait for navigation, then scroll
       setTimeout(() => {
         const element = document.getElementById(sectionId);
         if (element) {
@@ -39,7 +45,6 @@ const Header = () => {
         }
       }, 100);
     } else {
-      // Already on home page, just scroll
       const element = document.getElementById(sectionId);
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -47,7 +52,6 @@ const Header = () => {
     }
   };
 
-  // Handle hash on page load
   useEffect(() => {
     if (location.hash) {
       const sectionId = location.hash.replace("#", "");
@@ -61,25 +65,33 @@ const Header = () => {
   }, [location]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 md:h-20">
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+      isScrolled 
+        ? 'bg-white/98 backdrop-blur-sm border-b border-border shadow-sm' 
+        : 'bg-white/95 backdrop-blur-sm border-b border-border/50'
+    }`}>
+      <div className="container mx-auto px-4 max-w-6xl">
+        <div className="flex items-center justify-between h-16 lg:h-18">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-              <span className="font-display font-bold text-navy-900 text-xl">N</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
+              <span className="font-bold text-white text-lg">N</span>
             </div>
-            <span className="font-display font-bold text-xl text-foreground">Nivra</span>
+            <span className="font-bold text-lg text-foreground">Nivra</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => (
               link.isPage ? (
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
+                    location.pathname === link.href 
+                      ? 'text-foreground bg-muted' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
                 >
                   {link.label}
                 </Link>
@@ -87,7 +99,7 @@ const Header = () => {
                 <button
                   key={link.href}
                   onClick={() => scrollToSection(link.href)}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg cursor-pointer"
                 >
                   {link.label}
                 </button>
@@ -96,47 +108,54 @@ const Header = () => {
           </nav>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2">
             <LanguageSelector />
-            <Button variant="ghost" size="sm" className="gap-2" asChild>
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
               <a href="tel:+14385442233">
                 <Phone className="w-4 h-4" />
-                <span>438-544-2233</span>
+                <span className="hidden xl:inline">438-544-2233</span>
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to={portalLink}>
-                <User className="w-4 h-4 mr-2" />
-                {user ? t('nav.portal') : t('nav.portal')}
+                <User className="w-4 h-4" />
+                <span className="hidden xl:inline ml-1.5">{t('nav.portal')}</span>
               </Link>
+            </Button>
+            <Button variant="accent" size="sm" onClick={() => scrollToSection('contact')}>
+              {t('hero.cta.order')}
             </Button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
             {isMenuOpen ? (
-              <X className="w-6 h-6 text-foreground" />
+              <X className="w-5 h-5 text-foreground" />
             ) : (
-              <Menu className="w-6 h-6 text-foreground" />
+              <Menu className="w-5 h-5 text-foreground" />
             )}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border animate-fade-in">
-            <nav className="flex flex-col gap-4">
+          <div className="lg:hidden py-4 border-t border-border animate-fade-in">
+            <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 link.isPage ? (
                   <Link
                     key={link.href}
                     to={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
+                    className={`px-3 py-2.5 text-sm font-medium transition-colors rounded-lg ${
+                      location.pathname === link.href 
+                        ? 'text-foreground bg-muted' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
                   >
                     {link.label}
                   </Link>
@@ -144,13 +163,13 @@ const Header = () => {
                   <button
                     key={link.href}
                     onClick={() => scrollToSection(link.href)}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 text-left"
+                    className="px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg text-left"
                   >
                     {link.label}
                   </button>
                 )
               ))}
-              <div className="pt-4 border-t border-border flex flex-col gap-3">
+              <div className="pt-4 mt-2 border-t border-border flex flex-col gap-2">
                 <LanguageSelector />
                 <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
                   <a href="tel:+14385442233">
@@ -161,8 +180,11 @@ const Header = () => {
                 <Button variant="outline" size="sm" className="justify-start" asChild>
                   <Link to={portalLink}>
                     <User className="w-4 h-4 mr-2" />
-                    {user ? t('nav.portal') : t('nav.portal')}
+                    {t('nav.portal')}
                   </Link>
+                </Button>
+                <Button variant="accent" size="sm" onClick={() => scrollToSection('contact')}>
+                  {t('hero.cta.order')}
                 </Button>
               </div>
             </nav>
