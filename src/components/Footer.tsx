@@ -124,20 +124,26 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-cyan-100/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-cyan-100/40 text-sm">
-            © {currentYear} Nivra Telecom. {t('footer.rights')}
+        <div className="border-t border-cyan-100/10 mt-12 pt-8">
+          {/* Compliance line */}
+          <p className="text-cyan-100/40 text-xs text-center mb-4">
+            Nivra Telecom — Services télécoms au Québec. Support et activation.
           </p>
-          <div className="flex flex-wrap items-center gap-4 md:gap-6">
-            <Link to="/privacy" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
-              {t('footer.privacy')}
-            </Link>
-            <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
-              {t('footer.terms')}
-            </Link>
-            <Link to="/admin" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
-              Admin
-            </Link>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-cyan-100/40 text-sm">
+              © {currentYear} Nivra Telecom. {t('footer.rights')}
+            </p>
+            <div className="flex flex-wrap items-center gap-4 md:gap-6">
+              <Link to="/privacy" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+                {t('footer.privacy')}
+              </Link>
+              <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+                {t('footer.terms')}
+              </Link>
+              <Link to="/admin" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+                Admin
+              </Link>
+            </div>
           </div>
         </div>
       </div>

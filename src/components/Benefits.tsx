@@ -36,21 +36,21 @@ const Benefits = () => {
   return (
     <section id="benefits" className="section-padding bg-background relative overflow-hidden">
       {/* Subtle Background Accent */}
-      <div className="absolute top-0 right-0 w-1/3 h-1/2 bg-gradient-to-bl from-accent/3 to-transparent pointer-events-none" />
+      <div className="absolute top-0 right-0 w-1/4 h-1/3 bg-gradient-to-bl from-accent/3 to-transparent pointer-events-none" />
       
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl relative">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl relative">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-start">
           {/* Left Content */}
           <div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6">
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium mb-4">
               {t('benefits.badge')}
             </span>
             
-            <h2 className="text-h2 font-semibold text-foreground mb-4">
+            <h2 className="text-foreground mb-3">
               {t('benefits.title')}
             </h2>
             
-            <p className="text-body-lg text-muted-foreground mb-10 max-w-lg">
+            <p className="text-body text-muted-foreground mb-8 max-w-md">
               {t('benefits.subtitle')}
             </p>
 

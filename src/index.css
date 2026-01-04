@@ -131,38 +131,61 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 15px;
+    line-height: 1.55;
   }
   
-  /* Typography Scale - Professional Hierarchy */
+  /* Typography Scale - Premium Telecom Hierarchy */
   h1 {
     font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 600;
-    font-size: 3.25rem;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
   }
   
   h2 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
-    font-size: 2.25rem;
-    line-height: 1.22;
-    letter-spacing: -0.015em;
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
   }
   
   h3 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
-    font-size: 1.5rem;
-    line-height: 1.33;
+    font-size: 1.125rem;
+    line-height: 1.35;
     letter-spacing: -0.01em;
   }
   
-  h4, h5, h6 {
+  h4 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  
+  h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  /* Body text variants */
+  .text-body-lg {
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  .text-body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .text-body-sm {
+    font-size: 0.8125rem;
+    line-height: 1.5;
   }
 }
 
@@ -292,13 +315,33 @@
     @apply text-xs text-destructive mt-1;
   }
   
-  /* Section Spacing */
+  /* Section Spacing - Tighter */
   .section-padding {
-    @apply py-20 lg:py-24;
+    @apply py-16 lg:py-20;
   }
-  
+
   .section-padding-sm {
-    @apply py-12 lg:py-16;
+    @apply py-10 lg:py-14;
+  }
+
+  .section-padding-xs {
+    @apply py-6 lg:py-8;
+  }
+
+  /* Premium Button Loading State */
+  .btn-loading {
+    @apply relative pointer-events-none;
+  }
+
+  .btn-loading::after {
+    content: '';
+    @apply absolute inset-0 flex items-center justify-center;
+    background: inherit;
+    border-radius: inherit;
+  }
+
+  .btn-loading .btn-spinner {
+    @apply w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin;
   }
   
   /* Container Max Width */

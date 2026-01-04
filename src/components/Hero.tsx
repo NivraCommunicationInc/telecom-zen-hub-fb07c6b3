@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap, Calendar, HeadphonesIcon, Building2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -53,60 +53,37 @@ const Hero = () => {
             <span className="text-sm font-medium text-cyan-300">{t('hero.badge')}</span>
           </div>
 
-          {/* Main Heading with 3D Text Effect */}
-          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary-foreground leading-tight mb-6 animate-fade-in text-3d-dark" style={{ animationDelay: "0.1s" }}>
+          {/* Main Heading - Tighter */}
+          <h1 className="text-primary-foreground mb-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
             {t('hero.title1')}
             <br />
-            <span className="text-gradient text-3d">{t('hero.title2')}</span>
+            <span className="text-gradient">{t('hero.title2')}</span>
           </h1>
 
-          {/* Subheading */}
-          <p className="text-lg md:text-xl text-cyan-100/70 max-w-2xl mx-auto mb-10 animate-fade-in text-balance" style={{ animationDelay: "0.2s" }}>
+          {/* Subheading - Tighter */}
+          <p className="text-body-lg text-cyan-100/70 max-w-xl mx-auto mb-8 animate-fade-in text-balance" style={{ animationDelay: "0.2s" }}>
             {t('hero.subtitle')}
           </p>
 
-          {/* CTA Buttons with 3D Effect */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <Button variant="hero" size="xl" className="group btn-3d" onClick={scrollToContact}>
+          {/* CTA Buttons - Cleaner */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+            <Button 
+              variant="hero" 
+              size="lg" 
+              className="group focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-primary" 
+              onClick={scrollToContact}
+            >
               {t('hero.cta.order')}
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Button>
             <Button 
               variant="heroOutline" 
-              size="xl" 
+              size="lg" 
               onClick={scrollToContact}
-              className="hover:scale-105 transition-transform"
+              className="focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-primary"
             >
               {t('hero.cta.services')}
             </Button>
-          </div>
-
-          {/* Trust Bar - 4 items */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
-            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <Zap className="w-5 h-5 text-cyan-400" />
-              </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.activation')}</span>
-            </div>
-            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <Calendar className="w-5 h-5 text-cyan-400" />
-              </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.installation')}</span>
-            </div>
-            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <HeadphonesIcon className="w-5 h-5 text-cyan-400" />
-              </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.support')}</span>
-            </div>
-            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <Building2 className="w-5 h-5 text-cyan-400" />
-              </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.solutions')}</span>
-            </div>
           </div>
         </div>
       </div>

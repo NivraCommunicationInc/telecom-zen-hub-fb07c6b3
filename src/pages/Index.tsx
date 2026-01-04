@@ -1,22 +1,23 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import CoverageSetupBand from "@/components/CoverageSetupBand";
 import Services from "@/components/Services";
 import HowItWorks from "@/components/HowItWorks";
+import ServiceStandards from "@/components/ServiceStandards";
 import Benefits from "@/components/Benefits";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
-  const { t } = useLanguage();
-
   return (
     <div className="min-h-screen">
       <Header />
       <main>
         <Hero />
+        <CoverageSetupBand />
         <Services />
         <HowItWorks />
+        <ServiceStandards />
         <Benefits />
         <CTA />
       </main>
