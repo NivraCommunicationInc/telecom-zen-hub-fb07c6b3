@@ -1,14 +1,17 @@
-import { ReactNode, useEffect, useState, useRef } from "react";
+import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { toast } from "sonner";
 
 interface ClientProtectedRouteProps {
   children: ReactNode;
 }
 
 const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
   const { user, session, signOut, isLoading } = useAuth();
@@ -17,6 +20,24 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const lastAuthCheck = useRef<number>(0);
+
+  // Handle idle timeout - auto logout after 5 minutes of inactivity
+  const handleIdleLogout = useCallback(async () => {
+    console.log("[ClientProtectedRoute] Idle timeout - logging out user");
+    toast.info("Session expirée pour inactivité", {
+      description: "Vous avez été déconnecté après 5 minutes d'inactivité.",
+    });
+    sessionStorage.removeItem("client_last_auth_check");
+    await signOut();
+    navigate("/portal/auth", { replace: true });
+  }, [signOut, navigate]);
+
+  // Enable idle timeout only when user is authenticated
+  useIdleTimeout({
+    onIdle: handleIdleLogout,
+    timeout: IDLE_TIMEOUT_MS,
+    enabled: !!user && !!session && isAuthorized,
+  });
 
   useEffect(() => {
     const verifySession = async () => {

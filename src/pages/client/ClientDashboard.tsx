@@ -14,12 +14,14 @@ const ClientDashboard = () => {
   const { user } = useAuth();
 
   const { data: appointments } = useQuery({
-    queryKey: ["client-appointments", user?.id, user?.email],
+    queryKey: ["client-appointments", user?.id],
     queryFn: async () => {
-      // RLS policy handles email matching automatically
+      if (!user?.id) return [];
+      // SECURITY: Filter by client_id to ensure users only see their own appointments
       const { data } = await supabase
         .from("appointments")
         .select("*")
+        .eq("client_id", user.id)
         .order("scheduled_at", { ascending: true })
         .limit(3);
       return data || [];
@@ -28,11 +30,14 @@ const ClientDashboard = () => {
   });
 
   const { data: orders } = useQuery({
-    queryKey: ["client-orders", user?.id, user?.email],
+    queryKey: ["client-orders", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Filter by user_id to ensure users only see their own orders
       const { data } = await supabase
         .from("orders")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(3);
       return data || [];
@@ -41,11 +46,14 @@ const ClientDashboard = () => {
   });
 
   const { data: invoices } = useQuery({
-    queryKey: ["client-invoices", user?.id, user?.email],
+    queryKey: ["client-invoices", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Filter by user_id to ensure users only see their own invoices
       const { data } = await supabase
         .from("billing")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(3);
       return data || [];
@@ -54,11 +62,14 @@ const ClientDashboard = () => {
   });
 
   const { data: tickets } = useQuery({
-    queryKey: ["client-tickets", user?.id, user?.email],
+    queryKey: ["client-tickets", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Filter by user_id to ensure users only see their own tickets
       const { data } = await supabase
         .from("support_tickets")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(3);
       return data || [];

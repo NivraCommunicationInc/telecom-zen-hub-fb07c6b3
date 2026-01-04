@@ -24,11 +24,14 @@ const ClientOrders = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ["client-orders-all", user?.id, user?.email],
+    queryKey: ["client-orders-all", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("orders")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

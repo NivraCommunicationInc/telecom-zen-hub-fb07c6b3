@@ -84,9 +84,12 @@ const ClientProfile = () => {
   const { data: orders } = useQuery({
     queryKey: ["client-orders-count", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("orders")
         .select("id")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

@@ -423,7 +423,7 @@ const ClientInternetOrder = () => {
       const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
       const lineItems = buildOrderLineItems({
         services: [
-          { type: "Internet", name: selectedPlan.name, price: planPrice, priceLabel: "/mois" },
+          { type: "Internet", name: selectedPlan.name, price: planPrice, period: "monthly" },
         ],
         equipment: [
           { name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: routerFee },

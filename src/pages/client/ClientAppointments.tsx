@@ -96,12 +96,11 @@ const ClientAppointments = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      // Rely on RLS to filter appointments - RLS allows:
-      // 1. client_id = auth.uid()
-      // 2. client_email matches user's profile email
+      // SECURITY: Always filter by client_id - never rely solely on RLS
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
+        .eq("client_id", user.id)
         .order("scheduled_at", { ascending: false });
       
       if (error) {

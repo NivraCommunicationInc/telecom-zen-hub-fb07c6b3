@@ -1,7 +1,9 @@
-import { ReactNode, useEffect, useState, useRef } from "react";
+import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { toast } from "sonner";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,6 +11,7 @@ interface ProtectedRouteProps {
 }
 
 const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
   const { user, signOut, isLoading } = useAuth();
@@ -18,6 +21,24 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   const [isAdminVerified, setIsAdminVerified] = useState(false);
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
+
+  // Handle idle timeout - auto logout after 5 minutes of inactivity
+  const handleIdleLogout = useCallback(async () => {
+    console.log("[ProtectedRoute] Idle timeout - logging out admin");
+    toast.info("Session expirée pour inactivité", {
+      description: "Vous avez été déconnecté après 5 minutes d'inactivité.",
+    });
+    sessionStorage.removeItem("admin_last_auth_check");
+    await signOut();
+    navigate("/admin/login", { replace: true });
+  }, [signOut, navigate]);
+
+  // Enable idle timeout only when user is authenticated and verified
+  useIdleTimeout({
+    onIdle: handleIdleLogout,
+    timeout: IDLE_TIMEOUT_MS,
+    enabled: !!user && isAdminVerified,
+  });
 
   useEffect(() => {
     const verifyAdminRole = async () => {

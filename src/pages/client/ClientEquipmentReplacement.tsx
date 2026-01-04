@@ -101,9 +101,12 @@ const ClientEquipmentReplacement = () => {
   const { data: orders } = useQuery({
     queryKey: ["client-orders-equipment", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("orders")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
