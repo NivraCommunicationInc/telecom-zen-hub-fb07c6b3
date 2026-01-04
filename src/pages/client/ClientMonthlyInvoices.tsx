@@ -6,10 +6,11 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Receipt, Calendar, Download, CreditCard, CheckCircle, Clock, AlertTriangle, Loader2 } from "lucide-react";
+import { Receipt, Calendar, Download, CreditCard, CheckCircle, Clock, AlertTriangle, Loader2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatBillingCycleDescription, BILLING_CONSTANTS } from "@/lib/billingCycleUtils";
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -67,6 +68,23 @@ const ClientMonthlyInvoices = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch account info for billing cycle
+  const { data: account } = useQuery({
+    queryKey: ["client-account-billing", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("id, account_number, billing_cycle_day, next_invoice_date, status")
+        .eq("client_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Mark invoice as paid (simulated - in reality would integrate with payment gateway)
   const payInvoiceMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
@@ -93,18 +111,18 @@ const ClientMonthlyInvoices = () => {
     },
   });
 
-  // Get the earliest bill cycle day from subscriptions
-  const billCycleDay = subscriptions?.length 
-    ? Math.min(...subscriptions.map(s => s.bill_cycle_day || 1))
-    : null;
+  // Get billing cycle day from account or subscriptions
+  const billCycleDay = account?.billing_cycle_day 
+    || (subscriptions?.length ? Math.min(...subscriptions.map(s => s.bill_cycle_day || 1)) : null);
 
-  const nextInvoiceDate = subscriptions?.length
-    ? subscriptions.reduce((earliest, s) => {
-        if (!s.next_invoice_date) return earliest;
-        if (!earliest) return s.next_invoice_date;
-        return s.next_invoice_date < earliest ? s.next_invoice_date : earliest;
-      }, null as string | null)
-    : null;
+  const nextInvoiceDate = account?.next_invoice_date 
+    || (subscriptions?.length
+      ? subscriptions.reduce((earliest, s) => {
+          if (!s.next_invoice_date) return earliest;
+          if (!earliest) return s.next_invoice_date;
+          return s.next_invoice_date < earliest ? s.next_invoice_date : earliest;
+        }, null as string | null)
+      : null);
 
   return (
     <ClientLayout>
@@ -118,18 +136,34 @@ const ClientMonthlyInvoices = () => {
         {billCycleDay && (
           <Card className="bg-card border-border">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
                   <Calendar className="w-6 h-6 text-cyan-500" />
                 </div>
-                <div>
-                  <p className="font-medium">Date de facturation</p>
-                  <p className="text-2xl font-bold text-cyan-500">Le {billCycleDay} de chaque mois</p>
+                <div className="flex-1">
+                  <p className="font-medium">Cycle de facturation</p>
+                  <p className="text-2xl font-bold text-cyan-500">
+                    {formatBillingCycleDescription(billCycleDay)}
+                  </p>
                   {nextInvoiceDate && (
-                    <p className="text-sm text-muted-foreground">
-                      Prochaine facture: {format(new Date(nextInvoiceDate), "d MMMM yyyy", { locale: fr })}
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Prochaine facture:</strong> {format(new Date(nextInvoiceDate), "d MMMM yyyy", { locale: fr })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Échéance paiement:</strong> {format(addDays(new Date(nextInvoiceDate), BILLING_CONSTANTS.PAYMENT_GRACE_DAYS), "d MMMM yyyy", { locale: fr })} ({BILLING_CONSTANTS.PAYMENT_GRACE_DAYS} jours après émission)
+                      </p>
+                    </div>
                   )}
+                  
+                  {/* Policy info */}
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-start gap-2">
+                    <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
+                      Chaque facture doit être payée dans les {BILLING_CONSTANTS.PAYMENT_GRACE_DAYS} jours suivant la date d'émission. 
+                      Après ce délai, le compte peut être suspendu jusqu'au règlement.
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -254,6 +288,17 @@ const ClientMonthlyInvoices = () => {
                         <span>TVQ (9.975%)</span>
                         <span>{Number(invoice.tvq_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
+                      {invoice.due_date && (
+                        <div className={`flex justify-between mt-2 pt-2 border-t border-border/30 ${
+                          invoice.status === "overdue" ? "text-red-500 font-medium" : ""
+                        }`}>
+                          <span>Échéance</span>
+                          <span>
+                            {format(new Date(invoice.due_date), "d MMMM yyyy", { locale: fr })}
+                            {invoice.status === "overdue" && " (en retard)"}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
