@@ -260,7 +260,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   return (
     <form ref={ref} onSubmit={handleSubmit} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8 md:p-10">
       <h3 className="font-display text-xl md:text-2xl font-bold text-primary-foreground mb-6 text-center">
-        {isFrench ? "Demande de service" : "Service Request"}
+        {isFrench ? "Contact" : "Contact"}
       </h3>
       
       <div className="space-y-5">
