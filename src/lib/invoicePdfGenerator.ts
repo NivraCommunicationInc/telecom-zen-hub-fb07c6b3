@@ -43,6 +43,10 @@ export interface InvoiceData {
   simType?: "physical" | "esim";
   discountAmount?: number;
   preauthDiscount?: number;
+  /** Promo code applied */
+  promoCode?: string;
+  /** Promo discount description */
+  promoDescription?: string;
   tpsAmount?: number;
   tvqAmount?: number;
   lateFeeAmount?: number;
@@ -379,11 +383,48 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
       addServiceRow("Discount", "Pre-Authorization Discount", preauthDiscount, true);
     }
     if (discountAmount > 0) {
-      addServiceRow("Discount", "Promotional Discount Applied", discountAmount, true);
+      const promoLabel = data.promoCode 
+        ? `Promotional Discount (${data.promoCode})` 
+        : "Promotional Discount Applied";
+      addServiceRow("Discount", promoLabel, discountAmount, true);
     }
   }
 
   currentY += 5;
+
+  // ============ ONE-TIME FEES SECTION (FRAIS UNIQUES) ============
+  const oneTimeFeesTotal = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
+  if (oneTimeFeesTotal > 0) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...accentColor);
+    doc.text("ONE-TIME FEES / FRAIS UNIQUES", margin, currentY);
+
+    currentY += 6;
+    doc.setDrawColor(...primaryColor);
+    doc.line(margin, currentY, margin + 70, currentY);
+
+    currentY += 5;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...grayColor);
+    
+    const addOneTimeFeeRow = (label: string, amount: number) => {
+      if (amount <= 0) return;
+      doc.text(label, margin, currentY);
+      doc.text(`${amount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
+      currentY += 5;
+    };
+    
+    addOneTimeFeeRow("Delivery / Livraison", deliveryFee);
+    addOneTimeFeeRow("Activation", activationFee);
+    addOneTimeFeeRow("Installation", installationFee);
+    addOneTimeFeeRow("Router / Routeur", routerFee);
+    addOneTimeFeeRow("TV Terminal", terminalFee);
+    addOneTimeFeeRow("SIM Card", simFee);
+    
+    currentY += 5;
+  }
 
   // ============ BILLING BREAKDOWN SECTION ============
   doc.setDrawColor(...grayColor);
