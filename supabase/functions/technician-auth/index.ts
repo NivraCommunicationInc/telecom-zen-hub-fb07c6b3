@@ -85,12 +85,14 @@ serve(async (req) => {
       const normalizedEmail = email.trim().toLowerCase();
       console.log(`[technician-auth] pin_login attempt for: ${normalizedEmail}`);
 
-      // Step 1: Find technician record by email
+      // Step 1: Find technician record by email (access_code is the PIN field for technicians)
       const { data: technician, error: techError } = await supabase
         .from("technicians")
-        .select("id, full_name, email, status, user_id, access_code, pin_hash, failed_login_attempts, lockout_until, specializations, phone")
+        .select("id, full_name, email, status, user_id, access_code, password_hash, failed_login_attempts, lockout_until, specializations, phone")
         .ilike("email", normalizedEmail)
         .maybeSingle();
+      
+      console.log(`[technician-auth] pin_login: Found technician:`, technician ? { id: technician.id, has_access_code: !!technician.access_code } : "null");
 
       if (techError) {
         console.error("[technician-auth] pin_login: Technician lookup error:", techError);
@@ -196,8 +198,8 @@ serve(async (req) => {
         }
       }
 
-      // Check if PIN is set (either pin_hash or legacy access_code)
-      if (!technician.pin_hash && !technician.access_code) {
+      // Check if PIN is set (access_code is the PIN field for technicians)
+      if (!technician.access_code) {
         await supabase.from("admin_audit_log").insert({
           action: "staff_pin_login_failed",
           admin_user_id: technician.id,
@@ -213,18 +215,10 @@ serve(async (req) => {
         );
       }
 
-      // Verify PIN - try multiple hash formats for compatibility
-      let pinValid = false;
-      
-      if (technician.pin_hash) {
-        const inputPinHash = await hashPin(pin, PIN_SALT);
-        const inputPinHashNew = await hashPin(PIN_SALT_NEW + pin);
-        const legacyInputPinHash = await hashPin(pin);
-        pinValid = technician.pin_hash === inputPinHash || technician.pin_hash === inputPinHashNew || technician.pin_hash === legacyInputPinHash;
-      } else if (technician.access_code) {
-        // Legacy: plaintext access_code comparison
-        pinValid = technician.access_code === pin;
-      }
+      // Verify PIN - access_code stores the plaintext PIN for technicians
+      // Compare directly (for simplicity and compatibility with existing data)
+      const pinValid = technician.access_code === pin;
+      console.log(`[technician-auth] pin_login: PIN validation result:`, pinValid);
 
       if (!pinValid) {
         const newAttempts = (technician.failed_login_attempts || 0) + 1;

@@ -294,18 +294,22 @@ serve(async (req) => {
         details: { ip: req.headers.get("x-forwarded-for") || "unknown" },
       });
 
+      // Ensure permissions_json is an object (handle null/undefined)
+      const resolvedPermissions = employee.permissions_json || {};
+      console.log("[employee-auth] pin_login: resolved permissions:", resolvedPermissions);
+
       // Sign session token
       const tokenSecret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const sessionToken = await signToken({
         employeeId: employee.id,
-        userId: profile?.user_id,
+        userId: profile?.user_id || employee.id,
         email: employee.email,
         fullName: employee.full_name,
         role: "employee",
-        permissions: employee.permissions_json,
+        permissions: resolvedPermissions,
       }, tokenSecret);
 
-      console.log("[employee-auth] pin_login successful for:", employee.full_name);
+      console.log("[employee-auth] pin_login successful for:", employee.full_name, "with permissions:", Object.keys(resolvedPermissions));
 
       return new Response(
         JSON.stringify({
@@ -315,7 +319,7 @@ serve(async (req) => {
           email: employee.email,
           full_name: employee.full_name,
           role: "employee",
-          permissions: employee.permissions_json,
+          permissions: resolvedPermissions,
           status: "active",
           token: sessionToken,
         }),
