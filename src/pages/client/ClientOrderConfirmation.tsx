@@ -39,8 +39,8 @@ import {
 } from "lucide-react";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 
 interface OrderData {
@@ -100,7 +100,7 @@ interface ProfileData {
 const ClientOrderConfirmation = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);

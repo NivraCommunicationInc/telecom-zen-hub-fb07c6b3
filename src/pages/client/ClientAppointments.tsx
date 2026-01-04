@@ -30,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info, History, MapPin, User, Phone, Mail, Package } from "lucide-react";
 import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -62,7 +62,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 };
 
 const ClientAppointments = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -76,7 +76,7 @@ const ClientAppointments = () => {
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("*")
         .eq("user_id", user?.id)
@@ -97,7 +97,7 @@ const ClientAppointments = () => {
       if (!user?.id) return [];
       
       // SECURITY: Always filter by client_id - never rely solely on RLS
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("appointments")
         .select("*")
         .eq("client_id", user.id)
@@ -114,7 +114,7 @@ const ClientAppointments = () => {
       if (data && data.length > 0) {
         const techIds = [...new Set(data.filter(a => a.technician_id).map(a => a.technician_id))];
         if (techIds.length > 0) {
-          const { data: techs } = await supabase
+          const { data: techs } = await portalSupabase
             .from("technicians")
             .select("id, full_name, email, phone")
             .in("id", techIds);
@@ -135,7 +135,7 @@ const ClientAppointments = () => {
   useEffect(() => {
     if (!user?.id) return;
     
-    const channel = supabase
+    const channel = portalSupabase
       .channel("client-appointments-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
         // Invalidate to refetch - RLS will filter appropriately
@@ -144,21 +144,21 @@ const ClientAppointments = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      portalSupabase.removeChannel(channel);
     };
   }, [queryClient, user?.id]);
 
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
     mutationFn: async (aptId: string) => {
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("appointments")
         .update({ status: "cancelled" })
         .eq("id", aptId);
       if (error) throw error;
 
       // Create notification ticket for admin
-      await supabase.from("support_tickets").insert({
+      await portalSupabase.from("support_tickets").insert({
         user_id: user?.id,
         client_email: profile?.email || user?.email,
         subject: `Installation annulée - ${selectedAppointment?.title}`,
@@ -185,7 +185,7 @@ const ClientAppointments = () => {
     mutationFn: async ({ aptId, newScheduledAt }: { aptId: string; newScheduledAt: Date }) => {
       const oldDate = selectedAppointment?.scheduled_at;
       
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("appointments")
         .update({ 
           scheduled_at: newScheduledAt.toISOString(),
@@ -195,7 +195,7 @@ const ClientAppointments = () => {
       if (error) throw error;
 
       // Create notification ticket for admin
-      await supabase.from("support_tickets").insert({
+      await portalSupabase.from("support_tickets").insert({
         user_id: user?.id,
         client_email: profile?.email || user?.email,
         subject: `Installation reprogrammée - ${selectedAppointment?.title}`,

@@ -14,9 +14,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight, MapPin, Plus, Building2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -25,7 +25,7 @@ import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
 
 const ClientProfile = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
@@ -56,7 +56,7 @@ const ClientProfile = () => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("*")
         .eq("user_id", user?.id)
@@ -70,7 +70,7 @@ const ClientProfile = () => {
   const { data: subscriptions } = useQuery({
     queryKey: ["client-subscriptions-count", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("subscriptions")
         .select("*")
         .eq("user_id", user?.id)
@@ -86,7 +86,7 @@ const ClientProfile = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("orders")
         .select("id")
         .eq("user_id", user.id)
@@ -101,7 +101,7 @@ const ClientProfile = () => {
   const { data: accounts, refetch: refetchAccounts } = useQuery({
     queryKey: ["client-accounts", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("accounts")
         .select("*")
         .eq("client_id", user?.id)
@@ -117,7 +117,7 @@ const ClientProfile = () => {
     queryFn: async () => {
       if (!accounts || accounts.length === 0) return [];
       const accountIds = accounts.map((a: any) => a.id);
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("account_service_locations")
         .select("*")
         .in("account_id", accountIds)
@@ -132,7 +132,7 @@ const ClientProfile = () => {
   const addLocationMutation = useMutation({
     mutationFn: async (data: typeof newLocation) => {
       if (!accounts || accounts.length === 0) throw new Error("No account found");
-      const { error } = await supabase.from("account_service_locations").insert({
+      const { error } = await portalSupabase.from("account_service_locations").insert({
         account_id: accounts[0].id,
         label: data.label,
         service_address: data.service_address,
@@ -165,7 +165,7 @@ const ClientProfile = () => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("profiles")
         .update({
           full_name: data.full_name,
@@ -186,7 +186,7 @@ const ClientProfile = () => {
 
   const changePasswordMutation = useMutation({
     mutationFn: async (data: { newPassword: string }) => {
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await portalSupabase.auth.updateUser({
         password: data.newPassword,
       });
       if (error) throw error;

@@ -9,9 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrderDetails";
 
 const ClientOrders = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -28,7 +28,7 @@ const ClientOrders = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("orders")
         .select("*")
         .eq("user_id", user.id)

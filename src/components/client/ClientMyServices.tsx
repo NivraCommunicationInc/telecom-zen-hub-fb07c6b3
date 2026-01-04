@@ -35,9 +35,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/portalClient";
 import { 
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,
@@ -120,7 +120,7 @@ const SLA_TIERS = [
 const QC_VALID_PREFIXES = ["418", "367", "514", "263", "450", "579", "354", "819", "873", "468"];
 
 const ClientMyServices = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();

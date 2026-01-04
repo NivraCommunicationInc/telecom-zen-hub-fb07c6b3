@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,7 +103,7 @@ const FULFILLMENT_OPTIONS = [
 ];
 
 const ClientReplacementRequest = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const isFrench = language === "fr";

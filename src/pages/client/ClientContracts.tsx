@@ -10,9 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FileText, Download, CheckCircle, Eye, Pen } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +26,7 @@ import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { useActivityLog } from "@/hooks/useActivityLog";
 
 const ClientContracts = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
@@ -39,7 +39,7 @@ const ClientContracts = () => {
   const { data: contracts, isLoading } = useQuery({
     queryKey: ["client-contracts", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("contracts")
         .select("*")
         .eq("user_id", user?.id)
@@ -55,7 +55,7 @@ const ClientContracts = () => {
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("*")
         .eq("user_id", user?.id)
@@ -71,7 +71,7 @@ const ClientContracts = () => {
   const signContractMutation = useMutation({
     mutationFn: async (contractId: string) => {
       const signedAt = new Date().toISOString();
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("contracts")
         .update({
           is_signed: true,
@@ -127,7 +127,7 @@ const ClientContracts = () => {
       }
 
       // Fetch linked order with service details
-      const { data: linkedOrder } = await supabase
+      const { data: linkedOrder } = await portalSupabase
         .from("orders")
         .select(`
           id, order_number, created_at, service_type,
@@ -231,7 +231,7 @@ const ClientContracts = () => {
       const pdfHash = await hashBlobSHA256Hex(blob);
       const generatedAt = new Date().toISOString();
 
-      await supabase
+      await portalSupabase
         .from("contracts")
         .update({
           template_id: templateId,
@@ -279,7 +279,7 @@ const ClientContracts = () => {
       }
 
       // Fetch linked order with service details
-      const { data: linkedOrder } = await supabase
+      const { data: linkedOrder } = await portalSupabase
         .from("orders")
         .select(`
           id, order_number, created_at, service_type,
@@ -387,7 +387,7 @@ const ClientContracts = () => {
           const pdfHash = await hashBlobSHA256Hex(blob);
           const generatedAt = new Date().toISOString();
 
-          await supabase
+          await portalSupabase
             .from("contracts")
             .update({
               template_id: templateId,

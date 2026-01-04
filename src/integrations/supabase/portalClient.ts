@@ -19,3 +19,7 @@ export const portalSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBL
     autoRefreshToken: true,
   },
 });
+
+// Re-export as 'supabase' for backward compatibility in client portal files
+// This allows gradual migration without having to change every import
+export const supabase = portalSupabase;

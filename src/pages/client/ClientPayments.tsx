@@ -11,14 +11,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { CreditCard, Plus, Trash2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ClientPayments = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -32,7 +32,7 @@ const ClientPayments = () => {
   const { data: paymentMethods, isLoading } = useQuery({
     queryKey: ["client-payment-methods", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("payment_methods")
         .select("*")
         .eq("user_id", user?.id)
@@ -50,7 +50,7 @@ const ClientPayments = () => {
       const cardType = cardNum.startsWith("4") ? "Visa" : cardNum.startsWith("5") ? "Mastercard" : "Card";
       const [month, year] = card.expiry.split("/");
       
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("payment_methods")
         .insert({
           user_id: user?.id,
@@ -78,7 +78,7 @@ const ClientPayments = () => {
 
   const deleteCardMutation = useMutation({
     mutationFn: async (cardId: string) => {
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("payment_methods")
         .delete()
         .eq("id", cardId);
@@ -96,13 +96,13 @@ const ClientPayments = () => {
   const setDefaultMutation = useMutation({
     mutationFn: async (cardId: string) => {
       // First, unset all defaults
-      await supabase
+      await portalSupabase
         .from("payment_methods")
         .update({ is_default: false })
         .eq("user_id", user?.id);
       
       // Then set the new default
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("payment_methods")
         .update({ is_default: true })
         .eq("id", cardId);

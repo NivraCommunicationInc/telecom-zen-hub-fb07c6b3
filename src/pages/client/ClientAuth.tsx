@@ -5,14 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail, CheckCircle } from "lucide-react";
 
 const ClientAuth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, resetPassword, updatePassword, user, isLoading: authLoading } = useAuth();
+  const { signIn, signUp, resetPassword, updatePassword, user, isLoading: authLoading } = useClientAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });

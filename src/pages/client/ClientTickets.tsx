@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2, Package, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -52,7 +52,7 @@ const issueTypeConfig: Record<string, { label: string; category: string }> = {
 };
 
 const ClientTickets = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -74,7 +74,7 @@ const ClientTickets = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("support_tickets")
         .select("*")
         .eq("user_id", user.id)
@@ -89,7 +89,7 @@ const ClientTickets = () => {
   const { data: clientOrders } = useQuery({
     queryKey: ["client-orders-for-tickets", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("orders")
         .select("id, order_number, service_type, order_type, created_at")
         .eq("user_id", user?.id)
@@ -103,7 +103,7 @@ const ClientTickets = () => {
   const { data: replies } = useQuery({
     queryKey: ["ticket-replies", selectedTicket?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("ticket_replies")
         .select("*")
         .eq("ticket_id", selectedTicket?.id)
@@ -119,7 +119,7 @@ const ClientTickets = () => {
       // Get related order reference if order is selected
       let relatedOrderReference = null;
       if (ticket.related_order_id) {
-        const { data: orderData } = await supabase
+        const { data: orderData } = await portalSupabase
           .from("orders")
           .select("order_number")
           .eq("id", ticket.related_order_id)
@@ -127,7 +127,7 @@ const ClientTickets = () => {
         relatedOrderReference = orderData?.order_number || ticket.related_order_id;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("support_tickets")
         .insert({
           user_id: user?.id,
@@ -157,7 +157,7 @@ const ClientTickets = () => {
 
   const addReplyMutation = useMutation({
     mutationFn: async (content: string) => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("ticket_replies")
         .insert({
           ticket_id: selectedTicket?.id,
@@ -216,14 +216,14 @@ const ClientTickets = () => {
         const fileName = `${Date.now()}-${file.name}`;
         const filePath = `${user.id}/${selectedTicket.id}/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await portalSupabase.storage
           .from("ticket-id-uploads")
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         // Get public URL
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = portalSupabase.storage
           .from("ticket-id-uploads")
           .getPublicUrl(filePath);
 
@@ -240,7 +240,7 @@ const ClientTickets = () => {
       if (uploadedFiles.length > 0) {
         // Update ticket with new files
         const existingFiles = (selectedTicket.id_files as any[]) || [];
-        const { error: updateError } = await supabase
+        const { error: updateError } = await portalSupabase
           .from("support_tickets")
           .update({ 
             id_files: [...existingFiles, ...uploadedFiles],

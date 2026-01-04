@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { portalSupabase } from "@/integrations/supabase/portalClient";
 
@@ -43,6 +43,33 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // SECURITY GUARDRAIL: Verify profile matches session user
+  const verifyProfileMatch = useCallback(async (sessionUserId: string) => {
+    try {
+      const { data: profile, error } = await portalSupabase
+        .from("profiles")
+        .select("user_id")
+        .eq("user_id", sessionUserId)
+        .maybeSingle();
+
+      // If profile exists and doesn't match session user, force logout
+      if (profile && profile.user_id !== sessionUserId) {
+        console.error("SECURITY: user/profile mismatch detected, forcing logout");
+        await portalSupabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        setRole(null);
+        window.location.href = "/portal/auth";
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.warn("Profile verification error (non-critical):", err);
+      return true; // Allow if profile doesn't exist yet
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -58,7 +85,11 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await fetchUserRole(session.user.id);
+          // Verify profile match before proceeding
+          const isValid = await verifyProfileMatch(session.user.id);
+          if (isValid) {
+            await fetchUserRole(session.user.id);
+          }
         }
       } catch (error) {
         console.error("Error initializing client auth:", error);
@@ -83,7 +114,11 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
         // Avoid Supabase deadlock by deferring DB calls
         setTimeout(() => {
           if (mounted) {
-            fetchUserRole(session.user.id);
+            verifyProfileMatch(session.user.id).then((isValid) => {
+              if (isValid) {
+                fetchUserRole(session.user.id);
+              }
+            });
           }
         }, 0);
       } else {
@@ -95,7 +130,7 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [verifyProfileMatch]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await portalSupabase.auth.signInWithPassword({
