@@ -1,10 +1,16 @@
-import { Smartphone, Wifi, Tv, ShieldCheck, ArrowRight } from "lucide-react";
+import { Smartphone, Wifi, Tv, Shield, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Services = () => {
   const { t } = useLanguage();
+
+  const scrollToContact = () => {
+    const contactSection = document.getElementById('contact');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const services = [
     {
@@ -26,7 +32,7 @@ const Services = () => {
       features: ['services.tv.feature1', 'services.tv.feature2', 'services.tv.feature3'],
     },
     {
-      icon: ShieldCheck,
+      icon: Shield,
       titleKey: 'services.business.title',
       descKey: 'services.business.desc',
       features: ['services.business.feature1', 'services.business.feature2', 'services.business.feature3'],
@@ -86,12 +92,10 @@ const Services = () => {
                 ))}
               </ul>
 
-              {/* Link - Navigate to order */}
-              <Button variant="ghost" size="sm" className="group/btn text-accent p-0 h-auto font-semibold" asChild>
-                <Link to="/portal/new-order">
-                  {t('services.cta')}
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
-                </Link>
+              {/* Link - Navigate to contact */}
+              <Button variant="ghost" size="sm" className="group/btn text-accent p-0 h-auto font-semibold" onClick={scrollToContact}>
+                {t('services.cta')}
+                <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
               </Button>
 
               {/* Hover Gradient with Depth */}

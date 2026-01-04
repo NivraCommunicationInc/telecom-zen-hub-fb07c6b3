@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Phone, Clock } from "lucide-react";
+import { Phone, ArrowRight } from "lucide-react";
 import ContactForm from "./ContactForm";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -24,7 +24,7 @@ const CTA = () => {
           <div className="text-center lg:text-left">
             {/* Badge with 3D Effect */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-premium mb-8 card-3d">
-              <Clock className="w-4 h-4 text-cyan-400" />
+              <ArrowRight className="w-4 h-4 text-cyan-400" />
               <span className="text-sm font-medium text-cyan-300">{t('cta.badge')}</span>
             </div>
 

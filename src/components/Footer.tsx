@@ -9,34 +9,36 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
   const links = {
     services: [
-      { labelKey: "services.mobile.title", href: "/#services" },
-      { labelKey: "services.internet.title", href: "/#services" },
-      { labelKey: "services.tv.title", href: "/#services" },
-      { labelKey: "services.business.title", href: "/#services" },
+      { labelKey: "services.mobile.title", href: "/services" },
+      { labelKey: "services.internet.title", href: "/services" },
+      { labelKey: "services.tv.title", href: "/services" },
+      { labelKey: "services.business.title", href: "/services" },
+    ],
+    support: [
+      { labelKey: "footer.contact", href: "/#contact" },
+      { labelKey: "nav.faq", href: "/faq" },
+      { labelKey: "nav.portal", href: "/portal/auth" },
     ],
     company: [
       { labelKey: "nav.about", href: "/about" },
-      { labelKey: "nav.careers", href: "/careers" },
-      { labelKey: "nav.faq", href: "/faq" },
-      { labelKey: "nav.contact", href: "/#contact" },
     ],
-    support: [
-      { labelKey: "nav.faq", href: "/faq" },
-      { labelKey: "nav.portal", href: "/portal/auth" },
+    legal: [
+      { labelKey: "footer.privacy", href: "/privacy" },
+      { labelKey: "footer.terms", href: "/terms" },
     ],
   };
 
   return (
     <footer ref={ref} className="bg-navy-900 text-primary-foreground">
       <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-6">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
                 <span className="font-display font-bold text-navy-900 text-xl">N</span>
               </div>
-              <span className="font-display font-bold text-xl">Nivra</span>
+              <span className="font-display font-bold text-xl">Nivra Telecom</span>
             </div>
             <p className="text-cyan-100/60 mb-6 max-w-xs">
               {t('footer.description')}
@@ -71,6 +73,20 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </ul>
           </div>
 
+          {/* Support */}
+          <div>
+            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.support')}</h4>
+            <ul className="space-y-3">
+              {links.support.map((link) => (
+                <li key={link.labelKey}>
+                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                    {t(link.labelKey)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Company */}
           <div>
             <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.company')}</h4>
@@ -85,11 +101,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </ul>
           </div>
 
-          {/* Support */}
+          {/* Legal */}
           <div>
             <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.legal')}</h4>
             <ul className="space-y-3">
-              {links.support.map((link) => (
+              {links.legal.map((link) => (
                 <li key={link.labelKey}>
                   <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
                     {t(link.labelKey)}
@@ -103,7 +119,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         {/* Bottom Bar */}
         <div className="border-t border-cyan-100/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-cyan-100/40 text-sm">
-            © {currentYear} Nivra. {t('footer.rights')}
+            © {currentYear} Nivra Telecom. {t('footer.rights')}
           </p>
           <div className="flex flex-wrap items-center gap-4 md:gap-6">
             <Link to="/privacy" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">

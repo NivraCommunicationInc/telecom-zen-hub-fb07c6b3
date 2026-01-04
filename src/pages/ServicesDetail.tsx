@@ -219,7 +219,7 @@ const ServicesDetail = () => {
           <div className="text-center max-w-4xl mx-auto">
             <Badge className="mb-6 bg-accent/10 text-accent border-accent/20 px-4 py-1.5 card-3d">
               <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              {isFrench ? "Solutions télécom Nivra" : "Nivra Telecom Solutions"}
+              {isFrench ? "Services télécom Nivra" : "Nivra Telecom Services"}
             </Badge>
             
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
@@ -233,22 +233,23 @@ const ServicesDetail = () => {
             
             <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
               {isFrench 
-                ? "Fournisseur télécom 100% indépendant au Québec. Modèle client-payeur, aucune affiliation carrier."
-                : "100% independent telecom provider in Quebec. Client-paid model, no carrier affiliation."}
+                ? "Activation, installation et support — tout au même endroit pour particuliers et entreprises."
+                : "Activation, installation and support — all in one place for home and business."}
             </p>
             
             <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="hero" size="xl" className="btn-3d" asChild>
-                <Link to="/portal/new-order">
-                  <ArrowRight className="w-5 h-5 mr-2" />
-                  {isFrench ? "Commander maintenant" : "Order Now"}
-                </Link>
+              <Button variant="hero" size="xl" className="btn-3d" onClick={() => {
+                const contactSection = document.getElementById('contact-cta');
+                if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth' });
+              }}>
+                <ArrowRight className="w-5 h-5 mr-2" />
+                {isFrench ? "Demander une soumission" : "Request a quote"}
               </Button>
               <Button variant="outline" size="lg" asChild>
-                <Link to="/portal/auth">
-                  <User className="w-4 h-4 mr-2" />
-                  {isFrench ? "Créer un compte" : "Create Account"}
-                </Link>
+                <a href="tel:+14385442233">
+                  <Phone className="w-4 h-4 mr-2" />
+                  {isFrench ? "Nous joindre" : "Contact us"}
+                </a>
               </Button>
             </div>
           </div>
@@ -312,11 +313,12 @@ const ServicesDetail = () => {
                         </li>
                       ))}
                     </ul>
-                    <Button variant="ghost" size="sm" className={`group/btn ${colors.text} p-0 h-auto font-semibold`} asChild>
-                      <Link to="/portal/new-order">
-                        {isFrench ? "Commander maintenant" : "Order Now"}
-                        <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-1" />
-                      </Link>
+                    <Button variant="ghost" size="sm" className={`group/btn ${colors.text} p-0 h-auto font-semibold`} onClick={() => {
+                      const contactSection = document.getElementById('contact-cta');
+                      if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth' });
+                    }}>
+                      {isFrench ? "Demander une soumission" : "Request a quote"}
+                      <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-1" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -474,8 +476,8 @@ const ServicesDetail = () => {
           </div>
         </section>
 
-        {/* Inline CTA - Order Now */}
-        <section className="container mx-auto px-4 mb-20 relative">
+        {/* Inline CTA - Request Quote */}
+        <section id="contact-cta" className="container mx-auto px-4 mb-20 relative">
           <Card className="bg-gradient-to-br from-accent/15 via-cyan-500/10 to-accent/5 border-accent/20 overflow-hidden relative">
             {/* Decorative elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-radial from-cyan-400/20 via-transparent to-transparent rounded-full blur-3xl" />
@@ -488,19 +490,19 @@ const ServicesDetail = () => {
                 </div>
                 
                 <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-                  {isFrench ? "Passez votre commande maintenant" : "Place Your Order Now"}
+                  {isFrench ? "Prêt à activer votre service?" : "Ready to activate your service?"}
                 </h2>
                 <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
                   {isFrench 
-                    ? "Créez votre compte et commandez vos services Nivra en ligne. Pièce d'identité requise."
-                    : "Create your account and order your Nivra services online. ID required."}
+                    ? "Demandez une soumission et on s'occupe de la mise en service."
+                    : "Request a quote and we'll handle the setup."}
                 </p>
                 
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
                   <Button variant="hero" size="xl" className="btn-3d" asChild>
-                    <Link to="/portal/new-order">
+                    <Link to="/#contact">
                       <ArrowRight className="w-5 h-5 mr-2" />
-                      {isFrench ? "Commander maintenant" : "Order Now"}
+                      {isFrench ? "Demander une soumission" : "Request a quote"}
                     </Link>
                   </Button>
                   <Button variant="outline" size="lg" className="gap-2" asChild>
@@ -520,23 +522,23 @@ const ServicesDetail = () => {
           <Card className="bg-card/80 backdrop-blur-sm border-border max-w-3xl mx-auto shadow-lg">
             <CardContent className="py-10 text-center">
               <h2 className="font-display text-xl md:text-2xl font-bold text-foreground mb-4">
-                {isFrench ? "Prêt à commander?" : "Ready to order?"}
+                {isFrench ? "Des questions?" : "Questions?"}
               </h2>
               <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
                 {isFrench 
-                  ? "Créez votre compte client et passez votre commande directement en ligne. Numéro de confirmation instantané."
-                  : "Create your client account and place your order directly online. Instant confirmation number."}
+                  ? "Notre équipe est disponible pour vous aider avec vos besoins télécom."
+                  : "Our team is available to help with your telecom needs."}
               </p>
               <div className="flex flex-wrap justify-center gap-4">
                 <Button variant="hero" size="lg" asChild>
-                  <Link to="/portal/new-order">
-                    {isFrench ? "Passer une commande" : "Place an Order"}
+                  <Link to="/#contact">
+                    {isFrench ? "Nous joindre" : "Contact us"}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>
                 </Button>
                 <Button variant="outline" size="lg" asChild>
-                  <Link to="/portal/auth">
-                    {isFrench ? "Créer un compte" : "Create Account"}
+                  <Link to="/faq">
+                    {isFrench ? "Consulter la FAQ" : "View FAQ"}
                   </Link>
                 </Button>
               </div>

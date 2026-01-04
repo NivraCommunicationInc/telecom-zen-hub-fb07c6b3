@@ -1,4 +1,4 @@
-import { Check, Shield, Zap, Users, HeartHandshake, MapPin } from "lucide-react";
+import { Check, Shield, Zap, Clock, Home, MapPin } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Benefits = () => {
@@ -7,6 +7,11 @@ const Benefits = () => {
   const benefits = [
     {
       icon: Shield,
+      titleKey: 'benefits.independent.title',
+      descKey: 'benefits.independent.desc',
+    },
+    {
+      icon: Clock,
       titleKey: 'benefits.savings.title',
       descKey: 'benefits.savings.desc',
     },
@@ -16,14 +21,9 @@ const Benefits = () => {
       descKey: 'benefits.simple.desc',
     },
     {
-      icon: HeartHandshake,
+      icon: Home,
       titleKey: 'benefits.support.title',
       descKey: 'benefits.support.desc',
-    },
-    {
-      icon: Users,
-      titleKey: 'benefits.independent.title',
-      descKey: 'benefits.independent.desc',
     },
   ];
 
