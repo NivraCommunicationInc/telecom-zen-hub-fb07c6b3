@@ -83,6 +83,8 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
+  const topMargin = 15;
+  const bottomMargin = 40; // Reserve space for footer
   let currentY = margin;
 
   // Color palette - Professional telecom colors
@@ -92,6 +94,38 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   const grayColor: [number, number, number] = [100, 100, 100];
   const lightGray: [number, number, number] = [150, 150, 150];
   const accentColor: [number, number, number] = [0, 120, 150];
+
+  // Helper: check if we need a page break
+  const checkPageBreak = (neededHeight: number): boolean => {
+    if (currentY + neededHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      currentY = topMargin;
+      return true;
+    }
+    return false;
+  };
+
+  // Helper: add wrapped text with automatic page break
+  const addWrappedText = (
+    text: string,
+    x: number,
+    maxWidth: number,
+    lineHeight: number,
+    fontSize: number = 6,
+    color: [number, number, number] = lightGray
+  ): void => {
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text, maxWidth);
+    const neededHeight = lines.length * lineHeight;
+    
+    checkPageBreak(neededHeight);
+    
+    for (let i = 0; i < lines.length; i++) {
+      doc.text(lines[i], x, currentY);
+      currentY += lineHeight;
+    }
+  };
 
   // Calculate amounts
   const subtotal = data.subtotal || 0;
@@ -559,69 +593,90 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   }
 
   // ============ LATE PAYMENT POLICY ============
-  if (currentY < pageHeight - 55) {
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...grayColor);
-    doc.text("LATE PAYMENT POLICY", margin, currentY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6);
-    currentY += 4;
-    doc.text("A late fee of 5% monthly will be applied to any unpaid balance after the due date.", margin, currentY);
-  }
+  checkPageBreak(12);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...grayColor);
+  doc.text("LATE PAYMENT POLICY", margin, currentY);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6);
+  currentY += 4;
+  doc.text("A late fee of 5% monthly will be applied to any unpaid balance after the due date.", margin, currentY);
 
   currentY += 8;
 
   // ============ NOTES ============
-  if (data.notes && currentY < pageHeight - 45) {
+  if (data.notes) {
+    checkPageBreak(20);
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...grayColor);
     doc.text("NOTES:", margin, currentY);
+    currentY += 5;
     doc.setFont("helvetica", "normal");
     const noteLines = doc.splitTextToSize(data.notes, contentWidth);
-    doc.text(noteLines.slice(0, 2), margin, currentY + 5);
-    currentY += 12;
+    const maxNoteLines = Math.min(noteLines.length, 3);
+    for (let i = 0; i < maxNoteLines; i++) {
+      doc.text(noteLines[i], margin, currentY);
+      currentY += 4;
+    }
+    currentY += 4;
   }
 
-  // ============ FOOTER SECTION ============
-  const footerY = pageHeight - 32;
-
-  // Footer divider
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.line(margin, footerY, pageWidth - margin, footerY);
-
-  // Footer text
-  doc.setFontSize(5.5);
+  // ============ DISCLAIMER SECTION (before fixed footer) ============
+  currentY += 5;
+  
+  const disclaimerTexts = [
+    "Fulfillment and activation timelines apply according to order category. Equipment warranty is manufacturer-based for 12 months from activation.",
+    "Loss, theft, or customer damage are excluded unless override is approved internally by Admin. All invoice records, payment references, and equipment assignments are stored in Nivra internal systems and are not shared externally."
+  ];
+  
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...lightGray);
   
-  const footerText1 = "Fulfillment and activation timelines apply according to order category. Equipment warranty is manufacturer-based for 12 months from activation.";
-  const footerText2 = "Loss, theft, or customer damage are excluded unless override is approved internally by Admin. All invoice records, payment references, and equipment";
-  const footerText3 = "assignments are stored in Nivra internal systems and are not shared externally.";
-  
-  doc.text(footerText1, pageWidth / 2, footerY + 5, { align: "center" });
-  doc.text(footerText2, pageWidth / 2, footerY + 9, { align: "center" });
-  doc.text(footerText3, pageWidth / 2, footerY + 13, { align: "center" });
+  for (const disclaimer of disclaimerTexts) {
+    addWrappedText(disclaimer, margin, contentWidth, 3.5, 5.5, lightGray);
+    currentY += 2;
+  }
 
-  // Signature line
+  // Signature line (if applicable)
   if (data.issuedBy || data.issuedByRole) {
+    currentY += 4;
+    checkPageBreak(10);
     doc.setFontSize(6);
     doc.setTextColor(...grayColor);
-    doc.text("Issued by: ___________________________", margin, footerY + 20);
-    doc.text(`Role: ${data.issuedByRole || "Admin/Employee"}`, margin + 60, footerY + 20);
-    doc.text(`Timestamp: ${data.issuedAt || format(new Date(), "yyyy-MM-dd HH:mm")}`, margin + 110, footerY + 20);
+    doc.text("Issued by: ___________________________", margin, currentY);
+    doc.text(`Role: ${data.issuedByRole || "Admin/Employee"}`, margin + 60, currentY);
+    doc.text(`Timestamp: ${data.issuedAt || format(new Date(), "yyyy-MM-dd HH:mm")}`, margin + 110, currentY);
+    currentY += 8;
   }
 
-  // Bottom accent
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, pageHeight - 4, pageWidth, 4, "F");
+  // ============ FIXED FOOTER SECTION (always at bottom) ============
+  // Draw footer on current page (and all pages if multi-page)
+  const totalPages = doc.getNumberOfPages();
+  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+    doc.setPage(pageNum);
+    
+    const footerY = pageHeight - 18;
+    
+    // Footer divider
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.5);
+    doc.line(margin, footerY, pageWidth - margin, footerY);
+    
+    // Bottom accent bar
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, pageHeight - 4, pageWidth, 4, "F");
 
-  // Business footer
-  doc.setFontSize(6);
-  doc.setTextColor(...grayColor);
-  doc.text(`${NIVRA_BUSINESS.name} | NEQ: ${NIVRA_BUSINESS.neq} | ${NIVRA_BUSINESS.address}`, pageWidth / 2, footerY + 26, { align: "center" });
+    // Business footer text
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...grayColor);
+    doc.text(`${NIVRA_BUSINESS.name} | NEQ: ${NIVRA_BUSINESS.neq} | ${NIVRA_BUSINESS.address}`, pageWidth / 2, footerY + 8, { align: "center" });
+    
+    // Page number
+    doc.setFontSize(5);
+    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, footerY + 8, { align: "right" });
+  }
 
   return doc;
 };
