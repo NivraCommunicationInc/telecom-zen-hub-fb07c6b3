@@ -382,11 +382,11 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         </div>
 
         {/* Optional Address Section */}
-        <div className="border-t border-border/30 pt-4">
+        <div className="border-t border-border pt-4">
           <button
             type="button"
             onClick={() => setShowAddress(!showAddress)}
-            className="flex items-center gap-2 text-sm text-cyan-100/70 hover:text-cyan-100 transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
           >
             <MapPin className="w-4 h-4" />
             {isFrench ? "Adresse (optionnel)" : "Address (optional)"}
@@ -397,7 +397,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             <div className="mt-4 space-y-4 animate-in slide-in-from-top-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="addressStreet" className="text-cyan-100/80">
+                  <Label htmlFor="addressStreet" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Adresse (rue)" : "Street Address"}
                   </Label>
                   <Input
@@ -406,13 +406,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                     placeholder={isFrench ? "123 Rue Saint-Laurent" : "123 Main Street"}
                     value={formData.addressStreet}
                     onChange={handleChange}
-                    className="bg-background/50 border-border/50 text-primary-foreground h-12"
+                    className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="addressApartment" className="text-cyan-100/80 flex items-center gap-2">
-                    <Building className="w-4 h-4" />
+                  <Label htmlFor="addressApartment" className="text-slate-900 font-medium text-sm flex items-center gap-2">
+                    <Building className="w-4 h-4 text-slate-500" />
                     {isFrench ? "Appartement / Unité" : "Apt / Unit"}
                   </Label>
                   <Input
@@ -421,12 +421,12 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                     placeholder="Apt 4B"
                     value={formData.addressApartment}
                     onChange={handleChange}
-                    className="bg-background/50 border-border/50 text-primary-foreground h-12"
+                    className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="addressCity" className="text-cyan-100/80">
+                  <Label htmlFor="addressCity" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Ville" : "City"}
                   </Label>
                   <Input
@@ -435,12 +435,12 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                     placeholder="Montréal"
                     value={formData.addressCity}
                     onChange={handleChange}
-                    className="bg-background/50 border-border/50 text-primary-foreground h-12"
+                    className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="addressProvince" className="text-cyan-100/80">
+                  <Label htmlFor="addressProvince" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Province" : "Province"}
                   </Label>
                   <select
@@ -448,14 +448,14 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                     name="addressProvince"
                     value={formData.addressProvince}
                     onChange={handleChange}
-                    className="w-full h-12 px-3 rounded-md border border-border/50 bg-background/50 text-primary-foreground"
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-background text-slate-900 focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none"
                   >
                     <option value="QC">Québec</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="addressPostalCode" className="text-cyan-100/80">
+                  <Label htmlFor="addressPostalCode" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Code postal" : "Postal Code"}
                   </Label>
                   <Input
@@ -465,7 +465,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                     value={formData.addressPostalCode}
                     onChange={handleChange}
                     maxLength={7}
-                    className="bg-background/50 border-border/50 text-primary-foreground h-12"
+                    className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
                   />
                   {errors.addressPostalCode && <p className="text-sm text-destructive">{errors.addressPostalCode}</p>}
                 </div>
@@ -476,31 +476,31 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
         {/* Preferred Contact Method */}
         <div className="space-y-3">
-          <Label className="text-cyan-100/80">
+          <Label className="text-slate-900 font-medium text-sm">
             {isFrench ? "Méthode de contact préférée" : "Preferred Contact Method"}
           </Label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="radio"
                 name="preferredContact"
                 value="email"
                 checked={formData.preferredContact === "email"}
                 onChange={handleChange}
-                className="w-4 h-4 text-cyan-500"
+                className="w-4 h-4 accent-accent"
               />
-              <span className="text-cyan-100/80">{isFrench ? "Courriel" : "Email"}</span>
+              <span className="text-slate-700 text-sm">{isFrench ? "Courriel" : "Email"}</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="radio"
                 name="preferredContact"
                 value="phone"
                 checked={formData.preferredContact === "phone"}
                 onChange={handleChange}
-                className="w-4 h-4 text-cyan-500"
+                className="w-4 h-4 accent-accent"
               />
-              <span className="text-cyan-100/80">{isFrench ? "Téléphone" : "Phone"}</span>
+              <span className="text-slate-700 text-sm">{isFrench ? "Téléphone" : "Phone"}</span>
             </label>
           </div>
         </div>
@@ -511,9 +511,9 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             id="consentGiven"
             checked={formData.consentGiven}
             onCheckedChange={(checked) => handleCheckboxChange("consentGiven", checked === true)}
-            className="mt-1"
+            className="mt-1 border-slate-300 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
           />
-          <Label htmlFor="consentGiven" className="text-sm text-cyan-100/70 cursor-pointer leading-relaxed">
+          <Label htmlFor="consentGiven" className="text-sm text-slate-600 cursor-pointer leading-relaxed">
             {isFrench 
               ? "J'accepte d'être contacté par Nivra pour le traitement de ma demande." 
               : "I agree to be contacted by Nivra to process my request."}
@@ -523,10 +523,10 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         {errors.consentGiven && <p className="text-sm text-destructive -mt-2">{errors.consentGiven}</p>}
 
         {/* Security Warning */}
-        <Card className="bg-amber-500/10 border-amber-500/30">
+        <Card className="bg-amber-50 border-amber-200">
           <CardContent className="py-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-100/80">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-slate-700 leading-relaxed">
               {isFrench 
                 ? "Pour votre sécurité, ne transmettez pas d'informations sensibles (NAS, carte de crédit, mots de passe, NIP complet, numéros de compte) via ce formulaire."
                 : "For your security, do not share sensitive information (SIN, credit card, passwords, full PIN, account numbers) via this form."}
