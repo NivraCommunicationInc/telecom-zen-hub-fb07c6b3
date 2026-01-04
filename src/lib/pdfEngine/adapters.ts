@@ -71,12 +71,16 @@ export interface OrderData {
   service_postal_code?: string;
   billing_address?: string;
   
-  // Service info
+  // Service info with prices
   service_plan?: string;
   internet_plan?: string;
+  internet_price?: number;
   tv_bundle?: string;
+  tv_price?: number;
   mobile_plan?: string;
+  mobile_price?: number;
   streaming_plan?: string;
+  streaming_price?: number;
   
   // TV summary
   tv_base_channels?: number;
@@ -95,6 +99,11 @@ export interface OrderData {
   sim_fee?: number;
   discount_amount?: number;
   promo_code?: string;
+  promo_discount?: number;
+  preauth_discount?: number;
+  preauth_enabled?: boolean;
+  loyalty_discount?: number;
+  multi_line_discount?: number;
   tps_amount?: number;
   tvq_amount?: number;
   total_amount?: number;
@@ -123,14 +132,15 @@ export function orderToDocumentData(
   docType: "contract" | "invoice" | "estimate"
 ): UnifiedDocumentData {
   
-  // Build services list (only selected services)
+  // Build services list (only selected services) with individual prices
   const services: ServiceLineItem[] = [];
   
   if (order.internet_plan) {
     services.push({
       type: "Internet",
       name: order.internet_plan,
-      monthlyPrice: 0, // Price comes from subtotal
+      monthlyPrice: order.internet_price || 0,
+      priceLabel: "/mois",
     });
   }
   
@@ -139,7 +149,8 @@ export function orderToDocumentData(
       type: "TV",
       name: order.tv_bundle,
       description: "Requiert Internet actif",
-      monthlyPrice: 0,
+      monthlyPrice: order.tv_price || 0,
+      priceLabel: "/mois",
     });
   }
   
@@ -147,7 +158,8 @@ export function orderToDocumentData(
     services.push({
       type: "Mobile",
       name: order.mobile_plan,
-      monthlyPrice: 0,
+      monthlyPrice: order.mobile_price || 0,
+      priceLabel: "/30 jours",
     });
   }
   
@@ -155,7 +167,8 @@ export function orderToDocumentData(
     services.push({
       type: "Streaming",
       name: order.streaming_plan,
-      monthlyPrice: 0,
+      monthlyPrice: order.streaming_price || 0,
+      priceLabel: "/mois",
     });
   }
   
@@ -165,6 +178,7 @@ export function orderToDocumentData(
       type: "Other",
       name: order.service_plan,
       monthlyPrice: order.subtotal || 0,
+      priceLabel: "/mois",
     });
   }
   
@@ -232,14 +246,60 @@ export function orderToDocumentData(
     });
   }
   
-  // Discounts (only if present)
+  // Discounts - detailed breakdown (only if present)
   const discounts: DiscountItem[] = [];
   
-  if (order.discount_amount && order.discount_amount > 0) {
+  // Pre-authorized payment discount
+  if (order.preauth_discount && order.preauth_discount > 0) {
+    discounts.push({
+      label: "Rabais paiement préautorisé",
+      amount: order.preauth_discount,
+      type: "preauth",
+    });
+  } else if (order.preauth_enabled) {
+    // Show label even if amount not specified yet
+    discounts.push({
+      label: "Rabais paiement préautorisé",
+      amount: 0,
+      type: "preauth",
+    });
+  }
+  
+  // Promo code discount
+  if (order.promo_discount && order.promo_discount > 0) {
+    discounts.push({
+      label: "Code promo",
+      amount: order.promo_discount,
+      promoCode: order.promo_code,
+      type: "promo",
+    });
+  }
+  
+  // Loyalty discount
+  if (order.loyalty_discount && order.loyalty_discount > 0) {
+    discounts.push({
+      label: "Rabais fidélité",
+      amount: order.loyalty_discount,
+      type: "loyalty",
+    });
+  }
+  
+  // Multi-line discount
+  if (order.multi_line_discount && order.multi_line_discount > 0) {
+    discounts.push({
+      label: "Rabais multi-lignes",
+      amount: order.multi_line_discount,
+      type: "multiLine",
+    });
+  }
+  
+  // Generic discount (fallback for legacy data without categorization)
+  if (order.discount_amount && order.discount_amount > 0 && discounts.length === 0) {
     discounts.push({
       label: "Rabais promotionnel",
       amount: order.discount_amount,
       promoCode: order.promo_code,
+      type: "promo",
     });
   }
   
@@ -247,7 +307,8 @@ export function orderToDocumentData(
   const subtotal = order.subtotal || 0;
   const oneTimeTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0) +
     equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
-  const discountTotal = order.discount_amount || 0;
+  // Sum all discounts from the discounts array
+  const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
   
   const taxableAmount = subtotal + oneTimeTotal - discountTotal;
   const taxes = calculateQuebecTaxes(taxableAmount);

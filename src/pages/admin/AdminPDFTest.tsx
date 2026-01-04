@@ -13,8 +13,10 @@ import {
   sampleMobileOnly,
   sampleInternetInstall,
   sampleTVBundle,
+  sampleFullCombo,
   sampleInvoiceMobile,
   sampleInvoiceTVBundle,
+  sampleInvoiceFullCombo,
 } from "@/lib/pdfEngine";
 import type { UnifiedDocumentData } from "@/lib/pdfEngine/types";
 
@@ -59,7 +61,7 @@ const AdminPDFTest = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <Button
                 onClick={() => handleDownload(sampleMobileOnly, "Contract-Mobile-Only.pdf")}
                 className="w-full justify-start gap-2"
@@ -75,7 +77,7 @@ const AdminPDFTest = () => {
                 variant="outline"
               >
                 <Download className="h-4 w-4" />
-                Internet + Installation
+                Internet + Installation + Rabais préauth
               </Button>
               
               <Button
@@ -86,18 +88,28 @@ const AdminPDFTest = () => {
                 <Download className="h-4 w-4" />
                 TV Bundle (résumé chaînes)
               </Button>
+
+              <Button
+                onClick={() => handleDownload(sampleFullCombo, "Contract-Full-Combo.pdf")}
+                className="w-full justify-start gap-2"
+                variant="hero"
+              >
+                <Download className="h-4 w-4" />
+                COMBO: Internet + TV + Mobile (3 services + rabais)
+              </Button>
             </div>
 
             <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
               <strong>Critères à vérifier :</strong>
               <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>Nom entreprise: "Nivra Telecom" (pas NIVRA COMMUNICATIONS INC.)</li>
-                <li>Email: Support@nivratelecom.ca</li>
-                <li>Téléphone: 514-544-2233</li>
+                <li>Nom entreprise: "Nivra Telecom"</li>
+                <li>Email: Support@nivratelecom.ca | Téléphone: 514-544-2233</li>
+                <li>Numéro de compte client visible</li>
+                <li>TOUS les services sélectionnés avec prix individuels</li>
+                <li>Rabais détaillés (préauth, promo, multi-lignes, fidélité)</li>
                 <li>Aucun texte coupé ou superposé</li>
                 <li>Sections vides cachées (pas de gros gaps)</li>
                 <li>TV = résumé chaînes uniquement (pas de liste)</li>
-                <li>Signatures en bas de page finale</li>
               </ul>
             </div>
           </CardContent>
@@ -115,7 +127,7 @@ const AdminPDFTest = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <Button
                 onClick={() => handleDownload(sampleInvoiceMobile, "Invoice-Mobile-Paid.pdf")}
                 className="w-full justify-start gap-2"
@@ -141,6 +153,15 @@ const AdminPDFTest = () => {
               >
                 <Download className="h-4 w-4" />
                 TV Bundle
+              </Button>
+
+              <Button
+                onClick={() => handleDownload(sampleInvoiceFullCombo, "Invoice-Full-Combo.pdf")}
+                className="w-full justify-start gap-2"
+                variant="hero"
+              >
+                <Download className="h-4 w-4" />
+                COMBO: 3 services + rabais
               </Button>
             </div>
 

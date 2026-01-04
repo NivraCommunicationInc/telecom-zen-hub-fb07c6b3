@@ -11,6 +11,10 @@ export interface ServiceLineItem {
   description?: string;
   monthlyPrice: number;
   quantity?: number;
+  /** e.g. "/mois", "/30 jours", "Frais unique" */
+  priceLabel?: string;
+  /** Is this a one-time charge or recurring */
+  isOneTime?: boolean;
 }
 
 export interface TVChannelsSummary {
@@ -38,6 +42,8 @@ export interface DiscountItem {
   label: string;
   amount: number;
   promoCode?: string;
+  /** Discount type for categorization */
+  type?: "promo" | "preauth" | "loyalty" | "multiLine" | "other";
 }
 
 // ============= CLIENT & COMPANY INFO =============

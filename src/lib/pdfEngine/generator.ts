@@ -108,12 +108,15 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   addSectionTitle(state, "Informations client", { addHeader });
   
   addLabelValue(state, "Nom complet", data.client.fullName, { addHeader });
+  
+  // Account number - show prominently if available
+  if (data.client.accountNumber) {
+    addLabelValue(state, "Numéro de compte client", data.client.accountNumber, { addHeader });
+  }
+  
   addLabelValue(state, "Courriel", data.client.email, { addHeader });
   if (data.client.phone) {
     addLabelValue(state, "Téléphone", data.client.phone, { addHeader });
-  }
-  if (data.client.accountNumber) {
-    addLabelValue(state, "N° de compte", data.client.accountNumber, { addHeader });
   }
   
   // Service address - only if present
@@ -144,20 +147,30 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   if (data.services.length > 0) {
     addSectionTitle(state, "Services inclus", { addHeader });
     
-    const serviceWidths = [35, 75, 20, 28];
-    addTableHeader(state, ["TYPE", "SERVICE / FORFAIT", "QTÉ", "MENSUEL"], serviceWidths, { addHeader });
+    // Enhanced table with price label column
+    const serviceWidths = [28, 70, 15, 25, 30];
+    addTableHeader(state, ["TYPE", "SERVICE / FORFAIT", "QTÉ", "PRIX", "PÉRIODE"], serviceWidths, { addHeader });
     
     data.services.forEach((service, index) => {
       const qty = service.quantity ? String(service.quantity) : "1";
       const serviceName = service.description 
         ? `${service.name} — ${service.description}` 
         : service.name;
+      
+      // Determine price label
+      let priceLabel = service.priceLabel || "/mois";
+      if (service.isOneTime) {
+        priceLabel = "Frais unique";
+      } else if (service.type === "Mobile") {
+        priceLabel = service.priceLabel || "/30 jours";
+      }
+      
       addTableRow(
         state,
-        [service.type, serviceName, qty, formatCurrency(service.monthlyPrice)],
+        [service.type, serviceName, qty, formatCurrency(service.monthlyPrice), priceLabel],
         serviceWidths,
         index,
-        { addHeader, rightAlignLast: true }
+        { addHeader, rightAlignLast: false }
       );
     });
     state.currentY += 2; // Minimal spacing
