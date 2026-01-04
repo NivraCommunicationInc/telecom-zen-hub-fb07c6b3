@@ -75,21 +75,22 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     );
   };
 
-  // ========== PAGE 1: HEADER ==========
+  // ========== PAGE 1: RÉSUMÉ DU CONTRAT ==========
   addDocumentHeader(
     state,
     companyName,
-    DOC_TITLES[data.docType],
+    data.docType === "contract" ? "Résumé du contrat" : DOC_TITLES[data.docType],
     DOC_SUBTITLES[data.docType]
   );
 
   // Company info box - compact
   const companyLines = [
+    `${companyLegalName}`,
     `Courriel : ${data.company.email} | Tél : ${data.company.phone}`,
   ];
   // Only add city if available
   if (data.client.serviceCity) {
-    companyLines.unshift(`Ville : ${data.client.serviceCity}, QC`);
+    companyLines.push(`Ville : ${data.client.serviceCity}, ${data.client.serviceProvince || "QC"} ${data.client.servicePostalCode || ""}`);
   }
   addInfoBox(state, companyLines, { addHeader, height: companyLines.length * 5 + 6 });
 

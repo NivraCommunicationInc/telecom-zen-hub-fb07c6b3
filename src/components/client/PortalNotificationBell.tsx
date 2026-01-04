@@ -27,13 +27,37 @@ export function PortalNotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, isLoading } = usePortalNotifications();
   const [open, setOpen] = useState(false);
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read immediately (optimistic update handled by hook)
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
+    
+    // Close popover
+    setOpen(false);
+    
+    // Navigate based on notification type with deep-linking
     if (notification.link_target) {
+      // Use the stored link_target directly
       navigate(notification.link_target);
-      setOpen(false);
+    } else {
+      // Fallback navigation based on type
+      const typeRoutes: Record<string, string> = {
+        order: "/portal/orders",
+        ticket: "/portal/tickets",
+        invoice: "/portal/invoices",
+        payment: "/portal/payments",
+        appointment: "/portal/appointments",
+        system: "/portal/dashboard",
+      };
+      const fallbackRoute = typeRoutes[notification.type] || "/portal/dashboard";
+      
+      // If we have a link_id, append it for deep linking
+      if (notification.link_id) {
+        navigate(`${fallbackRoute}?id=${notification.link_id}`);
+      } else {
+        navigate(fallbackRoute);
+      }
     }
   };
 

@@ -245,6 +245,33 @@ export const TVChannelSelectionBase = ({
                   </CardDescription>
                 </div>
               </div>
+              {/* Random selection button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-purple-500 border-purple-500/30 hover:bg-purple-500/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Randomly select channels from free choice list
+                  const available = freeChoiceChannels.filter(
+                    ch => !selectedFreeChannels.some(s => s.id === ch.id)
+                  );
+                  const needed = channelChoicesLimit - selectedFreeChannels.length;
+                  if (needed <= 0) {
+                    // If already full, re-roll: clear and select new random
+                    const shuffled = [...freeChoiceChannels].sort(() => Math.random() - 0.5);
+                    onFreeChannelsChange(shuffled.slice(0, channelChoicesLimit));
+                  } else {
+                    // Add random from available
+                    const shuffled = [...available].sort(() => Math.random() - 0.5);
+                    const toAdd = shuffled.slice(0, needed);
+                    onFreeChannelsChange([...selectedFreeChannels, ...toAdd]);
+                  }
+                }}
+                disabled={freeChoiceChannels.length === 0}
+              >
+                🎲 {isFrench ? "Choisir au hasard" : "Random pick"}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
