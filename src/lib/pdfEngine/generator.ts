@@ -32,6 +32,7 @@ import {
 import { BUSINESS_INFO, CONTRACT_TERMS } from "../contractPolicies";
 import { getContractEngineFooterLine } from "../contractTemplate";
 import { getEssentialTerms } from "./termsAndConditions";
+import { ALL_ANNEXES, ANNEXE_TITLES, type AnnexeSection } from "./annexes";
 
 const { marginLeft, marginRight, contentWidth, fontSize } = PDF_LAYOUT;
 
@@ -415,40 +416,48 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     }
   }
 
-  // ========== CONTRACT-SPECIFIC: TERMS & SIGNATURE ==========
+  // ========== CONTRACT-SPECIFIC: SIGNATURES & ANNEXES ==========
   if (data.docType === "contract") {
-    // Start new page for terms to ensure proper layout
+    // ===== SIGNATURE SECTION =====
+    // Start new page for signatures
     addNewPage(state, addHeader);
     
-    addSectionTitle(state, "Termes et conditions", { addHeader });
+    addSectionTitle(state, "Acceptation des annexes", { addHeader });
     
-    // Get essential terms from the new terms file
-    const terms = getEssentialTerms();
+    // List annexes
+    doc.setFontSize(fontSize.small);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, "text");
     
-    terms.forEach((term) => {
-      // Check page break before each term
-      if (checkPageBreak(state, 20)) {
+    ANNEXE_TITLES.forEach((annexe) => {
+      if (checkPageBreak(state, 6)) {
         addNewPage(state, addHeader);
       }
-      
-      addSubHeader(state, term.title, { addHeader });
-      addParagraph(state, term.content, { addHeader, fontSize: fontSize.tiny });
+      doc.text(`• ${annexe.title}`, marginLeft + 4, state.currentY);
+      state.currentY += 5;
     });
     
-    // Signature section - flows naturally
+    state.currentY += 4;
+    
+    // Acceptance text
+    addParagraph(
+      state, 
+      "En signant ce contrat, le client confirme avoir lu, compris et accepté les Annexes A à E ci-jointes, qui font partie intégrante du présent contrat.", 
+      { addHeader, fontSize: fontSize.small }
+    );
+    
+    state.currentY += 6;
+    
+    // Signature boxes
     const sigBoxWidth = (contentWidth - 10) / 2;
     const sigBoxHeight = 35;
-    const signedStatusHeight = data.isSigned ? 18 : 0;
-    const totalSigHeight = sigBoxHeight + signedStatusHeight + 16;
+    const pageWidth = getPageWidth(doc);
     
-    // Check if signatures fit on current page
-    if (checkPageBreak(state, totalSigHeight)) {
+    if (checkPageBreak(state, sigBoxHeight + 20)) {
       addNewPage(state, addHeader);
     }
     
     addSectionTitle(state, "Signatures", { addHeader });
-    
-    const pageWidth = getPageWidth(doc);
     
     // Provider signature box
     setColor(doc, "primary", "fill");
@@ -503,6 +512,112 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       doc.text(`Signé le ${formatDateTime(data.signedAt)}${data.signatureMethod ? ` (${data.signatureMethod})` : ""}`, pageWidth / 2, state.currentY + 11, { align: "center" });
       
       state.currentY += 16;
+    }
+    
+    // ===== RENDER FULL ANNEXES A → E =====
+    renderAnnexes(state, addHeader);
+  }
+  
+  /**
+   * Render all annexes A → E with proper page breaks
+   * Uses robust text wrapping to prevent truncation
+   */
+  function renderAnnexes(state: PDFState, addHeader: () => void) {
+    const pageHeight = getPageHeight(doc);
+    const bottomMargin = 40; // Leave space for footer
+    const maxY = pageHeight - bottomMargin;
+    
+    /**
+     * Wrap and render text with automatic page breaks
+     * CRITICAL: Never truncate - always wrap and break pages
+     */
+    const addWrappedText = (
+      text: string, 
+      options: { 
+        fontSize?: number; 
+        fontStyle?: "normal" | "bold"; 
+        indent?: number;
+        color?: "text" | "muted" | "primary";
+      } = {}
+    ) => {
+      const fs = options.fontSize || fontSize.small;
+      const fontStyle = options.fontStyle || "normal";
+      const indent = options.indent || 0;
+      const color = options.color || "text";
+      const textWidth = contentWidth - indent;
+      
+      doc.setFontSize(fs);
+      doc.setFont("helvetica", fontStyle);
+      setColor(doc, color);
+      
+      // Split text into lines that fit within width
+      const lines = doc.splitTextToSize(text, textWidth);
+      const lineHeight = fs * 0.4; // Approximate line height
+      
+      for (const line of lines) {
+        // Check if we need a new page BEFORE writing
+        if (state.currentY + lineHeight > maxY) {
+          addNewPage(state, addHeader);
+        }
+        
+        doc.text(line, marginLeft + indent, state.currentY);
+        state.currentY += lineHeight;
+      }
+      
+      state.currentY += 2; // Small gap after paragraph
+    };
+    
+    /**
+     * Add annexe header (bold, larger font)
+     */
+    const addAnnexeHeader = (title: string) => {
+      // Always start annexe on new page
+      addNewPage(state, addHeader);
+      
+      doc.setFontSize(12); // Annexe header size
+      doc.setFont("helvetica", "bold");
+      setColor(doc, "primary");
+      doc.text(title, marginLeft, state.currentY);
+      state.currentY += 8;
+      
+      // Divider line
+      setColor(doc, "border", "draw");
+      doc.setLineWidth(0.5);
+      doc.line(marginLeft, state.currentY, marginLeft + contentWidth, state.currentY);
+      state.currentY += 6;
+    };
+    
+    /**
+     * Add section header within annexe
+     */
+    const addAnnexeSectionHeader = (number: string | undefined, title: string) => {
+      // Check if header fits, if not new page
+      if (state.currentY + 12 > maxY) {
+        addNewPage(state, addHeader);
+      }
+      
+      state.currentY += 4;
+      
+      doc.setFontSize(fontSize.body);
+      doc.setFont("helvetica", "bold");
+      setColor(doc, "text");
+      
+      const headerText = number ? `(${number}) ${title}` : title;
+      doc.text(headerText, marginLeft, state.currentY);
+      state.currentY += 6;
+    };
+    
+    // ===== RENDER EACH ANNEXE =====
+    for (const annexe of ALL_ANNEXES) {
+      addAnnexeHeader(annexe.title);
+      
+      for (const section of annexe.sections) {
+        addAnnexeSectionHeader(section.number, section.title);
+        
+        for (const paragraph of section.paragraphs) {
+          addWrappedText(paragraph, { fontSize: 9, indent: 0 });
+        }
+      }
     }
   }
 
