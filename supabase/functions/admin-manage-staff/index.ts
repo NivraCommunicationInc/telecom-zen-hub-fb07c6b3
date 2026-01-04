@@ -1470,7 +1470,7 @@ serve(async (req: Request) => {
               role: roleToInsert,
               status: "active",
               is_active: true,
-            }, { onConflict: "user_id" });
+            }, { onConflict: "user_id", ignoreDuplicates: false });
 
           if (upsertError) {
             console.error(`[admin-manage-staff] ${stepBase} upsert error:`, upsertError);
