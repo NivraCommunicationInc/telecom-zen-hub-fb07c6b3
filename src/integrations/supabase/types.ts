@@ -1946,6 +1946,7 @@ export type Database = {
           discount_code: string | null
           equipment_details: Json | null
           equipment_id: string | null
+          equipment_line_details: Json | null
           id: string
           id_verification_notes: string | null
           id_verification_status: string | null
@@ -2025,6 +2026,7 @@ export type Database = {
           discount_code?: string | null
           equipment_details?: Json | null
           equipment_id?: string | null
+          equipment_line_details?: Json | null
           id?: string
           id_verification_notes?: string | null
           id_verification_status?: string | null
@@ -2104,6 +2106,7 @@ export type Database = {
           discount_code?: string | null
           equipment_details?: Json | null
           equipment_id?: string | null
+          equipment_line_details?: Json | null
           id?: string
           id_verification_notes?: string | null
           id_verification_status?: string | null
@@ -4349,6 +4352,10 @@ export type Database = {
       hash_pin: { Args: { pin: string }; Returns: string }
       is_assigned_technician: {
         Args: { _work_order_id: string }
+        Returns: boolean
+      }
+      is_first_client_order: {
+        Args: { p_order_id: string; p_user_id: string }
         Returns: boolean
       }
       lift_client_suspension: {
