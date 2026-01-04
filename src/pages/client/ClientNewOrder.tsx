@@ -1016,6 +1016,67 @@ const ClientNewOrder = () => {
         id_province: idProvince || null,
       } : null;
 
+      // Build structured line_items for contract PDF
+      const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
+      
+      // Build services array from selected services
+      type ServiceType = "Internet" | "TV" | "Mobile" | "Streaming" | "Security" | "Other";
+      const servicesForLineItems = selectedServices.map(service => {
+        const serviceType = service.category?.toLowerCase() || 'other';
+        let type: ServiceType = "Other";
+        let priceLabel = "/mois";
+        
+        if (serviceType.includes('internet')) type = "Internet";
+        else if (serviceType.includes('tv')) type = "TV";
+        else if (serviceType.includes('mobile')) { type = "Mobile"; priceLabel = "/30 jours"; }
+        else if (serviceType.includes('streaming')) type = "Streaming";
+        else if (serviceType.includes('security')) type = "Security";
+        
+        return {
+          type,
+          name: service.name,
+          price: Number(service.price),
+          priceLabel,
+        };
+      });
+      
+      // Add streaming services
+      const streamingForLineItems = selectedStreamingServices.map(s => ({
+        type: "Streaming" as const,
+        name: s.name,
+        price: Number(s.monthly_price),
+        priceLabel: "/mois",
+      }));
+      
+      // Add paid channels as services
+      const paidChannelsForLineItems = selectedPaidChannels.length > 0 ? [{
+        type: "TV" as const,
+        name: `Chaînes premium (${selectedPaidChannels.length})`,
+        price: paidChannelTotal,
+        priceLabel: "/mois",
+        description: selectedPaidChannels.map(ch => ch.name).slice(0, 3).join(", ") + (selectedPaidChannels.length > 3 ? "..." : ""),
+      }] : [];
+      
+      // Build equipment array
+      const equipmentForLineItems = [
+        ...((hasInternetService || hasTVService) ? [{ name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: ROUTER_CONFIG.price }] : []),
+        ...(hasTVService ? [{ name: "Terminal Nivra 4K Smart", quantity: terminalQuantity, unitPrice: TERMINAL_CONFIG.price }] : []),
+        ...(hasMobileService ? [{ name: "Carte SIM physique", quantity: totalMobileLineQuantity, unitPrice: SIM_CONFIG.physical.price }] : []),
+      ];
+      
+      // Build fees array
+      const feesForLineItems = [
+        ...(orderActivationFee > 0 ? [{ name: "Frais d'activation", amount: orderActivationFee }] : []),
+        ...(orderDeliveryFee > 0 ? [{ name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
+        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
+      ];
+      
+      const lineItems = buildOrderLineItems({
+        services: [...servicesForLineItems, ...streamingForLineItems, ...paidChannelsForLineItems],
+        equipment: equipmentForLineItems,
+        fees: feesForLineItems,
+      });
+
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
@@ -1037,6 +1098,7 @@ const ClientNewOrder = () => {
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
+        equipment_details: wrapLineItemsForOrder(lineItems),
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         preauth_card_id: savedPaymentMethodId,

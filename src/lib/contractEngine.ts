@@ -105,26 +105,14 @@ export const ensureOrderContractUpToDate = async (params: {
   const serviceType = String((order as any).service_type || "").toLowerCase();
   const subtotal = Number((order as any).subtotal ?? 0);
   
-  // Try to extract structured service data from equipment_details if available
+  // Import extractLineItemsFromOrder utility
+  const { extractLineItemsFromOrder } = await import("@/lib/orderLineItems");
+  
+  // Try to extract structured line_items from equipment_details (PRIMARY SOURCE)
   const equipmentDetails = (order as any).equipment_details;
-  let parsedServices: Array<{type: string; name: string; price?: number; priceLabel?: string}> = [];
+  const lineItems = extractLineItemsFromOrder(equipmentDetails);
   
-  // Check if equipment_details contains line_items or services array
-  if (equipmentDetails && typeof equipmentDetails === 'object') {
-    const lineItems = equipmentDetails.line_items || equipmentDetails.services || [];
-    if (Array.isArray(lineItems)) {
-      parsedServices = lineItems.filter((item: any) => 
-        item && (item.type || item.name) && item.category !== 'equipment' && item.category !== 'fee'
-      ).map((item: any) => ({
-        type: item.type || 'Other',
-        name: item.name || item.description || 'Service',
-        price: item.unitPrice || item.price || item.monthlyPrice,
-        priceLabel: item.priceLabel || item.periodLabel || '/mois',
-      }));
-    }
-  }
-  
-  // Build individual service prices based on parsed data or service_type fallback
+  // Build individual service prices based on line_items or fallback parsing
   let internetPlan: string | undefined;
   let internetPrice: number | undefined;
   let tvBundle: string | undefined;
@@ -134,28 +122,36 @@ export const ensureOrderContractUpToDate = async (params: {
   let streamingPlan: string | undefined;
   let streamingPrice: number | undefined;
   
-  // First, use parsed services if available
-  if (parsedServices.length > 0) {
-    for (const svc of parsedServices) {
-      const svcType = (svc.type || '').toLowerCase();
-      if (svcType.includes('internet') || svcType === 'internet') {
-        internetPlan = svc.name;
-        internetPrice = svc.price;
-      } else if (svcType.includes('tv') || svcType === 'tv') {
-        tvBundle = svc.name;
-        tvPrice = svc.price;
-      } else if (svcType.includes('mobile') || svcType === 'mobile') {
-        mobilePlan = svc.name;
-        mobilePrice = svc.price;
-      } else if (svcType.includes('streaming') || svcType === 'streaming') {
-        streamingPlan = svc.name;
-        streamingPrice = svc.price;
+  if (lineItems && lineItems.length > 0) {
+    // Use structured line_items as primary source
+    for (const item of lineItems) {
+      if (item.category === 'service') {
+        const itemType = item.type?.toLowerCase() || '';
+        const price = item.unitPrice > 0 ? item.unitPrice : undefined;
+        
+        if (itemType === 'internet') {
+          internetPlan = item.name;
+          internetPrice = price;
+        } else if (itemType === 'tv') {
+          tvBundle = item.name;
+          tvPrice = price;
+        } else if (itemType === 'mobile') {
+          mobilePlan = item.name;
+          mobilePrice = price;
+        } else if (itemType === 'streaming') {
+          // Aggregate streaming services
+          if (!streamingPlan) {
+            streamingPlan = item.name;
+            streamingPrice = price;
+          } else {
+            streamingPlan += `, ${item.name}`;
+            streamingPrice = (streamingPrice || 0) + (price || 0);
+          }
+        }
       }
     }
-  }
-  
-  // Fallback: Parse service_type string if no parsed services found
-  if (!internetPlan && !tvBundle && !mobilePlan && !streamingPlan) {
+  } else {
+    // Fallback: Parse service_type string if no line_items found
     if (serviceType.includes("internet") || serviceType.includes("fibre")) {
       internetPlan = "Internet Résidentiel";
       // Don't set a hardcoded price - let it show "Prix à confirmer"
