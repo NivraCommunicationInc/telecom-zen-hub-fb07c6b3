@@ -57,13 +57,30 @@ const EmployeeDebugPanel = ({ session, currentCounts, lastResponse }: EmployeeDe
     try {
       const { data, error: invokeError } = await supabase.functions.invoke("employee-data", {
         headers: { "x-employee-token": session.token },
-        body: { action: "diagnostic_visibility_test", params: { log_to_audit: false } },
+        body: { action: "run_visibility_diagnostic", params: {} },
       });
       
       if (invokeError) throw invokeError;
       if (data?.error) throw new Error(data.error);
       
-      setDiagnostic(data.diagnostic);
+      // Map the new response format
+      if (data?.diagnostic) {
+        setDiagnostic({
+          timestamp: new Date().toISOString(),
+          employee: {
+            id: data.diagnostic.employee_id,
+            email: data.diagnostic.employee_email,
+            name: session.name,
+          },
+          permissions: data.diagnostic.resolved_permissions || {},
+          counts: {
+            orders: { total: data.diagnostic.db_counts?.orders || 0, error: null },
+            tickets: { total: data.diagnostic.db_counts?.tickets || 0, error: null },
+            clients: { total: data.diagnostic.db_counts?.clients || 0, error: null },
+            appointments: { total: data.diagnostic.db_counts?.appointments || 0, error: null },
+          },
+        });
+      }
     } catch (err: any) {
       console.error("Diagnostic error:", err);
       setError(err.message || "Erreur lors du diagnostic");

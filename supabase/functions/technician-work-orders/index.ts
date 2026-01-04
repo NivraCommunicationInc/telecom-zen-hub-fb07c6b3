@@ -49,6 +49,123 @@ async function verifyToken(token: string, secret: string): Promise<{ valid: bool
   }
 }
 
+// Normalize permissions to handle both formats
+function normalizePermissions(perms: Record<string, boolean>): Record<string, boolean> {
+  if (!perms || typeof perms !== 'object') return {};
+  
+  const normalized: Record<string, boolean> = {};
+  
+  for (const [key, value] of Object.entries(perms)) {
+    normalized[key] = value === true;
+    
+    if (key.startsWith('can_')) {
+      const withoutCan = key.replace('can_', '');
+      normalized[withoutCan] = value === true;
+    } else {
+      normalized[`can_${key}`] = value === true;
+    }
+  }
+  
+  return normalized;
+}
+
+// Check if user has permission
+function hasPermission(perms: Record<string, boolean>, ...keys: string[]): boolean {
+  if (!perms) return false;
+  return keys.some(key => perms[key] === true);
+}
+
+// Resolve technician permissions from token or DB
+async function resolvePermissions(
+  supabase: any,
+  tokenPermissions: any,
+  technicianId: string,
+  technicianEmail: string
+): Promise<{ permissions: Record<string, boolean>; source: string; status: string }> {
+  // Default technician permissions
+  const defaultPerms = normalizePermissions({
+    can_view_appointments: true,
+    view_appointments: true,
+    can_update_work_orders: true,
+  });
+
+  // If token has permissions, use them
+  if (tokenPermissions && typeof tokenPermissions === 'object' && Object.keys(tokenPermissions).length > 0) {
+    console.log(`[resolvePermissions] Using token permissions for ${technicianEmail}`);
+    return { 
+      permissions: normalizePermissions(tokenPermissions), 
+      source: "token",
+      status: "active"
+    };
+  }
+
+  console.log(`[resolvePermissions] Token permissions empty, fetching from DB for ${technicianEmail}`);
+
+  // Fallback 1: Try technicians table
+  const { data: technician, error: techError } = await supabase
+    .from("technicians")
+    .select("status")
+    .eq("id", technicianId)
+    .maybeSingle();
+
+  if (techError) {
+    console.error(`[resolvePermissions] technicians query error:`, techError);
+  }
+
+  // Fallback 2: Try user_roles table
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .ilike("email", technicianEmail)
+    .maybeSingle();
+
+  if (profile?.user_id) {
+    const { data: userRole, error: roleError } = await supabase
+      .from("user_roles")
+      .select("permissions, role, status")
+      .eq("user_id", profile.user_id)
+      .in("role", ["technician", "admin"])
+      .maybeSingle();
+
+    if (roleError) {
+      console.error(`[resolvePermissions] user_roles query error:`, roleError);
+    }
+
+    if (userRole?.permissions && Object.keys(userRole.permissions).length > 0) {
+      console.log(`[resolvePermissions] Found permissions in user_roles:`, JSON.stringify(userRole.permissions));
+      return { 
+        permissions: normalizePermissions(userRole.permissions), 
+        source: "user_roles_table",
+        status: userRole.status || technician?.status || "active"
+      };
+    }
+  }
+
+  console.log(`[resolvePermissions] No permissions found, using default technician permissions`);
+  return { 
+    permissions: defaultPerms, 
+    source: "default_technician",
+    status: technician?.status || "active"
+  };
+}
+
+// Return structured 403 response
+function forbidden(corsHeaders: Record<string, string>, requestId: string, neededPermission: string, resolvedPerms: any, appliedFilters: string[] = []) {
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      request_id: requestId,
+      reason: "not_allowed",
+      needed_permission: neededPermission,
+      message: `Permission requise: ${neededPermission}`,
+      resolved_permissions: resolvedPerms.permissions,
+      permission_source: resolvedPerms.source,
+      applied_filters: appliedFilters,
+    }),
+    { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -80,56 +197,91 @@ serve(async (req) => {
       );
     }
 
-    const { technicianId, fullName, permissions } = verification.payload;
-    console.log(`[technician-work-orders] RequestID: ${requestId} | Fetching for technician: ${fullName} (${technicianId})`);
+    const { technicianId, fullName, email: technicianEmail, permissions: tokenPermissions } = verification.payload;
+    console.log(`[technician-work-orders] RequestID: ${requestId} | Technician: ${fullName} (${technicianId})`);
     
-    // Check view appointments permission (technicians should have this by default)
-    const hasViewPermission = permissions?.can_view_appointments !== false && 
-                              permissions?.view_appointments !== false;
-    
-    // Log permissions status
-    console.log(`[technician-work-orders] Permissions:`, JSON.stringify(permissions || {}));
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch work orders assigned to this technician
-    const { data: workOrders, error: woError, count: woCount } = await supabase
+    // Resolve permissions with fallback
+    const resolvedPerms = await resolvePermissions(supabase, tokenPermissions, technicianId, technicianEmail || '');
+    const resolvedPermissions = resolvedPerms.permissions;
+    
+    console.log(`[technician-work-orders] Permissions source: ${resolvedPerms.source} | Status: ${resolvedPerms.status}`);
+    console.log(`[technician-work-orders] Resolved permissions:`, JSON.stringify(resolvedPermissions));
+
+    // Check view appointments permission
+    if (!hasPermission(resolvedPermissions, 'can_view_appointments', 'view_appointments')) {
+      console.log(`[technician-work-orders] DENIED - no view_appointments permission`);
+      return forbidden(corsHeaders, requestId, "can_view_appointments", resolvedPerms, ["permission_denied"]);
+    }
+
+    // Track applied filters
+    const appliedFilters: string[] = [];
+    
+    // Determine if technician can see all or just assigned
+    const hasManageAppointments = hasPermission(resolvedPermissions, 'manage_appointments', 'can_manage_appointments');
+    
+    // Fetch work orders
+    let workOrdersQuery = supabase
       .from("work_orders")
-      .select("*", { count: "exact" })
-      .eq("assigned_technician_id", technicianId)
+      .select("*", { count: "exact" });
+    
+    // Filter by technician if not manager
+    if (!hasManageAppointments) {
+      workOrdersQuery = workOrdersQuery.eq("assigned_technician_id", technicianId);
+      appliedFilters.push("filtered_by_assigned_technician_id");
+    } else {
+      appliedFilters.push("manage_all");
+    }
+    
+    const { data: workOrders, error: woError, count: woCount } = await workOrdersQuery
       .order("scheduled_start", { ascending: true, nullsFirst: false });
 
     if (woError) {
       console.error("[technician-work-orders] work_orders query error:", woError);
     }
 
-    console.log(`[technician-work-orders] work_orders found: ${workOrders?.length || 0} (total in DB: ${woCount})`);
+    console.log(`[technician-work-orders] work_orders found: ${workOrders?.length || 0} (total matching: ${woCount})`);
 
-    const { data: legacyOrders, error: ordersError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("technician_id", technicianId)
+    // Fetch legacy orders assigned to technician
+    let legacyOrdersQuery = supabase.from("orders").select("*", { count: "exact" });
+    if (!hasManageAppointments) {
+      legacyOrdersQuery = legacyOrdersQuery.eq("technician_id", technicianId);
+      appliedFilters.push("filtered_by_orders.technician_id");
+    }
+    
+    const { data: legacyOrders, error: ordersError, count: ordersCount } = await legacyOrdersQuery
       .order("appointment_date", { ascending: true, nullsFirst: false });
 
     if (ordersError) {
       console.error("[technician-work-orders] orders query error:", ordersError);
     }
 
-    const { data: legacyAppointments, error: aptsError } = await supabase
-      .from("appointments")
-      .select("*")
-      .eq("technician_id", technicianId)
+    console.log(`[technician-work-orders] legacy orders found: ${legacyOrders?.length || 0} (total matching: ${ordersCount})`);
+
+    // Fetch legacy appointments assigned to technician
+    // appointments table uses "technician_id" column (verified from schema)
+    let legacyAptsQuery = supabase.from("appointments").select("*", { count: "exact" });
+    if (!hasManageAppointments) {
+      legacyAptsQuery = legacyAptsQuery.eq("technician_id", technicianId);
+      appliedFilters.push("filtered_by_appointments.technician_id");
+    }
+    
+    const { data: legacyAppointments, error: aptsError, count: aptsCount } = await legacyAptsQuery
       .order("scheduled_at", { ascending: true });
 
     if (aptsError) {
       console.error("[technician-work-orders] appointments query error:", aptsError);
     }
 
+    console.log(`[technician-work-orders] legacy appointments found: ${legacyAppointments?.length || 0} (total matching: ${aptsCount})`);
+
     const orders = legacyOrders || [];
     const appointments = legacyAppointments || [];
     
+    // Get client profiles for display
     const userIds = [...new Set([
       ...orders.map((o: any) => o.user_id),
       ...appointments.filter((a: any) => a.client_id).map((a: any) => a.client_id),
@@ -258,8 +410,15 @@ serve(async (req) => {
           legacyOrders: orders.length,
           legacyAppointments: appointments.length,
         },
-        applied_filters: ["assigned_to_technician"],
-        resolved_permissions: permissions || {},
+        db_counts: {
+          work_orders: woCount || 0,
+          orders: ordersCount || 0,
+          appointments: aptsCount || 0,
+        },
+        applied_filters: appliedFilters,
+        resolved_permissions: resolvedPermissions,
+        permission_source: resolvedPerms.source,
+        assignment_field_used: "technician_id (appointments) / technician_id (orders) / assigned_technician_id (work_orders)",
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -268,7 +427,7 @@ serve(async (req) => {
     console.error("[technician-work-orders] Unexpected error:", error);
     const origin = req.headers.get('origin');
     return new Response(
-      JSON.stringify({ ok: false, error: "Erreur inattendue. Veuillez réessayer." }),
+      JSON.stringify({ ok: false, error: "Erreur inattendue. Veuillez réessayer.", request_id: requestId }),
       { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
     );
   }
