@@ -19,6 +19,13 @@ import type {
   TVChannelsSummary,
 } from "./types";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "../contractPolicies";
+import { 
+  extractLineItemsFromOrder, 
+  formatPeriodLabel, 
+  getTypeDisplayName,
+  calculateLineItemTotals,
+  type OrderLineItem 
+} from "../orderLineItems";
 
 // ============= HELPER FUNCTIONS =============
 
@@ -82,17 +89,9 @@ export interface OrderData {
   streaming_plan?: string;
   streaming_price?: number;
   
-  // Structured line items (NEW - primary source for PDF)
+  // Structured line items (PRIMARY source for PDF)
   equipment_details?: {
-    line_items?: Array<{
-      type: string;
-      name: string;
-      qty: number;
-      unitPrice: number;
-      priceLabel: string;
-      category: string;
-      description?: string;
-    }>;
+    line_items?: any[];
     [key: string]: any;
   };
   
@@ -125,6 +124,7 @@ export interface OrderData {
   // Payment
   payment_status?: string;
   payment_reference?: string;
+  payment_method?: string;
   paid_at?: string;
   due_date?: string;
   
@@ -136,6 +136,53 @@ export interface OrderData {
   // Notes
   notes?: string;
   internal_notes?: string;
+}
+
+/**
+ * Maps OrderLineItem to ServiceLineItem for PDF
+ */
+function lineItemToServiceItem(item: OrderLineItem): ServiceLineItem {
+  // Map lowercase type to display type
+  const typeMap: Record<string, ServiceLineItem['type']> = {
+    internet: "Internet",
+    tv: "TV",
+    mobile: "Mobile",
+    streaming: "Streaming",
+    security: "Security",
+  };
+  
+  return {
+    type: typeMap[item.type] || "Other",
+    name: item.name,
+    monthlyPrice: item.unit_price,
+    quantity: item.qty,
+    priceLabel: formatPeriodLabel(item.period),
+    description: item.description,
+    isOneTime: item.period === "one_time",
+  };
+}
+
+/**
+ * Maps OrderLineItem to EquipmentItem for PDF
+ */
+function lineItemToEquipment(item: OrderLineItem): EquipmentItem {
+  return {
+    name: item.name,
+    quantity: item.qty,
+    unitPrice: item.unit_price,
+    warranty: "1 an",
+  };
+}
+
+/**
+ * Maps OrderLineItem to OneTimeFee for PDF
+ */
+function lineItemToFee(item: OrderLineItem): OneTimeFee {
+  return {
+    label: item.name,
+    amount: item.unit_price * item.qty,
+    description: item.description,
+  };
 }
 
 /**
@@ -152,47 +199,26 @@ export function orderToDocumentData(
   const equipment: EquipmentItem[] = [];
   const oneTimeFees: OneTimeFee[] = [];
   
-  const lineItems = order.equipment_details?.line_items;
-  const hasLineItems = Array.isArray(lineItems) && lineItems.length > 0;
+  // Extract and normalize line items from equipment_details
+  const lineItems = extractLineItemsFromOrder(order.equipment_details);
+  const hasLineItems = lineItems && lineItems.length > 0;
   
   if (hasLineItems) {
-    // Use structured line_items as primary source
+    // Use structured line_items as primary source - ONE ROW PER ITEM
     for (const item of lineItems!) {
+      // Skip items with invalid prices for total calculations
+      // but still render them with "Prix à confirmer"
+      
       if (item.category === 'service') {
-        // Map item type to valid ServiceLineItem type
-        const rawType = item.type || 'Other';
-        let serviceType: ServiceLineItem['type'] = 'Other';
-        if (rawType === 'Internet') serviceType = 'Internet';
-        else if (rawType === 'TV') serviceType = 'TV';
-        else if (rawType === 'Mobile') serviceType = 'Mobile';
-        else if (rawType === 'Streaming') serviceType = 'Streaming';
-        else if (rawType === 'Security') serviceType = 'Security';
-        
-        services.push({
-          type: serviceType,
-          name: item.name,
-          monthlyPrice: item.unitPrice ?? -1, // -1 = "Prix à confirmer"
-          priceLabel: item.priceLabel || "/mois",
-          description: item.description,
-          quantity: item.qty,
-        });
+        services.push(lineItemToServiceItem(item));
       } else if (item.category === 'equipment') {
-        equipment.push({
-          name: item.name,
-          quantity: item.qty || 1,
-          unitPrice: item.unitPrice,
-          warranty: "1 an",
-        });
+        equipment.push(lineItemToEquipment(item));
       } else if (item.category === 'fee') {
-        oneTimeFees.push({
-          label: item.name,
-          amount: item.unitPrice,
-          description: item.description,
-        });
+        oneTimeFees.push(lineItemToFee(item));
       }
     }
   } else {
-    // Fallback to individual fields
+    // Fallback to individual fields when no line_items
     if (order.internet_plan) {
       services.push({
         type: "Internet",
@@ -230,30 +256,43 @@ export function orderToDocumentData(
       });
     }
     
-    // If we have a generic service plan and no specific services
+    // If we have a generic service plan and no specific services, try to parse it
     if (services.length === 0 && order.service_plan) {
-      services.push({
-        type: "Other",
-        name: order.service_plan,
-        monthlyPrice: order.subtotal ?? -1,
-        priceLabel: "/mois",
-      });
+      // Try to split concatenated service plans
+      const planParts = order.service_plan.split(/[,+]/).map(s => s.trim()).filter(Boolean);
+      
+      if (planParts.length > 1) {
+        // Multiple services concatenated - split them
+        for (const part of planParts) {
+          const lowerPart = part.toLowerCase();
+          let type: ServiceLineItem['type'] = "Other";
+          let priceLabel = "/mois";
+          
+          if (lowerPart.includes("internet") || lowerPart.includes("fibre")) type = "Internet";
+          else if (lowerPart.includes("tv") || lowerPart.includes("télé")) type = "TV";
+          else if (lowerPart.includes("mobile")) { type = "Mobile"; priceLabel = "/30 jours"; }
+          else if (lowerPart.includes("stream")) type = "Streaming";
+          else if (lowerPart.includes("sécurité")) type = "Security";
+          
+          services.push({
+            type,
+            name: part,
+            monthlyPrice: -1, // Will show "Prix à confirmer"
+            priceLabel,
+          });
+        }
+      } else {
+        // Single service
+        services.push({
+          type: "Other",
+          name: order.service_plan,
+          monthlyPrice: order.subtotal ?? -1,
+          priceLabel: "/mois",
+        });
+      }
     }
-  }
-  
-  // TV summary (only if TV is selected)
-  let tvSummary: TVChannelsSummary | undefined;
-  if (order.tv_bundle && (order.tv_base_channels || order.tv_optional_channels || order.tv_premium_channels)) {
-    tvSummary = {
-      baseChannels: order.tv_base_channels || 0,
-      optionalChannels: order.tv_optional_channels || 0,
-      premiumChannels: order.tv_premium_channels || 0,
-      premiumTotal: order.tv_premium_total,
-    };
-  }
-  
-  // Equipment - add from individual fields if not already populated from line_items
-  if (!hasLineItems) {
+    
+    // Equipment from individual fields
     if (order.router_fee && order.router_fee > 0) {
       equipment.push({
         name: "Routeur Nivra Born WiFi",
@@ -272,7 +311,7 @@ export function orderToDocumentData(
       });
     }
     
-    // One-time fees (only non-zero) - add from individual fields
+    // One-time fees from individual fields
     if (order.activation_fee && order.activation_fee > 0) {
       oneTimeFees.push({
         label: "Frais d'activation",
@@ -303,13 +342,33 @@ export function orderToDocumentData(
     }
   }
   
+  // TV summary (only if TV is selected)
+  let tvSummary: TVChannelsSummary | undefined;
+  if (order.tv_bundle && (order.tv_base_channels || order.tv_optional_channels || order.tv_premium_channels)) {
+    tvSummary = {
+      baseChannels: order.tv_base_channels || 0,
+      optionalChannels: order.tv_optional_channels || 0,
+      premiumChannels: order.tv_premium_channels || 0,
+      premiumTotal: order.tv_premium_total,
+    };
+  }
+  
   // DISCOUNTS REMOVED - Per requirement, no discounts should appear in contracts
   const discounts: DiscountItem[] = [];
   
-  // Calculate billing - no discounts applied
-  const subtotal = order.subtotal || 0;
-  const oneTimeTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0) +
-    equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
+  // Calculate billing from line items if available, otherwise from order fields
+  let subtotal: number;
+  let oneTimeTotal: number;
+  
+  if (hasLineItems) {
+    const totals = calculateLineItemTotals(lineItems!);
+    subtotal = totals.serviceSubtotal;
+    oneTimeTotal = totals.equipmentSubtotal + totals.feeSubtotal;
+  } else {
+    subtotal = order.subtotal || 0;
+    oneTimeTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0) +
+      equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
+  }
   
   const taxableAmount = subtotal + oneTimeTotal;
   const taxes = calculateQuebecTaxes(taxableAmount);
@@ -340,11 +399,27 @@ export function orderToDocumentData(
   const paymentStatusMap: Record<string, "pending" | "paid" | "overdue" | "cancelled"> = {
     pending: "pending",
     unpaid: "pending",
+    pre_authorized: "pending",
     paid: "paid",
     completed: "paid",
     overdue: "overdue",
     cancelled: "cancelled",
   };
+  
+  // Map payment method
+  let paymentMethod: "credit_card" | "etransfer" | "cash" | "other" | undefined;
+  if (order.payment_method) {
+    const pm = order.payment_method.toLowerCase();
+    if (pm.includes("credit") || pm.includes("card") || pm.includes("visa") || pm.includes("master")) {
+      paymentMethod = "credit_card";
+    } else if (pm.includes("interac") || pm.includes("etransfer") || pm.includes("e-transfer")) {
+      paymentMethod = "etransfer";
+    } else if (pm.includes("cash")) {
+      paymentMethod = "cash";
+    } else {
+      paymentMethod = "other";
+    }
+  }
   
   return {
     docType,
@@ -368,6 +443,7 @@ export function orderToDocumentData(
     discounts,
     billing,
     payment: {
+      method: paymentMethod,
       status: paymentStatusMap[order.payment_status || "pending"] || "pending",
       reference: order.payment_reference,
       paidAt: order.paid_at,
