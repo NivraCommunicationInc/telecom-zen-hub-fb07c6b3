@@ -82,6 +82,20 @@ export interface OrderData {
   streaming_plan?: string;
   streaming_price?: number;
   
+  // Structured line items (NEW - primary source for PDF)
+  equipment_details?: {
+    line_items?: Array<{
+      type: string;
+      name: string;
+      qty: number;
+      unitPrice: number;
+      priceLabel: string;
+      category: string;
+      description?: string;
+    }>;
+    [key: string]: any;
+  };
+  
   // TV summary
   tv_base_channels?: number;
   tv_optional_channels?: number;
@@ -126,60 +140,105 @@ export interface OrderData {
 
 /**
  * Converts order data to UnifiedDocumentData for PDF generation
+ * PRIORITY: Uses equipment_details.line_items if available, then falls back to individual fields
  */
 export function orderToDocumentData(
   order: OrderData,
   docType: "contract" | "invoice" | "estimate"
 ): UnifiedDocumentData {
   
-  // Build services list (only selected services) with individual prices
+  // Build services list - check line_items FIRST (primary source)
   const services: ServiceLineItem[] = [];
+  const equipment: EquipmentItem[] = [];
+  const oneTimeFees: OneTimeFee[] = [];
   
-  if (order.internet_plan) {
-    services.push({
-      type: "Internet",
-      name: order.internet_plan,
-      monthlyPrice: order.internet_price || 0,
-      priceLabel: "/mois",
-    });
-  }
+  const lineItems = order.equipment_details?.line_items;
+  const hasLineItems = Array.isArray(lineItems) && lineItems.length > 0;
   
-  if (order.tv_bundle) {
-    services.push({
-      type: "TV",
-      name: order.tv_bundle,
-      description: "Requiert Internet actif",
-      monthlyPrice: order.tv_price || 0,
-      priceLabel: "/mois",
-    });
-  }
-  
-  if (order.mobile_plan) {
-    services.push({
-      type: "Mobile",
-      name: order.mobile_plan,
-      monthlyPrice: order.mobile_price || 0,
-      priceLabel: "/30 jours",
-    });
-  }
-  
-  if (order.streaming_plan) {
-    services.push({
-      type: "Streaming",
-      name: order.streaming_plan,
-      monthlyPrice: order.streaming_price || 0,
-      priceLabel: "/mois",
-    });
-  }
-  
-  // If we have a generic service plan and no specific services
-  if (services.length === 0 && order.service_plan) {
-    services.push({
-      type: "Other",
-      name: order.service_plan,
-      monthlyPrice: order.subtotal || 0,
-      priceLabel: "/mois",
-    });
+  if (hasLineItems) {
+    // Use structured line_items as primary source
+    for (const item of lineItems!) {
+      if (item.category === 'service') {
+        // Map item type to valid ServiceLineItem type
+        const rawType = item.type || 'Other';
+        let serviceType: ServiceLineItem['type'] = 'Other';
+        if (rawType === 'Internet') serviceType = 'Internet';
+        else if (rawType === 'TV') serviceType = 'TV';
+        else if (rawType === 'Mobile') serviceType = 'Mobile';
+        else if (rawType === 'Streaming') serviceType = 'Streaming';
+        else if (rawType === 'Security') serviceType = 'Security';
+        
+        services.push({
+          type: serviceType,
+          name: item.name,
+          monthlyPrice: item.unitPrice ?? -1, // -1 = "Prix à confirmer"
+          priceLabel: item.priceLabel || "/mois",
+          description: item.description,
+          quantity: item.qty,
+        });
+      } else if (item.category === 'equipment') {
+        equipment.push({
+          name: item.name,
+          quantity: item.qty || 1,
+          unitPrice: item.unitPrice,
+          warranty: "1 an",
+        });
+      } else if (item.category === 'fee') {
+        oneTimeFees.push({
+          label: item.name,
+          amount: item.unitPrice,
+          description: item.description,
+        });
+      }
+    }
+  } else {
+    // Fallback to individual fields
+    if (order.internet_plan) {
+      services.push({
+        type: "Internet",
+        name: order.internet_plan,
+        monthlyPrice: order.internet_price ?? -1,
+        priceLabel: "/mois",
+      });
+    }
+    
+    if (order.tv_bundle) {
+      services.push({
+        type: "TV",
+        name: order.tv_bundle,
+        description: "Requiert Internet actif",
+        monthlyPrice: order.tv_price ?? -1,
+        priceLabel: "/mois",
+      });
+    }
+    
+    if (order.mobile_plan) {
+      services.push({
+        type: "Mobile",
+        name: order.mobile_plan,
+        monthlyPrice: order.mobile_price ?? -1,
+        priceLabel: "/30 jours",
+      });
+    }
+    
+    if (order.streaming_plan) {
+      services.push({
+        type: "Streaming",
+        name: order.streaming_plan,
+        monthlyPrice: order.streaming_price ?? -1,
+        priceLabel: "/mois",
+      });
+    }
+    
+    // If we have a generic service plan and no specific services
+    if (services.length === 0 && order.service_plan) {
+      services.push({
+        type: "Other",
+        name: order.service_plan,
+        monthlyPrice: order.subtotal ?? -1,
+        priceLabel: "/mois",
+      });
+    }
   }
   
   // TV summary (only if TV is selected)
@@ -193,57 +252,55 @@ export function orderToDocumentData(
     };
   }
   
-  // Equipment (only if present)
-  const equipment: EquipmentItem[] = [];
-  
-  if (order.router_fee && order.router_fee > 0) {
-    equipment.push({
-      name: "Routeur Nivra Born WiFi",
-      quantity: 1,
-      unitPrice: order.router_fee,
-      warranty: "1 an",
-    });
-  }
-  
-  if (order.terminal_fee && order.terminal_fee > 0) {
-    equipment.push({
-      name: "Terminal Nivra 4K Smart",
-      quantity: order.terminal_count || 1,
-      unitPrice: CONTRACT_TERMS.fees.tvTerminal,
-      warranty: "1 an",
-    });
-  }
-  
-  // One-time fees (only non-zero)
-  const oneTimeFees: OneTimeFee[] = [];
-  
-  if (order.activation_fee && order.activation_fee > 0) {
-    oneTimeFees.push({
-      label: "Frais d'activation",
-      amount: order.activation_fee,
-    });
-  }
-  
-  if (order.delivery_fee && order.delivery_fee > 0) {
-    oneTimeFees.push({
-      label: "Frais de livraison",
-      amount: order.delivery_fee,
-      description: "Livraison standard Québec",
-    });
-  }
-  
-  if (order.installation_fee && order.installation_fee > 0) {
-    oneTimeFees.push({
-      label: "Installation professionnelle",
-      amount: order.installation_fee,
-    });
-  }
-  
-  if (order.sim_fee && order.sim_fee > 0) {
-    oneTimeFees.push({
-      label: "Carte SIM",
-      amount: order.sim_fee,
-    });
+  // Equipment - add from individual fields if not already populated from line_items
+  if (!hasLineItems) {
+    if (order.router_fee && order.router_fee > 0) {
+      equipment.push({
+        name: "Routeur Nivra Born WiFi",
+        quantity: 1,
+        unitPrice: order.router_fee,
+        warranty: "1 an",
+      });
+    }
+    
+    if (order.terminal_fee && order.terminal_fee > 0) {
+      equipment.push({
+        name: "Terminal Nivra 4K Smart",
+        quantity: order.terminal_count || 1,
+        unitPrice: CONTRACT_TERMS.fees.tvTerminal,
+        warranty: "1 an",
+      });
+    }
+    
+    // One-time fees (only non-zero) - add from individual fields
+    if (order.activation_fee && order.activation_fee > 0) {
+      oneTimeFees.push({
+        label: "Frais d'activation",
+        amount: order.activation_fee,
+      });
+    }
+    
+    if (order.delivery_fee && order.delivery_fee > 0) {
+      oneTimeFees.push({
+        label: "Frais de livraison",
+        amount: order.delivery_fee,
+        description: "Livraison standard Québec",
+      });
+    }
+    
+    if (order.installation_fee && order.installation_fee > 0) {
+      oneTimeFees.push({
+        label: "Installation professionnelle",
+        amount: order.installation_fee,
+      });
+    }
+    
+    if (order.sim_fee && order.sim_fee > 0) {
+      oneTimeFees.push({
+        label: "Carte SIM",
+        amount: order.sim_fee,
+      });
+    }
   }
   
   // DISCOUNTS REMOVED - Per requirement, no discounts should appear in contracts

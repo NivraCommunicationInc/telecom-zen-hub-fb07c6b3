@@ -419,7 +419,23 @@ const ClientInternetOrder = () => {
             last_four: newCardData.cardNumber.replace(/\s/g, "").slice(-4),
           };
 
-      // Create the order with payment status and phone
+      // Build structured line_items for contract PDF
+      const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
+      const lineItems = buildOrderLineItems({
+        services: [
+          { type: "Internet", name: selectedPlan.name, price: planPrice, priceLabel: "/mois" },
+        ],
+        equipment: [
+          { name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: routerFee },
+        ],
+        fees: [
+          ...(activationFee > 0 ? [{ name: "Frais d'activation", amount: activationFee }] : []),
+          ...(deliveryFee > 0 ? [{ name: "Frais de livraison", amount: deliveryFee }] : []),
+          ...(installationFee > 0 ? [{ name: "Installation professionnelle", amount: installationFee }] : []),
+        ],
+      });
+
+      // Create the order with payment status, phone, and structured line_items
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
@@ -441,6 +457,8 @@ const ClientInternetOrder = () => {
         created_by: "client",
         tps_amount: tpsAmount,
         tvq_amount: tvqAmount,
+        router_fee: routerFee,
+        equipment_details: wrapLineItemsForOrder(lineItems),
         notes: `${isFrench ? "Téléphone" : "Phone"}: ${checkoutPhone}
 ${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}

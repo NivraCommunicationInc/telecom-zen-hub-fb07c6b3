@@ -572,7 +572,31 @@ const ClientTVOrder = () => {
         })),
       ];
 
-      // Create the order with payment and phone info
+      // Build structured line_items for contract PDF
+      const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
+      const lineItems = buildOrderLineItems({
+        services: [
+          { type: "Internet" as const, name: "Internet " + (isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name)), price: planPrice, priceLabel: "/mois" },
+          { type: "TV" as const, name: "TV " + (isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name)), price: premiumChannelsTotal, priceLabel: "/mois", description: `${selectedPremiumChannels.length} chaînes premium` },
+          ...selectedStreamingServices.map(s => ({ 
+            type: "Streaming" as const, 
+            name: s.name, 
+            price: s.price_monthly, 
+            priceLabel: "/mois" 
+          })),
+        ].filter(s => s.price > 0 || s.type !== "TV"),
+        equipment: [
+          { name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: routerFee },
+          { name: "Terminal Nivra 4K Smart", quantity: terminalCount, unitPrice: TERMINAL_DETAILS.price },
+        ],
+        fees: [
+          ...(activationFee > 0 ? [{ name: "Frais d'activation", amount: activationFee }] : []),
+          ...(deliveryFee > 0 ? [{ name: "Frais de livraison", amount: deliveryFee }] : []),
+          ...(installationFee > 0 ? [{ name: "Installation professionnelle", amount: installationFee }] : []),
+        ],
+      });
+
+      // Create the order with payment, phone, and structured line_items
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
@@ -598,6 +622,7 @@ const ClientTVOrder = () => {
         terminal_count: terminalCount,
         terminal_fee: terminalFee,
         router_fee: routerFee,
+        equipment_details: wrapLineItemsForOrder(lineItems),
         notes: `${isFrench ? "Téléphone" : "Phone"}: ${checkoutPhone}
 ${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
