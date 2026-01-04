@@ -52,6 +52,7 @@ export interface ClientInfo {
   fullName: string;
   email: string;
   phone?: string;
+  dateOfBirth?: string;
   accountNumber?: string;
   billingAddress?: string;
   serviceAddress?: string;

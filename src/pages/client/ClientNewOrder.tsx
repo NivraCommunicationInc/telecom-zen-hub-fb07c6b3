@@ -244,7 +244,10 @@ interface OrderDraft {
   idNumber: string;
   idExpiration: string;
   idProvince: string;
-  // New fields for phone + address
+  // Customer info fields
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
   checkoutPhone: string;
   serviceAddressStreet: string;
   serviceAddressApartment: string;
@@ -491,6 +494,11 @@ const ClientNewOrder = () => {
   const [idExpiration, setIdExpiration] = useState("");
   const [idProvince, setIdProvince] = useState("");
   
+  // Customer info fields (DOB, name)
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  
   // Checkout phone and service address state
   const [checkoutPhone, setCheckoutPhone] = useState("");
   const [serviceAddressStreet, setServiceAddressStreet] = useState("");
@@ -585,7 +593,10 @@ const ClientNewOrder = () => {
         if (draft.idNumber) setIdNumber(draft.idNumber);
         if (draft.idExpiration) setIdExpiration(draft.idExpiration);
         if (draft.idProvince) setIdProvince(draft.idProvince);
-        // New fields
+        // Customer info fields
+        if (draft.firstName) setFirstName(draft.firstName);
+        if (draft.lastName) setLastName(draft.lastName);
+        if (draft.dateOfBirth) setDateOfBirth(draft.dateOfBirth);
         if (draft.checkoutPhone) setCheckoutPhone(draft.checkoutPhone);
         if (draft.serviceAddressStreet) setServiceAddressStreet(draft.serviceAddressStreet);
         if (draft.serviceAddressApartment) setServiceAddressApartment(draft.serviceAddressApartment);
@@ -634,6 +645,9 @@ const ClientNewOrder = () => {
       idNumber,
       idExpiration,
       idProvince,
+      firstName,
+      lastName,
+      dateOfBirth,
       checkoutPhone,
       serviceAddressStreet,
       serviceAddressApartment,
@@ -650,6 +664,7 @@ const ClientNewOrder = () => {
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
     selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
+    firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode
   ]);
 
@@ -2856,18 +2871,75 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* Phone and Service Address Section */}
+              {/* Customer Information Section - DOB + Contact */}
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Phone className="w-5 h-5 text-cyan-500" />
-                    Coordonnées et adresse de service
+                    <User className="w-5 h-5 text-cyan-500" />
+                    Informations client
                   </CardTitle>
                   <CardDescription>
                     Ces informations seront utilisées pour la livraison et la facturation
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Name fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="first-name">Prénom <span className="text-destructive">*</span></Label>
+                      <Input
+                        id="first-name"
+                        placeholder="Ex: Jean"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last-name">Nom de famille <span className="text-destructive">*</span></Label>
+                      <Input
+                        id="last-name"
+                        placeholder="Ex: Tremblay"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date of Birth */}
+                  <div className="space-y-2">
+                    <Label htmlFor="date-of-birth" className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      Date de naissance <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="date-of-birth"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    />
+                    {dateOfBirth && (() => {
+                      const dob = new Date(dateOfBirth);
+                      const today = new Date();
+                      const age = today.getFullYear() - dob.getFullYear();
+                      const isUnder18 = age < 18 || (age === 18 && today < new Date(dob.setFullYear(dob.getFullYear() + 18)));
+                      if (isUnder18) {
+                        return (
+                          <p className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Vous devez avoir au moins 18 ans pour souscrire à nos services.
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="text-xs text-emerald-500 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Âge vérifié
+                        </p>
+                      );
+                    })()}
+                  </div>
+
                   {/* Phone */}
                   <div className="space-y-2">
                     <Label htmlFor="checkout-phone" className="flex items-center gap-2">
@@ -2974,15 +3046,50 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </p>
                   </div>
 
-                  {/* Address complete indicator */}
-                  {checkoutPhone.replace(/\D/g, "").length === 10 && serviceAddressStreet && serviceAddressCity && serviceAddressPostalCode.replace(/\s/g, "").length === 6 && (
+                  {/* Customer info complete indicator */}
+                  {firstName && lastName && dateOfBirth && checkoutPhone.replace(/\D/g, "").length === 10 && serviceAddressStreet && serviceAddressCity && serviceAddressPostalCode.replace(/\s/g, "").length === 6 && (() => {
+                    const dob = new Date(dateOfBirth);
+                    const today = new Date();
+                    const age = today.getFullYear() - dob.getFullYear();
+                    const isAdult = age > 18 || (age === 18 && today >= new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate()));
+                    return isAdult;
+                  })() && (
                     <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
                       <CheckCircle2 className="w-4 h-4" />
-                      Coordonnées complétées
+                      Informations client complétées
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* SIM Delivery Estimate - Show only for Mobile + Residential bundle */}
+              {hasMobileService && (hasTVService || hasInternetService) && (
+                <Card className="bg-blue-500/10 border-blue-500/30">
+                  <CardContent className="py-4 flex items-start gap-3">
+                    <Smartphone className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground mb-1">Livraison carte SIM</p>
+                      <p className="text-sm text-muted-foreground">
+                        {deliveryChoice === "uber" 
+                          ? `Votre carte SIM sera livrée en ${DELIVERY_CONFIG.uber.timeframe} avec votre équipement.`
+                          : deliveryChoice === "shipHome"
+                          ? `Votre carte SIM sera expédiée sous ${DELIVERY_CONFIG.shipHome.timeframe} avec votre équipement.`
+                          : installationChoice === "technician"
+                          ? "Votre carte SIM sera remise par le technicien lors de l'installation."
+                          : installationChoice === "auto"
+                          ? `Votre carte SIM sera livrée sous ${DELIVERY_CONFIG.standard.timeframe} avec votre équipement.`
+                          : "Estimation à confirmer — notre équipe vous contactera pour confirmer les délais."
+                        }
+                      </p>
+                      {!deliveryChoice && !installationChoice && (
+                        <p className="text-xs text-amber-500 mt-2">
+                          Sélectionnez un mode de livraison/installation pour voir l'estimation.
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Delivery/Installation Choice Selector */}
               {isDeliveryOnlyOrder ? (
@@ -3804,26 +3911,41 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
               {/* Bill Preview Section - 1st and 2nd Invoice */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* First Bill Preview - Today */}
+                {/* First Bill Preview - One-time Fees */}
                 <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Receipt className="w-5 h-5 text-cyan-500" />
-                      <CardTitle className="text-base">Aperçu de la 1ère facture (aujourd'hui)</CardTitle>
+                      <CardTitle className="text-base">Frais uniques estimés</CardTitle>
                     </div>
-                    <CardDescription className="text-xs">Frais uniques payables maintenant</CardDescription>
+                    <CardDescription className="text-xs">Équipements et frais payables à la commande</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
+                    {/* Equipment fees */}
+                    {routerFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Routeur Nivra Born Wifi</span>
+                        <span>{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {terminalFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Terminal TV 4K (×{terminalQuantity})</span>
+                        <span>{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {simFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Cartes SIM (×{totalMobileLineQuantity})</span>
+                        <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    
+                    {/* Service fees */}
                     {activationFee > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Frais d'activation</span>
                         <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
-                    )}
-                    {deliveryFee > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Livraison</span>
-                        <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     {installationFee > 0 && (
@@ -3832,67 +3954,56 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {terminalFee > 0 && (
+                    {deliveryFee > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Terminal TV (×{terminalQuantity})</span>
-                        <span>{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-muted-foreground">Livraison</span>
+                        <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {routerFee > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Routeur Nivra Born Wifi</span>
-                        <span>{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
-                    )}
-                    {simFee > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Cartes SIM physiques (×{totalMobileLineQuantity})</span>
-                        <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
-                    )}
+                    
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sous-total frais uniques</span>
                       <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">TPS + TVQ (14.975%)</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
                       <span>{(Math.round(oneTimeFees * 0.14975 * 100) / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-cyan-500/30">
-                      <span className="font-bold text-cyan-500">Total dû aujourd'hui</span>
-                      <span className="font-bold text-cyan-500">{oneTimeFeesWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <div className="flex justify-between pt-3 border-t-2 border-cyan-500/50">
+                      <span className="font-bold text-cyan-500 text-base">Total à payer aujourd'hui</span>
+                      <span className="font-bold text-cyan-500 text-lg">{oneTimeFeesWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2 italic">Aucun prorata applicable</p>
                   </CardContent>
                 </Card>
 
-                {/* Second Bill Preview - Monthly */}
+                {/* Second Bill Preview - Monthly Estimate */}
                 <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <FileText className="w-5 h-5 text-purple-500" />
-                      <CardTitle className="text-base">Aperçu de la 2e facture (mensuelle)</CardTitle>
+                      <CardTitle className="text-base">Total mensuel estimé</CardTitle>
                     </div>
                     <CardDescription className="text-xs">Services récurrents chaque mois</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
+                    {/* Monthly services breakdown */}
                     {selectedServices.filter(s => s.category === "Internet").map(s => (
                       <div key={s.id} className="flex justify-between">
                         <span className="text-muted-foreground">Internet — {s.name}</span>
-                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {selectedServices.filter(s => s.category === "TV").map(s => (
                       <div key={s.id} className="flex justify-between">
                         <span className="text-muted-foreground">TV — {s.name}</span>
-                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {selectedServices.filter(s => s.category === "Sécurité").map(s => (
                       <div key={s.id} className="flex justify-between">
                         <span className="text-muted-foreground">Sécurité — {s.name}</span>
-                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {selectedMobileServices.length > 0 && selectedMobileServices.map(s => {
@@ -3900,36 +4011,43 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       return (
                         <div key={s.id} className="flex justify-between">
                           <span className="text-muted-foreground">Mobile — {s.name} (×{qty})</span>
-                          <span>{(Number(s.price) * qty).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                          <span>{(Number(s.price) * qty).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                         </div>
                       );
                     })}
                     {selectedServices.filter(s => s.category === "Streaming").map(s => (
                       <div key={s.id} className="flex justify-between">
                         <span className="text-muted-foreground">Streaming — {s.name}</span>
-                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{Number(s.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      </div>
+                    ))}
+                    {selectedStreamingServices.length > 0 && selectedStreamingServices.map(s => (
+                      <div key={s.id} className="flex justify-between">
+                        <span className="text-muted-foreground">Streaming+ — {s.name}</span>
+                        <span>{Number(s.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {selectedPaidChannels.length > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Chaînes payantes ({selectedPaidChannels.length})</span>
-                        <span>{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-muted-foreground">Chaînes premium ({selectedPaidChannels.length})</span>
+                        <span>{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     )}
+                    
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sous-total mensuel</span>
                       <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">TPS + TVQ (14.975%)</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
                       <span>{(Math.round(monthlyRecurring * 0.14975 * 100) / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-purple-500/30">
-                      <span className="font-bold text-purple-500">Total mensuel</span>
-                      <span className="font-bold text-purple-500">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    <div className="flex justify-between pt-3 border-t-2 border-purple-500/50">
+                      <span className="font-bold text-purple-500 text-base">Total mensuel estimé</span>
+                      <span className="font-bold text-purple-500 text-lg">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2 italic">Date de facturation: le 1er de chaque mois</p>
+                    <p className="text-xs text-muted-foreground mt-2">Facturation le 1er de chaque mois après activation</p>
                   </CardContent>
                 </Card>
               </div>
