@@ -6,8 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, X, FileText, AlertCircle, Loader2, ExternalLink, RefreshCw } from "lucide-react";
-import { safePDFDownload, safePDFPrint, safePDFOpen, createStablePDFUrl } from "@/lib/pdfUtils";
+import { Download, Printer, X, FileText, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface PDFViewerDialogProps {
@@ -33,15 +32,14 @@ const PDFViewerDialog = ({
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const cleanupRef = useRef<(() => void) | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Create blob URL when dialog opens with a valid blob
   useEffect(() => {
     // Cleanup previous URL
-    if (cleanupRef.current) {
-      cleanupRef.current();
-      cleanupRef.current = null;
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      setBlobUrl(null);
     }
 
     if (open && pdfBlob && pdfBlob.size > 0) {
@@ -51,16 +49,10 @@ const PDFViewerDialog = ({
           ? pdfBlob
           : new Blob([pdfBlob], { type: "application/pdf" });
 
-        const { url, cleanup } = createStablePDFUrl(validBlob);
-        
-        if (url) {
-          setBlobUrl(url);
-          setViewerError(null);
-          setIframeLoaded(false);
-          cleanupRef.current = cleanup;
-        } else {
-          setViewerError("Impossible de créer l'URL du document");
-        }
+        const url = URL.createObjectURL(validBlob);
+        setBlobUrl(url);
+        setViewerError(null);
+        setIframeLoaded(false);
       } catch (err) {
         console.error("Error creating PDF URL:", err);
         setViewerError("Erreur lors du chargement du document");
@@ -69,36 +61,60 @@ const PDFViewerDialog = ({
       setViewerError("Le document PDF n'est pas disponible");
     }
     
+    // Cleanup on unmount or when dialog closes
     return () => {
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
       }
-      setBlobUrl(null);
-      setIframeLoaded(false);
     };
   }, [open, pdfBlob, isLoading, retryCount]);
 
+  // Direct download - no popup, no new tab
   const handleDownload = useCallback(() => {
-    if (pdfBlob) {
-      const result = safePDFDownload(pdfBlob, filename);
-      if (result.success) {
-        toast.success("Téléchargement démarré");
+    if (!pdfBlob) return;
+    
+    try {
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up after download starts
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Téléchargement démarré");
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Erreur lors du téléchargement");
+    }
+  }, [pdfBlob, filename]);
+
+  // Print using iframe's contentWindow - no popup
+  const handlePrint = useCallback(() => {
+    if (!iframeRef.current?.contentWindow) {
+      toast.error("Le document n'est pas prêt pour l'impression");
+      return;
+    }
+    
+    try {
+      iframeRef.current.contentWindow.print();
+    } catch (err) {
+      console.error("Print error:", err);
+      // Fallback: open print dialog with blob
+      if (pdfBlob) {
+        const url = URL.createObjectURL(pdfBlob);
+        const printWindow = window.open(url, "_blank");
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.print();
+          };
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
       }
     }
-  }, [pdfBlob, filename]);
-
-  const handlePrint = useCallback(() => {
-    if (pdfBlob) {
-      safePDFPrint(pdfBlob);
-    }
   }, [pdfBlob]);
-
-  const handleOpenExternal = useCallback(() => {
-    if (pdfBlob) {
-      safePDFOpen(pdfBlob, filename);
-    }
-  }, [pdfBlob, filename]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -136,20 +152,10 @@ const PDFViewerDialog = ({
             </DialogTitle>
             <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleOpenExternal}
-                disabled={!pdfBlob || isLoading}
-                title="Ouvrir dans un nouvel onglet"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Nouvel onglet
-              </Button>
-              <Button
                 variant="outline"
                 size="sm"
                 onClick={handlePrint}
-                disabled={!pdfBlob || isLoading}
+                disabled={!pdfBlob || isLoading || !iframeLoaded}
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimer
@@ -222,7 +228,6 @@ const PDFViewerDialog = ({
                 title={title}
                 onLoad={handleIframeLoad}
                 onError={handleIframeError}
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
               />
             </>
           ) : (
