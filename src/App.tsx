@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ClientAuthProvider } from "@/hooks/useClientAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import About from "./pages/About";
@@ -141,24 +142,24 @@ const App = () => (
               <Route path="/admin/audit-log" element={<ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute>} />
               <Route path="/admin/pdf-test" element={<ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute>} />
               {/* Client Portal Routes */}
-              <Route path="/portal/auth" element={<ClientAuth />} />
-              <Route path="/portal/suspended" element={<ClientSuspended />} />
-              <Route path="/portal" element={<ClientProtectedRoute><ClientSecurityCheck><ClientDashboard /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/appointments" element={<ClientProtectedRoute><ClientSecurityCheck><ClientAppointments /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/orders" element={<ClientProtectedRoute><ClientSecurityCheck><ClientOrders /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/new-order" element={<ClientProtectedRoute><ClientSecurityCheck><ClientNewOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/order-confirmation" element={<ClientProtectedRoute><ClientSecurityCheck><ClientOrderConfirmation /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/invoices" element={<ClientProtectedRoute><ClientSecurityCheck><ClientInvoices /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/monthly-invoices" element={<ClientProtectedRoute><ClientSecurityCheck><ClientMonthlyInvoices /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/services" element={<ClientProtectedRoute><ClientSecurityCheck><ClientServices /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/tickets" element={<ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/channels" element={<ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/internet" element={<ClientProtectedRoute><ClientSecurityCheck><ClientInternetOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/tv-order" element={<ClientProtectedRoute><ClientSecurityCheck><ClientTVOrder /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/replacement" element={<ClientProtectedRoute><ClientSecurityCheck><ClientEquipmentReplacement /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/profile" element={<ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/payments" element={<ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute>} />
-              <Route path="/portal/contracts" element={<ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute>} />
+              <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
+              <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
+              <Route path="/portal" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDashboard /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/appointments" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientAppointments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/orders" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientOrders /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/new-order" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientNewOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/order-confirmation" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientOrderConfirmation /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/invoices" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientInvoices /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/monthly-invoices" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientMonthlyInvoices /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/services" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientServices /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/tickets" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/channels" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/internet" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientInternetOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/tv-order" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTVOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/replacement" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientEquipmentReplacement /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/profile" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/payments" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+              <Route path="/portal/contracts" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
               <Route path="/not-authorized" element={<NotAuthorized />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
