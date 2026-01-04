@@ -71,6 +71,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminUsersAccess from "./pages/admin/AdminUsersAccess";
 import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import AdminResetPassword from "./pages/admin/AdminResetPassword";
+import AdminPDFTest from "./pages/admin/AdminPDFTest";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
               <Route path="/admin/users-access" element={<ProtectedRoute requireAdmin><AdminUsersAccess /></ProtectedRoute>} />
               <Route path="/admin/audit-log" element={<ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute>} />
+              <Route path="/admin/pdf-test" element={<ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute>} />
               {/* Client Portal Routes */}
               <Route path="/portal/auth" element={<ClientAuth />} />
               <Route path="/portal/suspended" element={<ClientSuspended />} />
