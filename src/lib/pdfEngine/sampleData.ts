@@ -43,6 +43,7 @@ export const sampleMobileOnly: UnifiedDocumentData = {
       description: "50-55 GB 4G, appels illimités Canada",
       monthlyPrice: 50,
       quantity: 1,
+      priceLabel: "/30 jours",
     },
   ],
   // NO TV summary for mobile-only
@@ -95,6 +96,7 @@ export const sampleInternetInstall: UnifiedDocumentData = {
       description: "Fibre optique, téléchargement illimité",
       monthlyPrice: 60,
       quantity: 1,
+      priceLabel: "/mois",
     },
   ],
   // NO TV summary for internet-only
@@ -113,7 +115,8 @@ export const sampleInternetInstall: UnifiedDocumentData = {
     { label: "Installation professionnelle", amount: 75, description: "Technicien certifié" },
   ],
   discounts: [
-    { label: "Rabais installation nouvelle inscription", amount: 25 },
+    { label: "Rabais installation nouvelle inscription", amount: 25, type: "promo" },
+    { label: "Rabais paiement préautorisé", amount: 5, type: "preauth" },
   ],
   billing: {
     subtotal: 60,
@@ -150,6 +153,7 @@ export const sampleTVBundle: UnifiedDocumentData = {
       description: "Fibre optique incluse dans le forfait",
       monthlyPrice: 0, // Included in bundle
       quantity: 1,
+      priceLabel: "/mois",
     },
     {
       type: "TV",
@@ -157,6 +161,7 @@ export const sampleTVBundle: UnifiedDocumentData = {
       description: "42 chaînes totales, guide électronique",
       monthlyPrice: 95,
       quantity: 1,
+      priceLabel: "/mois",
     },
   ],
   // TV summary - COUNTS ONLY, never individual channels
@@ -201,6 +206,96 @@ export const sampleTVBundle: UnifiedDocumentData = {
   isSigned: false,
 };
 
+// ============= SAMPLE 4: FULL COMBO (TV + Internet + Mobile) =============
+export const sampleFullCombo: UnifiedDocumentData = {
+  docType: "contract",
+  metadata: {
+    documentNumber: "CTR-2026-COMBO-004",
+    orderNumber: "ORD-2026-0004",
+    date: new Date().toISOString(),
+    effectiveDate: new Date().toISOString(),
+    version: "v2026.01.02-Prepaid-01",
+  },
+  client: baseClient,
+  company: getCompanyInfo(),
+  agent: baseAgent,
+  services: [
+    {
+      type: "Internet",
+      name: "Internet GIGA 1 Gbps",
+      description: "Fibre optique, téléchargement illimité",
+      monthlyPrice: 80,
+      quantity: 1,
+      priceLabel: "/mois",
+    },
+    {
+      type: "TV",
+      name: "TV 25 choix",
+      description: "52 chaînes totales, guide électronique",
+      monthlyPrice: 25,
+      quantity: 1,
+      priceLabel: "/mois",
+    },
+    {
+      type: "Mobile",
+      name: "Mobile 60$/30 jours",
+      description: "60 GB 5G, appels illimités CA/US",
+      monthlyPrice: 60,
+      quantity: 1,
+      priceLabel: "/30 jours",
+    },
+  ],
+  tvSummary: {
+    baseChannels: 27,
+    optionalChannels: 25,
+    premiumChannels: 2,
+    premiumTotal: 12,
+  },
+  equipment: [
+    {
+      name: "Routeur Nivra Born WiFi",
+      quantity: 1,
+      unitPrice: 60,
+      serial: "RTR-2026-00789",
+      warranty: "1 an",
+    },
+    {
+      name: "Terminal Nivra 4K Smart",
+      quantity: 1,
+      unitPrice: 50,
+      warranty: "1 an",
+    },
+    {
+      name: "Carte SIM physique",
+      quantity: 1,
+      unitPrice: 25,
+      warranty: "N/A",
+    },
+  ],
+  oneTimeFees: [
+    { label: "Frais d'activation", amount: 25 },
+    { label: "Livraison standard Québec", amount: 30 },
+  ],
+  discounts: [
+    { label: "Rabais paiement préautorisé", amount: 5, type: "preauth" },
+    { label: "Rabais multi-services", amount: 10, type: "multiLine" },
+    { label: "Code promo BIENVENUE20", amount: 20, promoCode: "BIENVENUE20", type: "promo" },
+  ],
+  billing: {
+    subtotal: 165, // 80 + 25 + 60
+    oneTimeTotal: 190, // 60 router + 50 terminal + 25 SIM + 25 activation + 30 delivery
+    discountTotal: 35, // 5 + 10 + 20
+    tps: 16.00,
+    tvq: 31.92,
+    total: 367.92,
+  },
+  payment: {
+    status: "pending",
+    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  isSigned: false,
+};
+
 // ============= INVOICE SAMPLES =============
 
 export const sampleInvoiceMobile: UnifiedDocumentData = {
@@ -224,6 +319,19 @@ export const sampleInvoiceTVBundle: UnifiedDocumentData = {
   metadata: {
     ...sampleTVBundle.metadata,
     documentNumber: "INV-2026-0003",
+  },
+  payment: {
+    status: "pending",
+    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+};
+
+export const sampleInvoiceFullCombo: UnifiedDocumentData = {
+  ...sampleFullCombo,
+  docType: "invoice",
+  metadata: {
+    ...sampleFullCombo.metadata,
+    documentNumber: "INV-2026-0004",
   },
   payment: {
     status: "pending",

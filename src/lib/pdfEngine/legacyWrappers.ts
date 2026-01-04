@@ -55,13 +55,17 @@ export interface LegacyTelecomContractData {
   clientPhone?: string;
   authorizedUser?: string;
   
-  // Services
+  // Services - individual plans
   servicePlan?: string;
   serviceDescription?: string;
   internetPlan?: string;
+  internetPrice?: number;
   tvBundle?: string;
+  tvPrice?: number;
   mobilePlan?: string;
+  mobilePrice?: number;
   streamingPlan?: string;
+  streamingPrice?: number;
   
   // Equipment
   routerSerial?: string;
@@ -83,6 +87,14 @@ export interface LegacyTelecomContractData {
   tvqAmount?: number;
   totalAmount?: number;
   discountAmount?: number;
+  
+  // Discounts - detailed
+  preauthDiscount?: number;
+  preauthEnabled?: boolean;
+  promoCode?: string;
+  promoDiscount?: number;
+  loyaltyDiscount?: number;
+  multiLineDiscount?: number;
   
   // Order
   orderDate?: string;
@@ -121,26 +133,52 @@ export interface LegacyTelecomContractData {
  * Wrapper for backward compatibility with existing code
  */
 export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData): jsPDF {
-  // Build services array from legacy fields
+  // Build services array from legacy fields - include ALL selected services with prices
   const services: ServiceLineItem[] = [];
   
   if (data.internetPlan) {
-    services.push({ type: "Internet", name: data.internetPlan, monthlyPrice: 0 });
+    services.push({ 
+      type: "Internet", 
+      name: data.internetPlan, 
+      monthlyPrice: data.internetPrice || 0,
+      priceLabel: "/mois",
+    });
   }
   if (data.tvBundle) {
-    services.push({ type: "TV", name: data.tvBundle, description: "Requiert Internet", monthlyPrice: 0 });
+    services.push({ 
+      type: "TV", 
+      name: data.tvBundle, 
+      description: "Requiert Internet", 
+      monthlyPrice: data.tvPrice || 0,
+      priceLabel: "/mois",
+    });
   }
   if (data.mobilePlan) {
-    services.push({ type: "Mobile", name: data.mobilePlan, monthlyPrice: 0 });
+    services.push({ 
+      type: "Mobile", 
+      name: data.mobilePlan, 
+      monthlyPrice: data.mobilePrice || 0,
+      priceLabel: "/30 jours",
+    });
   }
   if (data.streamingPlan) {
-    services.push({ type: "Streaming", name: data.streamingPlan, monthlyPrice: 0 });
+    services.push({ 
+      type: "Streaming", 
+      name: data.streamingPlan, 
+      monthlyPrice: data.streamingPrice || 0,
+      priceLabel: "/mois",
+    });
   }
   
-  // Fallback to generic service
-  if (services.length === 0) {
+  // Fallback to generic service only if no services found
+  if (services.length === 0 && (data.servicePlan || data.serviceDescription || data.contractName)) {
     const planName = data.servicePlan || data.serviceDescription || data.contractName || "Services";
-    services.push({ type: "Other", name: planName, monthlyPrice: data.subtotal || data.monthlyAmount || 0 });
+    services.push({ 
+      type: "Other", 
+      name: planName, 
+      monthlyPrice: data.subtotal || data.monthlyAmount || 0,
+      priceLabel: "/mois",
+    });
   }
   
   // Build equipment array
@@ -182,10 +220,61 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     oneTimeFees.push({ label: "Carte SIM", amount: data.simFee });
   }
   
-  // Build discounts
+  // Build discounts - detailed breakdown
   const discounts: DiscountItem[] = [];
-  if (data.discountAmount && data.discountAmount > 0) {
-    discounts.push({ label: "Rabais promotionnel", amount: data.discountAmount });
+  
+  // Pre-authorized payment discount
+  if (data.preauthDiscount && data.preauthDiscount > 0) {
+    discounts.push({ 
+      label: "Rabais paiement préautorisé", 
+      amount: data.preauthDiscount,
+      type: "preauth",
+    });
+  } else if (data.preauthEnabled) {
+    // Show label even if amount not specified
+    discounts.push({ 
+      label: "Rabais paiement préautorisé", 
+      amount: 0,
+      type: "preauth",
+    });
+  }
+  
+  // Promo code discount
+  if (data.promoDiscount && data.promoDiscount > 0) {
+    discounts.push({ 
+      label: "Code promo", 
+      amount: data.promoDiscount,
+      promoCode: data.promoCode,
+      type: "promo",
+    });
+  }
+  
+  // Loyalty discount
+  if (data.loyaltyDiscount && data.loyaltyDiscount > 0) {
+    discounts.push({ 
+      label: "Rabais fidélité", 
+      amount: data.loyaltyDiscount,
+      type: "loyalty",
+    });
+  }
+  
+  // Multi-line discount
+  if (data.multiLineDiscount && data.multiLineDiscount > 0) {
+    discounts.push({ 
+      label: "Rabais multi-lignes", 
+      amount: data.multiLineDiscount,
+      type: "multiLine",
+    });
+  }
+  
+  // Generic discount (fallback for legacy data)
+  if (data.discountAmount && data.discountAmount > 0 && discounts.length === 0) {
+    discounts.push({ 
+      label: "Rabais promotionnel", 
+      amount: data.discountAmount,
+      promoCode: data.promoCode,
+      type: "promo",
+    });
   }
   
   // Calculate totals
@@ -202,10 +291,10 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
       version: data.templateVersion || ACTIVE_CONTRACT_TEMPLATE.version,
     },
     client: {
-      fullName: data.clientName || `${data.clientFirstName} ${data.clientLastName}`.trim(),
+      fullName: data.clientName || `${data.clientFirstName || ""} ${data.clientLastName || ""}`.trim(),
       email: data.clientEmail,
       phone: data.clientPhone,
-      accountNumber: data.accountKey,
+      accountNumber: data.clientAccountNumber || data.accountKey,
       serviceAddress: data.serviceAddress,
       serviceCity: data.serviceCity,
       serviceProvince: data.serviceProvince || "QC",

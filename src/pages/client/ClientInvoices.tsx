@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer, Clock, ExternalLink } from "lucide-react";
+import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, isPast, parseISO } from "date-fns";
@@ -15,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { downloadInvoicePDF, getInvoicePDFBlob, type InvoiceData } from "@/lib/pdfEngine";
-import { safePDFPrint, safePDFOpen } from "@/lib/pdfUtils";
+import { safePDFPrint } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import { ETRANSFER_CONFIG } from "@/config/company";
@@ -334,15 +334,15 @@ const ClientInvoices = () => {
     }
   }, [createInvoiceData]);
 
-  // Open PDF in new tab
-  const handleOpenPDFExternal = useCallback((inv: any) => {
+  // Download PDF directly (no popup, no new tab)
+  const handleDownloadPDF = useCallback((inv: any) => {
     try {
       const invoiceData = createInvoiceData(inv);
-      const blob = getInvoicePDFBlob(invoiceData);
-      safePDFOpen(blob, `Facture_${inv.invoice_number || inv.id?.slice(0, 8)}.pdf`);
+      downloadInvoicePDF(invoiceData);
+      toast.success("Facture téléchargée");
     } catch (error) {
-      console.error("PDF open error:", error);
-      toast.error("Erreur lors de l'ouverture du PDF");
+      console.error("PDF download error:", error);
+      toast.error("Impossible de générer la facture. Réessayez.");
     }
   }, [createInvoiceData]);
 
@@ -583,10 +583,10 @@ const ClientInvoices = () => {
                                   <Button 
                                     size="sm" 
                                     variant="outline"
-                                    onClick={() => handleOpenPDFExternal(inv)}
-                                    title="Ouvrir dans nouvel onglet"
+                                    onClick={() => handleDownloadPDF(inv)}
+                                    title="Télécharger PDF"
                                   >
-                                    <ExternalLink className="w-4 h-4" />
+                                    <Download className="w-4 h-4" />
                                   </Button>
                                   <Button 
                                     size="sm" 
@@ -598,22 +598,6 @@ const ClientInvoices = () => {
                                     title="Aperçu rapide"
                                   >
                                     <Eye className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => {
-                                      try {
-                                        downloadInvoicePDF(createInvoiceData(inv));
-                                        toast.success("Facture téléchargée");
-                                      } catch (error) {
-                                        console.error("Invoice download error:", error);
-                                        toast.error("Erreur lors du téléchargement");
-                                      }
-                                    }}
-                                    title="Télécharger"
-                                  >
-                                    <Download className="w-4 h-4" />
                                   </Button>
                                   {inv.status !== "paid" && (
                                     <Button size="sm" variant="hero" onClick={() => handlePayClick(inv)}>

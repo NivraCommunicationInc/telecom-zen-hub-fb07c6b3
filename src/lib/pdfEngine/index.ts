@@ -41,8 +41,10 @@ export {
   sampleMobileOnly,
   sampleInternetInstall,
   sampleTVBundle,
+  sampleFullCombo,
   sampleInvoiceMobile,
   sampleInvoiceTVBundle,
+  sampleInvoiceFullCombo,
 } from "./sampleData";
 
 // Legacy wrappers for backward compatibility
