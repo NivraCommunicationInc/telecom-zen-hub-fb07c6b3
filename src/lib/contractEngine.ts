@@ -3,6 +3,7 @@ import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/pdfE
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { hashBlobSHA256Hex } from "@/lib/pdfHash";
+import { hasValidLineItems, backfillOrderLineItems } from "@/lib/orderBackfill";
 
 const buildContractNumber = () =>
   `CTR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -109,7 +110,25 @@ export const ensureOrderContractUpToDate = async (params: {
   const { extractLineItemsFromOrder } = await import("@/lib/orderLineItems");
   
   // Try to extract structured line_items from equipment_details (PRIMARY SOURCE)
-  const equipmentDetails = (order as any).equipment_details;
+  let equipmentDetails = (order as any).equipment_details;
+  
+  // BACKFILL: If no valid line_items, create them from order fields and save
+  if (!hasValidLineItems(equipmentDetails)) {
+    console.log("[ContractEngine] Backfilling line_items for order:", order.id);
+    const backfilledItems = await backfillOrderLineItems(order.id);
+    if (backfilledItems && backfilledItems.length > 0) {
+      // Refetch the updated equipment_details
+      const { data: updatedOrder } = await supabase
+        .from("orders")
+        .select("equipment_details")
+        .eq("id", order.id)
+        .single();
+      if (updatedOrder) {
+        equipmentDetails = updatedOrder.equipment_details;
+      }
+    }
+  }
+  
   const lineItems = extractLineItemsFromOrder(equipmentDetails);
   
   // Build individual service prices based on line_items or fallback parsing
