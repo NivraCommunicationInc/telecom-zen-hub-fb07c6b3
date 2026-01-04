@@ -23,13 +23,13 @@ import { hashBlobSHA256Hex } from "@/lib/pdfHash";
 import { safePDFDownload } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
-import { useActivityLog } from "@/hooks/useActivityLog";
+import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 
 const ClientContracts = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { logActivity } = useActivityLog();
+  const { logActivity } = usePortalActivityLog();
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/accordion";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/portalClient";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { 
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,
@@ -50,7 +50,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useActivityLog } from "@/hooks/useActivityLog";
+import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 
 // Plans matching website exactly - DO NOT modify
 const AVAILABLE_PLANS = {
@@ -123,7 +123,7 @@ const ClientMyServices = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { logActivity } = useActivityLog();
+  const { logActivity } = usePortalActivityLog();
   
   // Dialog states
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
@@ -157,7 +157,7 @@ const ClientMyServices = () => {
   const { data: subscriptions, isLoading: loadingSubs } = useQuery({
     queryKey: ["client-services-subscriptions", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("subscriptions")
         .select("*")
         .eq("user_id", user?.id)
@@ -174,7 +174,7 @@ const ClientMyServices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("orders")
         .select("*")
         .eq("user_id", user.id)
@@ -192,7 +192,7 @@ const ClientMyServices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("support_tickets")
         .select("*, ticket_replies(*)")
         .eq("user_id", user.id)
@@ -208,7 +208,7 @@ const ClientMyServices = () => {
   const { data: profile } = useQuery({
     queryKey: ["client-profile-credit", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("store_credit, balance, service_province, service_city")
         .eq("user_id", user?.id)
@@ -225,7 +225,7 @@ const ClientMyServices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("billing")
         .select("*")
         .eq("user_id", user.id)
@@ -243,7 +243,7 @@ const ClientMyServices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("payments")
         .select("*")
         .eq("user_id", user.id)
@@ -259,7 +259,7 @@ const ClientMyServices = () => {
   const { data: documents } = useQuery({
     queryKey: ["client-documents", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("client_documents")
         .select("*")
         .eq("user_id", user?.id)
@@ -279,7 +279,7 @@ const ClientMyServices = () => {
       relatedServiceId?: string;
       relatedEquipmentId?: string;
     }) => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("support_tickets")
         .insert({
           user_id: user?.id,
@@ -324,7 +324,7 @@ const ClientMyServices = () => {
   // Request plan change/upgrade
   const requestPlanChangeMutation = useMutation({
     mutationFn: async (data: { currentPlan: string; newPlan: string; subscriptionId: string }) => {
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("support_tickets")
         .insert({
           user_id: user?.id,
