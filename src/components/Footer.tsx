@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Phone, Mail, MapPin } from "lucide-react";
+import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -29,50 +29,54 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-navy-900 text-primary-foreground">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 lg:gap-8">
+    <footer ref={ref} className="bg-primary text-primary-foreground">
+      <div className="container mx-auto px-4 py-16 max-w-6xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                <span className="font-display font-bold text-navy-900 text-xl">N</span>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
+                <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-display font-bold text-xl">Nivra Telecom</span>
+              <span className="font-bold text-lg text-white">Nivra Telecom</span>
             </div>
             
             {/* Positioning statement */}
-            <p className="text-cyan-400 text-sm font-medium mb-4">
+            <p className="text-accent text-sm font-medium mb-4">
               Activation • Installation • Support
             </p>
             
-            <p className="text-cyan-100/60 mb-6 max-w-xs text-sm">
+            <p className="text-white/60 mb-6 max-w-xs text-sm leading-relaxed">
               {t('footer.description')}
             </p>
             
             <div className="space-y-3">
-              <a href="tel:+14385442233" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
+              <a href="tel:+14385442233" className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
                 <Phone className="w-4 h-4" />
                 <span>438-544-2233</span>
               </a>
-              <a href="mailto:Nivratelecom@gmail.com" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
+              <a href="mailto:support@nivra.ca" className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
                 <Mail className="w-4 h-4" />
-                <span>Nivratelecom@gmail.com</span>
+                <span>support@nivra.ca</span>
               </a>
-              <div className="flex items-center gap-3 text-cyan-100/60">
-                <MapPin className="w-4 h-4" />
-                <span>Montréal, QC</span>
+              <div className="flex items-center gap-3 text-white/60 text-sm">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span>Montréal, Québec, Canada</span>
+              </div>
+              <div className="flex items-center gap-3 text-white/60 text-sm">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span>Lun–Ven : 9 h – 18 h (HE)</span>
               </div>
             </div>
           </div>
 
           {/* Services */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.services')}</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.services')}</h4>
+            <ul className="space-y-2.5">
               {links.services.map((link) => (
                 <li key={link.labelKey}>
-                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
                     {t(link.labelKey)}
                   </Link>
                 </li>
@@ -82,11 +86,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Support */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.support')}</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.support')}</h4>
+            <ul className="space-y-2.5">
               {links.support.map((link) => (
                 <li key={link.labelKey}>
-                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
                     {t(link.labelKey)}
                   </Link>
                 </li>
@@ -96,11 +100,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Company */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.company')}</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.company')}</h4>
+            <ul className="space-y-2.5">
               {links.company.map((link) => (
                 <li key={link.labelKey}>
-                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
                     {t(link.labelKey)}
                   </Link>
                 </li>
@@ -110,11 +114,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Legal */}
           <div>
-            <h4 className="font-display font-bold text-sm uppercase tracking-wider mb-4">{t('footer.legal')}</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.legal')}</h4>
+            <ul className="space-y-2.5">
               {links.legal.map((link) => (
                 <li key={link.labelKey}>
-                  <Link to={link.href} className="text-cyan-100/60 hover:text-cyan-300 transition-colors text-sm">
+                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
                     {t(link.labelKey)}
                   </Link>
                 </li>
@@ -124,23 +128,23 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-cyan-100/10 mt-12 pt-8">
+        <div className="border-t border-white/10 mt-12 pt-8">
           {/* Compliance line */}
-          <p className="text-cyan-100/40 text-xs text-center mb-4">
+          <p className="text-white/40 text-xs text-center mb-4">
             Nivra Telecom — Services télécoms au Québec. Support et activation.
           </p>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-cyan-100/40 text-sm">
+            <p className="text-white/40 text-sm">
               © {currentYear} Nivra Telecom. {t('footer.rights')}
             </p>
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
-              <Link to="/privacy" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+              <Link to="/privacy" className="text-white/40 hover:text-accent transition-colors text-sm">
                 {t('footer.privacy')}
               </Link>
-              <Link to="/terms" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+              <Link to="/terms" className="text-white/40 hover:text-accent transition-colors text-sm">
                 {t('footer.terms')}
               </Link>
-              <Link to="/admin" className="text-cyan-100/40 hover:text-cyan-300 transition-colors text-sm">
+              <Link to="/admin" className="text-white/40 hover:text-accent transition-colors text-sm">
                 Admin
               </Link>
             </div>

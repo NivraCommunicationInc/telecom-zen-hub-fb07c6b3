@@ -40,42 +40,36 @@ const Services = () => {
   ];
 
   return (
-    <section id="services" className="section-padding bg-background relative overflow-hidden">
-      {/* Subtle 3D Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 -right-20 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 -left-20 w-60 h-60 bg-accent/5 rounded-full blur-3xl" />
-      </div>
-
-      <div className="container mx-auto px-4 relative">
-        {/* Section Header - Tighter */}
+    <section id="services" className="section-padding bg-background">
+      <div className="container mx-auto px-4 max-w-6xl">
+        {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium mb-3">
+          <span className="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold mb-4">
             {t('services.badge')}
           </span>
-          <h2 className="text-foreground mb-3">
+          <h2 className="mb-4">
             {t('services.title')}
           </h2>
-          <p className="text-body text-muted-foreground">
+          <p className="text-muted-foreground">
             {t('services.subtitle')}
           </p>
         </div>
 
-        {/* Services Grid with 3D Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+        {/* Services Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {services.map((service, index) => (
             <div
               key={service.titleKey}
-              className="group relative bg-card rounded-2xl p-6 shadow-card hover:shadow-xl transition-all duration-500 border border-border hover:border-accent/30 animate-fade-in card-3d"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="group bg-card rounded-2xl p-6 border border-border hover:border-accent/30 transition-all duration-200 hover:shadow-elevated animate-fade-in"
+              style={{ animationDelay: `${index * 0.08}s` }}
             >
-              {/* Icon with 3D Effect */}
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500/15 to-cyan-400/5 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <service.icon className="w-7 h-7 text-accent" />
+              {/* Icon */}
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-5 group-hover:bg-accent/15 transition-colors">
+                <service.icon className="w-6 h-6 text-accent" />
               </div>
 
               {/* Content */}
-              <h3 className="font-display text-xl font-bold text-foreground mb-3">
+              <h3 className="font-semibold text-foreground mb-2">
                 {t(service.titleKey)}
               </h3>
               <p className="text-muted-foreground text-sm mb-5 leading-relaxed">
@@ -83,28 +77,20 @@ const Services = () => {
               </p>
 
               {/* Features */}
-              <ul className="space-y-2 mb-6">
+              <ul className="space-y-2 mb-5">
                 {service.features.map((featureKey) => (
-                  <li key={featureKey} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-glow" />
-                    {t(featureKey)}
+                  <li key={featureKey} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 flex-shrink-0" />
+                    <span>{t(featureKey)}</span>
                   </li>
                 ))}
               </ul>
 
-              {/* Link - Navigate to contact */}
-              <Button variant="ghost" size="sm" className="group/btn text-accent p-0 h-auto font-semibold" onClick={scrollToContact}>
+              {/* Link */}
+              <Button variant="ghost" size="sm" className="text-accent p-0 h-auto font-medium hover:bg-transparent group/btn" onClick={scrollToContact}>
                 {t('services.cta')}
-                <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
+                <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-0.5" />
               </Button>
-
-              {/* Hover Gradient with Depth */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-              
-              {/* 3D Card Shine Effect */}
-              <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              </div>
             </div>
           ))}
         </div>

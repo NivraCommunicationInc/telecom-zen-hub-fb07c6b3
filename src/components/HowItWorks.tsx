@@ -1,4 +1,4 @@
-import { FileText, Calendar, Settings, ArrowRight } from "lucide-react";
+import { FileText, Calendar, Settings } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const HowItWorks = () => {
@@ -26,48 +26,43 @@ const HowItWorks = () => {
   ];
 
   return (
-    <section className="section-padding bg-muted/30 relative overflow-hidden">
-      {/* Background - Subtle */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-64 h-64 bg-accent/3 rounded-full blur-3xl" />
-      </div>
-
-      <div className="container mx-auto px-4 relative">
-        {/* Section Header - Tighter */}
+    <section className="section-padding bg-background">
+      <div className="container mx-auto px-4 max-w-5xl">
+        {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium mb-3">
+          <span className="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold mb-4">
             {t('howitworks.badge')}
           </span>
-          <h2 className="text-foreground mb-3">
+          <h2 className="mb-4">
             {t('howitworks.title')}
           </h2>
-          <p className="text-body text-muted-foreground">
+          <p className="text-muted-foreground">
             {t('howitworks.subtitle')}
           </p>
         </div>
 
         {/* Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {steps.map((step, index) => (
             <div key={step.titleKey} className="relative">
               {/* Connector line */}
               {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-12 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-accent/30 to-accent/10" />
+                <div className="hidden md:block absolute top-10 left-[60%] w-[80%] h-px bg-border" />
               )}
               
               <div className="flex flex-col items-center text-center">
                 {/* Step number with icon */}
-                <div className="relative mb-6">
-                  <div className="w-24 h-24 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center group hover:border-accent/30 transition-colors">
-                    <step.icon className="w-10 h-10 text-accent" />
+                <div className="relative mb-5">
+                  <div className="w-20 h-20 rounded-2xl bg-card border border-border flex items-center justify-center group hover:border-accent/30 transition-colors shadow-sm">
+                    <step.icon className="w-8 h-8 text-accent" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold shadow-lg">
+                  <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold shadow-md">
                     {step.number}
                   </div>
                 </div>
 
                 {/* Content */}
-                <h3 className="font-display text-xl font-bold text-foreground mb-3">
+                <h3 className="font-semibold text-foreground mb-2">
                   {t(step.titleKey)}
                 </h3>
                 <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">

@@ -258,8 +258,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   }
 
   return (
-    <form ref={ref} onSubmit={handleSubmit} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8 md:p-10">
-      <h3 className="font-display text-xl md:text-2xl font-bold text-primary-foreground mb-6 text-center">
+    <form ref={ref} onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm">
+      <h3 className="text-xl font-semibold text-foreground mb-6 text-center">
         {isFrench ? "Contact" : "Contact"}
       </h3>
       
@@ -267,8 +267,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         {/* Name fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="firstName" className="text-cyan-100/80 flex items-center gap-2">
-              <User className="w-4 h-4" />
+            <Label htmlFor="firstName" className="text-foreground flex items-center gap-2 text-sm font-medium">
+              <User className="w-4 h-4 text-muted-foreground" />
               {isFrench ? "Prénom" : "First Name"} <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -278,13 +278,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
               placeholder={isFrench ? "Votre prénom" : "Your first name"}
               value={formData.firstName}
               onChange={handleChange}
-              className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-accent/30 h-11"
             />
             {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="lastName" className="text-cyan-100/80">
+            <Label htmlFor="lastName" className="text-foreground text-sm font-medium">
               {isFrench ? "Nom" : "Last Name"} <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -294,7 +294,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
               placeholder={isFrench ? "Votre nom" : "Your last name"}
               value={formData.lastName}
               onChange={handleChange}
-              className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-accent/30 h-11"
             />
             {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
           </div>
@@ -302,8 +302,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
         {/* Email */}
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-cyan-100/80 flex items-center gap-2">
-            <Mail className="w-4 h-4" />
+          <Label htmlFor="email" className="text-foreground flex items-center gap-2 text-sm font-medium">
+            <Mail className="w-4 h-4 text-muted-foreground" />
             {isFrench ? "Courriel" : "Email"} <span className="text-destructive">*</span>
           </Label>
           <Input
@@ -313,15 +313,15 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             placeholder="votre@courriel.com"
             value={formData.email}
             onChange={handleChange}
-            className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
+            className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-accent/30 h-11"
           />
           {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
         </div>
 
         {/* Phone */}
         <div className="space-y-2">
-          <Label htmlFor="phone" className="text-cyan-100/80 flex items-center gap-2">
-            <Phone className="w-4 h-4" />
+          <Label htmlFor="phone" className="text-foreground flex items-center gap-2 text-sm font-medium">
+            <Phone className="w-4 h-4 text-muted-foreground" />
             {isFrench ? "Téléphone" : "Phone"} <span className="text-destructive">*</span>
           </Label>
           <Input
@@ -332,14 +332,14 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             value={formData.phone}
             onChange={handleChange}
             maxLength={14}
-            className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
+            className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-accent/30 h-11"
           />
           {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
         </div>
 
         {/* Subject */}
         <div className="space-y-2">
-          <Label htmlFor="subject" className="text-cyan-100/80">
+          <Label htmlFor="subject" className="text-foreground text-sm font-medium">
             {isFrench ? "Sujet" : "Subject"} <span className="text-destructive">*</span>
           </Label>
           <select
@@ -347,7 +347,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             name="subject"
             value={formData.subject}
             onChange={handleChange}
-            className="w-full h-12 px-3 rounded-md border border-border/50 bg-background/50 text-primary-foreground focus:border-cyan-400"
+            className="w-full h-11 px-3 rounded-xl border border-border bg-background text-foreground focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none"
           >
             <option value="">{isFrench ? "Sélectionnez un sujet" : "Select a subject"}</option>
             {SUBJECT_OPTIONS.map((option) => (
@@ -361,8 +361,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
         {/* Message */}
         <div className="space-y-2">
-          <Label htmlFor="message" className="text-cyan-100/80 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
+          <Label htmlFor="message" className="text-foreground flex items-center gap-2 text-sm font-medium">
+            <MessageSquare className="w-4 h-4 text-muted-foreground" />
             {isFrench ? "Message" : "Message"} <span className="text-destructive">*</span>
           </Label>
           <Textarea
@@ -373,7 +373,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             onChange={handleChange}
             rows={4}
             maxLength={2000}
-            className="bg-background/50 border-border/50 text-primary-foreground placeholder:text-muted-foreground focus:border-cyan-400 resize-none"
+            className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-accent/30 resize-none"
           />
           <div className="flex justify-between">
             {errors.message && <p className="text-sm text-destructive">{errors.message}</p>}
@@ -536,9 +536,9 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
         <Button 
           type="submit" 
-          variant="hero" 
+          variant="accent" 
           size="lg" 
-          className="w-full group focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-primary disabled:opacity-70"
+          className="w-full group focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-70"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -548,13 +548,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             </>
           ) : (
             <>
-              {isFrench ? "Envoyer la demande" : "Submit request"}
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              {isFrench ? "Envoyer" : "Send"}
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </>
           )}
         </Button>
 
-        <p className="text-xs text-center text-cyan-100/50">
+        <p className="text-xs text-center text-muted-foreground">
           {isFrench 
             ? "Nous vous répondrons dans un délai de 1 jour ouvrable."
             : "We will respond within 1 business day."}

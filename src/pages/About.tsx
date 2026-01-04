@@ -103,29 +103,25 @@ const About = () => {
     }
   ];
 
-  const scrollToContact = () => {
-    const contactSection = document.getElementById('contact');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       {/* Hero Section */}
-      <section className="pt-32 pb-16 bg-gradient-to-b from-navy-900 via-navy-800 to-background">
-        <div className="container mx-auto px-4 max-w-5xl">
+      <section className="pt-28 pb-16 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 -right-20 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
+        </div>
+        <div className="container mx-auto px-4 max-w-5xl relative">
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 mb-5">
-              <Shield className="w-4 h-4 text-teal-400" />
-              <span className="text-sm font-medium text-teal-400">Fournisseur télécom canadien</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/15 border border-accent/25 mb-5">
+              <Shield className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium text-accent">Fournisseur télécom canadien</span>
             </div>
-            <h1 className="text-primary-foreground mb-4">
-              Nivra <span className="text-teal-400">Telecom</span>
+            <h1 className="text-white mb-4">
+              Nivra <span className="text-accent">Telecom</span>
             </h1>
-            <p className="text-body-lg text-cyan-100/70 mb-6 leading-relaxed max-w-2xl mx-auto">
+            <p className="text-lg text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
               Services télécoms au Canada : activation, installation, support et gestion de compte. 
               Une expérience simple, structurée et fiable — pour le résidentiel et l'entreprise.
             </p>
@@ -133,7 +129,7 @@ const About = () => {
               <Link to="/services">
                 <Button variant="hero" size="lg" className="w-full sm:w-auto">
                   Voir nos services
-                  <ChevronRight className="w-4 h-4 ml-1" />
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </Link>
               <Link to="/#contact">
@@ -144,42 +140,48 @@ const About = () => {
             </div>
           </div>
         </div>
+        {/* Bottom Wave */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+            <path d="M0 60L60 52C120 44 240 28 360 24C480 20 600 28 720 32C840 36 960 36 1080 32C1200 28 1320 20 1380 16L1440 12V60H0Z" fill="hsl(var(--background))"/>
+          </svg>
+        </div>
       </section>
 
       {/* Notre Engagement */}
       <section className="section-padding">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-foreground mb-4">
+              <h2 className="mb-4">
                 Une expérience télécom claire, du début à la fin
               </h2>
-              <p className="text-body text-muted-foreground mb-6 leading-relaxed">
+              <p className="text-muted-foreground mb-6 leading-relaxed">
                 Notre mission est simple : rendre les services télécoms plus faciles à utiliser et plus fiables au quotidien. 
                 Chez Nivra, chaque demande suit un processus clair, chaque étape est tracée, et le support reste accessible quand vous en avez besoin.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground text-sm"><strong>Simplicité</strong> — étapes claires, communications directes, aucun détour inutile</span>
+                  <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground"><strong>Simplicité</strong> — étapes claires, communications directes, aucun détour inutile</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground text-sm"><strong>Transparence</strong> — informations expliquées, suivi documenté, statuts visibles</span>
+                  <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground"><strong>Transparence</strong> — informations expliquées, suivi documenté, statuts visibles</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground text-sm"><strong>Support</strong> — assistance réactive, tickets, mises à jour et résolution</span>
+                  <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground"><strong>Support</strong> — assistance réactive, tickets, mises à jour et résolution</span>
                 </li>
               </ul>
             </div>
             <div className="relative">
-              <div className="aspect-square rounded-2xl bg-gradient-to-br from-navy-800 to-navy-900 border border-border p-8 flex items-center justify-center">
+              <div className="aspect-square rounded-2xl bg-primary border border-border p-8 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-400 flex items-center justify-center mx-auto mb-4">
-                    <span className="font-display font-bold text-navy-900 text-4xl">N</span>
+                  <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-4">
+                    <span className="font-bold text-white text-4xl">N</span>
                   </div>
-                  <p className="text-muted-foreground text-sm">Fournisseur indépendant depuis 2020</p>
+                  <p className="text-white/60 text-sm">Fournisseur indépendant depuis 2020</p>
                 </div>
               </div>
             </div>
@@ -190,11 +192,11 @@ const About = () => {
       {/* Ce que nous faisons */}
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-10">
-            <h2 className="text-foreground mb-3">
+          <div className="text-center mb-12">
+            <h2 className="mb-3">
               Des services télécom complets, avec un vrai suivi
             </h2>
-            <p className="text-body text-muted-foreground max-w-xl mx-auto">
+            <p className="text-muted-foreground max-w-xl mx-auto">
               Activation, installation, support et gestion — tout au même endroit.
             </p>
           </div>
@@ -202,10 +204,10 @@ const About = () => {
             {services.map((service, index) => (
               <div 
                 key={index} 
-                className="bg-card border border-border rounded-xl p-5 hover:border-teal-500/30 transition-colors"
+                className="bg-card border border-border rounded-2xl p-5 hover:border-accent/30 hover:shadow-elevated transition-all duration-200"
               >
-                <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center mb-3">
-                  <service.icon className="w-5 h-5 text-teal-500" />
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
+                  <service.icon className="w-5 h-5 text-accent" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2 text-sm">{service.title}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">{service.description}</p>
@@ -218,11 +220,11 @@ const About = () => {
       {/* Pourquoi Nivra */}
       <section className="section-padding">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-10">
-            <h2 className="text-foreground mb-3">
+          <div className="text-center mb-12">
+            <h2 className="mb-3">
               Des engagements concrets, mesurables
             </h2>
-            <p className="text-body text-muted-foreground max-w-xl mx-auto">
+            <p className="text-muted-foreground max-w-xl mx-auto">
               Processus clair, communication transparente, support accessible.
             </p>
           </div>
@@ -230,14 +232,14 @@ const About = () => {
             {trustPoints.map((point, index) => (
               <div 
                 key={index} 
-                className="flex gap-4 p-5 bg-card border border-border rounded-xl"
+                className="flex gap-4 p-5 bg-card border border-border rounded-2xl hover:border-accent/30 transition-colors"
               >
-                <div className="w-10 h-10 rounded-lg bg-navy-800 flex items-center justify-center flex-shrink-0">
-                  <point.icon className="w-5 h-5 text-teal-400" />
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+                  <point.icon className="w-5 h-5 text-accent" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground mb-1 text-sm">{point.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{point.description}</p>
+                  <h3 className="font-semibold text-foreground mb-1">{point.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{point.description}</p>
                 </div>
               </div>
             ))}
@@ -248,11 +250,11 @@ const About = () => {
       {/* Notre fonctionnement - Timeline */}
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-10">
-            <h2 className="text-foreground mb-3">
+          <div className="text-center mb-12">
+            <h2 className="mb-3">
               Notre fonctionnement
             </h2>
-            <p className="text-body text-muted-foreground max-w-xl mx-auto">
+            <p className="text-muted-foreground max-w-xl mx-auto">
               Un processus structuré pour des résultats prévisibles.
             </p>
           </div>
@@ -260,15 +262,15 @@ const About = () => {
           {/* Desktop Timeline */}
           <div className="hidden md:block">
             <div className="relative">
-              <div className="absolute top-7 left-0 right-0 h-0.5 bg-border" />
+              <div className="absolute top-8 left-0 right-0 h-px bg-border" />
               <div className="grid grid-cols-4 gap-5 relative">
                 {approachSteps.map((step, index) => (
                   <div key={index} className="text-center">
-                    <div className="w-14 h-14 rounded-full bg-navy-800 border-4 border-background flex items-center justify-center mx-auto mb-3 relative z-10">
-                      <span className="font-display font-bold text-teal-400 text-sm">{step.step}</span>
+                    <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center mx-auto mb-4 relative z-10 shadow-sm">
+                      <span className="font-bold text-accent text-lg">{step.step}</span>
                     </div>
-                    <h3 className="font-semibold text-foreground mb-1 text-sm">{step.title}</h3>
-                    <p className="text-xs text-muted-foreground">{step.description}</p>
+                    <h3 className="font-semibold text-foreground mb-2">{step.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
                   </div>
                 ))}
               </div>
@@ -280,16 +282,16 @@ const About = () => {
             {approachSteps.map((step, index) => (
               <div key={index} className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className="w-10 h-10 rounded-full bg-navy-800 flex items-center justify-center flex-shrink-0">
-                    <span className="font-display font-bold text-teal-400 text-xs">{step.step}</span>
+                  <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <span className="font-bold text-accent">{step.step}</span>
                   </div>
                   {index < approachSteps.length - 1 && (
-                    <div className="w-0.5 h-full bg-border mt-2" />
+                    <div className="w-px h-full bg-border mt-2" />
                   )}
                 </div>
                 <div className="pb-5">
-                  <h3 className="font-semibold text-foreground mb-1 text-sm">{step.title}</h3>
-                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                  <h3 className="font-semibold text-foreground mb-1">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -300,16 +302,16 @@ const About = () => {
       {/* Confiance & Conformité */}
       <section className="section-padding">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="bg-navy-800 border border-border rounded-2xl p-6 md:p-10">
-            <div className="flex items-start gap-4 mb-5">
-              <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center flex-shrink-0">
-                <Shield className="w-5 h-5 text-teal-400" />
+          <div className="bg-primary border border-border rounded-2xl p-8 md:p-10">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center flex-shrink-0">
+                <Shield className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-semibold text-foreground mb-1">
+                <h2 className="text-xl md:text-2xl font-semibold text-white mb-1">
                   La sécurité fait partie du service
                 </h2>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-white/60 text-sm">
                   Vos données sont protégées à chaque étape.
                 </p>
               </div>
@@ -317,40 +319,40 @@ const About = () => {
             
             <div className="grid md:grid-cols-2 gap-4 mb-6">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
-                <p className="text-foreground text-xs">
+                <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                <p className="text-white/80 text-sm">
                   Nous ne demandons <strong>jamais</strong> de NAS ni de numéros de carte de crédit par courriel.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
-                <p className="text-foreground text-xs">
+                <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                <p className="text-white/80 text-sm">
                   Les informations sensibles doivent être transmises uniquement via les canaux sécurisés.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
-                <p className="text-foreground text-xs">
+                <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                <p className="text-white/80 text-sm">
                   Accès au portail selon les rôles, avec permissions contrôlées.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
-                <p className="text-foreground text-xs">
+                <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                <p className="text-white/80 text-sm">
                   Pratiques alignées avec les principes de protection des renseignements personnels au Canada.
                 </p>
               </div>
             </div>
             
             <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium">
                 <Lock className="w-3 h-3" /> Chiffrement SSL
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium">
                 <Users className="w-3 h-3" /> Accès contrôlé
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-medium">
-                <Shield className="w-3 h-3" /> Bonnes pratiques de sécurité
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium">
+                <Shield className="w-3 h-3" /> Bonnes pratiques
               </span>
             </div>
           </div>
@@ -360,33 +362,33 @@ const About = () => {
       {/* Notre présence */}
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-foreground mb-4">
+              <h2 className="mb-4">
                 Couverture nationale, focus Québec
               </h2>
-              <p className="text-body text-muted-foreground mb-5 leading-relaxed">
+              <p className="text-muted-foreground mb-6 leading-relaxed">
                 Nous desservons l'ensemble du Canada, avec une présence opérationnelle forte au Québec. 
                 Notre support est basé au Canada et connaît les réalités locales du marché.
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border text-sm">
-                  <MapPin className="w-4 h-4 text-teal-500" /> Québec
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Québec
                 </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border text-sm">
-                  <MapPin className="w-4 h-4 text-teal-500" /> Ontario
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Ontario
                 </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border text-sm">
-                  <MapPin className="w-4 h-4 text-teal-500" /> Canada
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Canada
                 </span>
               </div>
             </div>
             <div className="relative">
-              <div className="aspect-video rounded-2xl bg-navy-800 border border-border overflow-hidden flex items-center justify-center">
-                <div className="text-center p-6">
-                  <MapPin className="w-12 h-12 text-teal-500/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground text-sm">Couverture nationale</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Focus Québec</p>
+              <div className="aspect-video rounded-2xl bg-primary border border-border overflow-hidden flex items-center justify-center">
+                <div className="text-center p-8">
+                  <MapPin className="w-12 h-12 text-accent/30 mx-auto mb-3" />
+                  <p className="text-white/60 text-sm">Couverture nationale</p>
+                  <p className="text-xs text-white/40 mt-1">Focus Québec</p>
                 </div>
               </div>
             </div>
@@ -397,74 +399,74 @@ const About = () => {
       {/* Contact */}
       <section id="contact-about" className="section-padding">
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="bg-card border border-border rounded-2xl p-6 md:p-10">
-            <div className="grid lg:grid-cols-2 gap-10">
+          <div className="bg-card border border-border rounded-2xl p-8 md:p-10">
+            <div className="grid lg:grid-cols-2 gap-12">
               <div>
-                <h2 className="text-foreground mb-4">
+                <h2 className="mb-4">
                   Nous contacter
                 </h2>
-                <p className="text-muted-foreground text-sm mb-6">
+                <p className="text-muted-foreground mb-6">
                   Notre équipe est disponible pour répondre à vos questions.
                 </p>
                 
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-4 h-4 text-teal-500" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground text-sm">Adresse</p>
-                      <p className="text-xs text-muted-foreground">Montréal, Québec, Canada</p>
+                      <p className="font-medium text-foreground">Adresse</p>
+                      <p className="text-sm text-muted-foreground">Montréal, Québec, Canada</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-4 h-4 text-teal-500" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground text-sm">Téléphone</p>
-                      <p className="text-xs text-muted-foreground">À venir</p>
+                      <p className="font-medium text-foreground">Téléphone</p>
+                      <p className="text-sm text-muted-foreground">438-544-2233</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                      <Mail className="w-4 h-4 text-teal-500" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground text-sm">Courriel</p>
-                      <p className="text-xs text-muted-foreground">support@nivra.ca</p>
+                      <p className="font-medium text-foreground">Courriel</p>
+                      <p className="text-sm text-muted-foreground">support@nivra.ca</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-4 h-4 text-teal-500" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground text-sm">Heures de support</p>
-                      <p className="text-xs text-muted-foreground">Lun–Ven : 9 h – 18 h (HE)</p>
+                      <p className="font-medium text-foreground">Heures de support</p>
+                      <p className="text-sm text-muted-foreground">Lun–Ven : 9 h – 18 h (HE)</p>
                     </div>
                   </div>
                 </div>
               </div>
               
               <div className="flex flex-col justify-center">
-                <div className="bg-muted/50 rounded-xl p-5 border border-border">
-                  <h3 className="font-semibold text-foreground mb-3 text-sm">Besoin d'aide?</h3>
-                  <p className="text-xs text-muted-foreground mb-5">
+                <div className="bg-muted/50 rounded-2xl p-6 border border-border">
+                  <h3 className="font-semibold text-foreground mb-3">Besoin d'aide?</h3>
+                  <p className="text-sm text-muted-foreground mb-5">
                     Ouvrez un ticket de support ou contactez-nous directement.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Link to="/portal/auth" className="flex-1">
-                      <Button variant="hero" size="sm" className="w-full">
+                      <Button variant="accent" className="w-full">
                         <Headphones className="w-4 h-4 mr-2" />
                         Ouvrir un ticket
                       </Button>
                     </Link>
                     <Link to="/#contact" className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full border-border">
+                      <Button variant="outline" className="w-full">
                         Nous joindre
                       </Button>
                     </Link>
@@ -479,11 +481,11 @@ const About = () => {
       {/* FAQ */}
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-3xl">
-          <div className="text-center mb-10">
-            <h2 className="text-foreground mb-3">
+          <div className="text-center mb-12">
+            <h2 className="mb-3">
               Questions fréquentes
             </h2>
-            <p className="text-body text-muted-foreground">
+            <p className="text-muted-foreground">
               Tout ce que vous devez savoir sur Nivra.
             </p>
           </div>
@@ -493,12 +495,12 @@ const About = () => {
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`}
-                className="bg-card border border-border rounded-xl px-5 data-[state=open]:border-teal-500/30"
+                className="bg-card border border-border rounded-2xl px-6 data-[state=open]:border-accent/30"
               >
-                <AccordionTrigger className="text-left font-medium text-foreground hover:no-underline py-4 text-sm">
+                <AccordionTrigger className="text-left font-medium text-foreground hover:no-underline py-5">
                   {item.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 text-sm">
+                <AccordionContent className="text-muted-foreground pb-5">
                   {item.answer}
                 </AccordionContent>
               </AccordionItem>

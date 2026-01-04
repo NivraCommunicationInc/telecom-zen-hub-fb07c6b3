@@ -5,30 +5,32 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg",
+        default: "bg-primary text-primary-foreground hover:bg-navy-700 shadow-sm hover:shadow-md",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border-2 border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        outline: "border border-border bg-background hover:bg-muted hover:text-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        // Hero button - Primary CTA with gradient and glow
-        hero: "bg-gradient-to-r from-cyan-500 to-cyan-400 text-navy-900 font-bold shadow-lg hover:shadow-glow hover:scale-105 active:scale-100",
+        ghost: "hover:bg-muted hover:text-foreground",
+        link: "text-accent underline-offset-4 hover:underline",
+        // Hero button - Primary CTA with teal accent
+        hero: "bg-accent text-accent-foreground font-semibold shadow-md hover:bg-teal-600 hover:shadow-lg active:bg-teal-700",
         // Hero outline - Secondary hero action
-        heroOutline: "border-2 border-cyan-400/50 text-cyan-300 bg-transparent hover:bg-cyan-400/10 hover:border-cyan-400",
+        heroOutline: "border-2 border-white/30 text-white bg-transparent hover:bg-white/10 hover:border-white/50",
         // Accent solid
-        accent: "bg-accent text-accent-foreground hover:bg-cyan-400 shadow-md hover:shadow-glow",
+        accent: "bg-accent text-accent-foreground hover:bg-teal-600 shadow-sm hover:shadow-md",
         // Subtle accent
         accentGhost: "text-accent hover:bg-accent/10",
+        // Corporate primary
+        corporate: "bg-primary text-primary-foreground hover:bg-navy-700",
       },
       size: {
         default: "h-10 px-5 py-2",
-        sm: "h-9 rounded-md px-4",
-        lg: "h-12 rounded-xl px-8 text-base",
-        xl: "h-14 rounded-xl px-10 text-lg",
+        sm: "h-9 rounded-lg px-4 text-xs",
+        lg: "h-11 rounded-xl px-6",
+        xl: "h-12 rounded-xl px-8 text-base",
         icon: "h-10 w-10",
       },
     },
