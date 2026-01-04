@@ -223,29 +223,31 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     // CRITICAL: When line_items exist, NEVER add fallback services
     // Only show what was actually selected by the client
     
+    console.log("[Contract PDF] Using line_items from equipmentDetails:", lineItems);
+    
     for (const item of lineItems!) {
       // FILTER: Only include items with valid data
-      if (!item.name || item.qty <= 0) continue;
+      // Must have: name, qty > 0, and valid price >= 0
+      if (!item.name || item.name.trim() === "") continue;
+      if (item.qty <= 0) continue;
+      // Accept price >= 0 (0 is valid for free items)
+      if (item.unit_price < 0) {
+        console.warn(`[Contract PDF] Skipping item with invalid price: ${item.name}`, item);
+        continue;
+      }
       
-      // For services, require valid price (>= 0)
-      if (item.category === 'service') {
-        if (item.unit_price >= 0) {
-          services.push(lineItemToServiceItem(item));
-        }
-      } else if (item.category === 'equipment') {
-        if (item.unit_price >= 0) {
-          equipment.push(lineItemToEquipment(item));
-        }
-      } else if (item.category === 'fee') {
-        if (item.unit_price >= 0) {
-          oneTimeFees.push(lineItemToFee(item));
-        }
-      } else if (item.category === 'discount') {
-        if (item.unit_price >= 0) {
-          discounts.push(lineItemToDiscount(item));
-        }
+      if (item.category === "service") {
+        services.push(lineItemToServiceItem(item));
+      } else if (item.category === "equipment") {
+        equipment.push(lineItemToEquipment(item));
+      } else if (item.category === "fee") {
+        oneTimeFees.push(lineItemToFee(item));
+      } else if (item.category === "discount") {
+        discounts.push(lineItemToDiscount(item));
       }
     }
+    
+    console.log("[Contract PDF] Filtered services:", services.length, "equipment:", equipment.length, "fees:", oneTimeFees.length, "discounts:", discounts.length);
     
     // Calculate totals from line items (only valid items)
     const validLineItems = lineItems!.filter(item => item.unit_price >= 0 && item.qty > 0);
