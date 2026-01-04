@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, User, Calendar, CreditCard, MapPin, AlertCircle } from "lucide-react";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
 
 const CANADIAN_PROVINCES = [
   { code: "AB", name: { fr: "Alberta", en: "Alberta" } },
@@ -228,7 +228,7 @@ export const ClientIDVerificationForm = ({
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>{isFrench ? "Adresse complète (Québec seulement) *" : "Full Address (Quebec only) *"}</Label>
-              <AddressAutocomplete
+              <PortalAddressAutocomplete
                 value={data.serviceAddress}
                 onChange={(value) => updateField("serviceAddress", value)}
                 onAddressSelect={handleAddressSelect}

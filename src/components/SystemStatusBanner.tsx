@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  SystemStatusBanner as SystemStatusBannerBase,
+  SystemStatusBannerBase,
   SystemStatusIndicator as SystemStatusIndicatorBase,
   ServiceStatusCards as ServiceStatusCardsBase,
 } from "./SystemStatusBannerBase";
@@ -20,4 +20,3 @@ export const ServiceStatusCards = (
 ) => <ServiceStatusCardsBase {...props} supabaseClient={supabase} />;
 
 export default SystemStatusBanner;
-

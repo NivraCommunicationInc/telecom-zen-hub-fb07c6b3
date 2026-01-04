@@ -41,9 +41,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
-import { verifySensitiveActionAllowed } from "@/lib/securityUtils";
+import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { 
   CheckoutLayout, 
   CheckoutProgress, 
@@ -51,12 +51,12 @@ import {
   SecurityTrustBox, 
   CheckoutSection,
   ProfessionalConfirmation,
-  PinSetupSection,
   validatePinSetup,
   CheckoutPaymentSection,
   CheckoutPhoneField,
   validateCanadianPhone 
 } from "@/components/checkout";
+import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSection";
 import { hashPin } from "@/lib/pinUtils";
 
 // Internet plan configurations
@@ -377,7 +377,7 @@ const ClientInternetOrder = () => {
       if (!user?.id || !selectedPlan) throw new Error("Not authenticated or no plan selected");
 
       // Security check before sensitive action
-      const { allowed, reason } = await verifySensitiveActionAllowed(user.id);
+      const { allowed, reason } = await verifyPortalSensitiveActionAllowed(user.id);
       if (!allowed) {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
@@ -690,7 +690,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   <Label>
                     {isFrench ? "Adresse complète (incluant le code postal)" : "Full address (including postal code)"}
                   </Label>
-                  <AddressAutocomplete
+                  <PortalAddressAutocomplete
                     value={address}
                     onChange={(value) => {
                       setAddress(value);
@@ -1098,7 +1098,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
               </Card>
 
               {/* PIN Setup for New Clients */}
-              <PinSetupSection
+              <PortalPinSetupSection
                 userId={user?.id}
                 pin={clientPin}
                 onPinChange={setClientPin}
