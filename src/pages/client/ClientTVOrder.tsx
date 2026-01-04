@@ -576,15 +576,27 @@ const ClientTVOrder = () => {
       const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
       const lineItems = buildOrderLineItems({
         services: [
-          { type: "Internet" as const, name: "Internet " + (isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name)), price: planPrice, priceLabel: "/mois" },
-          { type: "TV" as const, name: "TV " + (isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name)), price: premiumChannelsTotal, priceLabel: "/mois", description: `${selectedPremiumChannels.length} chaînes premium` },
-          ...selectedStreamingServices.map(s => ({ 
-            type: "Streaming" as const, 
-            name: s.name, 
-            price: s.price_monthly, 
-            priceLabel: "/mois" 
+          {
+            type: "Internet" as const,
+            name: "Internet " + (isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name)),
+            price: planPrice,
+            priceLabel: "/mois",
+          },
+          {
+            type: "TV" as const,
+            name: "TV " + (isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name)),
+            price: premiumChannelsTotal,
+            priceLabel: "/mois",
+            description: `${selectedPremiumChannels.length} chaînes premium`,
+          },
+          ...selectedStreamingServices.map((s) => ({
+            type: "Streaming" as const,
+            name: s.name,
+            price: s.price_monthly,
+            priceLabel: "/mois",
+            refId: s.id,
           })),
-        ].filter(s => s.price > 0 || s.type !== "TV"),
+        ].filter((s) => s.price > 0 || s.type !== "TV"),
         equipment: [
           { name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: routerFee },
           { name: "Terminal Nivra 4K Smart", quantity: terminalCount, unitPrice: TERMINAL_DETAILS.price },
