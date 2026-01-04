@@ -13,6 +13,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       { labelKey: "services.mobile.title", href: "/mobile" },
       { labelKey: "services.internet.title", href: "/internet" },
       { labelKey: "services.tv.title", href: "/tv" },
+      { label: "Streaming+", href: "/streaming" },
       { labelKey: "services.business.title", href: "/services" },
     ],
     support: [
@@ -76,9 +77,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.services')}</h4>
             <ul className="space-y-2.5">
               {links.services.map((link) => (
-                <li key={link.labelKey}>
+                <li key={link.href}>
                   <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {t(link.labelKey)}
+                    {'label' in link ? link.label : t(link.labelKey)}
                   </Link>
                 </li>
               ))}
