@@ -463,10 +463,10 @@ const About = () => {
                         Ouvrir un ticket
                       </Button>
                     </Link>
-                    <Link to="/book" className="flex-1">
+                    <Link to="/contact" className="flex-1">
                       <Button variant="outline" className="w-full border-border">
                         <Clock className="w-4 h-4 mr-2" />
-                        Prendre rendez-vous
+                        Demander une soumission
                       </Button>
                     </Link>
                   </div>

@@ -107,11 +107,11 @@ const AdminDashboard = () => {
       description: "Nécessitent une action",
     },
     {
-      title: "Consultations à venir",
+      title: "Rendez-vous à venir",
       value: stats?.appointments || 0,
       icon: Calendar,
       color: "text-emerald-400",
-      description: "Rendez-vous planifiés",
+      description: "Installations planifiées",
     },
     {
       title: "Économies clients",
@@ -328,7 +328,7 @@ const AdminDashboard = () => {
               >
                 <MessageSquare className="w-6 h-6 text-cyan-400 mb-2" />
                 <h3 className="font-medium text-foreground">Voir les demandes</h3>
-                <p className="text-sm text-muted-foreground">Traiter les nouvelles demandes de consultation</p>
+                <p className="text-sm text-muted-foreground">Traiter les nouvelles demandes de soumission</p>
               </Link>
               <Link
                 to="/admin/orders"

@@ -26,7 +26,7 @@ const FAQ = () => {
       ],
     },
     {
-      title: t('faq.cat.consultations'),
+      title: t('faq.cat.orders'),
       questions: [
         { q: t('faq.consult.q1'), a: t('faq.consult.a1') },
         { q: t('faq.consult.q2'), a: t('faq.consult.a2') },
