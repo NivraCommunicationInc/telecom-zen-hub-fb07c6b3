@@ -172,9 +172,12 @@ const ClientMyServices = () => {
   const { data: orders } = useQuery({
     queryKey: ["client-services-orders", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("orders")
         .select("*")
+        .eq("user_id", user.id)
         .neq("status", "cancelled") // Exclude cancelled orders from client view
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -187,9 +190,12 @@ const ClientMyServices = () => {
   const { data: tickets } = useQuery({
     queryKey: ["client-services-tickets", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("support_tickets")
         .select("*, ticket_replies(*)")
+        .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -217,9 +223,12 @@ const ClientMyServices = () => {
   const { data: billingRecords } = useQuery({
     queryKey: ["client-billing-info", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("billing")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -232,9 +241,12 @@ const ClientMyServices = () => {
   const { data: payments } = useQuery({
     queryKey: ["client-payments-info", user?.id],
     queryFn: async () => {
+      if (!user?.id) return [];
+      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await supabase
         .from("payments")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;
