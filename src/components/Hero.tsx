@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Shield, Clock, BadgeCheck } from "lucide-react";
+import { ArrowRight, Zap, Calendar, HeadphonesIcon, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -54,7 +54,7 @@ const Hero = () => {
           </div>
 
           {/* Main Heading with 3D Text Effect */}
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary-foreground leading-tight mb-6 animate-fade-in text-3d-dark" style={{ animationDelay: "0.1s" }}>
+          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary-foreground leading-tight mb-6 animate-fade-in text-3d-dark" style={{ animationDelay: "0.1s" }}>
             {t('hero.title1')}
             <br />
             <span className="text-gradient text-3d">{t('hero.title2')}</span>
@@ -67,11 +67,9 @@ const Hero = () => {
 
           {/* CTA Buttons with 3D Effect */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <Button variant="hero" size="xl" className="group btn-3d" asChild>
-              <Link to="/portal/new-order">
-                {t('hero.cta.order')}
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </Link>
+            <Button variant="hero" size="xl" className="group btn-3d" onClick={scrollToContact}>
+              {t('hero.cta.order')}
+              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </Button>
             <Button 
               variant="heroOutline" 
@@ -83,25 +81,31 @@ const Hero = () => {
             </Button>
           </div>
 
-          {/* Trust Indicators with 3D Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
-            <div className="flex items-center gap-3 justify-center sm:justify-start p-4 rounded-xl glass-premium card-3d">
+          {/* Trust Bar - 4 items */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
+            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <Shield className="w-5 h-5 text-cyan-400" />
+                <Zap className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.services')}</span>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.activation')}</span>
             </div>
             <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <BadgeCheck className="w-5 h-5 text-cyan-400" />
+                <Calendar className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.clients')}</span>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.installation')}</span>
             </div>
-            <div className="flex items-center gap-3 justify-center sm:justify-end p-4 rounded-xl glass-premium card-3d">
+            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
-                <Clock className="w-5 h-5 text-cyan-400" />
+                <HeadphonesIcon className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.quebec')}</span>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.support')}</span>
+            </div>
+            <div className="flex items-center gap-3 justify-center p-4 rounded-xl glass-premium card-3d">
+              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center shadow-glow">
+                <Building2 className="w-5 h-5 text-cyan-400" />
+              </div>
+              <span className="text-sm text-cyan-100/80 font-medium">{t('hero.trust.solutions')}</span>
             </div>
           </div>
         </div>
