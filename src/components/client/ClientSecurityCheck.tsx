@@ -1,7 +1,7 @@
 import { useEffect, useState, ReactNode, useCallback } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { Loader2 } from "lucide-react";
 
 interface ClientSecurityCheckProps {
@@ -9,7 +9,7 @@ interface ClientSecurityCheckProps {
 }
 
 const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useClientAuth();
   const location = useLocation();
   const [securityStatus, setSecurityStatus] = useState<string | null>(null);
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
@@ -22,7 +22,7 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("security_status, account_status")
         .eq("user_id", user.id)
@@ -57,7 +57,7 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
+    const channel = portalSupabase
       .channel(`security-check-${user.id}`)
       .on(
         "postgres_changes",
@@ -81,7 +81,7 @@ const ClientSecurityCheck = ({ children }: ClientSecurityCheckProps) => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      portalSupabase.removeChannel(channel);
     };
   }, [user]);
 

@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/portalClient";
 import { 
   ShoppingCart, 
   Smartphone, 
@@ -465,7 +465,7 @@ const StreamingPlusSection = ({ selectedStreamingServices, onStreamingServicesCh
 };
 
 const ClientNewOrder = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { isClient } = useRoleAccess();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

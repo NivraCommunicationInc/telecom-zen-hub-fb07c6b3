@@ -12,8 +12,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
 import { KeyRound, Shield, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
 import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";
@@ -24,7 +24,7 @@ interface PinStatus {
 }
 
 export const ClientPinManagement = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pinStatus, setPinStatus] = useState<PinStatus>({ hasPin: false, isDefault: false });

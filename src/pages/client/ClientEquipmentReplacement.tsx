@@ -21,9 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/portalClient";
 import { 
   Package, 
   Plus, 
@@ -62,7 +62,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 };
 
 const ClientEquipmentReplacement = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

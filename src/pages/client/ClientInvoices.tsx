@@ -3,9 +3,9 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { FileText, Download, CreditCard, DollarSign, Eye, Copy, CheckCircle, Banknote, AlertTriangle, Printer, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ const ETRANSFER_INFO = {
 type PaymentMethod = "etransfer" | "credit_card";
 
 const ClientInvoices = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("invoices");
   const [filterTab, setFilterTab] = useState("all");
@@ -62,7 +62,7 @@ const ClientInvoices = () => {
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("balance, store_credit, account_status, full_name, email, phone, client_number, service_address, service_city")
         .eq("user_id", user?.id)
@@ -78,7 +78,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("billing")
         .select("*")
         .eq("user_id", user.id)
@@ -102,7 +102,7 @@ const ClientInvoices = () => {
   const { data: payments, isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
     queryKey: ["client-payments", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("payments")
         .select("*")
         .order("created_at", { ascending: false });
@@ -146,14 +146,14 @@ const ClientInvoices = () => {
         paymentData.card_type = cardDetails.type;
       }
 
-      const { error: paymentError } = await supabase
+      const { error: paymentError } = await portalSupabase
         .from("payments")
         .insert(paymentData);
 
       if (paymentError) throw paymentError;
 
       // Get current profile
-      const { data: currentProfile } = await supabase
+      const { data: currentProfile } = await portalSupabase
         .from("profiles")
         .select("balance, store_credit")
         .eq("user_id", user.id)
@@ -164,7 +164,7 @@ const ClientInvoices = () => {
 
       // If paying an invoice
       if (invoiceId && !isGeneralPayment) {
-        const { data: invoice } = await supabase
+        const { data: invoice } = await portalSupabase
           .from("billing")
           .select("*")
           .eq("id", invoiceId)
@@ -177,7 +177,7 @@ const ClientInvoices = () => {
           
           if (newAmountPaid >= invoiceTotal) {
             // Full payment - mark as paid
-            await supabase
+            await portalSupabase
               .from("billing")
               .update({
                 status: "paid",
@@ -190,14 +190,14 @@ const ClientInvoices = () => {
             // If overpayment, add surplus to store credit
             if (newAmountPaid > invoiceTotal) {
               const surplus = newAmountPaid - invoiceTotal;
-              await supabase
+              await portalSupabase
                 .from("profiles")
                 .update({ store_credit: currentCredit + surplus })
                 .eq("user_id", user.id);
             }
           } else {
             // Partial payment - update amount_paid and set status to partial
-            await supabase
+            await portalSupabase
               .from("billing")
               .update({
                 status: "partial",
@@ -209,7 +209,7 @@ const ClientInvoices = () => {
         }
       } else {
         // General payment without a specific invoice - add to store credit
-        await supabase
+        await portalSupabase
           .from("profiles")
           .update({ store_credit: currentCredit + amount })
           .eq("user_id", user.id);

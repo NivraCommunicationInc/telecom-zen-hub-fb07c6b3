@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const ClientMonthlyInvoices = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);

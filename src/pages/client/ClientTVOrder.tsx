@@ -9,9 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/portalClient";
 import { 
   Tv, 
   Check, 
@@ -188,7 +188,7 @@ interface LocationState {
 }
 
 const ClientTVOrder = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();

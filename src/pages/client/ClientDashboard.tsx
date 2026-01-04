@@ -2,23 +2,23 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { Calendar, FileText, Package, MessageSquare, CreditCard, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import TVOrderStatusTracker from "@/components/client/TVOrderStatusTracker";
 
 const ClientDashboard = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
 
   const { data: appointments } = useQuery({
     queryKey: ["client-appointments", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Filter by client_id to ensure users only see their own appointments
-      const { data } = await supabase
+      const { data } = await portalSupabase
         .from("appointments")
         .select("*")
         .eq("client_id", user.id)
@@ -34,7 +34,7 @@ const ClientDashboard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Filter by user_id to ensure users only see their own orders
-      const { data } = await supabase
+      const { data } = await portalSupabase
         .from("orders")
         .select("*")
         .eq("user_id", user.id)
@@ -50,7 +50,7 @@ const ClientDashboard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Filter by user_id to ensure users only see their own invoices
-      const { data } = await supabase
+      const { data } = await portalSupabase
         .from("billing")
         .select("*")
         .eq("user_id", user.id)
@@ -66,7 +66,7 @@ const ClientDashboard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Filter by user_id to ensure users only see their own tickets
-      const { data } = await supabase
+      const { data } = await portalSupabase
         .from("support_tickets")
         .select("*")
         .eq("user_id", user.id)
@@ -80,7 +80,7 @@ const ClientDashboard = () => {
   const { data: subscriptions } = useQuery({
     queryKey: ["client-subscriptions", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await portalSupabase
         .from("subscriptions")
         .select("*")
         .eq("user_id", user?.id)

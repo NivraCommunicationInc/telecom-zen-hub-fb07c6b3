@@ -34,8 +34,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Users,
@@ -97,7 +97,7 @@ const permissionLevels = {
 };
 
 const ClientAuthorizedContacts: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();

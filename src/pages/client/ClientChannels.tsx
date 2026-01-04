@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,7 +75,7 @@ interface TVOrder {
 }
 
 const ClientChannels = () => {
-  const { user } = useAuth();
+  const { user } = useClientAuth();
   const queryClient = useQueryClient();
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<ChannelPackage[]>([]);
@@ -89,7 +89,7 @@ const ClientChannels = () => {
   const { data: channels = [], isLoading: channelsLoading } = useQuery({
     queryKey: ["tv-channels"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("tv_channels")
         .select("*")
         .eq("is_active", true)
@@ -103,7 +103,7 @@ const ClientChannels = () => {
   const { data: packages = [] } = useQuery({
     queryKey: ["channel-packages"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("channel_packages")
         .select("*")
         .eq("is_active", true)
@@ -119,7 +119,7 @@ const ClientChannels = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // Query orders that have TV in category OR service_type
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("orders")
         .select("id, order_number, service_type, status, selected_channels, created_at, category")
         .eq("user_id", user.id)
@@ -149,7 +149,7 @@ const ClientChannels = () => {
     queryKey: ["channel-selections", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("channel_selections")
         .select("*")
         .eq("user_id", user.id)
@@ -165,7 +165,7 @@ const ClientChannels = () => {
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
@@ -181,7 +181,7 @@ const ClientChannels = () => {
     queryKey: ["channel-tickets", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("support_tickets")
         .select("*")
         .eq("user_id", user.id)
@@ -196,7 +196,7 @@ const ClientChannels = () => {
   // Update order channels mutation
   const updateOrderChannelsMutation = useMutation({
     mutationFn: async ({ orderId, channels }: { orderId: string; channels: any[] }) => {
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("orders")
         .update({ 
           selected_channels: channels,
@@ -285,7 +285,7 @@ ${selectedPackages.map(pkg => `- ${pkg.name} ($${pkg.discounted_price}/mois - É
 Cette demande est en attente de confirmation par un administrateur.
       `.trim();
 
-      const { data: ticket, error: ticketError } = await supabase
+      const { data: ticket, error: ticketError } = await portalSupabase
         .from("support_tickets")
         .insert({
           user_id: user.id,
@@ -301,7 +301,7 @@ Cette demande est en attente de confirmation par un administrateur.
       if (ticketError) throw ticketError;
 
       // Create channel selection record
-      const { data: selection, error: selectionError } = await supabase
+      const { data: selection, error: selectionError } = await portalSupabase
         .from("channel_selections")
         .insert({
           user_id: user.id,

@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useClientAuth } from "@/hooks/useClientAuth";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 import { Loader2 } from "lucide-react";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
-  const { user, session, signOut, isLoading } = useAuth();
+  const { user, session, signOut, isLoading } = useClientAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
@@ -57,14 +57,14 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
           console.log("[ClientProtectedRoute] Session check interval exceeded, validating...");
 
           // Verify session is still valid with Supabase
-          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+          const { data: { session: currentSession }, error: sessionError } = await portalSupabase.auth.getSession();
 
           if (sessionError || !currentSession) {
             console.warn("[ClientProtectedRoute] Session expired or invalid");
             
             // Log security event
             try {
-              await supabase.from("admin_audit_log").insert({
+              await portalSupabase.from("admin_audit_log").insert({
                 admin_user_id: user.id,
                 admin_email: user.email,
                 action: "security_session_blocked",
@@ -92,7 +92,7 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
         }
 
         // Verify user has client role (or at least exists)
-        const { data: roleData, error: roleError } = await supabase
+        const { data: roleData, error: roleError } = await portalSupabase
           .from("user_roles")
           .select("role, status")
           .eq("user_id", user.id)
