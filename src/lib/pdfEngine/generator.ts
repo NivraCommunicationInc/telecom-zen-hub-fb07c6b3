@@ -29,8 +29,9 @@ import {
   getPageWidth,
   getPageHeight,
 } from "./helpers";
-import { BUSINESS_INFO, CONTRACT_TERMS, LATE_PAYMENT_POLICY, CANCELLATION_POLICY } from "../contractPolicies";
+import { BUSINESS_INFO, CONTRACT_TERMS } from "../contractPolicies";
 import { getContractEngineFooterLine } from "../contractTemplate";
+import { getEssentialTerms } from "./termsAndConditions";
 
 const { marginLeft, marginRight, contentWidth, fontSize } = PDF_LAYOUT;
 
@@ -52,7 +53,8 @@ const DOC_SUBTITLES = {
 
 export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   const doc = new jsPDF();
-  const companyName = data.company.legalName || BUSINESS_INFO.legalName;
+  const companyName = data.company.name || BUSINESS_INFO.name;
+  const companyLegalName = data.company.legalName || BUSINESS_INFO.legalName;
   
   const state: PDFState = {
     doc,
@@ -60,7 +62,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     pageNumber: 1,
   };
 
-  // Footer text for all pages
+  // Footer text for all pages - use correct contact info
   const footerText = `${companyName} — ${data.company.email} — ${data.company.phone}`;
 
   // Helper to add header on new pages
@@ -144,13 +146,15 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   addLabelValue(state, "Traité par", agentText, { addHeader });
 
   // ========== SERVICES (ONLY IF PRESENT) ==========
+  // IMPORTANT: Each service MUST be on its own row, never concatenated
   if (data.services.length > 0) {
     addSectionTitle(state, "Services inclus", { addHeader });
     
-    // Enhanced table with price label column
+    // Enhanced table with columns: TYPE | SERVICE/FORFAIT | QTÉ | PRIX | PÉRIODE
     const serviceWidths = [28, 70, 15, 25, 30];
     addTableHeader(state, ["TYPE", "SERVICE / FORFAIT", "QTÉ", "PRIX", "PÉRIODE"], serviceWidths, { addHeader });
     
+    // Each service is its own row - never combine multiple services
     data.services.forEach((service, index) => {
       const qty = service.quantity ? String(service.quantity) : "1";
       const serviceName = service.description 
@@ -259,9 +263,15 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     addTableHeader(state, ["DESCRIPTION", "RABAIS"], discountWidths, { addHeader });
     
     data.discounts.forEach((discount, index) => {
-      const desc = discount.promoCode 
-        ? `${discount.label} (Code: ${discount.promoCode})`
-        : discount.label;
+      let desc = discount.label;
+      if (discount.promoCode) {
+        desc = `${discount.label} (Code: ${discount.promoCode})`;
+      } else if (discount.type === "preauth") {
+        desc = "Rabais paiement préautorisé";
+      } else if (discount.type === "multiLine") {
+        desc = "Rabais multi-services";
+      }
+      
       addTableRow(
         state,
         [desc, `-${formatCurrency(discount.amount)}`],
@@ -277,13 +287,13 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   addSectionTitle(state, "Sommaire de facturation", { addHeader });
 
   // Summary rows - right aligned in a column
-  const addSummaryRow = (label: string, amount: string, isNegative = false) => {
+  const addSummaryRow = (label: string, amount: string, isNegative = false, isBold = false) => {
     if (checkPageBreak(state, 6)) {
       addNewPage(state, addHeader);
     }
     
     doc.setFontSize(fontSize.small);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
     setColor(doc, "muted");
     doc.text(label, marginLeft + 80, state.currentY);
     
@@ -306,13 +316,30 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     addSummaryRow("Rabais appliqués", `-${formatCurrency(data.billing.discountTotal)}`, true);
   }
   
+  // Calculate subtotal before taxes
+  const subtotalBeforeTax = data.billing.subtotal + data.billing.oneTimeTotal - data.billing.discountTotal;
+  addSummaryRow("Sous-total avant taxes", formatCurrency(subtotalBeforeTax), false, true);
+  
   addSummaryRow(`TPS (5%)`, formatCurrency(data.billing.tps));
   addSummaryRow(`TVQ (9.975%)`, formatCurrency(data.billing.tvq));
 
   state.currentY += 4;
 
   // Total box
-  addTotalBox(state, "TOTAL", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
+  addTotalBox(state, "TOTAL DÛ AUJOURD'HUI", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
+
+  // Estimated monthly (for contracts)
+  if (data.docType === "contract" && data.billing.subtotal > 0) {
+    const monthlyEstimate = data.billing.subtotal - (data.billing.discountTotal > 0 ? Math.min(data.billing.discountTotal, data.billing.subtotal * 0.1) : 0);
+    if (checkPageBreak(state, 8)) {
+      addNewPage(state, addHeader);
+    }
+    doc.setFontSize(fontSize.small);
+    doc.setFont("helvetica", "italic");
+    setColor(doc, "muted");
+    doc.text(`* Total mensuel estimé : ~${formatCurrency(monthlyEstimate)}/mois (avant taxes, sujet à changement)`, marginLeft, state.currentY);
+    state.currentY += 6;
+  }
 
   // ========== PAYMENT STATUS (Invoice/Estimate only) ==========
   if (data.docType !== "contract") {
@@ -353,33 +380,23 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
 
   // ========== CONTRACT-SPECIFIC: TERMS & SIGNATURE ==========
   if (data.docType === "contract") {
-    // Check if terms can fit on current page, otherwise start new page
-    const termsEstimatedHeight = 120; // Approximate height for all terms
-    if (checkPageBreak(state, termsEstimatedHeight)) {
-      addNewPage(state, addHeader);
-    }
+    // Start new page for terms to ensure proper layout
+    addNewPage(state, addHeader);
     
     addSectionTitle(state, "Termes et conditions", { addHeader });
     
-    // Prepaid terms
-    addSubHeader(state, "Services prépayés", { addHeader });
-    addParagraph(state, CONTRACT_TERMS.prepaidBilling, { addHeader, fontSize: fontSize.tiny });
+    // Get essential terms from the new terms file
+    const terms = getEssentialTerms();
     
-    // Cancellation
-    addSubHeader(state, "Annulation", { addHeader });
-    addParagraph(state, CANCELLATION_POLICY.fr, { addHeader, fontSize: fontSize.tiny });
-    
-    // Late payment
-    addSubHeader(state, "Paiement en retard", { addHeader });
-    addParagraph(state, LATE_PAYMENT_POLICY.fr, { addHeader, fontSize: fontSize.tiny });
-    
-    // Liability
-    addSubHeader(state, "Responsabilité", { addHeader });
-    addParagraph(state, CONTRACT_TERMS.liability, { addHeader, fontSize: fontSize.tiny });
-    
-    // Jurisdiction
-    addSubHeader(state, "Juridiction", { addHeader });
-    addParagraph(state, CONTRACT_TERMS.jurisdiction, { addHeader, fontSize: fontSize.tiny });
+    terms.forEach((term) => {
+      // Check page break before each term
+      if (checkPageBreak(state, 20)) {
+        addNewPage(state, addHeader);
+      }
+      
+      addSubHeader(state, term.title, { addHeader });
+      addParagraph(state, term.content, { addHeader, fontSize: fontSize.tiny });
+    });
     
     // Signature section - flows naturally
     const sigBoxWidth = (contentWidth - 10) / 2;
@@ -546,4 +563,6 @@ export function viewUnifiedPDF(data: UnifiedDocumentData): void {
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
+  // Clean up after delay
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }

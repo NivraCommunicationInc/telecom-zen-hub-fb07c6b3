@@ -36,6 +36,13 @@ export {
   type ClientProfile,
 } from "./adapters";
 
+// Re-export terms and conditions
+export {
+  PDF_TERMS,
+  getAllTerms,
+  getEssentialTerms,
+} from "./termsAndConditions";
+
 // Sample data for testing
 export {
   sampleMobileOnly,
