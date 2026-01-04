@@ -126,11 +126,49 @@ const ClientContracts = () => {
         return;
       }
 
+      // Fetch linked order with service details
       const { data: linkedOrder } = await supabase
         .from("orders")
-        .select("id, order_number, created_at, subtotal, tps_amount, tvq_amount, total_amount, activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee")
+        .select(`
+          id, order_number, created_at, service_type,
+          subtotal, tps_amount, tvq_amount, total_amount, 
+          activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee
+        `)
         .eq("related_contract_id", contract.id)
         .maybeSingle();
+      
+      // Parse service type to determine individual services and prices
+      const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
+      const subtotal = Number(linkedOrder?.subtotal ?? 0);
+      
+      // Build individual service prices based on service type
+      let internetPlan: string | undefined;
+      let internetPrice: number | undefined;
+      let tvBundle: string | undefined;
+      let tvPrice: number | undefined;
+      let mobilePlan: string | undefined;
+      let mobilePrice: number | undefined;
+      let streamingPlan: string | undefined;
+      let streamingPrice: number | undefined;
+      
+      if (serviceType.includes("internet") || serviceType.includes("fibre")) {
+        internetPlan = "Internet Résidentiel";
+        internetPrice = subtotal > 0 ? subtotal : 50;
+      }
+      if (serviceType.includes("tv") || serviceType.includes("télé")) {
+        tvBundle = "Forfait TV";
+        tvPrice = 35;
+      }
+      if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
+        mobilePlan = "Forfait Mobile Prépayé";
+        mobilePrice = 60;
+      }
+      if (serviceType.includes("streaming")) {
+        streamingPlan = "Streaming+";
+        streamingPrice = 15;
+      }
+      
+      const hasSpecificServices = internetPlan || tvBundle || mobilePlan || streamingPlan;
 
       const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
       const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
@@ -159,7 +197,18 @@ const ClientContracts = () => {
         serviceProvince: profile?.service_province || "QC",
         servicePostalCode: profile?.service_postal_code || "",
 
-        servicePlan: contract.contract_name || "Services",
+        // Individual service plans with prices
+        internetPlan: internetPlan,
+        internetPrice: internetPrice,
+        tvBundle: tvBundle,
+        tvPrice: tvPrice,
+        mobilePlan: mobilePlan,
+        mobilePrice: mobilePrice,
+        streamingPlan: streamingPlan,
+        streamingPrice: streamingPrice,
+        
+        // Fallback service plan only if no specific services detected
+        servicePlan: hasSpecificServices ? undefined : (contract.contract_name || "Services"),
 
         activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activation),
         deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
@@ -168,7 +217,7 @@ const ClientContracts = () => {
         terminalCount: Number(linkedOrder?.terminal_count ?? 0),
         routerFee: Number(linkedOrder?.router_fee ?? 0),
 
-        subtotal: Number(linkedOrder?.subtotal ?? 0),
+        subtotal: subtotal,
         tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
         tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
         totalAmount: Number(linkedOrder?.total_amount ?? 0),
@@ -229,11 +278,49 @@ const ClientContracts = () => {
         return;
       }
 
+      // Fetch linked order with service details
       const { data: linkedOrder } = await supabase
         .from("orders")
-        .select("id, order_number, created_at, subtotal, tps_amount, tvq_amount, total_amount, activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee")
+        .select(`
+          id, order_number, created_at, service_type,
+          subtotal, tps_amount, tvq_amount, total_amount, 
+          activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee
+        `)
         .eq("related_contract_id", contract.id)
         .maybeSingle();
+      
+      // Parse service type to determine individual services and prices
+      const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
+      const subtotal = Number(linkedOrder?.subtotal ?? 0);
+      
+      // Build individual service prices based on service type
+      let internetPlan: string | undefined;
+      let internetPrice: number | undefined;
+      let tvBundle: string | undefined;
+      let tvPrice: number | undefined;
+      let mobilePlan: string | undefined;
+      let mobilePrice: number | undefined;
+      let streamingPlan: string | undefined;
+      let streamingPrice: number | undefined;
+      
+      if (serviceType.includes("internet") || serviceType.includes("fibre")) {
+        internetPlan = "Internet Résidentiel";
+        internetPrice = subtotal > 0 ? subtotal : 50;
+      }
+      if (serviceType.includes("tv") || serviceType.includes("télé")) {
+        tvBundle = "Forfait TV";
+        tvPrice = 35;
+      }
+      if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
+        mobilePlan = "Forfait Mobile Prépayé";
+        mobilePrice = 60;
+      }
+      if (serviceType.includes("streaming")) {
+        streamingPlan = "Streaming+";
+        streamingPrice = 15;
+      }
+      
+      const hasSpecificServices = internetPlan || tvBundle || mobilePlan || streamingPlan;
 
       const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
       const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
@@ -262,7 +349,18 @@ const ClientContracts = () => {
         serviceProvince: profile?.service_province || "QC",
         servicePostalCode: profile?.service_postal_code || "",
 
-        servicePlan: contract.contract_name || "Services",
+        // Individual service plans with prices
+        internetPlan: internetPlan,
+        internetPrice: internetPrice,
+        tvBundle: tvBundle,
+        tvPrice: tvPrice,
+        mobilePlan: mobilePlan,
+        mobilePrice: mobilePrice,
+        streamingPlan: streamingPlan,
+        streamingPrice: streamingPrice,
+        
+        // Fallback service plan only if no specific services detected
+        servicePlan: hasSpecificServices ? undefined : (contract.contract_name || "Services"),
 
         activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activation),
         deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
@@ -271,7 +369,7 @@ const ClientContracts = () => {
         terminalCount: Number(linkedOrder?.terminal_count ?? 0),
         routerFee: Number(linkedOrder?.router_fee ?? 0),
 
-        subtotal: Number(linkedOrder?.subtotal ?? 0),
+        subtotal: subtotal,
         tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
         tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
         totalAmount: Number(linkedOrder?.total_amount ?? 0),

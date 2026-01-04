@@ -246,77 +246,21 @@ export function orderToDocumentData(
     });
   }
   
-  // Discounts - detailed breakdown (only if present)
+  // DISCOUNTS REMOVED - Per requirement, no discounts should appear in contracts
   const discounts: DiscountItem[] = [];
   
-  // Pre-authorized payment discount
-  if (order.preauth_discount && order.preauth_discount > 0) {
-    discounts.push({
-      label: "Rabais paiement préautorisé",
-      amount: order.preauth_discount,
-      type: "preauth",
-    });
-  } else if (order.preauth_enabled) {
-    // Show label even if amount not specified yet
-    discounts.push({
-      label: "Rabais paiement préautorisé",
-      amount: 0,
-      type: "preauth",
-    });
-  }
-  
-  // Promo code discount
-  if (order.promo_discount && order.promo_discount > 0) {
-    discounts.push({
-      label: "Code promo",
-      amount: order.promo_discount,
-      promoCode: order.promo_code,
-      type: "promo",
-    });
-  }
-  
-  // Loyalty discount
-  if (order.loyalty_discount && order.loyalty_discount > 0) {
-    discounts.push({
-      label: "Rabais fidélité",
-      amount: order.loyalty_discount,
-      type: "loyalty",
-    });
-  }
-  
-  // Multi-line discount
-  if (order.multi_line_discount && order.multi_line_discount > 0) {
-    discounts.push({
-      label: "Rabais multi-lignes",
-      amount: order.multi_line_discount,
-      type: "multiLine",
-    });
-  }
-  
-  // Generic discount (fallback for legacy data without categorization)
-  if (order.discount_amount && order.discount_amount > 0 && discounts.length === 0) {
-    discounts.push({
-      label: "Rabais promotionnel",
-      amount: order.discount_amount,
-      promoCode: order.promo_code,
-      type: "promo",
-    });
-  }
-  
-  // Calculate billing
+  // Calculate billing - no discounts applied
   const subtotal = order.subtotal || 0;
   const oneTimeTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0) +
     equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
-  // Sum all discounts from the discounts array
-  const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
   
-  const taxableAmount = subtotal + oneTimeTotal - discountTotal;
+  const taxableAmount = subtotal + oneTimeTotal;
   const taxes = calculateQuebecTaxes(taxableAmount);
   
   const billing: BillingSummary = {
     subtotal,
     oneTimeTotal,
-    discountTotal,
+    discountTotal: 0, // No discounts
     tps: order.tps_amount ?? taxes.tps,
     tvq: order.tvq_amount ?? taxes.tvq,
     total: order.total_amount || (taxableAmount + taxes.tps + taxes.tvq),

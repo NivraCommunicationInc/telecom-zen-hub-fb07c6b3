@@ -220,62 +220,9 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     oneTimeFees.push({ label: "Carte SIM", amount: data.simFee });
   }
   
-  // Build discounts - detailed breakdown
+  // DISCOUNTS REMOVED - Per requirement, no discounts should appear in contracts
+  // Keep empty discounts array for type compatibility
   const discounts: DiscountItem[] = [];
-  
-  // Pre-authorized payment discount
-  if (data.preauthDiscount && data.preauthDiscount > 0) {
-    discounts.push({ 
-      label: "Rabais paiement préautorisé", 
-      amount: data.preauthDiscount,
-      type: "preauth",
-    });
-  } else if (data.preauthEnabled) {
-    // Show label even if amount not specified
-    discounts.push({ 
-      label: "Rabais paiement préautorisé", 
-      amount: 0,
-      type: "preauth",
-    });
-  }
-  
-  // Promo code discount
-  if (data.promoDiscount && data.promoDiscount > 0) {
-    discounts.push({ 
-      label: "Code promo", 
-      amount: data.promoDiscount,
-      promoCode: data.promoCode,
-      type: "promo",
-    });
-  }
-  
-  // Loyalty discount
-  if (data.loyaltyDiscount && data.loyaltyDiscount > 0) {
-    discounts.push({ 
-      label: "Rabais fidélité", 
-      amount: data.loyaltyDiscount,
-      type: "loyalty",
-    });
-  }
-  
-  // Multi-line discount
-  if (data.multiLineDiscount && data.multiLineDiscount > 0) {
-    discounts.push({ 
-      label: "Rabais multi-lignes", 
-      amount: data.multiLineDiscount,
-      type: "multiLine",
-    });
-  }
-  
-  // Generic discount (fallback for legacy data)
-  if (data.discountAmount && data.discountAmount > 0 && discounts.length === 0) {
-    discounts.push({ 
-      label: "Rabais promotionnel", 
-      amount: data.discountAmount,
-      promoCode: data.promoCode,
-      type: "promo",
-    });
-  }
   
   // Calculate totals
   const equipmentTotal = equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
@@ -313,7 +260,7 @@ export function generateTelecomContractPDFLegacy(data: LegacyTelecomContractData
     billing: {
       subtotal: data.subtotal || data.monthlyAmount || 0,
       oneTimeTotal: equipmentTotal + feesTotal,
-      discountTotal: data.discountAmount || 0,
+      discountTotal: 0, // No discounts - always 0
       tps: data.tpsAmount || 0,
       tvq: data.tvqAmount || 0,
       total: data.totalAmount || data.monthlyAmount || 0,
