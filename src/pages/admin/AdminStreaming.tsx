@@ -2,6 +2,7 @@ import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,12 +78,22 @@ const AdminStreaming = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("services");
+  const [activeTab, setActiveTab] = useState("subscriptions");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [viewSubscriptionDialog, setViewSubscriptionDialog] = useState(false);
+  const [addNoteDialog, setAddNoteDialog] = useState(false);
+  const [changeStatusDialog, setChangeStatusDialog] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
+  const [newNote, setNewNote] = useState("");
+  const [newStatus, setNewStatus] = useState("");
+  
+  // Filters for subscriptions
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [planFilter, setPlanFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
   
   const [newService, setNewService] = useState({
     name: "",
@@ -108,7 +119,7 @@ const AdminStreaming = () => {
     },
   });
 
-  // Fetch client subscriptions with profiles
+  // Fetch client subscriptions with profiles, accounts, and payment methods
   const { data: subscriptions, isLoading: subsLoading } = useQuery({
     queryKey: ["admin-streaming-subscriptions"],
     queryFn: async () => {
@@ -121,17 +132,37 @@ const AdminStreaming = () => {
       // Fetch profiles for user_ids
       const userIds = [...new Set(subs?.map(s => s.user_id).filter(Boolean))];
       let profilesMap: Record<string, any> = {};
+      let accountsMap: Record<string, any> = {};
+      let paymentMethodsMap: Record<string, any> = {};
+      
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, full_name, email, client_number")
+          .select("user_id, full_name, email, phone, client_number")
           .in("user_id", userIds);
         profiles?.forEach(p => { profilesMap[p.user_id] = p; });
+        
+        // Fetch accounts
+        const { data: accounts } = await supabase
+          .from("accounts")
+          .select("id, account_number, client_id")
+          .in("client_id", userIds);
+        accounts?.forEach(a => { accountsMap[a.client_id] = a; });
+        
+        // Fetch payment methods
+        const { data: paymentMethods } = await supabase
+          .from("payment_methods")
+          .select("user_id, card_type, last_four, is_preauthorized")
+          .in("user_id", userIds)
+          .eq("is_default", true);
+        paymentMethods?.forEach(pm => { paymentMethodsMap[pm.user_id] = pm; });
       }
 
       return subs?.map(sub => ({
         ...sub,
         profile: profilesMap[sub.user_id] || null,
+        account: accountsMap[sub.user_id] || null,
+        payment_method: paymentMethodsMap[sub.user_id] || null,
       }));
     },
   });
@@ -253,10 +284,10 @@ const AdminStreaming = () => {
     },
   });
 
-  // Update subscription status
+  // Update subscription status with audit logging
   const updateSubscriptionMutation = useMutation({
-    mutationFn: async ({ id, status, internal_notes }: { id: string; status?: string; internal_notes?: string }) => {
-      const updateData: any = {};
+    mutationFn: async ({ id, status, internal_notes, userId }: { id: string; status?: string; internal_notes?: string; userId?: string }) => {
+      const updateData: any = { updated_at: new Date().toISOString() };
       if (status) updateData.status = status;
       if (internal_notes !== undefined) updateData.internal_notes = internal_notes;
       
@@ -265,10 +296,31 @@ const AdminStreaming = () => {
         .update(updateData)
         .eq("id", id);
       if (error) throw error;
+      
+      // Log to activity_logs
+      try {
+        await supabase.from("activity_logs").insert({
+          user_id: "system",
+          entity_type: "streaming_subscription",
+          entity_id: id,
+          action: status ? `status_changed_to_${status}` : "note_updated",
+          actor_name: "Admin",
+          actor_role: "admin",
+          details: { 
+            subscription_id: id, 
+            new_status: status,
+            note_added: internal_notes ? true : false,
+          },
+        });
+      } catch (logError) {
+        console.warn("Failed to log activity:", logError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-streaming-subscriptions"] });
       toast({ title: "Abonnement mis à jour" });
+      setChangeStatusDialog(false);
+      setAddNoteDialog(false);
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -295,13 +347,41 @@ const AdminStreaming = () => {
   });
 
   const filteredSubscriptions = subscriptions?.filter(s => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      s.profile?.full_name?.toLowerCase().includes(q) ||
-      s.profile?.email?.toLowerCase().includes(q) ||
-      s.streaming_services?.name?.toLowerCase().includes(q)
-    );
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = (
+        s.profile?.full_name?.toLowerCase().includes(q) ||
+        s.profile?.email?.toLowerCase().includes(q) ||
+        s.profile?.client_number?.toLowerCase().includes(q) ||
+        s.streaming_services?.name?.toLowerCase().includes(q) ||
+        s.id?.toLowerCase().includes(q)
+      );
+      if (!matchesSearch) return false;
+    }
+    
+    // Status filter
+    if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    
+    // Plan filter
+    if (planFilter !== "all" && s.streaming_service_id !== planFilter) return false;
+    
+    return true;
+  })?.sort((a, b) => {
+    // Sorting
+    switch (sortBy) {
+      case "oldest":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "next_billing":
+        return (a.end_date || "9999") > (b.end_date || "9999") ? 1 : -1;
+      case "price_high":
+        return (b.monthly_price || 0) - (a.monthly_price || 0);
+      case "price_low":
+        return (a.monthly_price || 0) - (b.monthly_price || 0);
+      case "newest":
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
   });
 
   const CategoryIcon = ({ category }: { category: string }) => {
@@ -435,12 +515,62 @@ const AdminStreaming = () => {
 
           {/* Subscriptions Tab */}
           <TabsContent value="subscriptions" className="space-y-4">
-            <div className="flex justify-end">
-              <Button onClick={() => setSubscriptionDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvel abonnement
-              </Button>
-            </div>
+            {/* Filters */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Statut</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tous les statuts" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les statuts</SelectItem>
+                        <SelectItem value="active">Actif</SelectItem>
+                        <SelectItem value="paused">Suspendu</SelectItem>
+                        <SelectItem value="cancelled">Annulé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Service</Label>
+                    <Select value={planFilter} onValueChange={setPlanFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tous les services" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les services</SelectItem>
+                        {services?.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Tri</Label>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tri par" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">Plus récent</SelectItem>
+                        <SelectItem value="oldest">Plus ancien</SelectItem>
+                        <SelectItem value="next_billing">Prochain renouvellement</SelectItem>
+                        <SelectItem value="price_high">Prix (décroissant)</SelectItem>
+                        <SelectItem value="price_low">Prix (croissant)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={() => setSubscriptionDialogOpen(true)} className="w-full">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nouvel abonnement
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardContent className="pt-6">
@@ -453,11 +583,13 @@ const AdminStreaming = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Client</TableHead>
+                        <TableHead>Compte</TableHead>
                         <TableHead>Service</TableHead>
                         <TableHead>Prix</TableHead>
                         <TableHead>Statut</TableHead>
                         <TableHead>Date début</TableHead>
-                        <TableHead>Notes (Interne)</TableHead>
+                        <TableHead>Promo</TableHead>
+                        <TableHead>Paiement</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -468,7 +600,13 @@ const AdminStreaming = () => {
                             <div>
                               <p className="font-medium">{sub.profile?.full_name || "Client inconnu"}</p>
                               <p className="text-xs text-muted-foreground">{sub.profile?.email}</p>
+                              {sub.profile?.phone && (
+                                <p className="text-xs text-muted-foreground">{sub.profile.phone}</p>
+                              )}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-xs">{sub.profile?.client_number || sub.account?.account_number || "—"}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -476,61 +614,83 @@ const AdminStreaming = () => {
                               {sub.streaming_services?.name}
                             </div>
                           </TableCell>
-                          <TableCell>${sub.monthly_price?.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <span className="font-medium">${sub.monthly_price?.toFixed(2)}</span>
+                            {sub.discount_amount && sub.discount_amount > 0 && (
+                              <span className="text-xs text-emerald-600 block">-${sub.discount_amount.toFixed(2)}</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={statusLabels[sub.status]?.variant || "default"}>
                               {statusLabels[sub.status]?.label || sub.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {sub.start_date && format(new Date(sub.start_date), "d MMM yyyy", { locale: fr })}
+                            <div className="text-sm">
+                              {sub.start_date && format(new Date(sub.start_date), "d MMM yyyy", { locale: fr })}
+                              {sub.end_date && (
+                                <p className="text-xs text-muted-foreground">
+                                  → {format(new Date(sub.end_date), "d MMM yyyy", { locale: fr })}
+                                </p>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            {sub.internal_notes ? (
-                              <div className="max-w-[200px] truncate text-xs text-amber-700 flex items-center gap-1">
-                                <Lock className="w-3 h-3" />
-                                {sub.internal_notes}
+                            {sub.promo_code ? (
+                              <div className="text-xs">
+                                <Badge variant="outline" className="text-emerald-600">{sub.promo_code}</Badge>
+                                {sub.discount_amount && <span className="block mt-1">-${sub.discount_amount}</span>}
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-xs">-</span>
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {sub.payment_method ? (
+                              <span className="text-xs">
+                                {sub.payment_method.card_type} •••• {sub.payment_method.last_four}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Interac</span>
                             )}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              {sub.status === "active" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-amber-600"
-                                  onClick={() => updateSubscriptionMutation.mutate({ id: sub.id, status: "paused" })}
-                                >
-                                  <AlertTriangle className="w-4 h-4" />
-                                </Button>
-                              )}
-                              {sub.status === "paused" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-green-600"
-                                  onClick={() => updateSubscriptionMutation.mutate({ id: sub.id, status: "active" })}
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </Button>
-                              )}
-                              {sub.status !== "cancelled" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive"
-                                  onClick={() => {
-                                    if (confirm("Annuler cet abonnement?")) {
-                                      updateSubscriptionMutation.mutate({ id: sub.id, status: "cancelled" });
-                                    }
-                                  }}
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </Button>
-                              )}
+                              {/* View details */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedSubscription(sub);
+                                  setViewSubscriptionDialog(true);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              {/* Change status */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedSubscription(sub);
+                                  setNewStatus(sub.status);
+                                  setChangeStatusDialog(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              {/* Add note */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedSubscription(sub);
+                                  setNewNote(sub.internal_notes || "");
+                                  setAddNoteDialog(true);
+                                }}
+                              >
+                                <Lock className="w-4 h-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -543,6 +703,164 @@ const AdminStreaming = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* View Subscription Dialog */}
+      <Dialog open={viewSubscriptionDialog} onOpenChange={setViewSubscriptionDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Détails de l'abonnement</DialogTitle>
+          </DialogHeader>
+          {selectedSubscription && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Client</Label>
+                  <p className="font-medium">{selectedSubscription.profile?.full_name || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="text-sm">{selectedSubscription.profile?.email || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Téléphone</Label>
+                  <p className="text-sm">{selectedSubscription.profile?.phone || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">N° Compte</Label>
+                  <p className="font-mono text-sm">{selectedSubscription.profile?.client_number || selectedSubscription.account?.account_number || "—"}</p>
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Service</Label>
+                  <p className="font-medium">{selectedSubscription.streaming_services?.name}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Prix mensuel</Label>
+                  <p className="font-bold text-primary">${selectedSubscription.monthly_price?.toFixed(2)}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Statut</Label>
+                  <Badge variant={statusLabels[selectedSubscription.status]?.variant || "default"}>
+                    {statusLabels[selectedSubscription.status]?.label || selectedSubscription.status}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Date de début</Label>
+                  <p className="text-sm">{selectedSubscription.start_date ? format(new Date(selectedSubscription.start_date), "d MMMM yyyy", { locale: fr }) : "—"}</p>
+                </div>
+              </div>
+              {(selectedSubscription.promo_code || selectedSubscription.discount_amount) && (
+                <>
+                  <Separator />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Code promo</Label>
+                      <Badge variant="outline" className="text-emerald-600">{selectedSubscription.promo_code || "—"}</Badge>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Rabais</Label>
+                      <p className="text-emerald-600 font-medium">-${selectedSubscription.discount_amount?.toFixed(2) || "0.00"}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+              <Separator />
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes internes</Label>
+                <p className="text-sm bg-amber-50 p-2 rounded border border-amber-200 min-h-[40px]">
+                  {selectedSubscription.internal_notes || "Aucune note"}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                <div>
+                  <Label className="text-xs">Créé le</Label>
+                  <p>{format(new Date(selectedSubscription.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Mis à jour</Label>
+                  <p>{selectedSubscription.updated_at ? format(new Date(selectedSubscription.updated_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" size="sm" onClick={() => window.open(`/admin/clients?id=${selectedSubscription.user_id}`, '_blank')}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Profil client
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Status Dialog */}
+      <Dialog open={changeStatusDialog} onOpenChange={setChangeStatusDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Changer le statut</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newStatus} onValueChange={setNewStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="paused">Suspendu</SelectItem>
+                <SelectItem value="cancelled">Annulé</SelectItem>
+              </SelectContent>
+            </Select>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setChangeStatusDialog(false)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedSubscription && newStatus) {
+                    updateSubscriptionMutation.mutate({ id: selectedSubscription.id, status: newStatus });
+                  }
+                }}
+                disabled={updateSubscriptionMutation.isPending}
+              >
+                Confirmer
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Note Dialog */}
+      <Dialog open={addNoteDialog} onOpenChange={setAddNoteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter une note interne</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea 
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Note interne (visible uniquement par l'admin)..."
+              rows={4}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddNoteDialog(false)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedSubscription) {
+                    updateSubscriptionMutation.mutate({ id: selectedSubscription.id, internal_notes: newNote });
+                  }
+                }}
+                disabled={updateSubscriptionMutation.isPending}
+              >
+                Sauvegarder
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Service Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
