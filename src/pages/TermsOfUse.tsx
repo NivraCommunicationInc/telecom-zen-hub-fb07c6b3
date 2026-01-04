@@ -20,7 +20,7 @@ const TermsOfUse = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">1. Acceptation des conditions</h2>
               <p>
-                En accédant au site web de Nivra et en utilisant nos services de courtage télécom, vous acceptez 
+                En accédant au site web de Nivra Telecom et en utilisant nos services télécom, vous acceptez 
                 d'être lié par les présentes conditions d'utilisation. Si vous n'acceptez pas ces conditions, 
                 veuillez ne pas utiliser nos services.
               </p>
@@ -29,31 +29,29 @@ const TermsOfUse = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">2. Description des services</h2>
               <p>
-                Nivra est un courtier télécom indépendant qui offre des services de conseil et d'analyse pour aider 
-                les clients à optimiser leurs services de télécommunications. Nos services comprennent :
+                Nivra Telecom est un fournisseur de services télécom au Québec. Nos services comprennent :
               </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Analyse de vos besoins en télécommunications</li>
-                <li>Comparaison des offres disponibles sur le marché</li>
-                <li>Recommandations personnalisées et impartiales</li>
-                <li>Accompagnement dans vos démarches</li>
+                <li>Activation de services mobiles, Internet, TV et sécurité</li>
+                <li>Installation et configuration d'équipements</li>
+                <li>Support technique et assistance</li>
+                <li>Gestion de compte et facturation</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">3. Indépendance</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">3. Prestation de services</h2>
               <p>
-                Nivra est un courtier 100% indépendant. Nous ne recevons aucune commission, rémunération ou 
-                compensation de la part des fournisseurs de télécommunications. Nos honoraires sont payés 
-                directement par nos clients, ce qui garantit notre impartialité totale dans nos recommandations.
+                Nivra Telecom s'engage à fournir des services télécom de qualité. Nos tarifs sont clairs 
+                et transparents. Aucuns frais cachés ne seront appliqués sans votre consentement préalable.
               </p>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">4. Tarification</h2>
               <p>
-                Nos services sont facturés selon un tarif fixe ou un abonnement, selon les services demandés. 
-                Les tarifs vous seront communiqués avant toute prestation. Aucuns frais cachés ne seront appliqués.
+                Nos services sont facturés selon les tarifs communiqués lors de la soumission. 
+                Les tarifs vous seront confirmés avant toute activation. Aucuns frais cachés ne seront appliqués.
               </p>
             </section>
 
@@ -71,16 +69,16 @@ const TermsOfUse = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">6. Limitation de responsabilité</h2>
               <p>
-                Nivra fournit des conseils et recommandations basés sur les informations disponibles au moment 
-                de la consultation. Nous ne garantissons pas les résultats spécifiques et ne sommes pas responsables 
-                des décisions prises par les fournisseurs de télécommunications ou des changements dans leurs offres.
+                Nivra Telecom fournit des services télécom basés sur les informations disponibles au moment 
+                de la soumission. Nous ne garantissons pas les résultats spécifiques et ne sommes pas responsables 
+                des décisions prises par des tiers ou des changements dans les offres.
               </p>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">7. Propriété intellectuelle</h2>
               <p>
-                Tout le contenu présent sur ce site (textes, images, logos, etc.) est la propriété de Nivra 
+                Tout le contenu présent sur ce site (textes, images, logos, etc.) est la propriété de Nivra Telecom 
                 et est protégé par les lois sur la propriété intellectuelle. Toute reproduction sans autorisation 
                 est interdite.
               </p>
@@ -89,7 +87,7 @@ const TermsOfUse = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">8. Modification des conditions</h2>
               <p>
-                Nivra se réserve le droit de modifier ces conditions d'utilisation à tout moment. Les modifications 
+                Nivra Telecom se réserve le droit de modifier ces conditions d'utilisation à tout moment. Les modifications 
                 entreront en vigueur dès leur publication sur ce site. Nous vous encourageons à consulter 
                 régulièrement cette page.
               </p>

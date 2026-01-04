@@ -5,7 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import ContactForm from "@/components/ContactForm";
 import { Button } from "@/components/ui/button";
 
-const BookConsultation = () => {
+const Contact = () => {
   const { t } = useLanguage();
 
   const benefits = [
@@ -101,4 +101,4 @@ const BookConsultation = () => {
   );
 };
 
-export default BookConsultation;
+export default Contact;

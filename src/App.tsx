@@ -10,7 +10,7 @@ import About from "./pages/About";
 import Careers from "./pages/Careers";
 import JobApplication from "./pages/JobApplication";
 import FAQ from "./pages/FAQ";
-import BookConsultation from "./pages/BookConsultation";
+import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import ServicesDetail from "./pages/ServicesDetail";
@@ -105,7 +105,7 @@ const App = () => (
               <Route path="/apply" element={<JobApplication />} />
               <Route path="/apply/:jobId" element={<JobApplication />} />
               <Route path="/faq" element={<FAQ />} />
-              <Route path="/book" element={<BookConsultation />} />
+              <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfUse />} />
               <Route path="/admin/login" element={<AdminLogin />} />

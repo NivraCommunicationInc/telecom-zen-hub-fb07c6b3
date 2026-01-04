@@ -168,8 +168,8 @@ const AdminRequests = () => {
     <AdminLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Demandes de consultation</h1>
-          <p className="text-muted-foreground mt-1">Gérer les demandes de consultation entrantes</p>
+          <h1 className="font-display text-3xl font-bold text-foreground">Demandes de soumission</h1>
+          <p className="text-muted-foreground mt-1">Gérer les demandes de soumission entrantes</p>
         </div>
 
         {/* Stats */}

@@ -9,9 +9,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
   const links = {
     services: [
-      { labelKey: "services.mobile.title", href: "/services" },
-      { labelKey: "services.internet.title", href: "/services" },
-      { labelKey: "services.tv.title", href: "/services" },
+      { labelKey: "services.mobile.title", href: "/mobile" },
+      { labelKey: "services.internet.title", href: "/internet" },
+      { labelKey: "services.tv.title", href: "/tv" },
       { labelKey: "services.business.title", href: "/services" },
     ],
     support: [
@@ -34,15 +34,22 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
                 <span className="font-display font-bold text-navy-900 text-xl">N</span>
               </div>
               <span className="font-display font-bold text-xl">Nivra Telecom</span>
             </div>
-            <p className="text-cyan-100/60 mb-6 max-w-xs">
+            
+            {/* Positioning statement */}
+            <p className="text-cyan-400 text-sm font-medium mb-4">
+              Activation • Installation • Support
+            </p>
+            
+            <p className="text-cyan-100/60 mb-6 max-w-xs text-sm">
               {t('footer.description')}
             </p>
+            
             <div className="space-y-3">
               <a href="tel:+14385442233" className="flex items-center gap-3 text-cyan-100/60 hover:text-cyan-300 transition-colors">
                 <Phone className="w-4 h-4" />

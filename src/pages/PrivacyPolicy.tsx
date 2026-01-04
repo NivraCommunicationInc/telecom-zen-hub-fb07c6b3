@@ -20,9 +20,9 @@ const PrivacyPolicy = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">1. Introduction</h2>
               <p>
-                Nivra (« nous », « notre » ou « nos ») s'engage à protéger la vie privée de ses clients et visiteurs. 
+                Nivra Telecom (« nous », « notre » ou « nos ») s'engage à protéger la vie privée de ses clients et visiteurs. 
                 Cette politique de confidentialité explique comment nous collectons, utilisons, divulguons et protégeons 
-                vos informations personnelles lorsque vous utilisez nos services de courtage télécom.
+                vos informations personnelles lorsque vous utilisez nos services télécom.
               </p>
             </section>
 
@@ -32,7 +32,7 @@ const PrivacyPolicy = () => {
               <ul className="list-disc pl-6 space-y-2">
                 <li><strong>Informations d'identification :</strong> nom, adresse courriel, numéro de téléphone</li>
                 <li><strong>Informations de facturation :</strong> adresse, informations de paiement</li>
-                <li><strong>Informations sur vos services télécom :</strong> factures actuelles, besoins en télécommunications</li>
+                <li><strong>Informations sur vos services télécom :</strong> besoins en télécommunications, équipement</li>
                 <li><strong>Informations techniques :</strong> adresse IP, type de navigateur, données de navigation</li>
               </ul>
             </section>
@@ -41,8 +41,8 @@ const PrivacyPolicy = () => {
               <h2 className="text-2xl font-display font-bold text-foreground">3. Utilisation des informations</h2>
               <p>Nous utilisons vos informations pour :</p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Analyser vos besoins en télécommunications et vous fournir des recommandations</li>
-                <li>Gérer votre compte et nos services de courtage</li>
+                <li>Activer et installer vos services télécom</li>
+                <li>Gérer votre compte et fournir le support technique</li>
                 <li>Communiquer avec vous concernant nos services</li>
                 <li>Améliorer nos services et votre expérience utilisateur</li>
                 <li>Respecter nos obligations légales</li>
@@ -50,12 +50,11 @@ const PrivacyPolicy = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">4. Indépendance et confidentialité</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">4. Protection des données</h2>
               <p>
-                En tant que courtier télécom 100% indépendant, nous ne partageons aucune information personnelle avec 
-                les fournisseurs de télécommunications sans votre consentement explicite. Nous ne recevons aucune 
-                rémunération des opérateurs télécom, ce qui garantit que vos données ne sont jamais utilisées à des 
-                fins commerciales par des tiers.
+                Nivra Telecom s'engage à protéger vos données personnelles. Nous ne partageons aucune information 
+                personnelle avec des tiers sans votre consentement explicite. Vos données sont utilisées 
+                uniquement pour la prestation de nos services télécom.
               </p>
             </section>
 

@@ -64,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: appointment, error: insertError } = await supabase
         .from("appointments")
         .insert({
-          title: scheduledEvent.name || "Consultation",
+          title: scheduledEvent.name || "Rendez-vous",
           scheduled_at: scheduledEvent.start_time,
           status: "scheduled",
           client_email: invitee.email.toLowerCase(),

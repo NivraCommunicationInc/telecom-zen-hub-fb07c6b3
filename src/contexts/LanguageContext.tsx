@@ -146,27 +146,27 @@ const translations: Record<Language, Record<string, string>> = {
     
     // FAQ Categories
     'faq.cat.about': 'À propos de Nivra',
-    'faq.cat.consultations': 'Commandes et rendez-vous',
+    'faq.cat.orders': 'Commandes et rendez-vous',
     'faq.cat.payments': 'Paiements et facturation',
     'faq.cat.security': 'Sécurité et accès',
     
     // FAQ Questions - About
     'faq.about.q1': 'Qu\'est-ce que Nivra?',
-    'faq.about.a1': 'Nivra est un fournisseur de télécommunications indépendant au Québec. Nous vendons nos propres services internes. Aucune affiliation carrier.',
-    'faq.about.q2': 'Travaillez-vous avec des carriers externes?',
-    'faq.about.a2': 'Non. Nivra n\'a aucune affiliation, partenariat ou entente avec des carriers. Modèle client-payeur uniquement.',
+    'faq.about.a1': 'Nivra est un fournisseur télécom au Québec. Nous offrons des services d\'activation, d\'installation et de support.',
+    'faq.about.q2': 'Comment fonctionne la mise en service?',
+    'faq.about.a2': 'Vous demandez une soumission, on confirme vos besoins, puis on planifie l\'activation et l\'installation si nécessaire.',
     'faq.about.q3': 'Comment Nivra est-il rémunéré?',
-    'faq.about.a3': 'Nivra est payé par ses clients (frais ou abonnements). Aucune commission carrier, aucun partenariat.',
+    'faq.about.a3': 'Nivra est payé par ses clients (frais ou abonnements). Tarification transparente.',
     'faq.about.q4': 'Quelles régions desservez-vous?',
     'faq.about.a4': 'Nivra offre ses services au Québec uniquement.',
-    'faq.about.q5': 'C\'est quoi mon Nivra?',
-    'faq.about.a5': 'Telecom',
+    'faq.about.q5': 'C\'est quoi Nivra?',
+    'faq.about.a5': 'Fournisseur télécom au Québec.',
     
-    // FAQ Questions - Consultations
+    // FAQ Questions - Orders
     'faq.consult.q1': 'Comment commander un service Nivra?',
-    'faq.consult.a1': 'Réservez une consultation gratuite ou passez commande en ligne. Pièce d\'identité gouvernementale requise.',
+    'faq.consult.a1': 'Demandez une soumission en ligne ou appelez-nous. Pièce d\'identité gouvernementale requise.',
     'faq.consult.q2': 'Y a-t-il une vérification de crédit?',
-    'faq.consult.a2': 'Non. Nivra ne fait aucune vérification de crédit. Seule une pièce d\'identité valide est requise.',
+    'faq:consult.a2': 'Non. Nivra ne fait aucune vérification de crédit. Seule une pièce d\'identité valide est requise.',
     'faq.consult.q3': 'Comment accéder à mon compte?',
     'faq.consult.a3': 'Connectez-vous via le portail client sur navigateur. Aucune application mobile disponible.',
     
@@ -197,10 +197,10 @@ const translations: Record<Language, Record<string, string>> = {
     'about.values.transparency': 'Frais transparents',
     'about.values.clientfirst': 'Client-payeur',
     
-    // Booking
-    'booking.title': 'Réservez votre',
-    'booking.title2': 'consultation',
-    'booking.subtitle': 'Choisissez un créneau qui vous convient pour votre consultation gratuite de 30 minutes.',
+    // Booking (now Contact/Soumission)
+    'booking.title': 'Demander une',
+    'booking.title2': 'soumission',
+    'booking.subtitle': 'Décrivez votre besoin et on vous répond rapidement.',
     
     // Auth
     'auth.login': 'Connexion',
@@ -359,25 +359,25 @@ const translations: Record<Language, Record<string, string>> = {
     
     // FAQ Categories
     'faq.cat.about': 'About Nivra',
-    'faq.cat.consultations': 'Orders and Appointments',
+    'faq.cat.orders': 'Orders and Appointments',
     'faq.cat.payments': 'Payments and Billing',
     'faq.cat.security': 'Security and Access',
     
     // FAQ Questions - About
     'faq.about.q1': 'What is Nivra?',
-    'faq.about.a1': 'Nivra is an independent telecommunications provider in Quebec. We sell our own internal services. No carrier affiliation.',
-    'faq.about.q2': 'Do you work with external carriers?',
-    'faq.about.a2': 'No. Nivra has no affiliation, partnership or agreement with carriers. Client-paid model only.',
+    'faq.about.a1': 'Nivra is a telecom provider in Quebec. We offer activation, installation and support services.',
+    'faq.about.q2': 'How does the service setup work?',
+    'faq.about.a2': 'You request a quote, we confirm your needs, then schedule activation and installation if needed.',
     'faq.about.q3': 'How is Nivra compensated?',
-    'faq.about.a3': 'Nivra is paid by clients (fees or subscriptions). No carrier commission, no partnership.',
+    'faq.about.a3': 'Nivra is paid by clients (fees or subscriptions). Transparent pricing.',
     'faq.about.q4': 'Which regions do you serve?',
     'faq.about.a4': 'Nivra offers services in Quebec only.',
-    'faq.about.q5': 'What is my Nivra?',
-    'faq.about.a5': 'Telecom',
+    'faq.about.q5': 'What is Nivra?',
+    'faq.about.a5': 'Telecom provider in Quebec.',
     
-    // FAQ Questions - Consultations
+    // FAQ Questions - Orders
     'faq.consult.q1': 'How do I order a Nivra service?',
-    'faq.consult.a1': 'Book a free consultation or order online. Government ID required.',
+    'faq.consult.a1': 'Request a quote online or call us. Government ID required.',
     'faq.consult.q2': 'Is there a credit check?',
     'faq.consult.a2': 'No. Nivra does not perform credit checks. Only valid ID is required.',
     'faq.consult.q3': 'How do I access my account?',
@@ -410,10 +410,10 @@ const translations: Record<Language, Record<string, string>> = {
     'about.values.transparency': 'Transparent Fees',
     'about.values.clientfirst': 'Client-Paid',
     
-    // Booking
-    'booking.title': 'Book your',
-    'booking.title2': 'consultation',
-    'booking.subtitle': 'Choose a time slot that works for you for your free 30-minute consultation.',
+    // Booking (now Contact/Quote)
+    'booking.title': 'Request a',
+    'booking.title2': 'quote',
+    'booking.subtitle': 'Describe your needs and we\'ll respond quickly.',
     
     // Auth
     'auth.login': 'Login',
