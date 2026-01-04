@@ -367,14 +367,18 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     }
 
     // E-Transfer info (only if applicable)
-    if (data.payment.method === "etransfer" || data.payment.status === "pending") {
+    if (data.payment.method === "etransfer") {
       state.currentY += 4;
       addSubHeader(state, "Paiement par Virement Interac", { addHeader });
-      addInfoBox(state, [
-        `Courriel : ${BUSINESS_INFO.paymentEmail}`,
-        `Question de sécurité : ${CONTRACT_TERMS.etransfer.securityQuestion}`,
-        `Réponse : ${CONTRACT_TERMS.etransfer.securityAnswer}`,
-      ], { addHeader });
+      addInfoBox(
+        state,
+        [
+          `Courriel : ${BUSINESS_INFO.paymentEmail}`,
+          `Référence : ${data.payment.reference || data.metadata.documentNumber}`,
+          "Instructions : envoyez un virement Interac et indiquez la référence ci-dessus.",
+        ],
+        { addHeader }
+      );
     }
   }
 
@@ -559,10 +563,6 @@ export function downloadUnifiedPDF(data: UnifiedDocumentData, filename?: string)
 }
 
 export function viewUnifiedPDF(data: UnifiedDocumentData): void {
-  const doc = generateUnifiedPDF(data);
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  // Clean up after delay
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  // Avoid popup blockers / blank tabs: download directly.
+  downloadUnifiedPDF(data);
 }

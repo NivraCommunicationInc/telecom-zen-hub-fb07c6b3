@@ -1037,6 +1037,7 @@ const ClientNewOrder = () => {
           name: service.name,
           price: Number(service.price),
           priceLabel,
+          refId: service.id,
         };
       });
       
@@ -1046,6 +1047,7 @@ const ClientNewOrder = () => {
         name: s.name,
         price: Number(s.monthly_price),
         priceLabel: "/mois",
+        refId: s.id,
       }));
       
       // Add paid channels as services
