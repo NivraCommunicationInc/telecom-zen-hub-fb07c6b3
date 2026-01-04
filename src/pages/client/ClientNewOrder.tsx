@@ -1211,10 +1211,25 @@ const ClientNewOrder = () => {
         ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
       ];
       
+      // Build discounts array (promo + preauth)
+      const discountsForLineItems = [
+        ...(appliedPromo && appliedPromo.discount_amount > 0 ? [{
+          name: `Rabais promotionnel (${appliedPromo.code})`,
+          amount: appliedPromo.discount_amount,
+          description: appliedPromo.name,
+        }] : []),
+        ...(acceptPreauthorized ? [{
+          name: "Rabais paiement préautorisé",
+          amount: PREAUTH_MONTHLY_DISCOUNT,
+          description: "5$/mois",
+        }] : []),
+      ];
+      
       const lineItems = buildOrderLineItems({
         services: [...servicesForLineItems, ...streamingForLineItems, ...paidChannelsForLineItems],
         equipment: equipmentForLineItems,
         fees: feesForLineItems,
+        discounts: discountsForLineItems,
       });
 
       const { data, error } = await supabase.from("orders").insert({
@@ -1228,13 +1243,25 @@ const ClientNewOrder = () => {
         installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
         installation_credit: installationCredit,
         installation_type: orderInstallationType,
-        discount_code: discountCode || null,
+        discount_code: appliedPromo?.code || discountCode || null,
+        discount_amount: appliedPromo?.discount_amount || 0,
+        promo_code: appliedPromo?.code || null,
+        promo_discount_amount: appliedPromo?.discount_amount || 0,
+        promo_details: appliedPromo ? {
+          id: appliedPromo.id,
+          code: appliedPromo.code,
+          name: appliedPromo.name,
+          discount_type: appliedPromo.discount_type,
+          discount_value: appliedPromo.discount_value,
+          discount_amount: appliedPromo.discount_amount,
+        } : null,
         status: "pending",
         payment_status: "pre_authorized",
         amount_paid: 0,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
-          (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : ''),
+          (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : '') +
+          (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${appliedPromo.discount_amount.toFixed(2)}$` : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
@@ -1337,13 +1364,14 @@ const ClientNewOrder = () => {
         delivery_fee: invoiceDeliveryFee,
         activation_fee: invoiceActivationFee,
         installation_fee: invoiceInstallationFee,
-        discount_amount: discountCode ? installationCredit : 0,
+        discount_amount: appliedPromo?.discount_amount || 0,
         tps_amount: invoiceTps,
         tvq_amount: invoiceTvq,
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? `SIM-${totalMobileLineQuantity}x` : null)),
         status: "pending",
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}`,
+        notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}` +
+          (appliedPromo ? `\nCode promo: ${appliedPromo.code} — Rabais: ${appliedPromo.discount_amount.toFixed(2)}$` : ''),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         preauth_discount_applied: acceptPreauthorized,
       });
@@ -1644,7 +1672,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const oneTimeFees = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
   const monthlyRecurring = subtotal + paidChannelTotal + streamingAddonsTotal;
   
-  const baseAmount = monthlyRecurring + oneTimeFees;
+  // Apply promo discount to base amount
+  const promoDiscount = appliedPromo?.discount_amount || 0;
+  const baseAmount = Math.max(0, monthlyRecurring + oneTimeFees - promoDiscount);
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
@@ -3354,21 +3384,39 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   <CardDescription>Avez-vous un code de réduction pour l'installation?</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Entrez votre code promo"
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value)}
-                    />
-                    <Button variant="outline" onClick={applyDiscountCode}>
-                      Appliquer
-                    </Button>
-                  </div>
-                  {installationCredit > 0 && (
-                    <p className="text-sm text-emerald-500 mt-2 flex items-center gap-1">
-                      <Check className="w-4 h-4" />
-                      Crédit de {installationCredit}$ appliqué sur l'installation
-                    </p>
+                  {appliedPromo ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-5 h-5 text-emerald-500" />
+                          <div>
+                            <p className="font-medium text-emerald-600">{appliedPromo.code}</p>
+                            <p className="text-xs text-muted-foreground">{appliedPromo.name}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-emerald-500">-{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {appliedPromo.discount_type === 'percent' ? `${appliedPromo.discount_value}%` : 'Montant fixe'}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={removePromo} className="text-destructive">
+                        Retirer le code promo
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Entrez votre code promo"
+                        value={discountCode}
+                        onChange={(e) => setDiscountCode(e.target.value)}
+                        disabled={isValidatingPromo}
+                      />
+                      <Button variant="outline" onClick={applyDiscountCode} disabled={isValidatingPromo}>
+                        {isValidatingPromo ? "..." : "Appliquer"}
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -3498,6 +3546,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <div className="flex justify-between text-sm">
                         <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    
+                    {/* Promo discount line */}
+                    {appliedPromo && appliedPromo.discount_amount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-emerald-500 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          Rabais promotionnel ({appliedPromo.code})
+                        </span>
+                        <span className="text-emerald-500 font-medium">
+                          -{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </span>
                       </div>
                     )}
                   </div>
