@@ -40,7 +40,7 @@ const Services = () => {
   ];
 
   return (
-    <section id="services" className="py-20 md:py-32 bg-background relative overflow-hidden">
+    <section id="services" className="section-padding bg-background relative overflow-hidden">
       {/* Subtle 3D Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 -right-20 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl" />
@@ -48,15 +48,15 @@ const Services = () => {
       </div>
 
       <div className="container mx-auto px-4 relative">
-        {/* Section Header with 3D Text */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4 card-3d">
+        {/* Section Header - Tighter */}
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <span className="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium mb-3">
             {t('services.badge')}
           </span>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
+          <h2 className="text-foreground mb-3">
             {t('services.title')}
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             {t('services.subtitle')}
           </p>
         </div>

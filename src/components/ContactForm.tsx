@@ -538,13 +538,20 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
           type="submit" 
           variant="hero" 
           size="lg" 
-          className="w-full group"
+          className="w-full group focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-primary disabled:opacity-70"
           disabled={isLoading}
         >
-          {isLoading 
-            ? (isFrench ? "Envoi en cours..." : "Sending...") 
-            : (isFrench ? "Envoyer" : "Send")}
-          {!isLoading && <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />}
+          {isLoading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+              {isFrench ? "Envoi en cours..." : "Sending..."}
+            </>
+          ) : (
+            <>
+              {isFrench ? "Envoyer la demande" : "Submit request"}
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </>
+          )}
         </Button>
 
         <p className="text-xs text-center text-cyan-100/50">
