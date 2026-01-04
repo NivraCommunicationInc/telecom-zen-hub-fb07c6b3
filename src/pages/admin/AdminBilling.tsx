@@ -911,11 +911,38 @@ const AdminBilling = () => {
     return base + fees + deliveryFee + installationFee + activationFee - credits;
   };
 
+  // Helper to fetch related order data for a billing entry
+  const fetchRelatedOrderData = async (bill: any) => {
+    // Try to find related order by order_id or related_order_number
+    let orderData = null;
+    if (bill.order_id) {
+      const { data } = await supabase
+        .from("orders")
+        .select("*, equipment_details, promo_code, promo_discount_amount, promo_details, service_type")
+        .eq("id", bill.order_id)
+        .maybeSingle();
+      orderData = data;
+    } else if (bill.related_order_number) {
+      const { data } = await supabase
+        .from("orders")
+        .select("*, equipment_details, promo_code, promo_discount_amount, promo_details, service_type")
+        .eq("order_number", bill.related_order_number)
+        .maybeSingle();
+      orderData = data;
+    }
+    return orderData;
+  };
+
   // PDF Invoice using jsPDF - no blank tabs
   const exportInvoicePDF = async (bill: any) => {
     try {
       const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
       const { safePDFDownload } = await import("@/lib/pdfUtils");
+      
+      // Fetch related order to get line_items
+      const orderData = await fetchRelatedOrderData(bill);
+      const equipmentDetails = orderData?.equipment_details;
+      const lineItems = equipmentDetails?.line_items || [];
       
       const subtotal = Number(bill.amount) || 0;
       const fees = Number(bill.fees) || 0;
@@ -929,22 +956,30 @@ const AdminBilling = () => {
       const clientEmail = bill.profiles?.email || bill.client_email || "";
       const clientPhone = bill.profiles?.phone || "";
       
-      // Parse promo from notes
-      const promoMatch = bill.notes?.match(/Promo:\s*(\w+)/i);
-      const promoCode = promoMatch ? promoMatch[1] : undefined;
+      // Extract promo code from order or notes
+      const promoCode = orderData?.promo_code || bill.notes?.match(/Promo:\s*(\w+)/i)?.[1];
+      const promoDiscount = Number(orderData?.promo_discount_amount) || Number(bill.discount_amount) || 0;
       
-      // Parse payment info
+      // Parse payment info from notes
       const paymentMethodMatch = bill.notes?.match(/\[Paiement reçu via (.*?)\]/);
       const paymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : null;
       const cardMatch = paymentMethod?.match(/\*\*\*\*(\d{4})/);
       const cardLast4 = cardMatch ? cardMatch[1] : undefined;
       
-      // Get service plan from notes or related order
-      const servicePlan = bill.notes?.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || "Services télécom";
+      // Get service plan from line_items or order or notes
+      let servicePlan = "Services télécom";
+      const serviceItems = lineItems.filter((li: any) => li.category === "service");
+      if (serviceItems.length > 0) {
+        servicePlan = serviceItems.map((li: any) => li.name).join(", ");
+      } else if (orderData?.service_type) {
+        servicePlan = orderData.service_type;
+      } else if (bill.notes) {
+        servicePlan = bill.notes.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || servicePlan;
+      }
       
       const invoiceData = {
         invoiceNumber: invoiceNum,
-        orderNumber: bill.related_order_number,
+        orderNumber: bill.related_order_number || orderData?.order_number,
         paymentReference: bill.payment_reference,
         clientNumber: bill.user_id?.slice(0, 8).toUpperCase(),
         clientName,
@@ -956,7 +991,7 @@ const AdminBilling = () => {
         deliveryFee,
         activationFee,
         installationFee,
-        discountAmount: Number(bill.discount_amount) || 0,
+        discountAmount: promoDiscount,
         preauthDiscount: Number(bill.preauth_discount) || 0,
         tpsAmount: Number(bill.tps_amount),
         tvqAmount: Number(bill.tvq_amount),
@@ -968,6 +1003,7 @@ const AdminBilling = () => {
         notes: bill.notes,
         servicePlan,
         promoCode,
+        promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
         paymentMethod: paymentMethod?.includes("Interac") ? "etransfer" as const : 
                        paymentMethod?.includes("Carte") ? "credit_card" as const : undefined,
         cardLast4,
@@ -990,6 +1026,11 @@ const AdminBilling = () => {
       const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
       const { safePDFOpen } = await import("@/lib/pdfUtils");
       
+      // Fetch related order to get line_items
+      const orderData = await fetchRelatedOrderData(bill);
+      const equipmentDetails = orderData?.equipment_details;
+      const lineItems = equipmentDetails?.line_items || [];
+      
       const subtotal = Number(bill.amount) || 0;
       const fees = Number(bill.fees) || 0;
       const credits = Number(bill.credits) || 0;
@@ -1002,11 +1043,24 @@ const AdminBilling = () => {
       const clientEmail = bill.profiles?.email || bill.client_email || "";
       const clientPhone = bill.profiles?.phone || "";
       
-      const servicePlan = bill.notes?.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || "Services télécom";
+      // Extract promo code from order or notes
+      const promoCode = orderData?.promo_code || bill.notes?.match(/Promo:\s*(\w+)/i)?.[1];
+      const promoDiscount = Number(orderData?.promo_discount_amount) || Number(bill.discount_amount) || 0;
+      
+      // Get service plan from line_items or order or notes
+      let servicePlan = "Services télécom";
+      const serviceItems = lineItems.filter((li: any) => li.category === "service");
+      if (serviceItems.length > 0) {
+        servicePlan = serviceItems.map((li: any) => li.name).join(", ");
+      } else if (orderData?.service_type) {
+        servicePlan = orderData.service_type;
+      } else if (bill.notes) {
+        servicePlan = bill.notes.split('\n')[0]?.replace(/\[.*?\]/g, '').trim() || servicePlan;
+      }
       
       const invoiceData = {
         invoiceNumber: invoiceNum,
-        orderNumber: bill.related_order_number,
+        orderNumber: bill.related_order_number || orderData?.order_number,
         paymentReference: bill.payment_reference,
         clientNumber: bill.user_id?.slice(0, 8).toUpperCase(),
         clientName,
@@ -1018,7 +1072,7 @@ const AdminBilling = () => {
         deliveryFee,
         activationFee,
         installationFee,
-        discountAmount: Number(bill.discount_amount) || 0,
+        discountAmount: promoDiscount,
         preauthDiscount: Number(bill.preauth_discount) || 0,
         dueDate: bill.due_date,
         createdAt: bill.created_at,
@@ -1026,6 +1080,8 @@ const AdminBilling = () => {
         paidAt: bill.paid_at,
         notes: bill.notes,
         servicePlan,
+        promoCode,
+        promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
       };
       
       const doc = generateInvoicePDF(invoiceData);
