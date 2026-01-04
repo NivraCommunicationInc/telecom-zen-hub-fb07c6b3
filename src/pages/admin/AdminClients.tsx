@@ -236,6 +236,22 @@ const AdminClients = () => {
     enabled: !!selectedClient?.user_id,
   });
 
+  // Fetch client streaming subscriptions (Streaming+)
+  const { data: clientStreamingSubscriptions } = useQuery({
+    queryKey: ["client-streaming-subscriptions", selectedClient?.user_id],
+    queryFn: async () => {
+      if (!selectedClient?.user_id) return [];
+      const { data, error } = await supabase
+        .from("client_streaming_subscriptions")
+        .select("*, streaming_services(*)")
+        .eq("user_id", selectedClient.user_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.user_id,
+  });
+
   const { data: clientAppointments } = useQuery({
     queryKey: ["client-appointments", selectedClient?.user_id],
     queryFn: async () => {
@@ -1498,6 +1514,7 @@ const AdminClients = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
+                        {/* Regular Subscriptions */}
                         {clientSubscriptions && clientSubscriptions.length > 0 ? (
                           <div className="space-y-3">
                             {clientSubscriptions.map((sub: any) => {
@@ -1518,6 +1535,11 @@ const AdminClients = () => {
                                         <p className="text-sm text-muted-foreground">
                                           {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
                                         </p>
+                                        {sub.start_date && (
+                                          <p className="text-xs text-muted-foreground">
+                                            Depuis le {format(new Date(sub.start_date), "d MMM yyyy", { locale: fr })}
+                                          </p>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -1563,6 +1585,43 @@ const AdminClients = () => {
                             })}
                           </div>
                         ) : (
+                          <div className="text-center py-4">
+                            <p className="text-muted-foreground text-sm">Aucun abonnement principal</p>
+                          </div>
+                        )}
+
+                        {/* Streaming+ Subscriptions */}
+                        {clientStreamingSubscriptions && clientStreamingSubscriptions.length > 0 && (
+                          <div className="mt-6 pt-4 border-t border-border">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Star className="w-5 h-5 text-purple-500" />
+                              <p className="font-medium">Streaming+</p>
+                            </div>
+                            <div className="space-y-2">
+                              {clientStreamingSubscriptions.map((streamSub: any) => (
+                                <div key={streamSub.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <Tv className="w-5 h-5 text-purple-400" />
+                                    <div>
+                                      <p className="font-medium text-sm">{streamSub.streaming_services?.name || "Service Streaming"}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {Number(streamSub.monthly_price || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                                        {streamSub.start_date && ` • Depuis ${format(new Date(streamSub.start_date), "d MMM yyyy", { locale: fr })}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge className={statusColors[streamSub.status] || statusColors.active}>
+                                    {streamSub.status === "active" ? "Actif" : streamSub.status === "cancelled" ? "Annulé" : streamSub.status}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* No services at all */}
+                        {(!clientSubscriptions || clientSubscriptions.length === 0) && 
+                         (!clientStreamingSubscriptions || clientStreamingSubscriptions.length === 0) && (
                           <div className="text-center py-8">
                             <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                             <p className="text-muted-foreground">Aucun service souscrit</p>
