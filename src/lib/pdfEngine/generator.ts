@@ -10,11 +10,8 @@ import {
 } from "./types";
 import type { PDFState } from "./helpers";
 import {
-} from "./types";
-import {
   addDocumentHeader,
   addPageHeaderCompact,
-  addDocumentFooter,
   addSectionTitle,
   addSubHeader,
   addLabelValue,
@@ -33,9 +30,9 @@ import {
   getPageHeight,
 } from "./helpers";
 import { BUSINESS_INFO, CONTRACT_TERMS, LATE_PAYMENT_POLICY, CANCELLATION_POLICY } from "../contractPolicies";
-import { ACTIVE_CONTRACT_TEMPLATE, getContractEngineFooterLine } from "../contractTemplate";
+import { getContractEngineFooterLine } from "../contractTemplate";
 
-const { marginLeft, marginRight, contentWidth, colors, fontSize } = PDF_LAYOUT;
+const { marginLeft, marginRight, contentWidth, fontSize } = PDF_LAYOUT;
 
 // ============= DOCUMENT TITLES =============
 
@@ -64,7 +61,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   };
 
   // Footer text for all pages
-  const footerText = `${companyName} — ${data.company.address} — ${data.company.email} — ${data.company.phone}`;
+  const footerText = `${companyName} — ${data.company.email} — ${data.company.phone}`;
 
   // Helper to add header on new pages
   const addHeader = () => {
@@ -83,12 +80,15 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     DOC_SUBTITLES[data.docType]
   );
 
-  // Company info box
-  addInfoBox(state, [
-    `Adresse : ${data.company.address}`,
+  // Company info box - compact
+  const companyLines = [
     `Courriel : ${data.company.email} | Tél : ${data.company.phone}`,
-    `Territoire : Province de Québec uniquement`,
-  ], { addHeader });
+  ];
+  // Only add city if available
+  if (data.client.serviceCity) {
+    companyLines.unshift(`Ville : ${data.client.serviceCity}, QC`);
+  }
+  addInfoBox(state, companyLines, { addHeader, height: companyLines.length * 5 + 6 });
 
   // ========== DOCUMENT IDENTIFICATION ==========
   addSectionTitle(state, "Identification du document", { addHeader });
@@ -98,11 +98,10 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     addLabelValue(state, "Référence commande", data.metadata.orderNumber, { addHeader });
   }
   addLabelValue(state, "Date d'émission", formatDate(data.metadata.date), { addHeader });
-  if (data.metadata.effectiveDate) {
+  
+  // Only show effective date if different from issue date
+  if (data.metadata.effectiveDate && data.metadata.effectiveDate !== data.metadata.date) {
     addLabelValue(state, "Date d'effet", formatDate(data.metadata.effectiveDate), { addHeader });
-  }
-  if (data.docType === "contract") {
-    addLabelValue(state, "Version template", data.metadata.version || ACTIVE_CONTRACT_TEMPLATE.version, { addHeader });
   }
 
   // ========== CLIENT INFORMATION ==========
@@ -117,59 +116,57 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     addLabelValue(state, "N° de compte", data.client.accountNumber, { addHeader });
   }
   
-  // Service address
+  // Service address - only if present
   if (data.client.serviceAddress) {
-    const fullAddress = [
+    const addressParts = [
       data.client.serviceAddress,
       data.client.serviceCity,
       data.client.serviceProvince || "QC",
       data.client.servicePostalCode,
-    ].filter(Boolean).join(", ");
-    addLabelValue(state, "Adresse de service", fullAddress, { addHeader });
+    ].filter(Boolean);
+    if (addressParts.length > 0) {
+      addLabelValue(state, "Adresse de service", addressParts.join(", "), { addHeader });
+    }
   }
   
-  // Billing address if different
+  // Billing address only if different
   if (data.client.billingAddress && data.client.billingAddress !== data.client.serviceAddress) {
     addLabelValue(state, "Adresse facturation", data.client.billingAddress, { addHeader });
   }
 
-  // Agent info
-  if (data.agent) {
-    addLabelValue(state, "Traité par", `${data.agent.name}${data.agent.role ? ` (${data.agent.role})` : ""}`, { addHeader });
-  } else {
-    addLabelValue(state, "Traité par", "Nivra Telecom", { addHeader });
-  }
+  // Agent info - always show
+  const agentText = data.agent?.name 
+    ? `${data.agent.name}${data.agent.role ? ` (${data.agent.role})` : ""}`
+    : "Nivra Telecom";
+  addLabelValue(state, "Traité par", agentText, { addHeader });
 
-  // ========== SERVICES (DYNAMIC) ==========
+  // ========== SERVICES (ONLY IF PRESENT) ==========
   if (data.services.length > 0) {
     addSectionTitle(state, "Services inclus", { addHeader });
     
-    const serviceWidths = [35, 70, 35, 30];
+    const serviceWidths = [35, 75, 20, 28];
     addTableHeader(state, ["TYPE", "SERVICE / FORFAIT", "QTÉ", "MENSUEL"], serviceWidths, { addHeader });
     
     data.services.forEach((service, index) => {
       const qty = service.quantity ? String(service.quantity) : "1";
+      const serviceName = service.description 
+        ? `${service.name} — ${service.description}` 
+        : service.name;
       addTableRow(
         state,
-        [
-          service.type,
-          service.name + (service.description ? ` — ${service.description}` : ""),
-          qty,
-          formatCurrency(service.monthlyPrice),
-        ],
+        [service.type, serviceName, qty, formatCurrency(service.monthlyPrice)],
         serviceWidths,
         index,
         { addHeader, rightAlignLast: true }
       );
     });
-
-    state.currentY += 4;
+    state.currentY += 2; // Minimal spacing
   }
 
-  // ========== TV CHANNELS SUMMARY (if applicable) ==========
-  if (data.tvSummary) {
-    addSubHeader(state, "Résumé chaînes TV", { addHeader });
-    
+  // ========== TV CHANNELS SUMMARY (ONLY IF TV SERVICE PRESENT) ==========
+  // Rule: Never list channels individually, only show counts
+  const hasTVService = data.services.some(s => s.type === "TV");
+  if (hasTVService && data.tvSummary) {
     const tvLines: string[] = [];
     if (data.tvSummary.baseChannels > 0) {
       tvLines.push(`Chaînes de base : ${data.tvSummary.baseChannels}`);
@@ -184,17 +181,24 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       tvLines.push(premiumText);
     }
     
+    // Only render if there's something to show
     if (tvLines.length > 0) {
-      addInfoBox(state, tvLines, { addHeader, bgColor: "background", accentColor: "primary" });
+      addSubHeader(state, "Résumé chaînes TV", { addHeader });
+      addInfoBox(state, tvLines, { 
+        addHeader, 
+        bgColor: "background", 
+        accentColor: "primary",
+        height: tvLines.length * 5 + 6,
+      });
     }
   }
 
-  // ========== EQUIPMENT (DYNAMIC) ==========
+  // ========== EQUIPMENT (ONLY IF PRESENT) ==========
   if (data.equipment.length > 0) {
     addSectionTitle(state, "Équipement", { addHeader });
     
-    const equipWidths = [55, 15, 45, 30, 30];
-    addTableHeader(state, ["ÉQUIPEMENT", "QTÉ", "N° SÉRIE / ID", "GARANTIE", "PRIX"], equipWidths, { addHeader });
+    const equipWidths = [60, 15, 40, 25, 28];
+    addTableHeader(state, ["ÉQUIPEMENT", "QTÉ", "N° SÉRIE", "GARANTIE", "PRIX"], equipWidths, { addHeader });
     
     data.equipment.forEach((item, index) => {
       addTableRow(
@@ -211,15 +215,14 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
         { addHeader, rightAlignLast: true }
       );
     });
-
-    state.currentY += 4;
+    state.currentY += 2;
   }
 
-  // ========== ONE-TIME FEES (DYNAMIC) ==========
+  // ========== ONE-TIME FEES (ONLY IF PRESENT) ==========
   if (data.oneTimeFees.length > 0) {
     addSectionTitle(state, "Frais uniques", { addHeader });
     
-    const feeWidths = [90, 85];
+    const feeWidths = [100, 68];
     addTableHeader(state, ["DESCRIPTION", "MONTANT"], feeWidths, { addHeader });
     
     data.oneTimeFees.forEach((fee, index) => {
@@ -232,15 +235,14 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
         { addHeader, rightAlignLast: true }
       );
     });
-
-    state.currentY += 4;
+    state.currentY += 2;
   }
 
-  // ========== DISCOUNTS (DYNAMIC) ==========
+  // ========== DISCOUNTS (ONLY IF PRESENT) ==========
   if (data.discounts.length > 0) {
     addSectionTitle(state, "Rabais / Promotions", { addHeader });
     
-    const discountWidths = [90, 85];
+    const discountWidths = [100, 68];
     addTableHeader(state, ["DESCRIPTION", "RABAIS"], discountWidths, { addHeader });
     
     data.discounts.forEach((discount, index) => {
@@ -255,8 +257,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
         { addHeader, rightAlignLast: true }
       );
     });
-
-    state.currentY += 4;
+    state.currentY += 2;
   }
 
   // ========== BILLING SUMMARY ==========
@@ -339,8 +340,11 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
 
   // ========== CONTRACT-SPECIFIC: TERMS & SIGNATURE ==========
   if (data.docType === "contract") {
-    // New page for terms
-    addNewPage(state, addHeader);
+    // Check if terms can fit on current page, otherwise start new page
+    const termsEstimatedHeight = 120; // Approximate height for all terms
+    if (checkPageBreak(state, termsEstimatedHeight)) {
+      addNewPage(state, addHeader);
+    }
     
     addSectionTitle(state, "Termes et conditions", { addHeader });
     
@@ -364,75 +368,80 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     addSubHeader(state, "Juridiction", { addHeader });
     addParagraph(state, CONTRACT_TERMS.jurisdiction, { addHeader, fontSize: fontSize.tiny });
     
-    // Signature section
+    // Signature section - flows naturally
+    const sigBoxWidth = (contentWidth - 10) / 2;
+    const sigBoxHeight = 35;
+    const signedStatusHeight = data.isSigned ? 18 : 0;
+    const totalSigHeight = sigBoxHeight + signedStatusHeight + 16;
+    
+    // Check if signatures fit on current page
+    if (checkPageBreak(state, totalSigHeight)) {
+      addNewPage(state, addHeader);
+    }
+    
     addSectionTitle(state, "Signatures", { addHeader });
     
     const pageWidth = getPageWidth(doc);
-    const sigBoxWidth = (contentWidth - 10) / 2;
-    const sigBoxHeight = 40;
-    
-    if (checkPageBreak(state, sigBoxHeight + 20)) {
-      addNewPage(state, addHeader);
-    }
     
     // Provider signature box
     setColor(doc, "primary", "fill");
     doc.roundedRect(marginLeft, state.currentY, sigBoxWidth, sigBoxHeight, 2, 2, "F");
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     setColor(doc, "white");
-    doc.text("POUR NIVRA TELECOM", marginLeft + sigBoxWidth / 2, state.currentY + 10, { align: "center" });
+    doc.text("POUR NIVRA TELECOM", marginLeft + sigBoxWidth / 2, state.currentY + 8, { align: "center" });
     
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text("Signature: ___________________", marginLeft + 8, state.currentY + 24);
-    doc.text("Date: ___________________", marginLeft + 8, state.currentY + 32);
+    doc.setFontSize(6);
+    doc.text("Signature: _________________", marginLeft + 6, state.currentY + 20);
+    doc.text("Date: _________________", marginLeft + 6, state.currentY + 28);
     
     // Client signature box
     const clientSigX = marginLeft + sigBoxWidth + 10;
     setColor(doc, "background", "fill");
     setColor(doc, "border", "draw");
+    doc.setLineWidth(0.5);
     doc.roundedRect(clientSigX, state.currentY, sigBoxWidth, sigBoxHeight, 2, 2, "FD");
     
     setColor(doc, "accent", "draw");
-    doc.setLineWidth(1.5);
+    doc.setLineWidth(1.2);
     doc.line(clientSigX, state.currentY + 2, clientSigX, state.currentY + sigBoxHeight - 2);
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     setColor(doc, "primary");
-    doc.text("POUR LE CLIENT", clientSigX + sigBoxWidth / 2, state.currentY + 10, { align: "center" });
+    doc.text("POUR LE CLIENT", clientSigX + sigBoxWidth / 2, state.currentY + 8, { align: "center" });
     
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     setColor(doc, "text");
-    doc.text(`Nom: ${data.client.fullName}`, clientSigX + 8, state.currentY + 18);
-    doc.text("Signature: ___________________", clientSigX + 8, state.currentY + 26);
-    doc.text("Date: ___________________", clientSigX + 8, state.currentY + 34);
+    doc.text(`Nom: ${data.client.fullName}`, clientSigX + 6, state.currentY + 16);
+    doc.text("Signature: _________________", clientSigX + 6, state.currentY + 24);
+    doc.text("Date: _________________", clientSigX + 6, state.currentY + 32);
     
-    state.currentY += sigBoxHeight + 8;
+    state.currentY += sigBoxHeight + 6;
     
-    // Signed status
+    // Signed status banner
     if (data.isSigned && data.signedAt) {
       setColor(doc, "success", "fill");
-      doc.roundedRect(marginLeft, state.currentY, contentWidth, 16, 2, 2, "F");
+      doc.roundedRect(marginLeft, state.currentY, contentWidth, 14, 2, 2, "F");
       
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       setColor(doc, "white");
-      doc.text("✓ SIGNÉ ÉLECTRONIQUEMENT", pageWidth / 2, state.currentY + 7, { align: "center" });
-      doc.setFontSize(7);
+      doc.text("✓ SIGNÉ ÉLECTRONIQUEMENT", pageWidth / 2, state.currentY + 6, { align: "center" });
+      doc.setFontSize(6);
       doc.setFont("helvetica", "normal");
-      doc.text(`Signé le ${formatDateTime(data.signedAt)}${data.signatureMethod ? ` (${data.signatureMethod})` : ""}`, pageWidth / 2, state.currentY + 13, { align: "center" });
+      doc.text(`Signé le ${formatDateTime(data.signedAt)}${data.signatureMethod ? ` (${data.signatureMethod})` : ""}`, pageWidth / 2, state.currentY + 11, { align: "center" });
       
-      state.currentY += 20;
+      state.currentY += 16;
     }
   }
 
-  // ========== NOTES ==========
-  if (data.notes) {
-    if (checkPageBreak(state, 30)) {
+  // ========== NOTES (ONLY IF PRESENT) ==========
+  if (data.notes && data.notes.trim()) {
+    if (checkPageBreak(state, 20)) {
       addNewPage(state, addHeader);
     }
     addSectionTitle(state, "Notes", { addHeader });

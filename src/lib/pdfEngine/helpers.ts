@@ -149,7 +149,7 @@ export const addLabelValue = (
 // ============= SECTION HEADERS =============
 
 /**
- * Adds a section title with divider line
+ * Adds a section title with divider line - compact spacing
  */
 export const addSectionTitle = (
   state: PDFState,
@@ -162,29 +162,30 @@ export const addSectionTitle = (
   const { doc } = state;
   const pageWidth = getPageWidth(doc);
 
-  if (checkPageBreak(state, 14)) {
+  if (checkPageBreak(state, 12)) {
     addNewPage(state, addHeader);
   }
 
-  state.currentY += 4;
+  // Minimal top spacing
+  state.currentY += 2;
 
   // Top divider line
   setColor(doc, "border", "draw");
   doc.setLineWidth(0.4);
   doc.line(marginLeft, state.currentY, pageWidth - marginRight, state.currentY);
-  state.currentY += 5;
+  state.currentY += 4;
 
   // Section title
   doc.setFontSize(fontSize.sectionTitle);
   doc.setFont("helvetica", "bold");
   setColor(doc, "primary");
   doc.text(title.toUpperCase(), marginLeft, state.currentY);
-  state.currentY += 3;
+  state.currentY += 2;
 
   // Bottom divider line
   setColor(doc, "border", "draw");
   doc.line(marginLeft, state.currentY, pageWidth - marginRight, state.currentY);
-  state.currentY += 6;
+  state.currentY += 4;
 };
 
 /**
@@ -251,7 +252,7 @@ export const addTableHeader = (
 };
 
 /**
- * Adds a table data row with alternating background
+ * Adds a table data row with alternating background and auto text wrapping
  */
 export const addTableRow = (
   state: PDFState,
@@ -265,7 +266,21 @@ export const addTableRow = (
 ): void => {
   const { addHeader = () => {}, rightAlignLast = false } = options;
   const { doc } = state;
-  const rowHeight = 5;
+  
+  // Calculate actual row height based on content wrapping
+  let maxLines = 1;
+  const wrappedColumns: string[][] = [];
+  
+  columns.forEach((col, i) => {
+    const maxWidth = widths[i] - 6;
+    doc.setFontSize(fontSize.tiny);
+    const wrapped = doc.splitTextToSize(col, maxWidth);
+    wrappedColumns.push(wrapped);
+    maxLines = Math.max(maxLines, wrapped.length);
+  });
+  
+  const lineHeight = 4;
+  const rowHeight = Math.max(5, maxLines * lineHeight + 1);
 
   if (checkPageBreak(state, rowHeight + 2)) {
     addNewPage(state, addHeader);
@@ -282,15 +297,17 @@ export const addTableRow = (
   setColor(doc, "text");
 
   let xPos = marginLeft + 3;
-  columns.forEach((col, i) => {
+  wrappedColumns.forEach((lines, i) => {
     const isLast = i === columns.length - 1;
-    const maxChars = Math.floor((widths[i] - 4) / 1.8);
-    const text = col.length > maxChars ? col.substring(0, maxChars - 1) + "…" : col;
     
     if (rightAlignLast && isLast) {
-      doc.text(text, marginLeft + contentWidth - 3, state.currentY, { align: "right" });
+      // For right-aligned, only show first line to prevent overlap
+      doc.text(lines[0] || "", marginLeft + contentWidth - 3, state.currentY, { align: "right" });
     } else {
-      doc.text(text, xPos, state.currentY);
+      // Multi-line support
+      lines.forEach((line, lineIdx) => {
+        doc.text(line, xPos, state.currentY + (lineIdx * lineHeight));
+      });
     }
     xPos += widths[i];
   });

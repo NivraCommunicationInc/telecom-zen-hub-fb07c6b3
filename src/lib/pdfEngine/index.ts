@@ -36,6 +36,15 @@ export {
   type ClientProfile,
 } from "./adapters";
 
+// Sample data for testing
+export {
+  sampleMobileOnly,
+  sampleInternetInstall,
+  sampleTVBundle,
+  sampleInvoiceMobile,
+  sampleInvoiceTVBundle,
+} from "./sampleData";
+
 // Legacy wrappers for backward compatibility
 export {
   generateTelecomContractPDF,
