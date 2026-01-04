@@ -108,8 +108,8 @@ const TermsOfUse = () => {
                 Pour toute question concernant ces conditions d'utilisation, veuillez nous contacter :
               </p>
               <ul className="list-none space-y-2">
-                <li><strong>Courriel :</strong> Nivratelecom@gmail.com</li>
-                <li><strong>Téléphone :</strong> 438-544-2233</li>
+                <li><strong>Courriel :</strong> Support@nivratelecom.ca</li>
+                <li><strong>Téléphone :</strong> 514-544-2233</li>
               </ul>
             </section>
           </div>

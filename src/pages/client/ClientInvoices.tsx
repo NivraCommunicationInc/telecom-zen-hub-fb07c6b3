@@ -18,10 +18,11 @@ import { downloadInvoicePDF, getInvoicePDFBlob, InvoiceData } from "@/lib/invoic
 import { safePDFPrint, safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
+import { ETRANSFER_CONFIG } from "@/config/company";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
-  email: "NivraTelecom@gmail.com",
+  email: ETRANSFER_CONFIG.emailDisplay,
   question: "Nom du client ou nom de l'entreprise",
   answer: "Votre nom complet ou le nom de votre entreprise",
 };
@@ -1350,7 +1351,7 @@ const ClientInvoices = () => {
                   {/* Payment Info */}
                   <div className="bg-muted rounded-lg p-4">
                     <p className="text-xs text-muted-foreground uppercase mb-2">Informations de paiement</p>
-                    <p className="text-sm"><strong>Virement Interac :</strong> NivraTelecom@gmail.com</p>
+                    <p className="text-sm"><strong>Virement Interac :</strong> Support@nivratelecom.ca</p>
                     <p className="text-sm"><strong>Question :</strong> Nom du client ou nom de l'entreprise</p>
                     <p className="text-sm"><strong>Réponse :</strong> Votre nom complet ou le nom de votre entreprise</p>
                   </div>

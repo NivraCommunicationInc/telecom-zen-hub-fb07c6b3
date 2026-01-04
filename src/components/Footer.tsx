@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   const { t } = useLanguage();
@@ -38,7 +39,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-bold text-lg text-white">Nivra Telecom</span>
+              <span className="font-bold text-lg text-white">{COMPANY_CONTACT.companyName}</span>
             </div>
             
             {/* Positioning statement */}
@@ -51,21 +52,21 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </p>
             
             <div className="space-y-3">
-              <a href="tel:+14385442233" className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
+              <a href={getTelLink()} className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
                 <Phone className="w-4 h-4" />
-                <span>438-544-2233</span>
+                <span>{COMPANY_CONTACT.supportPhoneDisplay}</span>
               </a>
-              <a href="mailto:support@nivra.ca" className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
+              <a href={getMailtoLink()} className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
                 <Mail className="w-4 h-4" />
-                <span>support@nivra.ca</span>
+                <span>{COMPANY_CONTACT.supportEmailDisplay}</span>
               </a>
               <div className="flex items-center gap-3 text-white/60 text-sm">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span>Montréal, Québec, Canada</span>
+                <span>{COMPANY_CONTACT.address}</span>
               </div>
               <div className="flex items-center gap-3 text-white/60 text-sm">
                 <Clock className="w-4 h-4 flex-shrink-0" />
-                <span>Lun–Ven : 9 h – 18 h (HE)</span>
+                <span>{COMPANY_CONTACT.supportHours}</span>
               </div>
             </div>
           </div>

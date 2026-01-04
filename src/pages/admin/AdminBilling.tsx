@@ -96,7 +96,7 @@ const generatePaymentReference = () => {
 
 // E-transfer payment info for clients
 const ETRANSFER_INFO = {
-  email: "NivraTelecom@gmail.com",
+  email: "Support@nivratelecom.ca",
   question: "Nom du client ou nom de l'entreprise",
   answer: "Le nom complet du client ou le nom de l'entreprise",
 };
@@ -1073,7 +1073,7 @@ const AdminBilling = () => {
             <div class="logo">NIVRA</div>
             <div class="tagline">Compagnie Télécom Indépendante</div>
             <div class="company-info">
-              <p>Montréal, QC, Canada | Tél: 438-544-2233 | Nivratelecom@gmail.com</p>
+              <p>Montréal, QC, Canada | Tél: 514-544-2233 | Support@nivratelecom.ca</p>
               <p>TPS: 123456789 RT0001 | TVQ: 1234567890 TQ0001</p>
             </div>
           </div>

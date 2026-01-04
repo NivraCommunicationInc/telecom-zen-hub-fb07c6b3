@@ -58,7 +58,7 @@ const joinUrl = (baseUrl: string, path: string): string => {
 
 const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string, supportPhone?: string) => {
   const email = supportEmail || "Support@nivratelecom.ca";
-  const phone = supportPhone || "438-544-2233";
+  const phone = supportPhone || "514-544-2233";
   const phoneDigits = phone.replace(/[^0-9]/g, "");
 
   return `
@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
   const emailFromAddress = "Nivra Telecom <support@nivratelecom.ca>";
   const emailReplyTo = "support@nivratelecom.ca";
   const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "Support@nivratelecom.ca";
-  const supportPhone = Deno.env.get("SUPPORT_PHONE") || "438-544-2233";
+  const supportPhone = Deno.env.get("SUPPORT_PHONE") || "514-544-2233";
 
   // Validate APP_BASE_URL - must be single valid URL, never ALLOWED_ORIGINS
   const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");

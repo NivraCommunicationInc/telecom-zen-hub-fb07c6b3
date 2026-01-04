@@ -652,11 +652,11 @@ export const ProfessionalConfirmation = ({
               <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  438-544-2233
+                  514-544-2233
                 </span>
                 <span className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
-                  support@nivra.ca
+                  Support@nivratelecom.ca
                 </span>
                 <span className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />

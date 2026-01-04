@@ -65,16 +65,16 @@ const Contact = () => {
                   <h4 className="font-medium text-foreground mb-3">Nous joindre</h4>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href="tel:+14385442233">
+                    <a href="tel:+15145442233">
                       <Phone className="w-4 h-4 text-cyan-400" />
-                      <span>438-544-2233</span>
+                      <span>514-544-2233</span>
                     </a>
                   </Button>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href="mailto:Nivratelecom@gmail.com">
+                    <a href="mailto:support@nivratelecom.ca">
                       <Mail className="w-4 h-4 text-cyan-400" />
-                      <span>Nivratelecom@gmail.com</span>
+                      <span>Support@nivratelecom.ca</span>
                     </a>
                   </Button>
                   

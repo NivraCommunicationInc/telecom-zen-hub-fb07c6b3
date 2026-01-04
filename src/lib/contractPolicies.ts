@@ -2,16 +2,18 @@
 // Prepaid Telecommunications Service Agreement — Province of Québec
 // CRTC-Compliant Consumer Protection Template
 
+import { COMPANY_CONTACT, ETRANSFER_CONFIG } from "@/config/company";
+
 export const BUSINESS_INFO = {
-  name: "Nivra Telecom",
-  legalName: "Nivra Communications Inc.",
-  brandName: "Nivra Telecom",
-  address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
-  phone: "438-544-2233",
-  email: "Nivratelecom@gmail.com",
-  paymentEmail: "Nivratelecom@gmail.com",
-  website: "www.nivra.ca",
-  serviceTerritory: "Province of Québec only",
+  name: COMPANY_CONTACT.companyName,
+  legalName: COMPANY_CONTACT.legalName,
+  brandName: COMPANY_CONTACT.companyName,
+  address: COMPANY_CONTACT.fullAddress,
+  phone: COMPANY_CONTACT.supportPhoneDisplay,
+  email: COMPANY_CONTACT.supportEmailDisplay,
+  paymentEmail: COMPANY_CONTACT.paymentEmail,
+  website: COMPANY_CONTACT.website,
+  serviceTerritory: COMPANY_CONTACT.serviceTerritory,
   fulfillmentCentre: "Grand Montréal, Québec",
   neq: "À compléter", // Numéro d'entreprise du Québec
 };
@@ -62,9 +64,9 @@ export const CONTRACT_TERMS = {
   
   // E-Transfer details
   etransfer: {
-    email: "Nivratelecom@gmail.com",
-    securityQuestion: "What is my Nivra?",
-    securityAnswer: "Telecom",
+    email: ETRANSFER_CONFIG.email,
+    securityQuestion: ETRANSFER_CONFIG.securityQuestion,
+    securityAnswer: ETRANSFER_CONFIG.securityAnswer,
   },
   
   // Delivery SLA
