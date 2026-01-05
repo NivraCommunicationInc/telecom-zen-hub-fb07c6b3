@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MobileInfoBox } from "@/components/ServiceInfoBox";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
@@ -287,6 +288,13 @@ const MobilePlans = () => {
                 </p>
               </CardContent>
             </Card>
+          </div>
+        </section>
+
+        {/* Info Box */}
+        <section className="container mx-auto px-4 mb-16 relative">
+          <div className="max-w-2xl mx-auto">
+            <MobileInfoBox isFrench={isFrench} />
           </div>
         </section>
 

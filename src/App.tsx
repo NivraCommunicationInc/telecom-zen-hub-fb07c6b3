@@ -20,6 +20,13 @@ import TVPlans from "./pages/TVPlans";
 import MobilePlans from "./pages/MobilePlans";
 import StreamingPlans from "./pages/StreamingPlans";
 import NotFound from "./pages/NotFound";
+// Legal pages
+import ConditionsDeService from "./pages/legal/ConditionsDeService";
+import InstallationRendezvous from "./pages/legal/InstallationRendezvous";
+import ModalitesPaiement from "./pages/legal/ModalitesPaiement";
+import EquipementGarantie from "./pages/legal/EquipementGarantie";
+import SupportEtPlaintes from "./pages/legal/SupportEtPlaintes";
+import ConfidentialiteLoi25 from "./pages/legal/ConfidentialiteLoi25";
 import NotAuthorized from "./pages/NotAuthorized";
 
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -113,6 +120,13 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfUse />} />
             <Route path="/not-authorized" element={<NotAuthorized />} />
+            {/* Legal pages */}
+            <Route path="/conditions-de-service" element={<ConditionsDeService />} />
+            <Route path="/installation-rendezvous" element={<InstallationRendezvous />} />
+            <Route path="/modalites-paiement" element={<ModalitesPaiement />} />
+            <Route path="/equipement-garantie" element={<EquipementGarantie />} />
+            <Route path="/support-et-plaintes" element={<SupportEtPlaintes />} />
+            <Route path="/confidentialite-loi25" element={<ConfidentialiteLoi25 />} />
             
             
             {/* Admin Routes - Wrapped with AuthProvider (admin storage key) */}

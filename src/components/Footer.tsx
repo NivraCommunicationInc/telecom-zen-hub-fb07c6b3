@@ -25,8 +25,12 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       { labelKey: "nav.about", href: "/about" },
     ],
     legal: [
-      { labelKey: "footer.privacy", href: "/privacy" },
-      { labelKey: "footer.terms", href: "/terms" },
+      { label: "Conditions de service", href: "/conditions-de-service" },
+      { label: "Installation & rendez-vous", href: "/installation-rendezvous" },
+      { label: "Paiement / e-Transfer", href: "/modalites-paiement" },
+      { label: "Équipement & garantie", href: "/equipement-garantie" },
+      { label: "Support & plaintes", href: "/support-et-plaintes" },
+      { label: "Confidentialité (Loi 25)", href: "/confidentialite-loi25" },
     ],
   };
 
@@ -40,7 +44,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-bold text-lg text-white">{COMPANY_CONTACT.companyName}</span>
+              <span className="font-bold text-lg text-white">{COMPANY_CONTACT.legalName}</span>
             </div>
             
             {/* Positioning statement */}
@@ -63,13 +67,18 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               </a>
               <div className="flex items-center gap-3 text-white/60 text-sm">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span>{COMPANY_CONTACT.address}</span>
+                <span>{COMPANY_CONTACT.fullAddress}</span>
               </div>
               <div className="flex items-center gap-3 text-white/60 text-sm">
                 <Clock className="w-4 h-4 flex-shrink-0" />
                 <span>{COMPANY_CONTACT.supportHours}</span>
               </div>
             </div>
+            
+            {/* Notice about invoices */}
+            <p className="text-white/40 text-xs mt-4 italic">
+              Avis et factures transmis via le portail et/ou courriel.
+            </p>
           </div>
 
           {/* Services */}
@@ -119,9 +128,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.legal')}</h4>
             <ul className="space-y-2.5">
               {links.legal.map((link) => (
-                <li key={link.labelKey}>
+                <li key={link.href}>
                   <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {t(link.labelKey)}
+                    {link.label}
                   </Link>
                 </li>
               ))}
@@ -133,18 +142,18 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         <div className="border-t border-white/10 mt-12 pt-8">
           {/* Compliance line */}
           <p className="text-white/40 text-xs text-center mb-4">
-            Nivra Telecom — Services télécoms au Québec. Support et activation.
+            {COMPANY_CONTACT.legalName} — Services télécoms prépayés au Québec. Support et activation.
           </p>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm">
-              © {currentYear} Nivra Telecom. {t('footer.rights')}
+              © {currentYear} {COMPANY_CONTACT.legalName}. {t('footer.rights')}
             </p>
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
-              <Link to="/privacy" className="text-white/40 hover:text-accent transition-colors text-sm">
-                {t('footer.privacy')}
+              <Link to="/conditions-de-service" className="text-white/40 hover:text-accent transition-colors text-sm">
+                Conditions
               </Link>
-              <Link to="/terms" className="text-white/40 hover:text-accent transition-colors text-sm">
-                {t('footer.terms')}
+              <Link to="/confidentialite-loi25" className="text-white/40 hover:text-accent transition-colors text-sm">
+                Confidentialité
               </Link>
               <Link to="/admin" className="text-white/40 hover:text-accent transition-colors text-sm">
                 Admin
