@@ -292,10 +292,22 @@ export function isPaymentCaptured(
   status: string | null | undefined,
   paidAt: string | null | undefined,
   paymentMethod?: string | null,
-  etransferStatus?: string | null
+  etransferStatus?: string | null,
+  capturedAt?: string | null | undefined
 ): boolean {
+  // If captured_at is set, it's definitely captured
+  if (capturedAt) {
+    return true;
+  }
+  
   // If explicitly marked as paid with a timestamp, it's captured
   if (status === "paid" && paidAt) {
+    return true;
+  }
+  
+  // Status-based check for captured statuses
+  const capturedStatuses = ['paid', 'complete', 'captured', 'settled'];
+  if (capturedStatuses.includes((status || '').toLowerCase()) && paidAt) {
     return true;
   }
   
