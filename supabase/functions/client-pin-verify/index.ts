@@ -68,8 +68,8 @@ serve(async (req) => {
     if (!pinRecords || pinRecords.length === 0) {
       console.log(`[client-pin-verify] No valid PIN found for ${email}`);
       return new Response(
-        JSON.stringify({ error: "No valid PIN found. Please request a new one.", valid: false }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ valid: false, reason: "No valid PIN found. Please request a new one." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -85,8 +85,8 @@ serve(async (req) => {
         .eq("id", pinRecord.id);
 
       return new Response(
-        JSON.stringify({ error: "Too many failed attempts. Please request a new PIN.", valid: false }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ valid: false, reason: "Too many failed attempts. Please request a new PIN." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -104,11 +104,11 @@ serve(async (req) => {
       const attemptsLeft = 5 - (pinRecord.attempts + 1);
       return new Response(
         JSON.stringify({ 
-          error: `Invalid PIN. ${attemptsLeft} attempts remaining.`, 
           valid: false,
+          reason: `Invalid PIN. ${attemptsLeft} attempts remaining.`,
           attempts_left: attemptsLeft
         }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
