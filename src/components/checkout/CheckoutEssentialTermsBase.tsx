@@ -187,6 +187,10 @@ export const CheckoutEssentialTermsBase = ({
                 {isFrench ? "Équipement & garantie" : "Equipment & Warranty"}
               </Link>
               <span className="text-xs text-muted-foreground">•</span>
+              <Link to="/frais-possibles" className="text-xs text-primary hover:underline">
+                {isFrench ? "Frais possibles" : "Possible Fees"}
+              </Link>
+              <span className="text-xs text-muted-foreground">•</span>
               <Link to="/confidentialite-loi25" className="text-xs text-primary hover:underline">
                 {isFrench ? "Confidentialité" : "Privacy"}
               </Link>

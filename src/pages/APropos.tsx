@@ -1,0 +1,342 @@
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { 
+  Shield, 
+  CheckCircle2,
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
+  ChevronRight,
+  Wifi,
+  Tv,
+  Smartphone,
+  CreditCard,
+  Users,
+  Headphones
+} from "lucide-react";
+import { COMPANY_CONTACT } from "@/config/company";
+import Testimonials from "@/components/Testimonials";
+
+const APropos = () => {
+  const howItWorks = [
+    { 
+      step: "01", 
+      title: "Commande", 
+      description: "Choisissez vos services (Internet, TV, Mobile) et complétez votre commande en ligne." 
+    },
+    { 
+      step: "02", 
+      title: "Paiement", 
+      description: "Payez par carte de crédit ou e-Transfer. Services prépayés — aucune vérification de crédit." 
+    },
+    { 
+      step: "03", 
+      title: "Activation", 
+      description: "Activation rapide après confirmation du paiement. Livraison ou installation selon le service." 
+    },
+    { 
+      step: "04", 
+      title: "Support", 
+      description: "Gérez vos services via le portail client. Support 7 jours sur 7." 
+    },
+  ];
+
+  const whyNivra = [
+    {
+      icon: CreditCard,
+      title: "Sans engagement",
+      description: "Services prépayés, aucun contrat à long terme. Annulez quand vous voulez."
+    },
+    {
+      icon: Shield,
+      title: "Transparent",
+      description: "Prix clairs, pas de frais cachés. Ce que vous voyez est ce que vous payez."
+    },
+    {
+      icon: Users,
+      title: "Portail client",
+      description: "Gérez vos services, factures et tickets en ligne 24/7."
+    },
+    {
+      icon: Headphones,
+      title: "Support 7/7",
+      description: "Équipe locale disponible par téléphone, courriel et portail."
+    },
+  ];
+
+  const services = [
+    { icon: Wifi, name: "Internet", desc: "Fibre haute vitesse" },
+    { icon: Tv, name: "Télévision", desc: "IPTV 4K avec chaînes à la carte" },
+    { icon: Smartphone, name: "Mobile", desc: "Forfaits voix/data flexibles" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      {/* Hero Section */}
+      <section className="pt-28 pb-16 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 -right-20 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
+        </div>
+        <div className="container mx-auto px-4 max-w-5xl relative">
+          <div className="text-center max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/15 border border-accent/25 mb-5">
+              <Shield className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium text-accent">Fournisseur télécom québécois</span>
+            </div>
+            <h1 className="text-white mb-4">
+              À propos de <span className="text-accent">Nivra</span>
+            </h1>
+            <p className="text-lg text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
+              {COMPANY_CONTACT.legalName} — Services télécommunications prépayés au Québec. 
+              Simplicité, transparence et contrôle sur vos services.
+            </p>
+          </div>
+        </div>
+        {/* Bottom Wave */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+            <path d="M0 60L60 52C120 44 240 28 360 24C480 20 600 28 720 32C840 36 960 36 1080 32C1200 28 1320 20 1380 16L1440 12V60H0Z" fill="hsl(var(--background))"/>
+          </svg>
+        </div>
+      </section>
+
+      {/* Mission */}
+      <section className="section-padding">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="mb-4">Notre mission</h2>
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                Nivra offre des services de téléphonie mobile prépayée, Internet, télévision et sécurité 
+                au Québec. Notre approche : <strong>simplicité</strong>, <strong>transparence</strong> et 
+                <strong> contrôle</strong> pour nos clients.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground"><strong>Prépayé</strong> — Payez à l'avance, aucune surprise</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground"><strong>Sans engagement</strong> — Annulez à tout moment</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground"><strong>Aucune vérification de crédit</strong> — Accessible à tous</span>
+                </li>
+              </ul>
+            </div>
+            <div className="relative">
+              <div className="aspect-square rounded-2xl bg-primary border border-border p-8 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-4">
+                    <span className="font-bold text-white text-4xl">N</span>
+                  </div>
+                  <p className="text-white font-semibold mb-1">{COMPANY_CONTACT.legalName}</p>
+                  <p className="text-white/60 text-sm">Services prépayés au Québec</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Services */}
+      <section className="section-padding bg-muted/30">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-10">
+            <h2 className="mb-3">Nos services</h2>
+            <p className="text-muted-foreground">Des solutions télécoms complètes pour le Québec</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {services.map((service) => (
+              <div key={service.name} className="bg-card border border-border rounded-2xl p-6 text-center hover:border-accent/30 transition-colors">
+                <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                  <service.icon className="w-7 h-7 text-accent" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-2">{service.name}</h3>
+                <p className="text-sm text-muted-foreground">{service.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Zones desservies */}
+      <section className="section-padding">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="mb-4">Zones desservies</h2>
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                Nous desservons principalement le <strong>Québec</strong>, avec une couverture optimale dans 
+                la région du Grand Montréal. Livraison express disponible dans certaines zones.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Montréal
+                </span>
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Laval
+                </span>
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Longueuil
+                </span>
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Rive-Sud
+                </span>
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-sm">
+                  <MapPin className="w-4 h-4 text-accent" /> Rive-Nord
+                </span>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-video rounded-2xl bg-primary border border-border overflow-hidden flex items-center justify-center">
+                <div className="text-center p-8">
+                  <MapPin className="w-12 h-12 text-accent/30 mx-auto mb-3" />
+                  <p className="text-white/60 text-sm">Service partout au Québec</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pourquoi Nivra */}
+      <section className="section-padding bg-muted/30">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-10">
+            <h2 className="mb-3">Pourquoi choisir Nivra?</h2>
+            <p className="text-muted-foreground">Ce qui nous différencie</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-5">
+            {whyNivra.map((item, index) => (
+              <div 
+                key={index} 
+                className="flex gap-4 p-5 bg-card border border-border rounded-2xl hover:border-accent/30 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Comment ça fonctionne */}
+      <section className="section-padding">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-12">
+            <h2 className="mb-3">Comment ça fonctionne</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              4 étapes simples pour vos services télécoms
+            </p>
+          </div>
+          
+          {/* Desktop Timeline */}
+          <div className="hidden md:block">
+            <div className="relative">
+              <div className="absolute top-8 left-0 right-0 h-px bg-border" />
+              <div className="grid grid-cols-4 gap-5 relative">
+                {howItWorks.map((step, index) => (
+                  <div key={index} className="text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center mx-auto mb-4 relative z-10 shadow-sm">
+                      <span className="font-bold text-accent text-lg">{step.step}</span>
+                    </div>
+                    <h3 className="font-semibold text-foreground mb-2">{step.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Timeline */}
+          <div className="md:hidden space-y-5">
+            {howItWorks.map((step, index) => (
+              <div key={index} className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <span className="font-bold text-accent">{step.step}</span>
+                  </div>
+                  {index < howItWorks.length - 1 && (
+                    <div className="w-px h-full bg-border mt-2" />
+                  )}
+                </div>
+                <div className="pb-5">
+                  <h3 className="font-semibold text-foreground mb-1">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <Testimonials />
+
+      {/* Contact */}
+      <section className="section-padding bg-muted/30">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="bg-card border border-border rounded-2xl p-8">
+            <h2 className="text-center mb-8">Nous joindre</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                  <Phone className="w-6 h-6 text-accent" />
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">Téléphone</p>
+                <p className="font-medium text-foreground">{COMPANY_CONTACT.supportPhoneDisplay}</p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                  <Mail className="w-6 h-6 text-accent" />
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">Courriel</p>
+                <p className="font-medium text-foreground">{COMPANY_CONTACT.supportEmailDisplay}</p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                  <MapPin className="w-6 h-6 text-accent" />
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">Adresse</p>
+                <p className="font-medium text-foreground text-sm">{COMPANY_CONTACT.fullAddress}</p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                  <Clock className="w-6 h-6 text-accent" />
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">Heures de support</p>
+                <p className="font-medium text-foreground text-sm">{COMPANY_CONTACT.supportHoursWeekday}</p>
+                <p className="font-medium text-foreground text-sm">{COMPANY_CONTACT.supportHoursWeekend}</p>
+              </div>
+            </div>
+            <div className="text-center mt-8">
+              <Link to="/contact">
+                <Button variant="hero" size="lg">
+                  Contactez-nous
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default APropos;

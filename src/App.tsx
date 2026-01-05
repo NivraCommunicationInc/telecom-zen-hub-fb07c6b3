@@ -27,6 +27,9 @@ import ModalitesPaiement from "./pages/legal/ModalitesPaiement";
 import EquipementGarantie from "./pages/legal/EquipementGarantie";
 import SupportEtPlaintes from "./pages/legal/SupportEtPlaintes";
 import ConfidentialiteLoi25 from "./pages/legal/ConfidentialiteLoi25";
+import FraisPossibles from "./pages/legal/FraisPossibles";
+import APropos from "./pages/APropos";
+import Aide from "./pages/Aide";
 import NotAuthorized from "./pages/NotAuthorized";
 
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -127,8 +130,9 @@ const App = () => (
             <Route path="/equipement-garantie" element={<EquipementGarantie />} />
             <Route path="/support-et-plaintes" element={<SupportEtPlaintes />} />
             <Route path="/confidentialite-loi25" element={<ConfidentialiteLoi25 />} />
-            
-            
+            <Route path="/frais-possibles" element={<FraisPossibles />} />
+            <Route path="/a-propos" element={<APropos />} />
+            <Route path="/aide" element={<Aide />} />
             {/* Admin Routes - Wrapped with AuthProvider (admin storage key) */}
             <Route path="/admin/login" element={<AuthProvider><AdminLogin /></AuthProvider>} />
             <Route path="/admin/reset-password" element={<AuthProvider><AdminResetPassword /></AuthProvider>} />
