@@ -153,21 +153,31 @@ export const ClientBalanceSummary = ({ userId, userEmail }: ClientBalanceSummary
   }
 
   return (
-    <Card className={`bg-card border-border ${totalBalance > 0 ? 'border-amber-500/30' : ''}`}>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            totalBalance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
-          }`}>
-            <DollarSign className={`w-5 h-5 ${totalBalance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+    <div className="space-y-3">
+      {/* Prepaid info banner */}
+      <Card className="bg-cyan-500/10 border-cyan-500/30">
+        <CardContent className="p-3">
+          <p className="text-xs text-cyan-700 dark:text-cyan-300">
+            <strong>Service prépayé</strong> = renouvellement seulement si paiement confirmé. Après 90 jours sans renouvellement, le numéro peut devenir irrécupérable (nouveau numéro requis).
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className={`bg-card border-border ${totalBalance > 0 ? 'border-amber-500/30' : ''}`}>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              totalBalance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
+            }`}>
+              <DollarSign className={`w-5 h-5 ${totalBalance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Solde dû</p>
+              <p className={`text-xl font-bold ${totalBalance > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                {totalBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase">Solde dû</p>
-            <p className={`text-xl font-bold ${totalBalance > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
-              {totalBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-            </p>
-          </div>
-        </div>
 
         {/* Invoice breakdown */}
         {allUnpaidInvoices.length > 0 ? (
@@ -226,6 +236,7 @@ export const ClientBalanceSummary = ({ userId, userEmail }: ClientBalanceSummary
         )}
       </CardContent>
     </Card>
+  </div>
   );
 };
 

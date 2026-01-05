@@ -7,22 +7,22 @@ import { COMPANY_CONTACT } from "@/config/company";
 import { CONTRACT_TERMS } from "../contractPolicies";
 
 export const PDF_TERMS = {
-  // Interest & Late Fees
-  latePayment: {
-    title: "Intérêt et frais de retard",
-    content: `Des frais de retard de ${CONTRACT_TERMS.nonRenewal.feePercent}% s'appliquent sur toute facture impayée après la date du Bill Cycle. Ces frais sont calculés sur le solde impayé et ajoutés à votre prochaine facture.`,
+  // Prepaid non-renewal (no fees for normal non-payment)
+  prepaidNonRenewal: {
+    title: "Non-renouvellement prépayé",
+    content: `En cas de non-paiement au Bill Cycle (J0), le service n'est pas renouvelé et devient Expiré. La facture est émise ${CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle. Pour les e-Transfers en vérification au J0, une fenêtre de grâce de ${CONTRACT_TERMS.billingCycle.etransferGraceHours} heures maximum est accordée. Aucun intérêt ni frais de réactivation ne s'applique pour un non-renouvellement normal.`,
+  },
+
+  // 90-day number loss warning
+  numberLoss: {
+    title: "Perte de numéro après 90 jours",
+    content: `Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable. Une réactivation exigera l'attribution d'un nouveau numéro.`,
   },
   
-  // Non-renewal at Bill Cycle (prepaid)
-  suspension: {
-    title: "Non-renouvellement de service (prépayé)",
-    content: `En cas de non-paiement au Bill Cycle (J0), le service n'est pas renouvelé et devient Expiré. La facture est émise ${CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle. Pour les e-Transfers en vérification au J0, une fenêtre de grâce de ${CONTRACT_TERMS.billingCycle.etransferGraceHours} heures maximum est accordée.`,
-  },
-  
-  // Reactivation fees
-  reactivation: {
-    title: "Frais de réactivation",
-    content: `Des frais de réactivation de ${CONTRACT_TERMS.nonRenewal.reactivationFee}$ s'appliquent pour rétablir un service expiré (non-renouvelé). Le paiement intégral du solde dû est requis avant la réactivation.`,
+  // Dispute/Chargeback penalties ONLY
+  disputeChargeback: {
+    title: "Contestation bancaire / Chargeback",
+    content: `En cas de contestation bancaire ou chargeback, le service peut être suspendu pendant l'enquête. Si la contestation est confirmée contre le client OU si Nivra est débité : intérêt de ${CONTRACT_TERMS.disputeChargeback.interestRate}% par mois sur les montants dus jusqu'au paiement complet. Après paiement et résolution, des frais de réactivation de ${CONTRACT_TERMS.disputeChargeback.reactivationFee}$ peuvent s'appliquer. Aucun intérêt ni frais de réactivation ne s'applique simplement parce qu'un e-Transfer est « En vérification ».`,
   },
   
   // Appointment cancellation policy
@@ -119,9 +119,9 @@ export const getAllTerms = (): Array<{ title: string; content: string }> => {
 export const getEssentialTerms = (): Array<{ title: string; content: string }> => {
   return [
     PDF_TERMS.prepaidBilling,
-    PDF_TERMS.latePayment,
-    PDF_TERMS.suspension,
-    PDF_TERMS.reactivation,
+    PDF_TERMS.prepaidNonRenewal,
+    PDF_TERMS.numberLoss,
+    PDF_TERMS.disputeChargeback,
     PDF_TERMS.warranty,
     PDF_TERMS.noCreditCheck,
     PDF_TERMS.identityValidation,

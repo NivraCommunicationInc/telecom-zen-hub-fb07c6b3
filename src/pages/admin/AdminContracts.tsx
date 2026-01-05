@@ -764,7 +764,7 @@ const AdminContracts = () => {
                   <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                     <p className="text-sm font-medium text-foreground">Politiques incluses automatiquement :</p>
                     <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• Intérêt de {CONTRACT_TERMS.paymentTerms.lateInterestRate}% par mois sur paiements en retard</li>
+                      <li>• Intérêt de {CONTRACT_TERMS.disputeChargeback.interestRate}% par mois (contestation bancaire/chargeback seulement)</li>
                       <li>• Délai de paiement de {CONTRACT_TERMS.paymentTerms.dueDays} jours</li>
                       <li>• Préavis de résiliation de {CONTRACT_TERMS.cancellation.noticeDays} jours</li>
                       <li>• Garantie équipement: {CONTRACT_TERMS.warranty.duration}</li>
@@ -1165,10 +1165,10 @@ const AdminContracts = () => {
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-3 border-l-4 border-red-500">
-                          <p className="text-[10px] text-red-600 dark:text-red-400 uppercase tracking-wider font-bold">Late Payment</p>
-                          <p className="text-sm font-medium text-red-700 dark:text-red-300 mt-1">{CONTRACT_TERMS.paymentTerms.lateInterestRate}% per month</p>
-                          <p className="text-[10px] text-red-500/70 mt-1">After {CONTRACT_TERMS.paymentTerms.dueDays} days</p>
+                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3 border-l-4 border-amber-500">
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold">Dispute/Chargeback Only</p>
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mt-1">{CONTRACT_TERMS.disputeChargeback.interestRate}% per month</p>
+                          <p className="text-[10px] text-amber-500/70 mt-1">+ ${CONTRACT_TERMS.disputeChargeback.reactivationFee} reconnection fee</p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 border-l-4 border-blue-500">
                           <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold">Warranty</p>

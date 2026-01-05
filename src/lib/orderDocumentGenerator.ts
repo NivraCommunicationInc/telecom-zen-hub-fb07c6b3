@@ -557,7 +557,7 @@ export function generateOrderConfirmationPDF(data: OrderDocumentData): jsPDF {
   // ========== H) POLICIES ==========
   addSectionDivider("H", "Terms & Policies");
   
-  addParagraph(`Late Payment: Any payment not received within 30 days is subject to ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% monthly interest.`);
+  addParagraph(`Prepaid Non-Renewal: If payment is not received by Bill Cycle, service is not renewed. No interest or reconnection fee for normal non-renewal. Penalties (${CONTRACT_TERMS.disputeChargeback.interestRate}% interest + $${CONTRACT_TERMS.disputeChargeback.reactivationFee} reconnection) apply ONLY for bank disputes/chargebacks.`);
   addParagraph(`Cancellation: Client cancellation requires ${CONTRACT_TERMS.cancellation.noticeDays} days notice.`);
   addParagraph("Privacy: Client data is protected under Québec Law 25 and used only for service delivery.");
   addParagraph("Governing Law: This Agreement is governed by Québec law and applicable federal laws of Canada.");
@@ -945,7 +945,7 @@ export function generateFinalServiceAgreementPDF(data: OrderDocumentData): jsPDF
   // ========== H) POLICIES ==========
   addSectionDivider("H", "Terms & Policies");
   
-  addParagraph(`Late Payment: Any payment not received within 30 days is subject to ${CONTRACT_TERMS.paymentTerms.lateInterestRate}% monthly interest.`);
+  addParagraph(`Prepaid Non-Renewal: If payment is not received by Bill Cycle, service is not renewed. No interest or reconnection fee for normal non-renewal. Penalties (${CONTRACT_TERMS.disputeChargeback.interestRate}% interest + $${CONTRACT_TERMS.disputeChargeback.reactivationFee} reconnection) apply ONLY for bank disputes/chargebacks.`);
   addParagraph(`Cancellation: Client cancellation requires ${CONTRACT_TERMS.cancellation.noticeDays} days notice.`);
   addParagraph("Privacy: Client data is protected under Québec Law 25 and used only for service delivery.");
   addParagraph("Governing Law: This Agreement is governed by Québec law and applicable federal laws of Canada.");

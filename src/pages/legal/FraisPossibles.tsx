@@ -18,16 +18,6 @@ const FraisPossibles = () => {
 
   const conditionalFees = [
     { 
-      name: "Frais de réactivation", 
-      amount: `${CONTRACT_TERMS.fees.reactivation}$`, 
-      condition: "Après expiration/non-renouvellement (service non payé au Bill Cycle)" 
-    },
-    { 
-      name: "Frais de retard", 
-      amount: `${CONTRACT_TERMS.nonRenewal.feePercent}%`, 
-      condition: "Sur factures impayées après date du Bill Cycle" 
-    },
-    { 
       name: "Installation standard", 
       amount: "Selon commande/facture", 
       condition: "Internet/TV nécessitant technicien" 
@@ -51,6 +41,19 @@ const FraisPossibles = () => {
       name: "Remplacement équipement (hors garantie)", 
       amount: "Selon commande/facture", 
       condition: "Bris, perte, vol, dommages liquides" 
+    },
+  ];
+
+  const disputeOnlyFees = [
+    { 
+      name: "Intérêt sur montants contestés", 
+      amount: `${CONTRACT_TERMS.disputeChargeback.interestRate}% / mois`, 
+      condition: "Sur montants dus suite à contestation bancaire/chargeback confirmée contre le client" 
+    },
+    { 
+      name: "Frais de réactivation", 
+      amount: `${CONTRACT_TERMS.disputeChargeback.reactivationFee}$`, 
+      condition: "Après résolution de contestation bancaire/chargeback et paiement complet" 
     },
   ];
 
@@ -195,30 +198,77 @@ const FraisPossibles = () => {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-amber-500/10 border-amber-500/30">
+              <Card className="bg-amber-500/10 border-amber-500/30 mb-4">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-1" />
                     <div>
-                      <h3 className="font-semibold text-foreground mb-2">Non-renouvellement et réactivation</h3>
+                      <h3 className="font-semibold text-foreground mb-2">Non-renouvellement prépayé (aucun intérêt/frais)</h3>
                       <ul className="space-y-2 text-sm">
                         <li>
                           <strong>Non-renouvellement :</strong> Si le paiement n'est pas reçu au Bill Cycle (J0), 
                           le service devient <strong>Expiré (non-renouvelé)</strong>.
                         </li>
                         <li>
+                          <strong>Aucun intérêt ni frais de réactivation</strong> ne s'applique simplement parce que le paiement n'a pas été reçu au Bill Cycle.
+                        </li>
+                        <li>
                           <strong>E-Transfer en vérification :</strong> Fenêtre de grâce de{" "}
-                          <strong>{CONTRACT_TERMS.billingCycle.etransferGraceHours} heures</strong> maximum au J0.
+                          <strong>{CONTRACT_TERMS.billingCycle.etransferGraceHours} heures</strong> maximum au J0. 
+                          Aucun intérêt ni frais ne s'applique.
                         </li>
                         <li>
-                          <strong>Réactivation :</strong> Frais de{" "}
-                          <strong>{CONTRACT_TERMS.fees.reactivation}$</strong> + paiement du solde dû.
-                        </li>
-                        <li>
-                          <strong>Frais de retard :</strong>{" "}
-                          <strong>{CONTRACT_TERMS.nonRenewal.feePercent}%</strong> sur le solde impayé après Bill Cycle.
+                          <strong>Après 90 jours sans renouvellement :</strong> Le numéro de téléphone peut devenir 
+                          irrécupérable. Une réactivation exigera l'attribution d'un nouveau numéro.
                         </li>
                       </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Dispute/Chargeback penalties */}
+              <Card className="bg-red-500/10 border-red-500/30">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-1" />
+                    <div>
+                      <h3 className="font-semibold text-foreground mb-2">Contestation bancaire / Chargeback (pénalités applicables)</h3>
+                      <ul className="space-y-2 text-sm">
+                        <li>
+                          <strong>Suspension pendant enquête :</strong> En cas de contestation bancaire ou chargeback, 
+                          le service peut être suspendu pendant l'enquête.
+                        </li>
+                        <li>
+                          <strong>Intérêt :</strong> Si la contestation est confirmée contre le client OU si Nivra est débité, 
+                          un intérêt de <strong>{CONTRACT_TERMS.disputeChargeback.interestRate}% par mois</strong> s'applique 
+                          sur les montants dus jusqu'au paiement complet.
+                        </li>
+                        <li>
+                          <strong>Frais de réactivation :</strong> Après paiement complet et résolution, des frais de{" "}
+                          <strong>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong> peuvent s'appliquer pour rétablir le service.
+                        </li>
+                      </ul>
+                      <div className="bg-card border border-border rounded-lg p-4 mt-4">
+                        <table className="w-full">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left p-2 font-medium text-foreground text-xs">Description</th>
+                              <th className="text-right p-2 font-medium text-foreground text-xs">Montant</th>
+                              <th className="text-left p-2 font-medium text-foreground text-xs hidden sm:table-cell">Condition</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {disputeOnlyFees.map((fee, index) => (
+                              <tr key={index} className="hover:bg-muted/30 transition-colors">
+                                <td className="p-2 text-foreground text-sm">{fee.name}</td>
+                                <td className="p-2 text-right font-mono text-red-500 font-medium text-sm">{fee.amount}</td>
+                                <td className="p-2 text-xs text-muted-foreground hidden sm:table-cell">{fee.condition}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
