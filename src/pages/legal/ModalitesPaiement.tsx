@@ -74,29 +74,39 @@ const ModalitesPaiement = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">4. Cycle de facturation</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">4. Cycle de facturation (Bill Cycle)</h2>
               <p>
-                Chaque compte a un <strong>cycle de facturation</strong> (« Bill Cycle ») défini lors de l'activation. 
-                La date d'échéance est basée sur ce cycle.
+                Chaque compte a un <strong>Bill Cycle Day</strong> (jour du mois) défini par défaut à la date de création du compte.
               </p>
+              <Card className="bg-cyan-500/10 border-cyan-500/30 my-4">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-foreground mb-3">Fonctionnement du cycle prépayé</h3>
+                  <ul className="list-disc pl-6 space-y-2 text-sm">
+                    <li><strong>Facture émise :</strong> {CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle (J-5)</li>
+                    <li><strong>Paiement requis :</strong> AVANT la date du Bill Cycle (J0) pour renouveler le service</li>
+                    <li><strong>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au J0, le service devient Expiré</li>
+                    <li><strong>Jours 29-31 :</strong> Si le mois ne contient pas ce jour, la facturation se fait le dernier jour du mois</li>
+                  </ul>
+                </CardContent>
+              </Card>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Délai de paiement : {CONTRACT_TERMS.paymentTerms.dueDays} jours après l'émission de la facture</li>
                 <li>Devise : {CONTRACT_TERMS.paymentTerms.currency}</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">5. Retards de paiement</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">5. Non-renouvellement et frais</h2>
               <Card className="bg-amber-500/10 border-amber-500/30">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-1" />
                     <div>
-                      <h3 className="font-semibold text-foreground mb-2">Politique de retard</h3>
+                      <h3 className="font-semibold text-foreground mb-2">Politique de non-renouvellement (prépayé)</h3>
                       <ul className="list-disc pl-6 space-y-2 text-sm">
-                        <li>Intérêt de retard : <strong>{CONTRACT_TERMS.latePayment.feePercent}% par mois</strong> sur le solde impayé après 15 jours</li>
-                        <li>Suspension du service : après <strong>{CONTRACT_TERMS.latePayment.suspensionDays} jours</strong> de retard</li>
-                        <li>Frais de réactivation : <strong>{CONTRACT_TERMS.latePayment.reactivationFee}$</strong> pour rétablir un service suspendu</li>
+                        <li><strong>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au Bill Cycle (J0), le service devient Expiré</li>
+                        <li><strong>E-Transfer en vérification au J0 :</strong> Fenêtre de grâce de <strong>{CONTRACT_TERMS.billingCycle.etransferGraceHours} heures</strong> maximum</li>
+                        <li>Frais de retard : <strong>{CONTRACT_TERMS.nonRenewal.feePercent}%</strong> sur le solde impayé après Bill Cycle</li>
+                        <li>Frais de réactivation : <strong>{CONTRACT_TERMS.nonRenewal.reactivationFee}$</strong> pour rétablir un service expiré</li>
                       </ul>
                     </div>
                   </div>

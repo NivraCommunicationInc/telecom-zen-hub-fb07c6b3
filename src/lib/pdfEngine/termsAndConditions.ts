@@ -10,19 +10,19 @@ export const PDF_TERMS = {
   // Interest & Late Fees
   latePayment: {
     title: "Intérêt et frais de retard",
-    content: `Des frais de retard de ${CONTRACT_TERMS.latePayment.feePercent}% s'appliquent sur toute facture impayée après la date d'échéance. Ces frais sont calculés sur le solde impayé et ajoutés à votre prochaine facture.`,
+    content: `Des frais de retard de ${CONTRACT_TERMS.nonRenewal.feePercent}% s'appliquent sur toute facture impayée après la date du Bill Cycle. Ces frais sont calculés sur le solde impayé et ajoutés à votre prochaine facture.`,
   },
   
-  // Suspension after 15 days
+  // Non-renewal at Bill Cycle (prepaid)
   suspension: {
-    title: "Suspension de service",
-    content: `En cas de non-paiement, les services peuvent être suspendus après 15 jours suivant la date d'échéance. Une notification sera envoyée avant toute suspension. La suspension complète intervient après ${CONTRACT_TERMS.latePayment.suspensionDays} jours de retard.`,
+    title: "Non-renouvellement de service (prépayé)",
+    content: `En cas de non-paiement au Bill Cycle (J0), le service n'est pas renouvelé et devient Expiré. La facture est émise ${CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle. Pour les e-Transfers en vérification au J0, une fenêtre de grâce de ${CONTRACT_TERMS.billingCycle.etransferGraceHours} heures maximum est accordée.`,
   },
   
   // Reactivation fees
   reactivation: {
     title: "Frais de réactivation",
-    content: `Des frais de réactivation de ${CONTRACT_TERMS.latePayment.reactivationFee}$ s'appliquent pour rétablir un service suspendu pour non-paiement. Le paiement intégral du solde dû est requis avant la réactivation.`,
+    content: `Des frais de réactivation de ${CONTRACT_TERMS.nonRenewal.reactivationFee}$ s'appliquent pour rétablir un service expiré (non-renouvelé). Le paiement intégral du solde dû est requis avant la réactivation.`,
   },
   
   // Appointment cancellation policy
@@ -99,8 +99,8 @@ export const PDF_TERMS = {
   
   // Prepaid billing
   prepaidBilling: {
-    title: "Services prépayés",
-    content: `Les services sont facturés à l'avance par cycle de service. Le renouvellement s'effectue uniquement si le paiement est reçu. Vous pouvez annuler à tout moment—le service reste actif jusqu'à la fin de la période payée.`,
+    title: "Services prépayés (Bill Cycle)",
+    content: `Les services sont facturés à l'avance par cycle de service. La facture est émise ${CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle. Le paiement doit être confirmé AVANT le Bill Cycle (J0) pour renouveler le service. Si non payé au J0, le service devient Expiré.`,
   },
   
   // Jurisdiction
