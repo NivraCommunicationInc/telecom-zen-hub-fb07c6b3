@@ -29,10 +29,16 @@ const ClientProfile = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    full_name: "",
+    first_name: "",
+    last_name: "",
+    full_name: "", // Kept for backwards compatibility display
     email: "",
     phone: "",
     date_of_birth: "",
+    service_address: "",
+    service_city: "",
+    service_province: "",
+    service_postal_code: "",
   });
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -155,10 +161,16 @@ const ClientProfile = () => {
   useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || "",
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        full_name: profile.full_name || `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
         email: profile.email || user?.email || "",
         phone: profile.phone || "",
         date_of_birth: profile.date_of_birth || "",
+        service_address: profile.service_address || "",
+        service_city: profile.service_city || "",
+        service_province: profile.service_province || "",
+        service_postal_code: profile.service_postal_code || "",
       });
     }
   }, [profile, user]);
@@ -168,9 +180,15 @@ const ClientProfile = () => {
       const { error } = await portalSupabase
         .from("profiles")
         .update({
-          full_name: data.full_name,
+          first_name: data.first_name || null,
+          last_name: data.last_name || null,
+          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || data.full_name,
           phone: data.phone,
           date_of_birth: data.date_of_birth || null,
+          service_address: data.service_address || null,
+          service_city: data.service_city || null,
+          service_province: data.service_province || null,
+          service_postal_code: data.service_postal_code || null,
         })
         .eq("user_id", user?.id);
       if (error) throw error;
@@ -320,14 +338,25 @@ const ClientProfile = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="full_name">Nom complet</Label>
-                    <Input
-                      id="full_name"
-                      value={formData.full_name}
-                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                      placeholder="Jean Dupont"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="first_name">Prénom</Label>
+                      <Input
+                        id="first_name"
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        placeholder="Jean"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Nom</Label>
+                      <Input
+                        id="last_name"
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        placeholder="Dupont"
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="email">Email</Label>
