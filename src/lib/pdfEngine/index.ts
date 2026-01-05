@@ -11,7 +11,7 @@
  */
 
 export * from "./types";
-export { type PDFState } from "./helpers";
+export { type PDFState, sanitizeLegalText } from "./helpers";
 export * from "./generator";
 
 // Re-export main functions for convenience
