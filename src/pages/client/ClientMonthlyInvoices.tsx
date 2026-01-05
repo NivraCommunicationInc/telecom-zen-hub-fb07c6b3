@@ -151,7 +151,7 @@ const ClientMonthlyInvoices = () => {
                         <strong>Prochaine facture:</strong> {format(new Date(nextInvoiceDate), "d MMMM yyyy", { locale: fr })}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        <strong>Échéance paiement:</strong> {format(addDays(new Date(nextInvoiceDate), BILLING_CONSTANTS.PAYMENT_GRACE_DAYS), "d MMMM yyyy", { locale: fr })} ({BILLING_CONSTANTS.PAYMENT_GRACE_DAYS} jours après émission)
+                        <strong>Paiement requis:</strong> Avant le Bill Cycle (J0) pour renouveler le service
                       </p>
                     </div>
                   )}
@@ -160,8 +160,8 @@ const ClientMonthlyInvoices = () => {
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-start gap-2">
                     <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-muted-foreground">
-                      Chaque facture doit être payée dans les {BILLING_CONSTANTS.PAYMENT_GRACE_DAYS} jours suivant la date d'émission. 
-                      Après ce délai, le compte peut être suspendu jusqu'au règlement.
+                      Le paiement doit être confirmé AVANT la date du Bill Cycle (J0) pour renouveler le service. 
+                      Si non payé, le service devient Expiré (non-renouvelé).
                     </p>
                   </div>
                 </div>
