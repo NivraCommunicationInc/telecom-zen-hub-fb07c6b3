@@ -78,9 +78,17 @@ const ClientInvoices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       // SECURITY: Always filter by user_id to prevent data leakage
+      // Join with orders to get equipment_details.line_items for multi-service support
       const { data, error } = await portalSupabase
         .from("billing")
-        .select("*")
+        .select(`
+          *,
+          orders:order_id (
+            order_number,
+            service_type,
+            equipment_details
+          )
+        `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -296,9 +304,15 @@ const ClientInvoices = () => {
   // Create invoice data for PDF generation
   const createInvoiceData = useCallback((inv: any): InvoiceData => {
     const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
+    
+    // Extract line items from joined order data
+    const orderData = inv.orders;
+    const equipmentDetails = orderData?.equipment_details;
+    const lineItems = equipmentDetails?.line_items || [];
+    
     return {
       invoiceNumber: inv.invoice_number || `NVR-INV-QC-${new Date().getFullYear()}-${inv.id?.slice(0, 5).toUpperCase()}`,
-      orderNumber: inv.related_order_number,
+      orderNumber: inv.related_order_number || orderData?.order_number,
       paymentReference: inv.payment_reference,
       clientNumber: profile?.client_number,
       clientName: profile?.full_name || "Client",
@@ -323,7 +337,9 @@ const ClientInvoices = () => {
       paidAt: inv.paid_at,
       notes: inv.notes,
       equipmentId: inv.equipment_id,
-    };
+      // CRITICAL: Pass order line items for multi-service support
+      orderLineItems: lineItems.length > 0 ? lineItems : undefined,
+    } as any; // Cast to any to allow extended interface
   }, [profile, user?.email]);
 
   // Open PDF in viewer dialog
