@@ -18,14 +18,15 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     ],
     support: [
       { labelKey: "footer.contact", href: "/#contact" },
-      { labelKey: "nav.faq", href: "/faq" },
+      { labelKey: "nav.faq", href: "/aide" },
       { labelKey: "nav.portal", href: "/portal/auth" },
     ],
     company: [
-      { labelKey: "nav.about", href: "/about" },
+      { labelKey: "nav.about", href: "/a-propos" },
     ],
     legal: [
       { label: "Conditions de service", href: "/conditions-de-service" },
+      { label: "Frais possibles", href: "/frais-possibles" },
       { label: "Installation & rendez-vous", href: "/installation-rendezvous" },
       { label: "Paiement / e-Transfer", href: "/modalites-paiement" },
       { label: "Équipement & garantie", href: "/equipement-garantie" },

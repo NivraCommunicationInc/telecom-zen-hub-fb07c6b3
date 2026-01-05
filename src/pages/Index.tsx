@@ -5,6 +5,7 @@ import Services from "@/components/Services";
 import HowItWorks from "@/components/HowItWorks";
 import ServiceStandards from "@/components/ServiceStandards";
 import Benefits from "@/components/Benefits";
+import Testimonials from "@/components/Testimonials";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 
@@ -19,6 +20,7 @@ const Index = () => {
         <HowItWorks />
         <ServiceStandards />
         <Benefits />
+        <Testimonials />
         <CTA />
       </main>
       <Footer />

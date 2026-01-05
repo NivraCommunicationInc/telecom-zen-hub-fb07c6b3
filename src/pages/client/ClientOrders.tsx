@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrderDetails";
+import OrderStatusTimeline from "@/components/client/OrderStatusTimeline";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 
 const ClientOrders = () => {
@@ -259,6 +260,10 @@ const ClientOrders = () => {
                                 </p>
                               </div>
                             )}
+                          </div>
+                          {/* Status Timeline */}
+                          <div className="mt-4 pt-4 border-t border-border">
+                            <OrderStatusTimeline currentStatus={order.status} />
                           </div>
                         </div>
                         <Button
