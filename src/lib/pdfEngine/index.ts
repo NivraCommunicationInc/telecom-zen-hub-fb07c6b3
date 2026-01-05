@@ -43,6 +43,16 @@ export {
   getEssentialTerms,
 } from "./termsAndConditions";
 
+// Re-export billing calculator (single source of truth)
+export {
+  calculateBillingTotals,
+  verifyBillingInvariant,
+  recalculateBilling,
+  TAX_RATES,
+  type BillingInput,
+  type CalculatedBilling,
+} from "./billingCalculator";
+
 // Sample data for testing
 export {
   sampleMobileOnly,
