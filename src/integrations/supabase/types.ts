@@ -1874,13 +1874,19 @@ export type Database = {
           accepted_at: string
           accepted_ip: string | null
           accepted_method: string | null
+          account_id: string | null
+          activation_date: string | null
+          bill_cycle_day: number | null
           billing_snapshot: Json
           client_snapshot: Json
+          contract_summary_snapshot: Json | null
           created_at: string
           equipment_snapshot: Json
           fees_snapshot: Json
           id: string
           order_id: string
+          payment_method_snapshot: Json | null
+          selected_channels_snapshot: Json | null
           services_snapshot: Json
           version: number
         }
@@ -1888,13 +1894,19 @@ export type Database = {
           accepted_at?: string
           accepted_ip?: string | null
           accepted_method?: string | null
+          account_id?: string | null
+          activation_date?: string | null
+          bill_cycle_day?: number | null
           billing_snapshot?: Json
           client_snapshot?: Json
+          contract_summary_snapshot?: Json | null
           created_at?: string
           equipment_snapshot?: Json
           fees_snapshot?: Json
           id?: string
           order_id: string
+          payment_method_snapshot?: Json | null
+          selected_channels_snapshot?: Json | null
           services_snapshot?: Json
           version?: number
         }
@@ -1902,13 +1914,19 @@ export type Database = {
           accepted_at?: string
           accepted_ip?: string | null
           accepted_method?: string | null
+          account_id?: string | null
+          activation_date?: string | null
+          bill_cycle_day?: number | null
           billing_snapshot?: Json
           client_snapshot?: Json
+          contract_summary_snapshot?: Json | null
           created_at?: string
           equipment_snapshot?: Json
           fees_snapshot?: Json
           id?: string
           order_id?: string
+          payment_method_snapshot?: Json | null
+          selected_channels_snapshot?: Json | null
           services_snapshot?: Json
           version?: number
         }

@@ -3,10 +3,24 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { OrderSnapshotData, FulfillmentSnapshotData, OrderDocumentData } from "./orderDocumentGenerator";
 
+// Extended snapshot data to include all contract summary fields
+export interface ExtendedOrderSnapshotData extends OrderSnapshotData {
+  billCycleDay?: number;
+  accountId?: string;
+  activationDate?: string;
+  paymentMethod?: {
+    method: "card" | "etransfer" | "other";
+    etransferRule?: "after_receipt" | "after_verification";
+    deposit?: number;
+    depositConditions?: string;
+  };
+  selectedChannels?: any;
+}
+
 // Create immutable order snapshot at checkout
 export async function createOrderSnapshot(
   orderId: string,
-  snapshotData: OrderSnapshotData
+  snapshotData: ExtendedOrderSnapshotData
 ): Promise<{ success: boolean; snapshotId?: string; error?: string }> {
   try {
     const { data, error } = await supabase
@@ -21,6 +35,24 @@ export async function createOrderSnapshot(
         billing_snapshot: snapshotData.billing,
         accepted_at: snapshotData.acceptedAt,
         accepted_method: snapshotData.acceptedMethod,
+        // New fields for contract summary
+        bill_cycle_day: snapshotData.billCycleDay,
+        account_id: snapshotData.accountId,
+        activation_date: snapshotData.activationDate,
+        payment_method_snapshot: snapshotData.paymentMethod || {},
+        selected_channels_snapshot: snapshotData.selectedChannels,
+        // Store the complete summary for immutability
+        contract_summary_snapshot: {
+          client: snapshotData.client,
+          services: snapshotData.services,
+          equipment: snapshotData.equipment,
+          fees: snapshotData.fees,
+          billing: snapshotData.billing,
+          billCycleDay: snapshotData.billCycleDay,
+          paymentMethod: snapshotData.paymentMethod,
+          selectedChannels: snapshotData.selectedChannels,
+          snapshotCreatedAt: new Date().toISOString(),
+        },
       })
       .select("id")
       .single();

@@ -75,6 +75,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
+import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 
 // Status configurations
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
@@ -158,6 +159,7 @@ const AdminOrders = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -2704,7 +2706,7 @@ const AdminOrders = () => {
 
                 {/* Save Actions - only show for non-equipment orders */}
                 {selectedOrder.order_type !== "equipment" && (
-                <div className="flex gap-2 pt-4 border-t mt-4">
+                <div className="flex flex-wrap gap-2 pt-4 border-t mt-4">
                   <Button
                     className="flex-1"
                     onClick={() => {
@@ -2719,7 +2721,17 @@ const AdminOrders = () => {
                     onClick={() => sendUpdateMutation.mutate(selectedOrder.id)}
                   >
                     <Send className="w-4 h-4 mr-2" />
-                    Notifier le client
+                    Notifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setDetailsDialogOpen(false);
+                      setSummaryDialogOpen(true);
+                    }}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Résumé contrat
                   </Button>
                 </div>
                 )}
@@ -2727,6 +2739,15 @@ const AdminOrders = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Contract Summary Dialog */}
+        {selectedOrder && (
+          <ContractSummaryDialog
+            open={summaryDialogOpen}
+            onOpenChange={setSummaryDialogOpen}
+            orderId={selectedOrder.id}
+          />
+        )}
 
         {/* Confirmation Dialog */}
         <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
