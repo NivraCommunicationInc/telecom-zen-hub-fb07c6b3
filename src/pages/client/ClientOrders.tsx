@@ -12,16 +12,18 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
 import { portalSupabase } from "@/integrations/supabase/portalClient";
-import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard } from "lucide-react";
+import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrderDetails";
+import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["client-orders-all", user?.id],
@@ -435,10 +437,35 @@ const ClientOrders = () => {
                   <p className="text-sm text-muted-foreground">{selectedOrder.notes}</p>
                 </div>
               )}
+
+              {/* Contract Summary Button */}
+              <div className="pt-4 border-t border-border">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setDetailsOpen(false);
+                    setSummaryOpen(true);
+                  }}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Voir Résumé du contrat
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Contract Summary Dialog */}
+      {selectedOrder && (
+        <ContractSummaryDialog
+          open={summaryOpen}
+          onOpenChange={setSummaryOpen}
+          orderId={selectedOrder.id}
+          usePortalClient
+        />
+      )}
     </ClientLayout>
   );
 };
