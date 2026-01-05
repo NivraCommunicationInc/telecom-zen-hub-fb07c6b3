@@ -1,5 +1,6 @@
 // Checkout Components - Professional Telecom Checkout System
 export { CheckoutLayout } from './CheckoutLayout';
+export { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState, type CheckoutEssentialTermsBaseProps } from './CheckoutEssentialTermsBase';
 export { CheckoutProgress } from './CheckoutProgress';
 export { OrderSummaryCard } from './OrderSummaryCard';
 export { SecurityTrustBox } from './SecurityTrustBox';

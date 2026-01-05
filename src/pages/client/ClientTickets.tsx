@@ -496,17 +496,6 @@ const ClientTickets = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Support</h1>
             <p className="text-muted-foreground mt-1">Gérez vos demandes de support</p>
           </div>
-        
-        {/* Ticket Policy Note - Contract Annex E */}
-        <Card className="bg-amber-500/5 border-amber-500/20 ml-auto max-w-md">
-          <CardContent className="py-3 px-4">
-            <p className="text-xs text-muted-foreground">
-              <AlertCircle className="w-3 h-3 inline mr-1 text-amber-500" />
-              Les tickets sans réponse du client après 7 jours peuvent être fermés automatiquement. 
-              Vous pouvez les rouvrir sur demande.
-            </p>
-          </CardContent>
-        </Card>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="hero">
@@ -643,6 +632,27 @@ const ClientTickets = () => {
               </div>
             </DialogContent>
           </Dialog>
+        </div>
+
+        {/* Contract Annex E - Ticket Policy & Technical Evidence Notes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-amber-500/5 border-amber-500/20">
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-muted-foreground">
+                <AlertCircle className="w-3 h-3 inline mr-1 text-amber-500" />
+                <strong>Délai de réponse :</strong> Les tickets sans réponse du client après 7 jours peuvent être fermés automatiquement. 
+                Réouverture possible sur demande.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-blue-500/5 border-blue-500/20">
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-muted-foreground">
+                <AlertCircle className="w-3 h-3 inline mr-1 text-blue-500" />
+                <strong>Preuves techniques :</strong> Les logs, confirmations d'activation, preuves de livraison, statuts de paiement et tickets peuvent servir de preuve en cas de litige (selon la loi applicable).
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card className="bg-card border-border">

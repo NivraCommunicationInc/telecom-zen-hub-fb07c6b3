@@ -37,18 +37,16 @@ export const ServiceInfoBox = ({ title, items, linkTo, linkLabel }: ServiceInfoB
   );
 };
 
-// Predefined info boxes for each service type
+// Predefined info boxes for each service type - Text matches Contract Annex B exactly
 export const MobileInfoBox = ({ isFrench }: { isFrench: boolean }) => {
   const items = isFrench ? [
-    "Portabilité de numéro disponible (codes régionaux QC)",
-    "Carte SIM physique ou eSIM : frais uniques de 25$",
-    "Frais d'itinérance et de surconsommation peuvent s'appliquer",
-    "Vitesses 4G — performance variable selon la couverture réseau"
+    "La portabilité dépend de votre fournisseur actuel et des informations fournies (incluant NIP/PIN de portage si requis).",
+    "Des frais peuvent s'appliquer pour activation/remplacement SIM/eSIM (perte/vol/bris).",
+    "Roaming/hors-forfait/valeur ajoutée facturés selon tarifs applicables; mesures anti-fraude possibles."
   ] : [
-    "Number portability available (QC area codes)",
-    "Physical SIM or eSIM: one-time $25 fee",
-    "Roaming and overage fees may apply",
-    "4G speeds — performance varies based on network coverage"
+    "Portability depends on your current provider and the information provided (including porting PIN if required).",
+    "Fees may apply for SIM/eSIM activation/replacement (loss/theft/damage).",
+    "Roaming/overage/value-added billed at applicable rates; anti-fraud measures possible."
   ];
 
   return (
@@ -63,15 +61,13 @@ export const MobileInfoBox = ({ isFrench }: { isFrench: boolean }) => {
 
 export const InternetInfoBox = ({ isFrench }: { isFrench: boolean }) => {
   const items = isFrench ? [
-    "Vitesses affichées : « jusqu'à » — performance variable",
-    "Meilleur effort (best effort) — interruptions possibles",
-    "Réseau interne (WiFi) sous responsabilité du client",
-    "Politique d'utilisation équitable (fair use) applicable"
+    "Vitesses annoncées « jusqu'à » : la vitesse réelle varie (congestion, Wi-Fi, câblage, appareils, configuration).",
+    "Le réseau interne (Wi-Fi/routeur/câbles) est sous responsabilité du client.",
+    "Usage raisonnable pour prévenir abus/fraude/revente non autorisée."
   ] : [
-    "Speeds shown are 'up to' — performance varies",
-    "Best effort service — interruptions possible",
-    "Internal network (WiFi) is client's responsibility",
-    "Fair use policy applies"
+    "Speeds advertised as \"up to\": actual speed varies (congestion, Wi-Fi, wiring, devices, configuration).",
+    "Internal network (Wi-Fi/router/cables) is the client's responsibility.",
+    "Fair use to prevent abuse/fraud/unauthorized resale."
   ];
 
   return (
@@ -86,15 +82,13 @@ export const InternetInfoBox = ({ isFrench }: { isFrench: boolean }) => {
 
 export const TVInfoBox = ({ isFrench }: { isFrench: boolean }) => {
   const items = isFrench ? [
-    "25/26 chaînes de base incluses selon le forfait",
-    "Chaînes « Free Choice » sélectionnables dans le portail",
-    "Chaînes premium disponibles (frais additionnels)",
-    "Changements de chaînes : ticket interne, délai 2h à 24h"
+    "Tous les plans incluent 25 ou 26 chaînes de base obligatoires.",
+    "Chaînes Free-Choice selon le plan; Premium facturées en supplément.",
+    "Certaines modifications peuvent nécessiter confirmation et créer un ticket interne (ETA 2h à 24h)."
   ] : [
-    "25/26 basic channels included depending on plan",
-    "'Free Choice' channels selectable in portal",
-    "Premium channels available (additional fees)",
-    "Channel changes: internal ticket, 2h to 24h ETA"
+    "All plans include 25 or 26 mandatory basic channels.",
+    "Free-Choice channels according to plan; Premium channels billed separately.",
+    "Some changes may require confirmation and create an internal ticket (ETA 2h to 24h)."
   ];
 
   return (
@@ -109,15 +103,13 @@ export const TVInfoBox = ({ isFrench }: { isFrench: boolean }) => {
 
 export const SecurityInfoBox = ({ isFrench }: { isFrench: boolean }) => {
   const items = isFrench ? [
-    "Service non prévu pour les urgences (911)",
-    "Dépend de l'alimentation électrique et de la connexion Internet",
-    "Tests périodiques requis — fausses alarmes possibles",
-    "Le client est responsable de la configuration et du maintien"
+    "Service non-urgence : en cas d'urgence, composer 911.",
+    "Dépend de l'électricité/Internet/réseaux; interruptions possibles.",
+    "Fausses alarmes/interventions non couvertes peuvent entraîner des frais."
   ] : [
-    "Not intended for emergency services (911)",
-    "Depends on power supply and Internet connection",
-    "Periodic testing required — false alarms possible",
-    "Client responsible for configuration and maintenance"
+    "Non-emergency service: in case of emergency, call 911.",
+    "Depends on electricity/Internet/networks; interruptions possible.",
+    "False alarms/uncovered interventions may incur fees."
   ];
 
   return (
