@@ -412,6 +412,23 @@ const ClientInvoices = () => {
           </Button>
         </div>
 
+        {/* Billing Cycle Info - Contract Annex D */}
+        <Card className="bg-blue-500/5 border-blue-500/20">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-foreground mb-1">Cycle de facturation (Bill Cycle)</p>
+                <p className="text-muted-foreground">
+                  Votre cycle de facturation est la période mensuelle durant laquelle vos services sont prépayés. 
+                  L'échéance correspond à la date limite de paiement avant application de frais de retard (5%/mois après 15 jours). 
+                  Le renouvellement du service se fait uniquement après réception du paiement.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Balance Summary - Derived from Invoices */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <ClientBalanceSummary userId={user?.id || ""} userEmail={profile?.email} />
