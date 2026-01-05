@@ -70,12 +70,13 @@ const EQUIPMENT_CONFIG = {
   sim: { name: "Nivra SIM", price: 25 },
 };
 
+// E-Transfer statuses must match DB constraint exactly (case-sensitive)
 const ETRANSFER_STATUSES = [
-  { value: "pending", label: "Pending" },
-  { value: "verification", label: "In verification" },
-  { value: "complete", label: "Complete" },
-  { value: "declined", label: "Declined" },
-  { value: "fraud", label: "Fraud" },
+  { value: "Pending", label: "Pending" },
+  { value: "In verification", label: "In verification" },
+  { value: "Complete", label: "Complete" },
+  { value: "Declined", label: "Declined" },
+  { value: "Fraud", label: "Fraud" },
 ];
 
 interface ManualOrderWizardProps {
@@ -135,7 +136,7 @@ const initialOrderState: OrderState = {
   appointmentTime: "",
   internalNotes: "",
   paymentMethod: "card",
-  etransferStatus: "pending",
+  etransferStatus: "Pending",
   promoCode: "",
   discountAmount: 0,
 };
@@ -474,7 +475,7 @@ export default function ManualOrderWizard({
           discount_amount: calculations.discountAmount,
           tps_amount: calculations.tps,
           tvq_amount: calculations.tvq,
-          status: orderState.paymentMethod === "etransfer" && orderState.etransferStatus === "complete" ? "paid" : "pending",
+          status: orderState.paymentMethod === "etransfer" && orderState.etransferStatus === "Complete" ? "paid" : "pending",
           due_date: format(addDays(new Date(), 5), "yyyy-MM-dd"),
         });
 
