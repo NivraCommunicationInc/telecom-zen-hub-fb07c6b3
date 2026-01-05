@@ -496,6 +496,17 @@ const ClientTickets = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Support</h1>
             <p className="text-muted-foreground mt-1">Gérez vos demandes de support</p>
           </div>
+        
+        {/* Ticket Policy Note - Contract Annex E */}
+        <Card className="bg-amber-500/5 border-amber-500/20 ml-auto max-w-md">
+          <CardContent className="py-3 px-4">
+            <p className="text-xs text-muted-foreground">
+              <AlertCircle className="w-3 h-3 inline mr-1 text-amber-500" />
+              Les tickets sans réponse du client après 7 jours peuvent être fermés automatiquement. 
+              Vous pouvez les rouvrir sur demande.
+            </p>
+          </CardContent>
+        </Card>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="hero">

@@ -54,7 +54,8 @@ import {
   validatePinSetup,
   CheckoutPaymentSection,
   CheckoutPhoneField,
-  validateCanadianPhone 
+  validateCanadianPhone,
+  CheckoutEssentialTerms
 } from "@/components/checkout";
 import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSection";
 import { hashPin } from "@/lib/pinUtils";
@@ -182,6 +183,7 @@ const ClientInternetOrder = () => {
   const [discountCode, setDiscountCode] = useState("");
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [essentialTermsAcknowledged, setEssentialTermsAcknowledged] = useState(false);
   const [routerAcknowledged, setRouterAcknowledged] = useState(false);
   
   // Installation method
@@ -1108,6 +1110,14 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 checkFirstOrder={true}
               />
 
+              {/* Essential Terms - Before Payment */}
+              <CheckoutEssentialTerms
+                isFrench={isFrench}
+                acknowledged={essentialTermsAcknowledged}
+                onAcknowledgeChange={setEssentialTermsAcknowledged}
+                paymentMethod={selectedPaymentMethod}
+              />
+
               {/* Payment Section */}
               <CheckoutPaymentSection
                 isFrench={isFrench}
@@ -1151,6 +1161,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                     onClick={() => setStep(4)}
                     disabled={
                       !routerAcknowledged || 
+                      !essentialTermsAcknowledged ||
                       !validateIDData(clientIdData, false).valid || 
                       !selectedDate || 
                       !selectedTime || 

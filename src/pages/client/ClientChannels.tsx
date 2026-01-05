@@ -524,6 +524,23 @@ END:VCALENDAR`;
           </p>
         </div>
 
+        {/* TV Channel Changes Info - Contract Annex */}
+        <Card className="bg-purple-500/5 border-purple-500/20">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-foreground mb-1">Délais de traitement des changements</p>
+                <p className="text-muted-foreground">
+                  Les modifications de chaînes sont traitées via ticket interne. 
+                  Délai estimé : <strong>2h à 24h</strong> selon la complexité. 
+                  Statuts : Ouvert → En cours → Terminé.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
             <TabsTrigger value="my-channels" className="flex items-center gap-2">

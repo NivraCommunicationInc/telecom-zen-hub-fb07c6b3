@@ -1,4 +1,4 @@
-import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Phone, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles } from "lucide-react";
+import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Phone, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { SecurityInfoBox } from "@/components/ServiceInfoBox";
 
 const ServicesDetail = () => {
   const { language } = useLanguage();
@@ -324,6 +325,11 @@ const ServicesDetail = () => {
                 </Card>
               );
             })}
+          </div>
+
+          {/* Security Info Box - Annex B4 */}
+          <div className="mt-8 max-w-2xl mx-auto">
+            <SecurityInfoBox isFrench={isFrench} />
           </div>
         </section>
 

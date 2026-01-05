@@ -14,3 +14,4 @@ export { StreamingServiceSelection } from './StreamingServiceSelection';
 export { CheckoutPaymentSection } from './CheckoutPaymentSection';
 export { CheckoutPhoneField, validateCanadianPhone } from './CheckoutPhoneField';
 export { CheckoutServiceAddress, validateCanadianPostalCode, formatPostalCode, isAddressComplete } from './CheckoutServiceAddress';
+export { CheckoutEssentialTerms, ETransferStatusInfo } from './CheckoutEssentialTerms';

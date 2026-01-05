@@ -51,7 +51,7 @@ import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSecti
 import { PortalTVChannelSelection } from "@/components/checkout/PortalTVChannelSelection";
 import { PortalStreamingServiceSelection } from "@/components/checkout/PortalStreamingServiceSelection";
 import { StreamingCatalogItem } from "@/hooks/usePortalStreamingCatalog";
-import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone } from "@/components/checkout";
+import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone, CheckoutEssentialTerms } from "@/components/checkout";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
 
@@ -322,6 +322,7 @@ const ClientTVOrder = () => {
   
   // Order details - local state (not persisted)
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [essentialTermsAcknowledged, setEssentialTermsAcknowledged] = useState(false);
   
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
@@ -1346,6 +1347,14 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 </CardContent>
               </Card>
 
+              {/* Essential Terms - Before Payment */}
+              <CheckoutEssentialTerms
+                isFrench={isFrench}
+                acknowledged={essentialTermsAcknowledged}
+                onAcknowledgeChange={setEssentialTermsAcknowledged}
+                paymentMethod={selectedPaymentMethod}
+              />
+
               {/* Payment Section */}
               <CheckoutPaymentSection
                 isFrench={isFrench}
@@ -1497,7 +1506,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   size="lg" 
                   className="w-full"
                   onClick={handleSubmit}
-                  disabled={createOrderMutation.isPending || !routerAcknowledged || !validateIDData(clientIdData, false).valid || !termsAccepted || !selectedDate || !selectedTime}
+                  disabled={createOrderMutation.isPending || !routerAcknowledged || !essentialTermsAcknowledged || !validateIDData(clientIdData, false).valid || !termsAccepted || !selectedDate || !selectedTime}
                 >
                   {createOrderMutation.isPending ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
