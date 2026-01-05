@@ -2,27 +2,44 @@ import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { COMPANY_CONTACT, ETRANSFER_CONFIG } from "@/config/company";
+import { calculateBillingTotals, TAX_RATES, type BillingInput } from "@/lib/pdfEngine/billingCalculator";
+import { sanitizeLegalText } from "@/lib/pdfEngine/helpers";
 
-// Business Information
+// =============================================================================
+// NIVRA INVOICE PDF GENERATOR
+// Single source of truth: billingCalculator.ts for all tax/total calculations
+// CRITICAL: Company address is always Nivra's official address, never client's
+// =============================================================================
+
+// Business Information - ALWAYS use Nivra's official address
 const NIVRA_BUSINESS = {
   name: COMPANY_CONTACT.legalName.toUpperCase(),
   division: "Customer Service Agreement Billing Division",
   description: "Telecommunications Services Provider — Province of Québec",
-  address: COMPANY_CONTACT.fullAddress,
+  address: COMPANY_CONTACT.fullAddress, // 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
   email: COMPANY_CONTACT.supportEmailDisplay,
   phone: COMPANY_CONTACT.supportPhoneFormatted,
   neq: "2291249786",
 };
 
-// Quebec tax rates
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+// Service line item for multi-service support
+export interface InvoiceServiceItem {
+  type: "Internet" | "Mobile" | "TV" | "Security" | "Streaming" | "Other";
+  name: string;
+  description?: string;
+  quantity?: number;
+  monthlyPrice: number;
+  period?: string; // "/mois" or "/30 jours"
+  isOneTime?: boolean;
+}
 
 export interface InvoiceData {
   invoiceNumber: string;
   orderNumber?: string;
   paymentReference?: string;
-  clientNumber?: string;
+  clientNumber?: string; // Client account number
+  clientAccountNumber?: string; // Alternative field name
+  orderClientAccountNumber?: string; // From order data
   clientName: string;
   clientEmail: string;
   clientPhone?: string;
@@ -30,6 +47,11 @@ export interface InvoiceData {
   clientCity?: string;
   billingCycleStart?: string;
   billingCycleEnd?: string;
+  
+  // NEW: Multi-service support - array of recurring services
+  services?: InvoiceServiceItem[];
+  
+  // Legacy fields for backward compatibility
   subtotal: number;
   fees?: number;
   credits?: number;
@@ -43,9 +65,7 @@ export interface InvoiceData {
   simType?: "physical" | "esim";
   discountAmount?: number;
   preauthDiscount?: number;
-  /** Promo code applied */
   promoCode?: string;
-  /** Promo discount description */
   promoDescription?: string;
   tpsAmount?: number;
   tvqAmount?: number;
@@ -69,11 +89,8 @@ export interface InvoiceData {
   issuedBy?: string;
   issuedByRole?: string;
   issuedAt?: string;
-  /** Payment method: credit_card, etransfer, cash, etc. */
   paymentMethod?: "credit_card" | "etransfer" | "cash" | "other";
-  /** Last 4 digits of credit card if applicable */
   cardLast4?: string;
-  /** Card type (Visa, Mastercard, etc.) */
   cardType?: string;
 }
 
@@ -84,16 +101,17 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
   const topMargin = 15;
-  const bottomMargin = 40; // Reserve space for footer
+  const bottomMargin = 40;
   let currentY = margin;
 
-  // Color palette - Professional telecom colors
-  const primaryColor: [number, number, number] = [0, 150, 180]; // Teal
+  // Color palette
+  const primaryColor: [number, number, number] = [0, 150, 180];
   const navyColor: [number, number, number] = [10, 25, 47];
   const darkColor: [number, number, number] = [30, 30, 30];
   const grayColor: [number, number, number] = [100, 100, 100];
   const lightGray: [number, number, number] = [150, 150, 150];
   const accentColor: [number, number, number] = [0, 120, 150];
+  const successColor: [number, number, number] = [34, 197, 94];
 
   // Helper: check if we need a page break
   const checkPageBreak = (neededHeight: number): boolean => {
@@ -105,7 +123,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     return false;
   };
 
-  // Helper: add wrapped text with automatic page break
+  // Helper: add wrapped text with sanitization and page break handling
   const addWrappedText = (
     text: string,
     x: number,
@@ -116,7 +134,9 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   ): void => {
     doc.setFontSize(fontSize);
     doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(text, maxWidth);
+    // CRITICAL: Always sanitize legal text before splitting
+    const sanitizedText = sanitizeLegalText(text);
+    const lines = doc.splitTextToSize(sanitizedText, maxWidth);
     const neededHeight = lines.length * lineHeight;
     
     checkPageBreak(neededHeight);
@@ -127,27 +147,159 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     }
   };
 
-  // Calculate amounts
-  const subtotal = data.subtotal || 0;
-  const fees = data.fees || 0;
-  const deliveryFee = data.deliveryFee || 0;
-  const activationFee = data.activationFee || 0;
-  const installationFee = data.installationFee || 0;
-  const terminalFee = data.terminalFee || 0;
-  const routerFee = data.routerFee || 0;
-  const simFee = data.simFee || 0;
-  const discountAmount = data.discountAmount || 0;
-  const preauthDiscount = data.preauthDiscount || 0;
-  const credits = data.credits || 0;
-  const totalDiscount = discountAmount + preauthDiscount;
+  // ========================================================================
+  // CLIENT ACCOUNT NUMBER - Robust fallback chain
+  // ========================================================================
+  const resolveClientAccountNumber = (): string => {
+    // Fallback order: clientNumber → clientAccountNumber → orderClientAccountNumber → N/A
+    if (data.clientNumber && data.clientNumber.trim() !== "") {
+      return data.clientNumber;
+    }
+    if (data.clientAccountNumber && data.clientAccountNumber.trim() !== "") {
+      return data.clientAccountNumber;
+    }
+    if (data.orderClientAccountNumber && data.orderClientAccountNumber.trim() !== "") {
+      return data.orderClientAccountNumber;
+    }
+    
+    // Log error for missing account number
+    console.error("[Invoice PDF] Missing client account number - displaying N/A", {
+      invoiceNumber: data.invoiceNumber,
+      clientEmail: data.clientEmail,
+      clientName: data.clientName,
+    });
+    
+    return "N/A";
+  };
+  
+  const clientAccountNumber = resolveClientAccountNumber();
 
-  const baseAmount = subtotal + fees + deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee - totalDiscount;
-  const tpsAmount = data.tpsAmount ?? Math.round(baseAmount * TPS_RATE * 100) / 100;
-  const tvqAmount = data.tvqAmount ?? Math.round(baseAmount * TVQ_RATE * 100) / 100;
+  // ========================================================================
+  // BUILD SERVICES LIST - Multi-service support
+  // ========================================================================
+  const buildServicesList = (): InvoiceServiceItem[] => {
+    // If services array is provided, use it directly
+    if (data.services && data.services.length > 0) {
+      return data.services.filter(s => !s.isOneTime && s.monthlyPrice >= 0);
+    }
+    
+    // Otherwise, build from legacy fields
+    const services: InvoiceServiceItem[] = [];
+    
+    // Internet service
+    if (data.servicePlan || data.serviceDescription) {
+      services.push({
+        type: "Internet",
+        name: data.servicePlan || "Internet",
+        description: data.serviceDescription || "",
+        quantity: 1,
+        monthlyPrice: data.subtotal || 0,
+        period: "/mois",
+      });
+    }
+    
+    // TV Bundle
+    if (data.tvBundle) {
+      services.push({
+        type: "TV",
+        name: data.tvBundle,
+        description: "Forfait télévision",
+        quantity: 1,
+        monthlyPrice: 0, // Price included in subtotal
+        period: "/mois",
+      });
+    }
+    
+    // Mobile Plan
+    if (data.mobilePlan) {
+      services.push({
+        type: "Mobile",
+        name: data.mobilePlan,
+        description: "Forfait mobile prépayé",
+        quantity: 1,
+        monthlyPrice: 0, // Price included in subtotal
+        period: "/30 jours",
+      });
+    }
+    
+    // Streaming
+    if (data.streamingService) {
+      services.push({
+        type: "Streaming",
+        name: data.streamingService,
+        description: "Service de streaming",
+        quantity: 1,
+        monthlyPrice: 0,
+        period: "/mois",
+      });
+    }
+    
+    // If no services found but subtotal exists, add generic
+    if (services.length === 0 && data.subtotal > 0) {
+      services.push({
+        type: "Internet", // Default type instead of "Other"
+        name: "Services Télécommunications",
+        description: "",
+        quantity: 1,
+        monthlyPrice: data.subtotal,
+        period: "/mois",
+      });
+    }
+    
+    return services;
+  };
+
+  const recurringServices = buildServicesList();
+
+  // ========================================================================
+  // USE SHARED BILLING CALCULATOR - Single source of truth
+  // ========================================================================
+  const equipmentFees = (data.routerFee || 0) + (data.terminalFee || 0) + (data.simFee || 0);
+  const otherFees = (data.deliveryFee || 0) + (data.activationFee || 0) + (data.installationFee || 0);
+  const oneTimeTotal = equipmentFees + otherFees + (data.fees || 0);
+  const totalDiscount = (data.discountAmount || 0) + (data.preauthDiscount || 0);
+  
+  // Calculate using shared billing calculator
+  const billingInput: BillingInput = {
+    services: recurringServices.map(s => ({
+      type: s.type,
+      name: s.name,
+      description: s.description || "",
+      monthlyPrice: s.monthlyPrice,
+      quantity: s.quantity || 1,
+      isOneTime: false,
+      priceLabel: s.period || "/mois",
+    })),
+    equipment: [
+      ...(data.routerFee ? [{ name: "Router", quantity: 1, unitPrice: data.routerFee, serial: data.routerSerial }] : []),
+      ...(data.terminalFee ? [{ name: "Terminal", quantity: data.terminalCount || 1, unitPrice: data.terminalFee / (data.terminalCount || 1) }] : []),
+      ...(data.simFee ? [{ name: "SIM", quantity: 1, unitPrice: data.simFee }] : []),
+    ],
+    oneTimeFees: [
+      ...(data.deliveryFee ? [{ label: "Livraison", amount: data.deliveryFee }] : []),
+      ...(data.activationFee ? [{ label: "Activation", amount: data.activationFee }] : []),
+      ...(data.installationFee ? [{ label: "Installation", amount: data.installationFee }] : []),
+      ...(data.fees ? [{ label: "Frais additionnels", amount: data.fees }] : []),
+    ],
+    discounts: [
+      ...(data.discountAmount ? [{ label: data.promoCode || "Rabais", amount: data.discountAmount, type: "promo" as const }] : []),
+      ...(data.preauthDiscount ? [{ label: "Rabais préautorisé", amount: data.preauthDiscount, type: "preauth" as const }] : []),
+    ],
+  };
+  
+  const calculatedBilling = calculateBillingTotals(billingInput);
+  
+  // Use calculated values OR provided values (for backward compatibility)
+  const tpsAmount = data.tpsAmount ?? calculatedBilling.tps;
+  const tvqAmount = data.tvqAmount ?? calculatedBilling.tvq;
   const lateFeeAmount = data.lateFeeAmount || 0;
-  const total = baseAmount + tpsAmount + tvqAmount + lateFeeAmount - credits;
+  const credits = data.credits || 0;
+  
+  // Calculate total using invariant: taxable = recurring + oneTime - discounts
+  const taxableSubtotal = calculatedBilling.taxableSubtotal;
+  const total = taxableSubtotal + tpsAmount + tvqAmount + lateFeeAmount - credits;
 
-  // ============ HEADER SECTION ============
+  // ============ HEADER SECTION - Always Nivra's address ============
   doc.setFillColor(...navyColor);
   doc.rect(0, 0, pageWidth, 52, "F");
 
@@ -172,11 +324,11 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setTextColor(180, 180, 180);
   doc.text(NIVRA_BUSINESS.description, pageWidth / 2, 33, { align: "center" });
 
-  // Contact info
+  // CRITICAL: Always use Nivra's official address, never client address
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
   doc.text(`Head Office: ${NIVRA_BUSINESS.address}`, pageWidth / 2, 40, { align: "center" });
-  doc.text(`Support: ${NIVRA_BUSINESS.email}`, pageWidth / 2, 46, { align: "center" });
+  doc.text(`Support: ${NIVRA_BUSINESS.email} | ${NIVRA_BUSINESS.phone}`, pageWidth / 2, 46, { align: "center" });
 
   currentY = 60;
 
@@ -184,14 +336,14 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkColor);
-  doc.text("TELECOMMUNICATIONS INVOICE", margin, currentY);
+  doc.text("FACTURE / INVOICE", margin, currentY);
 
   // Status badge
   const statusConfig: Record<string, { color: [number, number, number]; label: string }> = {
-    paid: { color: [34, 197, 94], label: "PROCESSED" },
-    pending: { color: [234, 179, 8], label: "PRE-AUTHORIZED" },
-    overdue: { color: [239, 68, 68], label: "OVERDUE" },
-    cancelled: { color: [156, 163, 175], label: "CANCELLED" },
+    paid: { color: [34, 197, 94], label: "PAYÉ" },
+    pending: { color: [234, 179, 8], label: "EN ATTENTE" },
+    overdue: { color: [239, 68, 68], label: "EN RETARD" },
+    cancelled: { color: [156, 163, 175], label: "ANNULÉ" },
   };
 
   const statusInfo = statusConfig[data.status] || statusConfig.pending;
@@ -220,10 +372,10 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...lightGray);
-  doc.text("INVOICE NUMBER", col1, currentY + 7);
-  doc.text("ORDER REFERENCE", col2, currentY + 7);
-  doc.text("PAYMENT REFERENCE", col3, currentY + 7);
-  doc.text("ACCOUNT KEY", col4, currentY + 7);
+  doc.text("NO. FACTURE", col1, currentY + 7);
+  doc.text("RÉF. COMMANDE", col2, currentY + 7);
+  doc.text("RÉF. PAIEMENT", col3, currentY + 7);
+  doc.text("NO. COMPTE", col4, currentY + 7);
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
@@ -233,17 +385,17 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setTextColor(...primaryColor);
   doc.text(data.paymentReference || "—", col3, currentY + 13);
   doc.setTextColor(...darkColor);
-  doc.text(data.clientNumber || "—", col4, currentY + 13);
+  doc.text(clientAccountNumber, col4, currentY + 13);
 
   // Row 2
   doc.setFontSize(6);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...lightGray);
-  doc.text("ISSUE DATE", col1, currentY + 23);
-  doc.text("BILLING CYCLE START", col2, currentY + 23);
-  doc.text("BILLING CYCLE END", col3, currentY + 23);
+  doc.text("DATE D'ÉMISSION", col1, currentY + 23);
+  doc.text("DÉBUT CYCLE", col2, currentY + 23);
+  doc.text("FIN CYCLE", col3, currentY + 23);
   if (data.dueDate) {
-    doc.text("DUE DATE", col4, currentY + 23);
+    doc.text("ÉCHÉANCE", col4, currentY + 23);
   }
 
   doc.setFontSize(8);
@@ -263,7 +415,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...accentColor);
-  doc.text("ACCOUNT HOLDER INFORMATION", margin, currentY);
+  doc.text("INFORMATIONS CLIENT", margin, currentY);
 
   currentY += 6;
   doc.setDrawColor(...primaryColor);
@@ -275,218 +427,301 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setTextColor(...darkColor);
   doc.setFontSize(8);
 
-  doc.text(`Name: ${data.clientName}`, margin, currentY);
+  // Account number - always show
+  doc.text(`Numéro de compte : ${clientAccountNumber}`, margin, currentY);
   currentY += 5;
-  doc.text(`Email: ${data.clientEmail}`, margin, currentY);
+  doc.text(`Nom : ${data.clientName}`, margin, currentY);
+  currentY += 5;
+  doc.text(`Courriel : ${data.clientEmail}`, margin, currentY);
   if (data.clientPhone) {
     currentY += 5;
-    doc.text(`Phone: ${data.clientPhone}`, margin, currentY);
+    doc.text(`Téléphone : ${data.clientPhone}`, margin, currentY);
   }
   if (data.clientAddress || data.clientCity) {
     currentY += 5;
     const address = [data.clientAddress, data.clientCity, "Québec, Canada"].filter(Boolean).join(", ");
-    doc.text(`Service Address: ${address}`, margin, currentY);
+    doc.text(`Adresse de service : ${address}`, margin, currentY);
   }
 
   currentY += 12;
 
-  // ============ SERVICES BILLED SECTION ============
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...accentColor);
-  doc.text("SERVICES BILLED", margin, currentY);
-
-  currentY += 6;
-  doc.setDrawColor(...primaryColor);
-  doc.line(margin, currentY, margin + 45, currentY);
-
-  currentY += 8;
-
-  // Table header
-  doc.setFillColor(...navyColor);
-  doc.rect(margin, currentY, contentWidth, 8, "F");
-
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("CATEGORY", margin + 5, currentY + 5.5);
-  doc.text("DESCRIPTION", margin + 45, currentY + 5.5);
-  doc.text("AMOUNT (CAD)", pageWidth - margin - 5, currentY + 5.5, { align: "right" });
-
-  currentY += 12;
-
-  // Line items
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(8);
-
-  let rowIndex = 0;
-  const addServiceRow = (category: string, description: string, amount: number, isCredit: boolean = false) => {
-    if (amount === 0) return;
-    
-    // Alternate row background
-    if (rowIndex % 2 === 0) {
-      doc.setFillColor(252, 252, 253);
-      doc.rect(margin, currentY - 3, contentWidth, 7, "F");
-    }
-    
-    doc.setTextColor(...grayColor);
-    doc.setFontSize(7);
-    doc.text(category.toUpperCase(), margin + 5, currentY);
-    
-    doc.setTextColor(...darkColor);
-    doc.setFontSize(8);
-    doc.text(description, margin + 45, currentY);
-    
-    doc.setTextColor(isCredit ? 34 : darkColor[0], isCredit ? 197 : darkColor[1], isCredit ? 94 : darkColor[2]);
-    doc.text(`${isCredit ? "-" : ""}${amount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
-    doc.setTextColor(...darkColor);
-    
-    currentY += 7;
-    rowIndex++;
-  };
-
-  // Monthly Services Section
-  if (data.servicePlan || data.serviceDescription || subtotal > 0) {
-    addServiceRow("Monthly", data.servicePlan || data.serviceDescription || "Telecommunications Services", subtotal);
-  }
-  if (data.tvBundle) {
-    addServiceRow("Monthly", `TV Bundle: ${data.tvBundle}`, 0);
-  }
-  if (data.mobilePlan) {
-    addServiceRow("Monthly", `Mobile Plan: ${data.mobilePlan}`, 0);
-  }
-  if (data.streamingService) {
-    addServiceRow("Monthly", `Streaming: ${data.streamingService}`, 0);
-  }
-  if (fees > 0) {
-    addServiceRow("Monthly", "Additional Service Fees", fees);
-  }
-
-  // One-Time Equipment Fees Section
-  if (routerFee > 0) {
-    const routerDesc = data.routerSerial 
-      ? `Nivra Born Wifi Router (S/N: ${data.routerSerial}) — 1-Year Warranty`
-      : "Nivra Born Wifi Router — 1-Year Manufacturer Warranty";
-    addServiceRow("Equipment", routerDesc, routerFee);
-  }
-  if (terminalFee > 0) {
-    const termCount = data.terminalCount || Math.ceil(terminalFee / 50);
-    const termDesc = data.terminalSerials?.length 
-      ? `Nivra 4K Smart Terminal ×${termCount} (S/N: ${data.terminalSerials.join(", ")})`
-      : `Nivra 4K Smart Terminal ×${termCount} — 1-Year Warranty`;
-    addServiceRow("Equipment", termDesc, terminalFee);
-  }
-  if (simFee > 0) {
-    const simTypeLabel = data.simType === "esim" ? "eSIM" : "Physical SIM";
-    const simDesc = data.simSerial 
-      ? `${simTypeLabel} Card (S/N: ${data.simSerial})`
-      : `${simTypeLabel} Card`;
-    addServiceRow("Equipment", simDesc, simFee);
-  }
-
-  // Delivery Fees Section
-  if (deliveryFee > 0) {
-    const deliveryDesc = data.deliveryMethod === "uber" 
-      ? "Uber Express Delivery (Same-Day)" 
-      : data.deliveryMethod === "shipHome"
-      ? "Ship to Home Delivery"
-      : "Standard Delivery (Québec)";
-    addServiceRow("Delivery", deliveryDesc, deliveryFee);
-  }
-  if (data.trackingNumber) {
-    doc.setFontSize(6);
-    doc.setTextColor(...lightGray);
-    doc.text(`Tracking: ${data.trackingNumber}`, margin + 45, currentY - 2);
-    currentY += 3;
-  }
-
-  // Installation Fee
-  if (installationFee > 0) {
-    addServiceRow("Installation", "Professional Technician Installation", installationFee);
-  }
-
-  // Activation Fee
-  if (activationFee > 0) {
-    addServiceRow("Activation", "Service Activation Fee", activationFee);
-  }
-
-  // Discounts
-  if (totalDiscount > 0) {
-    if (preauthDiscount > 0) {
-      addServiceRow("Discount", "Pre-Authorization Discount", preauthDiscount, true);
-    }
-    if (discountAmount > 0) {
-      const promoLabel = data.promoCode 
-        ? `Promotional Discount (${data.promoCode})` 
-        : "Promotional Discount Applied";
-      addServiceRow("Discount", promoLabel, discountAmount, true);
-    }
-  }
-
-  currentY += 5;
-
-  // ============ ONE-TIME FEES SECTION (FRAIS UNIQUES) ============
-  const oneTimeFeesTotal = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
-  if (oneTimeFeesTotal > 0) {
+  // ============ SERVICES SOUSCRITS SECTION - Multi-service ============
+  if (recurringServices.length > 0) {
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...accentColor);
-    doc.text("ONE-TIME FEES / FRAIS UNIQUES", margin, currentY);
+    doc.text("SERVICES SOUSCRITS", margin, currentY);
+
+    currentY += 6;
+    doc.setDrawColor(...primaryColor);
+    doc.line(margin, currentY, margin + 60, currentY);
+
+    currentY += 8;
+
+    // Table header
+    doc.setFillColor(...navyColor);
+    doc.rect(margin, currentY, contentWidth, 8, "F");
+
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text("TYPE", margin + 3, currentY + 5.5);
+    doc.text("FORFAIT / SERVICE", margin + 28, currentY + 5.5);
+    doc.text("QTÉ", margin + 105, currentY + 5.5);
+    doc.text("PRIX", margin + 125, currentY + 5.5);
+    doc.text("PÉRIODE", margin + 155, currentY + 5.5);
+
+    currentY += 12;
+
+    // Service rows - one line per service
+    let rowIndex = 0;
+    let recurringTotal = 0;
+    
+    for (const service of recurringServices) {
+      // Alternating background
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(252, 252, 253);
+        doc.rect(margin, currentY - 3, contentWidth, 7, "F");
+      }
+
+      // Type column
+      doc.setTextColor(...grayColor);
+      doc.setFontSize(6);
+      doc.text(service.type.toUpperCase(), margin + 3, currentY);
+
+      // Name + description
+      doc.setTextColor(...darkColor);
+      doc.setFontSize(7);
+      const serviceName = service.description 
+        ? `${service.name} — ${service.description}`.substring(0, 50) 
+        : service.name.substring(0, 50);
+      doc.text(sanitizeLegalText(serviceName), margin + 28, currentY);
+
+      // Quantity
+      doc.text(String(service.quantity || 1), margin + 108, currentY);
+
+      // Price
+      const linePrice = service.monthlyPrice * (service.quantity || 1);
+      recurringTotal += linePrice;
+      doc.text(`${linePrice.toFixed(2)} $`, margin + 125, currentY);
+
+      // Period
+      doc.setTextColor(...lightGray);
+      doc.text(service.period || "/mois", margin + 155, currentY);
+
+      currentY += 7;
+      rowIndex++;
+      
+      checkPageBreak(10);
+    }
+
+    // Recurring services subtotal
+    currentY += 2;
+    doc.setDrawColor(...grayColor);
+    doc.setLineWidth(0.2);
+    doc.line(margin + 100, currentY, pageWidth - margin, currentY);
+    currentY += 5;
+    
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkColor);
+    doc.text("Sous-total services récurrents :", margin + 80, currentY);
+    doc.text(`${recurringTotal.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
+    
+    currentY += 10;
+  }
+
+  // ============ ONE-TIME FEES (EQUIPMENT + FEES) ============
+  if (oneTimeTotal > 0) {
+    checkPageBreak(40);
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...accentColor);
+    doc.text("FRAIS UNIQUES / ONE-TIME FEES", margin, currentY);
 
     currentY += 6;
     doc.setDrawColor(...primaryColor);
     doc.line(margin, currentY, margin + 70, currentY);
 
-    currentY += 5;
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...grayColor);
+    currentY += 8;
+
+    // Table header
+    doc.setFillColor(...navyColor);
+    doc.rect(margin, currentY, contentWidth, 8, "F");
+
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text("CATÉGORIE", margin + 3, currentY + 5.5);
+    doc.text("DESCRIPTION", margin + 40, currentY + 5.5);
+    doc.text("MONTANT (CAD)", pageWidth - margin - 5, currentY + 5.5, { align: "right" });
+
+    currentY += 12;
+
+    let feeRowIndex = 0;
     
-    const addOneTimeFeeRow = (label: string, amount: number) => {
-      if (amount <= 0) return;
-      doc.text(label, margin, currentY);
-      doc.text(`${amount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
-      currentY += 5;
+    const addFeeRow = (category: string, description: string, amount: number, isCredit: boolean = false) => {
+      if (amount === 0) return;
+      
+      if (feeRowIndex % 2 === 0) {
+        doc.setFillColor(252, 252, 253);
+        doc.rect(margin, currentY - 3, contentWidth, 7, "F");
+      }
+      
+      doc.setTextColor(...grayColor);
+      doc.setFontSize(6);
+      doc.text(category.toUpperCase(), margin + 3, currentY);
+      
+      doc.setTextColor(...darkColor);
+      doc.setFontSize(7);
+      doc.text(sanitizeLegalText(description), margin + 40, currentY);
+      
+      doc.setTextColor(isCredit ? successColor[0] : darkColor[0], isCredit ? successColor[1] : darkColor[1], isCredit ? successColor[2] : darkColor[2]);
+      doc.text(`${isCredit ? "-" : ""}${amount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
+      doc.setTextColor(...darkColor);
+      
+      currentY += 7;
+      feeRowIndex++;
     };
-    
-    addOneTimeFeeRow("Delivery / Livraison", deliveryFee);
-    addOneTimeFeeRow("Activation", activationFee);
-    addOneTimeFeeRow("Installation", installationFee);
-    addOneTimeFeeRow("Router / Routeur", routerFee);
-    addOneTimeFeeRow("TV Terminal", terminalFee);
-    addOneTimeFeeRow("SIM Card", simFee);
-    
+
+    // Equipment
+    if (data.routerFee && data.routerFee > 0) {
+      const routerDesc = data.routerSerial 
+        ? `Routeur Nivra Born Wifi (S/N: ${data.routerSerial})`
+        : "Routeur Nivra Born Wifi — Garantie 1 an";
+      addFeeRow("Équipement", routerDesc, data.routerFee);
+    }
+    if (data.terminalFee && data.terminalFee > 0) {
+      const termCount = data.terminalCount || Math.ceil(data.terminalFee / 50);
+      const termDesc = data.terminalSerials?.length 
+        ? `Terminal 4K Nivra ×${termCount} (S/N: ${data.terminalSerials.join(", ")})`
+        : `Terminal 4K Nivra ×${termCount} — Garantie 1 an`;
+      addFeeRow("Équipement", termDesc, data.terminalFee);
+    }
+    if (data.simFee && data.simFee > 0) {
+      const simTypeLabel = data.simType === "esim" ? "eSIM" : "Carte SIM physique";
+      const simDesc = data.simSerial ? `${simTypeLabel} (S/N: ${data.simSerial})` : simTypeLabel;
+      addFeeRow("Équipement", simDesc, data.simFee);
+    }
+
+    // Delivery
+    if (data.deliveryFee && data.deliveryFee > 0) {
+      const deliveryDesc = data.deliveryMethod === "uber" 
+        ? "Livraison Uber Express (Même jour)" 
+        : data.deliveryMethod === "shipHome"
+        ? "Expédition à domicile"
+        : "Livraison standard (Québec)";
+      addFeeRow("Livraison", deliveryDesc, data.deliveryFee);
+    }
+
+    // Installation
+    if (data.installationFee && data.installationFee > 0) {
+      addFeeRow("Installation", "Installation par technicien professionnel", data.installationFee);
+    }
+
+    // Activation
+    if (data.activationFee && data.activationFee > 0) {
+      addFeeRow("Activation", "Frais d'activation de service", data.activationFee);
+    }
+
+    // Other fees
+    if (data.fees && data.fees > 0) {
+      addFeeRow("Frais", "Frais additionnels de service", data.fees);
+    }
+
     currentY += 5;
   }
 
-  // ============ BILLING BREAKDOWN SECTION ============
+  // ============ DISCOUNTS ============
+  if (totalDiscount > 0) {
+    checkPageBreak(20);
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...accentColor);
+    doc.text("RABAIS / DISCOUNTS", margin, currentY);
+
+    currentY += 6;
+    doc.setDrawColor(...primaryColor);
+    doc.line(margin, currentY, margin + 50, currentY);
+    currentY += 6;
+
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    
+    if (data.preauthDiscount && data.preauthDiscount > 0) {
+      doc.setTextColor(...grayColor);
+      doc.text("Rabais paiement préautorisé", margin, currentY);
+      doc.setTextColor(...successColor);
+      doc.text(`-${data.preauthDiscount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
+      currentY += 5;
+    }
+    
+    if (data.discountAmount && data.discountAmount > 0) {
+      doc.setTextColor(...grayColor);
+      const promoLabel = data.promoCode 
+        ? `Rabais promotionnel (${data.promoCode})`
+        : "Rabais promotionnel";
+      doc.text(promoLabel, margin, currentY);
+      doc.setTextColor(...successColor);
+      doc.text(`-${data.discountAmount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
+      currentY += 5;
+    }
+
+    currentY += 5;
+  }
+
+  // ============ BILLING BREAKDOWN - Using shared calculator ============
+  checkPageBreak(50);
+  
   doc.setDrawColor(...grayColor);
   doc.setLineWidth(0.2);
   doc.line(margin, currentY, pageWidth - margin, currentY);
 
   currentY += 8;
 
-  // Summary rows
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...accentColor);
+  doc.text("SOMMAIRE DE FACTURATION", margin, currentY);
+  currentY += 8;
+
   const addSummaryRow = (label: string, value: string, isBold: boolean = false, color?: [number, number, number]) => {
     doc.setFont("helvetica", isBold ? "bold" : "normal");
     doc.setTextColor(...(color || darkColor));
     doc.setFontSize(8);
-    doc.text(label, margin + 100, currentY);
+    doc.text(label, margin + 80, currentY);
     doc.text(value, pageWidth - margin - 5, currentY, { align: "right" });
     currentY += 6;
   };
 
-  addSummaryRow("Subtotal Before Taxes", `${baseAmount.toFixed(2)} $`);
-  addSummaryRow(`GST/TPS (5%)`, `${tpsAmount.toFixed(2)} $`);
-  addSummaryRow(`QST/TVQ (9.975%)`, `${tvqAmount.toFixed(2)} $`);
+  // Show recurring services subtotal
+  addSummaryRow("Sous-total services (récurrent)", `${calculatedBilling.recurringSubtotal.toFixed(2)} $`);
+  
+  // Show one-time charges
+  if (calculatedBilling.oneTimeSubtotal > 0) {
+    addSummaryRow("Frais uniques (équipement + frais)", `${calculatedBilling.oneTimeSubtotal.toFixed(2)} $`);
+  }
+  
+  // Show discounts
+  if (calculatedBilling.discountTotal > 0) {
+    addSummaryRow("Rabais appliqués", `-${calculatedBilling.discountTotal.toFixed(2)} $`, false, successColor);
+  }
+  
+  // CRITICAL: Show taxable subtotal (invariant)
+  addSummaryRow("Sous-total taxable", `${taxableSubtotal.toFixed(2)} $`, true);
+  
+  // Taxes calculated on taxable subtotal
+  addSummaryRow(`TPS (5% de ${taxableSubtotal.toFixed(2)} $)`, `${tpsAmount.toFixed(2)} $`);
+  addSummaryRow(`TVQ (9.975% de ${taxableSubtotal.toFixed(2)} $)`, `${tvqAmount.toFixed(2)} $`);
 
   if (lateFeeAmount > 0) {
-    addSummaryRow("Late Payment Fee (5%)", `${lateFeeAmount.toFixed(2)} $`, false, [239, 68, 68]);
+    addSummaryRow("Frais de retard (5%)", `${lateFeeAmount.toFixed(2)} $`, false, [239, 68, 68]);
   }
 
   if (credits > 0) {
-    addSummaryRow("Credits Applied", `-${credits.toFixed(2)} $`, false, [34, 197, 94]);
+    addSummaryRow("Crédits appliqués", `-${credits.toFixed(2)} $`, false, successColor);
   }
 
   currentY += 3;
@@ -498,17 +733,72 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("GRAND TOTAL", margin + 100, currentY + 8);
+  doc.text("TOTAL", margin + 100, currentY + 8);
   doc.setTextColor(...primaryColor);
   doc.text(`${total.toFixed(2)} $ CAD`, pageWidth - margin - 8, currentY + 8, { align: "right" });
 
   currentY += 20;
 
-  // ============ PAYMENT STATUS SECTION ============
+  // ============ TOTAL MENSUEL ESTIMÉ - Recurring only with breakdown ============
+  if (recurringServices.length > 0) {
+    const monthlyEstimate = recurringServices.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
+    
+    if (monthlyEstimate > 0) {
+      checkPageBreak(35);
+      
+      const boxHeight = 20 + (recurringServices.length * 4);
+      
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(...accentColor);
+      doc.setLineWidth(1);
+      doc.roundedRect(margin, currentY, contentWidth, boxHeight, 2, 2, "FD");
+      
+      // Left accent bar
+      doc.setFillColor(...accentColor);
+      doc.rect(margin, currentY, 4, boxHeight, "F");
+      
+      // Header
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...darkColor);
+      doc.text("TOTAL MENSUEL ESTIMÉ", margin + 10, currentY + 7);
+      
+      // Total value
+      doc.setFontSize(14);
+      doc.setTextColor(...primaryColor);
+      doc.text(`~${monthlyEstimate.toFixed(2)} $/mois`, pageWidth - margin - 10, currentY + 10, { align: "right" });
+      
+      // Per-service breakdown
+      let lineY = currentY + 13;
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...grayColor);
+      
+      for (const service of recurringServices) {
+        const linePrice = service.monthlyPrice * (service.quantity || 1);
+        if (linePrice > 0) {
+          doc.text(`• ${service.name.substring(0, 40)}`, margin + 10, lineY);
+          doc.text(`${linePrice.toFixed(2)} $${service.period || "/mois"}`, margin + contentWidth - 50, lineY, { align: "right" });
+          lineY += 4;
+        }
+      }
+      
+      // Disclaimer
+      doc.setFontSize(5);
+      doc.setTextColor(...lightGray);
+      doc.text("(avant taxes, services récurrents uniquement)", margin + 10, currentY + boxHeight - 3);
+      
+      currentY += boxHeight + 8;
+    }
+  }
+
+  // ============ PAYMENT STATUS ============
+  checkPageBreak(30);
+  
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...accentColor);
-  doc.text("PAYMENT STATUS", margin, currentY);
+  doc.text("STATUT DE PAIEMENT", margin, currentY);
 
   currentY += 6;
   doc.setDrawColor(...primaryColor);
@@ -519,23 +809,21 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...darkColor);
 
-  doc.text(`Status: ${statusInfo.label}`, margin, currentY);
+  doc.text(`Statut : ${statusInfo.label}`, margin, currentY);
   if (data.paidAt) {
-    doc.text(`Processed: ${format(new Date(data.paidAt), "yyyy-MM-dd HH:mm")}`, margin + 50, currentY);
+    doc.text(`Traité le : ${format(new Date(data.paidAt), "yyyy-MM-dd HH:mm")}`, margin + 50, currentY);
   }
   currentY += 5;
-  doc.text(`Client Balance: ${total.toFixed(2)} $ CAD`, margin, currentY);
+  doc.text(`Solde client : ${total.toFixed(2)} $ CAD`, margin, currentY);
 
   currentY += 10;
 
-  // ============ PAYMENT INFORMATION BOX ============
-  // Determine payment method from data
+  // Payment method box
   const isCreditCardPayment = data.paymentMethod === "credit_card" || 
     (data.cardLast4 && data.cardLast4.length === 4) ||
     (data.paymentReference?.toLowerCase().includes("card"));
   
   if (isCreditCardPayment) {
-    // Credit card payment - show card info without security answer
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(margin, currentY, contentWidth, 18, 2, 2, "F");
     doc.setDrawColor(...primaryColor);
@@ -545,28 +833,22 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkColor);
-    doc.text("Payment Method", margin + 6, currentY + 7);
+    doc.text("Mode de paiement", margin + 6, currentY + 7);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...grayColor);
     
-    // Build card display string
-    let cardDisplay = "Credit Card";
+    let cardDisplay = "Carte de crédit";
     if (data.cardType && data.cardLast4) {
       cardDisplay = `${data.cardType} •••• ${data.cardLast4}`;
     } else if (data.cardLast4) {
-      cardDisplay = `Card •••• ${data.cardLast4}`;
-    } else if (data.paymentReference) {
-      cardDisplay = data.paymentReference;
+      cardDisplay = `Carte •••• ${data.cardLast4}`;
     }
     
-    doc.text(`Paid via: ${cardDisplay}`, margin + 6, currentY + 13);
-
+    doc.text(`Payé via : ${cardDisplay}`, margin + 6, currentY + 13);
     currentY += 24;
   } else {
-    // Interac e-Transfer or pending payment - show transfer instructions
-    // DO NOT show security answer on invoices
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "F");
     doc.setDrawColor(...primaryColor);
@@ -576,42 +858,47 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkColor);
-    doc.text("Payment Instructions — Interac e-Transfer", margin + 6, currentY + 7);
+    doc.text("Instructions de paiement — Virement Interac", margin + 6, currentY + 7);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    doc.text("Email:", margin + 6, currentY + 14);
+    doc.text("Courriel:", margin + 6, currentY + 14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryColor);
-    doc.text("Support@nivratelecom.ca", margin + 22, currentY + 14);
+    doc.text(ETRANSFER_CONFIG.emailDisplay, margin + 25, currentY + 14);
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...darkColor);
-    doc.text("Security Q&A: Your full name or company name (exactly as registered)", margin + 6, currentY + 19);
+    doc.text("Question/Réponse sécurité : Votre nom complet (tel qu'inscrit)", margin + 6, currentY + 19);
 
     currentY += 28;
   }
 
   // ============ PREPAID BILLING POLICY ============
-  checkPageBreak(16);
+  checkPageBreak(25);
+  
   doc.setFontSize(6);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...grayColor);
-  doc.text("PREPAID BILLING POLICY (PRÉPAYÉ)", margin, currentY);
+  doc.text("POLITIQUE DE FACTURATION PRÉPAYÉE", margin, currentY);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6);
   currentY += 4;
-  doc.text("Services are billed in advance. Payment must be confirmed BEFORE Bill Cycle date (J0) to renew service.", margin, currentY);
-  currentY += 4;
-  doc.text("If unpaid at J0, service is not renewed (Expired). No interest or reactivation fee for normal non-renewal.", margin, currentY);
-  currentY += 4;
-  doc.text("After 90 days without renewal, phone number may become unrecoverable (new number required).", margin, currentY);
-  currentY += 4;
-  doc.setTextColor(180, 80, 80);
-  doc.text("Interest (5%/mo) + $15 reactivation fee apply ONLY for bank disputes/chargebacks.", margin, currentY);
-  doc.setTextColor(...grayColor);
+  
+  const policyTexts = [
+    "Les services sont facturés à l'avance. Le paiement doit être confirmé AVANT la date de cycle (J0) pour renouveler le service.",
+    "Si non payé à J0, le service n'est pas renouvelé (Expiré). Aucun intérêt ni frais de réactivation pour non-renouvellement normal.",
+    "Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable (nouveau numéro requis).",
+    "Intérêt (5%/mois) + 15$ frais de réactivation s'appliquent UNIQUEMENT pour litiges bancaires/rétrofacturations."
+  ];
+  
+  for (let i = 0; i < policyTexts.length; i++) {
+    const text = policyTexts[i];
+    doc.setFontSize(5.5);
+    doc.setTextColor(i === 3 ? 180 : grayColor[0], i === 3 ? 80 : grayColor[1], i === 3 ? 80 : grayColor[2]);
+    addWrappedText(text, margin, contentWidth, 3.5, 5.5, i === 3 ? [180, 80, 80] : grayColor);
+  }
 
-  currentY += 8;
+  currentY += 4;
 
   // ============ NOTES ============
   if (data.notes) {
@@ -622,44 +909,37 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.text("NOTES:", margin, currentY);
     currentY += 5;
     doc.setFont("helvetica", "normal");
-    const noteLines = doc.splitTextToSize(data.notes, contentWidth);
-    const maxNoteLines = Math.min(noteLines.length, 3);
-    for (let i = 0; i < maxNoteLines; i++) {
-      doc.text(noteLines[i], margin, currentY);
-      currentY += 4;
-    }
+    addWrappedText(data.notes, margin, contentWidth, 4, 6, grayColor);
     currentY += 4;
   }
 
-  // ============ DISCLAIMER SECTION (before fixed footer) ============
+  // ============ DISCLAIMER ============
+  checkPageBreak(15);
   currentY += 5;
   
   const disclaimerTexts = [
-    "Fulfillment and activation timelines apply according to order category. Equipment warranty is manufacturer-based for 12 months from activation.",
-    "Loss, theft, or customer damage are excluded unless override is approved internally by Admin. All invoice records, payment references, and equipment assignments are stored in Nivra internal systems and are not shared externally."
+    "Les délais d'exécution et d'activation s'appliquent selon la catégorie de commande. La garantie d'équipement est basée sur le fabricant pour 12 mois à partir de l'activation.",
+    "Perte, vol ou dommages causés par le client sont exclus sauf approbation interne par l'administrateur. Tous les enregistrements de factures, références de paiement et attributions d'équipement sont stockés dans les systèmes internes Nivra et ne sont pas partagés à l'externe."
   ];
-  
-  doc.setFont("helvetica", "normal");
   
   for (const disclaimer of disclaimerTexts) {
     addWrappedText(disclaimer, margin, contentWidth, 3.5, 5.5, lightGray);
     currentY += 2;
   }
 
-  // Signature line (if applicable)
+  // Signature line
   if (data.issuedBy || data.issuedByRole) {
     currentY += 4;
     checkPageBreak(10);
     doc.setFontSize(6);
     doc.setTextColor(...grayColor);
-    doc.text("Issued by: ___________________________", margin, currentY);
-    doc.text(`Role: ${data.issuedByRole || "Admin/Employee"}`, margin + 60, currentY);
-    doc.text(`Timestamp: ${data.issuedAt || format(new Date(), "yyyy-MM-dd HH:mm")}`, margin + 110, currentY);
+    doc.text("Émis par: ___________________________", margin, currentY);
+    doc.text(`Rôle: ${data.issuedByRole || "Admin/Employé"}`, margin + 60, currentY);
+    doc.text(`Horodatage: ${data.issuedAt || format(new Date(), "yyyy-MM-dd HH:mm")}`, margin + 110, currentY);
     currentY += 8;
   }
 
-  // ============ FIXED FOOTER SECTION (always at bottom) ============
-  // Draw footer on current page (and all pages if multi-page)
+  // ============ FOOTER ON ALL PAGES ============
   const totalPages = doc.getNumberOfPages();
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     doc.setPage(pageNum);
@@ -675,7 +955,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.setFillColor(...primaryColor);
     doc.rect(0, pageHeight - 4, pageWidth, 4, "F");
 
-    // Business footer text
+    // Business footer text - ALWAYS Nivra's address
     doc.setFontSize(6);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...grayColor);
@@ -683,7 +963,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     
     // Page number
     doc.setFontSize(5);
-    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, footerY + 8, { align: "right" });
+    doc.text(`Page ${pageNum} de ${totalPages}`, pageWidth - margin, footerY + 8, { align: "right" });
   }
 
   return doc;
@@ -695,7 +975,7 @@ export const downloadInvoicePDF = (data: InvoiceData): void => {
   try {
     const doc = generateInvoicePDF(data);
     const blob = doc.output("blob");
-    const filename = `Invoice_${data.invoiceNumber}_${data.clientName.replace(/\s+/g, "_")}.pdf`;
+    const filename = `Facture_${data.invoiceNumber}_${data.clientName.replace(/\s+/g, "_")}.pdf`;
     safePDFDownload(blob, filename);
   } catch (error) {
     console.error("Error generating invoice PDF:", error);
@@ -707,7 +987,7 @@ export const viewInvoicePDF = (data: InvoiceData): void => {
   try {
     const doc = generateInvoicePDF(data);
     const blob = doc.output("blob");
-    const filename = `Invoice_${data.invoiceNumber}.pdf`;
+    const filename = `Facture_${data.invoiceNumber}.pdf`;
     safePDFOpen(blob, filename);
   } catch (error) {
     console.error("Error viewing invoice PDF:", error);
