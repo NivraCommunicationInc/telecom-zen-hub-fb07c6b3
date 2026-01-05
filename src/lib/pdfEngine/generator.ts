@@ -356,16 +356,23 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   // Total box
   addTotalBox(state, "TOTAL DÛ AUJOURD'HUI", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
 
-  // Estimated monthly (for contracts) - Shows recurring breakdown
+  // Estimated monthly (for contracts) - Shows recurring breakdown WITH TAXES INCLUDED
   if (data.docType === "contract" && data.billing.subtotal > 0) {
     // Calculate recurring services breakdown
     const recurringServices = data.services.filter(s => !s.isOneTime && s.monthlyPrice >= 0);
     const monthlyEstimate = recurringServices.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
     
-    // Calculate box height based on number of services
-    const baseHeight = 20;
+    // Calculate monthly taxes (TPS 5%, TVQ 9.975%)
+    const monthlyTps = Math.round(monthlyEstimate * 0.05 * 100) / 100;
+    const monthlyTvq = Math.round(monthlyEstimate * 0.09975 * 100) / 100;
+    const monthlyTaxesTotal = monthlyTps + monthlyTvq;
+    const monthlyWithTaxes = monthlyEstimate + monthlyTaxesTotal;
+    
+    // Calculate box height based on number of services + tax lines
+    const baseHeight = 28;
     const serviceLineHeight = 4;
-    const boxHeight = baseHeight + (recurringServices.length * serviceLineHeight);
+    const taxLinesHeight = 16; // Space for tax breakdown
+    const boxHeight = baseHeight + (recurringServices.length * serviceLineHeight) + taxLinesHeight;
     
     if (checkPageBreak(state, boxHeight + 10)) {
       addNewPage(state, addHeader);
@@ -394,8 +401,8 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     doc.text("TOTAL MENSUEL ESTIME", marginLeft + 10, state.currentY + 7);
     
     // Show recurring services breakdown
-    let lineY = state.currentY + 12;
-    doc.setFontSize(6);
+    let lineY = state.currentY + 13;
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     setColor(doc, "muted");
     
@@ -407,17 +414,33 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       lineY += serviceLineHeight;
     }
     
-    // Total value - large and prominent
+    lineY += 3;
+    
+    // (a) Monthly recurring subtotal before taxes
+    doc.setFontSize(7);
+    setColor(doc, "muted");
+    doc.text("Sous-total récurrent (avant taxes)", marginLeft + 10, lineY);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatCurrency(monthlyEstimate), marginLeft + boxWidth - 50, lineY, { align: "right" });
+    lineY += 5;
+    
+    // (b) Estimated monthly TPS+TVQ
+    doc.setFont("helvetica", "normal");
+    doc.text(`TPS (5%) + TVQ (9.975%) estimées`, marginLeft + 10, lineY);
+    doc.text(formatCurrency(monthlyTaxesTotal), marginLeft + boxWidth - 50, lineY, { align: "right" });
+    lineY += 5;
+    
+    // (c) Total monthly estimate taxes included - prominent display
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     setColor(doc, "primary");
-    doc.text(`~${formatCurrency(monthlyEstimate)}/mois`, pageWidth - marginRight - 8, state.currentY + 10, { align: "right" });
+    doc.text(`~${formatCurrency(monthlyWithTaxes)}/mois`, pageWidth - marginRight - 8, state.currentY + 10, { align: "right" });
     
     // Subtitle
-    doc.setFontSize(5);
+    doc.setFontSize(6);
     doc.setFont("helvetica", "normal");
     setColor(doc, "muted");
-    doc.text("(avant taxes, services recurrents uniquement)", marginLeft + 10, state.currentY + boxHeight - 3);
+    doc.text("(taxes incluses, services récurrents)", marginLeft + 10, state.currentY + boxHeight - 3);
     
     state.currentY += boxHeight + 6;
   }

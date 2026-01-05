@@ -821,14 +821,24 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
 
   currentY += 20;
 
-  // ============ TOTAL MENSUEL ESTIMÉ - Recurring only with breakdown ============
+  // ============ TOTAL MENSUEL ESTIMÉ - WITH TAXES INCLUDED ============
   if (recurringServices.length > 0) {
     const monthlyEstimate = recurringServices.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
     
     if (monthlyEstimate > 0) {
-      checkPageBreak(35);
+      // Calculate monthly taxes
+      const monthlyTps = Math.round(monthlyEstimate * TAX_RATES.TPS * 100) / 100;
+      const monthlyTvq = Math.round(monthlyEstimate * TAX_RATES.TVQ * 100) / 100;
+      const monthlyTaxesTotal = monthlyTps + monthlyTvq;
+      const monthlyWithTaxes = monthlyEstimate + monthlyTaxesTotal;
       
-      const boxHeight = 20 + (recurringServices.length * 4);
+      checkPageBreak(55);
+      
+      // Increased box height for tax breakdown
+      const baseHeight = 28;
+      const serviceLineHeight = 4;
+      const taxLinesHeight = 18;
+      const boxHeight = baseHeight + (recurringServices.length * serviceLineHeight) + taxLinesHeight;
       
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(...accentColor);
@@ -843,32 +853,50 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...darkColor);
-      doc.text("TOTAL MENSUEL ESTIMÉ", margin + 10, currentY + 7);
-      
-      // Total value
-      doc.setFontSize(14);
-      doc.setTextColor(...primaryColor);
-      doc.text(`~${monthlyEstimate.toFixed(2)} $/mois`, pageWidth - margin - 10, currentY + 10, { align: "right" });
+      doc.text("TOTAL MENSUEL ESTIMÉ", margin + 10, currentY + 8);
       
       // Per-service breakdown
-      let lineY = currentY + 13;
-      doc.setFontSize(6);
+      let lineY = currentY + 14;
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...grayColor);
       
       for (const service of recurringServices) {
         const linePrice = service.monthlyPrice * (service.quantity || 1);
         if (linePrice > 0) {
-          doc.text(`• ${service.name.substring(0, 40)}`, margin + 10, lineY);
+          doc.text(`- ${service.name.substring(0, 40)}`, margin + 10, lineY);
           doc.text(`${linePrice.toFixed(2)} $${service.period || "/mois"}`, margin + contentWidth - 50, lineY, { align: "right" });
-          lineY += 4;
+          lineY += serviceLineHeight;
         }
       }
       
-      // Disclaimer
-      doc.setFontSize(5);
+      lineY += 3;
+      
+      // (a) Monthly recurring subtotal before taxes
+      doc.setFontSize(7);
+      doc.setTextColor(...grayColor);
+      doc.text("Sous-total récurrent (avant taxes)", margin + 10, lineY);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${monthlyEstimate.toFixed(2)} $`, margin + contentWidth - 50, lineY, { align: "right" });
+      lineY += 5;
+      
+      // (b) Estimated monthly TPS+TVQ
+      doc.setFont("helvetica", "normal");
+      doc.text("TPS (5%) + TVQ (9.975%) estimées", margin + 10, lineY);
+      doc.text(`${monthlyTaxesTotal.toFixed(2)} $`, margin + contentWidth - 50, lineY, { align: "right" });
+      lineY += 5;
+      
+      // (c) Total monthly estimate taxes included - prominent display
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...primaryColor);
+      doc.text(`~${monthlyWithTaxes.toFixed(2)} $/mois`, pageWidth - margin - 10, currentY + 10, { align: "right" });
+      
+      // Subtitle
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "normal");
       doc.setTextColor(...lightGray);
-      doc.text("(avant taxes, services récurrents uniquement)", margin + 10, currentY + boxHeight - 3);
+      doc.text("(taxes incluses, services récurrents)", margin + 10, currentY + boxHeight - 3);
       
       currentY += boxHeight + 8;
     }
@@ -957,14 +985,14 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   }
 
   // ============ PREPAID BILLING POLICY ============
-  checkPageBreak(25);
+  // IMPROVED: Increased font size from 5.5-6 to 9.5-10 for readability
+  checkPageBreak(50);
   
-  doc.setFontSize(6);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...grayColor);
+  doc.setTextColor(...darkColor);
   doc.text("POLITIQUE DE FACTURATION PRÉPAYÉE", margin, currentY);
-  doc.setFont("helvetica", "normal");
-  currentY += 4;
+  currentY += 8;
   
   const policyTexts = [
     "Les services sont facturés à l'avance. Le paiement doit être confirmé AVANT la date de cycle (J0) pour renouveler le service.",
@@ -973,26 +1001,107 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     "Intérêt (5%/mois) + 15$ frais de réactivation s'appliquent UNIQUEMENT pour litiges bancaires/rétrofacturations."
   ];
   
+  doc.setFont("helvetica", "normal");
   for (let i = 0; i < policyTexts.length; i++) {
-    const text = policyTexts[i];
-    doc.setFontSize(5.5);
-    doc.setTextColor(i === 3 ? 180 : grayColor[0], i === 3 ? 80 : grayColor[1], i === 3 ? 80 : grayColor[2]);
-    addWrappedText(text, margin, contentWidth, 3.5, 5.5, i === 3 ? [180, 80, 80] : grayColor);
+    const text = sanitizeLegalText(policyTexts[i]);
+    // Larger font (9.5pt) with better line-height (5pt)
+    const textColor: [number, number, number] = i === 3 ? [180, 80, 80] : grayColor;
+    doc.setFontSize(9.5);
+    doc.setTextColor(...textColor);
+    
+    // Use splitTextToSize for proper wrapping with page-break handling
+    const lines = doc.splitTextToSize(text, contentWidth);
+    const lineHeight = 5;
+    const neededHeight = lines.length * lineHeight;
+    
+    if (checkPageBreak(neededHeight + 2)) {
+      doc.addPage();
+      currentY = topMargin;
+    }
+    
+    for (const line of lines) {
+      doc.text(line, margin, currentY);
+      currentY += lineHeight;
+    }
+    currentY += 2; // Spacing between paragraphs
   }
 
-  currentY += 4;
+  currentY += 6;
 
   // ============ NOTES ============
-  if (data.notes) {
-    checkPageBreak(20);
-    doc.setFontSize(7);
+  // IMPROVED: Render as bullet list with structured fields, then long paragraph separately
+  if (data.notes || data.orderNumber || data.paymentReference) {
+    checkPageBreak(30);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(...grayColor);
+    doc.setTextColor(...darkColor);
     doc.text("NOTES:", margin, currentY);
-    currentY += 5;
+    currentY += 8;
+    
     doc.setFont("helvetica", "normal");
-    addWrappedText(data.notes, margin, contentWidth, 4, 6, grayColor);
-    currentY += 4;
+    doc.setFontSize(9);
+    doc.setTextColor(...grayColor);
+    
+    // Structured bullet list for key fields
+    const bulletItems: string[] = [];
+    
+    if (data.orderNumber) {
+      bulletItems.push(`Numéro de commande: ${data.orderNumber}`);
+    }
+    if (data.paymentReference) {
+      bulletItems.push(`Référence paiement: ${data.paymentReference}`);
+    }
+    
+    // Extract services summary from recurringServices
+    if (recurringServices.length > 0) {
+      const serviceNames = recurringServices.map(s => s.name).join(", ");
+      bulletItems.push(`Services: ${serviceNames}`);
+    }
+    
+    if (data.deliveryMethod) {
+      const deliveryLabels: Record<string, string> = {
+        pickup: "Ramassage sur place",
+        delivery: "Livraison à domicile",
+        installation: "Installation professionnelle",
+      };
+      bulletItems.push(`Livraison: ${deliveryLabels[data.deliveryMethod] || data.deliveryMethod}`);
+    }
+    
+    if (data.promoCode) {
+      const promoText = data.promoDescription 
+        ? `${data.promoCode} — ${data.promoDescription}`
+        : data.promoCode;
+      bulletItems.push(`Code promo/Rabais: ${promoText}`);
+    }
+    
+    // Render bullet list
+    for (const item of bulletItems) {
+      if (checkPageBreak(6)) {
+        doc.addPage();
+        currentY = topMargin;
+      }
+      doc.text(`• ${item}`, margin + 4, currentY);
+      currentY += 6;
+    }
+    
+    // Render long informational paragraph separately (from data.notes)
+    if (data.notes) {
+      currentY += 4;
+      const sanitizedNotes = sanitizeLegalText(data.notes);
+      const noteLines = doc.splitTextToSize(sanitizedNotes, contentWidth);
+      const noteLineHeight = 5;
+      
+      for (const line of noteLines) {
+        if (checkPageBreak(noteLineHeight + 2)) {
+          doc.addPage();
+          currentY = topMargin;
+        }
+        doc.text(line, margin, currentY);
+        currentY += noteLineHeight;
+      }
+    }
+    
+    currentY += 6;
   }
 
   // ============ DISCLAIMER ============
