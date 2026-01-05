@@ -41,7 +41,7 @@ const ClientAuth = () => {
   const sanitizePin = (value: string) => value.replace(/\D/g, "").slice(0, 6);
 
   // Send PIN via edge function
-  const sendPinEmail = async (email: string, userId: string) => {
+  const sendPinEmail = async (email: string, userId: string): Promise<{ success: boolean; error?: string; rateLimited?: boolean }> => {
     try {
       const { data, error } = await supabase.functions.invoke("client-pin-send", {
         body: { email, user_id: userId },
@@ -52,6 +52,19 @@ const ClientAuth = () => {
         return { success: false, error: error.message };
       }
       
+      // Handle new response format: { sent: true/false, reason?: string }
+      if (data?.sent === false) {
+        if (data.reason === "rate_limited") {
+          return { success: false, rateLimited: true, error: "Code déjà envoyé récemment" };
+        }
+        return { success: false, error: data.reason || data.error || "Failed to send PIN" };
+      }
+      
+      if (data?.sent === true) {
+        return { success: true };
+      }
+      
+      // Legacy fallback
       if (data?.error) {
         return { success: false, error: data.error };
       }
@@ -145,6 +158,22 @@ const ClientAuth = () => {
     const userEmail = loginData.email;
     const userId = currentUser.id;
     
+    // Check if device is trusted (within 20 minutes window)
+    const trustedUntil = Number(localStorage.getItem("portal_trusted_until") || 0);
+    const isTrusted = Date.now() < trustedUntil;
+    
+    if (isTrusted) {
+      // Trusted device: skip PIN step entirely
+      sessionStorage.setItem("client_pin_verified", "true");
+      sessionStorage.removeItem("client_pin_pending_email");
+      sessionStorage.removeItem("client_pin_pending_user_id");
+      setIsLoading(false);
+      toast({ title: "Connexion réussie" });
+      navigate("/portal");
+      return;
+    }
+    
+    // Not trusted: proceed with PIN verification
     // Store pending PIN state in sessionStorage (for route guard and persistence)
     sessionStorage.setItem("client_pin_pending_email", userEmail);
     sessionStorage.setItem("client_pin_pending_user_id", userId);
@@ -166,7 +195,7 @@ const ClientAuth = () => {
     
     if (!pinResult.success) {
       // Check if rate-limited
-      if (pinResult.error?.includes("wait") || pinResult.error?.includes("60 seconds")) {
+      if (pinResult.rateLimited) {
         toast({ 
           title: "Code déjà envoyé récemment", 
           description: "Veuillez patienter 60 secondes avant de redemander un code.", 
@@ -195,7 +224,7 @@ const ClientAuth = () => {
     
     if (!result.success) {
       // Check if rate-limited
-      if (result.error?.includes("wait") || result.error?.includes("60 seconds")) {
+      if (result.rateLimited) {
         toast({ 
           title: "Code déjà envoyé récemment", 
           description: "Veuillez patienter 60 secondes avant de redemander un code.", 
