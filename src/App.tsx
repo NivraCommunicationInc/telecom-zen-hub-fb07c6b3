@@ -21,6 +21,7 @@ import MobilePlans from "./pages/MobilePlans";
 import StreamingPlans from "./pages/StreamingPlans";
 import NotFound from "./pages/NotFound";
 import NotAuthorized from "./pages/NotAuthorized";
+import MembersAccess from "./pages/MembersAccess";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminBootstrap from "./pages/admin/AdminBootstrap";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -74,6 +75,10 @@ import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import AdminResetPassword from "./pages/admin/AdminResetPassword";
 import AdminPDFTest from "./pages/admin/AdminPDFTest";
 import AdminQA from "./pages/admin/AdminQA";
+import StaffLogin from "./pages/staff/StaffLogin";
+import StaffDashboard from "./pages/staff/StaffDashboard";
+import TechnicianLogin from "./pages/technician/TechnicianLogin";
+import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -112,7 +117,16 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfUse />} />
             <Route path="/not-authorized" element={<NotAuthorized />} />
-            <Route path="*" element={<NotFound />} />
+            
+            {/* Members Access - Internal portal hub (noindex) */}
+            <Route path="/members-access" element={<MembersAccess />} />
+            
+            {/* Staff Portal Routes */}
+            <Route path="/staff/login" element={<StaffLogin />} />
+            <Route path="/staff" element={<StaffDashboard />} />
+            
+            {/* Technician Portal Routes */}
+            <Route path="/technician/login" element={<TechnicianLogin />} />
             
             {/* Admin Routes - Wrapped with AuthProvider (admin storage key) */}
             <Route path="/admin/login" element={<AuthProvider><AdminLogin /></AuthProvider>} />
@@ -166,6 +180,9 @@ const App = () => (
             <Route path="/portal/profile" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/payments" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/contracts" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+            
+            {/* Catch-all 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
