@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { InternetInfoBox } from "@/components/ServiceInfoBox";
 
 interface AddressDetails {
   formattedAddress: string;
@@ -386,6 +387,13 @@ const InternetPlans = () => {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        </section>
+
+        {/* Info Box */}
+        <section className="container mx-auto px-4 mb-16 relative">
+          <div className="max-w-4xl mx-auto">
+            <InternetInfoBox isFrench={isFrench} />
           </div>
         </section>
 
