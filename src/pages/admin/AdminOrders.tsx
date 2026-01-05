@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
 import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
+import ManualOrderWizard from "@/components/admin/ManualOrderWizard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -1145,146 +1146,11 @@ const AdminOrders = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Créer une commande manuelle</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                      <Label>Client *</Label>
-                      <Select value={newOrder.user_id} onValueChange={(v) => setNewOrder({ ...newOrder, user_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Sélectionner un client" /></SelectTrigger>
-                        <SelectContent>
-                          {clients?.map((client: any) => (
-                            <SelectItem key={client.user_id} value={client.user_id}>
-                              {client.full_name || client.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Catégorie</Label>
-                      <Select value={newOrder.category} onValueChange={(v) => setNewOrder({ ...newOrder, category: v })}>
-                        <SelectTrigger><SelectValue placeholder="Catégorie..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Internet">Internet</SelectItem>
-                          <SelectItem value="TV">TV</SelectItem>
-                          <SelectItem value="Mobile">Mobile</SelectItem>
-                          <SelectItem value="Bundle">Forfait combiné</SelectItem>
-                          <SelectItem value="Equipment">Équipement</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Type de service *</Label>
-                      <Input
-                        value={newOrder.service_type}
-                        onChange={(e) => setNewOrder({ ...newOrder, service_type: e.target.value })}
-                        placeholder="Ex: Internet 500 Mbps"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Pricing Section */}
-                  <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                    <Label className="text-sm font-medium">Tarification</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Sous-total (services)</Label>
-                        <Input type="number" value={newOrder.subtotal} onChange={(e) => setNewOrder({ ...newOrder, subtotal: e.target.value })} placeholder="0.00" />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Frais de livraison</Label>
-                        <Input type="number" value={newOrder.delivery_fee} onChange={(e) => setNewOrder({ ...newOrder, delivery_fee: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Frais d'activation</Label>
-                        <Input type="number" value={newOrder.activation_fee} onChange={(e) => setNewOrder({ ...newOrder, activation_fee: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Frais d'installation</Label>
-                        <Input type="number" value={newOrder.installation_fee} onChange={(e) => setNewOrder({ ...newOrder, installation_fee: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Rabais / Promotion</Label>
-                        <Input type="number" value={newOrder.discount_amount} onChange={(e) => setNewOrder({ ...newOrder, discount_amount: e.target.value })} placeholder="0.00" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Delivery & Installation Options */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Méthode de livraison</Label>
-                      <Select value={newOrder.delivery_method} onValueChange={(v) => setNewOrder({ ...newOrder, delivery_method: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Standard Québec Delivery">Livraison standard (Québec)</SelectItem>
-                          <SelectItem value="Express Delivery">Livraison express</SelectItem>
-                          <SelectItem value="Pickup">Ramassage en magasin</SelectItem>
-                          <SelectItem value="Installation incluse">Installation par technicien</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Type d'installation</Label>
-                      <Select value={newOrder.installation_type} onValueChange={(v) => setNewOrder({ ...newOrder, installation_type: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Auto-installation</SelectItem>
-                          <SelectItem value="technician">Technicien requis</SelectItem>
-                          <SelectItem value="none">Aucune</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Notes internes</Label>
-                    <Textarea
-                      value={newOrder.notes}
-                      onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })}
-                      placeholder="Notes visibles par admin/employés..."
-                      rows={2}
-                    />
-                  </div>
-
-                  {/* Order Summary */}
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm space-y-1">
-                    <div className="flex justify-between"><span>Sous-total:</span><span>{parseFloat(newOrder.subtotal || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                    <div className="flex justify-between text-muted-foreground"><span>Livraison:</span><span>+{parseFloat(newOrder.delivery_fee || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                    <div className="flex justify-between text-muted-foreground"><span>Activation:</span><span>+{parseFloat(newOrder.activation_fee || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                    <div className="flex justify-between text-muted-foreground"><span>Installation:</span><span>+{parseFloat(newOrder.installation_fee || "0").toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                    {parseFloat(newOrder.discount_amount) > 0 && (
-                      <div className="flex justify-between text-emerald-500"><span>Rabais:</span><span>-{parseFloat(newOrder.discount_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                    )}
-                    {(() => {
-                      const base = parseFloat(newOrder.subtotal || "0") + parseFloat(newOrder.delivery_fee || "0") + parseFloat(newOrder.activation_fee || "0") + parseFloat(newOrder.installation_fee || "0") - parseFloat(newOrder.discount_amount || "0");
-                      const tps = base * 0.05;
-                      const tvq = base * 0.09975;
-                      return (
-                        <>
-                          <div className="flex justify-between text-muted-foreground"><span>TPS (5%):</span><span>+{tps.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                          <div className="flex justify-between text-muted-foreground"><span>TVQ (9.975%):</span><span>+{tvq.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                          <div className="flex justify-between font-bold border-t pt-1 mt-1"><span>Total:</span><span>{(base + tps + tvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={() => createOrderMutation.mutate(newOrder)}
-                    disabled={!newOrder.user_id || !newOrder.service_type || createOrderMutation.isPending}
-                  >
-                    {createOrderMutation.isPending ? "Création..." : "Créer la commande"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <ManualOrderWizard
+              open={createDialogOpen}
+              onOpenChange={setCreateDialogOpen}
+              onSuccess={() => refetch()}
+            />
           </div>
         </div>
 

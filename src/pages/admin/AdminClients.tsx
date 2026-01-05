@@ -49,6 +49,7 @@ import { useClientActivityLog } from "@/hooks/useClientActivityLog";
 import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
+import { CreateClientDialog } from "@/components/admin/CreateClientDialog";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -865,75 +866,17 @@ const AdminClients = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Clients</h1>
             <p className="text-muted-foreground mt-1">Gérer tous les profils clients</p>
           </div>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="hero">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau client
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-cyan-400" />
-                  Créer un nouveau client
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto pr-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Prénom *</Label>
-                    <Input value={newClient.first_name} onChange={(e) => setNewClient({ ...newClient, first_name: e.target.value })} placeholder="Jean" />
-                  </div>
-                  <div>
-                    <Label>Nom de famille *</Label>
-                    <Input value={newClient.last_name} onChange={(e) => setNewClient({ ...newClient, last_name: e.target.value })} placeholder="Dupont" />
-                  </div>
-                </div>
-                <div>
-                  <Label>Courriel *</Label>
-                  <Input type="email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} placeholder="jean@exemple.com" />
-                </div>
-                <div>
-                  <Label>Mot de passe temporaire *</Label>
-                  <Input type="password" value={newClient.password} onChange={(e) => setNewClient({ ...newClient, password: e.target.value })} placeholder="••••••••" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Téléphone</Label>
-                    <Input value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} placeholder="514-555-1234" />
-                  </div>
-                  <div>
-                    <Label>Date de naissance</Label>
-                    <Input type="date" value={newClient.date_of_birth} onChange={(e) => setNewClient({ ...newClient, date_of_birth: e.target.value })} />
-                  </div>
-                </div>
-                <div className="border-t border-border pt-4">
-                  <Label className="text-muted-foreground text-xs uppercase mb-2 block">Adresse de service</Label>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>Adresse</Label>
-                      <Input value={newClient.service_address} onChange={(e) => setNewClient({ ...newClient, service_address: e.target.value })} placeholder="123 rue Exemple" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Ville</Label>
-                        <Input value={newClient.service_city} onChange={(e) => setNewClient({ ...newClient, service_city: e.target.value })} placeholder="Montréal" />
-                      </div>
-                      <div>
-                        <Label>Code postal</Label>
-                        <Input value={newClient.service_postal_code} onChange={(e) => setNewClient({ ...newClient, service_postal_code: e.target.value })} placeholder="H1A 1A1" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <Button className="w-full" onClick={() => createClientMutation.mutate(newClient)} disabled={!newClient.email || !newClient.password || !newClient.first_name || !newClient.last_name}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Créer le client
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button variant="hero" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nouveau client
+          </Button>
+          <CreateClientDialog
+            open={createDialogOpen}
+            onOpenChange={setCreateDialogOpen}
+            onSuccess={() => {
+              refetchClients();
+            }}
+          />
         </div>
 
         {/* Enhanced Search bar */}
