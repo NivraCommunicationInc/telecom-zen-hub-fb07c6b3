@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
 
 interface ConfirmationSuccessProps {
   isFrench?: boolean;
@@ -303,17 +304,17 @@ export const ConfirmationSuccess = ({
       <Card className="bg-muted/50 border-border">
         <CardContent className="py-4">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
+            <a href={getTelLink()} className="flex items-center gap-2 hover:text-foreground transition-colors">
               <Phone className="w-4 h-4" />
-              514-544-2233
-            </span>
-            <span className="flex items-center gap-2">
+              {COMPANY_CONTACT.supportPhoneDisplay}
+            </a>
+            <a href={getMailtoLink()} className="flex items-center gap-2 hover:text-foreground transition-colors">
               <Mail className="w-4 h-4" />
-              Support@nivratelecom.ca
-            </span>
+              {COMPANY_CONTACT.supportEmailDisplay}
+            </a>
             <span className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
-              {isFrench ? "Lun-Ven 9h-18h" : "Mon-Fri 9AM-6PM"}
+              {isFrench ? COMPANY_CONTACT.supportHours : COMPANY_CONTACT.supportHoursEn}
             </span>
           </div>
         </CardContent>
