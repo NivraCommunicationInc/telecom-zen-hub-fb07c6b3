@@ -149,7 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <p style="color: #475569; margin-bottom: 15px;">Connectez-vous à votre portail client pour consulter et payer votre facture.</p>
                   </div>
                   
-                  <p style="color: #475569;">Si vous avez des questions ou si vous avez déjà effectué ce paiement, veuillez nous contacter au 514-544-2233.</p>
+                  <p style="color: #475569;">Si vous avez des questions ou si vous avez déjà effectué ce paiement, veuillez nous contacter au 438-544-2233.</p>
                   <p style="color: #475569;">Cordialement,<br>L'équipe Nivra</p>
                 </div>
                 <div style="background: #0f172a; padding: 20px; text-align: center;">

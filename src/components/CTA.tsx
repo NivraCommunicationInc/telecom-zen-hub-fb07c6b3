@@ -36,7 +36,7 @@ const CTA = () => {
                 className="gap-2" 
                 asChild
               >
-                <a href="tel:+15145442233">
+                <a href="tel:+14385442233">
                   <Phone className="w-4 h-4" />
                   {t('cta.phone')}
                 </a>

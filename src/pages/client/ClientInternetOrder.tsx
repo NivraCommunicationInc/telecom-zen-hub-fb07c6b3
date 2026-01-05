@@ -1531,8 +1531,8 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                     {isFrench ? "Des questions? Contactez-nous:" : "Questions? Contact us:"}
                   </p>
                   <div className="flex justify-center gap-6">
-                    <a href="tel:+15145442233" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
-                      <span className="font-medium">514-544-2233</span>
+                    <a href="tel:+14385442233" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
+                      <span className="font-medium">438-544-2233</span>
                     </a>
                     <a href="mailto:support@nivratelecom.ca" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
                       <span className="font-medium">Support@nivratelecom.ca</span>

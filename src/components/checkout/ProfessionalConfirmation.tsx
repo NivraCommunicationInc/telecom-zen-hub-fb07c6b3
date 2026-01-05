@@ -650,10 +650,10 @@ export const ProfessionalConfirmation = ({
                 <span className="font-mono font-semibold text-foreground">{orderNumber}</span>
               </p>
               <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                <span className="flex items-center gap-2">
+                <a href="tel:+14385442233" className="flex items-center gap-2 hover:text-foreground transition-colors">
                   <Phone className="w-4 h-4" />
-                  514-544-2233
-                </span>
+                  438-544-2233
+                </a>
                 <span className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
                   Support@nivratelecom.ca

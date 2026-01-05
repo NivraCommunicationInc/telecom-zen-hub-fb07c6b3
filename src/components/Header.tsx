@@ -112,9 +112,9 @@ const Header = () => {
           <div className="hidden lg:flex items-center gap-2">
             <LanguageSelector />
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-              <a href="tel:+15145442233">
+              <a href="tel:+14385442233">
                 <Phone className="w-4 h-4" />
-                <span className="hidden xl:inline">514-544-2233</span>
+                <span className="hidden xl:inline">438-544-2233</span>
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
@@ -173,9 +173,9 @@ const Header = () => {
               <div className="pt-4 mt-2 border-t border-border flex flex-col gap-2">
                 <LanguageSelector />
                 <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
-                  <a href="tel:+15145442233">
+                  <a href="tel:+14385442233">
                     <Phone className="w-4 h-4" />
-                    <span>514-544-2233</span>
+                    <span>438-544-2233</span>
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" className="justify-start" asChild>

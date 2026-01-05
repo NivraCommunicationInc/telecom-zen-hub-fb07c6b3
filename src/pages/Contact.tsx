@@ -98,9 +98,9 @@ const Contact = () => {
                   </h4>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href="tel:+15145442233">
+                    <a href="tel:+14385442233">
                       <Phone className="w-4 h-4 text-cyan-400" />
-                      <span>514-544-2233</span>
+                      <span>438-544-2233</span>
                     </a>
                   </Button>
                   

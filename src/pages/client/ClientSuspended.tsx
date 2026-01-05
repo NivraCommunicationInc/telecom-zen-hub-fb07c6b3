@@ -54,7 +54,7 @@ const ClientSuspended = () => {
             </Button>
             
             <Button asChild variant="outline" className="w-full">
-              <a href="tel:+15145442233">
+              <a href="tel:+14385442233">
                 <Phone className="w-4 h-4 mr-2" />
                 {t.callSupport}
               </a>
