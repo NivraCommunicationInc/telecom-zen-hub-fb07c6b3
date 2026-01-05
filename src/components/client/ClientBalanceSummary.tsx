@@ -16,6 +16,7 @@ import {
   CreditCard
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { isPaymentCaptured } from "@/lib/billingValidation";
 
 interface ClientBalanceSummaryProps {
   userId: string;
@@ -47,14 +48,6 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   partial: { label: "Partielle", color: "bg-orange-500/20 text-orange-500", icon: Clock },
   paid: { label: "Payée", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
 };
-
-/**
- * Check if a payment is considered "captured" (affects balance)
- * Only captured payments reduce the amount due
- */
-function isPaymentCaptured(status: string, paidAt: string | null): boolean {
-  return status === "paid" && !!paidAt;
-}
 
 export const ClientBalanceSummary = ({ userId, userEmail }: ClientBalanceSummaryProps) => {
   // Fetch billing invoices (non-cancelled only)

@@ -4,11 +4,13 @@ import { fr } from "date-fns/locale";
 import { COMPANY_CONTACT, ETRANSFER_CONFIG } from "@/config/company";
 import { calculateBillingTotals, TAX_RATES, type BillingInput } from "@/lib/pdfEngine/billingCalculator";
 import { sanitizeLegalText } from "@/lib/pdfEngine/helpers";
+import { validateOrderLineItems, logValidationResults } from "@/lib/billingValidation";
 
 // =============================================================================
 // NIVRA INVOICE PDF GENERATOR
 // Single source of truth: billingCalculator.ts for all tax/total calculations
 // CRITICAL: Company address is always Nivra's official address, never client's
+// INVARIANT: Always compute totals from normalized line_items when available
 // =============================================================================
 
 // Business Information - ALWAYS use Nivra's official address
@@ -183,7 +185,19 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   // ========================================================================
   // BUILD SERVICES LIST - Multi-service support from order line_items
   // CRITICAL: Must extract ALL services from orderLineItems when available
+  // INVARIANT: Always compute from line_items, never from stored subtotal
   // ========================================================================
+  
+  // Run validation on orderLineItems if available
+  if (data.orderLineItems && Array.isArray(data.orderLineItems) && data.orderLineItems.length > 0) {
+    const validation = validateOrderLineItems({ line_items: data.orderLineItems });
+    logValidationResults("Invoice PDF", validation);
+    
+    if (validation.blockingSave) {
+      console.error("[Invoice PDF] BLOCKING ERRORS detected - PDF may have incorrect totals:", validation.errors);
+    }
+  }
+  
   const buildServicesList = (): InvoiceServiceItem[] => {
     // PRIORITY 1: If services array is explicitly provided, use it
     if (data.services && data.services.length > 0) {
