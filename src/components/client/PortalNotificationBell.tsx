@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePortalNotifications, Notification } from "@/hooks/usePortalNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getNotificationHref } from "@/lib/notificationRouting";
 
 const typeConfig: Record<string, { icon: any; color: string }> = {
   invoice: { icon: CreditCard, color: "text-emerald-500" },
@@ -36,29 +37,9 @@ export function PortalNotificationBell() {
     // Close popover
     setOpen(false);
     
-    // Navigate based on notification type with deep-linking
-    if (notification.link_target) {
-      // Use the stored link_target directly
-      navigate(notification.link_target);
-    } else {
-      // Fallback navigation based on type
-      const typeRoutes: Record<string, string> = {
-        order: "/portal/orders",
-        ticket: "/portal/tickets",
-        invoice: "/portal/invoices",
-        payment: "/portal/payments",
-        appointment: "/portal/appointments",
-        system: "/portal/dashboard",
-      };
-      const fallbackRoute = typeRoutes[notification.type] || "/portal/dashboard";
-      
-      // If we have a link_id, append it for deep linking
-      if (notification.link_id) {
-        navigate(`${fallbackRoute}?id=${notification.link_id}`);
-      } else {
-        navigate(fallbackRoute);
-      }
-    }
+    // Use centralized routing utility for portal scope
+    const href = getNotificationHref(notification, 'portal');
+    navigate(href);
   };
 
   return (

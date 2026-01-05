@@ -221,7 +221,7 @@ export const ClientBalanceSummary = ({ userId, userEmail }: ClientBalanceSummary
               );
             })}
             {allUnpaidInvoices.length > 3 && (
-              <Link to="/client/invoices">
+              <Link to="/portal/invoices">
                 <Button variant="link" size="sm" className="p-0 h-auto text-xs">
                   Voir toutes les factures ({allUnpaidInvoices.length})
                   <ExternalLink className="w-3 h-3 ml-1" />

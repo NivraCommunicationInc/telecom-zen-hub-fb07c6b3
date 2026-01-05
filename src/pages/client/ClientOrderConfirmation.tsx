@@ -830,7 +830,7 @@ END:VCALENDAR`;
                 Voir ma commande
               </Button>
               
-              <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate("/portal/dashboard")}>
+              <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate("/portal")}>
                 <User className="w-4 h-4" />
                 Voir mon compte
               </Button>
@@ -851,13 +851,13 @@ END:VCALENDAR`;
                 variant="outline" 
                 size="lg" 
                 className="gap-2" 
-                onClick={() => navigate(`/portal/tickets/new?order=${order.order_number}`)}
+                onClick={() => navigate(`/portal/tickets?order=${order.order_number}`)}
               >
                 <MessageSquare className="w-4 h-4" />
                 Ouvrir un billet
               </Button>
               
-              <Button variant="hero" size="lg" onClick={() => navigate("/portal/dashboard")} className="gap-2">
+              <Button variant="hero" size="lg" onClick={() => navigate("/portal")} className="gap-2">
                 Continuer
                 <ArrowRight className="w-4 h-4" />
               </Button>
