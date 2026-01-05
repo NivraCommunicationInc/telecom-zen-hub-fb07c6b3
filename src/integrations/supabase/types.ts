@@ -393,6 +393,7 @@ export type Database = {
           activation_fee: number | null
           amount: number
           amount_paid: number | null
+          captured_at: string | null
           client_email: string | null
           created_at: string
           credits: number | null
@@ -400,18 +401,25 @@ export type Database = {
           discount_amount: number | null
           due_date: string | null
           equipment_id: string | null
+          etransfer_reference: string | null
+          etransfer_status: string | null
           fees: number | null
           id: string
           installation_fee: number | null
           invoice_number: string | null
+          is_preauthorized: boolean | null
           late_fee_amount: number | null
           late_fee_applied: boolean | null
+          ledger_entry_id: string | null
           notes: string | null
           order_id: string | null
           paid_at: string | null
+          payment_method_type: string | null
           payment_reference: string | null
           preauth_discount: number | null
           preauth_discount_applied: boolean | null
+          preauthorized_at: string | null
+          proof_submitted_at: string | null
           related_order_number: string | null
           replacement_order_id: string | null
           replacement_ticket_id: string | null
@@ -425,6 +433,7 @@ export type Database = {
           activation_fee?: number | null
           amount: number
           amount_paid?: number | null
+          captured_at?: string | null
           client_email?: string | null
           created_at?: string
           credits?: number | null
@@ -432,18 +441,25 @@ export type Database = {
           discount_amount?: number | null
           due_date?: string | null
           equipment_id?: string | null
+          etransfer_reference?: string | null
+          etransfer_status?: string | null
           fees?: number | null
           id?: string
           installation_fee?: number | null
           invoice_number?: string | null
+          is_preauthorized?: boolean | null
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
+          ledger_entry_id?: string | null
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          payment_method_type?: string | null
           payment_reference?: string | null
           preauth_discount?: number | null
           preauth_discount_applied?: boolean | null
+          preauthorized_at?: string | null
+          proof_submitted_at?: string | null
           related_order_number?: string | null
           replacement_order_id?: string | null
           replacement_ticket_id?: string | null
@@ -457,6 +473,7 @@ export type Database = {
           activation_fee?: number | null
           amount?: number
           amount_paid?: number | null
+          captured_at?: string | null
           client_email?: string | null
           created_at?: string
           credits?: number | null
@@ -464,18 +481,25 @@ export type Database = {
           discount_amount?: number | null
           due_date?: string | null
           equipment_id?: string | null
+          etransfer_reference?: string | null
+          etransfer_status?: string | null
           fees?: number | null
           id?: string
           installation_fee?: number | null
           invoice_number?: string | null
+          is_preauthorized?: boolean | null
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
+          ledger_entry_id?: string | null
           notes?: string | null
           order_id?: string | null
           paid_at?: string | null
+          payment_method_type?: string | null
           payment_reference?: string | null
           preauth_discount?: number | null
           preauth_discount_applied?: boolean | null
+          preauthorized_at?: string | null
+          proof_submitted_at?: string | null
           related_order_number?: string | null
           replacement_order_id?: string | null
           replacement_ticket_id?: string | null
@@ -1643,6 +1667,74 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_entries: {
+        Row: {
+          account_id: string | null
+          amount: number
+          captured_at: string | null
+          client_id: string
+          created_at: string
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
+          description: string | null
+          entry_type: Database["public"]["Enums"]["ledger_entry_type"]
+          id: string
+          metadata: Json | null
+          payment_method: string | null
+          payment_status: string | null
+          reference_id: string | null
+          reference_number: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          captured_at?: string | null
+          client_id: string
+          created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          description?: string | null
+          entry_type: Database["public"]["Enums"]["ledger_entry_type"]
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          payment_status?: string | null
+          reference_id?: string | null
+          reference_number?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          captured_at?: string | null
+          client_id?: string
+          created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          description?: string | null
+          entry_type?: Database["public"]["Enums"]["ledger_entry_type"]
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          payment_status?: string | null
+          reference_id?: string | null
+          reference_number?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -2320,6 +2412,81 @@ export type Database = {
           last_four?: string
           preauthorized_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      payment_proofs: {
+        Row: {
+          auto_matched: boolean | null
+          client_id: string
+          created_at: string
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          match_confidence: number | null
+          notes: string | null
+          payment_id: string
+          proof_type: string
+          sender_bank: string | null
+          sender_name: string | null
+          transfer_amount: number | null
+          transfer_date: string | null
+          transfer_reference: string | null
+          updated_at: string
+          verification_notes: string | null
+          verification_status: string
+          verified_at: string | null
+          verified_by_id: string | null
+          verified_by_name: string | null
+        }
+        Insert: {
+          auto_matched?: boolean | null
+          client_id: string
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          match_confidence?: number | null
+          notes?: string | null
+          payment_id: string
+          proof_type?: string
+          sender_bank?: string | null
+          sender_name?: string | null
+          transfer_amount?: number | null
+          transfer_date?: string | null
+          transfer_reference?: string | null
+          updated_at?: string
+          verification_notes?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by_id?: string | null
+          verified_by_name?: string | null
+        }
+        Update: {
+          auto_matched?: boolean | null
+          client_id?: string
+          created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          match_confidence?: number | null
+          notes?: string | null
+          payment_id?: string
+          proof_type?: string
+          sender_bank?: string | null
+          sender_name?: string | null
+          transfer_amount?: number | null
+          transfer_date?: string | null
+          transfer_reference?: string | null
+          updated_at?: string
+          verification_notes?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by_id?: string | null
+          verified_by_name?: string | null
         }
         Relationships: []
       }
@@ -4406,6 +4573,7 @@ export type Database = {
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
+      generate_etransfer_reference: { Args: never; Returns: string }
       generate_internal_ticket_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_monthly_invoice_number: { Args: never; Returns: string }
@@ -4426,6 +4594,15 @@ export type Database = {
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
+      get_client_ledger_balance: {
+        Args: { p_client_id: string }
+        Returns: {
+          available_credit: number
+          balance: number
+          total_credits: number
+          total_debits: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4440,6 +4617,10 @@ export type Database = {
       }
       is_first_client_order: {
         Args: { p_order_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_payment_captured: {
+        Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean
       }
       lift_client_suspension: {
@@ -4480,6 +4661,27 @@ export type Database = {
         | "shipped"
         | "tech_dispatched"
         | "completed"
+        | "cancelled"
+      ledger_entry_type:
+        | "invoice"
+        | "payment"
+        | "credit"
+        | "adjustment"
+        | "refund"
+        | "late_fee"
+        | "promo_credit"
+      payment_status:
+        | "pending"
+        | "authorized"
+        | "preauthorized"
+        | "in_verification"
+        | "captured"
+        | "complete"
+        | "paid"
+        | "declined"
+        | "failed"
+        | "refunded"
+        | "fraud"
         | "cancelled"
       replacement_order_status:
         | "open"
@@ -4673,6 +4875,29 @@ export const Constants = {
         "shipped",
         "tech_dispatched",
         "completed",
+        "cancelled",
+      ],
+      ledger_entry_type: [
+        "invoice",
+        "payment",
+        "credit",
+        "adjustment",
+        "refund",
+        "late_fee",
+        "promo_credit",
+      ],
+      payment_status: [
+        "pending",
+        "authorized",
+        "preauthorized",
+        "in_verification",
+        "captured",
+        "complete",
+        "paid",
+        "declined",
+        "failed",
+        "refunded",
+        "fraud",
         "cancelled",
       ],
       replacement_order_status: [
