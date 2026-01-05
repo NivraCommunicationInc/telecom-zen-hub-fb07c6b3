@@ -22,11 +22,62 @@ function generatePin(): string {
   return String(array[0] % 1000000).padStart(6, "0");
 }
 
+// Generate unique request ID for logging
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+}
+
+// Mask email for logging
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return "***@***";
+  const maskedLocal = local.length > 2 ? local[0] + "***" + local[local.length - 1] : "***";
+  return `${maskedLocal}@${domain}`;
+}
+
+// Retry with exponential backoff
+async function sendEmailWithRetry(
+  resend: InstanceType<typeof Resend>,
+  emailConfig: { from: string; to: string[]; subject: string; html: string },
+  maxRetries = 3
+): Promise<{ success: boolean; error?: string }> {
+  const delays = [500, 2000, 5000]; // 0.5s, 2s, 5s
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const { error } = await resend.emails.send(emailConfig);
+      if (!error) {
+        return { success: true };
+      }
+      console.error(`[client-pin-send] Email attempt ${attempt + 1} failed:`, error);
+      
+      // Don't retry on certain errors
+      if (error.message?.includes("validation") || error.message?.includes("invalid")) {
+        return { success: false, error: error.message };
+      }
+      
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+      }
+    } catch (err) {
+      console.error(`[client-pin-send] Email attempt ${attempt + 1} exception:`, err);
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+      }
+    }
+  }
+  
+  return { success: false, error: "Failed to send email after multiple attempts" };
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const requestId = generateRequestId();
+  console.log(`[client-pin-send][${requestId}] Request received`);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -34,9 +85,13 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
+      console.error(`[client-pin-send][${requestId}] RESEND_API_KEY not configured`);
       return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
+        JSON.stringify({ 
+          sent: false, 
+          reason: "config_error",
+          error: "Email service not configured. Contact Support@nivratelecom.ca" 
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -44,16 +99,29 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    const { email, user_id } = await req.json();
-
-    if (!email || !user_id) {
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      console.error(`[client-pin-send][${requestId}] Invalid JSON body:`, parseErr);
       return new Response(
-        JSON.stringify({ error: "Email and user_id are required" }),
+        JSON.stringify({ sent: false, reason: "invalid_request", error: "Invalid request body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[client-pin-send] Processing request for email: ${email}`);
+    const { email, user_id } = body;
+
+    if (!email || !user_id) {
+      console.error(`[client-pin-send][${requestId}] Missing email or user_id`);
+      return new Response(
+        JSON.stringify({ sent: false, reason: "missing_params", error: "Email and user_id are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const maskedEmail = maskEmail(email);
+    console.log(`[client-pin-send][${requestId}] Processing for: ${maskedEmail}`);
 
     // Rate limit check: no PIN sent in last 60 seconds
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
@@ -66,15 +134,15 @@ serve(async (req) => {
       .limit(1);
 
     if (checkError) {
-      console.error("[client-pin-send] Error checking rate limit:", checkError);
+      console.error(`[client-pin-send][${requestId}] Rate limit check failed:`, checkError);
       return new Response(
-        JSON.stringify({ error: "Database error" }),
+        JSON.stringify({ sent: false, reason: "db_error", error: "Database error. Please retry." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (recentPins && recentPins.length > 0) {
-      console.log(`[client-pin-send] Rate limited for email: ${email}`);
+      console.log(`[client-pin-send][${requestId}] Rate limited for: ${maskedEmail}`);
       return new Response(
         JSON.stringify({ sent: false, reason: "rate_limited", retry_after_seconds: 60 }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -86,7 +154,7 @@ serve(async (req) => {
     const pinHash = await hashPin(pin);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-    console.log(`[client-pin-send] Generated PIN for ${email}, expires: ${expiresAt}`);
+    console.log(`[client-pin-send][${requestId}] Generated PIN, expires: ${expiresAt}`);
 
     // Store hashed PIN
     const { error: insertError } = await supabase
@@ -101,15 +169,15 @@ serve(async (req) => {
       });
 
     if (insertError) {
-      console.error("[client-pin-send] Error storing PIN:", insertError);
+      console.error(`[client-pin-send][${requestId}] DB insert failed:`, insertError);
       return new Response(
-        JSON.stringify({ error: "Failed to create verification PIN" }),
+        JSON.stringify({ sent: false, reason: "db_error", error: "Failed to create verification code" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Send email with PIN
-    const { error: emailError } = await resend.emails.send({
+    // Send email with PIN using retry logic
+    const emailResult = await sendEmailWithRetry(resend, {
       from: "Nivra Telecom <noreply@nivratelecom.ca>",
       to: [email],
       subject: "Votre code de vérification Nivra",
@@ -141,7 +209,9 @@ serve(async (req) => {
             <p style="text-align: center;">Ce code expire dans <strong>10 minutes</strong>.</p>
             <p style="text-align: center; color: #dc2626; font-size: 13px;">Si vous n'avez pas demandé ce code, veuillez ignorer cet email.</p>
             <div class="footer">
-              <p>Nivra Telecom © ${new Date().getFullYear()}</p>
+              <p>Nivra Communications Inc. © ${new Date().getFullYear()}</p>
+              <p>1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5</p>
+              <p>Support: Support@nivratelecom.ca | 438-544-2233</p>
               <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
             </div>
           </div>
@@ -150,28 +220,36 @@ serve(async (req) => {
       `,
     });
 
-    if (emailError) {
-      console.error("[client-pin-send] Error sending email:", emailError);
+    if (!emailResult.success) {
+      console.error(`[client-pin-send][${requestId}] Email send failed: ${emailResult.error}`);
       // Delete the PIN record since email failed
       await supabase.from("client_login_pins").delete().eq("pin_hash", pinHash);
       return new Response(
-        JSON.stringify({ error: "Failed to send verification email" }),
+        JSON.stringify({ 
+          sent: false, 
+          reason: "email_failed",
+          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[client-pin-send] PIN email sent successfully to ${email}`);
+    console.log(`[client-pin-send][${requestId}] SUCCESS - email sent to ${maskedEmail}`);
 
     return new Response(
-      JSON.stringify({ sent: true }),
+      JSON.stringify({ sent: true, request_id: requestId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[client-pin-send] Unexpected error:", error);
-    // Only return 500 for actual server errors
+    console.error(`[client-pin-send][${requestId}] Unexpected error:`, error);
     return new Response(
-      JSON.stringify({ sent: false, reason: "server_error", error: errorMessage }),
+      JSON.stringify({ 
+        sent: false, 
+        reason: "server_error", 
+        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca",
+        request_id: requestId 
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
