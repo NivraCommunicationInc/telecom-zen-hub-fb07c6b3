@@ -1998,7 +1998,11 @@ export type Database = {
           category: string | null
           channel_assigned_by: string | null
           channel_selection_locked: boolean | null
+          client_dob: string | null
           client_email: string | null
+          client_first_name: string | null
+          client_last_name: string | null
+          client_phone: string | null
           confirmation_number: string | null
           created_at: string
           created_by: string | null
@@ -2081,7 +2085,11 @@ export type Database = {
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
+          client_dob?: string | null
           client_email?: string | null
+          client_first_name?: string | null
+          client_last_name?: string | null
+          client_phone?: string | null
           confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -2164,7 +2172,11 @@ export type Database = {
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
+          client_dob?: string | null
           client_email?: string | null
+          client_first_name?: string | null
+          client_last_name?: string | null
+          client_phone?: string | null
           confirmation_number?: string | null
           created_at?: string
           created_by?: string | null

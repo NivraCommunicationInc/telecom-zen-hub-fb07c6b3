@@ -725,12 +725,26 @@ const ClientNewOrder = () => {
   });
 
   // Pre-fill from client profile when profile loads (if not already set from draft)
+  // This ensures checkout forms are autofilled from the single source of truth (profiles table)
   useEffect(() => {
     if (profile && isHydrated) {
       // Only pre-fill if fields are empty (draft takes priority)
+      // Name fields
+      if (!firstName && profile.first_name) {
+        setFirstName(profile.first_name);
+      }
+      if (!lastName && profile.last_name) {
+        setLastName(profile.last_name);
+      }
+      // Date of birth
+      if (!dateOfBirth && profile.date_of_birth) {
+        setDateOfBirth(profile.date_of_birth);
+      }
+      // Phone
       if (!checkoutPhone && profile.phone) {
         setCheckoutPhone(profile.phone);
       }
+      // Address fields
       if (!serviceAddressStreet && profile.service_address) {
         setServiceAddressStreet(profile.service_address);
       }
@@ -743,8 +757,26 @@ const ClientNewOrder = () => {
       if (!serviceAddressPostalCode && profile.service_postal_code) {
         setServiceAddressPostalCode(profile.service_postal_code);
       }
+      // Identity document fields (for returning customers)
+      if (!idType && profile.id_type) {
+        setIdType(profile.id_type);
+      }
+      if (!idNumber && profile.id_number) {
+        setIdNumber(profile.id_number);
+      }
+      if (!idExpiration && profile.id_expiration) {
+        setIdExpiration(profile.id_expiration);
+      }
+      if (!idProvince && profile.id_province) {
+        setIdProvince(profile.id_province);
+      }
     }
-  }, [profile, isHydrated, checkoutPhone, serviceAddressStreet, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode]);
+  }, [
+    profile, isHydrated, 
+    firstName, lastName, dateOfBirth,
+    checkoutPhone, serviceAddressStreet, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
+    idType, idNumber, idExpiration, idProvince
+  ]);
 
   // Categorize channels - strict pack filter for La Base (26 channels)
   const baseChannels = tvChannels.filter(ch => ch.base_pack === 'LA_BASE_26');
@@ -1250,6 +1282,16 @@ const ClientNewOrder = () => {
       const { data, error } = await supabase.from("orders").insert({
         user_id: user.id,
         client_email: profile?.email || user.email,
+        // Client identity fields for profile sync trigger
+        client_first_name: firstName || null,
+        client_last_name: lastName || null,
+        client_dob: dateOfBirth || null,
+        client_phone: checkoutPhone || null,
+        // Shipping/service address fields
+        shipping_address: serviceAddressStreet || null,
+        shipping_city: serviceAddressCity || null,
+        shipping_province: serviceAddressProvince || null,
+        shipping_postal_code: serviceAddressPostalCode || null,
         service_type: serviceNames,
         category: isDeliveryOnlyOrder ? "Delivery" : categories,
         subtotal: subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0),
@@ -1286,31 +1328,12 @@ const ClientNewOrder = () => {
         preauth_card_id: savedPaymentMethodId,
         port_request: portRequestData,
         identity_snapshot: identitySnapshotData,
-      }).select().single();
+      } as any).select().single();
 
       if (error) throw error;
       
-      // Update client profile with phone, service address, and identity (for first orders or updates)
-      if (user?.id) {
-        const profileUpdate: Record<string, any> = {};
-        
-        // Contact + Address
-        if (checkoutPhone) profileUpdate.phone = checkoutPhone;
-        if (serviceAddressStreet) profileUpdate.service_address = serviceAddressStreet;
-        if (serviceAddressCity) profileUpdate.service_city = serviceAddressCity;
-        if (serviceAddressProvince) profileUpdate.service_province = serviceAddressProvince;
-        if (serviceAddressPostalCode) profileUpdate.service_postal_code = serviceAddressPostalCode;
-        
-        // Identity fields - persist to profile for future orders
-        if (idType) profileUpdate.id_type = idType;
-        if (idNumber) profileUpdate.id_number = idNumber;
-        if (idExpiration) profileUpdate.id_expiration = idExpiration;
-        if (idProvince) profileUpdate.id_province = idProvince;
-        
-        if (Object.keys(profileUpdate).length > 0) {
-          await supabase.from("profiles").update(profileUpdate).eq("user_id", user.id);
-        }
-      }
+      // Note: Profile sync is now handled by database trigger (trg_sync_order_to_profile)
+      // This ensures fill-missing-only logic is applied at the database level
 
       // Generate NIVRA payment reference
       const year = new Date().getFullYear();
