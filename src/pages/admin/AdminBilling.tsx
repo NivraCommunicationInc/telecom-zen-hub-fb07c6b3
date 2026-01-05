@@ -918,19 +918,47 @@ const AdminBilling = () => {
     if (bill.order_id) {
       const { data } = await supabase
         .from("orders")
-        .select("*, equipment_details, promo_code, promo_discount_amount, promo_details, service_type")
+        .select("*, equipment_details, promo_code, promo_discount_amount, promo_details, service_type, account_id")
         .eq("id", bill.order_id)
         .maybeSingle();
       orderData = data;
     } else if (bill.related_order_number) {
       const { data } = await supabase
         .from("orders")
-        .select("*, equipment_details, promo_code, promo_discount_amount, promo_details, service_type")
+        .select("*, equipment_details, promo_code, promo_discount_amount, promo_details, service_type, account_id")
         .eq("order_number", bill.related_order_number)
         .maybeSingle();
       orderData = data;
     }
     return orderData;
+  };
+  
+  // Helper to fetch client account number
+  const fetchClientAccountNumber = async (userId: string): Promise<string> => {
+    // 1. Try profiles.client_number
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("client_number")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    if (profile?.client_number) {
+      return profile.client_number;
+    }
+    
+    // 2. Try accounts.account_number
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("account_number")
+      .eq("client_id", userId)
+      .maybeSingle();
+    
+    if (account?.account_number) {
+      return account.account_number;
+    }
+    
+    console.error("[AdminBilling] Could not find account number for user:", userId);
+    return "";
   };
 
   // PDF Invoice using jsPDF - no blank tabs
@@ -943,6 +971,11 @@ const AdminBilling = () => {
       const orderData = await fetchRelatedOrderData(bill);
       const equipmentDetails = orderData?.equipment_details;
       const lineItems = equipmentDetails?.line_items || [];
+      
+      // CRITICAL: Fetch account number with robust fallback
+      const clientAccountNumber = bill.user_id 
+        ? await fetchClientAccountNumber(bill.user_id)
+        : "";
       
       const subtotal = Number(bill.amount) || 0;
       const fees = Number(bill.fees) || 0;
@@ -981,7 +1014,7 @@ const AdminBilling = () => {
         invoiceNumber: invoiceNum,
         orderNumber: bill.related_order_number || orderData?.order_number,
         paymentReference: bill.payment_reference,
-        clientNumber: bill.user_id?.slice(0, 8).toUpperCase(),
+        clientNumber: clientAccountNumber, // Use fetched account number
         clientName,
         clientEmail,
         clientPhone,
@@ -1033,6 +1066,11 @@ const AdminBilling = () => {
       const equipmentDetails = orderData?.equipment_details;
       const lineItems = equipmentDetails?.line_items || [];
       
+      // CRITICAL: Fetch account number with robust fallback
+      const clientAccountNumber = bill.user_id 
+        ? await fetchClientAccountNumber(bill.user_id)
+        : "";
+      
       const subtotal = Number(bill.amount) || 0;
       const fees = Number(bill.fees) || 0;
       const credits = Number(bill.credits) || 0;
@@ -1064,7 +1102,7 @@ const AdminBilling = () => {
         invoiceNumber: invoiceNum,
         orderNumber: bill.related_order_number || orderData?.order_number,
         paymentReference: bill.payment_reference,
-        clientNumber: bill.user_id?.slice(0, 8).toUpperCase(),
+        clientNumber: clientAccountNumber, // Use fetched account number
         clientName,
         clientEmail,
         clientPhone,

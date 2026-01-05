@@ -530,8 +530,15 @@ export const sanitizeLegalText = (text: string): string => {
   result = result.replace(/[\u00AB\u00BB]/g, '"');
   // –/— → -
   result = result.replace(/[\u2013\u2014]/g, "-");
+  
+  // 4) Fix common corruption patterns
+  // !′ or !' artifacts → '
+  result = result.replace(/!\u2032/g, "'");
+  result = result.replace(/!'/g, "'");
+  // Backtick artifacts
+  result = result.replace(/\u0060/g, "'");
 
-  // 4) Normalize whitespace
+  // 5) Normalize whitespace
   // Convert NBSP → space
   result = result.replace(/\u00A0/g, " ");
 
