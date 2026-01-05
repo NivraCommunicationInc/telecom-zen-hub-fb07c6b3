@@ -69,9 +69,12 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 <MapPin className="w-4 h-4 flex-shrink-0" />
                 <span>{COMPANY_CONTACT.fullAddress}</span>
               </div>
-              <div className="flex items-center gap-3 text-white/60 text-sm">
-                <Clock className="w-4 h-4 flex-shrink-0" />
-                <span>{COMPANY_CONTACT.supportHours}</span>
+              <div className="flex items-start gap-3 text-white/60 text-sm">
+                <Clock className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p>{COMPANY_CONTACT.supportHoursWeekday}</p>
+                  <p>{COMPANY_CONTACT.supportHoursWeekend}</p>
+                </div>
               </div>
             </div>
             
