@@ -2010,6 +2010,7 @@ export type Database = {
           equipment_details: Json | null
           equipment_id: string | null
           equipment_line_details: Json | null
+          etransfer_status: string | null
           id: string
           id_verification_notes: string | null
           id_verification_status: string | null
@@ -2090,6 +2091,7 @@ export type Database = {
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
+          etransfer_status?: string | null
           id?: string
           id_verification_notes?: string | null
           id_verification_status?: string | null
@@ -2170,6 +2172,7 @@ export type Database = {
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
+          etransfer_status?: string | null
           id?: string
           id_verification_notes?: string | null
           id_verification_status?: string | null
