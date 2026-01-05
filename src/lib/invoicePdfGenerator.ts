@@ -592,16 +592,24 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     currentY += 28;
   }
 
-  // ============ LATE PAYMENT POLICY ============
-  checkPageBreak(12);
+  // ============ PREPAID BILLING POLICY ============
+  checkPageBreak(16);
   doc.setFontSize(6);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...grayColor);
-  doc.text("LATE PAYMENT POLICY", margin, currentY);
+  doc.text("PREPAID BILLING POLICY (PRÉPAYÉ)", margin, currentY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
   currentY += 4;
-  doc.text("A late fee of 5% monthly will be applied to any unpaid balance after the due date.", margin, currentY);
+  doc.text("Services are billed in advance. Payment must be confirmed BEFORE Bill Cycle date (J0) to renew service.", margin, currentY);
+  currentY += 4;
+  doc.text("If unpaid at J0, service is not renewed (Expired). No interest or reactivation fee for normal non-renewal.", margin, currentY);
+  currentY += 4;
+  doc.text("After 90 days without renewal, phone number may become unrecoverable (new number required).", margin, currentY);
+  currentY += 4;
+  doc.setTextColor(180, 80, 80);
+  doc.text("Interest (5%/mo) + $15 reactivation fee apply ONLY for bank disputes/chargebacks.", margin, currentY);
+  doc.setTextColor(...grayColor);
 
   currentY += 8;
 

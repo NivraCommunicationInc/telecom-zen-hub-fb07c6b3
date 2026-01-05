@@ -170,8 +170,8 @@ const translations: Record<Language, Record<string, string>> = {
     // FAQ Questions - Payments
     'faq.pay.q1': 'Comment voir mes factures?',
     'faq.pay.a1': 'Toutes vos factures et paiements sont visibles dans votre portail client (navigateur uniquement).',
-    'faq.pay.q2': 'Qu\'arrive-t-il si je paie en retard?',
-    'faq.pay.a2': 'Des frais de retard de 5% s\'appliquent aux factures en souffrance.',
+    'faq.pay.q2': 'Qu\'arrive-t-il si je ne paie pas au Bill Cycle?',
+    'faq.pay.a2': 'En prépayé, si non payé au Bill Cycle, le service n\'est pas renouvelé. Aucun frais de retard pour non-renouvellement normal. Après 90 jours, votre numéro peut devenir irrécupérable.',
     'faq.pay.q3': 'Comment fonctionnent les crédits?',
     'faq.pay.a3': 'Les crédits sont appliqués automatiquement à vos prochaines factures.',
     
@@ -380,8 +380,8 @@ const translations: Record<Language, Record<string, string>> = {
     // FAQ Questions - Payments
     'faq.pay.q1': 'How can I see my invoices?',
     'faq.pay.a1': 'All invoices and payments are visible in your client portal (browser only).',
-    'faq.pay.q2': 'What happens if I pay late?',
-    'faq.pay.a2': 'A 5% late fee is applied to overdue invoices.',
+    'faq.pay.q2': 'What happens if I don\'t pay by the Bill Cycle?',
+    'faq.pay.a2': 'For prepaid services, if unpaid by Bill Cycle date, service is not renewed. No late fees for normal non-renewal. After 90 days, your number may be unrecoverable.',
     'faq.pay.q3': 'How do credits work?',
     'faq.pay.a3': 'Credits are automatically applied to your next invoices.',
     
