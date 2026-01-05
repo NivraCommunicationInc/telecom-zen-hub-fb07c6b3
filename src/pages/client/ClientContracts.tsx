@@ -638,20 +638,20 @@ const ClientContracts = () => {
                   <div className="space-y-2">
                     <h3 className="font-bold text-cyan-500">CONDITIONS</h3>
                     <ul className="text-sm space-y-1 text-muted-foreground">
-                      <li>• Paiement sous {CONTRACT_TERMS.paymentTerms.dueDays} jours</li>
-                      <li>• Intérêt de {CONTRACT_TERMS.paymentTerms.lateInterestRate}% par mois sur paiements en retard</li>
+                      <li>• Service prépayé — paiement requis avant Bill Cycle pour renouveler</li>
+                      <li>• Non-renouvellement au Bill Cycle si impayé (aucun intérêt/frais pour non-paiement normal)</li>
                       <li>• Préavis de résiliation de {CONTRACT_TERMS.cancellation.noticeDays} jours</li>
                       <li>• Frais après livraison: {CONTRACT_TERMS.cancellation.afterDeliveryCharge}</li>
                     </ul>
                   </div>
 
-                  {/* Late Payment Warning */}
-                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <h3 className="font-bold text-red-600 dark:text-red-400 mb-2">
-                      POLITIQUE DE PAIEMENT EN RETARD
+                  {/* Dispute/Chargeback Warning */}
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                    <h3 className="font-bold text-amber-600 dark:text-amber-400 mb-2">
+                      CONTESTATION BANCAIRE / CHARGEBACK
                     </h3>
-                    <p className="text-sm text-red-700 dark:text-red-300">
-                      Un intérêt de {CONTRACT_TERMS.paymentTerms.lateInterestRate}% par mois sera appliqué sur tout solde impayé après {CONTRACT_TERMS.paymentTerms.dueDays} jours.
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Un intérêt de {CONTRACT_TERMS.disputeChargeback.interestRate}% par mois + frais de réactivation de {CONTRACT_TERMS.disputeChargeback.reactivationFee}$ s'appliquent UNIQUEMENT en cas de contestation bancaire ou chargeback confirmé contre le client.
                     </p>
                   </div>
                 </div>

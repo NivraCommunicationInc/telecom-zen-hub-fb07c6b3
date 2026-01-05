@@ -105,8 +105,9 @@ const ModalitesPaiement = () => {
                       <ul className="list-disc pl-6 space-y-2 text-sm">
                         <li><strong>Non-renouvellement :</strong> Si le paiement n'est pas confirmé au Bill Cycle (J0), le service devient Expiré</li>
                         <li><strong>E-Transfer en vérification au J0 :</strong> Fenêtre de grâce de <strong>{CONTRACT_TERMS.billingCycle.etransferGraceHours} heures</strong> maximum</li>
-                        <li>Frais de retard : <strong>{CONTRACT_TERMS.nonRenewal.feePercent}%</strong> sur le solde impayé après Bill Cycle</li>
-                        <li>Frais de réactivation : <strong>{CONTRACT_TERMS.nonRenewal.reactivationFee}$</strong> pour rétablir un service expiré</li>
+                        <li><strong>Aucun intérêt/frais</strong> pour un non-renouvellement prépayé normal</li>
+                        <li><strong>Après 90 jours sans renouvellement :</strong> Le numéro peut devenir irrécupérable (nouveau numéro requis)</li>
+                        <li><strong>Contestation bancaire/Chargeback :</strong> Intérêt de <strong>{CONTRACT_TERMS.disputeChargeback.interestRate}%</strong> par mois + frais de réactivation de <strong>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong> (UNIQUEMENT pour disputes/chargebacks)</li>
                       </ul>
                     </div>
                   </div>

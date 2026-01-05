@@ -99,19 +99,29 @@ export const CheckoutEssentialTermsBase = ({
 
   const essentialTerms = isFrench ? [
     "Vous payez à l'avance par cycle (services prépayés). La facture est émise 5 jours avant votre Bill Cycle. Le paiement doit être confirmé AVANT le Bill Cycle pour renouveler le service.",
-    "Si le paiement n'est pas reçu au Bill Cycle (J0), le service devient Expiré (non-renouvelé). Frais de réactivation applicables.",
+    "Si le paiement n'est pas reçu au Bill Cycle (J0), le service devient Expiré (non-renouvelé). Aucun intérêt ni frais de réactivation ne s'applique pour un non-renouvellement normal.",
     "Le cycle en cours payé n'est pas remboursable (sauf disposition légale contraire ou erreur de facturation confirmée).",
     "Les délais d'installation/activation sont des estimations. Service fourni en « best effort » (interruptions possibles).",
     "Avis et factures transmis via le portail et/ou courriel.",
     "En cas d'erreur d'affichage (« Prix à confirmer »), le prix applicable est celui de la confirmation de commande et/ou de la facture."
   ] : [
     "You pay in advance per cycle (prepaid services). Invoice is issued 5 days before your Bill Cycle. Payment must be confirmed BEFORE Bill Cycle to renew service.",
-    "If payment is not received at Bill Cycle (J0), service becomes Expired (non-renewed). Reactivation fee applies.",
+    "If payment is not received at Bill Cycle (J0), service becomes Expired (non-renewed). No interest or reconnection fee applies for normal non-renewal.",
     "The current paid cycle is non-refundable (except where required by law or confirmed billing error).",
     "Installation/activation timelines are estimates. Service provided on a \"best effort\" basis (interruptions possible).",
     "Notices and invoices transmitted via portal and/or email.",
     "In case of display error (\"Price to confirm\"), the applicable price is that of the order confirmation and/or invoice."
   ];
+
+  const prepaidNotice = isFrench ? {
+    title: "Note importante (prépayé)",
+    line1: "En prépayé, si le paiement n'est pas confirmé à la date de votre cycle de facturation, le service n'est pas renouvelé.",
+    line2: "Après 90 jours sans renouvellement, le numéro peut devenir irrécupérable; une réactivation exigera l'attribution d'un nouveau numéro."
+  } : {
+    title: "Important Notice (Prepaid)",
+    line1: "For prepaid services, if payment is not confirmed by your billing cycle date, the service is not renewed.",
+    line2: "After 90 days without renewal, the number may become unrecoverable; reactivation will require a new number."
+  };
 
   const checklistItems = [
     {
@@ -150,6 +160,20 @@ export const CheckoutEssentialTermsBase = ({
 
   return (
     <div className="space-y-4">
+      {/* Prepaid Non-Renewal Notice */}
+      <Card className="bg-amber-500/10 border-amber-500/30">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-foreground text-sm mb-1">{prepaidNotice.title}</p>
+              <p className="text-sm text-muted-foreground">{prepaidNotice.line1}</p>
+              <p className="text-sm text-muted-foreground mt-1">{prepaidNotice.line2}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Essential Terms Card */}
       <Card className="bg-muted/50 border-border">
         <CardHeader className="pb-3">

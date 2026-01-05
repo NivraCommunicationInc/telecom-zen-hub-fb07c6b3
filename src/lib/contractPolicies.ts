@@ -40,7 +40,6 @@ export const CONTRACT_TERMS = {
     delivery: 30,
     tvTerminal: 50, // per terminal
     router: 60,
-    reactivation: 15, // after suspension
     maxTerminals: 4,
     // Legacy
     simPhysical: 25,
@@ -60,9 +59,8 @@ export const CONTRACT_TERMS = {
   
   // Prepaid non-renewal (replaces suspension concept)
   nonRenewal: {
-    feePercent: 5, // 5% late fee on overdue (unpaid at bill cycle)
     effectAt: "bill_cycle", // Non-renewal at Bill Cycle date (J0) if unpaid
-    reactivationFee: 15,
+    numberLossDays: 90, // After 90 days without renewal, number may be unrecoverable
     statusLabels: {
       active: "Actif",
       renewalDue: "Renouvellement dû",
@@ -70,10 +68,16 @@ export const CONTRACT_TERMS = {
       expired: "Expiré (non-renouvelé)",
     },
   },
+
+  // Dispute/Chargeback penalties ONLY (not for normal non-renewal)
+  disputeChargeback: {
+    interestRate: 5, // 5% per month on amounts owed from dispute
+    reactivationFee: 15, // $15 reconnection fee after dispute resolution
+    appliesTo: "bank_dispute_chargeback_only", // ONLY for disputes/chargebacks
+  },
   
   paymentTerms: {
     dueDays: 0, // Prepaid: payment due BEFORE Bill Cycle date
-    lateInterestRate: 5, // 5% on overdue (unpaid after Bill Cycle)
     currency: "CAD",
     acceptedMethods: ["Credit Card (processed internally)", "Secure E-Transfer"],
   },
@@ -262,7 +266,8 @@ PREPAID BILLING CYCLE
 • Payment must be received and confirmed BEFORE Bill Cycle date (J0) to renew service.
 • If not paid by Bill Cycle (J0), service is not renewed (Expired/Non-renewed).
 • E-Transfer in verification at J0: short grace window (${CONTRACT_TERMS.billingCycle.etransferGraceHours}h max) before expiration.
-• Reactivation fee $${CONTRACT_TERMS.nonRenewal.reactivationFee} applies to restore expired services.
+• After 90 days without renewal, the phone number may become unrecoverable (new number required).
+• No interest or reconnection fee applies for normal prepaid non-renewal. Penalties apply ONLY for bank disputes/chargebacks.
   `.trim(),
   fr: `
 CYCLE DE FACTURATION PRÉPAYÉ
@@ -272,24 +277,37 @@ CYCLE DE FACTURATION PRÉPAYÉ
 • Le paiement doit être reçu et confirmé AVANT la date du Bill Cycle (J0) pour renouveler le service.
 • Si non payé au Bill Cycle (J0), le service n'est pas renouvelé (Expiré/Non-renouvelé).
 • E-Transfer en vérification au J0 : fenêtre de grâce courte (${CONTRACT_TERMS.billingCycle.etransferGraceHours}h max) avant expiration.
-• Frais de réactivation de ${CONTRACT_TERMS.nonRenewal.reactivationFee}$ pour rétablir les services expirés.
+• Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable (nouveau numéro requis).
+• Aucun intérêt ni frais de réactivation ne s'applique pour un non-renouvellement prépayé normal. Pénalités applicables UNIQUEMENT pour contestations bancaires/chargebacks.
   `.trim(),
 };
 
 export const LATE_PAYMENT_POLICY = {
   en: `
-LATE PAYMENT (PREPAID NON-RENEWAL)
+PREPAID NON-RENEWAL (NO INTEREST/FEE FOR NORMAL NON-PAYMENT)
 
-• Invoice overdue (unpaid at Bill Cycle) → late fee may apply (${CONTRACT_TERMS.nonRenewal.feePercent}%).
-• Service not renewed at Bill Cycle date if unpaid (prepaid non-renewal).
-• Reactivation fee $${CONTRACT_TERMS.nonRenewal.reactivationFee} applies to restore expired services.
+• If invoice is unpaid at Bill Cycle (J0), service is not renewed (prepaid non-renewal).
+• No interest and no reconnection fee applies simply because payment was not received by Bill Cycle.
+• After 90 days without renewal, the phone number may become unrecoverable (new number required).
+• No interest or reactivation fee applies simply because an e-Transfer is "In verification".
+
+BANK DISPUTE / CHARGEBACK (PENALTIES APPLY):
+• If a bank dispute or chargeback is initiated, service may be suspended during investigation.
+• If dispute is confirmed against the client OR Nivra is debited, interest of ${CONTRACT_TERMS.disputeChargeback.interestRate}% per month applies on amounts owed until paid in full.
+• After full payment and resolution, a reconnection fee of $${CONTRACT_TERMS.disputeChargeback.reactivationFee} may apply.
   `.trim(),
   fr: `
-RETARD DE PAIEMENT (NON-RENOUVELLEMENT PRÉPAYÉ)
+NON-RENOUVELLEMENT PRÉPAYÉ (AUCUN INTÉRÊT/FRAIS POUR NON-PAIEMENT NORMAL)
 
-• Facture impayée au Bill Cycle → des frais de retard peuvent s'appliquer (${CONTRACT_TERMS.nonRenewal.feePercent}%).
-• Service non renouvelé à la date du Bill Cycle si impayé (non-renouvellement prépayé).
-• Frais de réactivation de ${CONTRACT_TERMS.nonRenewal.reactivationFee}$ pour rétablir les services expirés.
+• Si la facture est impayée au Bill Cycle (J0), le service n'est pas renouvelé (non-renouvellement prépayé).
+• Aucun intérêt ni frais de réactivation ne s'applique simplement parce que le paiement n'a pas été reçu au Bill Cycle.
+• Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable (nouveau numéro requis).
+• Aucun intérêt ni frais de réactivation ne s'applique simplement parce qu'un e-Transfer est « En vérification ».
+
+CONTESTATION BANCAIRE / CHARGEBACK (PÉNALITÉS APPLICABLES) :
+• Si une contestation bancaire ou un chargeback est initié, le service peut être suspendu pendant l'enquête.
+• Si la contestation est confirmée contre le client OU si Nivra est débité, un intérêt de ${CONTRACT_TERMS.disputeChargeback.interestRate}% par mois s'applique sur les montants dus jusqu'au paiement complet.
+• Après paiement complet et résolution, des frais de réactivation de ${CONTRACT_TERMS.disputeChargeback.reactivationFee}$ peuvent s'appliquer.
   `.trim(),
 };
 
@@ -460,8 +478,8 @@ export const FEES_SUMMARY = {
   delivery: { amount: CONTRACT_TERMS.fees.delivery, description: "Delivery fee" },
   terminal: { amount: CONTRACT_TERMS.fees.tvTerminal, description: "Nivra 4K Smart Terminal (purchase)" },
   router: { amount: CONTRACT_TERMS.fees.router, description: "Nivra Born WiFi Router (purchase)" },
-  reactivation: { amount: CONTRACT_TERMS.fees.reactivation, description: "Reactivation fee (after expiration/non-renewal)" },
-  latePayment: { percent: CONTRACT_TERMS.nonRenewal.feePercent, description: "Late payment fee on overdue invoices (unpaid at Bill Cycle)" },
+  reactivation: { amount: CONTRACT_TERMS.disputeChargeback.reactivationFee, description: "Reactivation fee (dispute/chargeback only)" },
+  disputeInterest: { percent: CONTRACT_TERMS.disputeChargeback.interestRate, description: "Interest on amounts owed from bank dispute/chargeback (dispute/chargeback only)" },
 };
 
 // Contract ID generator

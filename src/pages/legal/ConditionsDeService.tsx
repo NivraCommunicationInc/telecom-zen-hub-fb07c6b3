@@ -40,7 +40,11 @@ const ConditionsDeService = () => {
                 Tous les services Nivra (Internet, TV, Mobile, Streaming+) sont facturés à l'avance par cycle de service.
               </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Le renouvellement s'effectue uniquement si le paiement est reçu et confirmé.</li>
+                <li>Le renouvellement s'effectue uniquement si le paiement est reçu et confirmé AVANT le Bill Cycle.</li>
+                <li>Si le paiement n'est pas confirmé au Bill Cycle (J0), le service devient Expiré (non-renouvelé).</li>
+                <li><strong>Aucun intérêt ni frais de réactivation</strong> ne s'applique pour un non-renouvellement prépayé normal.</li>
+                <li>Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable (nouveau numéro requis).</li>
+                <li>Aucun intérêt ni frais de réactivation ne s'applique simplement parce qu'un e-Transfer est « En vérification ».</li>
                 <li>Vous pouvez annuler à tout moment — le service reste actif jusqu'à la fin de la période payée.</li>
                 <li>Le cycle en cours n'est pas remboursable, sauf obligation légale ou erreur de facturation confirmée.</li>
                 <li>Aucun financement d'appareil n'est proposé dans le cadre de cet accord.</li>
@@ -48,7 +52,19 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">3. Disponibilité et performance</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">3. Contestation bancaire / Chargeback</h2>
+              <p>
+                <strong>Pénalités applicables UNIQUEMENT en cas de contestation bancaire ou chargeback :</strong>
+              </p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>En cas de contestation bancaire ou chargeback, le service peut être suspendu pendant l'enquête.</li>
+                <li>Si la contestation est confirmée contre le client OU si Nivra est débité : un intérêt de <strong>{CONTRACT_TERMS.disputeChargeback.interestRate}% par mois</strong> s'applique sur les montants dus jusqu'au paiement complet.</li>
+                <li>Après paiement complet et résolution, des frais de réactivation de <strong>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong> peuvent s'appliquer.</li>
+              </ul>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">4. Disponibilité et performance</h2>
               <p>
                 Les services sont fournis sur une base « meilleur effort » (<em>best effort</em>). Les vitesses Internet 
                 indiquées représentent des vitesses maximales « jusqu'à ». Les interruptions de service sont possibles 
@@ -61,7 +77,7 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">4. Règle TV + Internet</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">5. Règle TV + Internet</h2>
               <p>
                 Le client ne peut pas souscrire au service TV sans un forfait Internet Nivra actif. 
                 Si le forfait Internet est annulé, le forfait TV sera également résilié automatiquement.
@@ -69,14 +85,14 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">5. Aucune vérification de crédit</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">6. Aucune vérification de crédit</h2>
               <p>
                 {CONTRACT_TERMS.noCreditCheck}
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">6. Vérification d'identité</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">7. Vérification d'identité</h2>
               <p>
                 Une (1) pièce d'identité valide avec photo est requise pour valider toute commande.
                 Documents acceptés : permis de conduire, passeport, carte d'assurance maladie du Québec (avec restrictions).
@@ -84,7 +100,7 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">7. Taxes applicables</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">8. Taxes applicables</h2>
               <p>
                 Toutes les taxes applicables (TPS 5% et TVQ 9,975%) sont ajoutées au prix affiché et calculées 
                 automatiquement lors du paiement.
@@ -92,7 +108,7 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">8. Conformité réglementaire</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">9. Conformité réglementaire</h2>
               <p>
                 Cet accord vise à être conforme aux codes de protection des consommateurs du CRTC applicables 
                 (Code sur les services sans fil, Code sur les services Internet, Code des fournisseurs de services de télévision).
@@ -107,14 +123,14 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">9. Juridiction</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">10. Juridiction</h2>
               <p>
                 {CONTRACT_TERMS.jurisdiction}
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">10. Pages connexes</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">11. Pages connexes</h2>
               <ul className="list-disc pl-6 space-y-2">
                 <li><Link to="/installation-rendezvous" className="text-primary hover:underline">Politique d'installation & rendez-vous</Link></li>
                 <li><Link to="/modalites-paiement" className="text-primary hover:underline">Modalités de paiement</Link></li>
