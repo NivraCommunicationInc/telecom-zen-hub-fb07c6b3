@@ -36,6 +36,37 @@ import { ALL_ANNEXES, ANNEXE_TITLES, type AnnexeSection } from "./annexes";
 
 const { marginLeft, marginRight, contentWidth, fontSize } = PDF_LAYOUT;
 
+// ============= TEXT SANITIZATION FOR PDF =============
+
+/**
+ * Sanitize text for PDF rendering to prevent corrupted characters
+ * jsPDF's default Helvetica font doesn't support all Unicode chars
+ */
+function sanitizeTextForPDF(text: string): string {
+  if (!text) return "";
+  
+  return text
+    // Replace smart quotes with regular quotes
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    // Replace em-dash and en-dash with regular dash
+    .replace(/[\u2013\u2014]/g, "-")
+    // Replace ellipsis with three dots
+    .replace(/\u2026/g, "...")
+    // Replace non-breaking space with regular space
+    .replace(/\u00A0/g, " ")
+    // Replace bullet points with standard dash
+    .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, "-")
+    // Replace other problematic Unicode chars
+    .replace(/[\u00AB\u00BB]/g, '"') // Guillemets
+    .replace(/\u00B7/g, "-") // Middle dot
+    .replace(/\u2212/g, "-") // Minus sign
+    // Remove any remaining non-ASCII control characters
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+    // Keep accented French characters (é, è, ê, ë, à, â, etc.) - these work fine
+    .trim();
+}
+
 // ============= DOCUMENT TITLES =============
 
 const DOC_TITLES = {
@@ -45,9 +76,9 @@ const DOC_TITLES = {
 };
 
 const DOC_SUBTITLES = {
-  contract: "Prépayé — Province de Québec",
-  invoice: "Télécommunications — Province de Québec",
-  estimate: "Valide 30 jours — Province de Québec",
+  contract: "Prepaye - Province de Quebec",
+  invoice: "Telecommunications - Province de Quebec",
+  estimate: "Valide 30 jours - Province de Quebec",
 };
 
 // ============= MAIN GENERATOR =============
@@ -84,14 +115,12 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   );
 
   // Company info box - compact
+  // CRITICAL: Always use Nivra's official address, never client address
   const companyLines = [
     `${companyLegalName}`,
+    `${data.company.address}`, // Nivra's address from BUSINESS_INFO
     `Courriel : ${data.company.email} | Tél : ${data.company.phone}`,
   ];
-  // Only add city if available
-  if (data.client.serviceCity) {
-    companyLines.push(`Ville : ${data.client.serviceCity}, ${data.client.serviceProvince || "QC"} ${data.client.servicePostalCode || ""}`);
-  }
   addInfoBox(state, companyLines, { addHeader, height: companyLines.length * 5 + 6 });
 
   // ========== DOCUMENT IDENTIFICATION ==========
@@ -288,6 +317,22 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   // ========== BILLING SUMMARY ==========
   addSectionTitle(state, "Sommaire de facturation", { addHeader });
 
+  // INVARIANT CHECK: Verify billing math before rendering
+  const taxableSubtotal = data.billing.subtotal + data.billing.oneTimeTotal - data.billing.discountTotal;
+  const expectedTps = Math.round(taxableSubtotal * 0.05 * 100) / 100;
+  const expectedTvq = Math.round(taxableSubtotal * 0.09975 * 100) / 100;
+  
+  // Log error if invariant violated (but still render)
+  if (Math.abs(data.billing.tps - expectedTps) > 0.02 || Math.abs(data.billing.tvq - expectedTvq) > 0.02) {
+    console.error("[PDF Generator] BILLING INVARIANT VIOLATED:", {
+      taxableSubtotal,
+      expectedTps,
+      actualTps: data.billing.tps,
+      expectedTvq,
+      actualTvq: data.billing.tvq,
+    });
+  }
+
   // Summary rows - right aligned in a column
   const addSummaryRow = (label: string, amount: string, isNegative = false, isBold = false) => {
     if (checkPageBreak(state, 6)) {
@@ -308,33 +353,43 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     state.currentY += 5;
   };
 
-  addSummaryRow("Sous-total services", formatCurrency(data.billing.subtotal));
+  // Show recurring services subtotal
+  addSummaryRow("Sous-total services (récurrent)", formatCurrency(data.billing.subtotal));
   
+  // Show one-time charges (equipment + fees) - MUST be included in taxable
   if (data.billing.oneTimeTotal > 0) {
-    addSummaryRow("Frais uniques", formatCurrency(data.billing.oneTimeTotal));
+    addSummaryRow("Frais uniques (équipement + frais)", formatCurrency(data.billing.oneTimeTotal));
   }
   
+  // Show discounts
   if (data.billing.discountTotal > 0) {
     addSummaryRow("Rabais appliqués", `-${formatCurrency(data.billing.discountTotal)}`, true);
   }
   
-  // Calculate subtotal before taxes
-  const subtotalBeforeTax = data.billing.subtotal + data.billing.oneTimeTotal - data.billing.discountTotal;
-  addSummaryRow("Sous-total avant taxes", formatCurrency(subtotalBeforeTax), false, true);
+  // CRITICAL: Show the SAME taxable subtotal used for tax calculation
+  addSummaryRow("Sous-total taxable", formatCurrency(taxableSubtotal), false, true);
   
-  addSummaryRow(`TPS (5%)`, formatCurrency(data.billing.tps));
-  addSummaryRow(`TVQ (9.975%)`, formatCurrency(data.billing.tvq));
+  // Taxes calculated on taxable subtotal
+  addSummaryRow(`TPS (5% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tps));
+  addSummaryRow(`TVQ (9.975% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tvq));
 
   state.currentY += 4;
 
   // Total box
   addTotalBox(state, "TOTAL DÛ AUJOURD'HUI", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
 
-  // Estimated monthly (for contracts) - MORE VISIBLE
+  // Estimated monthly (for contracts) - Shows recurring breakdown
   if (data.docType === "contract" && data.billing.subtotal > 0) {
-    // Only include recurring services (exclude one-time fees/discounts)
-    const monthlyEstimate = data.billing.subtotal;
-    if (checkPageBreak(state, 22)) {
+    // Calculate recurring services breakdown
+    const recurringServices = data.services.filter(s => !s.isOneTime && s.monthlyPrice >= 0);
+    const monthlyEstimate = recurringServices.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
+    
+    // Calculate box height based on number of services
+    const baseHeight = 20;
+    const serviceLineHeight = 4;
+    const boxHeight = baseHeight + (recurringServices.length * serviceLineHeight);
+    
+    if (checkPageBreak(state, boxHeight + 10)) {
       addNewPage(state, addHeader);
     }
     
@@ -342,7 +397,6 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     
     // Highlighted box for monthly estimate
     const boxWidth = contentWidth;
-    const boxHeight = 16;
     const pageWidth = getPageWidth(doc);
     
     // Light accent background with border
@@ -355,23 +409,37 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     setColor(doc, "accent", "fill");
     doc.rect(marginLeft, state.currentY, 4, boxHeight, "F");
     
-    // Label
+    // Header
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     setColor(doc, "text");
-    doc.text("TOTAL MENSUEL ESTIMÉ", marginLeft + 10, state.currentY + 7);
+    doc.text("TOTAL MENSUEL ESTIME", marginLeft + 10, state.currentY + 7);
     
-    // Value - large and prominent
+    // Show recurring services breakdown
+    let lineY = state.currentY + 12;
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, "muted");
+    
+    for (const service of recurringServices) {
+      const serviceName = service.name.substring(0, 40) + (service.name.length > 40 ? "..." : "");
+      const priceText = `${formatCurrency(service.monthlyPrice)}${service.priceLabel || "/mois"}`;
+      doc.text(`- ${serviceName}`, marginLeft + 10, lineY);
+      doc.text(priceText, marginLeft + boxWidth - 50, lineY, { align: "right" });
+      lineY += serviceLineHeight;
+    }
+    
+    // Total value - large and prominent
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     setColor(doc, "primary");
     doc.text(`~${formatCurrency(monthlyEstimate)}/mois`, pageWidth - marginRight - 8, state.currentY + 10, { align: "right" });
     
     // Subtitle
-    doc.setFontSize(6);
+    doc.setFontSize(5);
     doc.setFont("helvetica", "normal");
     setColor(doc, "muted");
-    doc.text("(avant taxes, services récurrents uniquement)", marginLeft + 10, state.currentY + 13);
+    doc.text("(avant taxes, services recurrents uniquement)", marginLeft + 10, state.currentY + boxHeight - 3);
     
     state.currentY += boxHeight + 6;
   }
@@ -531,6 +599,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     /**
      * Wrap and render text with automatic page breaks
      * CRITICAL: Never truncate - always wrap and break pages
+     * Sanitizes text to prevent corrupted characters
      */
     const addWrappedText = (
       text: string, 
@@ -547,12 +616,15 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       const color = options.color || "text";
       const textWidth = contentWidth - indent;
       
+      // CRITICAL: Sanitize text to prevent corrupted characters
+      const sanitizedText = sanitizeTextForPDF(text);
+      
       doc.setFontSize(fs);
       doc.setFont("helvetica", fontStyle);
       setColor(doc, color);
       
       // Split text into lines that fit within width
-      const lines = doc.splitTextToSize(text, textWidth);
+      const lines = doc.splitTextToSize(sanitizedText, textWidth);
       const lineHeight = fs * 0.4; // Approximate line height
       
       for (const line of lines) {
@@ -575,10 +647,13 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       // Always start annexe on new page
       addNewPage(state, addHeader);
       
+      // Sanitize the title
+      const sanitizedTitle = sanitizeTextForPDF(title);
+      
       doc.setFontSize(12); // Annexe header size
       doc.setFont("helvetica", "bold");
       setColor(doc, "primary");
-      doc.text(title, marginLeft, state.currentY);
+      doc.text(sanitizedTitle, marginLeft, state.currentY);
       state.currentY += 8;
       
       // Divider line
@@ -590,6 +665,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     
     /**
      * Add section header within annexe
+     * Sanitizes text to prevent corrupted characters
      */
     const addAnnexeSectionHeader = (number: string | undefined, title: string) => {
       // Check if header fits, if not new page
@@ -603,7 +679,8 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       doc.setFont("helvetica", "bold");
       setColor(doc, "text");
       
-      const headerText = number ? `(${number}) ${title}` : title;
+      // Sanitize the header text
+      const headerText = sanitizeTextForPDF(number ? `(${number}) ${title}` : title);
       doc.text(headerText, marginLeft, state.currentY);
       state.currentY += 6;
     };

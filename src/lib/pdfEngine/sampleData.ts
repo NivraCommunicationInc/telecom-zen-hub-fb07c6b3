@@ -40,7 +40,7 @@ export const sampleMobileOnly: UnifiedDocumentData = {
     {
       type: "Mobile",
       name: "Mobile 50$/30 jours",
-      description: "50-55 GB 4G, appels illimités Canada",
+      description: "50-55 GB 4G, appels illimites Canada",
       monthlyPrice: 50,
       quantity: 1,
       priceLabel: "/30 jours",
@@ -58,9 +58,12 @@ export const sampleMobileOnly: UnifiedDocumentData = {
   ],
   oneTimeFees: [
     { label: "Frais d'activation", amount: 25 },
-    { label: "Livraison standard Québec", amount: 30 },
+    { label: "Livraison standard Quebec", amount: 30 },
   ],
   discounts: [],
+  // Billing calculation: taxable = 50 (service) + 80 (one-time: 25 SIM + 25 activation + 30 delivery) - 0 = 130
+  // TPS = 130 * 0.05 = 6.50, TVQ = 130 * 0.09975 = 12.97
+  // Total = 130 + 6.50 + 12.97 = 149.47
   billing: {
     subtotal: 50,
     oneTimeTotal: 80, // 25 SIM + 25 activation + 30 delivery
@@ -93,7 +96,7 @@ export const sampleInternetInstall: UnifiedDocumentData = {
     {
       type: "Internet",
       name: "Internet 500 Mbps",
-      description: "Fibre optique, téléchargement illimité",
+      description: "Fibre optique, telechargement illimite",
       monthlyPrice: 60,
       quantity: 1,
       priceLabel: "/mois",
@@ -112,19 +115,26 @@ export const sampleInternetInstall: UnifiedDocumentData = {
   ],
   oneTimeFees: [
     { label: "Frais d'activation", amount: 25 },
-    { label: "Installation professionnelle", amount: 75, description: "Technicien certifié" },
+    { label: "Installation professionnelle", amount: 75, description: "Technicien certifie" },
   ],
   discounts: [
     { label: "Rabais installation nouvelle inscription", amount: 25, type: "promo" },
-    { label: "Rabais paiement préautorisé", amount: 5, type: "preauth" },
+    { label: "Rabais paiement preautorise", amount: 5, type: "preauth" },
   ],
+  // Billing calculation: 
+  // Recurring = 60 (Internet)
+  // One-time = 60 (router) + 25 (activation) + 75 (install) = 160
+  // Discounts = 25 + 5 = 30
+  // Taxable = 60 + 160 - 30 = 190
+  // TPS = 190 * 0.05 = 9.50, TVQ = 190 * 0.09975 = 18.95
+  // Total = 190 + 9.50 + 18.95 = 218.45
   billing: {
     subtotal: 60,
-    oneTimeTotal: 135, // 60 router + 25 activation + 75 install - 25 discount
-    discountTotal: 25,
-    tps: 8.50,
-    tvq: 16.96,
-    total: 195.46,
+    oneTimeTotal: 160, // 60 router + 25 activation + 75 install
+    discountTotal: 30,
+    tps: 9.50,
+    tvq: 18.95,
+    total: 218.45,
   },
   payment: {
     status: "pending",
@@ -158,7 +168,7 @@ export const sampleTVBundle: UnifiedDocumentData = {
     {
       type: "TV",
       name: "TV 15 choix + Internet 500",
-      description: "42 chaînes totales, guide électronique",
+      description: "42 chaines totales, guide electronique",
       monthlyPrice: 95,
       quantity: 1,
       priceLabel: "/mois",
@@ -188,16 +198,22 @@ export const sampleTVBundle: UnifiedDocumentData = {
   ],
   oneTimeFees: [
     { label: "Frais d'activation", amount: 25 },
-    { label: "Livraison standard Québec", amount: 30 },
+    { label: "Livraison standard Quebec", amount: 30 },
   ],
   discounts: [],
+  // Billing calculation:
+  // Recurring = 95 (TV bundle with internet)
+  // One-time = 60 (router) + 100 (2 terminals) + 25 (activation) + 30 (delivery) = 215
+  // Taxable = 95 + 215 - 0 = 310
+  // TPS = 310 * 0.05 = 15.50, TVQ = 310 * 0.09975 = 30.92
+  // Total = 310 + 15.50 + 30.92 = 356.42
   billing: {
     subtotal: 95,
     oneTimeTotal: 215, // 60 router + 100 terminals + 25 activation + 30 delivery
     discountTotal: 0,
     tps: 15.50,
-    tvq: 30.93,
-    total: 356.43,
+    tvq: 30.92,
+    total: 356.42,
   },
   payment: {
     status: "pending",
@@ -223,7 +239,7 @@ export const sampleFullCombo: UnifiedDocumentData = {
     {
       type: "Internet",
       name: "Internet GIGA 1 Gbps",
-      description: "Fibre optique, téléchargement illimité",
+      description: "Fibre optique, telechargement illimite",
       monthlyPrice: 80,
       quantity: 1,
       priceLabel: "/mois",
@@ -231,7 +247,7 @@ export const sampleFullCombo: UnifiedDocumentData = {
     {
       type: "TV",
       name: "TV 25 choix",
-      description: "52 chaînes totales, guide électronique",
+      description: "52 chaines totales, guide electronique",
       monthlyPrice: 25,
       quantity: 1,
       priceLabel: "/mois",
@@ -239,7 +255,7 @@ export const sampleFullCombo: UnifiedDocumentData = {
     {
       type: "Mobile",
       name: "Mobile 60$/30 jours",
-      description: "60 GB 5G, appels illimités CA/US",
+      description: "60 GB 5G, appels illimites CA/US",
       monthlyPrice: 60,
       quantity: 1,
       priceLabel: "/30 jours",
@@ -274,13 +290,20 @@ export const sampleFullCombo: UnifiedDocumentData = {
   ],
   oneTimeFees: [
     { label: "Frais d'activation", amount: 25 },
-    { label: "Livraison standard Québec", amount: 30 },
+    { label: "Livraison standard Quebec", amount: 30 },
   ],
   discounts: [
-    { label: "Rabais paiement préautorisé", amount: 5, type: "preauth" },
+    { label: "Rabais paiement preautorise", amount: 5, type: "preauth" },
     { label: "Rabais multi-services", amount: 10, type: "multiLine" },
     { label: "Code promo BIENVENUE20", amount: 20, promoCode: "BIENVENUE20", type: "promo" },
   ],
+  // Billing calculation:
+  // Recurring = 80 + 25 + 60 = 165
+  // One-time = 60 + 50 + 25 (SIM) + 25 (activation) + 30 (delivery) = 190
+  // Discounts = 5 + 10 + 20 = 35
+  // Taxable = 165 + 190 - 35 = 320
+  // TPS = 320 * 0.05 = 16.00, TVQ = 320 * 0.09975 = 31.92
+  // Total = 320 + 16.00 + 31.92 = 367.92
   billing: {
     subtotal: 165, // 80 + 25 + 60
     oneTimeTotal: 190, // 60 router + 50 terminal + 25 SIM + 25 activation + 30 delivery

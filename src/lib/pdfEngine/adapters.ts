@@ -418,16 +418,46 @@ export function orderToDocumentData(
       equipment.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
   }
   
+  // CRITICAL: Calculate taxable subtotal correctly
+  // taxable_subtotal = recurring + one_time - discounts
   const taxableAmount = Math.max(0, subtotal + oneTimeTotal - discountTotal);
   const taxes = calculateQuebecTaxes(taxableAmount);
+  
+  // Use calculated values OR order values if they pass invariant check
+  let finalTps = taxes.tps;
+  let finalTvq = taxes.tvq;
+  let finalTotal = taxableAmount + taxes.tps + taxes.tvq;
+  
+  // If order has stored values, verify they match invariant
+  if (order.tps_amount !== undefined && order.tvq_amount !== undefined && order.total_amount !== undefined) {
+    const storedTaxable = subtotal + oneTimeTotal - discountTotal;
+    const expectedTps = Math.round(storedTaxable * 0.05 * 100) / 100;
+    const expectedTvq = Math.round(storedTaxable * 0.09975 * 100) / 100;
+    
+    // Only use stored values if they're within tolerance (allow for rounding)
+    if (Math.abs(order.tps_amount - expectedTps) < 0.05 && Math.abs(order.tvq_amount - expectedTvq) < 0.05) {
+      finalTps = order.tps_amount;
+      finalTvq = order.tvq_amount;
+      finalTotal = order.total_amount;
+    } else {
+      // Log invariant violation
+      console.error("[PDF Adapter] BILLING INVARIANT VIOLATION - using calculated values", {
+        storedTps: order.tps_amount,
+        expectedTps,
+        storedTvq: order.tvq_amount,
+        expectedTvq,
+        taxableAmount,
+      });
+    }
+  }
   
   const billing: BillingSummary = {
     subtotal,
     oneTimeTotal,
     discountTotal,
-    tps: order.tps_amount ?? taxes.tps,
-    tvq: order.tvq_amount ?? taxes.tvq,
-    total: order.total_amount || (taxableAmount + taxes.tps + taxes.tvq),
+    tps: finalTps,
+    tvq: finalTvq,
+    total: Math.round(finalTotal * 100) / 100,
   };
   
   // Client info
