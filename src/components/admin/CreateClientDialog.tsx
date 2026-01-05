@@ -146,16 +146,20 @@ export function CreateClientDialog({
         console.error("Failed to set client PIN:", pinError);
       }
 
-      // Create account with bill_cycle_day
-      const billCycleDay = new Date().getDate();
+      // Create account with bill_cycle_day (store actual day 1-31, clamping happens at billing time)
+      const today = new Date();
+      const billCycleDay = today.getDate(); // Store the real day-of-month (1-31)
+      
+      // Calculate next_invoice_date using billingCycleUtils logic
+      // For new accounts, the first invoice is due on the billing cycle day
       const { error: accountError } = await supabase
         .from("accounts")
         .insert({
           client_id: userId,
           account_number: `NIV-ACCT-${Date.now().toString().slice(-6)}`,
-          billing_cycle_day: Math.min(billCycleDay, 28), // Clamp to 1-28
-          billing_anchor_date: new Date().toISOString().split('T')[0],
-          next_invoice_date: new Date().toISOString().split('T')[0],
+          billing_cycle_day: billCycleDay, // Store actual day (1-31), clamping applied at invoice generation
+          billing_anchor_date: today.toISOString().split('T')[0],
+          next_invoice_date: today.toISOString().split('T')[0],
           billing_address: fullAddress,
           billing_city: data.service_city,
           billing_postal_code: data.service_postal_code.toUpperCase(),
