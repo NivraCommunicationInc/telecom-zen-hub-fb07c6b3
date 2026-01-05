@@ -811,6 +811,39 @@ export type Database = {
         }
         Relationships: []
       }
+      client_login_pins: {
+        Row: {
+          attempts: number
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          pin_hash: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          pin_hash: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          pin_hash?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_pin_logs: {
         Row: {
           action: string
