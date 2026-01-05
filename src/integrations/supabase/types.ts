@@ -2027,6 +2027,7 @@ export type Database = {
           notes: string | null
           order_number: string | null
           order_type: string | null
+          payment_method: string | null
           payment_reference: string | null
           payment_status: string | null
           port_request: Json | null
@@ -2052,6 +2053,7 @@ export type Database = {
           shipping_postal_code: string | null
           shipping_province: string | null
           sim_number: string | null
+          sim_type: string | null
           status: string
           subtotal: number | null
           technician_id: string | null
@@ -2108,6 +2110,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           order_type?: string | null
+          payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
           port_request?: Json | null
@@ -2133,6 +2136,7 @@ export type Database = {
           shipping_postal_code?: string | null
           shipping_province?: string | null
           sim_number?: string | null
+          sim_type?: string | null
           status?: string
           subtotal?: number | null
           technician_id?: string | null
@@ -2189,6 +2193,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           order_type?: string | null
+          payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
           port_request?: Json | null
@@ -2214,6 +2219,7 @@ export type Database = {
           shipping_postal_code?: string | null
           shipping_province?: string | null
           sim_number?: string | null
+          sim_type?: string | null
           status?: string
           subtotal?: number | null
           technician_id?: string | null
