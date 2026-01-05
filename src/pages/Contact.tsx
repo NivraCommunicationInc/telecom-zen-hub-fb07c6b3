@@ -4,6 +4,7 @@ import { Calendar, Clock, CheckCircle, Phone, Mail, MapPin } from "lucide-react"
 import { useLanguage } from "@/contexts/LanguageContext";
 import ContactForm from "@/components/ContactForm";
 import { Button } from "@/components/ui/button";
+import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
 
 const Contact = () => {
   const { language } = useLanguage();
@@ -98,22 +99,30 @@ const Contact = () => {
                   </h4>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href="tel:+14385442233">
+                    <a href={getTelLink()}>
                       <Phone className="w-4 h-4 text-cyan-400" />
-                      <span>438-544-2233</span>
+                      <span>{COMPANY_CONTACT.supportPhoneDisplay}</span>
                     </a>
                   </Button>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href="mailto:support@nivratelecom.ca">
+                    <a href={getMailtoLink()}>
                       <Mail className="w-4 h-4 text-cyan-400" />
-                      <span>Support@nivratelecom.ca</span>
+                      <span>{COMPANY_CONTACT.supportEmailDisplay}</span>
                     </a>
                   </Button>
                   
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                    <MapPin className="w-4 h-4 text-cyan-400" />
-                    <span>{isFrench ? "Montréal, QC — Québec seulement" : "Montreal, QC — Quebec only"}</span>
+                  <div className="flex items-start gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                    <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                    <span>{COMPANY_CONTACT.fullAddress}</span>
+                  </div>
+                  
+                  <div className="flex items-start gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                    <Clock className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p>{COMPANY_CONTACT.supportHoursWeekday}</p>
+                      <p>{COMPANY_CONTACT.supportHoursWeekend}</p>
+                    </div>
                   </div>
                 </div>
               </div>

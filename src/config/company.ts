@@ -31,8 +31,10 @@ export const COMPANY_CONTACT = {
   portalUrl: "https://nivratelecom.ca",
   
   // Service hours
-  supportHours: "Lun–Ven : 9 h – 18 h (HE)",
-  supportHoursEn: "Mon–Fri: 9 AM – 6 PM (ET)",
+  supportHours: "Lun–Ven : 9 h – 22 h | Sam–Dim : 9 h – 20 h",
+  supportHoursEn: "Mon–Fri: 9 AM – 10 PM | Sat–Sun: 9 AM – 8 PM",
+  supportHoursWeekday: "Lun–Ven : 9 h – 22 h",
+  supportHoursWeekend: "Sam–Dim : 9 h – 20 h",
   
   // Service territory
   serviceTerritory: "Province of Québec only",
