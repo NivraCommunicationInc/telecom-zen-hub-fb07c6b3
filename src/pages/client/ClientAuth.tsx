@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { portalSupabase } from "@/integrations/supabase/portalClient";
 
 type AuthStep = "credentials" | "pin";
 
@@ -30,10 +32,55 @@ const ClientAuth = () => {
   const [authStep, setAuthStep] = useState<AuthStep>("credentials");
   const [pin, setPin] = useState("");
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
+  const [isSendingPin, setIsSendingPin] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingUserId, setPendingUserId] = useState("");
   
   const pinIsValid = useMemo(() => /^\d{6}$/.test(pin), [pin]);
   
   const sanitizePin = (value: string) => value.replace(/\D/g, "").slice(0, 6);
+
+  // Send PIN via edge function
+  const sendPinEmail = async (email: string, userId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("client-pin-send", {
+        body: { email, user_id: userId },
+      });
+      
+      if (error) {
+        console.error("[sendPinEmail] Error:", error);
+        return { success: false, error: error.message };
+      }
+      
+      if (data?.error) {
+        return { success: false, error: data.error };
+      }
+      
+      return { success: true };
+    } catch (err: any) {
+      console.error("[sendPinEmail] Unexpected error:", err);
+      return { success: false, error: err.message || "Failed to send PIN" };
+    }
+  };
+
+  // Verify PIN via edge function
+  const verifyPin = async (email: string, pinCode: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("client-pin-verify", {
+        body: { email, pin: pinCode },
+      });
+      
+      if (error) {
+        console.error("[verifyPin] Error:", error);
+        return { valid: false, error: error.message };
+      }
+      
+      return { valid: data?.valid === true, error: data?.error };
+    } catch (err: any) {
+      console.error("[verifyPin] Unexpected error:", err);
+      return { valid: false, error: err.message || "Failed to verify PIN" };
+    }
+  };
 
   // Check if coming from password reset link
   useEffect(() => {
@@ -60,15 +107,6 @@ const ClientAuth = () => {
     );
   }
 
-  // UI-only PIN verification (placeholder for future backend integration)
-  const verifyPinUIOnly = async (enteredPin: string): Promise<{ ok: boolean }> => {
-    // Option A: Wire to backend later
-    // return await api.verifyClientPin({ pin: enteredPin });
-    
-    // Option B: UI-only gate (always "success" if 6 digits)
-    return { ok: /^\d{6}$/.test(enteredPin) };
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
@@ -77,13 +115,68 @@ const ClientAuth = () => {
     }
     setIsLoading(true);
     const { error } = await signIn(loginData.email, loginData.password);
-    setIsLoading(false);
+    
     if (error) {
+      setIsLoading(false);
       toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
+      return;
+    }
+    
+    // Get user from session after successful login
+    const { data: { user: currentUser } } = await portalSupabase.auth.getUser();
+    
+    if (!currentUser?.id) {
+      setIsLoading(false);
+      toast({ title: "Erreur de connexion", description: "Impossible de récupérer les informations utilisateur", variant: "destructive" });
+      return;
+    }
+    
+    const userEmail = loginData.email;
+    const userId = currentUser.id;
+    
+    // Store email and user ID for PIN verification
+    setPendingEmail(userEmail);
+    setPendingUserId(userId);
+    
+    // Send PIN email
+    setIsSendingPin(true);
+    const pinResult = await sendPinEmail(userEmail, userId);
+    setIsSendingPin(false);
+    setIsLoading(false);
+    
+    if (!pinResult.success) {
+      toast({ 
+        title: "Erreur d'envoi du code", 
+        description: pinResult.error || "Impossible d'envoyer le code de vérification", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    // Move to PIN verification step
+    setAuthStep("pin");
+    setPin("");
+    toast({ title: "Code envoyé", description: "Vérifiez votre boîte de réception" });
+  };
+  const handleResendPin = async () => {
+    if (!pendingEmail || !pendingUserId) {
+      toast({ title: "Erreur", description: "Session expirée, veuillez vous reconnecter", variant: "destructive" });
+      setAuthStep("credentials");
+      return;
+    }
+    
+    setIsSendingPin(true);
+    const result = await sendPinEmail(pendingEmail, pendingUserId);
+    setIsSendingPin(false);
+    
+    if (!result.success) {
+      toast({ 
+        title: "Erreur", 
+        description: result.error || "Impossible de renvoyer le code", 
+        variant: "destructive" 
+      });
     } else {
-      // Move to PIN verification step instead of navigating
-      setAuthStep("pin");
-      setPin("");
+      toast({ title: "Code renvoyé", description: "Un nouveau code a été envoyé à votre email" });
     }
   };
 
@@ -93,19 +186,27 @@ const ClientAuth = () => {
       return;
     }
 
-    setIsVerifyingPin(true);
-    try {
-      const res = await verifyPinUIOnly(pin);
-      if (!res?.ok) {
-        toast({ title: "NIP invalide. Veuillez réessayer.", variant: "destructive" });
-        return;
-      }
-
-      toast({ title: "Connexion réussie" });
-      navigate("/portal");
-    } finally {
-      setIsVerifyingPin(false);
+    if (!pendingEmail) {
+      toast({ title: "Erreur", description: "Session expirée, veuillez vous reconnecter", variant: "destructive" });
+      setAuthStep("credentials");
+      return;
     }
+
+    setIsVerifyingPin(true);
+    const result = await verifyPin(pendingEmail, pin);
+    setIsVerifyingPin(false);
+    
+    if (!result.valid) {
+      toast({ 
+        title: "NIP invalide", 
+        description: result.error || "Veuillez réessayer", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    toast({ title: "Connexion réussie" });
+    navigate("/portal");
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -376,10 +477,11 @@ const ClientAuth = () => {
                 Vous n'avez pas reçu le code? Vérifiez votre dossier spam ou{" "}
                 <button 
                   type="button"
-                  onClick={() => toast({ title: "Un nouveau code sera envoyé prochainement", description: "Cette fonctionnalité sera disponible bientôt" })}
-                  className="text-cyan-500 hover:text-cyan-400 underline"
+                  onClick={handleResendPin}
+                  disabled={isSendingPin}
+                  className="text-cyan-500 hover:text-cyan-400 underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  renvoyer le code
+                  {isSendingPin ? "Envoi en cours..." : "renvoyer le code"}
                 </button>
               </p>
             </CardContent>
