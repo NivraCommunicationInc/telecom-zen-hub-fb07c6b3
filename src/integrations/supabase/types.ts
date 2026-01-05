@@ -4446,6 +4446,7 @@ export type Database = {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
       }
+      normalize_text: { Args: { val: string }; Returns: string }
       queue_email: {
         Args: {
           p_event_key: string
@@ -4454,6 +4455,13 @@ export type Database = {
           p_to_email: string
         }
         Returns: string
+      }
+      split_full_name: {
+        Args: { full_name_val: string }
+        Returns: {
+          first_name: string
+          last_name: string
+        }[]
       }
       verify_pin: {
         Args: { pin_input: string; user_id_input: string }
