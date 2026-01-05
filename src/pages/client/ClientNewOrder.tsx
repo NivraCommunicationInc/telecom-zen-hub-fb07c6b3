@@ -2296,6 +2296,39 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </CardDescription>
                       </div>
                     </div>
+                    {/* Random selection button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-cyan-500 border-cyan-500/30 hover:bg-cyan-500/10"
+                      onClick={() => {
+                        // Randomly select free-choice channels respecting limit
+                        const shuffled = [...freeChoiceChannels].sort(() => Math.random() - 0.5);
+                        const selected: Channel[] = [];
+                        let count = 0;
+                        const usedGroups = new Set<string>();
+                        
+                        for (const ch of shuffled) {
+                          if (count >= freeChannelLimit) break;
+                          if (ch.group_key) {
+                            if (!usedGroups.has(ch.group_key)) {
+                              // Add all channels in this group
+                              const groupChannels = freeChoiceChannels.filter(c => c.group_key === ch.group_key);
+                              selected.push(...groupChannels);
+                              usedGroups.add(ch.group_key);
+                              count++;
+                            }
+                          } else {
+                            selected.push(ch);
+                            count++;
+                          }
+                        }
+                        setSelectedFreeChannels(selected);
+                      }}
+                      disabled={freeChoiceChannels.length === 0}
+                    >
+                      🎲 Choisir au hasard
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -3549,30 +3582,41 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-cyan-500" />
-                    Résumé
+                    Résumé de commande
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Monthly Recurring Services */}
                   <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Services mensuels</p>
                     {selectedServices.map((service) => (
                       <div key={service.id} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{service.name}</span>
-                        <span className="text-foreground">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-foreground">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {paidChannelTotal > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-amber-500">Chaînes premium ({selectedPaidChannels.length})</span>
-                        <span className="text-amber-500">+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-amber-500">+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     )}
                   </div>
                   
-                  <div className="border-t border-border pt-3 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Sous-total services</span>
-                      <span className="text-foreground">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  {/* Monthly Total */}
+                  <div className="border-t border-border pt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-foreground">Total mensuel estimé</span>
+                      <span className="font-bold text-lg text-cyan-500">
+                        {(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      </span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">Avant taxes, services récurrents</p>
+                  </div>
+                  
+                  {/* One-Time Fees Section */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Frais uniques</p>
                     {/* Delivery fee for delivery-only orders OR installation choice */}
                     {isDeliveryOnlyOrder ? (
                       deliveryChoice && (
@@ -3669,7 +3713,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     )}
                   </div>
+                  
+                  {/* One-Time Fees Subtotal */}
+                  <div className="border-t border-border pt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-foreground">Frais uniques estimés</span>
+                      <span className="font-bold text-foreground">
+                        {(() => {
+                          let oneTimeFees = activationFee + routerFee + terminalFee + simFee;
+                          if (isDeliveryOnlyOrder) {
+                            oneTimeFees += deliveryFee;
+                          } else if (installationChoice === "auto") {
+                            oneTimeFees += deliveryFee;
+                          } else if (installationChoice === "technician") {
+                            oneTimeFees += installationFee;
+                          }
+                          const promoDiscount = appliedPromo?.discount_amount || 0;
+                          return (oneTimeFees - promoDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+                        })()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Équipements, livraison, activation</p>
+                  </div>
 
+                  {/* Taxes */}
                   <div className="border-t border-border pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TPS (5%)</span>
@@ -3681,9 +3748,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  <div className="border-t border-border pt-4">
+                  {/* Total Due Today */}
+                  <div className="border-t-2 border-cyan-500/50 pt-4 bg-gradient-to-r from-cyan-500/5 to-transparent -mx-6 px-6 pb-2 rounded-b-lg">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">Total</span>
+                      <span className="font-bold text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
                         {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
