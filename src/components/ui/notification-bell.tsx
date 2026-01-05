@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, CheckCheck, FileText, Package, MessageSquare, Calendar, CreditCard, Info } from "lucide-react";
+import { Bell, CheckCheck, Package, MessageSquare, Calendar, CreditCard, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,6 +12,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications, Notification } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getNotificationHref } from "@/lib/notificationRouting";
+import { toast } from "sonner";
 
 const typeConfig: Record<string, { icon: any; color: string }> = {
   invoice: { icon: CreditCard, color: "text-emerald-500" },
@@ -31,10 +33,12 @@ export function NotificationBell() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    if (notification.link_target) {
-      navigate(notification.link_target);
-      setOpen(false);
-    }
+    
+    // Use centralized routing utility for admin scope
+    const href = getNotificationHref(notification, 'admin');
+    
+    setOpen(false);
+    navigate(href);
   };
 
   return (

@@ -114,7 +114,7 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
         type: "payment",
         title: "Paiement reçu",
         message: `Votre paiement de ${totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} a été reçu. Facture disponible.`,
-        link_target: "/client/invoices",
+        link_target: "/portal/invoices",
         link_id: billingData?.id,
         is_read: false,
       });
