@@ -556,6 +556,8 @@ export interface LegacyInvoiceData {
   issuedAt?: string;
   billingCycleStart?: string;
   billingCycleEnd?: string;
+  // CRITICAL: Support for multi-service orders
+  orderLineItems?: any[];
 }
 
 /**
@@ -564,51 +566,107 @@ export interface LegacyInvoiceData {
  */
 export function generateInvoicePDFLegacy(data: LegacyInvoiceData): jsPDF {
   const services: ServiceLineItem[] = [];
-  
-  if (data.servicePlan || data.serviceDescription) {
-    services.push({
-      type: "Other",
-      name: data.servicePlan || data.serviceDescription || "Services",
-      monthlyPrice: data.subtotal,
-    });
-  }
-  
   const oneTimeFees: OneTimeFee[] = [];
-  
-  if (data.activationFee && data.activationFee > 0) {
-    oneTimeFees.push({ label: "Frais d'activation", amount: data.activationFee });
-  }
-  if (data.deliveryFee && data.deliveryFee > 0) {
-    oneTimeFees.push({ label: "Frais de livraison", amount: data.deliveryFee });
-  }
-  if (data.installationFee && data.installationFee > 0) {
-    oneTimeFees.push({ label: "Installation", amount: data.installationFee });
-  }
-  if (data.terminalFee && data.terminalFee > 0) {
-    oneTimeFees.push({ label: "Terminal", amount: data.terminalFee });
-  }
-  if (data.routerFee && data.routerFee > 0) {
-    oneTimeFees.push({ label: "Routeur", amount: data.routerFee });
-  }
-  if (data.simFee && data.simFee > 0) {
-    oneTimeFees.push({ label: "Carte SIM", amount: data.simFee });
-  }
-  if (data.fees && data.fees > 0) {
-    oneTimeFees.push({ label: "Frais supplémentaires", amount: data.fees });
-  }
-  
+  const equipment: EquipmentItem[] = [];
   const discounts: DiscountItem[] = [];
-  if (data.discountAmount && data.discountAmount > 0) {
-    discounts.push({ label: "Rabais", amount: data.discountAmount });
+  
+  // PRIORITY 1: Extract from orderLineItems if available (multi-service support)
+  if (data.orderLineItems && Array.isArray(data.orderLineItems) && data.orderLineItems.length > 0) {
+    for (const item of data.orderLineItems) {
+      const unitPrice = typeof item.unit_price === "number" ? item.unit_price : 0;
+      const qty = item.qty || 1;
+      
+      if (item.category === "service" && item.period !== "one_time") {
+        // Map type to display type
+        const typeMap: Record<string, ServiceLineItem["type"]> = {
+          internet: "Internet",
+          mobile: "Mobile",
+          tv: "TV",
+          streaming: "Streaming",
+          security: "Security",
+        };
+        
+        services.push({
+          type: typeMap[item.type?.toLowerCase()] || "Other",
+          name: item.name || "Service",
+          description: item.description,
+          monthlyPrice: unitPrice,
+          quantity: qty,
+          priceLabel: item.period === "30_days" ? "/30 jours" : "/mois",
+        });
+      } else if (item.category === "equipment" && unitPrice > 0) {
+        equipment.push({
+          name: item.name || "Équipement",
+          quantity: qty,
+          unitPrice: unitPrice,
+        });
+      } else if (item.category === "fee" && unitPrice > 0) {
+        oneTimeFees.push({
+          label: item.name || "Frais",
+          amount: unitPrice * qty,
+        });
+      } else if (item.category === "discount" && unitPrice > 0) {
+        discounts.push({
+          label: item.name || "Rabais",
+          amount: unitPrice * qty,
+        });
+      }
+    }
+    
+    console.log(`[Legacy Invoice PDF] Extracted ${services.length} services from orderLineItems`);
+  } else {
+    // FALLBACK: Build from legacy fields
+    if (data.servicePlan || data.serviceDescription) {
+      services.push({
+        type: "Other",
+        name: data.servicePlan || data.serviceDescription || "Services",
+        monthlyPrice: data.subtotal,
+      });
+    }
+    
+    // Equipment from legacy fields
+    if (data.routerFee && data.routerFee > 0) {
+      equipment.push({ name: "Routeur", quantity: 1, unitPrice: data.routerFee });
+    }
+    if (data.terminalFee && data.terminalFee > 0) {
+      equipment.push({ name: "Terminal", quantity: data.terminalCount || 1, unitPrice: data.terminalFee / (data.terminalCount || 1) });
+    }
+    if (data.simFee && data.simFee > 0) {
+      equipment.push({ name: "Carte SIM", quantity: 1, unitPrice: data.simFee });
+    }
+    
+    // Fees from legacy fields
+    if (data.activationFee && data.activationFee > 0) {
+      oneTimeFees.push({ label: "Frais d'activation", amount: data.activationFee });
+    }
+    if (data.deliveryFee && data.deliveryFee > 0) {
+      oneTimeFees.push({ label: "Frais de livraison", amount: data.deliveryFee });
+    }
+    if (data.installationFee && data.installationFee > 0) {
+      oneTimeFees.push({ label: "Installation", amount: data.installationFee });
+    }
+    if (data.fees && data.fees > 0) {
+      oneTimeFees.push({ label: "Frais supplémentaires", amount: data.fees });
+    }
+    
+    // Discounts from legacy fields
+    if (data.discountAmount && data.discountAmount > 0) {
+      discounts.push({ label: "Rabais", amount: data.discountAmount });
+    }
   }
+  
+  // Add credits as discount if not already in discounts
   if (data.credits && data.credits > 0) {
     discounts.push({ label: "Crédits", amount: data.credits });
   }
   
+  // Calculate totals
+  const servicesTotal = services.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
+  const equipmentTotal = equipment.reduce((sum, e) => sum + (e.unitPrice * e.quantity), 0);
   const feesTotal = oneTimeFees.reduce((sum, f) => sum + f.amount, 0);
   const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
   
-  const taxableAmount = data.subtotal + feesTotal - discountTotal;
+  const taxableAmount = Math.max(0, servicesTotal + equipmentTotal + feesTotal - discountTotal);
   const taxes = calculateQuebecTaxes(taxableAmount);
   
   const unifiedData: UnifiedDocumentData = {
@@ -628,12 +686,12 @@ export function generateInvoicePDFLegacy(data: LegacyInvoiceData): jsPDF {
     },
     company: getCompanyInfo(),
     services,
-    equipment: [],
+    equipment,
     oneTimeFees,
     discounts,
     billing: {
-      subtotal: data.subtotal,
-      oneTimeTotal: feesTotal,
+      subtotal: servicesTotal > 0 ? servicesTotal : data.subtotal,
+      oneTimeTotal: equipmentTotal + feesTotal,
       discountTotal,
       tps: data.tpsAmount ?? taxes.tps,
       tvq: data.tvqAmount ?? taxes.tvq,

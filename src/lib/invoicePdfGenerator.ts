@@ -48,8 +48,11 @@ export interface InvoiceData {
   billingCycleStart?: string;
   billingCycleEnd?: string;
   
-  // NEW: Multi-service support - array of recurring services
+  // NEW: Multi-service support - array of recurring services from order line_items
   services?: InvoiceServiceItem[];
+  
+  // Structured line items from order (equipment_details.line_items)
+  orderLineItems?: any[];
   
   // Legacy fields for backward compatibility
   subtotal: number;
@@ -175,15 +178,57 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   const clientAccountNumber = resolveClientAccountNumber();
 
   // ========================================================================
-  // BUILD SERVICES LIST - Multi-service support
+  // BUILD SERVICES LIST - Multi-service support from order line_items
+  // CRITICAL: Must extract ALL services from orderLineItems when available
   // ========================================================================
   const buildServicesList = (): InvoiceServiceItem[] => {
-    // If services array is provided, use it directly
+    // PRIORITY 1: If services array is explicitly provided, use it
     if (data.services && data.services.length > 0) {
       return data.services.filter(s => !s.isOneTime && s.monthlyPrice >= 0);
     }
     
-    // Otherwise, build from legacy fields
+    // PRIORITY 2: Extract from orderLineItems (equipment_details.line_items)
+    if (data.orderLineItems && Array.isArray(data.orderLineItems) && data.orderLineItems.length > 0) {
+      const services: InvoiceServiceItem[] = [];
+      
+      for (const item of data.orderLineItems) {
+        // Only include service category items (not equipment/fees/discounts)
+        if (item.category !== "service") continue;
+        if (item.period === "one_time") continue; // Skip one-time services
+        
+        // Map type to display type
+        const typeMap: Record<string, InvoiceServiceItem["type"]> = {
+          internet: "Internet",
+          mobile: "Mobile",
+          tv: "TV",
+          streaming: "Streaming",
+          security: "Security",
+        };
+        
+        const displayType = typeMap[item.type?.toLowerCase()] || "Internet";
+        const period = item.period === "30_days" ? "/30 jours" : "/mois";
+        const unitPrice = typeof item.unit_price === "number" ? item.unit_price : 0;
+        
+        services.push({
+          type: displayType,
+          name: item.name || "Service",
+          description: item.description || "",
+          quantity: item.qty || 1,
+          monthlyPrice: unitPrice,
+          period,
+          isOneTime: false,
+        });
+      }
+      
+      if (services.length > 0) {
+        // Log success for debugging
+        console.log(`[Invoice PDF] Extracted ${services.length} services from orderLineItems:`, 
+          services.map(s => `${s.type}: ${s.name} @ $${s.monthlyPrice}`));
+        return services;
+      }
+    }
+    
+    // PRIORITY 3: Fallback to legacy fields
     const services: InvoiceServiceItem[] = [];
     
     // Internet service
@@ -205,7 +250,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
         name: data.tvBundle,
         description: "Forfait télévision",
         quantity: 1,
-        monthlyPrice: 0, // Price included in subtotal
+        monthlyPrice: 0,
         period: "/mois",
       });
     }
@@ -217,7 +262,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
         name: data.mobilePlan,
         description: "Forfait mobile prépayé",
         quantity: 1,
-        monthlyPrice: 0, // Price included in subtotal
+        monthlyPrice: 0,
         period: "/30 jours",
       });
     }
@@ -234,10 +279,11 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
       });
     }
     
-    // If no services found but subtotal exists, add generic
+    // LAST RESORT: Generic service if subtotal exists but no services found
     if (services.length === 0 && data.subtotal > 0) {
+      console.warn("[Invoice PDF] No specific services found, using generic. Consider passing orderLineItems.");
       services.push({
-        type: "Internet", // Default type instead of "Other"
+        type: "Internet",
         name: "Services Télécommunications",
         description: "",
         quantity: 1,
@@ -253,11 +299,72 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
 
   // ========================================================================
   // USE SHARED BILLING CALCULATOR - Single source of truth
+  // CRITICAL: Extract equipment/fees from orderLineItems when available
   // ========================================================================
-  const equipmentFees = (data.routerFee || 0) + (data.terminalFee || 0) + (data.simFee || 0);
-  const otherFees = (data.deliveryFee || 0) + (data.activationFee || 0) + (data.installationFee || 0);
-  const oneTimeTotal = equipmentFees + otherFees + (data.fees || 0);
-  const totalDiscount = (data.discountAmount || 0) + (data.preauthDiscount || 0);
+  
+  // Extract equipment and fees from orderLineItems if available
+  const extractedEquipment: { name: string; quantity: number; unitPrice: number; serial?: string }[] = [];
+  const extractedFees: { label: string; amount: number }[] = [];
+  const extractedDiscounts: { label: string; amount: number; type: "promo" | "preauth" | "loyalty" | "multiLine" | "other" }[] = [];
+  
+  if (data.orderLineItems && Array.isArray(data.orderLineItems)) {
+    for (const item of data.orderLineItems) {
+      const unitPrice = typeof item.unit_price === "number" ? item.unit_price : 0;
+      const qty = item.qty || 1;
+      
+      if (item.category === "equipment" && unitPrice > 0) {
+        extractedEquipment.push({
+          name: item.name || "Équipement",
+          quantity: qty,
+          unitPrice: unitPrice,
+        });
+      } else if (item.category === "fee" && unitPrice > 0) {
+        extractedFees.push({
+          label: item.name || "Frais",
+          amount: unitPrice * qty,
+        });
+      } else if (item.category === "discount" && unitPrice > 0) {
+        extractedDiscounts.push({
+          label: item.name || "Rabais",
+          amount: unitPrice * qty,
+          type: "promo",
+        });
+      }
+    }
+  }
+  
+  // Use extracted values if available, otherwise fall back to legacy fields
+  const hasExtractedLineItems = extractedEquipment.length > 0 || extractedFees.length > 0;
+  
+  const equipmentList = hasExtractedLineItems 
+    ? extractedEquipment 
+    : [
+        ...(data.routerFee ? [{ name: "Routeur", quantity: 1, unitPrice: data.routerFee, serial: data.routerSerial }] : []),
+        ...(data.terminalFee ? [{ name: "Terminal", quantity: data.terminalCount || 1, unitPrice: data.terminalFee / (data.terminalCount || 1) }] : []),
+        ...(data.simFee ? [{ name: "SIM", quantity: 1, unitPrice: data.simFee }] : []),
+      ];
+  
+  const feesList = hasExtractedLineItems
+    ? extractedFees
+    : [
+        ...(data.deliveryFee ? [{ label: "Livraison", amount: data.deliveryFee }] : []),
+        ...(data.activationFee ? [{ label: "Activation", amount: data.activationFee }] : []),
+        ...(data.installationFee ? [{ label: "Installation", amount: data.installationFee }] : []),
+        ...(data.fees ? [{ label: "Frais additionnels", amount: data.fees }] : []),
+      ];
+  
+  const discountsList = extractedDiscounts.length > 0
+    ? extractedDiscounts
+    : [
+        ...(data.discountAmount ? [{ label: data.promoCode || "Rabais", amount: data.discountAmount, type: "promo" as const }] : []),
+        ...(data.preauthDiscount ? [{ label: "Rabais préautorisé", amount: data.preauthDiscount, type: "preauth" as const }] : []),
+      ];
+  
+  // Calculate totals from extracted line items
+  const equipmentFees = equipmentList.reduce((sum, e) => sum + (e.unitPrice * e.quantity), 0);
+  const otherFees = feesList.reduce((sum, f) => sum + f.amount, 0);
+  const oneTimeTotal = equipmentFees + otherFees;
+  const totalDiscount = discountsList.reduce((sum, d) => sum + d.amount, 0);
   
   // Calculate using shared billing calculator
   const billingInput: BillingInput = {
@@ -270,24 +377,17 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
       isOneTime: false,
       priceLabel: s.period || "/mois",
     })),
-    equipment: [
-      ...(data.routerFee ? [{ name: "Router", quantity: 1, unitPrice: data.routerFee, serial: data.routerSerial }] : []),
-      ...(data.terminalFee ? [{ name: "Terminal", quantity: data.terminalCount || 1, unitPrice: data.terminalFee / (data.terminalCount || 1) }] : []),
-      ...(data.simFee ? [{ name: "SIM", quantity: 1, unitPrice: data.simFee }] : []),
-    ],
-    oneTimeFees: [
-      ...(data.deliveryFee ? [{ label: "Livraison", amount: data.deliveryFee }] : []),
-      ...(data.activationFee ? [{ label: "Activation", amount: data.activationFee }] : []),
-      ...(data.installationFee ? [{ label: "Installation", amount: data.installationFee }] : []),
-      ...(data.fees ? [{ label: "Frais additionnels", amount: data.fees }] : []),
-    ],
-    discounts: [
-      ...(data.discountAmount ? [{ label: data.promoCode || "Rabais", amount: data.discountAmount, type: "promo" as const }] : []),
-      ...(data.preauthDiscount ? [{ label: "Rabais préautorisé", amount: data.preauthDiscount, type: "preauth" as const }] : []),
-    ],
+    equipment: equipmentList,
+    oneTimeFees: feesList,
+    discounts: discountsList,
   };
   
   const calculatedBilling = calculateBillingTotals(billingInput);
+  
+  // Invariant check: log if there's a mismatch
+  if (!calculatedBilling.isValid && calculatedBilling.validationError) {
+    console.error("[Invoice PDF] Billing invariant violation:", calculatedBilling.validationError);
+  }
   
   // Use calculated values OR provided values (for backward compatibility)
   const tpsAmount = data.tpsAmount ?? calculatedBilling.tps;
@@ -585,49 +685,24 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
       feeRowIndex++;
     };
 
-    // Equipment
-    if (data.routerFee && data.routerFee > 0) {
-      const routerDesc = data.routerSerial 
-        ? `Routeur Nivra Born Wifi (S/N: ${data.routerSerial})`
-        : "Routeur Nivra Born Wifi — Garantie 1 an";
-      addFeeRow("Équipement", routerDesc, data.routerFee);
-    }
-    if (data.terminalFee && data.terminalFee > 0) {
-      const termCount = data.terminalCount || Math.ceil(data.terminalFee / 50);
-      const termDesc = data.terminalSerials?.length 
-        ? `Terminal 4K Nivra ×${termCount} (S/N: ${data.terminalSerials.join(", ")})`
-        : `Terminal 4K Nivra ×${termCount} — Garantie 1 an`;
-      addFeeRow("Équipement", termDesc, data.terminalFee);
-    }
-    if (data.simFee && data.simFee > 0) {
-      const simTypeLabel = data.simType === "esim" ? "eSIM" : "Carte SIM physique";
-      const simDesc = data.simSerial ? `${simTypeLabel} (S/N: ${data.simSerial})` : simTypeLabel;
-      addFeeRow("Équipement", simDesc, data.simFee);
+    // Render equipment from extracted or legacy data
+    for (const eq of equipmentList) {
+      const desc = eq.serial 
+        ? `${eq.name} (S/N: ${eq.serial})`
+        : `${eq.name} — Garantie 1 an`;
+      addFeeRow("Équipement", desc, eq.unitPrice * eq.quantity);
     }
 
-    // Delivery
-    if (data.deliveryFee && data.deliveryFee > 0) {
-      const deliveryDesc = data.deliveryMethod === "uber" 
-        ? "Livraison Uber Express (Même jour)" 
-        : data.deliveryMethod === "shipHome"
-        ? "Expédition à domicile"
-        : "Livraison standard (Québec)";
-      addFeeRow("Livraison", deliveryDesc, data.deliveryFee);
-    }
-
-    // Installation
-    if (data.installationFee && data.installationFee > 0) {
-      addFeeRow("Installation", "Installation par technicien professionnel", data.installationFee);
-    }
-
-    // Activation
-    if (data.activationFee && data.activationFee > 0) {
-      addFeeRow("Activation", "Frais d'activation de service", data.activationFee);
-    }
-
-    // Other fees
-    if (data.fees && data.fees > 0) {
-      addFeeRow("Frais", "Frais additionnels de service", data.fees);
+    // Render fees from extracted or legacy data
+    for (const fee of feesList) {
+      // Determine category from label
+      const lowerLabel = fee.label.toLowerCase();
+      let category = "Frais";
+      if (lowerLabel.includes("livraison") || lowerLabel.includes("delivery")) category = "Livraison";
+      else if (lowerLabel.includes("installation")) category = "Installation";
+      else if (lowerLabel.includes("activation")) category = "Activation";
+      
+      addFeeRow(category, fee.label, fee.amount);
     }
 
     currentY += 5;
@@ -650,22 +725,12 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     
-    if (data.preauthDiscount && data.preauthDiscount > 0) {
+    // Render discounts from extracted or legacy data
+    for (const discount of discountsList) {
       doc.setTextColor(...grayColor);
-      doc.text("Rabais paiement préautorisé", margin, currentY);
+      doc.text(discount.label, margin, currentY);
       doc.setTextColor(...successColor);
-      doc.text(`-${data.preauthDiscount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
-      currentY += 5;
-    }
-    
-    if (data.discountAmount && data.discountAmount > 0) {
-      doc.setTextColor(...grayColor);
-      const promoLabel = data.promoCode 
-        ? `Rabais promotionnel (${data.promoCode})`
-        : "Rabais promotionnel";
-      doc.text(promoLabel, margin, currentY);
-      doc.setTextColor(...successColor);
-      doc.text(`-${data.discountAmount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
+      doc.text(`-${discount.amount.toFixed(2)} $`, pageWidth - margin - 5, currentY, { align: "right" });
       currentY += 5;
     }
 

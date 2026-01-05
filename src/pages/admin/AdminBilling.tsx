@@ -1007,6 +1007,8 @@ const AdminBilling = () => {
         paymentMethod: paymentMethod?.includes("Interac") ? "etransfer" as const : 
                        paymentMethod?.includes("Carte") ? "credit_card" as const : undefined,
         cardLast4,
+        // CRITICAL: Pass order line items for multi-service support
+        orderLineItems: lineItems.length > 0 ? lineItems : undefined,
       };
       
       const doc = generateInvoicePDF(invoiceData);
@@ -1082,6 +1084,8 @@ const AdminBilling = () => {
         servicePlan,
         promoCode,
         promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
+        // CRITICAL: Pass order line items for multi-service support
+        orderLineItems: lineItems.length > 0 ? lineItems : undefined,
       };
       
       const doc = generateInvoicePDF(invoiceData);
