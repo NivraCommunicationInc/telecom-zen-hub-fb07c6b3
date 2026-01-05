@@ -89,14 +89,25 @@ const ClientAuth = () => {
     }
   }, [searchParams]);
 
-  // Redirect if already logged in (and not in reset mode, and PIN already verified)
+  // Restore PIN pending state if user is logged in but PIN not verified
   useEffect(() => {
-    if (user && !authLoading && !isResetMode && authStep === "credentials") {
-      // Only auto-redirect if this is a returning session, not a fresh login
-      // Fresh logins will go through PIN step
-      navigate("/portal", { replace: true });
+    if (user && !authLoading && !isResetMode) {
+      const pinVerified = sessionStorage.getItem("client_pin_verified");
+      const pendingPinEmail = sessionStorage.getItem("client_pin_pending_email");
+      const pendingPinUserId = sessionStorage.getItem("client_pin_pending_user_id");
+      
+      if (pinVerified === "true") {
+        // Already verified, redirect to portal
+        navigate("/portal", { replace: true });
+      } else if (pendingPinEmail && pendingPinUserId) {
+        // Resume PIN step
+        setPendingEmail(pendingPinEmail);
+        setPendingUserId(pendingPinUserId);
+        setAuthStep("pin");
+      }
+      // If not verified and no pending email, stay on credentials step
     }
-  }, [user, authLoading, navigate, isResetMode, authStep]);
+  }, [user, authLoading, navigate, isResetMode]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -133,6 +144,11 @@ const ClientAuth = () => {
     
     const userEmail = loginData.email;
     const userId = currentUser.id;
+    
+    // Store pending PIN state in sessionStorage (for route guard and persistence)
+    sessionStorage.setItem("client_pin_pending_email", userEmail);
+    sessionStorage.setItem("client_pin_pending_user_id", userId);
+    sessionStorage.removeItem("client_pin_verified");
     
     // Store email and user ID for PIN verification
     setPendingEmail(userEmail);
@@ -205,6 +221,11 @@ const ClientAuth = () => {
       return;
     }
 
+    // Mark PIN as verified and clear pending state
+    sessionStorage.setItem("client_pin_verified", "true");
+    sessionStorage.removeItem("client_pin_pending_email");
+    sessionStorage.removeItem("client_pin_pending_user_id");
+    
     toast({ title: "Connexion réussie" });
     navigate("/portal");
   };
