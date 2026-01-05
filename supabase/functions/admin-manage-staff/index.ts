@@ -733,7 +733,7 @@ serve(async (req: Request) => {
                     <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p>
                     <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
                       <a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">support@nivratelecom.ca</a> | 
-                      <a href="tel:5145442233" style="color: #0d9488; text-decoration: none;">514-544-2233</a>
+                      <a href="tel:4385442233" style="color: #0d9488; text-decoration: none;">438-544-2233</a>
                     </p>
                   </div>
                 </div>
