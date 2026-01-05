@@ -59,3 +59,12 @@ verify_jwt = false
 
 [functions.admin-change-password]
 verify_jwt = false
+
+[functions.client-pin-send]
+verify_jwt = false
+
+[functions.client-pin-verify]
+verify_jwt = false
+
+[functions.technician-update-status]
+verify_jwt = false

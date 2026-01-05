@@ -40,39 +40,53 @@ const ClientAuth = () => {
   
   const sanitizePin = (value: string) => value.replace(/\D/g, "").slice(0, 6);
 
-  // Send PIN via edge function
+  // Send PIN via edge function with robust error handling
   const sendPinEmail = async (email: string, userId: string): Promise<{ success: boolean; error?: string; rateLimited?: boolean }> => {
     try {
       const { data, error } = await supabase.functions.invoke("client-pin-send", {
         body: { email, user_id: userId },
       });
       
+      // Handle edge function invocation errors
       if (error) {
-        console.error("[sendPinEmail] Error:", error);
-        return { success: false, error: error.message };
+        console.error("[sendPinEmail] Invocation error:", error);
+        return { 
+          success: false, 
+          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+        };
       }
       
-      // Handle new response format: { sent: true/false, reason?: string }
+      // Handle structured response: { sent: true/false, reason?: string, error?: string }
       if (data?.sent === false) {
         if (data.reason === "rate_limited") {
           return { success: false, rateLimited: true, error: "Code déjà envoyé récemment" };
         }
-        return { success: false, error: data.reason || data.error || "Failed to send PIN" };
+        // Use user-friendly error message from server, or provide default
+        const errorMsg = data.error || "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca";
+        return { success: false, error: errorMsg };
       }
       
       if (data?.sent === true) {
         return { success: true };
       }
       
-      // Legacy fallback
+      // Legacy fallback for unexpected response shape
       if (data?.error) {
         return { success: false, error: data.error };
       }
       
-      return { success: true };
+      // If we get here with no clear sent status, treat as failure
+      console.warn("[sendPinEmail] Unexpected response shape:", data);
+      return { 
+        success: false, 
+        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+      };
     } catch (err: any) {
       console.error("[sendPinEmail] Unexpected error:", err);
-      return { success: false, error: err.message || "Failed to send PIN" };
+      return { 
+        success: false, 
+        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+      };
     }
   };
 
