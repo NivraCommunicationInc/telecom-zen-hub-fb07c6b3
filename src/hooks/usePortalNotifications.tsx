@@ -40,7 +40,7 @@ export function usePortalNotifications() {
   // Unread count
   const unreadCount = notifications?.filter((n) => !n.is_read).length || 0;
 
-  // Mark as read mutation
+  // Mark as read mutation with optimistic update
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
       const { error } = await portalSupabase
@@ -49,12 +49,32 @@ export function usePortalNotifications() {
         .eq("id", notificationId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async (notificationId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["portal-notifications", user?.id] });
+      
+      // Snapshot previous value
+      const previousNotifications = queryClient.getQueryData<Notification[]>(["portal-notifications", user?.id]);
+      
+      // Optimistically update - mark as read immediately
+      queryClient.setQueryData<Notification[]>(["portal-notifications", user?.id], (old) => 
+        old?.map(n => n.id === notificationId ? { ...n, is_read: true } : n) || []
+      );
+      
+      return { previousNotifications };
+    },
+    onError: (_err, _notificationId, context) => {
+      // Rollback on error
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(["portal-notifications", user?.id], context.previousNotifications);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["portal-notifications"] });
     },
   });
 
-  // Mark all as read
+  // Mark all as read mutation with optimistic update
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       const { error } = await portalSupabase
@@ -64,7 +84,24 @@ export function usePortalNotifications() {
         .eq("is_read", false);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["portal-notifications", user?.id] });
+      
+      const previousNotifications = queryClient.getQueryData<Notification[]>(["portal-notifications", user?.id]);
+      
+      // Optimistically mark all as read
+      queryClient.setQueryData<Notification[]>(["portal-notifications", user?.id], (old) => 
+        old?.map(n => ({ ...n, is_read: true })) || []
+      );
+      
+      return { previousNotifications };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(["portal-notifications", user?.id], context.previousNotifications);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["portal-notifications"] });
     },
   });
