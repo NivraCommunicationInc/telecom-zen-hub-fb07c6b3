@@ -76,8 +76,8 @@ serve(async (req) => {
     if (recentPins && recentPins.length > 0) {
       console.log(`[client-pin-send] Rate limited for email: ${email}`);
       return new Response(
-        JSON.stringify({ error: "Please wait 60 seconds before requesting a new PIN" }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ sent: false, reason: "rate_limited", retry_after_seconds: 60 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -169,8 +169,9 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[client-pin-send] Unexpected error:", error);
+    // Only return 500 for actual server errors
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ sent: false, reason: "server_error", error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
