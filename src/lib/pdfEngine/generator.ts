@@ -28,6 +28,7 @@ import {
   setColor,
   getPageWidth,
   getPageHeight,
+  sanitizeLegalText,
 } from "./helpers";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "../contractPolicies";
 import { getContractEngineFooterLine } from "../contractTemplate";
@@ -36,36 +37,8 @@ import { ALL_ANNEXES, ANNEXE_TITLES, type AnnexeSection } from "./annexes";
 
 const { marginLeft, marginRight, contentWidth, fontSize } = PDF_LAYOUT;
 
-// ============= TEXT SANITIZATION FOR PDF =============
-
-/**
- * Sanitize text for PDF rendering to prevent corrupted characters
- * jsPDF's default Helvetica font doesn't support all Unicode chars
- */
-function sanitizeTextForPDF(text: string): string {
-  if (!text) return "";
-  
-  return text
-    // Replace smart quotes with regular quotes
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    // Replace em-dash and en-dash with regular dash
-    .replace(/[\u2013\u2014]/g, "-")
-    // Replace ellipsis with three dots
-    .replace(/\u2026/g, "...")
-    // Replace non-breaking space with regular space
-    .replace(/\u00A0/g, " ")
-    // Replace bullet points with standard dash
-    .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, "-")
-    // Replace other problematic Unicode chars
-    .replace(/[\u00AB\u00BB]/g, '"') // Guillemets
-    .replace(/\u00B7/g, "-") // Middle dot
-    .replace(/\u2212/g, "-") // Minus sign
-    // Remove any remaining non-ASCII control characters
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
-    // Keep accented French characters (é, è, ê, ë, à, â, etc.) - these work fine
-    .trim();
-}
+// Alias for backwards compatibility within this file
+const sanitizeTextForPDF = sanitizeLegalText;
 
 // ============= DOCUMENT TITLES =============
 
@@ -142,10 +115,15 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   
   addLabelValue(state, "Nom complet", data.client.fullName, { addHeader });
   
-  // Account number - show prominently if available
-  if (data.client.accountNumber) {
-    addLabelValue(state, "Numéro de compte client", data.client.accountNumber, { addHeader });
+  // Account number - ALWAYS show, use fallback if missing
+  const accountNumber = data.client.accountNumber || "N/A";
+  if (!data.client.accountNumber) {
+    console.error("[PDF Generator] Missing client account number - displaying N/A", {
+      clientEmail: data.client.email,
+      documentNumber: data.metadata.documentNumber,
+    });
   }
+  addLabelValue(state, "Numéro de compte", accountNumber, { addHeader });
   
   addLabelValue(state, "Courriel", data.client.email, { addHeader });
   if (data.client.phone) {
