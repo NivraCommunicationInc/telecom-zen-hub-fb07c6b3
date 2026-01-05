@@ -1,97 +1,75 @@
-import { Check, Shield, Clock, Home, MapPin } from "lucide-react";
+import { Check, Shield, Users, TrendingUp, Unlock, MapPin } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Benefits = () => {
   const { t } = useLanguage();
 
-  const benefits = [
+  const statCards = [
     {
-      icon: Shield,
-      titleKey: 'benefits.independent.title',
-      descKey: 'benefits.independent.desc',
+      value: '98%',
+      titleKey: 'benefits.stat1.title',
+      descKey: 'benefits.stat1.desc',
+      icon: TrendingUp,
     },
     {
-      icon: Clock,
-      titleKey: 'benefits.savings.title',
-      descKey: 'benefits.savings.desc',
+      value: '3000+',
+      titleKey: 'benefits.stat2.title',
+      descKey: 'benefits.stat2.desc',
+      icon: Users,
     },
     {
-      icon: Check,
-      titleKey: 'benefits.simple.title',
-      descKey: 'benefits.simple.desc',
+      value: '0',
+      titleKey: 'benefits.stat3.title',
+      descKey: 'benefits.stat3.desc',
+      icon: Unlock,
     },
-    {
-      icon: Home,
-      titleKey: 'benefits.support.title',
-      descKey: 'benefits.support.desc',
-    },
-  ];
-
-  const stats = [
-    { value: '98%', labelKey: 'benefits.stat.satisfaction' },
-    { value: '3000+', labelKey: 'benefits.stat.clients' },
-    { value: 'QC', labelKey: 'benefits.stat.quebec' },
   ];
 
   return (
     <section id="benefits" className="section-padding bg-muted/30">
       <div className="container mx-auto px-4 max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          {/* Left Content */}
-          <div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold mb-4">
-              {t('benefits.badge')}
-            </span>
-            
-            <h2 className="mb-4">
-              {t('benefits.title')}
-            </h2>
-            
-            <p className="text-muted-foreground mb-10 max-w-md leading-relaxed">
-              {t('benefits.subtitle')}
-            </p>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-4">
-              {stats.map((stat, index) => (
-                <div 
-                  key={index}
-                  className="text-center p-5 rounded-2xl bg-card border border-border"
-                >
-                  <div className="text-2xl md:text-3xl font-bold text-accent mb-1">
-                    {stat.value}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {t(stat.labelKey)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right - Benefits Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {benefits.map((benefit, index) => (
-              <div
-                key={benefit.titleKey}
-                className="group p-5 rounded-2xl bg-card border border-border hover:border-accent/30 hover:shadow-elevated transition-all duration-200"
-              >
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/15 transition-colors">
-                  <benefit.icon className="w-5 h-5 text-accent" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2 text-sm">
-                  {t(benefit.titleKey)}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t(benefit.descKey)}
-                </p>
-              </div>
-            ))}
-          </div>
+        {/* Header */}
+        <div className="text-center mb-12">
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold mb-4">
+            {t('benefits.badge')}
+          </span>
+          
+          <h2 className="mb-4">
+            {t('benefits.title')}
+          </h2>
+          
+          <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            {t('benefits.subtitle')}
+          </p>
         </div>
 
-        {/* Trust Banner - Enhanced with "sans enquête de crédit" messaging */}
-        <div className="mt-16 pt-10 border-t border-border">
+        {/* Stats Cards Grid */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {statCards.map((stat, index) => (
+            <div 
+              key={index}
+              className="group p-6 rounded-2xl bg-card border border-border hover:border-accent/30 hover:shadow-elevated transition-all duration-200"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/15 transition-colors">
+                  <stat.icon className="w-6 h-6 text-accent" />
+                </div>
+                <div className="text-3xl md:text-4xl font-bold text-accent">
+                  {stat.value}
+                </div>
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">
+                {t(stat.titleKey)}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t(stat.descKey)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Trust Banner */}
+        <div className="pt-10 border-t border-border">
           {/* Primary Trust Badge */}
           <div className="bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-6 max-w-2xl mx-auto">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
