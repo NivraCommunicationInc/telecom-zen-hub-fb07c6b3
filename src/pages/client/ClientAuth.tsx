@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Mail, CheckCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck } from "lucide-react";
+
+type AuthStep = "credentials" | "pin";
 
 const ClientAuth = () => {
   const navigate = useNavigate();
@@ -23,6 +25,15 @@ const ClientAuth = () => {
   const [isResetMode, setIsResetMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  
+  // 2-step PIN verification state
+  const [authStep, setAuthStep] = useState<AuthStep>("credentials");
+  const [pin, setPin] = useState("");
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
+  
+  const pinIsValid = useMemo(() => /^\d{6}$/.test(pin), [pin]);
+  
+  const sanitizePin = (value: string) => value.replace(/\D/g, "").slice(0, 6);
 
   // Check if coming from password reset link
   useEffect(() => {
@@ -31,12 +42,14 @@ const ClientAuth = () => {
     }
   }, [searchParams]);
 
-  // Redirect if already logged in (and not in reset mode)
+  // Redirect if already logged in (and not in reset mode, and PIN already verified)
   useEffect(() => {
-    if (user && !authLoading && !isResetMode) {
+    if (user && !authLoading && !isResetMode && authStep === "credentials") {
+      // Only auto-redirect if this is a returning session, not a fresh login
+      // Fresh logins will go through PIN step
       navigate("/portal", { replace: true });
     }
-  }, [user, authLoading, navigate, isResetMode]);
+  }, [user, authLoading, navigate, isResetMode, authStep]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -47,14 +60,14 @@ const ClientAuth = () => {
     );
   }
 
-  // If user is logged in and not in reset mode, show loading while redirecting
-  if (user && !isResetMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-      </div>
-    );
-  }
+  // UI-only PIN verification (placeholder for future backend integration)
+  const verifyPinUIOnly = async (enteredPin: string): Promise<{ ok: boolean }> => {
+    // Option A: Wire to backend later
+    // return await api.verifyClientPin({ pin: enteredPin });
+    
+    // Option B: UI-only gate (always "success" if 6 digits)
+    return { ok: /^\d{6}$/.test(enteredPin) };
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +81,30 @@ const ClientAuth = () => {
     if (error) {
       toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
     } else {
+      // Move to PIN verification step instead of navigating
+      setAuthStep("pin");
+      setPin("");
+    }
+  };
+
+  const handleVerifyPin = async () => {
+    if (!pinIsValid) {
+      toast({ title: "Veuillez entrer un NIP valide de 6 chiffres", variant: "destructive" });
+      return;
+    }
+
+    setIsVerifyingPin(true);
+    try {
+      const res = await verifyPinUIOnly(pin);
+      if (!res?.ok) {
+        toast({ title: "NIP invalide. Veuillez réessayer.", variant: "destructive" });
+        return;
+      }
+
       toast({ title: "Connexion réussie" });
       navigate("/portal");
+    } finally {
+      setIsVerifyingPin(false);
     }
   };
 
@@ -265,6 +300,88 @@ const ClientAuth = () => {
                   </Button>
                 </form>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // PIN verification step
+  if (authStep === "pin") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <button 
+            onClick={() => { setAuthStep("credentials"); setPin(""); }}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour à la connexion
+          </button>
+          
+          <Card className="bg-card border-border">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
+                  <span className="font-display font-bold text-navy-900 text-xl">N</span>
+                </div>
+                <span className="font-display font-bold text-xl text-foreground">Nivra</span>
+              </div>
+              <div className="w-16 h-16 rounded-full bg-cyan-100 dark:bg-cyan-900/30 mx-auto flex items-center justify-center mb-4">
+                <ShieldCheck className="w-8 h-8 text-cyan-600" />
+              </div>
+              <CardTitle className="text-2xl">Vérification en 2 étapes</CardTitle>
+              <CardDescription>Entrez le code à 6 chiffres</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">
+                  Un code de vérification à 6 chiffres a été envoyé à votre adresse email. Veuillez le saisir pour continuer.
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="pin-input">Code de vérification</Label>
+                <Input
+                  id="pin-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  placeholder="••••••"
+                  value={pin}
+                  onChange={(e) => setPin(sanitizePin(e.target.value))}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData("text");
+                    setPin(sanitizePin(text));
+                  }}
+                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                  aria-label="Code de vérification à 6 chiffres"
+                />
+              </div>
+              
+              <Button 
+                onClick={handleVerifyPin}
+                className="w-full" 
+                variant="hero" 
+                disabled={!pinIsValid || isVerifyingPin}
+              >
+                {isVerifyingPin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                Vérifier et continuer
+              </Button>
+              
+              <p className="text-xs text-muted-foreground text-center">
+                Vous n'avez pas reçu le code? Vérifiez votre dossier spam ou{" "}
+                <button 
+                  type="button"
+                  onClick={() => toast({ title: "Un nouveau code sera envoyé prochainement", description: "Cette fonctionnalité sera disponible bientôt" })}
+                  className="text-cyan-500 hover:text-cyan-400 underline"
+                >
+                  renvoyer le code
+                </button>
+              </p>
             </CardContent>
           </Card>
         </div>
