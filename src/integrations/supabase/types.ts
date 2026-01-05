@@ -79,10 +79,14 @@ export type Database = {
           credit_last_reviewed_by_admin_id: string | null
           id: string
           next_invoice_date: string | null
+          number_lost_at: string | null
+          number_lost_by: string | null
+          number_lost_reason: string | null
           primary_service_address: string | null
           primary_service_city: string | null
           primary_service_postal_code: string | null
           primary_service_province: string | null
+          recouvrement_reminder_sent_at: string | null
           status: string | null
           updated_at: string
         }
@@ -103,10 +107,14 @@ export type Database = {
           credit_last_reviewed_by_admin_id?: string | null
           id?: string
           next_invoice_date?: string | null
+          number_lost_at?: string | null
+          number_lost_by?: string | null
+          number_lost_reason?: string | null
           primary_service_address?: string | null
           primary_service_city?: string | null
           primary_service_postal_code?: string | null
           primary_service_province?: string | null
+          recouvrement_reminder_sent_at?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -127,10 +135,14 @@ export type Database = {
           credit_last_reviewed_by_admin_id?: string | null
           id?: string
           next_invoice_date?: string | null
+          number_lost_at?: string | null
+          number_lost_by?: string | null
+          number_lost_reason?: string | null
           primary_service_address?: string | null
           primary_service_city?: string | null
           primary_service_postal_code?: string | null
           primary_service_province?: string | null
+          recouvrement_reminder_sent_at?: string | null
           status?: string | null
           updated_at?: string
         }
