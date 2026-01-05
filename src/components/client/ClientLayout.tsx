@@ -33,11 +33,12 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleSignOut = async () => {
-    // Clear PIN verification state on sign out
+    // Clear PIN verification state on sign out (but NOT trusted device)
     sessionStorage.removeItem("client_pin_verified");
     sessionStorage.removeItem("client_pin_pending_email");
     sessionStorage.removeItem("client_pin_pending_user_id");
     sessionStorage.removeItem("client_last_auth_check");
+    // Note: Do NOT clear localStorage.portal_trusted_until - trusted device persists
     await signOut();
     navigate("/");
   };

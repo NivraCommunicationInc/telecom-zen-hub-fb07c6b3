@@ -64,7 +64,7 @@ const ClientAuth = () => {
   };
 
   // Verify PIN via edge function
-  const verifyPin = async (email: string, pinCode: string) => {
+  const verifyPin = async (email: string, pinCode: string): Promise<{ valid: boolean; error?: string; reason?: string }> => {
     try {
       const { data, error } = await supabase.functions.invoke("client-pin-verify", {
         body: { email, pin: pinCode },
@@ -75,7 +75,7 @@ const ClientAuth = () => {
         return { valid: false, error: error.message };
       }
       
-      return { valid: data?.valid === true, error: data?.error };
+      return { valid: data?.valid === true, error: data?.error, reason: data?.reason };
     } catch (err: any) {
       console.error("[verifyPin] Unexpected error:", err);
       return { valid: false, error: err.message || "Failed to verify PIN" };
@@ -160,19 +160,27 @@ const ClientAuth = () => {
     setIsSendingPin(false);
     setIsLoading(false);
     
-    if (!pinResult.success) {
-      toast({ 
-        title: "Erreur d'envoi du code", 
-        description: pinResult.error || "Impossible d'envoyer le code de vérification", 
-        variant: "destructive" 
-      });
-      return;
-    }
-    
-    // Move to PIN verification step
+    // Move to PIN verification step (even if rate-limited, show PIN screen)
     setAuthStep("pin");
     setPin("");
-    toast({ title: "Code envoyé", description: "Vérifiez votre boîte de réception" });
+    
+    if (!pinResult.success) {
+      // Check if rate-limited
+      if (pinResult.error?.includes("wait") || pinResult.error?.includes("60 seconds")) {
+        toast({ 
+          title: "Code déjà envoyé récemment", 
+          description: "Veuillez patienter 60 secondes avant de redemander un code.", 
+        });
+      } else {
+        toast({ 
+          title: "Erreur d'envoi du code", 
+          description: pinResult.error || "Impossible d'envoyer le code de vérification", 
+          variant: "destructive" 
+        });
+      }
+    } else {
+      toast({ title: "Code envoyé", description: "Vérifiez votre boîte de réception" });
+    }
   };
   const handleResendPin = async () => {
     if (!pendingEmail || !pendingUserId) {
@@ -186,11 +194,19 @@ const ClientAuth = () => {
     setIsSendingPin(false);
     
     if (!result.success) {
-      toast({ 
-        title: "Erreur", 
-        description: result.error || "Impossible de renvoyer le code", 
-        variant: "destructive" 
-      });
+      // Check if rate-limited
+      if (result.error?.includes("wait") || result.error?.includes("60 seconds")) {
+        toast({ 
+          title: "Code déjà envoyé récemment", 
+          description: "Veuillez patienter 60 secondes avant de redemander un code.", 
+        });
+      } else {
+        toast({ 
+          title: "Erreur", 
+          description: result.error || "Impossible de renvoyer le code", 
+          variant: "destructive" 
+        });
+      }
     } else {
       toast({ title: "Code renvoyé", description: "Un nouveau code a été envoyé à votre email" });
     }
@@ -215,16 +231,20 @@ const ClientAuth = () => {
     if (!result.valid) {
       toast({ 
         title: "NIP invalide", 
-        description: result.error || "Veuillez réessayer", 
+        description: result.error || result.reason || "Veuillez réessayer", 
         variant: "destructive" 
       });
       return;
     }
 
-    // Mark PIN as verified and clear pending state
+    // Mark PIN as verified and set trusted device for 20 minutes
     sessionStorage.setItem("client_pin_verified", "true");
     sessionStorage.removeItem("client_pin_pending_email");
     sessionStorage.removeItem("client_pin_pending_user_id");
+    
+    // Set trusted device expiry (20 minutes from now)
+    const trustedUntil = Date.now() + 20 * 60 * 1000;
+    localStorage.setItem("portal_trusted_until", trustedUntil.toString());
     
     toast({ title: "Connexion réussie" });
     navigate("/portal");

@@ -47,13 +47,23 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
         return;
       }
 
-      // SECURITY: Check if PIN verification was completed
+      // SECURITY: Check if device is trusted (20 min window) or PIN verification was completed
+      const trustedUntilStr = localStorage.getItem("portal_trusted_until");
+      const trustedUntil = trustedUntilStr ? Number(trustedUntilStr) : 0;
+      const isTrustedDevice = Date.now() < trustedUntil;
+      
       const pinVerified = sessionStorage.getItem("client_pin_verified");
-      if (pinVerified !== "true") {
-        console.log("[ClientProtectedRoute] PIN not verified, redirecting to auth");
+      
+      if (!isTrustedDevice && pinVerified !== "true") {
+        console.log("[ClientProtectedRoute] Device not trusted and PIN not verified, redirecting to auth");
         setIsVerifying(false);
         navigate("/portal/auth", { replace: true });
         return;
+      }
+      
+      // If trusted device but session PIN flag not set, set it for this session
+      if (isTrustedDevice && pinVerified !== "true") {
+        sessionStorage.setItem("client_pin_verified", "true");
       }
 
       try {
