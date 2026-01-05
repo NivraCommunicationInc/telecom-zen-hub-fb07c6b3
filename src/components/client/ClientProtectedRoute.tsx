@@ -47,6 +47,15 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
         return;
       }
 
+      // SECURITY: Check if PIN verification was completed
+      const pinVerified = sessionStorage.getItem("client_pin_verified");
+      if (pinVerified !== "true") {
+        console.log("[ClientProtectedRoute] PIN not verified, redirecting to auth");
+        setIsVerifying(false);
+        navigate("/portal/auth", { replace: true });
+        return;
+      }
+
       try {
         const now = Date.now();
         const lastCheckStr = sessionStorage.getItem("client_last_auth_check");
@@ -81,6 +90,9 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
             }
 
             sessionStorage.removeItem("client_last_auth_check");
+            sessionStorage.removeItem("client_pin_verified");
+            sessionStorage.removeItem("client_pin_pending_email");
+            sessionStorage.removeItem("client_pin_pending_user_id");
             await signOut();
             navigate("/portal/auth", { replace: true });
             return;
@@ -158,6 +170,9 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
 
   if (!user || !session) {
     sessionStorage.removeItem("client_last_auth_check");
+    sessionStorage.removeItem("client_pin_verified");
+    sessionStorage.removeItem("client_pin_pending_email");
+    sessionStorage.removeItem("client_pin_pending_user_id");
     return <Navigate to="/portal/auth" replace />;
   }
 
