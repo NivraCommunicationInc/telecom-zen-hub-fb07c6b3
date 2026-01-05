@@ -21,7 +21,7 @@ import MobilePlans from "./pages/MobilePlans";
 import StreamingPlans from "./pages/StreamingPlans";
 import NotFound from "./pages/NotFound";
 import NotAuthorized from "./pages/NotAuthorized";
-import MembersAccess from "./pages/MembersAccess";
+
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminBootstrap from "./pages/admin/AdminBootstrap";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -75,10 +75,6 @@ import AdminAuditLog from "./pages/admin/AdminAuditLog";
 import AdminResetPassword from "./pages/admin/AdminResetPassword";
 import AdminPDFTest from "./pages/admin/AdminPDFTest";
 import AdminQA from "./pages/admin/AdminQA";
-import StaffLogin from "./pages/staff/StaffLogin";
-import StaffDashboard from "./pages/staff/StaffDashboard";
-import TechnicianLogin from "./pages/technician/TechnicianLogin";
-import TechnicianDashboard from "./pages/technician/TechnicianDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,15 +114,6 @@ const App = () => (
             <Route path="/terms" element={<TermsOfUse />} />
             <Route path="/not-authorized" element={<NotAuthorized />} />
             
-            {/* Members Access - Internal portal hub (noindex) */}
-            <Route path="/members-access" element={<MembersAccess />} />
-            
-            {/* Staff Portal Routes */}
-            <Route path="/staff/login" element={<StaffLogin />} />
-            <Route path="/staff" element={<StaffDashboard />} />
-            
-            {/* Technician Portal Routes */}
-            <Route path="/technician/login" element={<TechnicianLogin />} />
             
             {/* Admin Routes - Wrapped with AuthProvider (admin storage key) */}
             <Route path="/admin/login" element={<AuthProvider><AdminLogin /></AuthProvider>} />
