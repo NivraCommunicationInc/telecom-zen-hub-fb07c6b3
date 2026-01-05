@@ -258,16 +258,20 @@ const ClientInvoices = () => {
     renewal_due: "bg-orange-500/20 text-orange-500",
     in_verification: "bg-cyan-500/20 text-cyan-500",
     expired: "bg-red-600/20 text-red-600",
+    suspended: "bg-red-500/20 text-red-500",
+    partial: "bg-orange-500/20 text-orange-500",
   };
 
   const statusLabels: Record<string, string> = {
     pending: "En attente",
     paid: "Payé",
-    overdue: "Renouvellement dû",
+    overdue: "Paiement en retard (Overdue)",
     pre_authorized: "Pré-autorisé",
     renewal_due: "Renouvellement dû",
-    in_verification: "En vérification",
+    in_verification: "En vérification (grâce 24h)",
     expired: "Expiré (non-renouvelé)",
+    suspended: "Service en suspension",
+    partial: "Paiement partiel",
   };
 
   const calculateTotal = (inv: any) => {

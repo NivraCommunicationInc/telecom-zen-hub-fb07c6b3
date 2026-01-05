@@ -143,8 +143,155 @@ export function getNext12BillingDates(billingDay: number, startDate?: Date): Dat
  * Constants for billing
  */
 export const BILLING_CONSTANTS = {
-  PAYMENT_GRACE_DAYS: 15,
+  INVOICE_GENERATION_DAYS_BEFORE: 5, // J-5: Invoice generated 5 days before Bill Cycle
+  ETRANSFER_GRACE_HOURS: 24, // Grace period for e-Transfer in verification at J0
   TPS_RATE: 0.05,
   TVQ_RATE: 0.09975,
-  LATE_FEE_RATE: 0.05,
+  DISPUTE_INTEREST_RATE: 0.05, // 5% per month for disputes/chargebacks only
+  NUMBER_LOSS_DAYS: 90, // After 90 days, number may be unrecoverable
 } as const;
+
+/**
+ * Billing status types
+ */
+export type BillingStatus = 
+  | 'active'           // Service is active, payment confirmed
+  | 'renewal_due'      // J-5 to J0: Invoice issued, payment expected before J0
+  | 'in_verification'  // E-Transfer in verification at J0 (grace period)
+  | 'overdue'          // Payment not confirmed by J0
+  | 'suspended'        // Service suspended due to non-payment
+  | 'expired';         // After extended non-payment (number at risk)
+
+export type PaymentStatus =
+  | 'pending'          // Payment expected
+  | 'in_verification'  // E-Transfer being verified
+  | 'confirmed'        // Payment confirmed
+  | 'overdue';         // Payment past due (J0)
+
+/**
+ * Calculate the invoice issue date (J-5: 5 days before Bill Cycle)
+ */
+export function calculateInvoiceIssueDate(billCycleDay: number, fromDate: Date): Date {
+  const billCycleDate = calculateNextInvoiceDate(billCycleDay, fromDate);
+  const issueDate = new Date(billCycleDate);
+  issueDate.setDate(issueDate.getDate() - BILLING_CONSTANTS.INVOICE_GENERATION_DAYS_BEFORE);
+  return issueDate;
+}
+
+/**
+ * Calculate the payment/service status based on Bill Cycle, payment status, and current date
+ */
+export function calculateBillingStatus(
+  billCycleDay: number,
+  paymentStatus: PaymentStatus,
+  currentDate: Date = new Date()
+): { billingStatus: BillingStatus; paymentStatusLabel: string; serviceStatusLabel: string } {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth() + 1;
+  const billCycleDate = new Date(year, month - 1, clampBillingDay(year, month, billCycleDay));
+  
+  // Calculate J-5 date
+  const invoiceIssueDate = new Date(billCycleDate);
+  invoiceIssueDate.setDate(invoiceIssueDate.getDate() - BILLING_CONSTANTS.INVOICE_GENERATION_DAYS_BEFORE);
+  
+  // Calculate e-Transfer grace deadline (J0 + 24h)
+  const graceDeadline = new Date(billCycleDate);
+  graceDeadline.setHours(graceDeadline.getHours() + BILLING_CONSTANTS.ETRANSFER_GRACE_HOURS);
+  
+  currentDate.setHours(0, 0, 0, 0);
+  billCycleDate.setHours(0, 0, 0, 0);
+  invoiceIssueDate.setHours(0, 0, 0, 0);
+
+  // If payment is confirmed, service is active
+  if (paymentStatus === 'confirmed') {
+    return {
+      billingStatus: 'active',
+      paymentStatusLabel: 'Payé',
+      serviceStatusLabel: 'Actif',
+    };
+  }
+
+  // Before J-5: Payment expected but not yet urgent
+  if (currentDate < invoiceIssueDate) {
+    return {
+      billingStatus: 'active',
+      paymentStatusLabel: 'En attente',
+      serviceStatusLabel: 'Actif',
+    };
+  }
+
+  // J-5 to J0: Renewal due period
+  if (currentDate >= invoiceIssueDate && currentDate < billCycleDate) {
+    return {
+      billingStatus: 'renewal_due',
+      paymentStatusLabel: 'Renouvellement dû',
+      serviceStatusLabel: 'Actif (renouvellement dû)',
+    };
+  }
+
+  // At or after J0
+  if (currentDate >= billCycleDate) {
+    // E-Transfer in verification at J0: grace period
+    if (paymentStatus === 'in_verification' && new Date() < graceDeadline) {
+      return {
+        billingStatus: 'in_verification',
+        paymentStatusLabel: 'En vérification (grâce 24h)',
+        serviceStatusLabel: 'En vérification',
+      };
+    }
+
+    // Not paid at J0 = overdue + suspended
+    return {
+      billingStatus: 'suspended',
+      paymentStatusLabel: 'Paiement en retard (Overdue)',
+      serviceStatusLabel: 'Service en suspension (Suspended)',
+    };
+  }
+
+  // Default fallback
+  return {
+    billingStatus: 'active',
+    paymentStatusLabel: 'En attente',
+    serviceStatusLabel: 'Actif',
+  };
+}
+
+/**
+ * Calculate days since a date became overdue/suspended
+ */
+export function calculateDaysSinceSuspension(billCycleDate: Date, currentDate: Date = new Date()): number {
+  const billCycle = new Date(billCycleDate);
+  billCycle.setHours(0, 0, 0, 0);
+  currentDate.setHours(0, 0, 0, 0);
+  
+  if (currentDate <= billCycle) return 0;
+  
+  const diffTime = currentDate.getTime() - billCycle.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Determine days-since-suspension bucket for filtering
+ */
+export function getSuspensionBucket(daysSinceSuspension: number): string {
+  if (daysSinceSuspension <= 30) return '0-30';
+  if (daysSinceSuspension <= 60) return '31-60';
+  if (daysSinceSuspension <= 90) return '61-90';
+  return '90+';
+}
+
+/**
+ * Check if a number is at risk of being lost (90+ days without renewal)
+ */
+export function isNumberAtRisk(daysSinceSuspension: number): boolean {
+  return daysSinceSuspension >= BILLING_CONSTANTS.NUMBER_LOSS_DAYS;
+}
+
+/**
+ * Get Bill Cycle Day from account creation date (fallback logic)
+ */
+export function getBillCycleDayFromDate(date: Date | string | null): number {
+  if (!date) return 1; // Default to 1st of month if no date
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.getDate();
+}
