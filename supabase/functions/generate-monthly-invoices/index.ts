@@ -5,8 +5,12 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 
-// Grace period for payment (15 days as per Nivra policy)
-const PAYMENT_GRACE_DAYS = 15;
+// Prepaid Billing Cycle Rules:
+// - Invoice is generated J-5 (5 days before Bill Cycle date)
+// - Payment must be confirmed BEFORE Bill Cycle date (J0) to renew
+// - If unpaid at J0, service becomes Expired (non-renewed)
+// - NO interest or reactivation fee for normal non-renewal
+const INVOICE_GENERATION_DAYS_BEFORE = 5;
 
 interface Subscription {
   id: string;
@@ -175,10 +179,12 @@ Deno.serve(async (req) => {
         const billingDay = subs[0].bill_cycle_day || new Date(subs[0].next_invoice_date).getDate();
         
         // Calculate period dates
+        // For prepaid: issue date is J-5, due date is J0 (Bill Cycle date)
         const issueDate = new Date(subs[0].next_invoice_date);
         const periodStart = issueDate;
         const periodEnd = calculatePeriodEnd(billingDay, periodStart);
-        const dueDate = addDays(issueDate, PAYMENT_GRACE_DAYS);
+        // Due date = Bill Cycle date (5 days after issue date for prepaid J-5/J0 model)
+        const dueDate = addDays(issueDate, INVOICE_GENERATION_DAYS_BEFORE);
 
         // Check if invoice already exists for this period
         const { data: existingInvoice } = await supabase
@@ -207,7 +213,7 @@ Deno.serve(async (req) => {
             period_start: formatDate(periodStart),
             period_end: formatDate(periodEnd),
             issue_date: formatDate(issueDate),
-            due_date: formatDate(dueDate), // 15 days after issue date
+            due_date: formatDate(dueDate), // Bill Cycle date (J0) - prepaid: payment required BEFORE this date
             status: "issued",
             subtotal,
             tps_amount: tpsAmount,
@@ -274,55 +280,57 @@ Deno.serve(async (req) => {
     }
 
     // ========================================
-    // Step 3: Check for overdue invoices (15 days grace period)
+    // Step 3: Check for expired invoices (Prepaid: due date = Bill Cycle = J0)
+    // If unpaid at J0, service becomes Expired (non-renewed)
     // ========================================
-    const overdueThreshold = addDays(today, -PAYMENT_GRACE_DAYS);
+    const todayStr2 = formatDate(today);
     
-    const { data: overdueInvoices } = await supabase
+    const { data: expiredInvoices } = await supabase
       .from("monthly_invoices")
       .select("id, client_id, invoice_number, due_date")
       .eq("status", "issued")
-      .lt("due_date", formatDate(overdueThreshold));
+      .lt("due_date", todayStr2);
 
-    let suspendedCount = 0;
+    let expiredCount = 0;
 
-    if (overdueInvoices && overdueInvoices.length > 0) {
-      console.log(`[generate-monthly-invoices] Found ${overdueInvoices.length} overdue invoices (past ${PAYMENT_GRACE_DAYS} days)`);
+    if (expiredInvoices && expiredInvoices.length > 0) {
+      console.log(`[generate-monthly-invoices] Found ${expiredInvoices.length} unpaid invoices past Bill Cycle date (J0 - prepaid non-renewal)`);
       
-      for (const inv of overdueInvoices) {
-        // Mark invoice as overdue
+      for (const inv of expiredInvoices) {
+        // Mark invoice as expired (prepaid non-renewal at J0)
         await supabase
           .from("monthly_invoices")
-          .update({ status: "overdue" })
+          .update({ status: "expired" })
           .eq("id", inv.id);
 
-        // Suspend client's subscriptions
-        const { data: suspendedSubs } = await supabase
+        // Mark client's subscriptions as expired (not suspended - prepaid model)
+        const { data: expiredSubs } = await supabase
           .from("subscriptions")
-          .update({ status: "suspended" })
+          .update({ status: "expired" })
           .eq("user_id", inv.client_id)
           .in("status", ["active", "shipped", "installed", "installation_completed"])
           .select("id");
 
-        // Also update account status to suspended
+        // Update account status to expired
         await supabase
           .from("accounts")
-          .update({ status: "suspended" })
+          .update({ status: "expired" })
           .eq("client_id", inv.client_id);
 
-        suspendedCount++;
-        console.log(`[generate-monthly-invoices] Suspended services for client ${inv.client_id} due to overdue invoice ${inv.invoice_number} (due: ${inv.due_date})`);
+        expiredCount++;
+        console.log(`[generate-monthly-invoices] Marked services as expired for client ${inv.client_id} - unpaid at Bill Cycle ${inv.due_date} (prepaid non-renewal)`);
       }
     }
 
-    console.log(`[generate-monthly-invoices] Completed. Generated ${results.length} invoices, ${suspendedCount} accounts suspended, ${errors.length} errors`);
+    console.log(`[generate-monthly-invoices] Completed. Generated ${results.length} invoices, ${expiredCount} accounts expired (non-renewed), ${errors.length} errors`);
 
     return new Response(
       JSON.stringify({
         message: `Generated ${results.length} invoices`,
         invoices: results,
-        suspended_accounts: suspendedCount,
-        payment_grace_days: PAYMENT_GRACE_DAYS,
+        expired_accounts: expiredCount,
+        billing_model: "prepaid_j5_j0",
+        invoice_generated_days_before: INVOICE_GENERATION_DAYS_BEFORE,
         errors: errors.length > 0 ? errors : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
