@@ -102,6 +102,40 @@ export const ensureOrderContractUpToDate = async (params: {
   const [firstName, ...rest] = String(fullName).split(" ");
   const lastName = rest.join(" ");
 
+  // Client account number (must always be shown in Contract PDF)
+  // Fallback order:
+  // 1) order.client_account_number (if present)
+  // 2) accounts.account_number where accounts.client_id = order.user_id
+  // 3) N/A (and log error)
+  let clientAccountNumber: string | undefined = (order as any).client_account_number || undefined;
+
+  if (!clientAccountNumber) {
+    const { data: acc, error: accError } = await supabase
+      .from("accounts")
+      .select("account_number")
+      .eq("client_id", order.user_id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (accError) {
+      console.error("[ContractEngine] Failed to lookup accounts.account_number", {
+        orderId: order.id,
+        clientId: order.user_id,
+        error: accError,
+      });
+    } else {
+      clientAccountNumber = acc?.account_number || undefined;
+    }
+  }
+
+  if (!clientAccountNumber) {
+    console.error("[ContractEngine] Missing client account number (will render N/A)", {
+      orderId: order.id,
+      clientId: order.user_id,
+    });
+  }
+
   // Parse service type and equipment details to determine individual services and prices
   const serviceType = String((order as any).service_type || "").toLowerCase();
   const subtotal = Number((order as any).subtotal ?? 0);
@@ -211,6 +245,7 @@ export const ensureOrderContractUpToDate = async (params: {
     clientName: String(fullName),
     clientEmail: profile?.email || (order as any).client_email || "",
     clientPhone: profile?.phone || "",
+    clientAccountNumber: clientAccountNumber,
 
     billingAddress: profile?.service_address || "",
     serviceAddress: profile?.service_address || "",

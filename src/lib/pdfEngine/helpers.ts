@@ -512,49 +512,40 @@ export const addDocumentFooter = (
  */
 export const sanitizeLegalText = (text: string): string => {
   if (!text) return "";
-  
+
   let result = text;
-  
-  // 1. Remove control chars: /[\u0000-\u001F\u007F]/g
+
+  // 1) Remove control chars: /[\u0000-\u001F\u007F]/g
   result = result.replace(/[\u0000-\u001F\u007F]/g, "");
-  
-  // 2. Remove invisible/zero-width chars: /[\u200B-\u200D\uFEFF]/g
+
+  // 2) Remove invisible chars: /[\u200B-\u200D\uFEFF]/g
   result = result.replace(/[\u200B-\u200D\uFEFF]/g, "");
-  
-  // 3. Normalize typography
-  // Smart quotes → regular quotes (keep accents!)
-  result = result.replace(/[\u2018\u2019\u0091\u0092]/g, "'");  // Single quotes
-  result = result.replace(/[\u201C\u201D\u0093\u0094]/g, '"');  // Double quotes
-  result = result.replace(/[\u00AB\u00BB]/g, '"');              // Guillemets « »
-  
-  // Em-dash, en-dash → regular dash
-  result = result.replace(/[\u2013\u2014\u2015]/g, "-");
-  
-  // Minus sign → regular dash
-  result = result.replace(/\u2212/g, "-");
-  
-  // Ellipsis → three dots
-  result = result.replace(/\u2026/g, "...");
-  
-  // Non-breaking space → regular space
+
+  // 3) Normalize typography (keep accents)
+  // ’ → '
+  result = result.replace(/[\u2018\u2019\u0091\u0092\u201B\u2032]/g, "'");
+  // “/” → "
+  result = result.replace(/[\u201C\u201D\u0093\u0094\u2033]/g, '"');
+  // «/» → "
+  result = result.replace(/[\u00AB\u00BB]/g, '"');
+  // –/— → -
+  result = result.replace(/[\u2013\u2014]/g, "-");
+
+  // 4) Normalize whitespace
+  // Convert NBSP → space
   result = result.replace(/\u00A0/g, " ");
-  
-  // Bullet points → dash
-  result = result.replace(/[\u2022\u2023\u25E6\u2043\u2219\u00B7]/g, "-");
-  
-  // Fancy apostrophes
-  result = result.replace(/[\u02BC\u02BB\u02C8\u0060\u00B4]/g, "'");
-  
-  // 4. Normalize whitespace: collapse multiple spaces, remove weird spacing artifacts
-  // This fixes the "e s t c r é é" spaced letters issue
-  result = result.replace(/\s{2,}/g, " ");
-  
-  // Remove lone punctuation artifacts that shouldn't be there
-  result = result.replace(/\s[!']\s/g, " ");
-  
-  // 5. Trim leading/trailing whitespace
-  result = result.trim();
-  
+
+  // Fix weird spacing artifacts from thin/hair/narrow spaces.
+  // If a thin-ish space is BETWEEN letters, drop it entirely (fixes "e s t c r é é" style rendering).
+  const letter = "A-Za-zÀ-ÖØ-öø-ÿ";
+  result = result.replace(new RegExp(`([${letter}])[\\u2000-\\u200A\\u202F]([${letter}])`, "g"), "$1$2");
+
+  // Any remaining thin-ish spaces become a normal space
+  result = result.replace(/[\u2000-\u200A\u202F]/g, " ");
+
+  // Collapse whitespace (including tabs/newlines) to a single space
+  result = result.replace(/\s+/g, " ").trim();
+
   return result;
 };
 

@@ -126,18 +126,54 @@ const ClientContracts = () => {
         return;
       }
 
-      // Fetch linked order with service details INCLUDING equipment_details for line_items
-      const { data: linkedOrder } = await portalSupabase
-        .from("orders")
-        .select(`
-          id, order_number, created_at, service_type,
-          subtotal, tps_amount, tvq_amount, total_amount, 
-          activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee,
-          equipment_details, promo_code, discount_amount, preauth_discount
-        `)
-        .eq("related_contract_id", contract.id)
-        .maybeSingle();
-      
+        // Fetch linked order with service details INCLUDING equipment_details for line_items
+        const { data: linkedOrder } = await portalSupabase
+          .from("orders")
+          .select(`
+            id, order_number, created_at, service_type,
+            subtotal, tps_amount, tvq_amount, total_amount, 
+            activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee,
+            equipment_details, promo_code, discount_amount, preauth_discount
+          `)
+          .eq("related_contract_id", contract.id)
+          .maybeSingle();
+
+        // Client account number (must always be shown in Contract PDF)
+        // Fallback:
+        // 1) linkedOrder.client_account_number (if present)
+        // 2) accounts.account_number where accounts.client_id = user.id
+        // 3) N/A (and log error)
+        let clientAccountNumber: string | undefined = (linkedOrder as any)?.client_account_number || undefined;
+
+        if (!clientAccountNumber && user?.id) {
+          const { data: acc, error: accError } = await portalSupabase
+            .from("accounts")
+            .select("account_number")
+            .eq("client_id", user.id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (accError) {
+            console.error("[Contract PDF] Failed to lookup accounts.account_number", {
+              contractId: contract.id,
+              orderId: linkedOrder?.id,
+              userId: user.id,
+              error: accError,
+            });
+          } else {
+            clientAccountNumber = acc?.account_number || undefined;
+          }
+        }
+
+        if (!clientAccountNumber) {
+          console.error("[Contract PDF] Missing client account number (will render N/A)", {
+            contractId: contract.id,
+            orderId: linkedOrder?.id,
+            userId: user?.id,
+          });
+        }
+
       // Import line item utilities
       const { extractLineItemsFromOrder, calculateLineItemTotals } = await import("@/lib/orderLineItems");
       
@@ -227,7 +263,7 @@ const ClientContracts = () => {
         clientLastName: (profile?.full_name || "Client").split(" ").slice(1).join(" ") || "",
         clientEmail: profile?.email || user?.email || "",
         clientPhone: profile?.phone || "",
-
+        clientAccountNumber: clientAccountNumber,
         billingAddress: profile?.service_address || "",
         serviceAddress: profile?.service_address || "",
         serviceCity: profile?.service_city || "",
@@ -323,17 +359,49 @@ const ClientContracts = () => {
         return;
       }
 
-      // Fetch linked order with service details
-      const { data: linkedOrder } = await portalSupabase
-        .from("orders")
-        .select(`
-          id, order_number, created_at, service_type,
-          subtotal, tps_amount, tvq_amount, total_amount, 
-          activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee
-        `)
-        .eq("related_contract_id", contract.id)
-        .maybeSingle();
-      
+        // Fetch linked order with service details
+        const { data: linkedOrder } = await portalSupabase
+          .from("orders")
+          .select(`
+            id, order_number, created_at, service_type,
+            subtotal, tps_amount, tvq_amount, total_amount, 
+            activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee
+          `)
+          .eq("related_contract_id", contract.id)
+          .maybeSingle();
+
+        // Client account number (must always be shown in Contract PDF)
+        let clientAccountNumber: string | undefined = (linkedOrder as any)?.client_account_number || undefined;
+
+        if (!clientAccountNumber && user?.id) {
+          const { data: acc, error: accError } = await portalSupabase
+            .from("accounts")
+            .select("account_number")
+            .eq("client_id", user.id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (accError) {
+            console.error("[Contract PDF] Failed to lookup accounts.account_number", {
+              contractId: contract.id,
+              orderId: linkedOrder?.id,
+              userId: user.id,
+              error: accError,
+            });
+          } else {
+            clientAccountNumber = acc?.account_number || undefined;
+          }
+        }
+
+        if (!clientAccountNumber) {
+          console.error("[Contract PDF] Missing client account number (will render N/A)", {
+            contractId: contract.id,
+            orderId: linkedOrder?.id,
+            userId: user?.id,
+          });
+        }
+
       // Parse service type to determine individual services and prices
       const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
       const subtotal = Number(linkedOrder?.subtotal ?? 0);
@@ -387,7 +455,7 @@ const ClientContracts = () => {
         clientLastName: (profile?.full_name || "Client").split(" ").slice(1).join(" ") || "",
         clientEmail: profile?.email || user?.email || "",
         clientPhone: profile?.phone || "",
-
+        clientAccountNumber: clientAccountNumber,
         billingAddress: profile?.service_address || "",
         serviceAddress: profile?.service_address || "",
         serviceCity: profile?.service_city || "",
