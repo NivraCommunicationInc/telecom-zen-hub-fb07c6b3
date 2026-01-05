@@ -20,12 +20,12 @@ const FraisPossibles = () => {
     { 
       name: "Frais de réactivation", 
       amount: `${CONTRACT_TERMS.fees.reactivation}$`, 
-      condition: "Après suspension pour non-paiement" 
+      condition: "Après expiration/non-renouvellement (service non payé au Bill Cycle)" 
     },
     { 
       name: "Frais de retard", 
-      amount: `${CONTRACT_TERMS.latePayment.feePercent}%`, 
-      condition: "Sur factures impayées après échéance" 
+      amount: `${CONTRACT_TERMS.nonRenewal.feePercent}%`, 
+      condition: "Sur factures impayées après date du Bill Cycle" 
     },
     { 
       name: "Installation standard", 
@@ -166,20 +166,49 @@ const FraisPossibles = () => {
               </Card>
             </section>
 
-            {/* Suspension et réactivation */}
+            {/* Cycle de facturation prépayé */}
             <section>
               <h2 className="text-2xl font-display font-bold text-foreground mb-4">
-                Suspension et réactivation
+                Cycle de facturation prépayé
               </h2>
+              <Card className="bg-cyan-500/10 border-cyan-500/30 mb-4">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-1" />
+                    <div>
+                      <h3 className="font-semibold text-foreground mb-2">Fonctionnement du Bill Cycle</h3>
+                      <ul className="space-y-2 text-sm">
+                        <li>
+                          <strong>Bill Cycle Day :</strong> Chaque compte a un jour de cycle (jour du mois défini à la création du compte).
+                        </li>
+                        <li>
+                          <strong>Facture émise :</strong> {CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle (J-5).
+                        </li>
+                        <li>
+                          <strong>Paiement requis :</strong> Avant la date du Bill Cycle (J0) pour renouveler le service.
+                        </li>
+                        <li>
+                          <strong>Si jour inexistant :</strong> Pour les jours 29-31, le système utilise le dernier jour du mois.
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               <Card className="bg-amber-500/10 border-amber-500/30">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-1" />
                     <div>
+                      <h3 className="font-semibold text-foreground mb-2">Non-renouvellement et réactivation</h3>
                       <ul className="space-y-2 text-sm">
                         <li>
-                          <strong>Suspension :</strong> Les services peuvent être suspendus après{" "}
-                          <strong>{CONTRACT_TERMS.latePayment.suspensionDays} jours</strong> de non-paiement.
+                          <strong>Non-renouvellement :</strong> Si le paiement n'est pas reçu au Bill Cycle (J0), 
+                          le service devient <strong>Expiré (non-renouvelé)</strong>.
+                        </li>
+                        <li>
+                          <strong>E-Transfer en vérification :</strong> Fenêtre de grâce de{" "}
+                          <strong>{CONTRACT_TERMS.billingCycle.etransferGraceHours} heures</strong> maximum au J0.
                         </li>
                         <li>
                           <strong>Réactivation :</strong> Frais de{" "}
@@ -187,7 +216,7 @@ const FraisPossibles = () => {
                         </li>
                         <li>
                           <strong>Frais de retard :</strong>{" "}
-                          <strong>{CONTRACT_TERMS.latePayment.feePercent}%</strong> sur le solde impayé.
+                          <strong>{CONTRACT_TERMS.nonRenewal.feePercent}%</strong> sur le solde impayé après Bill Cycle.
                         </li>
                       </ul>
                     </div>

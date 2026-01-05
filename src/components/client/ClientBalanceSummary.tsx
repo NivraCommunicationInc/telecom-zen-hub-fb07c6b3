@@ -38,7 +38,10 @@ interface UnpaidInvoice {
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "En attente", color: "bg-amber-500/20 text-amber-500", icon: Clock },
   issued: { label: "Émise", color: "bg-blue-500/20 text-blue-500", icon: FileText },
-  overdue: { label: "En retard", color: "bg-red-500/20 text-red-500", icon: AlertCircle },
+  overdue: { label: "Renouvellement dû", color: "bg-red-500/20 text-red-500", icon: AlertCircle },
+  renewal_due: { label: "Renouvellement dû", color: "bg-orange-500/20 text-orange-500", icon: Clock },
+  in_verification: { label: "En vérification", color: "bg-cyan-500/20 text-cyan-500", icon: Clock },
+  expired: { label: "Expiré", color: "bg-red-600/20 text-red-600", icon: AlertCircle },
   partial: { label: "Partielle", color: "bg-orange-500/20 text-orange-500", icon: Clock },
   paid: { label: "Payée", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
 };

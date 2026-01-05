@@ -48,16 +48,32 @@ export const CONTRACT_TERMS = {
     uberExpress: 45,
   },
   
-  // Late payment policy
-  latePayment: {
-    feePercent: 5, // 5% on overdue invoices
-    suspensionDays: 30, // suspend after 30 days past due
+  // Prepaid Billing Cycle Rules
+  billingCycle: {
+    invoiceGeneratedDaysBefore: 5, // Invoice issued J-5 (5 days before Bill Cycle date)
+    renewalAtBillCycle: true, // Service renews on Bill Cycle date if paid
+    etransferGraceHours: 24, // Grace window for e-transfer "in verification" at J0
+    defaultBillCycleDay: "account_creation_day", // Day of month from account creation
+    fallbackBillCycleDay: "activation_or_first_invoice", // If no creation date
+    billCycleDayClamp: true, // If month doesn't have day 29-31, use last day of month
+  },
+  
+  // Prepaid non-renewal (replaces suspension concept)
+  nonRenewal: {
+    feePercent: 5, // 5% late fee on overdue (unpaid at bill cycle)
+    effectAt: "bill_cycle", // Non-renewal at Bill Cycle date (J0) if unpaid
     reactivationFee: 15,
+    statusLabels: {
+      active: "Actif",
+      renewalDue: "Renouvellement dû",
+      inVerification: "En vérification",
+      expired: "Expiré (non-renouvelé)",
+    },
   },
   
   paymentTerms: {
-    dueDays: 30,
-    lateInterestRate: 5, // 5% on overdue
+    dueDays: 0, // Prepaid: payment due BEFORE Bill Cycle date
+    lateInterestRate: 5, // 5% on overdue (unpaid after Bill Cycle)
     currency: "CAD",
     acceptedMethods: ["Credit Card (processed internally)", "Secure E-Transfer"],
   },
@@ -237,20 +253,43 @@ FACTURATION PRÉPAYÉE ET ANNULATION
   `.trim(),
 };
 
-export const LATE_PAYMENT_POLICY = {
+export const PREPAID_BILLING_CYCLE = {
   en: `
-LATE PAYMENT & SUSPENSION RULES
+PREPAID BILLING CYCLE
 
-• Invoice overdue → late fee may apply (${CONTRACT_TERMS.latePayment.feePercent}%).
-• Service suspension after ${CONTRACT_TERMS.latePayment.suspensionDays} days past due.
-• Reactivation fee $${CONTRACT_TERMS.latePayment.reactivationFee} applies to restore suspended services.
+• Each account has a Bill Cycle Day (day of month for renewal).
+• Invoice is generated ${CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} days before Bill Cycle (J-5).
+• Payment must be received and confirmed BEFORE Bill Cycle date (J0) to renew service.
+• If not paid by Bill Cycle (J0), service is not renewed (Expired/Non-renewed).
+• E-Transfer in verification at J0: short grace window (${CONTRACT_TERMS.billingCycle.etransferGraceHours}h max) before expiration.
+• Reactivation fee $${CONTRACT_TERMS.nonRenewal.reactivationFee} applies to restore expired services.
   `.trim(),
   fr: `
-POLITIQUE DE PAIEMENT EN RETARD ET SUSPENSION
+CYCLE DE FACTURATION PRÉPAYÉ
 
-• Facture en retard → des frais de retard peuvent s'appliquer (${CONTRACT_TERMS.latePayment.feePercent}%).
-• Suspension du service après ${CONTRACT_TERMS.latePayment.suspensionDays} jours de retard.
-• Frais de réactivation de ${CONTRACT_TERMS.latePayment.reactivationFee}$ pour rétablir les services suspendus.
+• Chaque compte a un « Bill Cycle Day » (jour du mois pour le renouvellement).
+• La facture est émise ${CONTRACT_TERMS.billingCycle.invoiceGeneratedDaysBefore} jours avant le Bill Cycle (J-5).
+• Le paiement doit être reçu et confirmé AVANT la date du Bill Cycle (J0) pour renouveler le service.
+• Si non payé au Bill Cycle (J0), le service n'est pas renouvelé (Expiré/Non-renouvelé).
+• E-Transfer en vérification au J0 : fenêtre de grâce courte (${CONTRACT_TERMS.billingCycle.etransferGraceHours}h max) avant expiration.
+• Frais de réactivation de ${CONTRACT_TERMS.nonRenewal.reactivationFee}$ pour rétablir les services expirés.
+  `.trim(),
+};
+
+export const LATE_PAYMENT_POLICY = {
+  en: `
+LATE PAYMENT (PREPAID NON-RENEWAL)
+
+• Invoice overdue (unpaid at Bill Cycle) → late fee may apply (${CONTRACT_TERMS.nonRenewal.feePercent}%).
+• Service not renewed at Bill Cycle date if unpaid (prepaid non-renewal).
+• Reactivation fee $${CONTRACT_TERMS.nonRenewal.reactivationFee} applies to restore expired services.
+  `.trim(),
+  fr: `
+RETARD DE PAIEMENT (NON-RENOUVELLEMENT PRÉPAYÉ)
+
+• Facture impayée au Bill Cycle → des frais de retard peuvent s'appliquer (${CONTRACT_TERMS.nonRenewal.feePercent}%).
+• Service non renouvelé à la date du Bill Cycle si impayé (non-renouvellement prépayé).
+• Frais de réactivation de ${CONTRACT_TERMS.nonRenewal.reactivationFee}$ pour rétablir les services expirés.
   `.trim(),
 };
 
@@ -421,8 +460,8 @@ export const FEES_SUMMARY = {
   delivery: { amount: CONTRACT_TERMS.fees.delivery, description: "Delivery fee" },
   terminal: { amount: CONTRACT_TERMS.fees.tvTerminal, description: "Nivra 4K Smart Terminal (purchase)" },
   router: { amount: CONTRACT_TERMS.fees.router, description: "Nivra Born WiFi Router (purchase)" },
-  reactivation: { amount: CONTRACT_TERMS.fees.reactivation, description: "Reactivation fee (after suspension)" },
-  latePayment: { percent: CONTRACT_TERMS.latePayment.feePercent, description: "Late payment fee on overdue invoices" },
+  reactivation: { amount: CONTRACT_TERMS.fees.reactivation, description: "Reactivation fee (after expiration/non-renewal)" },
+  latePayment: { percent: CONTRACT_TERMS.nonRenewal.feePercent, description: "Late payment fee on overdue invoices (unpaid at Bill Cycle)" },
 };
 
 // Contract ID generator

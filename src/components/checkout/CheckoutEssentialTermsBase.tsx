@@ -98,13 +98,15 @@ export const CheckoutEssentialTermsBase = ({
   const isETransfer = paymentMethod === "etransfer";
 
   const essentialTerms = isFrench ? [
-    "Vous payez à l'avance par cycle (services prépayés). Le renouvellement est effectué uniquement si le paiement est reçu et confirmé.",
+    "Vous payez à l'avance par cycle (services prépayés). La facture est émise 5 jours avant votre Bill Cycle. Le paiement doit être confirmé AVANT le Bill Cycle pour renouveler le service.",
+    "Si le paiement n'est pas reçu au Bill Cycle (J0), le service devient Expiré (non-renouvelé). Frais de réactivation applicables.",
     "Le cycle en cours payé n'est pas remboursable (sauf disposition légale contraire ou erreur de facturation confirmée).",
     "Les délais d'installation/activation sont des estimations. Service fourni en « best effort » (interruptions possibles).",
     "Avis et factures transmis via le portail et/ou courriel.",
     "En cas d'erreur d'affichage (« Prix à confirmer »), le prix applicable est celui de la confirmation de commande et/ou de la facture."
   ] : [
-    "You pay in advance per cycle (prepaid services). Renewal occurs only when payment is received and confirmed.",
+    "You pay in advance per cycle (prepaid services). Invoice is issued 5 days before your Bill Cycle. Payment must be confirmed BEFORE Bill Cycle to renew service.",
+    "If payment is not received at Bill Cycle (J0), service becomes Expired (non-renewed). Reactivation fee applies.",
     "The current paid cycle is non-refundable (except where required by law or confirmed billing error).",
     "Installation/activation timelines are estimates. Service provided on a \"best effort\" basis (interruptions possible).",
     "Notices and invoices transmitted via portal and/or email.",
@@ -115,8 +117,8 @@ export const CheckoutEssentialTermsBase = ({
     {
       key: "prepaid" as keyof ChecklistState,
       label: isFrench 
-        ? "J'ai compris que les services sont prépayés et que le cycle en cours payé est non remboursable (sauf loi/erreur confirmée)."
-        : "I understand that services are prepaid and the current paid cycle is non-refundable (except by law/confirmed error).",
+        ? "J'ai compris que les services sont prépayés, que la facture est émise 5 jours avant le Bill Cycle, et que le paiement doit être confirmé AVANT le Bill Cycle pour renouveler."
+        : "I understand that services are prepaid, invoice is issued 5 days before Bill Cycle, and payment must be confirmed BEFORE Bill Cycle to renew.",
       required: true
     },
     {
