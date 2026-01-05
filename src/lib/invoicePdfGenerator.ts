@@ -152,24 +152,27 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
 
   // ========================================================================
   // CLIENT ACCOUNT NUMBER - Robust fallback chain
+  // Priority: clientNumber → clientAccountNumber → orderClientAccountNumber → N/A
   // ========================================================================
   const resolveClientAccountNumber = (): string => {
-    // Fallback order: clientNumber → clientAccountNumber → orderClientAccountNumber → N/A
-    if (data.clientNumber && data.clientNumber.trim() !== "") {
-      return data.clientNumber;
-    }
-    if (data.clientAccountNumber && data.clientAccountNumber.trim() !== "") {
-      return data.clientAccountNumber;
-    }
-    if (data.orderClientAccountNumber && data.orderClientAccountNumber.trim() !== "") {
-      return data.orderClientAccountNumber;
+    const candidates = [
+      data.clientNumber,
+      data.clientAccountNumber,
+      data.orderClientAccountNumber,
+    ];
+    
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === 'string' && candidate.trim() !== '' && candidate.trim().toUpperCase() !== 'N/A') {
+        return candidate.trim();
+      }
     }
     
-    // Log error for missing account number
-    console.error("[Invoice PDF] Missing client account number - displaying N/A", {
+    // Log error for missing account number - this indicates a data flow issue
+    console.error("[Invoice PDF] MISSING client account number - check data source", {
       invoiceNumber: data.invoiceNumber,
       clientEmail: data.clientEmail,
       clientName: data.clientName,
+      providedValues: { clientNumber: data.clientNumber, clientAccountNumber: data.clientAccountNumber, orderClientAccountNumber: data.orderClientAccountNumber },
     });
     
     return "N/A";
