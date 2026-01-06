@@ -667,6 +667,126 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir mes contrats / View contracts", config.supportEmail, config.supportPhone),
   },
+
+  // =============================================
+  // CANCELLATION TEMPLATES
+  // =============================================
+
+  // CANCELLATION RECEIVED
+  cancellation_received: {
+    subject: "Nivra — Demande d'annulation reçue (#{{request_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📋', 'Demande reçue', 'Request received',
+        'Nous avons bien reçu votre demande d\'annulation de service.',
+        'We have received your service cancellation request.'
+      )}
+      ${detailsCard([
+        { label: 'Nº demande / Request #', value: vars.request_number || 'N/A' },
+        { label: 'Service', value: vars.service_type || 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Notre équipe examinera votre demande dans les plus brefs délais.<br>
+        <em style="color:${emailStyles.textMuted};">Our team will review your request as soon as possible.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Suivre ma demande / Track request", config.supportEmail, config.supportPhone),
+  },
+
+  // CANCELLATION SCHEDULED
+  cancellation_scheduled: {
+    subject: "Nivra — Annulation planifiée (#{{request_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '📅', 'Annulation planifiée', 'Cancellation scheduled',
+        'Votre demande d\'annulation a été approuvée et planifiée.',
+        'Your cancellation request has been approved and scheduled.'
+      )}
+      ${detailsCard([
+        { label: 'Nº demande / Request #', value: vars.request_number || 'N/A' },
+        { label: 'Service', value: vars.service_type || 'N/A' },
+        { label: 'Date effective / Effective date', value: vars.effective_date ? formatDate(vars.effective_date) : 'À confirmer / TBD' },
+      ])}
+      ${vars.public_message ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#fafafa; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.accent};">
+              <p style="margin:0; font-size:14px; color:${emailStyles.textSecondary};">
+                ${vars.public_message}
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Votre service restera actif jusqu'à la date effective.<br>
+        <em style="color:${emailStyles.textMuted};">Your service will remain active until the effective date.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Voir les détails / View details", config.supportEmail, config.supportPhone),
+  },
+
+  // CANCELLATION COMPLETED
+  cancellation_completed: {
+    subject: "Nivra — Annulation complétée (#{{request_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Annulation complétée', 'Cancellation completed',
+        'Votre annulation de service est maintenant complétée.',
+        'Your service cancellation is now complete.'
+      )}
+      ${detailsCard([
+        { label: 'Nº demande / Request #', value: vars.request_number || 'N/A' },
+        { label: 'Service', value: vars.service_type || 'N/A' },
+        { label: 'Date d\'annulation / Cancellation date', value: vars.effective_date ? formatDate(vars.effective_date) : formatDate(new Date().toISOString()) },
+      ])}
+      ${vars.public_message ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#fafafa; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.accent};">
+              <p style="margin:0; font-size:14px; color:${emailStyles.textSecondary};">
+                ${vars.public_message}
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci d'avoir été client chez Nivra. Nous serons heureux de vous accueillir à nouveau.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for being a Nivra customer. We'd be happy to welcome you back.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal"), "Retour au portail / Back to portal", config.supportEmail, config.supportPhone),
+  },
+
+  // CANCELLATION DECLINED
+  cancellation_declined: {
+    subject: "Nivra — Demande d'annulation refusée (#{{request_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Demande refusée', 'Request declined',
+        'Votre demande d\'annulation n\'a pas pu être approuvée.',
+        'Your cancellation request could not be approved.'
+      )}
+      ${detailsCard([
+        { label: 'Nº demande / Request #', value: vars.request_number || 'N/A' },
+        { label: 'Service', value: vars.service_type || 'N/A' },
+        ...(vars.decline_reason ? [{ label: 'Raison / Reason', value: vars.decline_reason }] : []),
+      ])}
+      ${vars.public_message ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#fafafa; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.accent};">
+              <p style="margin:0; font-size:14px; color:${emailStyles.textSecondary};">
+                ${vars.public_message}
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour toute question, contactez notre équipe de support.<br>
+        <em style="color:${emailStyles.textMuted};">For any questions, please contact our support team.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+  },
 };
 
 // =============================================
@@ -833,6 +953,7 @@ Deno.serve(async (req) => {
         if (vars.invoice_number) subject = subject.replace('{{invoice_number}}', vars.invoice_number);
         if (vars.ticket_number) subject = subject.replace('{{ticket_number}}', vars.ticket_number);
         if (vars.contract_number) subject = subject.replace('{{contract_number}}', vars.contract_number);
+        if (vars.request_number) subject = subject.replace('{{request_number}}', vars.request_number);
 
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
