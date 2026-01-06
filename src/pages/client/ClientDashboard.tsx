@@ -5,7 +5,8 @@ import { Link } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
 import { portalSupabase } from "@/integrations/supabase/portalClient";
-import { Calendar, FileText, Package, MessageSquare, CreditCard, ArrowRight } from "lucide-react";
+import { Calendar, FileText, Package, MessageSquare, CreditCard, ArrowRight, Tv } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import TVOrderStatusTracker from "@/components/client/TVOrderStatusTracker";
@@ -85,6 +86,21 @@ const ClientDashboard = () => {
         .select("*")
         .eq("user_id", user?.id)
         .eq("status", "active");
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch streaming subscriptions
+  const { data: streamingSubscriptions } = useQuery({
+    queryKey: ["client-streaming-subscriptions", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await portalSupabase
+        .from("client_streaming_subscriptions")
+        .select("*, streaming_services(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!user?.id,
@@ -312,6 +328,52 @@ const ClientDashboard = () => {
                 </div>
               ) : (
                 <p className="text-muted-foreground text-center py-4">Aucun abonnement actif</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Streaming Subscriptions */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Tv className="w-5 h-5 text-purple-400" />
+                Mes abonnements Streaming
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {streamingSubscriptions && streamingSubscriptions.length > 0 ? (
+                <div className="space-y-3">
+                  {streamingSubscriptions.map((sub: any) => {
+                    const statusColors: Record<string, string> = {
+                      active: "bg-emerald-500/20 text-emerald-500",
+                      paused: "bg-amber-500/20 text-amber-500",
+                      cancelled: "bg-red-500/20 text-red-500",
+                      suspended: "bg-red-500/20 text-red-500",
+                    };
+                    const statusLabels: Record<string, string> = {
+                      active: "Actif",
+                      paused: "En pause",
+                      cancelled: "Annulé",
+                      suspended: "Suspendu",
+                    };
+                    return (
+                      <div key={sub.id} className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-foreground">{sub.streaming_services?.name || "Service Streaming"}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {sub.monthly_price ? `${Number(sub.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois` : "—"}
+                            {sub.start_date && ` • Depuis ${format(new Date(sub.start_date), "d MMM yyyy", { locale: fr })}`}
+                          </p>
+                        </div>
+                        <Badge className={statusColors[sub.status] || statusColors.active}>
+                          {statusLabels[sub.status] || sub.status}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Aucun abonnement streaming actif.</p>
               )}
             </CardContent>
           </Card>
