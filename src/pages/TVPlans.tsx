@@ -278,7 +278,7 @@ const TVPlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background overflow-hidden" data-testid="tv-plans-page">
       <Header />
       
       <main className="pt-24 pb-20 relative">
