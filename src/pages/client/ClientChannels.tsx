@@ -32,6 +32,9 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
+import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
+import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 
 interface Channel {
   id: string;
@@ -76,6 +79,7 @@ interface TVOrder {
 
 const ClientChannels = () => {
   const { user } = useClientAuth();
+  const { isAccountBlocked } = useClientBlockStatus();
   const queryClient = useQueryClient();
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<ChannelPackage[]>([]);

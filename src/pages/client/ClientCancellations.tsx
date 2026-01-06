@@ -32,6 +32,9 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
+import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
+import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
+import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 
 type ServiceType = "mobile" | "internet" | "tv" | "security" | "streaming" | "bundle";
 type ReasonCode = "price" | "moving" | "not_needed" | "service_issue" | "billing_issue" | "other";
@@ -67,6 +70,7 @@ const statusConfig: Record<CancellationStatus, { label: string; color: string; i
 
 const ClientCancellations = () => {
   const { user } = useClientAuth();
+  const { isAccountBlocked } = useClientBlockStatus();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = usePortalActivityLog();
