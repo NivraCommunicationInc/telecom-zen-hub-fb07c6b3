@@ -69,6 +69,7 @@ import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
 import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacement";
 import ClientCancellations from "./pages/client/ClientCancellations";
+import ClientAccessBlocked from "./pages/client/ClientAccessBlocked";
 import ClientMonthlyInvoices from "./pages/client/ClientMonthlyInvoices";
 import AdminReplacements from "./pages/admin/AdminReplacements";
 import AdminCancellations from "./pages/admin/AdminCancellations";
@@ -174,6 +175,7 @@ const App = () => (
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
+            <Route path="/portal/access-blocked" element={<ClientAuthProvider><ClientProtectedRoute allowBlocked><ClientAccessBlocked /></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDashboard /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/appointments" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientAppointments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/orders" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientOrders /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />

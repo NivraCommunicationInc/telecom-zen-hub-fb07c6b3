@@ -42,6 +42,7 @@ import { downloadInvoicePDF, viewInvoicePDF, downloadContractPDF, viewContractPD
 import { AdminPinManagementCard } from "@/components/admin/AdminPinManagementCard";
 import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
+import AccountBlockingControls from "@/components/admin/AccountBlockingControls";
 import BackToTopButton from "@/components/ui/back-to-top-button";
 import { useAuth } from "@/hooks/useAuth";
 import ClientLogsTab from "@/components/admin/ClientLogsTab";
@@ -1235,6 +1236,32 @@ const AdminClients = () => {
                           }));
                         }
                         // Also refetch the full list to ensure cache is updated
+                        refetchClients();
+                      }}
+                    />
+
+                    {/* Account Blocking Controls */}
+                    <AccountBlockingControls
+                      clientId={selectedClient.user_id}
+                      clientEmail={selectedClient.email}
+                      accountStatus={selectedClient.account_status || "active"}
+                      onlineAccessStatus={selectedClient.online_access_status || "active"}
+                      blockedReason={selectedClient.blocked_reason}
+                      blockedAt={selectedClient.blocked_at}
+                      blockedBy={selectedClient.blocked_by}
+                      blockedByRole={selectedClient.blocked_by_role}
+                      onUpdate={(updatedProfile) => {
+                        if (updatedProfile) {
+                          setSelectedClient((prev: any) => ({
+                            ...prev,
+                            account_status: updatedProfile.account_status,
+                            online_access_status: updatedProfile.online_access_status,
+                            blocked_reason: updatedProfile.blocked_reason,
+                            blocked_at: updatedProfile.blocked_at,
+                            blocked_by: updatedProfile.blocked_by,
+                            blocked_by_role: updatedProfile.blocked_by_role,
+                          }));
+                        }
                         refetchClients();
                       }}
                     />

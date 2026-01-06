@@ -21,6 +21,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { PortalSystemStatusBanner } from "@/components/client/PortalSystemStatusBanner";
 import { PortalNotificationBell } from "@/components/client/PortalNotificationBell";
+import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -61,6 +62,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     <div className="min-h-screen bg-background flex flex-col">
       {/* System Status Banner */}
       <PortalSystemStatusBanner userType="client" />
+      
+      {/* Account Blocked Banner */}
+      <AccountBlockedBanner />
       
       <div className="flex-1 relative">
       {/* Mobile Header */}

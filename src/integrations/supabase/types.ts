@@ -2598,6 +2598,10 @@ export type Database = {
         Row: {
           account_status: string | null
           balance: number | null
+          blocked_at: string | null
+          blocked_by: string | null
+          blocked_by_role: string | null
+          blocked_reason: string | null
           client_number: string | null
           client_pin: string | null
           client_pin_hash: string | null
@@ -2617,6 +2621,7 @@ export type Database = {
           internal_notes: string | null
           last_auth_check_at: string | null
           last_name: string | null
+          online_access_status: string | null
           phone: string | null
           pin_failed_attempts: number | null
           pin_is_default: boolean | null
@@ -2639,6 +2644,10 @@ export type Database = {
         Insert: {
           account_status?: string | null
           balance?: number | null
+          blocked_at?: string | null
+          blocked_by?: string | null
+          blocked_by_role?: string | null
+          blocked_reason?: string | null
           client_number?: string | null
           client_pin?: string | null
           client_pin_hash?: string | null
@@ -2658,6 +2667,7 @@ export type Database = {
           internal_notes?: string | null
           last_auth_check_at?: string | null
           last_name?: string | null
+          online_access_status?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
           pin_is_default?: boolean | null
@@ -2680,6 +2690,10 @@ export type Database = {
         Update: {
           account_status?: string | null
           balance?: number | null
+          blocked_at?: string | null
+          blocked_by?: string | null
+          blocked_by_role?: string | null
+          blocked_reason?: string | null
           client_number?: string | null
           client_pin?: string | null
           client_pin_hash?: string | null
@@ -2699,6 +2713,7 @@ export type Database = {
           internal_notes?: string | null
           last_auth_check_at?: string | null
           last_name?: string | null
+          online_access_status?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
           pin_is_default?: boolean | null

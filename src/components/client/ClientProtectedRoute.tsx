@@ -8,17 +8,20 @@ import { toast } from "sonner";
 
 interface ClientProtectedRouteProps {
   children: ReactNode;
+  /** If true, allows access even when online_access_status is blocked (for access-blocked page) */
+  allowBlocked?: boolean;
 }
 
 const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
+const ClientProtectedRoute = ({ children, allowBlocked = false }: ClientProtectedRouteProps) => {
   const { user, session, signOut, isLoading } = useClientAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isOnlineBlocked, setIsOnlineBlocked] = useState(false);
   const lastAuthCheck = useRef<number>(0);
 
   // Handle idle timeout - auto logout after 5 minutes of inactivity
@@ -135,6 +138,23 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
           return;
         }
 
+        // SECURITY: Check online_access_status from profiles (if not allowBlocked)
+        if (!allowBlocked) {
+          const { data: profileData } = await portalSupabase
+            .from("profiles")
+            .select("online_access_status")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (profileData?.online_access_status === "blocked") {
+            console.warn("[ClientProtectedRoute] Online access blocked for user");
+            setIsOnlineBlocked(true);
+            setIsVerifying(false);
+            navigate("/portal/access-blocked", { replace: true });
+            return;
+          }
+        }
+
         // SECURITY: Block admin-only access from client portal
         if (roleData?.role === "admin") {
           // Admin shouldn't be using client portal but allow it
@@ -154,7 +174,7 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
     if (!isLoading) {
       verifySession();
     }
-  }, [user, session, isLoading, signOut, navigate, location.pathname]);
+  }, [user, session, isLoading, signOut, navigate, location.pathname, allowBlocked]);
 
   // Clear session storage on sign out
   useEffect(() => {
