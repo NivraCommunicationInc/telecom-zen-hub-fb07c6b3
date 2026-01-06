@@ -54,6 +54,9 @@ import { StreamingCatalogItem } from "@/hooks/usePortalStreamingCatalog";
 import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone, CheckoutEssentialTerms } from "@/components/checkout";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
+import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
+import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
+import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 
 // Channel interface
 interface Channel {
@@ -194,6 +197,7 @@ const ClientTVOrder = () => {
   const queryClient = useQueryClient();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  const { isAccountBlocked } = useClientBlockStatus();
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
@@ -772,10 +776,18 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Prevent double-click race condition with synchronous guard
     if (submittingRef.current) return;
     submittingRef.current = true;
+    
+    // SERVER-SIDE: Check if account is blocked before proceeding
+    const blockCheck = await checkAccountBlockedForAction(user?.id || "");
+    if (!blockCheck.allowed) {
+      submittingRef.current = false;
+      toast.error(blockCheck.errorMessage);
+      return;
+    }
     
     if (!selectedPlan) {
       submittingRef.current = false;
@@ -1567,13 +1579,14 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
 
               {/* Navigation */}
               <div className="flex flex-col gap-2">
-                <Button 
-                  variant="hero" 
-                  size="lg" 
-                  className="w-full"
-                  onClick={handleSubmit}
-                  disabled={createOrderMutation.isPending || !routerAcknowledged || !essentialTermsAcknowledged || !validateIDData(clientIdData, false).valid || !termsAccepted || !selectedDate || !selectedTime}
-                >
+                <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
+                  <Button 
+                    variant="hero" 
+                    size="lg" 
+                    className="w-full"
+                    onClick={handleSubmit}
+                    disabled={isAccountBlocked || createOrderMutation.isPending || !routerAcknowledged || !essentialTermsAcknowledged || !validateIDData(clientIdData, false).valid || !termsAccepted || !selectedDate || !selectedTime}
+                  >
                   {createOrderMutation.isPending ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
@@ -1583,6 +1596,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                     </>
                   )}
                 </Button>
+                </BlockedActionWrapper>
                 <Button variant="outline" onClick={() => setStep(3)}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {isFrench ? "Retour" : "Back"}

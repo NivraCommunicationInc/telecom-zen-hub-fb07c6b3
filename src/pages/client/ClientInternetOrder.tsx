@@ -59,6 +59,9 @@ import {
 } from "@/components/checkout";
 import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSection";
 import { hashPin } from "@/lib/pinUtils";
+import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
+import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
+import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -141,6 +144,7 @@ const ClientInternetOrder = () => {
   const queryClient = useQueryClient();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  const { isAccountBlocked } = useClientBlockStatus();
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
@@ -567,10 +571,18 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Prevent double-click race condition with synchronous guard
     if (submittingRef.current) return;
     submittingRef.current = true;
+    
+    // SERVER-SIDE: Check if account is blocked before proceeding
+    const blockCheck = await checkAccountBlockedForAction(user?.id || "");
+    if (!blockCheck.allowed) {
+      submittingRef.current = false;
+      toast.error(blockCheck.errorMessage);
+      return;
+    }
     
     if (!selectedPlan) {
       submittingRef.current = false;
@@ -1333,12 +1345,13 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {isFrench ? "Retour" : "Back"}
               </Button>
-              <Button 
-                variant="hero" 
-                size="lg" 
-                onClick={handleSubmit}
-                disabled={!termsAccepted || createOrderMutation.isPending}
-              >
+              <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
+                <Button 
+                  variant="hero" 
+                  size="lg" 
+                  onClick={handleSubmit}
+                  disabled={isAccountBlocked || !termsAccepted || createOrderMutation.isPending}
+                >
                 {createOrderMutation.isPending ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                 ) : (

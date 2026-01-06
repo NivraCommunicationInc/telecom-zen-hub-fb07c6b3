@@ -58,6 +58,9 @@ import { useNavigate } from "react-router-dom";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
+import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
+import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
+import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 
 interface Service {
   id: string;
@@ -472,6 +475,7 @@ const ClientNewOrder = () => {
   const { isClient } = usePortalRoleAccess();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isAccountBlocked } = useClientBlockStatus();
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
@@ -1923,10 +1927,18 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     toast.success(`Paiement E-Transfer confirmé! Référence: ${etransferConfirmationNumber}`);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Prevent double-click race condition with synchronous guard
     if (submittingRef.current) return;
     submittingRef.current = true;
+    
+    // SERVER-SIDE: Check if account is blocked before proceeding
+    const blockCheck = await checkAccountBlockedForAction(user?.id || "");
+    if (!blockCheck.allowed) {
+      submittingRef.current = false;
+      toast.error(blockCheck.errorMessage);
+      return;
+    }
     
     if (selectedServices.length === 0) {
       submittingRef.current = false;
@@ -4587,15 +4599,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   )}
 
                   <div className="pt-4 space-y-3">
-                    <Button
-                      variant="hero"
-                      className="w-full"
-                      size="lg"
-                      onClick={handleSubmit}
-                      disabled={createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}
-                    >
-                      {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
-                    </Button>
+                    <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
+                      <Button
+                        variant="hero"
+                        className="w-full"
+                        size="lg"
+                        onClick={handleSubmit}
+                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}
+                      >
+                        {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
+                      </Button>
+                    </BlockedActionWrapper>
                     <Button
                       variant="outline"
                       className="w-full"
