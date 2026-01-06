@@ -141,6 +141,9 @@ const ClientInternetOrder = () => {
   const queryClient = useQueryClient();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  
+  // Idempotency key: generated once per checkout session to prevent duplicate orders
+  const [clientRequestId] = useState(() => crypto.randomUUID());
 
   // Get pre-validated data from navigation state
   const locationState = location.state as LocationState | null;
@@ -437,8 +440,9 @@ const ClientInternetOrder = () => {
         ],
       });
 
-      // Create the order with payment status, phone, and structured line_items
-      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
+      // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
+      const { data: orderData, error: orderError } = await supabase.from("orders").upsert({
+        client_request_id: clientRequestId,
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
         service_type: selectedPlan.name,
@@ -470,42 +474,50 @@ ${notes || ""}`.trim(),
         internal_notes: `Router: Nivra Born Wifi ($60 paid upfront)
 Payment: ${JSON.stringify(paymentInfo)}
 Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
+      } as any, {
+        onConflict: 'user_id,client_request_id',
+        ignoreDuplicates: false,
       }).select().single();
 
       if (orderError) throw orderError;
       if (!orderData) throw new Error("Order creation failed - no data returned");
 
+      // Post-order steps wrapped in try-catch to not block order success
       // AUTO-CREATE APPOINTMENT for Internet orders
       if (selectedDate && selectedTime) {
-        const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
-        
-        const appointmentResult = await createAppointmentFromOrder({
-          orderId: orderData.id,
-          orderNumber: orderData.order_number,
-          userId: user.id,
-          clientEmail: clientIdData.email || profile?.email || user.email || "",
-          clientPhone: clientIdData.phone || profile?.phone || "",
-          clientName: `${clientIdData.firstName} ${clientIdData.lastName}`,
-          serviceType: selectedPlan.name,
-          category: "Internet",
-          serviceAddress: address,
-          serviceCity: addressValidation?.city || "",
-          servicePostalCode: addressValidation?.postalCode || "",
-          scheduledDate: selectedDate,
-          scheduledTime: selectedTime,
-          installationMethod: installationMethod,
-          deliveryFee: installationMethod === "auto" ? 30 : 0,
-          installationFee: installationMethod === "technician" ? 50 : 0,
-          equipmentDetails: [
-            { type: "router", name: "Nivra Born Wifi", fee: 60 }
-          ],
-          notes: notes || "",
-        });
+        try {
+          const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+          
+          const appointmentResult = await createAppointmentFromOrder({
+            orderId: orderData.id,
+            orderNumber: orderData.order_number,
+            userId: user.id,
+            clientEmail: clientIdData.email || profile?.email || user.email || "",
+            clientPhone: clientIdData.phone || profile?.phone || "",
+            clientName: `${clientIdData.firstName} ${clientIdData.lastName}`,
+            serviceType: selectedPlan.name,
+            category: "Internet",
+            serviceAddress: address,
+            serviceCity: addressValidation?.city || "",
+            servicePostalCode: addressValidation?.postalCode || "",
+            scheduledDate: selectedDate,
+            scheduledTime: selectedTime,
+            installationMethod: installationMethod,
+            deliveryFee: installationMethod === "auto" ? 30 : 0,
+            installationFee: installationMethod === "technician" ? 50 : 0,
+            equipmentDetails: [
+              { type: "router", name: "Nivra Born Wifi", fee: 60 }
+            ],
+            notes: notes || "",
+          });
 
-        if (!appointmentResult.success) {
-          console.error("Appointment creation failed:", appointmentResult.error);
-        } else {
-          console.log("Appointment created:", appointmentResult.appointment?.appointment_number);
+          if (!appointmentResult.success) {
+            console.error("Appointment creation failed:", appointmentResult.error);
+          } else {
+            console.log("Appointment created:", appointmentResult.appointment?.appointment_number);
+          }
+        } catch (apptErr) {
+          console.error("Appointment step failed:", apptErr);
         }
       }
 

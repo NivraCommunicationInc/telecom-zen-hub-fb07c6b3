@@ -473,6 +473,9 @@ const ClientNewOrder = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
+  // Idempotency key: generated once per checkout session to prevent duplicate orders
+  const [clientRequestId] = useState(() => crypto.randomUUID());
+  
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
   const isInitialMount = useRef(true);
@@ -1295,7 +1298,9 @@ const ClientNewOrder = () => {
         discounts: discountsForLineItems,
       });
 
-      const { data, error } = await supabase.from("orders").insert({
+      // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
+      const { data, error } = await supabase.from("orders").upsert({
+        client_request_id: clientRequestId,
         user_id: user.id,
         client_email: profile?.email || user.email,
         // Client identity fields for profile sync trigger
@@ -1344,101 +1349,126 @@ const ClientNewOrder = () => {
         preauth_card_id: savedPaymentMethodId,
         port_request: portRequestData,
         identity_snapshot: identitySnapshotData,
-      } as any).select().single();
+      } as any, {
+        onConflict: 'user_id,client_request_id',
+        ignoreDuplicates: false,
+      }).select().single();
 
       if (error) throw error;
       
       // Note: Profile sync is now handled by database trigger (trg_sync_order_to_profile)
       // This ensures fill-missing-only logic is applied at the database level
 
-      // Generate NIVRA payment reference
-      const year = new Date().getFullYear();
-      const random = Math.floor(10000 + Math.random() * 90000);
-      const nivraPaymentRef = `NIVRA-PAY-QC-${year}-${random}`;
+      // Post-order steps: payment, billing, tickets, appointments
+      // These are wrapped in try-catch so that order success is not blocked by post-step failures
+      let nivraPaymentRef = '';
+      const postStepErrors: string[] = [];
 
-      // Create payment record with pending/pre-authorized status
-      const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
-      const { error: paymentError } = await supabase.from("payments").insert({
-        user_id: user.id,
-        amount: totalAmount,
-        payment_method: paymentMethod === "credit_card" ? "credit_card" : "etransfer",
-        reference_number: paymentRef,
-        payment_reference: nivraPaymentRef,
-        status: "pending",
-        card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
-        card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-        etransfer_amount: paymentMethod === "etransfer" ? totalAmount : null,
-        etransfer_sender_name: paymentMethod === "etransfer" ? etransferSenderName : null,
-        notes: `Pré-autorisation pour commande ${data.order_number} - En attente de validation admin`,
-      });
+      try {
+        // Generate NIVRA payment reference
+        const year = new Date().getFullYear();
+        const random = Math.floor(10000 + Math.random() * 90000);
+        nivraPaymentRef = `NIVRA-PAY-QC-${year}-${random}`;
 
-      if (paymentError) throw paymentError;
+        // Create payment record with pending/pre-authorized status
+        const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
+        const { error: paymentError } = await supabase.from("payments").insert({
+          user_id: user.id,
+          amount: totalAmount,
+          payment_method: paymentMethod === "credit_card" ? "credit_card" : "etransfer",
+          reference_number: paymentRef,
+          payment_reference: nivraPaymentRef,
+          status: "pending",
+          card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
+          card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
+          etransfer_amount: paymentMethod === "etransfer" ? totalAmount : null,
+          etransfer_sender_name: paymentMethod === "etransfer" ? etransferSenderName : null,
+          notes: `Pré-autorisation pour commande ${data.order_number} - En attente de validation admin`,
+        });
 
-      // Update order with payment reference
-      await supabase.from("orders").update({
-        payment_reference: nivraPaymentRef,
-      }).eq("id", data.id);
+        if (paymentError) {
+          console.error("Payment record error:", paymentError);
+          postStepErrors.push("payment");
+        } else {
+          // Update order with payment reference
+          await supabase.from("orders").update({
+            payment_reference: nivraPaymentRef,
+          }).eq("id", data.id);
+        }
+      } catch (paymentErr) {
+        console.error("Payment step failed:", paymentErr);
+        postStepErrors.push("payment");
+      }
 
-      // Create billing/invoice record for client portal
-      const invoiceEquipmentSubtotal = 
-        (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
-        ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-        (hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0);
-      const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
-      
-      // Calculate invoice delivery fee based on order type
-      const invoiceDeliveryFee = isDeliveryOnlyOrder 
-        ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
-           deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee :
-           DELIVERY_CONFIG.standard.fee)
-        : (installationChoice === "auto" ? 30 : 0);
-      
-      // For equipment-only orders, no activation fee on invoice
-      const invoiceActivationFee = isEquipmentOnlyOrder ? 0 : 25;
-      const invoiceInstallationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
-      const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
-      const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
-      const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
-      
-      // Prepare delivery type note
-      const deliveryTypeNote = isDeliveryOnlyOrder 
-        ? `\nType de livraison: ${deliveryChoice === "uber" ? "Express Uber (10h)" : 
-           deliveryChoice === "shipHome" ? "Expédition à domicile (3-5 jours)" :
-           "Standard (24-78h)"}`
-        : '';
-      
-      const { error: billingError } = await supabase.from("billing").insert({
-        user_id: user.id,
-        client_email: profile?.email || user.email,
-        order_id: data.id,
-        related_order_number: data.order_number,
-        payment_reference: nivraPaymentRef,
-        amount: totalAmount,
-        subtotal: invoiceSubtotal,
-        delivery_fee: invoiceDeliveryFee,
-        activation_fee: invoiceActivationFee,
-        installation_fee: invoiceInstallationFee,
-        discount_amount: appliedPromo?.discount_amount || 0,
-        tps_amount: invoiceTps,
-        tvq_amount: invoiceTvq,
-        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? `SIM-${totalMobileLineQuantity}x` : null)),
-        status: "pending",
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}` +
-          (appliedPromo ? `\nCode promo: ${appliedPromo.code} — Rabais: ${appliedPromo.discount_amount.toFixed(2)}$` : ''),
-        preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-        preauth_discount_applied: acceptPreauthorized,
-      });
+      try {
+        // Create billing/invoice record for client portal
+        const invoiceEquipmentSubtotal = 
+          (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
+          ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
+          (hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0);
+        const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
+        
+        // Calculate invoice delivery fee based on order type
+        const invoiceDeliveryFee = isDeliveryOnlyOrder 
+          ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
+             deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee :
+             DELIVERY_CONFIG.standard.fee)
+          : (installationChoice === "auto" ? 30 : 0);
+        
+        // For equipment-only orders, no activation fee on invoice
+        const invoiceActivationFee = isEquipmentOnlyOrder ? 0 : 25;
+        const invoiceInstallationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
+        const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
+        const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
+        const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
+        
+        // Prepare delivery type note
+        const deliveryTypeNote = isDeliveryOnlyOrder 
+          ? `\nType de livraison: ${deliveryChoice === "uber" ? "Express Uber (10h)" : 
+             deliveryChoice === "shipHome" ? "Expédition à domicile (3-5 jours)" :
+             "Standard (24-78h)"}`
+          : '';
+        
+        const { error: billingError } = await supabase.from("billing").insert({
+          user_id: user.id,
+          client_email: profile?.email || user.email,
+          order_id: data.id,
+          related_order_number: data.order_number,
+          payment_reference: nivraPaymentRef,
+          amount: totalAmount,
+          subtotal: invoiceSubtotal,
+          delivery_fee: invoiceDeliveryFee,
+          activation_fee: invoiceActivationFee,
+          installation_fee: invoiceInstallationFee,
+          discount_amount: appliedPromo?.discount_amount || 0,
+          tps_amount: invoiceTps,
+          tvq_amount: invoiceTvq,
+          equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? `SIM-${totalMobileLineQuantity}x` : null)),
+          status: "pending",
+          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}` +
+            (appliedPromo ? `\nCode promo: ${appliedPromo.code} — Rabais: ${appliedPromo.discount_amount.toFixed(2)}$` : ''),
+          preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+          preauth_discount_applied: acceptPreauthorized,
+        });
 
-      if (billingError) throw billingError;
+        if (billingError) {
+          console.error("Billing record error:", billingError);
+          postStepErrors.push("billing");
+        }
+      } catch (billingErr) {
+        console.error("Billing step failed:", billingErr);
+        postStepErrors.push("billing");
+      }
 
       // Create support ticket for TV channel configuration if TV service is included
       if (hasTVService && channelData.length > 0) {
-        const baseChannelsList = baseChannels.map(ch => ch.name).join(', ');
-        const freeChannelsList = selectedFreeChannels.map(ch => ch.name).join(', ') || 'Aucune';
-        const paidChannelsList = selectedPaidChannels.map(ch => `${ch.name} ($${ch.price}/mois)`).join(', ') || 'Aucune';
+        try {
+          const baseChannelsList = baseChannels.map(ch => ch.name).join(', ');
+          const freeChannelsList = selectedFreeChannels.map(ch => ch.name).join(', ') || 'Aucune';
+          const paidChannelsList = selectedPaidChannels.map(ch => `${ch.name} ($${ch.price}/mois)`).join(', ') || 'Aucune';
 
-        const ticketDescription = `
+          const ticketDescription = `
 **Nouvelle commande TV - Configuration des chaînes requise**
 
 **Client:** ${profile?.full_name || user?.email}
@@ -1457,16 +1487,20 @@ ${paidChannelsList}
 **Délai estimé:** 2 à 24 heures
 
 Veuillez confirmer les chaînes et procéder à l'activation du service.
-        `.trim();
+          `.trim();
 
-        await supabase.from("support_tickets").insert({
-          user_id: user.id,
-          client_email: profile?.email || user.email,
-          subject: `Configuration TV - Commande ${data.order_number}`,
-          description: ticketDescription,
-          priority: "high",
-          status: "open",
-        });
+          await supabase.from("support_tickets").insert({
+            user_id: user.id,
+            client_email: profile?.email || user.email,
+            subject: `Configuration TV - Commande ${data.order_number}`,
+            description: ticketDescription,
+            priority: "high",
+            status: "open",
+          });
+        } catch (ticketErr) {
+          console.error("TV ticket creation failed:", ticketErr);
+          postStepErrors.push("ticket");
+        }
       }
 
       // AUTO-CREATE APPOINTMENT for orders requiring installation (Internet/TV/Security)
@@ -1476,48 +1510,56 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       const shouldCreateAppointment = requiresInstallationService && hasScheduledSlot;
       
       if (shouldCreateAppointment) {
-        const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
-        
-        const equipmentDetails = [];
-        if (hasInternetService || hasTVService) {
-          equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG.price });
-        }
-        if (hasTVService) {
-          equipmentDetails.push({ type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalQuantity, fee: terminalQuantity * TERMINAL_CONFIG.price });
-        }
-        
-        const appointmentResult = await createAppointmentFromOrder({
-          orderId: data.id,
-          orderNumber: data.order_number,
-          userId: user.id,
-          clientEmail: profile?.email || user.email || "",
-          clientPhone: profile?.phone || "",
-          clientName: profile?.full_name || user.email?.split("@")[0] || "",
-          serviceType: serviceNames,
-          category: categories,
-          serviceAddress: profile?.service_address || "",
-          serviceCity: profile?.service_city || "",
-          servicePostalCode: profile?.service_postal_code || "",
-          scheduledDate: selectedDate,
-          scheduledTime: selectedTime,
-          installationMethod: (installationChoice as "auto" | "technician") || "auto",
-          deliveryFee: orderDeliveryFee,
-          installationFee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
-          equipmentDetails,
-          notes: notes || "",
-        });
+        try {
+          const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+          
+          const equipmentDetails = [];
+          if (hasInternetService || hasTVService) {
+            equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG.price });
+          }
+          if (hasTVService) {
+            equipmentDetails.push({ type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalQuantity, fee: terminalQuantity * TERMINAL_CONFIG.price });
+          }
+          
+          const appointmentResult = await createAppointmentFromOrder({
+            orderId: data.id,
+            orderNumber: data.order_number,
+            userId: user.id,
+            clientEmail: profile?.email || user.email || "",
+            clientPhone: profile?.phone || "",
+            clientName: profile?.full_name || user.email?.split("@")[0] || "",
+            serviceType: serviceNames,
+            category: categories,
+            serviceAddress: profile?.service_address || "",
+            serviceCity: profile?.service_city || "",
+            servicePostalCode: profile?.service_postal_code || "",
+            scheduledDate: selectedDate,
+            scheduledTime: selectedTime,
+            installationMethod: (installationChoice as "auto" | "technician") || "auto",
+            deliveryFee: orderDeliveryFee,
+            installationFee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
+            equipmentDetails,
+            notes: notes || "",
+          });
 
-        if (!appointmentResult.success) {
-          console.error("Appointment creation failed:", appointmentResult.error);
-          // Show error toast but don't block order (order was already created)
-          toast.error("Erreur lors de la création du rendez-vous. Contactez le support.");
-        } else {
-          console.log("Appointment created successfully:", appointmentResult.appointment?.appointment_number);
-          toast.success("Rendez-vous créé: " + (appointmentResult.appointment?.appointment_number || ""));
+          if (!appointmentResult.success) {
+            console.error("Appointment creation failed:", appointmentResult.error);
+            postStepErrors.push("appointment");
+          } else {
+            console.log("Appointment created successfully:", appointmentResult.appointment?.appointment_number);
+          }
+        } catch (apptErr) {
+          console.error("Appointment step failed:", apptErr);
+          postStepErrors.push("appointment");
         }
       }
 
-      return { ...data, nivraPaymentRef };
+      // Log any post-step errors but don't block order success
+      if (postStepErrors.length > 0) {
+        console.warn("Order created but some post-steps failed:", postStepErrors);
+      }
+
+      return { ...data, nivraPaymentRef, postStepErrors };
     },
     onSuccess: (result) => {
       // Clear the order draft from sessionStorage
