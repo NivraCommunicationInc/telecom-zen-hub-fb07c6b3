@@ -162,6 +162,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/**
+ * useAuth - REQUIRES AuthProvider wrapper
+ * 
+ * ⚠️  DO NOT USE ON PUBLIC ROUTES ⚠️
+ * Public pages (/internet, /tv, /mobile, etc.) are NOT wrapped in AuthProvider.
+ * Using this hook on those pages will cause a blank page crash.
+ * 
+ * For public routes, use useOptionalAuth() instead.
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -170,7 +179,13 @@ export const useAuth = () => {
   return context;
 };
 
-// Safe version that returns null values if used outside AuthProvider (for public routes)
+/**
+ * useOptionalAuth - SAFE for public routes
+ * 
+ * ✅ USE THIS ON PUBLIC PAGES (/internet, /tv, /mobile, etc.)
+ * Returns null/default values when AuthProvider is not present.
+ * Never throws, never causes blank pages.
+ */
 export const useOptionalAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
