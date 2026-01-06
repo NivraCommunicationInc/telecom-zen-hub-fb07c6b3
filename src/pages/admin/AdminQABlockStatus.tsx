@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -68,20 +68,23 @@ const QABlockedWrapper = ({
 };
 
 const AdminQABlockStatus = () => {
+  const { mode } = useParams<{ mode?: string }>();
   const [searchParams] = useSearchParams();
   const urlState = searchParams.get("state");
-  const initialBlocked = urlState === "blocked";
+  
+  // Priority: path param > query param > default (active)
+  const initialBlocked = mode === "blocked" || urlState === "blocked";
   
   const [isBlocked, setIsBlocked] = useState(initialBlocked);
 
   // Sync with URL state when it changes
   useEffect(() => {
-    if (urlState === "blocked") {
+    if (mode === "blocked" || urlState === "blocked") {
       setIsBlocked(true);
-    } else if (urlState === "active") {
+    } else if (mode === "active" || urlState === "active") {
       setIsBlocked(false);
     }
-  }, [urlState]);
+  }, [mode, urlState]);
 
   return (
     <div className="min-h-screen bg-background p-8">
