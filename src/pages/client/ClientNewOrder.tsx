@@ -1593,7 +1593,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           body: {
             order_id: orderData.id,
             client_email: profile?.email || user?.email,
-            client_name: profile?.full_name || `${firstName} ${lastName}`.trim(),
+            client_first_name: profile?.full_name?.split(" ")[0] || firstName || "Client",
             order_number: orderData.order_number,
             services: servicesForEmail,
             monthly_total_tax_in: monthlyRecurringWithTax,
