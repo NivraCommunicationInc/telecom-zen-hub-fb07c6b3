@@ -2096,6 +2096,7 @@ export type Database = {
           client_last_name: string | null
           client_phone: string | null
           client_request_id: string
+          confirmation_email_sent_at: string | null
           confirmation_number: string | null
           created_at: string
           created_by: string | null
@@ -2184,6 +2185,7 @@ export type Database = {
           client_last_name?: string | null
           client_phone?: string | null
           client_request_id?: string
+          confirmation_email_sent_at?: string | null
           confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -2272,6 +2274,7 @@ export type Database = {
           client_last_name?: string | null
           client_phone?: string | null
           client_request_id?: string
+          confirmation_email_sent_at?: string | null
           confirmation_number?: string | null
           created_at?: string
           created_by?: string | null
