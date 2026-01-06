@@ -528,11 +528,32 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
 
       return orderData;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      
+      // Send confirmation email (non-blocking)
+      try {
+        await supabase.functions.invoke("send-order-confirmation", {
+          body: {
+            order_id: data.id,
+            client_email: profile?.email || user?.email,
+            client_name: profile?.full_name,
+            order_number: data.order_number,
+            services: selectedPlan ? [{ name: selectedPlan.name, price: selectedPlan.price, period: "mois" }] : [],
+            monthly_total_tax_in: monthlySubtotal * 1.14975,
+            one_time_total: totalDueNow,
+            delivery_method: installationMethod,
+            payment_reference: data.payment_reference,
+          },
+        });
+        console.log("[OrderConfirmation] Email request sent for order:", data.order_number);
+      } catch (emailErr) {
+        console.error("[OrderConfirmation] Email sending failed (non-blocking):", emailErr);
+      }
+      
       setCreatedOrder(data);
       setStep(5);
     },

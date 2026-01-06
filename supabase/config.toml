@@ -1,5 +1,8 @@
 project_id = "xtgngmtxggascbxnswvb"
 
+[functions.send-order-confirmation]
+verify_jwt = false
+
 [functions.calendly-webhook]
 verify_jwt = false
 

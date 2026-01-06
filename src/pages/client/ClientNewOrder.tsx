@@ -1566,7 +1566,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
       return { ...data, nivraPaymentRef, postStepErrors };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       // Clear the order draft from sessionStorage
       clearOrderDraft();
       
@@ -1580,6 +1580,32 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       queryClient.invalidateQueries({ queryKey: ["client-payments"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
+      
+      // Send confirmation email (non-blocking, wrapped in try-catch)
+      try {
+        const servicesForEmail = selectedServices.map(s => ({
+          name: s.name,
+          price: Number(s.price),
+          period: s.category === "Mobile" ? "30 jours" : "mois",
+        }));
+        
+        await supabase.functions.invoke("send-order-confirmation", {
+          body: {
+            order_id: orderData.id,
+            client_email: profile?.email || user?.email,
+            client_name: profile?.full_name || `${firstName} ${lastName}`.trim(),
+            order_number: orderData.order_number,
+            services: servicesForEmail,
+            monthly_total_tax_in: monthlyRecurringWithTax,
+            one_time_total: oneTimeFeesWithTax,
+            delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
+            payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
+          },
+        });
+        console.log("[OrderConfirmation] Email request sent for order:", orderData.order_number);
+      } catch (emailErr) {
+        console.error("[OrderConfirmation] Email sending failed (non-blocking):", emailErr);
+      }
       
       // Navigate to confirmation page with order ID
       navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
