@@ -651,10 +651,12 @@ END:VCALENDAR`;
                                order.status === 'shipped' ? 'Expédiée' : order.status}
                             </Badge>
                             {!isEditing ? (
-                              <Button variant="outline" size="sm" onClick={startEditing}>
-                                <Edit className="h-4 w-4 mr-1" />
-                                Modifier
-                              </Button>
+                              <BlockedActionWrapper action="change">
+                                <Button variant="outline" size="sm" onClick={startEditing} disabled={isAccountBlocked}>
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Modifier
+                                </Button>
+                              </BlockedActionWrapper>
                             ) : (
                               <div className="flex gap-2">
                                 <Button 
@@ -666,20 +668,22 @@ END:VCALENDAR`;
                                   <X className="h-4 w-4 mr-1" />
                                   Annuler
                                 </Button>
-                                <Button 
-                                  size="sm" 
-                                  onClick={saveChanges}
-                                  disabled={updateOrderChannelsMutation.isPending}
-                                >
-                                  {updateOrderChannelsMutation.isPending ? (
-                                    "Sauvegarde..."
-                                  ) : (
-                                    <>
-                                      <Save className="h-4 w-4 mr-1" />
-                                      Sauvegarder
-                                    </>
-                                  )}
-                                </Button>
+                                <BlockedActionWrapper action="change">
+                                  <Button 
+                                    size="sm" 
+                                    onClick={saveChanges}
+                                    disabled={isAccountBlocked || updateOrderChannelsMutation.isPending}
+                                  >
+                                    {updateOrderChannelsMutation.isPending ? (
+                                      "Sauvegarde..."
+                                    ) : (
+                                      <>
+                                        <Save className="h-4 w-4 mr-1" />
+                                        Sauvegarder
+                                      </>
+                                    )}
+                                  </Button>
+                                </BlockedActionWrapper>
                               </div>
                             )}
                           </div>
