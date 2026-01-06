@@ -194,6 +194,9 @@ const ClientTVOrder = () => {
   const queryClient = useQueryClient();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  
+  // Idempotency key: generated once per checkout session to prevent duplicate orders
+  const [clientRequestId] = useState(() => crypto.randomUUID());
 
   const locationState = location.state as LocationState | null;
 
@@ -609,8 +612,9 @@ const ClientTVOrder = () => {
         ],
       });
 
-      // Create the order with payment, phone, and structured line_items
-      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
+      // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
+      const { data: orderData, error: orderError } = await supabase.from("orders").upsert({
+        client_request_id: clientRequestId,
         user_id: user.id,
         client_email: clientIdData.email || profile?.email || user.email,
         service_type: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
@@ -650,54 +654,66 @@ ${notes || ""}`.trim(),
 Monthly: Plan $${planPrice} + Premium Channels $${premiumChannelsTotal} + Streaming $${streamingTotal} = $${monthlyRecurring}/mo
 Payment: ${JSON.stringify(paymentInfo)}
 Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
+      } as any, {
+        onConflict: 'user_id,client_request_id',
+        ignoreDuplicates: false,
       }).select().single();
 
       if (orderError) throw orderError;
       if (!orderData) throw new Error("Order creation failed - no data returned");
 
+      // Post-order steps wrapped in try-catch to not block order success
       // Create streaming subscriptions if any
       if (selectedStreamingServices.length > 0) {
-        const subscriptions = selectedStreamingServices.map(service => ({
-          user_id: user.id,
-          streaming_service_id: service.id,
-          monthly_price: service.price_monthly,
-          status: "pending",
-          internal_notes: `Created with order ${orderData.order_number}`,
-        }));
-        
-        await supabase.from("client_streaming_subscriptions").insert(subscriptions);
+        try {
+          const subscriptions = selectedStreamingServices.map(service => ({
+            user_id: user.id,
+            streaming_service_id: service.id,
+            monthly_price: service.price_monthly,
+            status: "pending",
+            internal_notes: `Created with order ${orderData.order_number}`,
+          }));
+          
+          await supabase.from("client_streaming_subscriptions").insert(subscriptions);
+        } catch (streamErr) {
+          console.error("Streaming subscription creation failed:", streamErr);
+        }
       }
 
       // Create appointment if scheduled
       if (selectedDate && selectedTime) {
-        const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
-        
-        const appointmentResult = await createAppointmentFromOrder({
-          orderId: orderData.id,
-          orderNumber: orderData.order_number,
-          userId: user.id,
-          clientEmail: clientIdData.email || profile?.email || user.email || "",
-          clientPhone: clientIdData.phone || profile?.phone || "",
-          clientName: `${clientIdData.firstName} ${clientIdData.lastName}`,
-          serviceType: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
-          category: "TV + Internet",
-          serviceAddress: address,
-          serviceCity: addressValidation?.city || "",
-          servicePostalCode: addressValidation?.postalCode || "",
-          scheduledDate: selectedDate,
-          scheduledTime: selectedTime,
-          installationMethod: installationMethod,
-          deliveryFee: installationMethod === "auto" ? 30 : 0,
-          installationFee: installationMethod === "technician" ? 50 : 0,
-          equipmentDetails: [
-            { type: "router", name: "Nivra Born Wifi", fee: 60 },
-            { type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalCount, fee: terminalFee }
-          ],
-          notes: notes || "",
-        });
+        try {
+          const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+          
+          const appointmentResult = await createAppointmentFromOrder({
+            orderId: orderData.id,
+            orderNumber: orderData.order_number,
+            userId: user.id,
+            clientEmail: clientIdData.email || profile?.email || user.email || "",
+            clientPhone: clientIdData.phone || profile?.phone || "",
+            clientName: `${clientIdData.firstName} ${clientIdData.lastName}`,
+            serviceType: isFrench ? selectedPlan.name : (selectedPlan.nameEn || selectedPlan.name),
+            category: "TV + Internet",
+            serviceAddress: address,
+            serviceCity: addressValidation?.city || "",
+            servicePostalCode: addressValidation?.postalCode || "",
+            scheduledDate: selectedDate,
+            scheduledTime: selectedTime,
+            installationMethod: installationMethod,
+            deliveryFee: installationMethod === "auto" ? 30 : 0,
+            installationFee: installationMethod === "technician" ? 50 : 0,
+            equipmentDetails: [
+              { type: "router", name: "Nivra Born Wifi", fee: 60 },
+              { type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalCount, fee: terminalFee }
+            ],
+            notes: notes || "",
+          });
 
-        if (!appointmentResult.success) {
-          console.error("Appointment creation failed:", appointmentResult.error);
+          if (!appointmentResult.success) {
+            console.error("Appointment creation failed:", appointmentResult.error);
+          }
+        } catch (apptErr) {
+          console.error("Appointment step failed:", apptErr);
         }
       }
 
