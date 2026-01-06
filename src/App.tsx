@@ -89,6 +89,7 @@ import AdminResetPassword from "./pages/admin/AdminResetPassword";
 import AdminPDFTest from "./pages/admin/AdminPDFTest";
 import AdminQA from "./pages/admin/AdminQA";
 import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
+import AdminPaymentDisputes from "./pages/admin/AdminPaymentDisputes";
 import { lazy, Suspense } from "react";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
@@ -177,6 +178,7 @@ const App = () => (
             <Route path="/admin/audit-log" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/pdf-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
+            <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
             {/* DEV-ONLY QA Routes */}
             {import.meta.env.DEV && (
               <>

@@ -18,6 +18,8 @@ import { downloadInvoicePDF, getInvoicePDFBlob, type InvoiceData } from "@/lib/p
 import { safePDFPrint } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
+import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
+import PaymentDisputeTimeline from "@/components/client/PaymentDisputeTimeline";
 import { ETRANSFER_CONFIG } from "@/config/company";
 
 // E-transfer payment info
@@ -57,6 +59,10 @@ const ClientInvoices = () => {
   const [pdfTitle, setPdfTitle] = useState("");
   const [pdfFilename, setPdfFilename] = useState("");
   const [pdfLoading, setPdfLoading] = useState(false);
+  
+  // Dispute state
+  const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
+  const [disputePayment, setDisputePayment] = useState<any>(null);
 
   // Fetch client profile for balance/credit info
   const { data: profile, refetch: refetchProfile } = useQuery({
@@ -655,6 +661,20 @@ const ClientInvoices = () => {
                                       Payer
                                     </Button>
                                   )}
+                                  {inv.status === "paid" && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      className="text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
+                                      onClick={() => {
+                                        setDisputePayment(inv);
+                                        setDisputeDialogOpen(true);
+                                      }}
+                                      title="Contester ce paiement"
+                                    >
+                                      <AlertTriangle className="w-4 h-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -749,6 +769,16 @@ const ClientInvoices = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Disputes Timeline */}
+        <PaymentDisputeTimeline />
+
+        {/* Dispute Dialog */}
+        <PaymentDisputeDialog 
+          open={disputeDialogOpen} 
+          onOpenChange={setDisputeDialogOpen} 
+          payment={disputePayment} 
+        />
 
         {/* Invoice Payment Dialog */}
         <Dialog open={paymentInfoOpen} onOpenChange={(open) => {

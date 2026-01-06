@@ -2376,6 +2376,71 @@ export type Database = {
           },
         ]
       }
+      payment_disputes: {
+        Row: {
+          client_message: string | null
+          created_at: string
+          dispute_number: string | null
+          id: string
+          payment_id: string
+          processed_at: string | null
+          processed_by_id: string | null
+          processed_by_name: string | null
+          public_message: string | null
+          reason_code: Database["public"]["Enums"]["dispute_reason_code"]
+          rejection_reason: string | null
+          resolution_notes: string | null
+          staff_notes: string | null
+          status: Database["public"]["Enums"]["dispute_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_message?: string | null
+          created_at?: string
+          dispute_number?: string | null
+          id?: string
+          payment_id: string
+          processed_at?: string | null
+          processed_by_id?: string | null
+          processed_by_name?: string | null
+          public_message?: string | null
+          reason_code: Database["public"]["Enums"]["dispute_reason_code"]
+          rejection_reason?: string | null
+          resolution_notes?: string | null
+          staff_notes?: string | null
+          status?: Database["public"]["Enums"]["dispute_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_message?: string | null
+          created_at?: string
+          dispute_number?: string | null
+          id?: string
+          payment_id?: string
+          processed_at?: string | null
+          processed_by_id?: string | null
+          processed_by_name?: string | null
+          public_message?: string | null
+          reason_code?: Database["public"]["Enums"]["dispute_reason_code"]
+          rejection_reason?: string | null
+          resolution_notes?: string | null
+          staff_notes?: string | null
+          status?: Database["public"]["Enums"]["dispute_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_disputes_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_methods: {
         Row: {
           card_type: string
@@ -4671,6 +4736,7 @@ export type Database = {
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
+      generate_dispute_number: { Args: never; Returns: string }
       generate_etransfer_reference: { Args: never; Returns: string }
       generate_internal_ticket_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
@@ -4771,6 +4837,19 @@ export type Database = {
         | "scheduled"
         | "completed"
         | "declined"
+      dispute_reason_code:
+        | "duplicate_charge"
+        | "incorrect_amount"
+        | "service_not_received"
+        | "unauthorized"
+        | "fraud"
+        | "other"
+      dispute_status:
+        | "submitted"
+        | "under_review"
+        | "awaiting_client"
+        | "resolved_approved"
+        | "resolved_rejected"
       fulfillment_type: "ship" | "technician" | "pickup"
       internal_order_status:
         | "draft"
@@ -5009,6 +5088,21 @@ export const Constants = {
         "scheduled",
         "completed",
         "declined",
+      ],
+      dispute_reason_code: [
+        "duplicate_charge",
+        "incorrect_amount",
+        "service_not_received",
+        "unauthorized",
+        "fraud",
+        "other",
+      ],
+      dispute_status: [
+        "submitted",
+        "under_review",
+        "awaiting_client",
+        "resolved_approved",
+        "resolved_rejected",
       ],
       fulfillment_type: ["ship", "technician", "pickup"],
       internal_order_status: [
