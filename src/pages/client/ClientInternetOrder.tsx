@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,7 +143,12 @@ const ClientInternetOrder = () => {
   const isFrench = language === 'fr';
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
-  const [clientRequestId] = useState(() => crypto.randomUUID());
+  // Using useRef ensures it's stable across re-renders and never regenerates
+  const clientRequestIdRef = useRef(crypto.randomUUID());
+  const clientRequestId = clientRequestIdRef.current;
+  
+  // Synchronous guard to prevent double-click race conditions
+  const submittingRef = useRef(false);
 
   // Get pre-validated data from navigation state
   const locationState = location.state as LocationState | null;
@@ -475,7 +480,7 @@ ${notes || ""}`.trim(),
 Payment: ${JSON.stringify(paymentInfo)}
 Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       } as any, {
-        onConflict: 'user_id,client_request_id',
+        onConflict: 'client_request_id',
         ignoreDuplicates: false,
       }).select().single();
 
@@ -535,16 +540,26 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       console.error("Order creation error:", error);
       toast.error(isFrench ? "Erreur lors de la soumission de la commande" : "Error submitting order");
     },
+    onSettled: () => {
+      // Reset the submit guard so user can try again if it truly failed
+      submittingRef.current = false;
+    },
   });
 
   const handleSubmit = () => {
+    // Prevent double-click race condition with synchronous guard
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    
     if (!selectedPlan) {
+      submittingRef.current = false;
       toast.error(isFrench ? "Veuillez sélectionner un forfait" : "Please select a plan");
       return;
     }
     
     // Validate phone number
     if (!validateCanadianPhone(checkoutPhone)) {
+      submittingRef.current = false;
       setPhoneError(isFrench ? "Numéro de téléphone canadien invalide" : "Invalid Canadian phone number");
       toast.error(isFrench ? "Veuillez entrer un numéro de téléphone valide" : "Please enter a valid phone number");
       return;
@@ -554,10 +569,12 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
     // Validate payment method
     if (selectedPaymentMethod === "saved") {
       if (!selectedCardId) {
+        submittingRef.current = false;
         toast.error(isFrench ? "Veuillez sélectionner une carte" : "Please select a card");
         return;
       }
       if (!savedCardCvv || savedCardCvv.length < 3) {
+        submittingRef.current = false;
         setCvvError(isFrench ? "CVV requis (3-4 chiffres)" : "CVV required (3-4 digits)");
         toast.error(isFrench ? "Veuillez entrer le CVV de votre carte" : "Please enter your card CVV");
         return;
@@ -565,6 +582,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
       setCvvError("");
     } else {
       if (!newCardData.cardNumber || !newCardData.cardName || !newCardData.expiry || !newCardData.cvv) {
+        submittingRef.current = false;
         toast.error(isFrench ? "Veuillez compléter les informations de la carte" : "Please complete card information");
         return;
       }
@@ -573,19 +591,23 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
     // Validate ID data
     const idValidation = validateIDData(clientIdData, false);
     if (!idValidation.valid) {
+      submittingRef.current = false;
       toast.error(isFrench ? "Veuillez compléter toutes les informations d'identité" : "Please complete all identity information");
       return;
     }
     
     if (!routerAcknowledged) {
+      submittingRef.current = false;
       toast.error(isFrench ? "Veuillez confirmer l'achat du routeur" : "Please confirm router purchase");
       return;
     }
     if (!selectedDate || !selectedTime) {
+      submittingRef.current = false;
       toast.error(isFrench ? "Veuillez sélectionner une date et heure d'installation" : "Please select an installation date and time");
       return;
     }
     if (!termsAccepted) {
+      submittingRef.current = false;
       toast.error(isFrench ? "Veuillez accepter les termes et conditions" : "Please accept the terms and conditions");
       return;
     }

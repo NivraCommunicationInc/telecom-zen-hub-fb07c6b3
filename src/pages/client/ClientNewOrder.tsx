@@ -474,7 +474,12 @@ const ClientNewOrder = () => {
   const queryClient = useQueryClient();
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
-  const [clientRequestId] = useState(() => crypto.randomUUID());
+  // Using useRef ensures it's stable across re-renders and never regenerates
+  const clientRequestIdRef = useRef(crypto.randomUUID());
+  const clientRequestId = clientRequestIdRef.current;
+  
+  // Synchronous guard to prevent double-click race conditions
+  const submittingRef = useRef(false);
   
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
@@ -1350,7 +1355,7 @@ const ClientNewOrder = () => {
         port_request: portRequestData,
         identity_snapshot: identitySnapshotData,
       } as any, {
-        onConflict: 'user_id,client_request_id',
+        onConflict: 'client_request_id',
         ignoreDuplicates: false,
       }).select().single();
 
@@ -1582,6 +1587,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     onError: (error) => {
       console.error("Order creation error:", error);
       toast.error("Erreur lors de la soumission de la commande");
+    },
+    onSettled: () => {
+      // Reset the submit guard so user can try again if it truly failed
+      submittingRef.current = false;
     },
   });
 
@@ -1889,35 +1898,46 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   };
 
   const handleSubmit = () => {
+    // Prevent double-click race condition with synchronous guard
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    
     if (selectedServices.length === 0) {
+      submittingRef.current = false;
       toast.error("Veuillez sélectionner au moins un service");
       return;
     }
     if (!isIdComplete) {
+      submittingRef.current = false;
       toast.error("Veuillez remplir tous les champs d'identification");
       return;
     }
     // Validate delivery/installation choice based on order type
     if (isDeliveryOnlyOrder) {
       if (!deliveryChoice) {
+        submittingRef.current = false;
         toast.error("Veuillez choisir un mode de livraison");
         return;
       }
     } else {
       if (!installationChoice) {
+        submittingRef.current = false;
         toast.error("Veuillez choisir un type d'installation");
         return;
       }
       if (requiresInstallation && (!selectedDate || !selectedTime)) {
+        submittingRef.current = false;
         toast.error("Veuillez sélectionner une date et heure d'installation");
         return;
       }
     }
     if (!isPaymentComplete) {
+      submittingRef.current = false;
       toast.error("Veuillez compléter le paiement avant de soumettre votre commande");
       return;
     }
     if (!termsAccepted) {
+      submittingRef.current = false;
       toast.error("Veuillez accepter les termes et conditions");
       return;
     }
