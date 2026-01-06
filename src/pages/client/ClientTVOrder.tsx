@@ -743,7 +743,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
           body: {
             order_id: data.id,
             client_email: profile?.email || user?.email,
-            client_name: profile?.full_name,
+            client_first_name: profile?.full_name?.split(" ")[0] || "Client",
             order_number: data.order_number,
             services: servicesForEmail,
             monthly_total_tax_in: monthlyRecurring * 1.14975,
