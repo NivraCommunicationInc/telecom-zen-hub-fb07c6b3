@@ -99,6 +99,9 @@ serve(async (req) => {
         );
       }
 
+      // Proximity near Laval/Montreal for better Quebec relevance
+      const proximityLaval = "-73.75,45.55";
+
       const params = new URLSearchParams({
         q: query,
         access_token: MAPBOX_TOKEN,
@@ -107,6 +110,7 @@ serve(async (req) => {
         types: "address",
         limit: "6",
         language: "fr",
+        proximity: proximityLaval,
       });
 
       const url = `https://api.mapbox.com/search/searchbox/v1/suggest?${params}`;
@@ -118,6 +122,23 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(
+          `[mapbox-autocomplete] request_id=${request_id} mapbox_error status=${response.status} body=${errorText}`
+        );
+        
+        // If 401/403, likely token issue - provide helpful message
+        if (response.status === 401 || response.status === 403) {
+          return new Response(
+            JSON.stringify({
+              request_id,
+              error: "Mapbox token invalid or missing Search API scope",
+              mapbox_status: response.status,
+              hint: "Ensure MAPBOX_PUBLIC_TOKEN has Search API enabled in Mapbox dashboard",
+            }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         return new Response(
           JSON.stringify({
             request_id,
