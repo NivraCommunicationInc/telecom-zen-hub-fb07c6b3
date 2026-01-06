@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSelector from "./LanguageSelector";
+import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } from "@/config/navigation";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,16 +13,7 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useOptionalAuth();
-  const { t } = useLanguage();
-
-  const navLinks = [
-    { label: t('nav.services'), href: "/services", isPage: true },
-    { label: "Internet", href: "/internet", isPage: true },
-    { label: "TV", href: "/tv", isPage: true },
-    { label: "Mobile", href: "/mobile", isPage: true },
-    { label: "Streaming+", href: "/streaming", isPage: true },
-    { label: t('nav.about'), href: "/about", isPage: true },
-  ];
+  const { t, language } = useLanguage();
 
   const portalLink = user ? "/portal" : "/portal/auth";
 
@@ -34,36 +26,61 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToSection = (sectionId: string) => {
-    setIsMenuOpen(false);
-    
-    if (location.pathname !== "/") {
-      navigate("/");
-      setTimeout(() => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
-    } else {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+  // Validate nav targets in development on homepage
+  useEffect(() => {
+    if (import.meta.env.DEV && location.pathname === '/') {
+      const timer = setTimeout(() => {
+        validateNavTargets();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [location.pathname]);
 
+  // Handle hash-based navigation
   useEffect(() => {
     if (location.hash) {
       const sectionId = location.hash.replace("#", "");
       setTimeout(() => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        safeScrollToSection(sectionId);
       }, 100);
     }
   }, [location]);
+
+  /**
+   * Safe navigation handler with null checks and fallback
+   */
+  const handleNavClick = (target: NavTarget) => {
+    try {
+      setIsMenuOpen(false);
+
+      if (target.type === 'scroll') {
+        // Scroll to section on homepage
+        if (location.pathname !== "/") {
+          navigate(`/#${target.target}`);
+        } else {
+          if (!safeScrollToSection(target.target)) {
+            // Fallback if section not found
+            console.warn(`[Nav] Section ${target.target} not found, navigating to fallback`);
+            navigate(target.fallbackRoute);
+          }
+        }
+      } else {
+        // Route navigation
+        navigate(target.target);
+      }
+    } catch (error) {
+      console.error('[Nav] Navigation error:', error);
+      // Ultimate fallback - use window.location
+      window.location.href = target.fallbackRoute;
+    }
+  };
+
+  /**
+   * Get localized label for nav target
+   */
+  const getLabel = (target: NavTarget): string => {
+    return language === 'fr' ? target.labelFr : target.label;
+  };
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
@@ -83,26 +100,27 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) => (
-              link.isPage ? (
+            {NAV_TARGETS.map((target) => (
+              target.type === 'route' ? (
                 <Link
-                  key={link.href}
-                  to={link.href}
+                  key={target.id}
+                  to={target.target}
                   className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
-                    location.pathname === link.href 
+                    location.pathname === target.target 
                       ? 'text-foreground bg-muted' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
-                  {link.label}
+                  {getLabel(target)}
                 </Link>
               ) : (
                 <button
-                  key={link.href}
-                  onClick={() => scrollToSection(link.href)}
+                  key={target.id}
+                  onClick={() => handleNavClick(target)}
                   className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg cursor-pointer"
+                  type="button"
                 >
-                  {link.label}
+                  {getLabel(target)}
                 </button>
               )
             ))}
@@ -123,8 +141,10 @@ const Header = () => {
                 <span className="hidden xl:inline ml-1.5">{t('nav.portal')}</span>
               </Link>
             </Button>
-            <Button variant="accent" size="sm" onClick={() => scrollToSection('contact')}>
-              {t('hero.cta.order')}
+            <Button variant="accent" size="sm" asChild>
+              <Link to="/contact">
+                {t('hero.cta.order')}
+              </Link>
             </Button>
           </div>
 
@@ -133,6 +153,7 @@ const Header = () => {
             className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
+            type="button"
           >
             {isMenuOpen ? (
               <X className="w-5 h-5 text-foreground" />
@@ -142,31 +163,35 @@ const Header = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - ensure no overlay blocking when closed */}
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-border animate-fade-in">
+          <div 
+            className="lg:hidden py-4 border-t border-border animate-fade-in bg-white"
+            style={{ pointerEvents: 'auto' }}
+          >
             <nav className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                link.isPage ? (
+              {NAV_TARGETS.map((target) => (
+                target.type === 'route' ? (
                   <Link
-                    key={link.href}
-                    to={link.href}
+                    key={target.id}
+                    to={target.target}
                     onClick={() => setIsMenuOpen(false)}
                     className={`px-3 py-2.5 text-sm font-medium transition-colors rounded-lg ${
-                      location.pathname === link.href 
+                      location.pathname === target.target 
                         ? 'text-foreground bg-muted' 
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    {link.label}
+                    {getLabel(target)}
                   </Link>
                 ) : (
                   <button
-                    key={link.href}
-                    onClick={() => scrollToSection(link.href)}
+                    key={target.id}
+                    onClick={() => handleNavClick(target)}
                     className="px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg text-left"
+                    type="button"
                   >
-                    {link.label}
+                    {getLabel(target)}
                   </button>
                 )
               ))}
@@ -184,8 +209,10 @@ const Header = () => {
                     {t('nav.portal')}
                   </Link>
                 </Button>
-                <Button variant="accent" size="sm" onClick={() => scrollToSection('contact')}>
-                  {t('hero.cta.order')}
+                <Button variant="accent" size="sm" asChild>
+                  <Link to="/contact">
+                    {t('hero.cta.order')}
+                  </Link>
                 </Button>
               </div>
             </nav>
