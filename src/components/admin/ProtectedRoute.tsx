@@ -109,7 +109,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
         // SECURITY: Non-admin attempting to access /admin/*
         if (!roleData || roleData.role !== "admin") {
-          console.warn("SECURITY: Non-admin user attempted to access admin route:", user.email, location.pathname);
+          console.warn("SECURITY: Non-admin user attempted to access admin route:", user.id, location.pathname);
           
           // Log blocked access attempt to audit log (only once per mount)
           if (!hasLoggedBlockedAccess.current) {
@@ -142,7 +142,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
         // Check status - only active admins allowed
         if (roleData.status !== "active") {
-          console.warn("Admin account not active:", user.email, roleData.status);
+          console.warn("Admin account not active:", user.id, roleData.status);
           await signOut();
           navigate("/admin/login", { replace: true });
           return;

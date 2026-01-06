@@ -92,27 +92,43 @@ const PDFViewerDialog = ({
   }, [pdfBlob, filename]);
 
   // Print using iframe's contentWindow - no popup
+  // Fallback to new tab if iframe print fails (cross-origin, mobile restrictions)
   const handlePrint = useCallback(() => {
-    if (!iframeRef.current?.contentWindow) {
-      toast.error("Le document n'est pas prêt pour l'impression");
-      return;
+    // Attempt 1: Direct iframe print
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.print();
+        return;
+      } catch {
+        // Silent fail, try fallback
+      }
     }
     
-    try {
-      iframeRef.current.contentWindow.print();
-    } catch (err) {
-      console.error("Print error:", err);
-      // Fallback: open print dialog with blob
-      if (pdfBlob) {
-        const url = URL.createObjectURL(pdfBlob);
-        const printWindow = window.open(url, "_blank");
-        if (printWindow) {
-          printWindow.onload = () => {
+    // Attempt 2: Open in new tab for print (works on mobile + cross-origin)
+    if (pdfBlob) {
+      const url = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(url, "_blank");
+      
+      if (printWindow) {
+        // Try to trigger print after load
+        printWindow.onload = () => {
+          try {
+            printWindow.focus();
             printWindow.print();
-          };
-        }
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+          } catch {
+            // User can print manually from the new tab
+          }
+        };
+        toast.info("Le PDF s'ouvre dans un nouvel onglet. Utilisez Ctrl+P pour imprimer.");
+      } else {
+        // Popup blocked - offer download instead
+        toast.error("Fenêtre bloquée. Téléchargez le PDF pour l'imprimer.");
       }
+      
+      // Cleanup after 2 minutes
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } else {
+      toast.error("Le document n'est pas prêt pour l'impression");
     }
   }, [pdfBlob]);
 
