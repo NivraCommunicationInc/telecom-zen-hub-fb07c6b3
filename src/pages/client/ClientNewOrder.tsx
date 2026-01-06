@@ -1258,7 +1258,11 @@ const ClientNewOrder = () => {
         ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
       ];
       
-      // Build discounts array (promo + preauth)
+      // Build discounts array (promo + preauth + SIM credits for mobile orders)
+      // Auto-credit SIM fee and SIM delivery fee for orders with mobile services
+      const simCreditAmount = hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0;
+      const simDeliveryCreditAmount = hasMobileService ? orderDeliveryFee : 0;
+      
       const discountsForLineItems = [
         ...(appliedPromo && appliedPromo.discount_amount > 0 ? [{
           name: `Rabais promotionnel (${appliedPromo.code})`,
@@ -1269,6 +1273,18 @@ const ClientNewOrder = () => {
           name: "Rabais paiement préautorisé",
           amount: PREAUTH_MONTHLY_DISCOUNT,
           description: "5$/mois",
+        }] : []),
+        // Auto-credit SIM fee for mobile orders (per SIM quantity)
+        ...(simCreditAmount > 0 ? [{
+          name: "Crédit — Carte SIM offerte",
+          amount: simCreditAmount,
+          description: totalMobileLineQuantity > 1 ? `${totalMobileLineQuantity} cartes SIM` : "Carte SIM",
+        }] : []),
+        // Auto-credit SIM delivery fee for mobile orders
+        ...(simDeliveryCreditAmount > 0 ? [{
+          name: "Crédit — Livraison SIM offerte",
+          amount: simDeliveryCreditAmount,
+          description: "Livraison gratuite",
         }] : []),
       ];
       
@@ -1707,8 +1723,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
   
   // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
-  const oneTimeFees = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
+  const oneTimeFeesGross = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
   const monthlyRecurring = subtotal + paidChannelTotal + streamingAddonsTotal;
+  
+  // Auto-credits for mobile orders (SIM fee + SIM delivery credited)
+  const simCreditAmount = hasMobileService ? simFee : 0; // Credit all SIM fees
+  const simDeliveryCreditAmount = hasMobileService ? deliveryFee : 0; // Credit delivery fee for mobile
+  const autoCredits = simCreditAmount + simDeliveryCreditAmount;
+  
+  // Net one-time fees after credits
+  const oneTimeFees = Math.max(0, oneTimeFeesGross - autoCredits);
   
   // Apply promo discount to base amount
   const promoDiscount = appliedPromo?.discount_amount || 0;
@@ -2131,12 +2155,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   streamingAddonsTotal={streamingAddonsTotal}
                   monthlyRecurring={monthlyRecurring}
                   oneTimeFees={oneTimeFees}
+                  oneTimeFeesGross={oneTimeFeesGross}
                   activationFee={activationFee}
                   deliveryFee={deliveryFee}
                   installationFee={installationFee}
                   terminalFee={terminalFee}
                   routerFee={routerFee}
                   simFee={simFee}
+                  simCreditAmount={simCreditAmount}
+                  simDeliveryCreditAmount={simDeliveryCreditAmount}
                   terminalQuantity={terminalQuantity}
                   baseAmount={baseAmount}
                   tpsAmount={tpsAmount}
@@ -2170,12 +2197,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     streamingAddonsTotal={streamingAddonsTotal}
                     monthlyRecurring={monthlyRecurring}
                     oneTimeFees={oneTimeFees}
+                    oneTimeFeesGross={oneTimeFeesGross}
                     activationFee={activationFee}
                     deliveryFee={deliveryFee}
                     installationFee={installationFee}
                     terminalFee={terminalFee}
                     routerFee={routerFee}
                     simFee={simFee}
+                    simCreditAmount={simCreditAmount}
+                    simDeliveryCreditAmount={simDeliveryCreditAmount}
                     terminalQuantity={terminalQuantity}
                     baseAmount={baseAmount}
                     tpsAmount={tpsAmount}
@@ -3118,30 +3148,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* SIM Delivery Estimate - Show only for Mobile + Residential bundle */}
-              {hasMobileService && (hasTVService || hasInternetService) && (
+              {/* SIM Delivery Estimate - Show for any order with Mobile service */}
+              {hasMobileService && (
                 <Card className="bg-blue-500/10 border-blue-500/30">
                   <CardContent className="py-4 flex items-start gap-3">
                     <Smartphone className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="font-medium text-foreground mb-1">Livraison carte SIM</p>
                       <p className="text-sm text-muted-foreground">
-                        {deliveryChoice === "uber" 
-                          ? `Votre carte SIM sera livrée en ${DELIVERY_CONFIG.uber.timeframe} avec votre équipement.`
-                          : deliveryChoice === "shipHome"
-                          ? `Votre carte SIM sera expédiée sous ${DELIVERY_CONFIG.shipHome.timeframe} avec votre équipement.`
-                          : installationChoice === "technician"
-                          ? "Votre carte SIM sera remise par le technicien lors de l'installation."
-                          : installationChoice === "auto"
-                          ? `Votre carte SIM sera livrée sous ${DELIVERY_CONFIG.standard.timeframe} avec votre équipement.`
-                          : "Estimation à confirmer — notre équipe vous contactera pour confirmer les délais."
-                        }
+                        Votre carte SIM sera livrée directement à l'adresse indiquée lors de la commande.
                       </p>
-                      {!deliveryChoice && !installationChoice && (
-                        <p className="text-xs text-amber-500 mt-2">
-                          Sélectionnez un mode de livraison/installation pour voir l'estimation.
-                        </p>
-                      )}
+                      <p className="text-xs text-emerald-500 mt-2 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        Carte SIM et livraison offertes
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

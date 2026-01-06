@@ -54,12 +54,15 @@ interface ProfessionalOrderSummaryProps {
   streamingAddonsTotal?: number;
   monthlyRecurring: number;
   oneTimeFees: number;
+  oneTimeFeesGross?: number; // Before credits
   activationFee: number;
   deliveryFee: number;
   installationFee: number;
   terminalFee: number;
   routerFee: number;
   simFee: number;
+  simCreditAmount?: number; // Credit for SIM fee
+  simDeliveryCreditAmount?: number; // Credit for SIM delivery
   terminalQuantity: number;
   baseAmount: number;
   tpsAmount: number;
@@ -100,12 +103,15 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
   streamingAddonsTotal = 0,
   monthlyRecurring,
   oneTimeFees,
+  oneTimeFeesGross,
   activationFee,
   deliveryFee,
   installationFee,
   terminalFee,
   routerFee,
   simFee,
+  simCreditAmount = 0,
+  simDeliveryCreditAmount = 0,
   terminalQuantity,
   baseAmount,
   tpsAmount,
@@ -128,6 +134,9 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
   const [showOneTimeFeeDetails, setShowOneTimeFeeDetails] = useState(false);
   const [showTaxDetails, setShowTaxDetails] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(isMobile);
+
+  // Calculate total credits
+  const totalCredits = simCreditAmount + simDeliveryCreditAmount;
 
   // Get delivery method label
   const getDeliveryLabel = () => {
@@ -316,6 +325,32 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
                   <span>{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
               )}
+              
+              {/* SIM Credits Section - only show if there are credits */}
+              {totalCredits > 0 && (
+                <>
+                  <Separator className="my-2" />
+                  {simCreditAmount > 0 && (
+                    <div className="flex justify-between text-emerald-500">
+                      <span className="flex items-center gap-2">
+                        <CreditCard className="w-3 h-3" />
+                        Crédit — Carte SIM offerte {totalMobileLineQuantity > 1 ? `(×${totalMobileLineQuantity})` : ""}
+                      </span>
+                      <span>-{simCreditAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  {simDeliveryCreditAmount > 0 && (
+                    <div className="flex justify-between text-emerald-500">
+                      <span className="flex items-center gap-2">
+                        <Truck className="w-3 h-3" />
+                        Crédit — Livraison SIM offerte
+                      </span>
+                      <span>-{simDeliveryCreditAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
               <p className="text-xs text-muted-foreground italic pt-1">Les frais uniques sont facturés une seule fois.</p>
             </div>
           )}
