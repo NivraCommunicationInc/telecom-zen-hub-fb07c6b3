@@ -787,6 +787,131 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, "/portal/cancellations"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
   },
+
+  // =============================================
+  // PAYMENT DISPUTE TEMPLATES
+  // =============================================
+
+  // DISPUTE RECEIVED
+  dispute_received: {
+    subject: "Nivra — Contestation de paiement reçue (#{{dispute_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📋', 'Contestation reçue', 'Dispute received',
+        'Nous avons bien reçu votre contestation de paiement.',
+        'We have received your payment dispute.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contestation / Dispute #', value: vars.dispute_number || 'N/A' },
+        { label: 'Nº paiement / Payment #', value: vars.payment_reference || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+        { label: 'Raison / Reason', value: vars.reason_code || 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Notre équipe examinera votre contestation dans les plus brefs délais.<br>
+        <em style="color:${emailStyles.textMuted};">Our team will review your dispute as soon as possible.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Suivre ma contestation / Track dispute", config.supportEmail, config.supportPhone),
+  },
+
+  // DISPUTE REQUEST INFO
+  dispute_request_info: {
+    subject: "Nivra — Information requise pour votre contestation (#{{dispute_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '❓', 'Information requise', 'Information required',
+        'Nous avons besoin d\'informations supplémentaires pour traiter votre contestation.',
+        'We need additional information to process your dispute.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contestation / Dispute #', value: vars.dispute_number || 'N/A' },
+        { label: 'Nº paiement / Payment #', value: vars.payment_reference || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+      ])}
+      ${vars.public_message ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#fafafa; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.accent};">
+              <p style="margin:0 0 4px; font-size:12px; font-weight:600; color:${emailStyles.textMuted};">Message de notre équipe / Message from our team:</p>
+              <p style="margin:0; font-size:14px; color:${emailStyles.textSecondary};">
+                ${vars.public_message}
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Veuillez répondre via votre portail client.<br>
+        <em style="color:${emailStyles.textMuted};">Please respond through your client portal.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Répondre / Respond", config.supportEmail, config.supportPhone),
+  },
+
+  // DISPUTE RESOLVED APPROVED
+  dispute_resolved_approved: {
+    subject: "Nivra — Contestation approuvée (#{{dispute_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Contestation approuvée!', 'Dispute approved!',
+        'Votre contestation de paiement a été approuvée.',
+        'Your payment dispute has been approved.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contestation / Dispute #', value: vars.dispute_number || 'N/A' },
+        { label: 'Nº paiement / Payment #', value: vars.payment_reference || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+      ])}
+      ${vars.resolution_notes ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#d1fae5; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.success};">
+              <p style="margin:0 0 4px; font-size:12px; font-weight:600; color:#065f46;">Résolution / Resolution:</p>
+              <p style="margin:0; font-size:14px; color:#065f46;">
+                ${vars.resolution_notes}
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de votre patience. Un crédit sera appliqué à votre compte si applicable.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for your patience. A credit will be applied to your account if applicable.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mon compte / View account", config.supportEmail, config.supportPhone),
+  },
+
+  // DISPUTE RESOLVED REJECTED
+  dispute_resolved_rejected: {
+    subject: "Nivra — Contestation refusée (#{{dispute_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Contestation refusée', 'Dispute rejected',
+        'Votre contestation de paiement n\'a pas pu être approuvée.',
+        'Your payment dispute could not be approved.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contestation / Dispute #', value: vars.dispute_number || 'N/A' },
+        { label: 'Nº paiement / Payment #', value: vars.payment_reference || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+      ])}
+      ${vars.rejection_reason ? `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:16px 0;">
+          <tr>
+            <td style="background-color:#fee2e2; border-radius:8px; padding:16px; border-left:3px solid ${emailStyles.error};">
+              <p style="margin:0 0 4px; font-size:12px; font-weight:600; color:#991b1b;">Raison / Reason:</p>
+              <p style="margin:0; font-size:14px; color:#991b1b;">
+                ${vars.rejection_reason}
+              </p>
+            </td>
+          </tr>
+        </table>
+      ` : ''}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour toute question, contactez notre équipe de support.<br>
+        <em style="color:${emailStyles.textMuted};">For any questions, please contact our support team.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+  },
 };
 
 // =============================================
@@ -954,6 +1079,10 @@ Deno.serve(async (req) => {
         if (vars.ticket_number) subject = subject.replace('{{ticket_number}}', vars.ticket_number);
         if (vars.contract_number) subject = subject.replace('{{contract_number}}', vars.contract_number);
         if (vars.request_number) subject = subject.replace('{{request_number}}', vars.request_number);
+        if (vars.dispute_number) subject = subject.replace('{{dispute_number}}', vars.dispute_number);
+
+        // Generate plain text version from subject for preview
+        const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail} - ${emailConfig.supportPhone}`;
 
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -967,6 +1096,7 @@ Deno.serve(async (req) => {
             to: [email.to_email],
             subject,
             html,
+            text: plainText,
           }),
         });
 
