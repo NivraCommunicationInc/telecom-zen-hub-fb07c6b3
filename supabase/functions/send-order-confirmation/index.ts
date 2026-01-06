@@ -23,6 +23,7 @@ interface OrderConfirmationRequest {
   one_time_total: number;
   delivery_method?: string;
   payment_reference?: string;
+  force?: boolean; // Admin-only: bypass idempotency for testing
 }
 
 Deno.serve(async (req) => {
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
     const resend = new Resend(resendApiKey);
 
     const body: OrderConfirmationRequest = await req.json();
-    console.log(`[${requestId}] Request body (order_id: ${body.order_id}, order_number: ${body.order_number})`);
+    console.log(`[${requestId}] Request body (order_id: ${body.order_id}, order_number: ${body.order_number}, force: ${body.force || false})`);
 
     const {
       order_id,
@@ -80,6 +81,7 @@ Deno.serve(async (req) => {
       monthly_total_tax_in,
       one_time_total,
       delivery_method,
+      force = false,
     } = body;
 
     // Validate required fields
@@ -91,34 +93,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    // IDEMPOTENCY CHECK: Check if email was already sent for this order
-    const { data: existingOrder, error: checkError } = await supabase
-      .from("orders")
-      .select("confirmation_email_sent_at")
-      .eq("id", order_id)
-      .single();
+    // IDEMPOTENCY CHECK: Check if email was already sent for this order (skip if force=true)
+    if (!force) {
+      const { data: existingOrder, error: checkError } = await supabase
+        .from("orders")
+        .select("confirmation_email_sent_at")
+        .eq("id", order_id)
+        .single();
 
-    if (checkError) {
-      console.error(`[${requestId}] Error checking order:`, checkError);
-      return new Response(JSON.stringify({ error: "Order not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (checkError) {
+        console.error(`[${requestId}] Error checking order:`, checkError);
+        return new Response(JSON.stringify({ error: "Order not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (existingOrder?.confirmation_email_sent_at) {
+        console.log(`[${requestId}] Email already sent at ${existingOrder.confirmation_email_sent_at}, skipping (use force=true to override)`);
+        return new Response(JSON.stringify({ 
+          success: true, 
+          already_sent: true,
+          sent_at: existingOrder.confirmation_email_sent_at,
+          message: "Email already sent for this order"
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.log(`[${requestId}] Force mode enabled, bypassing idempotency check`);
     }
 
-    if (existingOrder?.confirmation_email_sent_at) {
-      console.log(`[${requestId}] Email already sent at ${existingOrder.confirmation_email_sent_at}, skipping`);
-      return new Response(JSON.stringify({ 
-        success: true, 
-        already_sent: true,
-        message: "Email already sent for this order"
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Build template variables
+    // Build template variables - must match Resend template placeholders EXACTLY
     const deliveryTypeLabel = delivery_method === "technician" 
       ? "Installation par technicien" 
       : delivery_method === "uber" 
@@ -132,6 +139,7 @@ Deno.serve(async (req) => {
       .map(s => `${s.name} (${formatCurrency(s.price)}${s.period ? `/${s.period}` : ''})`)
       .join(", ");
 
+    // Template variables matching Resend template placeholders
     const templateVariables = {
       ORDER_NUMBER: order_number,
       CLIENT_FIRST_NAME: client_first_name || "Client",
@@ -143,38 +151,34 @@ Deno.serve(async (req) => {
 
     // Log template info (mask email for privacy)
     const maskedEmail = client_email.replace(/(.{2})(.*)(@.*)/, "$1***$3");
-    console.log(`[${requestId}] Using template: ${resendTemplateId}`);
-    console.log(`[${requestId}] Template variables:`, JSON.stringify({
+    console.log(`[${requestId}] Template ID: ${resendTemplateId}`);
+    console.log(`[${requestId}] Template variables keys: ${Object.keys(templateVariables).join(", ")}`);
+    console.log(`[${requestId}] Template variables values:`, JSON.stringify({
       ...templateVariables,
       _to: maskedEmail,
     }));
 
-    // Send email via Resend using template
+    // Send email via Resend using template API (correct format)
     console.log(`[${requestId}] Sending templated email to ${maskedEmail}`);
     
+    const fromEmail = supportEmail.includes("@") ? supportEmail : "noreply@nivratelecom.ca";
+    
     const emailResult = await resend.emails.send({
-      from: `Nivra Telecom <${supportEmail.includes("@") ? supportEmail : "noreply@nivratelecom.ca"}>`,
+      from: `Nivra Telecom <${fromEmail}>`,
       to: [client_email],
       subject: `Confirmation de commande — ${order_number}`,
-      // Use Resend template feature - no html/text/react when using template
-      headers: {
-        "X-Entity-Ref-ID": order_id, // Idempotency at Resend level
+      // Use Resend template feature with correct API format
+      // DO NOT include html, text, or react when using template
+      template: {
+        id: resendTemplateId,
+        variables: templateVariables,
       },
-      tags: [
-        { name: "order_id", value: order_id },
-        { name: "order_number", value: order_number },
-      ],
-      // Template ID and variables
-      ...({
-        template_id: resendTemplateId,
-        template_data: templateVariables,
-      } as any),
-    });
+    } as any); // Type cast needed as resend types may not include template
 
-    console.log(`[${requestId}] Resend response:`, JSON.stringify(emailResult));
+    console.log(`[${requestId}] Resend API response:`, JSON.stringify(emailResult));
 
     if (emailResult.error) {
-      console.error(`[${requestId}] Resend error:`, emailResult.error);
+      console.error(`[${requestId}] Resend error:`, JSON.stringify(emailResult.error));
       
       // Log to email_queue for retry/tracking
       await supabase.from("email_queue").insert({
@@ -189,12 +193,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: false, 
         error: "Email sending failed",
+        details: emailResult.error,
         request_id: requestId
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const resendMessageId = emailResult.data?.id;
+    console.log(`[${requestId}] ✅ Email sent successfully via TEMPLATE`);
+    console.log(`[${requestId}] Resend message ID: ${resendMessageId}`);
 
     // Mark email as sent (idempotency) IMMEDIATELY after successful send
     const { error: updateError } = await supabase
@@ -214,17 +223,16 @@ Deno.serve(async (req) => {
       to_email: client_email,
       status: "sent",
       sent_at: new Date().toISOString(),
-      provider_message_id: emailResult.data?.id || null,
+      provider_message_id: resendMessageId || null,
       template_vars: templateVariables as any,
     });
-
-    const resendMessageId = emailResult.data?.id;
-    console.log(`[${requestId}] Email sent successfully via template, resend_id: ${resendMessageId}`);
 
     return new Response(JSON.stringify({ 
       success: true,
       message_id: resendMessageId,
-      request_id: requestId
+      template_id: resendTemplateId,
+      request_id: requestId,
+      forced: force,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
