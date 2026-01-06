@@ -68,8 +68,10 @@ import ClientChannels from "./pages/client/ClientChannels";
 import ClientInternetOrder from "./pages/client/ClientInternetOrder";
 import ClientTVOrder from "./pages/client/ClientTVOrder";
 import ClientEquipmentReplacement from "./pages/client/ClientEquipmentReplacement";
+import ClientCancellations from "./pages/client/ClientCancellations";
 import ClientMonthlyInvoices from "./pages/client/ClientMonthlyInvoices";
 import AdminReplacements from "./pages/admin/AdminReplacements";
+import AdminCancellations from "./pages/admin/AdminCancellations";
 import AdminEmployees from "./pages/admin/AdminEmployees";
 import AdminPromotions from "./pages/admin/AdminPromotions";
 import AdminAccounts from "./pages/admin/AdminAccounts";
@@ -153,6 +155,7 @@ const App = () => (
             <Route path="/admin/channels" element={<AuthProvider><ProtectedRoute requireAdmin><AdminChannels /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/technicians" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTechnicians /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/replacements" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReplacements /></ProtectedRoute></AuthProvider>} />
+            <Route path="/admin/cancellations" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCancellations /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/employees" element={<AuthProvider><ProtectedRoute requireAdmin><AdminEmployees /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/promotions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPromotions /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/accounts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAccounts /></ProtectedRoute></AuthProvider>} />
@@ -184,6 +187,7 @@ const App = () => (
             <Route path="/portal/internet" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientInternetOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/tv-order" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTVOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/replacement" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientEquipmentReplacement /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+            <Route path="/portal/cancellations" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientCancellations /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/profile" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/payments" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/contracts" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />

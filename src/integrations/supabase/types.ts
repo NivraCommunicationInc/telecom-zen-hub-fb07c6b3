@@ -3575,6 +3575,83 @@ export type Database = {
         }
         Relationships: []
       }
+      service_cancellation_requests: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          created_by_role: string
+          decline_reason: string | null
+          effective_date: string | null
+          id: string
+          processed_at: string | null
+          processed_by_id: string | null
+          processed_by_name: string | null
+          public_message: string | null
+          reason_code: Database["public"]["Enums"]["cancellation_reason_code"]
+          reason_details: string | null
+          request_number: string | null
+          requested_effective_date: string | null
+          service_identifier: string | null
+          service_type: Database["public"]["Enums"]["cancellation_service_type"]
+          staff_notes: string | null
+          status: Database["public"]["Enums"]["cancellation_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          created_by_role?: string
+          decline_reason?: string | null
+          effective_date?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_by_id?: string | null
+          processed_by_name?: string | null
+          public_message?: string | null
+          reason_code: Database["public"]["Enums"]["cancellation_reason_code"]
+          reason_details?: string | null
+          request_number?: string | null
+          requested_effective_date?: string | null
+          service_identifier?: string | null
+          service_type: Database["public"]["Enums"]["cancellation_service_type"]
+          staff_notes?: string | null
+          status?: Database["public"]["Enums"]["cancellation_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          created_by_role?: string
+          decline_reason?: string | null
+          effective_date?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_by_id?: string | null
+          processed_by_name?: string | null
+          public_message?: string | null
+          reason_code?: Database["public"]["Enums"]["cancellation_reason_code"]
+          reason_details?: string | null
+          request_number?: string | null
+          requested_effective_date?: string | null
+          service_identifier?: string | null
+          service_type?: Database["public"]["Enums"]["cancellation_service_type"]
+          staff_notes?: string | null
+          status?: Database["public"]["Enums"]["cancellation_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_cancellation_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_status: {
         Row: {
           description: string | null
@@ -4657,6 +4734,28 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client" | "technician" | "employee"
+      cancellation_reason_code:
+        | "price"
+        | "moving"
+        | "not_needed"
+        | "service_issue"
+        | "billing_issue"
+        | "other"
+      cancellation_service_type:
+        | "mobile"
+        | "internet"
+        | "tv"
+        | "security"
+        | "streaming"
+        | "bundle"
+      cancellation_status:
+        | "requested"
+        | "under_review"
+        | "awaiting_client"
+        | "approved"
+        | "scheduled"
+        | "completed"
+        | "declined"
       fulfillment_type: "ship" | "technician" | "pickup"
       internal_order_status:
         | "draft"
@@ -4871,6 +4970,31 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client", "technician", "employee"],
+      cancellation_reason_code: [
+        "price",
+        "moving",
+        "not_needed",
+        "service_issue",
+        "billing_issue",
+        "other",
+      ],
+      cancellation_service_type: [
+        "mobile",
+        "internet",
+        "tv",
+        "security",
+        "streaming",
+        "bundle",
+      ],
+      cancellation_status: [
+        "requested",
+        "under_review",
+        "awaiting_client",
+        "approved",
+        "scheduled",
+        "completed",
+        "declined",
+      ],
       fulfillment_type: ["ship", "technician", "pickup"],
       internal_order_status: [
         "draft",
