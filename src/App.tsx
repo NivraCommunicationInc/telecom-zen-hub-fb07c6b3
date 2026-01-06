@@ -89,6 +89,11 @@ import AdminResetPassword from "./pages/admin/AdminResetPassword";
 import AdminPDFTest from "./pages/admin/AdminPDFTest";
 import AdminQA from "./pages/admin/AdminQA";
 import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
+import { lazy, Suspense } from "react";
+
+// DEV-ONLY imports (lazy to avoid bundling in production)
+const AdminQABlockStatus = lazy(() => import("./pages/admin/AdminQABlockStatus"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -172,6 +177,10 @@ const App = () => (
             <Route path="/admin/audit-log" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/pdf-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
+            {/* DEV-ONLY QA Route */}
+            {import.meta.env.DEV && (
+              <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
+            )}
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
