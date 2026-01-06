@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useAuth } from "@/hooks/useAuth";
+import { useOptionalAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +13,7 @@ import { MobileInfoBox } from "@/components/ServiceInfoBox";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
-  const { user } = useAuth();
+  const { user } = useOptionalAuth();
   const navigate = useNavigate();
   const isFrench = language === 'fr';
 
