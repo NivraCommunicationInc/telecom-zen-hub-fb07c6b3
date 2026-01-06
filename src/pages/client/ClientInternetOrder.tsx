@@ -1359,6 +1359,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 )}
                 {isFrench ? "Confirmer la commande" : "Confirm Order"}
               </Button>
+              </BlockedActionWrapper>
             </div>
           </div>
         )}
