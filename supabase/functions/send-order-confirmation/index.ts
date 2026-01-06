@@ -6,8 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
+const formatCurrency = (amount: number): string => {
+  const formatted = (amount || 0).toFixed(2);
+  return `${formatted}$`;
+};
+
+// Mask email for logging (privacy)
+const maskEmail = (email: string): string => {
+  if (!email || !email.includes("@")) return "***";
+  const [local, domain] = email.split("@");
+  const maskedLocal = local.length > 2 ? local.slice(0, 2) + "***" : "***";
+  return `${maskedLocal}@${domain}`;
+};
 
 // =============================================
 // MAIN HANDLER
@@ -28,12 +38,22 @@ interface OrderConfirmationRequest {
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID();
+  console.log(`[${requestId}] ========================================`);
   console.log(`[${requestId}] send-order-confirmation invoked`);
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Common log structure helper
+  const logResult = (status: "sent" | "skipped_already_sent" | "error", extra: Record<string, unknown> = {}) => {
+    console.log(`[${requestId}] RESULT:`, JSON.stringify({ 
+      request_id: requestId, 
+      status, 
+      ...extra 
+    }));
+  };
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -44,6 +64,7 @@ Deno.serve(async (req) => {
 
     if (!resendApiKey) {
       console.error(`[${requestId}] RESEND_API_KEY not configured`);
+      logResult("error", { error: "RESEND_API_KEY not configured" });
       return new Response(JSON.stringify({ error: "Email service not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -52,6 +73,7 @@ Deno.serve(async (req) => {
 
     if (!resendTemplateId) {
       console.error(`[${requestId}] RESEND_TEMPLATE_ID not configured`);
+      logResult("error", { error: "RESEND_TEMPLATE_ID not configured" });
       return new Response(JSON.stringify({ error: "Email template not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -60,6 +82,7 @@ Deno.serve(async (req) => {
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error(`[${requestId}] Supabase credentials not configured`);
+      logResult("error", { error: "Supabase credentials not configured" });
       return new Response(JSON.stringify({ error: "Database service not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -70,8 +93,6 @@ Deno.serve(async (req) => {
     const resend = new Resend(resendApiKey);
 
     const body: OrderConfirmationRequest = await req.json();
-    console.log(`[${requestId}] Request body (order_id: ${body.order_id}, order_number: ${body.order_number}, force: ${body.force || false})`);
-
     const {
       order_id,
       client_email,
@@ -84,9 +105,13 @@ Deno.serve(async (req) => {
       force = false,
     } = body;
 
+    console.log(`[${requestId}] Request: order_id=${order_id}, order_number=${order_number}, force=${force}`);
+    console.log(`[${requestId}] to_email=${maskEmail(client_email)}`);
+
     // Validate required fields
     if (!order_id || !client_email || !order_number) {
-      console.error(`[${requestId}] Missing required fields`);
+      console.error(`[${requestId}] Missing required fields: order_id=${!!order_id}, client_email=${!!client_email}, order_number=${!!order_number}`);
+      logResult("error", { error: "Missing required fields", order_id, order_number });
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -103,6 +128,7 @@ Deno.serve(async (req) => {
 
       if (checkError) {
         console.error(`[${requestId}] Error checking order:`, checkError);
+        logResult("error", { error: "Order not found", order_id });
         return new Response(JSON.stringify({ error: "Order not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -110,75 +136,105 @@ Deno.serve(async (req) => {
       }
 
       if (existingOrder?.confirmation_email_sent_at) {
-        console.log(`[${requestId}] Email already sent at ${existingOrder.confirmation_email_sent_at}, skipping (use force=true to override)`);
+        console.log(`[${requestId}] Email already sent at ${existingOrder.confirmation_email_sent_at}`);
+        logResult("skipped_already_sent", { 
+          order_id, 
+          order_number, 
+          to_email: maskEmail(client_email),
+          sent_at: existingOrder.confirmation_email_sent_at 
+        });
         return new Response(JSON.stringify({ 
           success: true, 
           already_sent: true,
+          status: "skipped_already_sent",
           sent_at: existingOrder.confirmation_email_sent_at,
-          message: "Email already sent for this order"
+          message: "Email already sent for this order (use force=true to resend)"
         }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else {
-      console.log(`[${requestId}] Force mode enabled, bypassing idempotency check`);
+      console.log(`[${requestId}] force=true, bypassing idempotency check`);
     }
 
-    // Build template variables - must match Resend template placeholders EXACTLY
-    const deliveryTypeLabel = delivery_method === "technician" 
-      ? "Installation par technicien" 
-      : delivery_method === "uber" 
-        ? "Livraison Uber Express"
-        : delivery_method === "auto"
-          ? "Auto-installation"
-          : delivery_method || "Standard";
+    // Build delivery type label (human-readable)
+    const deliveryTypeLabel = (() => {
+      switch (delivery_method) {
+        case "technician": return "Installation par technicien";
+        case "uber": return "Express Uber (10h)";
+        case "auto": return "Auto-installation avec livraison";
+        case "shipHome": return "Expédition à domicile (3-5 jours)";
+        case "standard": return "Livraison standard (24-78h)";
+        default: return delivery_method || "Standard";
+      }
+    })();
 
-    // Build services list as comma-separated string
+    // Build SERVICES_LIST as multi-line string with bullets
+    // Format: "• Service Name — XX.XX$/mois"
     const servicesList = (services || [])
-      .map(s => `${s.name} (${formatCurrency(s.price)}${s.period ? `/${s.period}` : ''})`)
-      .join(", ");
+      .map(s => {
+        const periodLabel = s.period === "30 jours" ? "/30 jours" : "/mois";
+        return `• ${s.name} — ${formatCurrency(s.price)}${periodLabel}`;
+      })
+      .join("\n");
 
-    // Template variables matching Resend template placeholders
+    // Template variables matching Resend template placeholders EXACTLY (case sensitive)
     const templateVariables = {
       ORDER_NUMBER: order_number,
       CLIENT_FIRST_NAME: client_first_name || "Client",
-      SERVICES_LIST: servicesList || "Services commandés",
+      SERVICES_LIST: servicesList || "• Services commandés",
       DELIVERY_TYPE: deliveryTypeLabel,
       TOTAL_MONTHLY_TAX_INCL: formatCurrency(monthly_total_tax_in),
       TOTAL_ONE_TIME_TAX_INCL: formatCurrency(one_time_total),
     };
 
-    // Log template info (mask email for privacy)
-    const maskedEmail = client_email.replace(/(.{2})(.*)(@.*)/, "$1***$3");
-    console.log(`[${requestId}] Template ID: ${resendTemplateId}`);
-    console.log(`[${requestId}] Template variables keys: ${Object.keys(templateVariables).join(", ")}`);
-    console.log(`[${requestId}] Template variables values:`, JSON.stringify({
-      ...templateVariables,
-      _to: maskedEmail,
-    }));
+    // Log template info
+    console.log(`[${requestId}] template_id_used=${resendTemplateId}`);
+    console.log(`[${requestId}] variables_keys=${Object.keys(templateVariables).join(", ")}`);
+    console.log(`[${requestId}] Template variables:`, JSON.stringify(templateVariables, null, 2));
 
-    // Send email via Resend using template API (correct format)
-    console.log(`[${requestId}] Sending templated email to ${maskedEmail}`);
+    // Build email subject matching template
+    const emailSubject = `Confirmation de commande — ${order_number} | Nivra Télécom`;
     
+    // Determine from email
     const fromEmail = supportEmail.includes("@") ? supportEmail : "noreply@nivratelecom.ca";
     
-    const emailResult = await resend.emails.send({
+    console.log(`[${requestId}] Sending email via Resend Templates API...`);
+    console.log(`[${requestId}] from: Nivra Telecom <${fromEmail}>`);
+    console.log(`[${requestId}] subject: ${emailSubject}`);
+
+    // Send email via Resend using TEMPLATE API
+    // DO NOT include html, text, or react when using template
+    const emailPayload = {
       from: `Nivra Telecom <${fromEmail}>`,
       to: [client_email],
-      subject: `Confirmation de commande — ${order_number}`,
-      // Use Resend template feature with correct API format
-      // DO NOT include html, text, or react when using template
+      subject: emailSubject,
       template: {
         id: resendTemplateId,
         variables: templateVariables,
       },
-    } as any); // Type cast needed as resend types may not include template
+    };
+
+    console.log(`[${requestId}] Resend payload (without sensitive data):`, JSON.stringify({
+      from: emailPayload.from,
+      to: [maskEmail(client_email)],
+      subject: emailPayload.subject,
+      template: { id: resendTemplateId, variables_keys: Object.keys(templateVariables) }
+    }));
+
+    // Type cast needed as resend types may not include template
+    const emailResult = await resend.emails.send(emailPayload as any);
 
     console.log(`[${requestId}] Resend API response:`, JSON.stringify(emailResult));
 
     if (emailResult.error) {
       console.error(`[${requestId}] Resend error:`, JSON.stringify(emailResult.error));
+      console.error(`[${requestId}] Error details:`, {
+        name: (emailResult.error as any)?.name,
+        message: (emailResult.error as any)?.message,
+        statusCode: (emailResult.error as any)?.statusCode,
+      });
       
       // Log to email_queue for retry/tracking
       await supabase.from("email_queue").insert({
@@ -190,8 +246,17 @@ Deno.serve(async (req) => {
         template_vars: templateVariables as any,
       });
 
+      logResult("error", {
+        order_id,
+        order_number,
+        to_email: maskEmail(client_email),
+        template_id_used: resendTemplateId,
+        error: emailResult.error,
+      });
+
       return new Response(JSON.stringify({ 
         success: false, 
+        status: "error",
         error: "Email sending failed",
         details: emailResult.error,
         request_id: requestId
@@ -203,7 +268,7 @@ Deno.serve(async (req) => {
 
     const resendMessageId = emailResult.data?.id;
     console.log(`[${requestId}] ✅ Email sent successfully via TEMPLATE`);
-    console.log(`[${requestId}] Resend message ID: ${resendMessageId}`);
+    console.log(`[${requestId}] resend_message_id=${resendMessageId}`);
 
     // Mark email as sent (idempotency) IMMEDIATELY after successful send
     const { error: updateError } = await supabase
@@ -214,6 +279,8 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.warn(`[${requestId}] Failed to update confirmation_email_sent_at:`, updateError);
       // Non-blocking — email was still sent
+    } else {
+      console.log(`[${requestId}] confirmation_email_sent_at updated`);
     }
 
     // Log success to email_queue for audit
@@ -227,8 +294,21 @@ Deno.serve(async (req) => {
       template_vars: templateVariables as any,
     });
 
+    logResult("sent", {
+      order_id,
+      order_number,
+      to_email: maskEmail(client_email),
+      template_id_used: resendTemplateId,
+      variables_keys: Object.keys(templateVariables),
+      resend_message_id: resendMessageId,
+      forced: force,
+    });
+
+    console.log(`[${requestId}] ========================================`);
+
     return new Response(JSON.stringify({ 
       success: true,
+      status: "sent",
       message_id: resendMessageId,
       template_id: resendTemplateId,
       request_id: requestId,
@@ -240,8 +320,14 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error(`[${requestId}] Unexpected error:`, error);
+    console.error(`[${requestId}] Error stack:`, (error as Error)?.stack);
+    logResult("error", { 
+      error: (error as Error)?.message || "Unknown error",
+      stack: (error as Error)?.stack 
+    });
     return new Response(JSON.stringify({ 
       error: "An unexpected error occurred",
+      status: "error",
       request_id: requestId
     }), {
       status: 500,
