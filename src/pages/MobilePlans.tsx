@@ -72,7 +72,7 @@ const MobilePlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background overflow-hidden" data-testid="mobile-plans-page">
       <Header />
       
       <main className="pt-24 pb-20 relative">
