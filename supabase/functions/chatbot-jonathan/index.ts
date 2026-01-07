@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,36 +15,19 @@ interface ChatRequest {
   // Authentication is determined server-side from the Authorization header
 }
 
-// Simple in-memory rate limiter (per function instance)
-// For production, use database-backed rate limiting
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 20; // 20 requests
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // per minute
-
-function checkRateLimit(key: string): { allowed: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-
-  if (!entry || now >= entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true };
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return { 
-      allowed: false, 
-      retryAfter: Math.ceil((entry.resetAt - now) / 1000) 
-    };
-  }
-
-  entry.count++;
-  return { allowed: true };
-}
-
 function getClientIP(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
          req.headers.get("cf-connecting-ip") || 
          "unknown";
+}
+
+// Simple SHA-256 hash for message deduplication (no PII stored)
+async function hashMessage(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req) => {
@@ -96,31 +80,22 @@ serve(async (req) => {
       }
     }
 
-    // Rate limiting by IP + authenticated user
+    // PRODUCTION RATE LIMITING using database-backed module
     const rateLimitKey = isAuthenticated 
       ? `chatbot:user:${authenticatedUserId}` 
       : `chatbot:ip:${clientIP}`;
     
-    const rateCheck = checkRateLimit(rateLimitKey);
+    // 20 requests per minute, with 5 minute lockout on abuse
+    const rateCheck = await checkRateLimit({
+      key: rateLimitKey,
+      maxAttempts: 20,
+      windowMs: 60 * 1000, // 1 minute
+      lockoutMs: 5 * 60 * 1000, // 5 minute lockout on abuse
+    });
+
     if (!rateCheck.allowed) {
       console.log("[Chatbot] Rate limit exceeded for:", rateLimitKey);
-      return new Response(
-        JSON.stringify({ 
-          error: "rate_limit_exceeded",
-          message: language === "fr" 
-            ? `Trop de messages. Réessayez dans ${rateCheck.retryAfter} secondes.`
-            : `Too many messages. Retry in ${rateCheck.retryAfter} seconds.`,
-          retry_after: rateCheck.retryAfter
-        }),
-        { 
-          status: 429, 
-          headers: { 
-            ...corsHeaders, 
-            "Content-Type": "application/json",
-            "Retry-After": String(rateCheck.retryAfter)
-          } 
-        }
-      );
+      return rateLimitResponse(rateCheck, corsHeaders);
     }
 
     let contextData: Record<string, unknown> = {};
@@ -234,14 +209,19 @@ serve(async (req) => {
     const botResponse = aiData.choices?.[0]?.message?.content || 
       (language === "fr" ? "Désolé, je n'ai pas pu traiter votre demande." : "Sorry, I couldn't process your request.");
 
-    // Log the conversation (without sensitive data in clear text)
-    // Only store session_id, user_id (if auth), timestamp, action type
+    // SECURITY: Log WITHOUT any PII in clear text
+    // Only store: session_id, user_id (if auth), lengths, hash, and metadata
+    const messageHash = await hashMessage(message);
+    
     await supabaseAdmin.from("chatbot_logs").insert({
       session_id: sessionId,
       user_id: authenticatedUserId, // Server-verified user ID only
       is_authenticated: isAuthenticated,
-      user_message: message.substring(0, 500), // Truncate for safety
-      bot_response: botResponse.substring(0, 1000), // Truncate for safety
+      user_message: "[REDACTED]", // Never store message content
+      bot_response: "[REDACTED]", // Never store response content
+      message_length: message.length,
+      response_length: botResponse.length,
+      message_hash: messageHash, // For deduplication only
       intent_detected: null,
       entities_extracted: contextData, // Only counts, no PII
       actions_taken: [],
@@ -250,7 +230,8 @@ serve(async (req) => {
     console.log("[Chatbot] Response sent", { 
       sessionId, 
       isAuthenticated, 
-      userId: authenticatedUserId ? "***" : null 
+      messageLength: message.length,
+      responseLength: botResponse.length
     });
 
     return new Response(

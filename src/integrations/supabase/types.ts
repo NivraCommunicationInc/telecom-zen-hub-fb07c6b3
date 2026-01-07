@@ -703,6 +703,9 @@ export type Database = {
           id: string
           intent_detected: string | null
           is_authenticated: boolean | null
+          message_hash: string | null
+          message_length: number | null
+          response_length: number | null
           session_id: string
           user_id: string | null
           user_message: string
@@ -715,6 +718,9 @@ export type Database = {
           id?: string
           intent_detected?: string | null
           is_authenticated?: boolean | null
+          message_hash?: string | null
+          message_length?: number | null
+          response_length?: number | null
           session_id: string
           user_id?: string | null
           user_message: string
@@ -727,6 +733,9 @@ export type Database = {
           id?: string
           intent_detected?: string | null
           is_authenticated?: boolean | null
+          message_hash?: string | null
+          message_length?: number | null
+          response_length?: number | null
           session_id?: string
           user_id?: string | null
           user_message?: string
