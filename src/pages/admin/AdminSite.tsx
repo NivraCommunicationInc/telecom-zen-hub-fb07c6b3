@@ -271,6 +271,9 @@ function PagesTab({ pages, loading, userId, userEmail }: { pages: SitePage[]; lo
         if (error) throw error;
       } else {
         const insertPayload = {
+          slug: page.slug || `page-${Date.now()}`,
+          title_fr: page.title_fr || "",
+          title_en: page.title_en || "",
           ...payload,
           created_by_id: userId,
           created_by_name: userEmail,
@@ -472,6 +475,10 @@ function OffersTab({ offers, loading, userId, userEmail }: { offers: SiteOffer[]
         if (error) throw error;
       } else {
         const insertPayload = {
+          offer_type: offer.offer_type || "plan",
+          category: offer.category || "general",
+          name_fr: offer.name_fr || "",
+          name_en: offer.name_en || "",
           ...payload,
           created_by_id: userId,
           created_by_name: userEmail,
