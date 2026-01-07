@@ -1,26 +1,21 @@
-import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
-import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 import { employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { toast } from "sonner";
 
-interface EmployeeProtectedRouteProps {
-  children: ReactNode;
-}
-
 const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes for employees
 
-const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
-  const { user, signOut, isLoading, role } = useEmployeeAuth();
+const EmployeeProtectedRoute = () => {
+  const { user, signOut, isLoading } = useEmployeeAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [verificationState, setVerificationState] = useState<
     "pending" | "loading" | "verified" | "denied" | "not_authenticated"
   >("pending");
   const hasLoggedBlockedAccess = useRef(false);
-  const lastAuthCheck = useRef<number>(0);
 
   // Handle idle timeout
   const handleIdleLogout = useCallback(async () => {
@@ -50,7 +45,11 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
       }
 
       if (isMounted) setVerificationState("loading");
-      console.log("[EmployeeProtectedRoute] Starting verification for user:", user.id, user.email);
+      console.log(
+        "[EmployeeProtectedRoute] Starting verification for user:",
+        user.id,
+        user.email
+      );
 
       try {
         // Session freshness check
@@ -59,7 +58,10 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
         const lastCheckTime = lastCheck ? parseInt(lastCheck, 10) : 0;
 
         if (now - lastCheckTime > SESSION_RECHECK_INTERVAL_MS) {
-          const { data: { session }, error: sessionError } = await employeeSupabase.auth.getSession();
+          const {
+            data: { session },
+            error: sessionError,
+          } = await employeeSupabase.auth.getSession();
 
           if (sessionError || !session) {
             console.log("[EmployeeProtectedRoute] Session invalid or expired");
@@ -69,7 +71,6 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
           }
 
           sessionStorage.setItem("employee_last_auth_check", now.toString());
-          lastAuthCheck.current = now;
         }
 
         // SECURITY: Verify role from database - ONLY employee allowed
@@ -94,7 +95,10 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
 
         // Not employee role
         if (!roleData || roleData.role !== "employee") {
-          console.log("[EmployeeProtectedRoute] Role mismatch. User role:", roleData?.role || "none");
+          console.log(
+            "[EmployeeProtectedRoute] Role mismatch. User role:",
+            roleData?.role || "none"
+          );
 
           if (!hasLoggedBlockedAccess.current) {
             hasLoggedBlockedAccess.current = true;
@@ -128,7 +132,11 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
 
         // Check status and is_active
         if (roleData.status !== "active" || roleData.is_active === false) {
-          console.log("[EmployeeProtectedRoute] Account not active:", roleData.status, roleData.is_active);
+          console.log(
+            "[EmployeeProtectedRoute] Account not active:",
+            roleData.status,
+            roleData.is_active
+          );
           toast.error("Compte désactivé", {
             description: "Votre compte employé est désactivé. Contactez un administrateur.",
           });
@@ -184,9 +192,9 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
     return <Navigate to="/employee/login" replace />;
   }
 
-  // Verified - render children
+  // Verified - render nested employee routes
   if (verificationState === "verified") {
-    return <>{children}</>;
+    return <Outlet />;
   }
 
   // Fallback (should never reach here) - Navigate to login

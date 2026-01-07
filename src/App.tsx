@@ -101,6 +101,8 @@ import EmployeeBilling from "./pages/employee/EmployeeBilling";
 import EmployeeCancellations from "./pages/employee/EmployeeCancellations";
 import EmployeePaymentDisputes from "./pages/employee/EmployeePaymentDisputes";
 import EmployeeTickets from "./pages/employee/EmployeeTickets";
+import EmployeeLayout from "./components/employee/EmployeeLayout";
+import EmployeeErrorBoundary from "./components/employee/EmployeeErrorBoundary";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import { lazy, Suspense } from "react";
 
@@ -218,14 +220,34 @@ const App = () => (
               </>
             )}
             {/* Employee Portal Routes - Wrapped with EmployeeAuthProvider (isolated storage key) */}
-            <Route path="/employee/login" element={<EmployeeAuthProvider><EmployeeLogin /></EmployeeAuthProvider>} />
-            <Route path="/employee" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
-            <Route path="/employee/clients" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
-            <Route path="/employee/orders" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
-            <Route path="/employee/billing" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeBilling /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
-            <Route path="/employee/cancellations" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeCancellations /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
-            <Route path="/employee/payment-disputes" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeePaymentDisputes /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
-            <Route path="/employee/tickets" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeTickets /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route
+              path="/employee/login"
+              element={
+                <EmployeeAuthProvider>
+                  <EmployeeLogin />
+                </EmployeeAuthProvider>
+              }
+            />
+
+            {/* Canonical Employee Portal (nested routes) */}
+            <Route
+              path="/employee"
+              element={
+                <EmployeeAuthProvider>
+                  <EmployeeProtectedRoute />
+                </EmployeeAuthProvider>
+              }
+            >
+              <Route element={<EmployeeErrorBoundary><EmployeeLayout /></EmployeeErrorBoundary>}>
+                <Route index element={<EmployeeDashboard />} />
+                <Route path="clients" element={<EmployeeClients />} />
+                <Route path="orders" element={<EmployeeOrders />} />
+                <Route path="billing" element={<EmployeeBilling />} />
+                <Route path="cancellations" element={<EmployeeCancellations />} />
+                <Route path="payment-disputes" element={<EmployeePaymentDisputes />} />
+                <Route path="tickets" element={<EmployeeTickets />} />
+              </Route>
+            </Route>
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />

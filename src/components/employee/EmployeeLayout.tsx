@@ -1,27 +1,23 @@
-import { ReactNode, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Package, 
-  Users, 
-  CreditCard, 
+import { useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Package,
+  Users,
+  CreditCard,
   LogOut,
   Menu,
   X,
   MessageSquare,
   XCircle,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/notification-bell";
-
-interface EmployeeLayoutProps {
-  children: ReactNode;
-}
 
 const navItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/employee" },
@@ -33,7 +29,7 @@ const navItems = [
   { icon: MessageSquare, label: "Tickets", href: "/employee/tickets" },
 ];
 
-const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
+const EmployeeLayout = () => {
   const { signOut, user } = useEmployeeAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -48,7 +44,7 @@ const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
     <div className="min-h-screen bg-background flex flex-col">
       {/* System Status Banner */}
       <SystemStatusBanner userType="admin" />
-      
+
       <div className="flex-1 flex">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex flex-col w-64 bg-card border-r border-border">
@@ -61,7 +57,7 @@ const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
             </Link>
             <NotificationBell />
           </div>
-          
+
           <nav className="flex-1 p-4 space-y-1">
             {navItems.map((item) => (
               <Link
@@ -117,11 +113,7 @@ const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
               </div>
               <span className="font-display font-bold text-lg text-foreground">Nivra Employee</span>
             </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
@@ -159,7 +151,7 @@ const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
 
         {/* Main Content */}
         <main className="flex-1 lg:p-8 p-4 pt-20 lg:pt-8 overflow-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
@@ -167,3 +159,4 @@ const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
 };
 
 export default EmployeeLayout;
+
