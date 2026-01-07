@@ -107,6 +107,10 @@ const AdminQAEmployeeSmoke = lazy(() => import("./pages/admin/AdminQAEmployeeSmo
 const AdminQAEmployeeCancellations = lazy(() => import("./pages/admin/AdminQAEmployeeCancellations"));
 const AdminQAEmployeeDisputes = lazy(() => import("./pages/admin/AdminQAEmployeeDisputes"));
 const AdminQAEmployeeTickets = lazy(() => import("./pages/admin/AdminQAEmployeeTickets"));
+const AdminQAEmployeeClients = lazy(() => import("./pages/admin/AdminQAEmployeeClients"));
+const AdminQAEmployeeOrders = lazy(() => import("./pages/admin/AdminQAEmployeeOrders"));
+const AdminQAEmployeeBilling = lazy(() => import("./pages/admin/AdminQAEmployeeBilling"));
+const AdminQAEmployeeSidebar = lazy(() => import("./pages/admin/AdminQAEmployeeSidebar"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -197,9 +201,13 @@ const App = () => (
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
                 <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
                 <Route path="/qa/employee-smoke" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSmoke /></Suspense>} />
+                <Route path="/qa/employee/clients" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeClients /></Suspense>} />
+                <Route path="/qa/employee/orders" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeOrders /></Suspense>} />
+                <Route path="/qa/employee/billing" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeBilling /></Suspense>} />
                 <Route path="/qa/employee/cancellations" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeCancellations /></Suspense>} />
                 <Route path="/qa/employee/payment-disputes" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeDisputes /></Suspense>} />
                 <Route path="/qa/employee/tickets" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeTickets /></Suspense>} />
+                <Route path="/qa/employee/sidebar" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSidebar /></Suspense>} />
               </>
             )}
             {/* Employee Portal Routes */}
