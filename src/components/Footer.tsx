@@ -29,6 +29,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       { label: isFr ? "Nous joindre" : "Contact Us", href: "/#contact" },
       { label: "FAQ", href: "/aide" },
       { label: isFr ? "Portail client" : "Client Portal", href: "/portal/auth" },
+      { label: "Admin", href: "/admin" },
     ],
     legal: [
       { label: isFr ? "Conditions de service" : "Terms of Service", href: "/conditions-de-service" },
