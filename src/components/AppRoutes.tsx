@@ -76,6 +76,9 @@ import AdminMessages from "@/pages/admin/AdminMessages";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
+// Staff pages (accessible by admin + employee)
+import StaffMessages from "@/pages/staff/StaffMessages";
+
 // Client portal pages
 import ClientAuth from "@/pages/client/ClientAuth";
 import ClientSuspended from "@/pages/client/ClientSuspended";
@@ -201,6 +204,11 @@ const AppRoutes = () => {
           <Route path="/dev/rls-test" element={<Suspense fallback={<div>Loading...</div>}><DevRLSTest /></Suspense>} />
         </>
       )}
+      
+      {/* ============================================ */}
+      {/* STAFF ROUTES - Accessible by admin + employee */}
+      {/* ============================================ */}
+      <Route path="/staff/messages" element={<AuthProvider><StaffMessages /></AuthProvider>} />
       
       {/* EMPLOYEE PORTAL DISABLED - All /employee/* routes redirect to NotFound */}
       <Route path="/employee/*" element={<NotFound />} />

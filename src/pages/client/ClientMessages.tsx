@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { MessageSquare, Plus, Send, Clock, CheckCircle, Circle } from "lucide-react";
+import { MessageSquare, Plus, Send, Clock, CheckCircle, Circle, AlertCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -44,22 +44,27 @@ const ClientMessages = () => {
   const [newContent, setNewContent] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: conversations, isLoading } = useQuery({
+  const { data: conversations, isLoading, error: conversationsError, refetch } = useQuery({
     queryKey: ["client-conversations", user?.id],
     queryFn: async () => {
+      console.log("[ClientMessages] Fetching conversations for user:", user?.id);
       const { data, error } = await supabase
         .from("message_conversations")
         .select("*")
         .eq("client_id", user?.id)
         .order("last_message_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[ClientMessages] Query error:", error);
+        throw error;
+      }
+      console.log("[ClientMessages] Fetched conversations:", data?.length);
       return data as Conversation[];
     },
     enabled: !!user?.id,
   });
 
-  const { data: messages } = useQuery({
+  const { data: messages, error: messagesError } = useQuery({
     queryKey: ["conversation-messages", selectedConversation],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,7 +73,18 @@ const ClientMessages = () => {
         .eq("conversation_id", selectedConversation)
         .order("created_at", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[ClientMessages] Messages query error:", error);
+        toast.error(language === "fr" ? "Erreur lors du chargement des messages" : "Error loading messages");
+        throw error;
+      }
+      
+      // Mark as read by client when viewing
+      await supabase
+        .from("message_conversations")
+        .update({ unread_by_client: false })
+        .eq("id", selectedConversation);
+        
       return data as Message[];
     },
     enabled: !!selectedConversation,
@@ -238,13 +254,33 @@ const ClientMessages = () => {
             </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="h-[500px]">
-                {isLoading ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    {language === "fr" ? "Chargement..." : "Loading..."}
+                {conversationsError ? (
+                  <div className="p-6 text-center">
+                    <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
+                    <p className="text-sm text-destructive mb-2">
+                      {language === "fr" ? "Erreur de chargement" : "Loading error"}
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => refetch()}>
+                      {language === "fr" ? "Réessayer" : "Retry"}
+                    </Button>
+                  </div>
+                ) : isLoading ? (
+                  <div className="p-6 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {language === "fr" ? "Chargement..." : "Loading..."}
+                    </p>
                   </div>
                 ) : conversations?.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    {language === "fr" ? "Aucune conversation" : "No conversations"}
+                  <div className="p-8 text-center">
+                    <MessageSquare className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-muted-foreground mb-3">
+                      {language === "fr" ? "Aucune conversation" : "No conversations"}
+                    </p>
+                    <Button onClick={() => setDialogOpen(true)} size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {language === "fr" ? "Démarrer une conversation" : "Start a conversation"}
+                    </Button>
                   </div>
                 ) : (
                   conversations?.map((conv) => (
@@ -259,7 +295,7 @@ const ClientMessages = () => {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{conv.subject}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(conv.last_message_at), "d MMM yyyy HH:mm", {
+                            {format(new Date(conv.last_message_at || conv.created_at), "d MMM yyyy HH:mm", {
                               locale: language === "fr" ? fr : undefined,
                             })}
                           </p>
