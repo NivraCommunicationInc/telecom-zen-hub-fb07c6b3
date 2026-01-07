@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
-import { employeeClient as employeeSupabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as employeeSupabase } from "@/integrations/backend/employeeClient";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { toast } from "sonner";
 

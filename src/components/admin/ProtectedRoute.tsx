@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/backend/client";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { toast } from "sonner";
 

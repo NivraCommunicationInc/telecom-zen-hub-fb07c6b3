@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { employeeClient as supabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as supabase } from "@/integrations/backend/employeeClient";
 import { Package, MessageSquare, XCircle, AlertTriangle, Clock, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
