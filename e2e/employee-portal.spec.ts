@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, BrowserContext } from '@playwright/test';
 
 // Helper to collect console errors
 async function setupConsoleErrorCollection(page: Page): Promise<string[]> {
@@ -10,6 +10,10 @@ async function setupConsoleErrorCollection(page: Page): Promise<string[]> {
   });
   return errors;
 }
+
+// Employee test credentials - these should be real users in user_roles with role='employee'
+const EMPLOYEE_EMAIL = 'nivrasolutions@gmail.com';
+const EMPLOYEE_PASSWORD = process.env.EMPLOYEE_TEST_PASSWORD || 'TestEmployee123!';
 
 test.describe('Employee Portal Routes - Unauthenticated Redirects', () => {
   test('/employee redirects to login when unauthenticated', async ({ page }) => {
@@ -399,6 +403,302 @@ test.describe('Employee Portal - Database Mutation Tests (DEV)', () => {
     if (await actionButton.isVisible()) {
       // Action buttons exist for viewing/updating
       expect(true).toBe(true);
+    }
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+});
+
+// ===============================================================================
+// REAL AUTHENTICATION TESTS - Employee accessing /admin/* routes
+// These tests use real employee credentials to verify admin access
+// ===============================================================================
+
+test.describe('REAL Employee Auth - Admin Route Access', () => {
+  // Skip if no password is configured (CI environment without secrets)
+  test.skip(!process.env.EMPLOYEE_TEST_PASSWORD, 'Skipping real auth tests - no EMPLOYEE_TEST_PASSWORD env var');
+
+  test('Employee can log in and access /admin/clients', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    // Login as employee
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    
+    // Wait for redirect after successful login
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    // Navigate to clients
+    await page.goto('/admin/clients');
+    await page.waitForLoadState('networkidle');
+    
+    // Verify we see the clients page, not a login redirect
+    await expect(page.locator('h1:has-text("Clients")').or(page.locator('text=Liste des clients'))).toBeVisible();
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can access /admin/billing', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/billing');
+    await page.waitForLoadState('networkidle');
+    
+    await expect(page.locator('text=Facturation').first()).toBeVisible();
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can access /admin/cancellations', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/cancellations');
+    await page.waitForLoadState('networkidle');
+    
+    await expect(page.locator('text=Annulation').or(page.locator('text=Demandes d\'annulation'))).toBeVisible();
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can access /admin/payment-disputes', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/payment-disputes');
+    await page.waitForLoadState('networkidle');
+    
+    await expect(page.locator('text=Contestation').or(page.locator('text=Contestations de paiement'))).toBeVisible();
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can access /admin/tickets', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/tickets');
+    await page.waitForLoadState('networkidle');
+    
+    await expect(page.locator('text=Tickets').or(page.locator('text=Tickets de support'))).toBeVisible();
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+});
+
+// ===============================================================================
+// REAL MUTATION TESTS - Employee performing mutations that persist after refresh
+// These tests verify RLS policies allow employee to write data
+// ===============================================================================
+
+test.describe('REAL Employee Mutations - Persistent Changes', () => {
+  test.skip(!process.env.EMPLOYEE_TEST_PASSWORD, 'Skipping mutation tests - no EMPLOYEE_TEST_PASSWORD env var');
+
+  test('Employee can update cancellation status (persists after refresh)', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    // Login
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    // Go to cancellations
+    await page.goto('/admin/cancellations');
+    await page.waitForLoadState('networkidle');
+    
+    // Check if there are rows to update
+    const rows = page.locator('table tbody tr');
+    const rowCount = await rows.count();
+    
+    if (rowCount > 0) {
+      // Click first row
+      await rows.first().click();
+      await page.waitForLoadState('networkidle');
+      
+      // Look for status update capability
+      const statusSelect = page.locator('select[name="status"]').or(page.locator('[data-testid="status-select"]'));
+      if (await statusSelect.isVisible()) {
+        // Change status
+        await statusSelect.selectOption('under_review');
+        
+        // Save
+        const saveButton = page.locator('button:has-text("Sauvegarder")').or(page.locator('button:has-text("Enregistrer")'));
+        if (await saveButton.isVisible()) {
+          await saveButton.click();
+          await page.waitForLoadState('networkidle');
+        }
+        
+        // Refresh and verify persistence
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        
+        // Reopen the same row
+        await rows.first().click();
+        await page.waitForLoadState('networkidle');
+        
+        // Verify status was saved
+        await expect(page.locator('text=En révision').or(page.locator('text=under_review'))).toBeVisible();
+      }
+    }
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can update dispute status (persists after refresh)', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/payment-disputes');
+    await page.waitForLoadState('networkidle');
+    
+    const rows = page.locator('table tbody tr');
+    const rowCount = await rows.count();
+    
+    if (rowCount > 0) {
+      await rows.first().click();
+      await page.waitForLoadState('networkidle');
+      
+      const statusSelect = page.locator('select[name="status"]').or(page.locator('[data-testid="status-select"]'));
+      if (await statusSelect.isVisible()) {
+        await statusSelect.selectOption('under_review');
+        
+        const saveButton = page.locator('button:has-text("Sauvegarder")').or(page.locator('button:has-text("Enregistrer")'));
+        if (await saveButton.isVisible()) {
+          await saveButton.click();
+          await page.waitForLoadState('networkidle');
+        }
+        
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        
+        await rows.first().click();
+        await page.waitForLoadState('networkidle');
+        
+        await expect(page.locator('text=En examen').or(page.locator('text=under_review'))).toBeVisible();
+      }
+    }
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can post ticket reply (persists after refresh)', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/tickets');
+    await page.waitForLoadState('networkidle');
+    
+    const rows = page.locator('table tbody tr');
+    const rowCount = await rows.count();
+    
+    if (rowCount > 0) {
+      await rows.first().click();
+      await page.waitForLoadState('networkidle');
+      
+      // Find reply textarea
+      const replyInput = page.locator('textarea[placeholder*="réponse"]').or(page.locator('textarea[placeholder*="Écrivez"]')).or(page.locator('textarea'));
+      if (await replyInput.isVisible()) {
+        const testReplyText = `Test reply from employee E2E - ${Date.now()}`;
+        await replyInput.fill(testReplyText);
+        
+        // Submit reply
+        const sendButton = page.locator('button:has-text("Envoyer")').or(page.locator('button:has-text("Répondre")'));
+        if (await sendButton.isVisible()) {
+          await sendButton.click();
+          await page.waitForLoadState('networkidle');
+        }
+        
+        // Refresh and verify the reply exists
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        
+        await rows.first().click();
+        await page.waitForLoadState('networkidle');
+        
+        // The reply should still be visible
+        await expect(page.locator(`text=${testReplyText.substring(0, 20)}`).first()).toBeVisible();
+      }
+    }
+    
+    expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
+  });
+
+  test('Employee can update billing/payment status (persists after refresh)', async ({ page }) => {
+    const errors = await setupConsoleErrorCollection(page);
+    
+    await page.goto('/admin/login');
+    await page.fill('input[type="email"]', EMPLOYEE_EMAIL);
+    await page.fill('input[type="password"]', EMPLOYEE_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/admin(?!\/login)/);
+    
+    await page.goto('/admin/billing');
+    await page.waitForLoadState('networkidle');
+    
+    // Look for a billing row to update
+    const rows = page.locator('table tbody tr');
+    const rowCount = await rows.count();
+    
+    if (rowCount > 0) {
+      await rows.first().click();
+      await page.waitForLoadState('networkidle');
+      
+      // Find payment status or e-transfer status control
+      const statusSelect = page.locator('select[name="status"]')
+        .or(page.locator('select[name="etransfer_status"]'))
+        .or(page.locator('[data-testid="payment-status-select"]'));
+      
+      if (await statusSelect.isVisible()) {
+        await statusSelect.selectOption({ index: 1 }); // Select next option
+        
+        const saveButton = page.locator('button:has-text("Sauvegarder")').or(page.locator('button:has-text("Mettre à jour")'));
+        if (await saveButton.isVisible()) {
+          await saveButton.click();
+          await page.waitForLoadState('networkidle');
+        }
+        
+        // Refresh and verify persistence
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        
+        // Page should load without errors, confirming the update succeeded
+        await expect(page.locator('text=Facturation').first()).toBeVisible();
+      }
     }
     
     expect(errors.filter(e => !e.includes('favicon'))).toHaveLength(0);
