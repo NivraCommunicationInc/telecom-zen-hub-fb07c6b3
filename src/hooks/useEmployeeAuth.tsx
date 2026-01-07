@@ -29,6 +29,8 @@ export const EmployeeAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchEmployeeRole = async (userId: string): Promise<"employee" | null> => {
     try {
+      console.log("[EmployeeAuth] Fetching role for user:", userId);
+      
       // SECURITY: Only employee role allowed on /employee/* routes
       const { data, error } = await employeeSupabase
         .from("user_roles")
@@ -37,7 +39,14 @@ export const EmployeeAuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("role", "employee")
         .maybeSingle();
 
-      if (error || !data) {
+      console.log("[EmployeeAuth] Role query result:", { data, error });
+
+      if (error) {
+        console.error("[EmployeeAuth] Role lookup error:", error);
+        return null;
+      }
+      
+      if (!data) {
         console.log("[EmployeeAuth] No employee role found for user", userId);
         return null;
       }
@@ -48,6 +57,7 @@ export const EmployeeAuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
 
+      console.log("[EmployeeAuth] Employee role verified successfully");
       return "employee";
     } catch (err) {
       console.error("[EmployeeAuth] Error fetching role:", err);
