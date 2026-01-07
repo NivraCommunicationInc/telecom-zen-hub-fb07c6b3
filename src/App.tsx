@@ -2,10 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ClientAuthProvider } from "@/hooks/useClientAuth";
-import { EmployeeAuthProvider } from "@/hooks/useEmployeeAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import About from "./pages/About";
@@ -93,32 +92,10 @@ import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "./pages/admin/AdminPaymentDisputes";
 import AdminSite from "./pages/admin/AdminSite";
 import DynamicPage from "./pages/DynamicPage";
-import EmployeeLogin from "./pages/employee/EmployeeLogin";
-import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
-import EmployeeClients from "./pages/employee/EmployeeClients";
-import EmployeeOrders from "./pages/employee/EmployeeOrders";
-import EmployeeBilling from "./pages/employee/EmployeeBilling";
-import EmployeeCancellations from "./pages/employee/EmployeeCancellations";
-import EmployeePaymentDisputes from "./pages/employee/EmployeePaymentDisputes";
-import EmployeeTickets from "./pages/employee/EmployeeTickets";
-import EmployeeContracts from "./pages/employee/EmployeeContracts";
-import EmployeeStreaming from "./pages/employee/EmployeeStreaming";
-import EmployeeLayout from "./components/employee/EmployeeLayout";
-import EmployeeErrorBoundary from "./components/employee/EmployeeErrorBoundary";
-import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import { lazy, Suspense } from "react";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("./pages/admin/AdminQABlockStatus"));
-const AdminQAEmployeeSmoke = lazy(() => import("./pages/admin/AdminQAEmployeeSmoke"));
-const AdminQAEmployeeCancellations = lazy(() => import("./pages/admin/AdminQAEmployeeCancellations"));
-const AdminQAEmployeeDisputes = lazy(() => import("./pages/admin/AdminQAEmployeeDisputes"));
-const AdminQAEmployeeTickets = lazy(() => import("./pages/admin/AdminQAEmployeeTickets"));
-const AdminQAEmployeeClients = lazy(() => import("./pages/admin/AdminQAEmployeeClients"));
-const AdminQAEmployeeOrders = lazy(() => import("./pages/admin/AdminQAEmployeeOrders"));
-const AdminQAEmployeeBilling = lazy(() => import("./pages/admin/AdminQAEmployeeBilling"));
-const AdminQAEmployeeSidebar = lazy(() => import("./pages/admin/AdminQAEmployeeSidebar"));
-const AdminQAAdminAsEmployee = lazy(() => import("./pages/admin/AdminQAAdminAsEmployee"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -210,46 +187,13 @@ const App = () => (
               <>
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
                 <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
-                <Route path="/qa/employee-smoke" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSmoke /></Suspense>} />
-                <Route path="/qa/employee/clients" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeClients /></Suspense>} />
-                <Route path="/qa/employee/orders" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeOrders /></Suspense>} />
-                <Route path="/qa/employee/billing" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeBilling /></Suspense>} />
-                <Route path="/qa/employee/cancellations" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeCancellations /></Suspense>} />
-                <Route path="/qa/employee/payment-disputes" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeDisputes /></Suspense>} />
-                <Route path="/qa/employee/tickets" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeTickets /></Suspense>} />
-                <Route path="/qa/employee/sidebar" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSidebar /></Suspense>} />
-                <Route path="/qa/admin-as-employee" element={<Suspense fallback={<div>Loading...</div>}><AdminQAAdminAsEmployee /></Suspense>} />
               </>
             )}
-            {/* Employee Portal Routes - Single EmployeeAuthProvider for ALL /employee/* routes */}
-            <Route
-              path="/employee"
-              element={
-                <EmployeeAuthProvider>
-                  <EmployeeErrorBoundary>
-                    <Outlet />
-                  </EmployeeErrorBoundary>
-                </EmployeeAuthProvider>
-              }
-            >
-              {/* Login is public but within the same provider */}
-              <Route path="login" element={<EmployeeLogin />} />
-              
-              {/* Protected routes */}
-              <Route element={<EmployeeProtectedRoute />}>
-                <Route element={<EmployeeLayout />}>
-                  <Route index element={<EmployeeDashboard />} />
-                  <Route path="clients" element={<EmployeeClients />} />
-                  <Route path="orders" element={<EmployeeOrders />} />
-                  <Route path="billing" element={<EmployeeBilling />} />
-                  <Route path="contracts" element={<EmployeeContracts />} />
-                  <Route path="streaming" element={<EmployeeStreaming />} />
-                  <Route path="cancellations" element={<EmployeeCancellations />} />
-                  <Route path="payment-disputes" element={<EmployeePaymentDisputes />} />
-                  <Route path="tickets" element={<EmployeeTickets />} />
-                </Route>
-              </Route>
-            </Route>
+            
+            {/* EMPLOYEE PORTAL DISABLED - All /employee/* routes redirect to NotFound */}
+            <Route path="/employee/*" element={<NotFound />} />
+            <Route path="/employee" element={<NotFound />} />
+            
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
