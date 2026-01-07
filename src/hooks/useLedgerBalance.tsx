@@ -1,11 +1,11 @@
 /**
  * Hook for real-time ledger balance
- * Uses Supabase Realtime for instant updates across Admin/Employee/Client
+ * Uses Realtime for instant updates across Admin/Employee/Client
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 
 export interface LedgerBalance {
   totalDebits: number;
@@ -37,7 +37,7 @@ export interface LedgerEntry {
  */
 async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
   // Try to use the database function first
-  const { data, error } = await supabase.rpc('get_client_ledger_balance', {
+  const { data, error } = await backendClient.rpc('get_client_ledger_balance', {
     p_client_id: clientId
   });
 
@@ -80,7 +80,7 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
  * Fallback: calculate from ledger_entries directly
  */
 async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalance> {
-  const { data: entries, error } = await supabase
+  const { data: entries, error } = await backendClient
     .from('ledger_entries')
     .select('*')
     .eq('client_id', clientId);
@@ -148,7 +148,7 @@ export function useLedgerBalance(clientId: string | undefined) {
   useEffect(() => {
     if (!clientId) return;
 
-    const channel = supabase
+    const channel = backendClient
       .channel(`ledger-${clientId}`)
       .on(
         'postgres_changes',
@@ -190,7 +190,7 @@ export function useLedgerBalance(clientId: string | undefined) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      backendClient.removeChannel(channel);
     };
   }, [clientId, queryClient]);
 
@@ -204,7 +204,7 @@ export function useLedgerEntries(clientId: string | undefined) {
   return useQuery({
     queryKey: ["ledger-entries", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from('ledger_entries')
         .select('*')
         .eq('client_id', clientId!)

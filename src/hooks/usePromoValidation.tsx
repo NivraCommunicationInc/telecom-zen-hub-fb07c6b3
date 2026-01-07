@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 
 interface CartItem {
   type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
@@ -39,7 +39,7 @@ export const usePromoValidation = () => {
   ): Promise<PromoValidationResult> => {
     setIsValidating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("validate-promo", {
+      const { data, error } = await backendClient.functions.invoke("validate-promo", {
         body: {
           code: code.trim(),
           client_email: clientEmail,
@@ -88,7 +88,7 @@ export const usePromoValidation = () => {
     if (!appliedPromo) return;
 
     try {
-      await supabase.from("promotion_redemptions").insert({
+      await backendClient.from("promotion_redemptions").insert({
         promotion_id: appliedPromo.id,
         order_id: orderId,
         order_number: orderNumber,

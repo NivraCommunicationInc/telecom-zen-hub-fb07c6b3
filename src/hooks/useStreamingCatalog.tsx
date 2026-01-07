@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import { useAuth } from "@/hooks/useAuth";
 
 export interface StreamingCatalogItem {
@@ -29,7 +29,7 @@ export const useStreamingCatalogActive = () => {
   return useQuery({
     queryKey: ["streaming-catalog-active"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("streaming_catalog")
         .select("*")
         .eq("status", "active")
@@ -46,7 +46,7 @@ export const useStreamingCatalogAll = () => {
   return useQuery({
     queryKey: ["streaming-catalog-all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("streaming_catalog")
         .select("*")
         .in("status", ["active", "hold"])
@@ -63,7 +63,7 @@ export const useStreamingCatalogFull = () => {
   return useQuery({
     queryKey: ["streaming-catalog-full"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("streaming_catalog")
         .select("*")
         .order("sort_order", { ascending: true });
@@ -79,7 +79,7 @@ export const useStreamingCatalogAuditLogs = (catalogItemId?: string) => {
   return useQuery({
     queryKey: ["streaming-catalog-audit-logs", catalogItemId],
     queryFn: async () => {
-      let query = supabase
+      let query = backendClient
         .from("streaming_catalog_audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
@@ -109,13 +109,13 @@ export const useStreamingCatalogMutations = () => {
     newValue: any,
     changedFields: string[]
   ) => {
-    const { data: profile } = await supabase
+    const { data: profile } = await backendClient
       .from("profiles")
       .select("full_name, email")
       .eq("user_id", user?.id)
       .maybeSingle();
 
-    await supabase.from("streaming_catalog_audit_logs").insert({
+    await backendClient.from("streaming_catalog_audit_logs").insert({
       catalog_item_id: catalogItemId,
       action,
       actor_id: user?.id,
@@ -136,7 +136,7 @@ export const useStreamingCatalogMutations = () => {
 
   const createItem = useMutation({
     mutationFn: async (item: Omit<StreamingCatalogItem, "id" | "created_at" | "updated_at">) => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("streaming_catalog")
         .insert(item)
         .select()
@@ -151,7 +151,7 @@ export const useStreamingCatalogMutations = () => {
 
   const updateItem = useMutation({
     mutationFn: async ({ id, updates, oldItem }: { id: string; updates: Partial<StreamingCatalogItem>; oldItem: StreamingCatalogItem }) => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("streaming_catalog")
         .update(updates)
         .eq("id", id)
@@ -171,7 +171,7 @@ export const useStreamingCatalogMutations = () => {
 
   const deleteItem = useMutation({
     mutationFn: async ({ id, oldItem }: { id: string; oldItem: StreamingCatalogItem }) => {
-      const { error } = await supabase
+      const { error } = await backendClient
         .from("streaming_catalog")
         .delete()
         .eq("id", id);
@@ -184,7 +184,7 @@ export const useStreamingCatalogMutations = () => {
 
   const toggleStatus = useMutation({
     mutationFn: async ({ id, newStatus, oldItem }: { id: string; newStatus: "active" | "hold" | "inactive"; oldItem: StreamingCatalogItem }) => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("streaming_catalog")
         .update({ status: newStatus })
         .eq("id", id)

@@ -1,4 +1,4 @@
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/pdfEngine";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";
@@ -16,7 +16,7 @@ export const ensureOrderContractUpToDate = async (params: {
   const now = new Date().toISOString();
 
   // Fetch order with ALL relevant fields including individual service plans and prices
-  const { data: order, error: orderError } = await supabase
+  const { data: order, error: orderError } = await backendClient
     .from("orders")
     .select(`
       id, user_id, order_number, created_at, status, service_type, category,
@@ -31,7 +31,7 @@ export const ensureOrderContractUpToDate = async (params: {
   if (orderError) throw orderError;
   if (!order) throw new Error("Order not found");
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await backendClient
     .from("profiles")
     .select("*")
     .eq("user_id", order.user_id)
@@ -44,7 +44,7 @@ export const ensureOrderContractUpToDate = async (params: {
   let contract: any = null;
 
   if (contractId) {
-    const { data: existingContract } = await supabase
+    const { data: existingContract } = await backendClient
       .from("contracts")
       .select("*")
       .eq("id", contractId)
@@ -54,7 +54,7 @@ export const ensureOrderContractUpToDate = async (params: {
 
   if (!contract) {
     const contractNumber = buildContractNumber();
-    const { data: newContract, error: contractErr } = await supabase
+    const { data: newContract, error: contractErr } = await backendClient
       .from("contracts")
       .insert({
         user_id: order.user_id,
@@ -73,7 +73,7 @@ export const ensureOrderContractUpToDate = async (params: {
     contract = newContract;
     contractId = newContract.id;
 
-    await supabase
+    await backendClient
       .from("orders")
       .update({ related_contract_id: contractId } as any)
       .eq("id", order.id);
@@ -103,14 +103,10 @@ export const ensureOrderContractUpToDate = async (params: {
   const lastName = rest.join(" ");
 
   // Client account number (must always be shown in Contract PDF)
-  // Fallback order:
-  // 1) order.client_account_number (if present)
-  // 2) accounts.account_number where accounts.client_id = order.user_id
-  // 3) N/A (and log error)
   let clientAccountNumber: string | undefined = (order as any).client_account_number || undefined;
 
   if (!clientAccountNumber) {
-    const { data: acc, error: accError } = await supabase
+    const { data: acc, error: accError } = await backendClient
       .from("accounts")
       .select("account_number")
       .eq("client_id", order.user_id)
@@ -152,7 +148,7 @@ export const ensureOrderContractUpToDate = async (params: {
     const backfilledItems = await backfillOrderLineItems(order.id);
     if (backfilledItems && backfilledItems.length > 0) {
       // Refetch the updated equipment_details
-      const { data: updatedOrder } = await supabase
+      const { data: updatedOrder } = await backendClient
         .from("orders")
         .select("equipment_details")
         .eq("id", order.id)
@@ -207,7 +203,6 @@ export const ensureOrderContractUpToDate = async (params: {
     // Fallback: Parse service_type string if no line_items found
     if (serviceType.includes("internet") || serviceType.includes("fibre")) {
       internetPlan = "Internet Résidentiel";
-      // Don't set a hardcoded price - let it show "Prix à confirmer"
       internetPrice = undefined;
     }
     if (serviceType.includes("tv") || serviceType.includes("télé")) {
@@ -289,7 +284,7 @@ export const ensureOrderContractUpToDate = async (params: {
   const blob = doc.output("blob");
   const pdfHash = await hashBlobSHA256Hex(blob);
 
-  await supabase
+  await backendClient
     .from("contracts")
     .update({
       template_id: ACTIVE_CONTRACT_TEMPLATE.id,
@@ -300,10 +295,10 @@ export const ensureOrderContractUpToDate = async (params: {
     .eq("id", contract.id);
 
   // 4) Audit log (mandatory fields)
-  const { data: me } = await supabase.auth.getUser();
+  const { data: me } = await backendClient.auth.getUser();
   const actor = me.user;
 
-  await supabase.from("activity_logs").insert({
+  await backendClient.from("activity_logs").insert({
     user_id: actor?.id || "00000000-0000-0000-0000-000000000000",
     entity_type: "contract_pdf",
     entity_id: contract.id,

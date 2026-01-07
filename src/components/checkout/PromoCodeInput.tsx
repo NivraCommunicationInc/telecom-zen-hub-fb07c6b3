@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Ticket, X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface CartItem {
@@ -62,7 +62,7 @@ export const PromoCodeInput = ({
     setError(null);
 
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke("validate-promo", {
+      const { data, error: invokeError } = await backendClient.functions.invoke("validate-promo", {
         body: {
           code: code.trim(),
           client_email: clientEmail,

@@ -1,4 +1,4 @@
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ActivityLogOptions {
@@ -22,7 +22,7 @@ export const useActivityLog = () => {
 
     try {
       // Get user profile for name/email
-      const { data: profile } = await supabase
+      const { data: profile } = await backendClient
         .from("profiles")
         .select("full_name, email")
         .eq("user_id", user.id)
@@ -36,7 +36,7 @@ export const useActivityLog = () => {
         client: "Client",
       };
 
-      await supabase.from("activity_logs").insert({
+      await backendClient.from("activity_logs").insert({
         user_id: user.id,
         action,
         entity_type: entityType,
