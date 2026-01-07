@@ -7,7 +7,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { employeeSupabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as employeeSupabase } from "@/integrations/supabase/employeeClient";
 
 interface EmployeeAuthContextType {
   user: User | null;

@@ -1,3 +1,4 @@
+// Employee Payment Disputes Page - Updated imports to use employeeClient
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { employeeSupabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { 
   AlertTriangle, Search, ArrowLeft, Clock, CheckCircle, 
   XCircle, RefreshCw, Loader2, DollarSign, User, Mail, Phone
@@ -550,14 +551,14 @@ const EmployeePaymentDisputes = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Contestations de paiement</h1>
-            <p className="text-muted-foreground">Gestion des contestations clients</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Contestations de paiement</h1>
+          <p className="text-muted-foreground">Gestion des contestations clients</p>
         </div>
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {Object.entries(statusConfig).map(([status, config]) => (
             <Card 
               key={status} 
@@ -662,3 +663,4 @@ const EmployeePaymentDisputes = () => {
 };
 
 export default EmployeePaymentDisputes;
+

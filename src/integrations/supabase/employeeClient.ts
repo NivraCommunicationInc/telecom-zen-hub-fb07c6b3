@@ -12,7 +12,7 @@ const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 // This ensures employee sessions are completely isolated from admin sessions
 const EMPLOYEE_STORAGE_KEY = `sb-${PROJECT_ID}-employee-auth-token`;
 
-export const employeeSupabase = createClient<Database>(
+export const employeeClient = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY,
   {
@@ -24,3 +24,6 @@ export const employeeSupabase = createClient<Database>(
     },
   }
 );
+
+// Alias for backward compatibility during migration
+export const employeeSupabase = employeeClient;
