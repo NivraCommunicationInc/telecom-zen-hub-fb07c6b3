@@ -24,8 +24,8 @@ const ChatbotWidget = () => {
   const { language } = useLanguage();
 
   const welcomeMessage = language === "fr"
-    ? "Bonjour! Je suis Jonathan, votre assistant virtuel Nivra. Comment puis-je vous aider aujourd'hui?"
-    : "Hello! I'm Jonathan, your Nivra virtual assistant. How can I help you today?";
+    ? "Bonjour! Je suis l'assistant virtuel Nivra. Comment puis-je vous aider aujourd'hui?"
+    : "Hello! I'm your Nivra virtual assistant. How can I help you today?";
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -131,12 +131,12 @@ const ChatbotWidget = () => {
           {/* Header */}
           <div className="bg-accent text-white px-4 py-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-lg font-bold">J</span>
+              <span className="text-lg font-bold">N</span>
             </div>
             <div>
-              <h3 className="font-semibold">Jonathan</h3>
+              <h3 className="font-semibold">Nivra</h3>
               <p className="text-xs text-white/80">
-                {language === "fr" ? "Assistant Nivra" : "Nivra Assistant"}
+                {language === "fr" ? "Assistant virtuel" : "Virtual Assistant"}
               </p>
             </div>
           </div>
