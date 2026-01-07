@@ -9,14 +9,13 @@ import {
   Menu,
   X,
   MessageSquare,
-  FileText,
   XCircle,
   AlertTriangle,
   ExternalLink
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/notification-bell";
 
@@ -35,7 +34,7 @@ const navItems = [
 ];
 
 const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
-  const { signOut, user } = useAuth();
+  const { signOut, user } = useEmployeeAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

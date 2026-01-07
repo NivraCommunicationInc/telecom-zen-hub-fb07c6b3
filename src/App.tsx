@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ClientAuthProvider } from "@/hooks/useClientAuth";
+import { EmployeeAuthProvider } from "@/hooks/useEmployeeAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import About from "./pages/About";
@@ -216,15 +217,15 @@ const App = () => (
                 <Route path="/qa/admin-as-employee" element={<Suspense fallback={<div>Loading...</div>}><AdminQAAdminAsEmployee /></Suspense>} />
               </>
             )}
-            {/* Employee Portal Routes */}
-            <Route path="/employee/login" element={<AuthProvider><EmployeeLogin /></AuthProvider>} />
-            <Route path="/employee" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/clients" element={<AuthProvider><EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/orders" element={<AuthProvider><EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/billing" element={<AuthProvider><EmployeeProtectedRoute><EmployeeBilling /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/cancellations" element={<AuthProvider><EmployeeProtectedRoute><EmployeeCancellations /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/payment-disputes" element={<AuthProvider><EmployeeProtectedRoute><EmployeePaymentDisputes /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/tickets" element={<AuthProvider><EmployeeProtectedRoute><EmployeeTickets /></EmployeeProtectedRoute></AuthProvider>} />
+            {/* Employee Portal Routes - Wrapped with EmployeeAuthProvider (isolated storage key) */}
+            <Route path="/employee/login" element={<EmployeeAuthProvider><EmployeeLogin /></EmployeeAuthProvider>} />
+            <Route path="/employee" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route path="/employee/clients" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route path="/employee/orders" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route path="/employee/billing" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeBilling /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route path="/employee/cancellations" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeCancellations /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route path="/employee/payment-disputes" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeePaymentDisputes /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
+            <Route path="/employee/tickets" element={<EmployeeAuthProvider><EmployeeProtectedRoute><EmployeeTickets /></EmployeeProtectedRoute></EmployeeAuthProvider>} />
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
