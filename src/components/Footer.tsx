@@ -1,12 +1,12 @@
 import { forwardRef } from "react";
-import { Phone, Mail, MapPin, Clock, ShieldCheck } from "lucide-react";
+import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
+import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { data: siteSettings } = useSiteSettings();
   const currentYear = new Date().getFullYear();
 
@@ -16,187 +16,178 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
   const address = siteSettings?.address || COMPANY_CONTACT.fullAddress;
 
+  const isFr = language === 'fr';
+
   const links = {
     services: [
-      { labelKey: "services.mobile.title", href: "/mobile" },
-      { labelKey: "services.internet.title", href: "/internet" },
-      { labelKey: "services.tv.title", href: "/tv" },
-      { label: "Streaming+", href: "/streaming" },
-      { labelKey: "services.business.title", href: "/services" },
+      { label: isFr ? "Mobile" : "Mobile", href: "/mobile" },
+      { label: isFr ? "Internet" : "Internet", href: "/internet" },
+      { label: isFr ? "Télévision" : "Television", href: "/tv" },
+      { label: isFr ? "Sécurité" : "Security", href: "/services" },
     ],
     support: [
-      { labelKey: "footer.contact", href: "/#contact" },
-      { labelKey: "nav.faq", href: "/aide" },
-      { labelKey: "nav.portal", href: "/portal/auth" },
-    ],
-    company: [
-      { labelKey: "nav.about", href: "/a-propos" },
+      { label: isFr ? "Nous joindre" : "Contact Us", href: "/#contact" },
+      { label: "FAQ", href: "/aide" },
+      { label: isFr ? "Portail client" : "Client Portal", href: "/portal/auth" },
     ],
     legal: [
-      { labelKey: "footer.refund", href: "/refund-policy" },
-      { labelKey: "footer.privacy", href: "/privacy-policy" },
-      { labelKey: "footer.terms", href: "/terms-and-conditions" },
-      { label: "Conditions de service", href: "/conditions-de-service" },
-      { label: "Frais possibles", href: "/frais-possibles" },
-      { label: "Installation & rendez-vous", href: "/installation-rendezvous" },
-      { label: "Paiement / e-Transfer", href: "/modalites-paiement" },
-      { label: "Équipement & garantie", href: "/equipement-garantie" },
-      { label: "Support & plaintes", href: "/support-et-plaintes" },
-      { label: "Confidentialité (Loi 25)", href: "/confidentialite-loi25" },
+      { label: isFr ? "Conditions de service" : "Terms of Service", href: "/conditions-de-service" },
+      { label: isFr ? "Politique de confidentialité" : "Privacy Policy", href: "/privacy-policy" },
+      { label: isFr ? "Politique de remboursement" : "Refund Policy", href: "/refund-policy" },
+      { label: isFr ? "Paiement / e-Transfer" : "Payment / e-Transfer", href: "/modalites-paiement" },
+      { label: isFr ? "Frais possibles" : "Possible Fees", href: "/frais-possibles" },
+      { label: isFr ? "Équipement & garantie" : "Equipment & Warranty", href: "/equipement-garantie" },
+      { label: isFr ? "Support & plaintes" : "Support & Complaints", href: "/support-et-plaintes" },
     ],
   };
 
   return (
     <footer ref={ref} className="bg-primary text-primary-foreground" data-testid="footer">
-      <div className="container mx-auto px-4 py-16 max-w-6xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10 lg:gap-8">
-          {/* Brand */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2.5 mb-4">
+      {/* Tier 1: Main Content Grid */}
+      <div className="container mx-auto px-4 py-12 lg:py-16 max-w-6xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
+          
+          {/* Column A: Brand */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-bold text-lg text-white">{COMPANY_CONTACT.legalName}</span>
+              <span className="font-bold text-lg text-white">Nivra</span>
             </div>
             
-            {/* Positioning statement */}
-            <p className="text-accent text-sm font-medium mb-4">
-              Activation • Installation • Support
+            <p className="text-accent text-sm font-medium mb-3">
+              {isFr ? "Télécoms prépayés au Québec" : "Prepaid Telecom in Quebec"}
             </p>
             
-            <p className="text-white/60 mb-6 max-w-xs text-sm leading-relaxed">
-              {t('footer.description')}
+            <p className="text-white/60 mb-5 text-sm leading-relaxed max-w-xs">
+              {isFr 
+                ? "Activation rapide, installation professionnelle et support local." 
+                : "Fast activation, professional installation, and local support."}
             </p>
             
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <a 
                 href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`} 
-                className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm"
+                className="flex items-center gap-2.5 text-white/70 hover:text-accent transition-colors text-sm"
                 data-testid="footer-phone"
               >
-                <Phone className="w-4 h-4" />
+                <Phone className="w-4 h-4 text-accent/80" />
                 <span>{supportPhone}</span>
               </a>
               <a 
                 href={`mailto:${supportEmail.toLowerCase()}`} 
-                className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm"
+                className="flex items-center gap-2.5 text-white/70 hover:text-accent transition-colors text-sm"
                 data-testid="footer-email"
               >
-                <Mail className="w-4 h-4" />
+                <Mail className="w-4 h-4 text-accent/80" />
                 <span>{supportEmail}</span>
               </a>
-              <div className="flex items-center gap-3 text-white/60 text-sm" data-testid="footer-address">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
+              <div className="flex items-start gap-2.5 text-white/70 text-sm" data-testid="footer-address">
+                <MapPin className="w-4 h-4 text-accent/80 flex-shrink-0 mt-0.5" />
                 <span>{address}</span>
               </div>
-              <div className="flex items-start gap-3 text-white/60 text-sm" data-testid="footer-hours">
-                <Clock className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p>{businessHours}</p>
-                </div>
+              <div className="flex items-start gap-2.5 text-white/70 text-sm" data-testid="footer-hours">
+                <Clock className="w-4 h-4 text-accent/80 flex-shrink-0 mt-0.5" />
+                <span>{businessHours}</span>
               </div>
             </div>
-            
-            {/* Notice about invoices */}
-            <p className="text-white/40 text-xs mt-4 italic">
-              Avis et factures transmis via le portail et/ou courriel.
-            </p>
           </div>
 
-          {/* Services */}
+          {/* Column B: Services */}
           <div>
-            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.services')}</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white/90">
+              {isFr ? "Services" : "Services"}
+            </h4>
             <ul className="space-y-2.5">
               {links.services.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {'label' in link ? link.label : t(link.labelKey)}
+                  <Link 
+                    to={link.href} 
+                    className="text-white/60 hover:text-accent transition-colors text-sm"
+                  >
+                    {link.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Support */}
+          {/* Column C: Support */}
           <div>
-            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.support')}</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white/90">
+              {isFr ? "Support" : "Support"}
+            </h4>
             <ul className="space-y-2.5">
               {links.support.map((link) => (
-                <li key={link.labelKey}>
-                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {t(link.labelKey)}
+                <li key={link.href}>
+                  <Link 
+                    to={link.href} 
+                    className="text-white/60 hover:text-accent transition-colors text-sm"
+                  >
+                    {link.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Column D: Legal */}
           <div>
-            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.company')}</h4>
-            <ul className="space-y-2.5">
-              {links.company.map((link) => (
-                <li key={link.labelKey}>
-                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {t(link.labelKey)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white">{t('footer.legal')}</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white/90">
+              {isFr ? "Légal" : "Legal"}
+            </h4>
             <ul className="space-y-2.5">
               {links.legal.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {'labelKey' in link && link.labelKey ? t(link.labelKey) : link.label}
+                  <Link 
+                    to={link.href} 
+                    className="text-white/60 hover:text-accent transition-colors text-sm"
+                  >
+                    {link.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
         </div>
+      </div>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-white/10 mt-12 pt-8">
-          {/* Compliance line */}
-          <p className="text-white/40 text-xs text-center mb-4">
-            {COMPANY_CONTACT.legalName} — Services télécoms prépayés au Québec. Support et activation.
-          </p>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <p className="text-white/40 text-sm">
-                © {currentYear} {COMPANY_CONTACT.legalName}. {t('footer.rights')}
-              </p>
-              {/* Security badges - informational only, no false certification claims */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-xs font-medium text-emerald-500">
-                    Connexion sécurisée (HTTPS)
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="text-xs font-medium text-blue-500">
-                    Protection Cloudflare (WAF/DDoS)
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 md:gap-6">
-              <Link to="/conditions-de-service" className="text-white/40 hover:text-accent transition-colors text-sm">
-                Conditions
+      {/* Tier 2: Bottom Bar */}
+      <div className="border-t border-white/10">
+        <div className="container mx-auto px-4 py-5 max-w-6xl">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Copyright */}
+            <p className="text-white/50 text-xs text-center sm:text-left">
+              © {currentYear} Nivra Communications Inc. {isFr ? "Tous droits réservés." : "All rights reserved."}
+            </p>
+
+            {/* Legal shortcuts + Security */}
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              <Link 
+                to="/privacy-policy" 
+                className="text-white/50 hover:text-accent transition-colors text-xs"
+              >
+                {isFr ? "Confidentialité" : "Privacy"}
               </Link>
-              <Link to="/confidentialite-loi25" className="text-white/40 hover:text-accent transition-colors text-sm">
-                Confidentialité
+              <span className="text-white/30 text-xs hidden sm:inline">|</span>
+              <Link 
+                to="/terms-and-conditions" 
+                className="text-white/50 hover:text-accent transition-colors text-xs"
+              >
+                {isFr ? "Conditions" : "Terms"}
               </Link>
-              <Link to="/admin" className="text-white/40 hover:text-accent transition-colors text-sm">
-                Admin
+              <span className="text-white/30 text-xs hidden sm:inline">|</span>
+              <Link 
+                to="/refund-policy" 
+                className="text-white/50 hover:text-accent transition-colors text-xs"
+              >
+                {isFr ? "Remboursement" : "Refunds"}
               </Link>
+              <span className="text-white/30 text-xs hidden sm:inline">·</span>
+              <span className="text-white/40 text-xs">
+                HTTPS + WAF
+              </span>
             </div>
           </div>
         </div>
