@@ -49,6 +49,7 @@ import {
   type StatusFilter,
   type PinFilter,
 } from "@/components/admin/users";
+import { CreateEmployeeDialog, type CreateEmployeeFormData } from "@/components/admin/users/CreateEmployeeDialog";
 
 type StaffStatus = "active" | "disabled" | "hold";
 
@@ -89,6 +90,8 @@ const AdminUsersAccess = () => {
   
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] = useState(false);
+  const [createTypeDialogOpen, setCreateTypeDialogOpen] = useState(false);
   const [changeRoleDialogOpen, setChangeRoleDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
@@ -193,9 +196,9 @@ const AdminUsersAccess = () => {
     return { request_id: requestId, step, message, http_status: httpStatus, parsed, raw_body: rawBody };
   };
 
-  // Create staff mutation (extended)
+  // Create staff mutation (supports admin + employee)
   const createMutation = useMutation({
-    mutationFn: async (data: CreateUserFormData & { permissions: Partial<PermissionSet> }) => {
+    mutationFn: async (data: (CreateUserFormData | CreateEmployeeFormData) & { permissions: Partial<PermissionSet> }) => {
       const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: {
           action: "create",
@@ -207,8 +210,8 @@ const AdminUsersAccess = () => {
           phone: data.phone || undefined,
           badge_number: data.badge_number,
           job_title: data.job_title || undefined,
-          pin: data.pin || undefined,
-          require_pin_change: data.require_pin_change,
+          pin: (data as CreateUserFormData).pin || undefined,
+          require_pin_change: (data as CreateUserFormData).require_pin_change,
           is_active: data.is_active,
           send_invitation: data.send_invitation,
           internal_note: data.internal_note || undefined,
@@ -233,6 +236,7 @@ const AdminUsersAccess = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
       setCreateDialogOpen(false);
+      setCreateEmployeeDialogOpen(false);
     },
     onError: (error: Error & { details?: typeof errorModalDetails }) => {
       const details = error.details;
@@ -622,7 +626,7 @@ const AdminUsersAccess = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualiser
             </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
+            <Button onClick={() => setCreateTypeDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Créer un utilisateur
             </Button>
@@ -923,10 +927,60 @@ const AdminUsersAccess = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Create User Dialog */}
+        {/* Select User Type Dialog */}
+        <Dialog open={createTypeDialogOpen} onOpenChange={setCreateTypeDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Créer un utilisateur</DialogTitle>
+              <DialogDescription>
+                Choisissez le type de compte à créer
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  setCreateTypeDialogOpen(false);
+                  setCreateDialogOpen(true);
+                }}
+              >
+                <Shield className="h-5 w-5 mr-3 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">Administrateur</p>
+                  <p className="text-xs text-muted-foreground">Accès complet au portail admin</p>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  setCreateTypeDialogOpen(false);
+                  setCreateEmployeeDialogOpen(true);
+                }}
+              >
+                <UserCog className="h-5 w-5 mr-3 text-emerald-500" />
+                <div className="text-left">
+                  <p className="font-medium">Employé</p>
+                  <p className="text-xs text-muted-foreground">Accès au portail employé avec permissions</p>
+                </div>
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Admin Dialog */}
         <CreateUserDialog
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
+          onSubmit={(data) => createMutation.mutate(data)}
+          isPending={createMutation.isPending}
+        />
+
+        {/* Create Employee Dialog */}
+        <CreateEmployeeDialog
+          open={createEmployeeDialogOpen}
+          onOpenChange={setCreateEmployeeDialogOpen}
           onSubmit={(data) => createMutation.mutate(data)}
           isPending={createMutation.isPending}
         />
