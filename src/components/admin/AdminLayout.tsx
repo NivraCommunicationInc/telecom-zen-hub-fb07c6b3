@@ -53,18 +53,21 @@ const navItems = [
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: Ticket, label: "Tickets clients", href: "/admin/tickets" },
   { icon: MessageSquare, label: "Tickets internes", href: "/admin/internal-tickets" },
+  { icon: MessageSquare, label: "Messagerie", href: "/admin/messages" },
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
   { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
   { icon: UserPlus, label: "Candidatures", href: "/admin/applications" },
   { icon: Activity, label: "Activité", href: "/admin/activity" },
   { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
+  { icon: Wrench, label: "Maintenance", href: "/admin/maintenance" },
   { icon: Mail, label: "Emails", href: "/admin/email-activity" },
   { icon: ExternalLink, label: "Gestion du Site", href: "/admin/site" },
   { icon: Settings, label: "Mon compte", href: "/admin/account" },
   { icon: Users, label: "Utilisateurs & Accès", href: "/admin/users-access" },
   { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
   { icon: Shield, label: "Événements sécurité", href: "/admin/security-events" },
+  { icon: Shield, label: "Security Guardian", href: "/admin/security-guardian" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {

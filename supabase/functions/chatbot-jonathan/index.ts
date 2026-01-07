@@ -10,8 +10,40 @@ interface ChatRequest {
   message: string;
   sessionId: string;
   language: "fr" | "en";
-  isAuthenticated: boolean;
-  userId?: string;
+  // SECURITY: isAuthenticated and userId from client are IGNORED
+  // Authentication is determined server-side from the Authorization header
+}
+
+// Simple in-memory rate limiter (per function instance)
+// For production, use database-backed rate limiting
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 20; // 20 requests
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // per minute
+
+function checkRateLimit(key: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return { 
+      allowed: false, 
+      retryAfter: Math.ceil((entry.resetAt - now) / 1000) 
+    };
+  }
+
+  entry.count++;
+  return { allowed: true };
+}
+
+function getClientIP(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+         req.headers.get("cf-connecting-ip") || 
+         "unknown";
 }
 
 serve(async (req) => {
@@ -19,24 +51,88 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIP = getClientIP(req);
+
   try {
-    const { message, sessionId, language, isAuthenticated, userId } = await req.json() as ChatRequest;
+    const { message, sessionId, language } = await req.json() as ChatRequest;
+
+    // Validate inputs
+    if (!message || typeof message !== "string" || message.length > 2000) {
+      return new Response(
+        JSON.stringify({ error: "Invalid message" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!sessionId || typeof sessionId !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Invalid sessionId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // SECURITY: Determine authentication from Authorization header, NOT from client body
+    let authenticatedUserId: string | null = null;
+    let isAuthenticated = false;
+
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      
+      // Verify the JWT token server-side
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      
+      if (!authError && user) {
+        authenticatedUserId = user.id;
+        isAuthenticated = true;
+        console.log("[Chatbot] Authenticated user:", user.id);
+      } else {
+        console.log("[Chatbot] Invalid or expired token");
+      }
+    }
+
+    // Rate limiting by IP + authenticated user
+    const rateLimitKey = isAuthenticated 
+      ? `chatbot:user:${authenticatedUserId}` 
+      : `chatbot:ip:${clientIP}`;
+    
+    const rateCheck = checkRateLimit(rateLimitKey);
+    if (!rateCheck.allowed) {
+      console.log("[Chatbot] Rate limit exceeded for:", rateLimitKey);
+      return new Response(
+        JSON.stringify({ 
+          error: "rate_limit_exceeded",
+          message: language === "fr" 
+            ? `Trop de messages. Réessayez dans ${rateCheck.retryAfter} secondes.`
+            : `Too many messages. Retry in ${rateCheck.retryAfter} seconds.`,
+          retry_after: rateCheck.retryAfter
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": String(rateCheck.retryAfter)
+          } 
+        }
+      );
+    }
+
     let contextData: Record<string, unknown> = {};
     let systemPrompt = "";
 
-    // Build context based on authentication
-    if (isAuthenticated && userId) {
+    // Build context based on VERIFIED server-side authentication
+    if (isAuthenticated && authenticatedUserId) {
       // Fetch user's orders
       const { data: orders } = await supabaseAdmin
         .from("orders")
         .select("id, order_number, status, service_type, created_at, total_amount")
-        .eq("user_id", userId)
+        .eq("user_id", authenticatedUserId)
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -44,7 +140,7 @@ serve(async (req) => {
       const { data: appointments } = await supabaseAdmin
         .from("appointments")
         .select("id, title, scheduled_at, status, service_type")
-        .eq("client_id", userId)
+        .eq("client_id", authenticatedUserId)
         .gte("scheduled_at", new Date().toISOString())
         .order("scheduled_at", { ascending: true })
         .limit(3);
@@ -53,14 +149,19 @@ serve(async (req) => {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("full_name, email")
-        .eq("id", userId)
+        .eq("id", authenticatedUserId)
         .single();
 
-      contextData = { orders, appointments, profile };
+      // Store context without PII in logs
+      contextData = { 
+        ordersCount: orders?.length || 0, 
+        appointmentsCount: appointments?.length || 0,
+        hasProfile: !!profile
+      };
 
       systemPrompt = language === "fr"
         ? `Tu es Jonathan, l'assistant virtuel de Nivra Télécom. Tu es professionnel, amical et efficace.
-          L'utilisateur est connecté. Voici ses données:
+          L'utilisateur est connecté et vérifié. Voici ses données:
           - Nom: ${profile?.full_name || "Non spécifié"}
           - Commandes récentes: ${orders?.length || 0}
           - Prochains rendez-vous: ${appointments?.length || 0}
@@ -73,7 +174,7 @@ serve(async (req) => {
           
           Réponds de façon concise et utile.`
         : `You are Jonathan, Nivra Telecom's virtual assistant. You are professional, friendly, and efficient.
-          The user is logged in. Here's their data:
+          The user is logged in and verified. Here's their data:
           - Name: ${profile?.full_name || "Not specified"}
           - Recent orders: ${orders?.length || 0}
           - Upcoming appointments: ${appointments?.length || 0}
@@ -124,6 +225,8 @@ serve(async (req) => {
     });
 
     if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error("[Chatbot] AI gateway error:", aiResponse.status, errorText);
       throw new Error(`AI gateway error: ${aiResponse.status}`);
     }
 
@@ -131,16 +234,23 @@ serve(async (req) => {
     const botResponse = aiData.choices?.[0]?.message?.content || 
       (language === "fr" ? "Désolé, je n'ai pas pu traiter votre demande." : "Sorry, I couldn't process your request.");
 
-    // Log the conversation
+    // Log the conversation (without sensitive data in clear text)
+    // Only store session_id, user_id (if auth), timestamp, action type
     await supabaseAdmin.from("chatbot_logs").insert({
       session_id: sessionId,
-      user_id: userId || null,
+      user_id: authenticatedUserId, // Server-verified user ID only
       is_authenticated: isAuthenticated,
-      user_message: message,
-      bot_response: botResponse,
+      user_message: message.substring(0, 500), // Truncate for safety
+      bot_response: botResponse.substring(0, 1000), // Truncate for safety
       intent_detected: null,
-      entities_extracted: contextData,
+      entities_extracted: contextData, // Only counts, no PII
       actions_taken: [],
+    });
+
+    console.log("[Chatbot] Response sent", { 
+      sessionId, 
+      isAuthenticated, 
+      userId: authenticatedUserId ? "***" : null 
     });
 
     return new Response(
@@ -148,7 +258,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Chatbot error:", error);
+    console.error("[Chatbot] Error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

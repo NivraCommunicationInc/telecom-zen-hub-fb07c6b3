@@ -61,15 +61,13 @@ const ChatbotWidget = () => {
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      // Note: Authentication is verified server-side from the Authorization header
+      // The edge function ignores any isAuthenticated/userId sent in the body
       const response = await supabase.functions.invoke("chatbot-jonathan", {
         body: {
           message: userMessage.content,
           sessionId,
           language,
-          isAuthenticated: !!user,
-          userId: user?.id,
         },
       });
 
