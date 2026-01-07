@@ -92,24 +92,25 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           lastAuthCheck.current = now;
         }
 
-        // SECURITY: Always verify admin role from database - never trust client state
+        // SECURITY: Verify admin OR employee role from database - never trust client state
+        // Employee has admin-equivalent operational access
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role, status")
           .eq("user_id", user.id)
-          .eq("role", "admin")
+          .in("role", ["admin", "employee"])
           .maybeSingle();
 
         if (error) {
-          console.error("Error verifying admin role:", error);
+          console.error("Error verifying role:", error);
           await signOut();
-          navigate("/employee/login", { replace: true });
+          navigate("/admin/login", { replace: true });
           return;
         }
 
-        // SECURITY: Non-admin attempting to access /admin/*
-        if (!roleData || roleData.role !== "admin") {
-          console.warn("SECURITY: Non-admin user attempted to access admin route:", user.id, location.pathname);
+        // SECURITY: Non-admin/employee attempting to access /admin/*
+        if (!roleData || !["admin", "employee"].includes(roleData.role)) {
+          console.warn("SECURITY: Unauthorized user attempted to access admin route:", user.id, location.pathname);
           
           // Log blocked access attempt to audit log (only once per mount)
           if (!hasLoggedBlockedAccess.current) {
@@ -122,7 +123,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
                 details: {
                   attempted_path: location.pathname,
                   user_role: roleData?.role || "unknown",
-                  reason: "Non-admin attempted to access /admin/* route",
+                  reason: "Unauthorized user attempted to access /admin/* route",
                   timestamp: new Date().toISOString(),
                 },
                 target_type: "security",
@@ -136,7 +137,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           
           // Sign out immediately and redirect
           await signOut();
-          navigate("/employee/login", { replace: true });
+          navigate("/admin/login", { replace: true });
           return;
         }
 

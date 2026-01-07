@@ -39,20 +39,21 @@ const rolePermissions: Record<AppRole, RolePermissions> = {
     canAddInternalNotes: true,
   },
   employee: {
-    canViewFullCardDetails: false, // Only last 4 digits
+    // Employee has admin-equivalent operational access
+    canViewFullCardDetails: true,
     canViewLastFourOnly: true,
-    canUpdatePaymentStatus: true, // Can update status but not see full card
-    canViewActivityLogs: false, // Cannot view logs
-    canViewInternalNotes: false,
+    canUpdatePaymentStatus: true,
+    canViewActivityLogs: true,
+    canViewInternalNotes: true,
     canManageClients: true,
     canManageOrders: true,
-    canExportData: false,
-    // Employee can manage appointments except assign technicians
+    canExportData: true,
+    // Employee has full appointment access like admin
     canViewAllAppointments: true,
     canModifyAppointments: true,
     canCancelAppointments: true,
-    canAssignTechnicians: false,
-    canUpdateInstallationStatus: false,
+    canAssignTechnicians: true,
+    canUpdateInstallationStatus: true,
     canAddInternalNotes: true,
   },
   technician: {
