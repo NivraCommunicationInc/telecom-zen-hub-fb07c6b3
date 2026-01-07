@@ -66,19 +66,32 @@ export const OTPVerificationDialog = ({
     setError("");
 
     try {
-      // Log the function URL being called
+      // Debug: Log the Supabase URL being used
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      console.log(`[OTP] Calling staff-otp-send at: ${supabaseUrl}/functions/v1/staff-otp-send`);
-      console.log(`[OTP] User ID: ${userId}`);
+      const expectedFunctionUrl = `${supabaseUrl}/functions/v1/staff-otp-send`;
       
+      console.log(`[OTP DEBUG] VITE_SUPABASE_URL: ${supabaseUrl}`);
+      console.log(`[OTP DEBUG] Expected function URL: ${expectedFunctionUrl}`);
+      console.log(`[OTP DEBUG] User ID: ${userId}`);
+      console.log(`[OTP DEBUG] Calling supabase.functions.invoke("staff-otp-send")...`);
+      
+      const startTime = performance.now();
       const { data, error } = await supabase.functions.invoke("staff-otp-send", {
         body: { user_id: userId },
       });
+      const duration = Math.round(performance.now() - startTime);
 
-      console.log(`[OTP] Response:`, { data, error });
+      console.log(`[OTP DEBUG] Response received in ${duration}ms`);
+      console.log(`[OTP DEBUG] Data:`, data);
+      console.log(`[OTP DEBUG] Error:`, error);
 
       if (error) {
-        console.error("[OTP] Function invoke error:", error);
+        console.error("[OTP DEBUG] Function invoke error object:", {
+          message: error.message,
+          name: error.name,
+          context: error.context,
+          status: error.status,
+        });
         throw error;
       }
 
@@ -89,9 +102,18 @@ export const OTPVerificationDialog = ({
       toast.success("Code de vérification envoyé à votre adresse courriel");
       setCountdown(60); // 60 second cooldown
     } catch (err: any) {
-      console.error("[OTP] Send error:", err);
-      setError(err.message || "Impossible d'envoyer le code");
-      toast.error("Erreur lors de l'envoi du code");
+      console.error("[OTP DEBUG] Catch block error:", err);
+      console.error("[OTP DEBUG] Error type:", typeof err);
+      console.error("[OTP DEBUG] Error constructor:", err?.constructor?.name);
+      
+      // Try to extract more info from FunctionsFetchError
+      if (err?.context) {
+        console.error("[OTP DEBUG] Error context:", err.context);
+      }
+      
+      const errorMessage = err.message || "Impossible d'envoyer le code";
+      setError(errorMessage);
+      toast.error(`Erreur: ${errorMessage}`);
     } finally {
       setIsSending(false);
     }
