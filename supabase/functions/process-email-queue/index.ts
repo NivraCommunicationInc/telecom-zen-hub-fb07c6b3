@@ -930,8 +930,12 @@ Deno.serve(async (req) => {
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   const emailFromAddress = "Nivra Telecom <support@nivratelecom.ca>";
   const emailReplyTo = "support@nivratelecom.ca";
-  const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "Support@nivratelecom.ca";
-  const supportPhone = Deno.env.get("SUPPORT_PHONE") || "438-544-2233";
+  
+  // Default values (fallback)
+  const defaultSupportEmail = "Support@nivratelecom.ca";
+  const defaultSupportPhone = "438-544-2233";
+  const defaultAddress = "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5";
+  const defaultHours = "Lun–Ven : 9 h – 22 h | Sam–Dim : 9 h – 20 h";
   
   // Validate APP_BASE_URL - must be single valid URL, never ALLOWED_ORIGINS
   const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
@@ -952,12 +956,6 @@ Deno.serve(async (req) => {
   } else {
     console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivratelecom.ca");
   }
-  
-  const emailConfig: EmailConfig = {
-    baseUrl: appBaseUrl,
-    supportEmail,
-    supportPhone,
-  };
 
   if (!resendApiKey) {
     console.error("RESEND_API_KEY not configured");
@@ -970,6 +968,45 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  // Load site_settings as source of truth for contact values
+  let supportEmail = defaultSupportEmail;
+  let supportPhone = defaultSupportPhone;
+  let supportAddress = defaultAddress;
+  let supportHours = defaultHours;
+  
+  try {
+    const { data: settings, error: settingsError } = await supabase
+      .from("site_settings")
+      .select("key, value_text")
+      .in("key", ["support_email", "support_phone", "address", "business_hours"])
+      .eq("is_public", true);
+    
+    if (!settingsError && settings) {
+      for (const row of settings) {
+        if (row.key === "support_email" && row.value_text) {
+          supportEmail = row.value_text;
+        } else if (row.key === "support_phone" && row.value_text) {
+          supportPhone = row.value_text;
+        } else if (row.key === "address" && row.value_text) {
+          supportAddress = row.value_text;
+        } else if (row.key === "business_hours" && row.value_text) {
+          supportHours = row.value_text;
+        }
+      }
+      console.log("[EMAIL CONFIG] Loaded site_settings:", { supportEmail, supportPhone, supportAddress, supportHours });
+    } else if (settingsError) {
+      console.warn("[EMAIL CONFIG] Failed to load site_settings, using defaults:", settingsError.message);
+    }
+  } catch (e) {
+    console.warn("[EMAIL CONFIG] Error loading site_settings, using defaults:", e);
+  }
+  
+  const emailConfig: EmailConfig = {
+    baseUrl: appBaseUrl,
+    supportEmail,
+    supportPhone,
+  };
 
   try {
     // Check if this is a test email request
