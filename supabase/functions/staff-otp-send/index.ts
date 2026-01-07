@@ -11,17 +11,15 @@ const ALLOWED_ORIGINS = [
   "https://telecom-zen-hub.lovable.app",
 ];
 
-// Get CORS headers with proper origin validation
-function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  // Check if origin is in whitelist or is a lovable.app/lovableproject.com domain
-  const isAllowed = requestOrigin && (
-    ALLOWED_ORIGINS.includes(requestOrigin) ||
-    requestOrigin.endsWith(".lovable.app") ||
-    requestOrigin.endsWith(".lovableproject.com")
-  );
+// Strict origin check (no wildcard domains, no fallback origin)
+function isAllowedOrigin(origin: string | null): origin is string {
+  return typeof origin === "string" && ALLOWED_ORIGINS.includes(origin);
+}
 
+// Get CORS headers for an allowed origin
+function getCorsHeaders(allowedOrigin: string): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": isAllowed ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Credentials": "true",
@@ -60,20 +58,38 @@ Deno.serve(async (req) => {
   const requestId = generateRequestId();
   const origin = req.headers.get("origin");
   const method = req.method;
+
+  const originAllowed = isAllowedOrigin(origin);
+  console.log(
+    `[staff-otp-send][${requestId}] ${method} request from origin: ${origin || "none"} (allowed=${originAllowed})`,
+  );
+
+  // IMPORTANT: If origin is not allowed, return 403 WITHOUT CORS headers.
+  if (!originAllowed) {
+    console.warn(`[staff-otp-send][${requestId}] Blocked request: origin not allowed`);
+
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 403 });
+    }
+
+    return new Response(
+      JSON.stringify({ success: false, error: "Origin not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const corsHeaders = getCorsHeaders(origin);
-  
-  console.log(`[staff-otp-send][${requestId}] ${method} request from origin: ${origin || "none"}`);
   console.log(`[staff-otp-send][${requestId}] CORS Allow-Origin: ${corsHeaders["Access-Control-Allow-Origin"]}`);
 
   // Handle CORS preflight
-  if (req.method === "OPTIONS") {
+  if (method === "OPTIONS") {
     console.log(`[staff-otp-send][${requestId}] Handling OPTIONS preflight - returning 204`);
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    
+
     let body: RequestBody;
     try {
       body = await req.json();
@@ -81,10 +97,10 @@ Deno.serve(async (req) => {
       console.error(`[staff-otp-send][${requestId}] Invalid JSON body:`, parseErr);
       return new Response(
         JSON.stringify({ success: false, error: "Invalid request body" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-    
+
     const { user_id } = body;
     console.log(`[staff-otp-send][${requestId}] Processing for user_id: ${user_id?.substring(0, 8)}...`);
 
@@ -92,7 +108,7 @@ Deno.serve(async (req) => {
       console.error(`[staff-otp-send][${requestId}] Missing user_id`);
       return new Response(
         JSON.stringify({ success: false, error: "user_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -108,7 +124,7 @@ Deno.serve(async (req) => {
       console.error(`[staff-otp-send][${requestId}] Role lookup error:`, roleError);
       return new Response(
         JSON.stringify({ success: false, error: "Database error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -116,7 +132,7 @@ Deno.serve(async (req) => {
       console.log(`[staff-otp-send][${requestId}] User is not staff`);
       return new Response(
         JSON.stringify({ success: false, error: "User is not staff" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -125,14 +141,7 @@ Deno.serve(async (req) => {
     if (roleData.status !== "active") {
       return new Response(
         JSON.stringify({ success: false, error: "Account is not active" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (roleData.status !== "active") {
-      return new Response(
-        JSON.stringify({ success: false, error: "Account is not active" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
