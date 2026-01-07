@@ -74,7 +74,6 @@ import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
 import AdminMessages from "@/pages/admin/AdminMessages";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
-import AdminRLSTest from "@/pages/admin/AdminRLSTest";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Client portal pages
@@ -104,6 +103,7 @@ import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
+const DevRLSTest = lazy(() => import("@/pages/dev/DevRLSTest"));
 
 /**
  * AppRoutes - All application routes
@@ -192,13 +192,13 @@ const AppRoutes = () => {
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/messages" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMessages /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/rls-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminRLSTest /></ProtectedRoute></AuthProvider>} />
 
       {/* DEV-ONLY routes */}
       {import.meta.env.DEV && (
         <>
           <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
           <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
+          <Route path="/dev/rls-test" element={<Suspense fallback={<div>Loading...</div>}><DevRLSTest /></Suspense>} />
         </>
       )}
       
