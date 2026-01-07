@@ -1,10 +1,30 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Allowed origins whitelist (secure, not "*")
+const ALLOWED_ORIGINS = [
+  "https://nivratelecom.ca",
+  "https://www.nivratelecom.ca",
+  "https://telecom-zen-hub.lovable.app",
+];
+
+// Get CORS headers with proper origin validation
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  // Check if origin is in whitelist or is a lovable.app/lovableproject.com domain
+  const isAllowed = requestOrigin && (
+    ALLOWED_ORIGINS.includes(requestOrigin) ||
+    requestOrigin.endsWith(".lovable.app") ||
+    requestOrigin.endsWith(".lovableproject.com")
+  );
+
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
+  };
+}
 
 // Same hash function as in send - must match exactly
 async function hashPin(pin: string): Promise<string> {
@@ -29,9 +49,12 @@ function maskEmail(email: string): string {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   const requestId = generateRequestId();
