@@ -58,9 +58,15 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         isLoading 
       });
 
-      // Wait for session to be available
+      // CRITICAL: Wait for auth to finish loading before making any decisions
+      if (isLoading) {
+        console.log("[AdminGuard] Auth still loading, waiting...");
+        return; // Keep isVerifying true, don't make any decisions yet
+      }
+
+      // Only after auth is done loading, check for user/session
       if (!user || !session) {
-        console.log("[AdminGuard] No user or session yet, waiting...");
+        console.log("[AdminGuard] No user or session after auth loaded");
         setIsVerifying(false);
         return;
       }

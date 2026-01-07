@@ -9,7 +9,7 @@ import { employeeClient as employeeSupabase } from "@/integrations/backend/emplo
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, AlertTriangle, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
-import OTPVerificationDialog from "@/components/admin/OTPVerificationDialog";
+import EmployeeOTPVerificationDialog from "@/components/employee/EmployeeOTPVerificationDialog";
 
 const EmployeeLogin = () => {
   const { signIn, user, isLoading: authLoading, role } = useEmployeeAuth();
@@ -80,44 +80,43 @@ const EmployeeLogin = () => {
         return;
       }
 
-      // Check if 2FA is required
-      const requires2FA = roleData.otp_required !== false;
+      // CRITICAL: 2FA is ALWAYS REQUIRED for employees - no bypass
+      // Step 1: Sign out immediately after credential check
+      // The session will be created ONLY after OTP verification
+      console.log("[EmployeeLogin] Credentials valid. Signing out pending OTP verification.");
+      await employeeSupabase.auth.signOut();
       
-      if (requires2FA) {
-        // Check if already verified within the last 24 hours
-        const verifiedAt = roleData.otp_verified_at ? new Date(roleData.otp_verified_at) : null;
-        const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        
-        if (!verifiedAt || verifiedAt < twentyFourHoursAgo) {
-          // Need to verify OTP
-          setPendingUserId(currentUser.id);
-          setPendingUserEmail(currentUser.email || email);
-          setShowOTPDialog(true);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // No 2FA needed or already verified
-      completeLogin();
+      // Step 2: Show OTP dialog - user must enter code to create session
+      setPendingUserId(currentUser.id);
+      setPendingUserEmail(currentUser.email || email);
+      setShowOTPDialog(true);
+      setIsLoading(false);
+      
+      // NOTE: completeLogin() will ONLY be called after successful OTP verification
+      // This prevents any bypass of 2FA
     } catch (err: any) {
       console.error("[EmployeeLogin] Error:", err);
       setError(err.message || "Erreur de connexion");
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const completeLogin = () => {
+  const completeLogin = async () => {
+    // Re-authenticate now that OTP is verified
+    // This creates the actual session after 2FA success
+    const { error } = await signIn(email, password);
+    if (error) {
+      setError("Erreur lors de la création de session");
+      return;
+    }
     toast.success("Connexion réussie");
     navigate("/employee", { replace: true });
   };
 
-  const handleOTPSuccess = () => {
+  const handleOTPSuccess = async () => {
     setShowOTPDialog(false);
     setPendingUserId(null);
-    completeLogin();
+    await completeLogin();
   };
 
   const handleOTPCancel = async () => {
@@ -210,8 +209,8 @@ const EmployeeLogin = () => {
         </CardContent>
       </Card>
 
-      {/* 2FA OTP Dialog */}
-      <OTPVerificationDialog
+      {/* 2FA OTP Dialog - MANDATORY */}
+      <EmployeeOTPVerificationDialog
         open={showOTPDialog}
         onOpenChange={setShowOTPDialog}
         userId={pendingUserId || ""}
