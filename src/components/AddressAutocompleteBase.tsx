@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,7 @@ export interface AddressAutocompleteBaseProps {
   className?: string;
   disabled?: boolean;
   restrictToQuebec?: boolean;
-  supabaseClient: SupabaseClient<Database>;
+  supabaseClient: SupabaseClient;
 }
 
 const AUTOCOMPLETE_MIN_CHARS = 3;

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 
 interface WorkOrderData {
   type?: "installation" | "service_call" | "replacement" | "maintenance";

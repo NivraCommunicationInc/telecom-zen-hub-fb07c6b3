@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/portalClient";
+import { portalClient as supabase } from "@/integrations/backend";
 import { 
   Package, 
   Plus, 

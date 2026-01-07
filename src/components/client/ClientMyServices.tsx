@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/accordion";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { 
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,

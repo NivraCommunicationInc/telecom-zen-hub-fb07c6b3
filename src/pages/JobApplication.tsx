@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Briefcase, MapPin, Clock, Upload, CheckCircle, Loader2 } from "lucide-react";
 

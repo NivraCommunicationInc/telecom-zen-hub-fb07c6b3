@@ -5,7 +5,7 @@
  * This ensures contract PDFs display services correctly even for legacy orders.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { 
   buildOrderLineItems, 
   wrapLineItemsForOrder, 

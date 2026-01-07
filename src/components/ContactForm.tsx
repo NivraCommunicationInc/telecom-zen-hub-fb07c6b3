@@ -22,7 +22,7 @@ import {
   Copy
 } from "lucide-react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase } from "@/integrations/backend";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const SUBJECT_OPTIONS = [

@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,7 @@ export interface PinSetupSectionBaseProps {
   isFrench?: boolean;
   /** If true, check for existing orders to determine if this is first order */
   checkFirstOrder?: boolean;
-  supabaseClient: SupabaseClient<Database>;
+  supabaseClient: SupabaseClient;
 }
 
 export const PinSetupSectionBase = ({

@@ -18,7 +18,7 @@ import {
   Building2,
   Send
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase } from "@/integrations/backend";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";

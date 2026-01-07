@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/portalClient";
+import { portalClient as supabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
 import { KeyRound, Shield, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";

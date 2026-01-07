@@ -28,7 +28,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { 
   FileX, Search, ArrowLeft, Calendar, Clock, CheckCircle, 
   XCircle, AlertTriangle, User, Mail, Phone, RefreshCw,

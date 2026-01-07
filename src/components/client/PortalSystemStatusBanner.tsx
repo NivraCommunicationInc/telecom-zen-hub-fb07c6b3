@@ -1,5 +1,5 @@
 import { SystemStatusBannerBase } from "@/components/SystemStatusBannerBase";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 
 interface PortalSystemStatusBannerProps {
   userType?: "public" | "client" | "admin";

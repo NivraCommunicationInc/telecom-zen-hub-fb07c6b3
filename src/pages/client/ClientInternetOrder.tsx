@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/portalClient";
+import { portalClient as supabase } from "@/integrations/backend";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";

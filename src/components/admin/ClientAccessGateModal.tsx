@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, AlertTriangle, Mail, Loader2, KeyRound, ShieldCheck, User, AlertCircle } from "lucide-react";
 import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";

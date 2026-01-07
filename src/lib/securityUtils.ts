@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase } from "@/integrations/backend";
 import { logClientActivityDirect } from "@/hooks/useClientActivityLog";
 
 export interface FlagClientParams {

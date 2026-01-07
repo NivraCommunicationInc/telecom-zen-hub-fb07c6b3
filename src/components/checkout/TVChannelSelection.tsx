@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient as supabase } from "@/integrations/backend";
 import { TVChannelSelectionBase } from "./TVChannelSelectionBase";
 
 export const TVChannelSelection = (

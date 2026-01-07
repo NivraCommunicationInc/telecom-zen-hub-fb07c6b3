@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Phone, Mail, Home } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
 
