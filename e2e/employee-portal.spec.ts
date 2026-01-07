@@ -68,3 +68,29 @@ test.describe('Employee Portal Routes', () => {
     expect(page.url()).toContain('/employee/login');
   });
 });
+
+test.describe('Employee Access to Admin Portal', () => {
+  test('/admin redirects to login when unauthenticated', async ({ page }) => {
+    await page.goto('/admin');
+    await page.waitForURL(/\/admin\/login/);
+    expect(page.url()).toContain('/admin/login');
+  });
+
+  test('/admin/clients redirects to login when unauthenticated', async ({ page }) => {
+    await page.goto('/admin/clients');
+    await page.waitForURL(/\/admin\/login/);
+    expect(page.url()).toContain('/admin/login');
+  });
+
+  test('/admin/orders redirects to login when unauthenticated', async ({ page }) => {
+    await page.goto('/admin/orders');
+    await page.waitForURL(/\/admin\/login/);
+    expect(page.url()).toContain('/admin/login');
+  });
+
+  test('/admin/billing redirects to login when unauthenticated', async ({ page }) => {
+    await page.goto('/admin/billing');
+    await page.waitForURL(/\/admin\/login/);
+    expect(page.url()).toContain('/admin/login');
+  });
+});

@@ -11,7 +11,8 @@ import {
   MessageSquare,
   FileText,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,15 @@ const EmployeeLayout = ({ children }: EmployeeLayoutProps) => {
             <div className="px-4 mb-2">
               <SystemStatusIndicator />
             </div>
+            <Link
+              to="/admin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Ouvrir Admin
+            </Link>
             <div className="px-4">
               <p className="text-xs text-muted-foreground">Connecté en tant que</p>
               <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
