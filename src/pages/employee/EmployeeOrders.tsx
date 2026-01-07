@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Package, Search, Eye, Calendar, User, DollarSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { employeeSupabase as supabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as supabase } from "@/integrations/supabase/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 

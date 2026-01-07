@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { adminSupabase } from "@/integrations/supabase/adminClient";
+import { adminClient as adminSupabase } from "@/integrations/supabase/adminClient";
 
 type AppRole = "admin" | "client";
 
