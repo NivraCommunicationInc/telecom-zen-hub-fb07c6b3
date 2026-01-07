@@ -72,12 +72,8 @@ import AdminPaymentDisputes from "@/pages/admin/AdminPaymentDisputes";
 import AdminSite from "@/pages/admin/AdminSite";
 import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
-import AdminMessages from "@/pages/admin/AdminMessages";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
-
-// Staff pages (accessible by admin + employee)
-import StaffMessages from "@/pages/staff/StaffMessages";
 
 // Client portal pages
 import ClientAuth from "@/pages/client/ClientAuth";
@@ -100,13 +96,11 @@ import ClientEquipmentReplacement from "@/pages/client/ClientEquipmentReplacemen
 import ClientCancellations from "@/pages/client/ClientCancellations";
 import ClientAccessBlocked from "@/pages/client/ClientAccessBlocked";
 import ClientMonthlyInvoices from "@/pages/client/ClientMonthlyInvoices";
-import ClientMessages from "@/pages/client/ClientMessages";
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
-const DevRLSTest = lazy(() => import("@/pages/dev/DevRLSTest"));
 
 /**
  * AppRoutes - All application routes
@@ -193,7 +187,6 @@ const AppRoutes = () => {
       <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/messages" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMessages /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
 
       {/* DEV-ONLY routes */}
@@ -201,14 +194,8 @@ const AppRoutes = () => {
         <>
           <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
           <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
-          <Route path="/dev/rls-test" element={<Suspense fallback={<div>Loading...</div>}><DevRLSTest /></Suspense>} />
         </>
       )}
-      
-      {/* ============================================ */}
-      {/* STAFF ROUTES - Accessible by admin + employee */}
-      {/* ============================================ */}
-      <Route path="/staff/messages" element={<AuthProvider><StaffMessages /></AuthProvider>} />
       
       {/* EMPLOYEE PORTAL DISABLED - All /employee/* routes redirect to NotFound */}
       <Route path="/employee/*" element={<NotFound />} />
@@ -237,7 +224,7 @@ const AppRoutes = () => {
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
-      <Route path="/portal/messages" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientMessages /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      
       
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
