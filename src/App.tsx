@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ClientAuthProvider } from "@/hooks/useClientAuth";
 import { EmployeeAuthProvider } from "@/hooks/useEmployeeAuth";
@@ -219,33 +219,31 @@ const App = () => (
                 <Route path="/qa/admin-as-employee" element={<Suspense fallback={<div>Loading...</div>}><AdminQAAdminAsEmployee /></Suspense>} />
               </>
             )}
-            {/* Employee Portal Routes - Wrapped with EmployeeAuthProvider (isolated storage key) */}
-            <Route
-              path="/employee/login"
-              element={
-                <EmployeeAuthProvider>
-                  <EmployeeLogin />
-                </EmployeeAuthProvider>
-              }
-            />
-
-            {/* Canonical Employee Portal (nested routes) */}
+            {/* Employee Portal Routes - Single EmployeeAuthProvider for ALL /employee/* routes */}
             <Route
               path="/employee"
               element={
                 <EmployeeAuthProvider>
-                  <EmployeeProtectedRoute />
+                  <EmployeeErrorBoundary>
+                    <Outlet />
+                  </EmployeeErrorBoundary>
                 </EmployeeAuthProvider>
               }
             >
-              <Route element={<EmployeeErrorBoundary><EmployeeLayout /></EmployeeErrorBoundary>}>
-                <Route index element={<EmployeeDashboard />} />
-                <Route path="clients" element={<EmployeeClients />} />
-                <Route path="orders" element={<EmployeeOrders />} />
-                <Route path="billing" element={<EmployeeBilling />} />
-                <Route path="cancellations" element={<EmployeeCancellations />} />
-                <Route path="payment-disputes" element={<EmployeePaymentDisputes />} />
-                <Route path="tickets" element={<EmployeeTickets />} />
+              {/* Login is public but within the same provider */}
+              <Route path="login" element={<EmployeeLogin />} />
+              
+              {/* Protected routes */}
+              <Route element={<EmployeeProtectedRoute />}>
+                <Route element={<EmployeeLayout />}>
+                  <Route index element={<EmployeeDashboard />} />
+                  <Route path="clients" element={<EmployeeClients />} />
+                  <Route path="orders" element={<EmployeeOrders />} />
+                  <Route path="billing" element={<EmployeeBilling />} />
+                  <Route path="cancellations" element={<EmployeeCancellations />} />
+                  <Route path="payment-disputes" element={<EmployeePaymentDisputes />} />
+                  <Route path="tickets" element={<EmployeeTickets />} />
+                </Route>
               </Route>
             </Route>
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
