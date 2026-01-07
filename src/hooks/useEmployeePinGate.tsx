@@ -110,7 +110,7 @@ export const useEmployeePinGate = () => {
       checkingRef.current.add(accountId);
 
       try {
-        const result = await callEdgeFunction("check-unlock", { accountId });
+        const result = await callBackend("check-unlock", { accountId });
         
         if (result.unlocked) {
           const expiresAt = new Date(result.expiresAt).getTime();
