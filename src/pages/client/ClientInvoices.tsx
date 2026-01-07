@@ -352,8 +352,15 @@ const ClientInvoices = () => {
       equipmentId: inv.equipment_id,
       // CRITICAL: Pass order line items for multi-service support
       orderLineItems: lineItems.length > 0 ? lineItems : undefined,
+      // Pass site settings for PDF generation
+      siteSettings: siteSettings ? {
+        support_phone: siteSettings.support_phone,
+        support_email: siteSettings.support_email,
+        address: siteSettings.address,
+        business_hours: siteSettings.business_hours,
+      } : undefined,
     } as any; // Cast to any to allow extended interface
-  }, [profile, user?.email]);
+  }, [profile, user?.email, siteSettings]);
 
   // Open PDF in viewer dialog
   const handleViewPDF = useCallback((inv: any) => {
@@ -1288,9 +1295,9 @@ const ClientInvoices = () => {
                     <div className="border border-cyan-500/30 rounded-lg p-4">
                       <h4 className="font-bold text-cyan-500 mb-2 text-sm">DE</h4>
                       <p className="text-sm font-medium">Nivra Télécommunications</p>
-                      <p className="text-xs text-muted-foreground">{address}</p>
-                      <p className="text-xs text-muted-foreground">{supportPhone}</p>
-                      <p className="text-xs text-muted-foreground">{supportEmail}</p>
+                      <p className="text-xs text-muted-foreground" data-testid="invoice-company-address">{address}</p>
+                      <p className="text-xs text-muted-foreground" data-testid="invoice-company-phone">{supportPhone}</p>
+                      <p className="text-xs text-muted-foreground" data-testid="invoice-company-email">{supportEmail}</p>
                     </div>
                     <div className="border border-cyan-500/30 rounded-lg p-4">
                       <h4 className="font-bold text-cyan-500 mb-2 text-sm">À</h4>

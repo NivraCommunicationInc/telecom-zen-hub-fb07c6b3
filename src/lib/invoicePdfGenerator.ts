@@ -13,16 +13,32 @@ import { validateOrderLineItems, logValidationResults } from "@/lib/billingValid
 // INVARIANT: Always compute totals from normalized line_items when available
 // =============================================================================
 
-// Business Information - ALWAYS use Nivra's official address
-const NIVRA_BUSINESS = {
+// Business Information interface for dynamic values from site_settings
+export interface BusinessInfo {
+  name: string;
+  division: string;
+  description: string;
+  address: string;
+  email: string;
+  phone: string;
+  hours: string;
+  neq: string;
+}
+
+// Default business info - ALWAYS use COMPANY_CONTACT as fallback
+const getDefaultBusinessInfo = (): BusinessInfo => ({
   name: COMPANY_CONTACT.legalName.toUpperCase(),
   division: "Customer Service Agreement Billing Division",
   description: "Telecommunications Services Provider — Province of Québec",
   address: COMPANY_CONTACT.fullAddress, // 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
   email: COMPANY_CONTACT.supportEmailDisplay,
   phone: COMPANY_CONTACT.supportPhoneFormatted,
+  hours: COMPANY_CONTACT.supportHours,
   neq: "2291249786",
-};
+});
+
+// LEGACY CONSTANT for backward compatibility (uses defaults)
+const NIVRA_BUSINESS = getDefaultBusinessInfo();
 
 // Service line item for multi-service support
 export interface InvoiceServiceItem {
@@ -97,9 +113,24 @@ export interface InvoiceData {
   paymentMethod?: "credit_card" | "etransfer" | "cash" | "other";
   cardLast4?: string;
   cardType?: string;
+  // Site settings override for dynamic contact values
+  siteSettings?: {
+    support_phone?: string;
+    support_email?: string;
+    address?: string;
+    business_hours?: string;
+  };
 }
 
 export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
+  // Build business info from site settings (if provided) or use defaults
+  const businessInfo: BusinessInfo = {
+    ...getDefaultBusinessInfo(),
+    ...(data.siteSettings?.address && { address: data.siteSettings.address }),
+    ...(data.siteSettings?.support_email && { email: data.siteSettings.support_email }),
+    ...(data.siteSettings?.support_phone && { phone: data.siteSettings.support_phone }),
+    ...(data.siteSettings?.business_hours && { hours: data.siteSettings.business_hours }),
+  };
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -428,24 +459,24 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(NIVRA_BUSINESS.name, pageWidth / 2, 18, { align: "center" });
+  doc.text(businessInfo.name, pageWidth / 2, 18, { align: "center" });
 
   // Division
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...primaryColor);
-  doc.text(NIVRA_BUSINESS.division, pageWidth / 2, 26, { align: "center" });
+  doc.text(businessInfo.division, pageWidth / 2, 26, { align: "center" });
 
   // Description
   doc.setFontSize(8);
   doc.setTextColor(180, 180, 180);
-  doc.text(NIVRA_BUSINESS.description, pageWidth / 2, 33, { align: "center" });
+  doc.text(businessInfo.description, pageWidth / 2, 33, { align: "center" });
 
   // CRITICAL: Always use Nivra's official address, never client address
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
-  doc.text(`Head Office: ${NIVRA_BUSINESS.address}`, pageWidth / 2, 40, { align: "center" });
-  doc.text(`Support: ${NIVRA_BUSINESS.email} | ${NIVRA_BUSINESS.phone}`, pageWidth / 2, 46, { align: "center" });
+  doc.text(`Head Office: ${businessInfo.address}`, pageWidth / 2, 40, { align: "center" });
+  doc.text(`Support: ${businessInfo.email} | ${businessInfo.phone}`, pageWidth / 2, 46, { align: "center" });
 
   currentY = 60;
 
@@ -1150,7 +1181,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.setFontSize(6);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...grayColor);
-    doc.text(`${NIVRA_BUSINESS.name} | NEQ: ${NIVRA_BUSINESS.neq} | ${NIVRA_BUSINESS.address}`, pageWidth / 2, footerY + 8, { align: "center" });
+    doc.text(`${businessInfo.name} | NEQ: ${businessInfo.neq} | ${businessInfo.address}`, pageWidth / 2, footerY + 8, { align: "center" });
     
     // Page number
     doc.setFontSize(5);
