@@ -10,17 +10,15 @@ const ALLOWED_ORIGINS = [
   "https://telecom-zen-hub.lovable.app",
 ];
 
-// Get CORS headers with proper origin validation
-function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  // Check if origin is in whitelist or is a lovable.app/lovableproject.com domain
-  const isAllowed = requestOrigin && (
-    ALLOWED_ORIGINS.includes(requestOrigin) ||
-    requestOrigin.endsWith(".lovable.app") ||
-    requestOrigin.endsWith(".lovableproject.com")
-  );
+// Strict origin check (no wildcard domains, no fallback origin)
+function isAllowedOrigin(origin: string | null): origin is string {
+  return typeof origin === "string" && ALLOWED_ORIGINS.includes(origin);
+}
 
+// Get CORS headers for an allowed origin
+function getCorsHeaders(allowedOrigin: string): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": isAllowed ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Credentials": "true",
@@ -51,13 +49,31 @@ Deno.serve(async (req) => {
   const requestId = generateRequestId();
   const origin = req.headers.get("origin");
   const method = req.method;
+
+  const originAllowed = isAllowedOrigin(origin);
+  console.log(
+    `[staff-otp-verify][${requestId}] ${method} request from origin: ${origin || "none"} (allowed=${originAllowed})`,
+  );
+
+  // IMPORTANT: If origin is not allowed, return 403 WITHOUT CORS headers.
+  if (!originAllowed) {
+    console.warn(`[staff-otp-verify][${requestId}] Blocked request: origin not allowed`);
+
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 403 });
+    }
+
+    return new Response(
+      JSON.stringify({ success: false, error: "Origin not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const corsHeaders = getCorsHeaders(origin);
-  
-  console.log(`[staff-otp-verify][${requestId}] ${method} request from origin: ${origin || "none"}`);
   console.log(`[staff-otp-verify][${requestId}] CORS Allow-Origin: ${corsHeaders["Access-Control-Allow-Origin"]}`);
 
   // Handle CORS preflight
-  if (req.method === "OPTIONS") {
+  if (method === "OPTIONS") {
     console.log(`[staff-otp-verify][${requestId}] Handling OPTIONS preflight - returning 204`);
     return new Response(null, { status: 204, headers: corsHeaders });
   }
