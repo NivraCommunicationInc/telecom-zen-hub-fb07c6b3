@@ -142,10 +142,48 @@ interface SendPasswordResetRequest {
 
 type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest;
 
-// PIN hashing function (must match client-side)
-const SALT = 'nivra_pin_salt_2026';
-async function hashPin(pin: string): Promise<string> {
-  const data = new TextEncoder().encode(SALT + pin);
+// Generate cryptographically secure salt
+function generateSalt(): string {
+  const saltBytes = new Uint8Array(32);
+  crypto.getRandomValues(saltBytes);
+  return Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// PIN hashing with PBKDF2 (must match employee-operations)
+const PBKDF2_ITERATIONS = 100000;
+async function hashPinPBKDF2(pin: string, salt: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const pinData = encoder.encode(pin);
+  const saltData = encoder.encode(salt);
+  
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    pinData,
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltData,
+      iterations: PBKDF2_ITERATIONS,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256
+  );
+  
+  return Array.from(new Uint8Array(derivedBits))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Legacy PIN hash for admin operations (backward compatible)
+const LEGACY_SALT = 'nivra_pin_salt_2026';
+async function hashPinLegacy(pin: string): Promise<string> {
+  const data = new TextEncoder().encode(LEGACY_SALT + pin);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -619,15 +657,20 @@ serve(async (req: Request) => {
 
         if (role === "employee" || role === "technician") {
           const stepEmp = `${createStep}.db_upsert_employee`;
-          const pinHash = pin ? await hashPin(pin) : await hashPin("3112");
+          // Generate per-user salt and hash PIN with PBKDF2
+          const pinSalt = generateSalt();
+          const effectivePin = pin || "312026"; // Default 6-digit PIN
+          const pinHash = await hashPinPBKDF2(effectivePin, pinSalt);
           
           const { error: empError } = await adminClient.from("employees").upsert({
+            user_id: userId, // CRITICAL: Store user_id for server-side validation
             email,
             full_name,
             phone: phone || null,
             role,
             is_active,
             pin_hash: pinHash,
+            pin_salt: pinSalt, // Store per-user salt
             pin_set_at: pin ? new Date().toISOString() : null,
             require_pin_change: require_pin_change || !pin,
             badge_number: badge_number || null,
@@ -1609,7 +1652,7 @@ serve(async (req: Request) => {
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
 
-        const pinHash = await hashPin(pin);
+        const pinHash = await hashPinLegacy(pin);
 
         const { error: updateError } = await adminClient
           .from("employees")
@@ -2055,7 +2098,7 @@ serve(async (req: Request) => {
         }
 
         // Verify PIN
-        const inputPinHash = await hashPin(pin);
+        const inputPinHash = await hashPinLegacy(pin);
         
         if (!roleData.admin_pin_hash || roleData.admin_pin_hash !== inputPinHash) {
           await logAction("admin_pin_invalid", { request_id: requestId }, { type: "user", id: profile.user_id, email: normalizedEmail });
@@ -2200,7 +2243,7 @@ serve(async (req: Request) => {
         }
 
         // Update PIN hash and clear change requirements
-        const pinHash = await hashPin(pin);
+        const pinHash = await hashPinLegacy(pin);
         const { error: roleUpdateError } = await adminClient
           .from("user_roles")
           .update({

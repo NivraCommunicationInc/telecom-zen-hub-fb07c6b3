@@ -83,8 +83,8 @@ export const EmployeePinGateModal = ({
   }, [isOpen, account.id, isAccountUnlocked, onUnlocked]);
 
   const handleSubmit = async () => {
-    if (!pin || pin.length !== 4) {
-      setError("Veuillez entrer un NIP de 4 chiffres");
+    if (!pin || pin.length !== 6) {
+      setError("Veuillez entrer un NIP de 6 chiffres");
       return;
     }
 
@@ -186,17 +186,17 @@ export const EmployeePinGateModal = ({
 
               {/* PIN input */}
               <div className="space-y-2">
-                <Label>NIP du client (4 chiffres) *</Label>
+                <Label>NIP du client (6 chiffres) *</Label>
                 <Input
                   type="password"
                   inputMode="numeric"
-                  maxLength={4}
+                  maxLength={6}
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="••••"
-                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                  placeholder="••••••"
+                  className="text-center text-2xl tracking-[0.3em] font-mono"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && pin.length === 4 && reason) {
+                    if (e.key === "Enter" && pin.length === 6 && reason) {
                       handleSubmit();
                     }
                   }}
@@ -226,7 +226,7 @@ export const EmployeePinGateModal = ({
           {!lockoutStatus.locked && (
             <Button
               onClick={handleSubmit}
-              disabled={isLoading || pin.length !== 4 || !reason}
+              disabled={isLoading || pin.length !== 6 || !reason}
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Déverrouiller
