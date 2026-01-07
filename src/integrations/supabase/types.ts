@@ -694,6 +694,45 @@ export type Database = {
           },
         ]
       }
+      chatbot_logs: {
+        Row: {
+          actions_taken: Json | null
+          bot_response: string
+          created_at: string
+          entities_extracted: Json | null
+          id: string
+          intent_detected: string | null
+          is_authenticated: boolean | null
+          session_id: string
+          user_id: string | null
+          user_message: string
+        }
+        Insert: {
+          actions_taken?: Json | null
+          bot_response: string
+          created_at?: string
+          entities_extracted?: Json | null
+          id?: string
+          intent_detected?: string | null
+          is_authenticated?: boolean | null
+          session_id: string
+          user_id?: string | null
+          user_message: string
+        }
+        Update: {
+          actions_taken?: Json | null
+          bot_response?: string
+          created_at?: string
+          entities_extracted?: Json | null
+          id?: string
+          intent_detected?: string | null
+          is_authenticated?: boolean | null
+          session_id?: string
+          user_id?: string | null
+          user_message?: string
+        }
+        Relationships: []
+      }
       client_access_logs: {
         Row: {
           access_method: string
@@ -3989,6 +4028,72 @@ export type Database = {
           id?: string
           order_id?: string | null
           reason?: string | null
+        }
+        Relationships: []
+      }
+      security_incidents: {
+        Row: {
+          affected_entity_id: string | null
+          affected_entity_type: string | null
+          auto_mitigated: boolean | null
+          created_at: string
+          description: string | null
+          detection_method: string | null
+          id: string
+          incident_type: string
+          metadata: Json | null
+          mitigation_action: string | null
+          mitigation_details: Json | null
+          resolved_at: string | null
+          resolved_by_id: string | null
+          resolved_by_name: string | null
+          severity: string
+          source: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_entity_id?: string | null
+          affected_entity_type?: string | null
+          auto_mitigated?: boolean | null
+          created_at?: string
+          description?: string | null
+          detection_method?: string | null
+          id?: string
+          incident_type: string
+          metadata?: Json | null
+          mitigation_action?: string | null
+          mitigation_details?: Json | null
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          severity: string
+          source?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_entity_id?: string | null
+          affected_entity_type?: string | null
+          auto_mitigated?: boolean | null
+          created_at?: string
+          description?: string | null
+          detection_method?: string | null
+          id?: string
+          incident_type?: string
+          metadata?: Json | null
+          mitigation_action?: string | null
+          mitigation_details?: Json | null
+          resolved_at?: string | null
+          resolved_by_id?: string | null
+          resolved_by_name?: string | null
+          severity?: string
+          source?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
