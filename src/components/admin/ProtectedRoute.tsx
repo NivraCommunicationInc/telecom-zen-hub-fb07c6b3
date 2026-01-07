@@ -52,7 +52,15 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   useEffect(() => {
     const verifyAdminRole = async () => {
-      if (!user) {
+      console.log("[AdminGuard] verifyAdminRole called", { 
+        hasUser: !!user, 
+        hasSession: !!session,
+        isLoading 
+      });
+
+      // Wait for session to be available
+      if (!user || !session) {
+        console.log("[AdminGuard] No user or session yet, waiting...");
         setIsVerifying(false);
         return;
       }
@@ -64,13 +72,13 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         const lastCheckTime = lastCheck ? parseInt(lastCheck, 10) : 0;
         
         if (now - lastCheckTime > SESSION_RECHECK_INTERVAL_MS) {
-          console.log("[ProtectedRoute] Session check interval exceeded, validating with backend...");
+          console.log("[AdminGuard] Session check interval exceeded, validating with backend...");
           
           // Verify session is still valid with Supabase
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
           
-          if (sessionError || !session) {
-            console.warn("SECURITY: Session expired or invalid");
+          if (sessionError || !freshSession) {
+            console.warn("[AdminGuard] SECURITY: Session expired or invalid");
             await signOut();
             
             // Log security event
@@ -103,7 +111,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         }
 
         // SECURITY: Verify admin OR employee role from database - never trust client state
-        // Employee has admin-equivalent operational access
+        console.log("[AdminGuard] Checking role for user:", user.id);
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role, status")
@@ -111,16 +119,19 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           .in("role", ["admin", "employee"])
           .maybeSingle();
 
+        console.log("[AdminGuard] Role query result:", { roleData, error: error?.message });
+
         if (error) {
-          console.error("Error verifying role:", error);
-          await signOut();
-          navigate("/admin/login", { replace: true });
+          console.error("[AdminGuard] Error verifying role:", error);
+          // Don't signOut on query error - might be transient
+          setIsVerifying(false);
+          setIsAdminVerified(false);
           return;
         }
 
         // SECURITY: Non-admin/employee attempting to access /admin/*
         if (!roleData || !["admin", "employee"].includes(roleData.role)) {
-          console.warn("SECURITY: Unauthorized user attempted to access admin route:", user.id, location.pathname);
+          console.warn("[AdminGuard] SECURITY: Unauthorized role:", roleData?.role || "none");
           
           // Log blocked access attempt to audit log (only once per mount)
           if (!hasLoggedBlockedAccess.current) {
@@ -145,25 +156,27 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
             }
           }
           
-          // Sign out immediately and redirect
-          await signOut();
-          navigate("/admin/login", { replace: true });
+          // DON'T signOut here - just deny access
+          // The user might have a valid session but wrong role
+          setIsVerifying(false);
+          setIsAdminVerified(false);
           return;
         }
 
         // Check status - only active admins allowed
         if (roleData.status !== "active") {
-          console.warn("Admin account not active:", user.id, roleData.status);
-          await signOut();
-          navigate("/admin/login", { replace: true });
+          console.warn("[AdminGuard] Admin account not active:", roleData.status);
+          setIsVerifying(false);
+          setIsAdminVerified(false);
           return;
         }
 
+        console.log("[AdminGuard] Role verified successfully:", roleData.role);
         setIsAdminVerified(true);
       } catch (err) {
-        console.error("Admin verification error:", err);
-        await signOut();
-        navigate("/employee/login", { replace: true });
+        console.error("[AdminGuard] Admin verification error:", err);
+        setIsVerifying(false);
+        setIsAdminVerified(false);
       } finally {
         setIsVerifying(false);
       }
@@ -172,7 +185,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     if (!isLoading) {
       verifyAdminRole();
     }
-  }, [user, isLoading, signOut, navigate, location.pathname]);
+  }, [user, session, isLoading, signOut, navigate, location.pathname]);
 
   // Clear session storage on sign out
   useEffect(() => {
@@ -199,15 +212,35 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   }
 
   // Not logged in - redirect to admin login
-  if (!user) {
-    // Clear any stale session data
+  if (!user || !session) {
+    console.log("[AdminGuard] No user/session, redirecting to login");
     sessionStorage.removeItem("admin_last_auth_check");
     return <Navigate to="/admin/login" replace />;
   }
 
-  // SECURITY: Not verified as admin - render nothing (already redirecting)
+  // SECURITY: Not verified as admin - show access denied instead of redirect loop
   if (requireAdmin && !isAdminVerified) {
-    return null;
+    console.log("[AdminGuard] Admin not verified, showing access denied");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 max-w-md p-8">
+          <div className="text-destructive text-6xl">⛔</div>
+          <h1 className="text-2xl font-bold text-foreground">Accès refusé</h1>
+          <p className="text-muted-foreground">
+            Vous n'avez pas les permissions nécessaires pour accéder à cette page.
+          </p>
+          <button
+            onClick={async () => {
+              await signOut();
+              navigate("/admin/login", { replace: true });
+            }}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Retour à la connexion
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
