@@ -33,6 +33,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       { labelKey: "nav.about", href: "/a-propos" },
     ],
     legal: [
+      { labelKey: "footer.refund", href: "/refund-policy" },
+      { labelKey: "footer.privacy", href: "/privacy-policy" },
+      { labelKey: "footer.terms", href: "/terms-and-conditions" },
       { label: "Conditions de service", href: "/conditions-de-service" },
       { label: "Frais possibles", href: "/frais-possibles" },
       { label: "Installation & rendez-vous", href: "/installation-rendezvous" },
@@ -149,7 +152,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               {links.legal.map((link) => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-white/60 hover:text-accent transition-colors text-sm">
-                    {link.label}
+                    {'labelKey' in link && link.labelKey ? t(link.labelKey) : link.label}
                   </Link>
                 </li>
               ))}
