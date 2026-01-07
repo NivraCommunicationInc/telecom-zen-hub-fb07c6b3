@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2, Package, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";

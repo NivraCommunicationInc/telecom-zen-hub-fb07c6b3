@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useEffect } from "react";
 

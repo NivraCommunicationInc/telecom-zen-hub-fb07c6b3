@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tv, AlertCircle, ArrowRight, User, Clock, CheckCircle, X, Loader2, Pencil, Search, Plus, Minus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";

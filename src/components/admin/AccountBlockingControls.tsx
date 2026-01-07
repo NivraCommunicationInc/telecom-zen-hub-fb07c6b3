@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Ban, Globe, Loader2, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { format } from "date-fns";
 import {
   AlertDialog,

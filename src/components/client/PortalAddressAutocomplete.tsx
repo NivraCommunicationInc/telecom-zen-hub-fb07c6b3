@@ -1,5 +1,5 @@
 import AddressAutocompleteBase, { AddressAutocompleteBaseProps } from "@/components/AddressAutocompleteBase";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 
 type PortalAddressAutocompleteProps = Omit<AddressAutocompleteBaseProps, "supabaseClient">;
 

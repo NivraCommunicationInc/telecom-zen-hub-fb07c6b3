@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 
 export interface StreamingCatalogItem {
   id: string;

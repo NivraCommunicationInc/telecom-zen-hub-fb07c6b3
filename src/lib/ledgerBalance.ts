@@ -14,7 +14,7 @@
  * CRITICAL: Uses centralized isPaymentCaptured from billingValidation
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { isPaymentCaptured } from "./billingValidation";
 
 export interface LedgerEntry {

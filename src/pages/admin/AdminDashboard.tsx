@@ -8,7 +8,7 @@ import {
   UserCog, Megaphone, Settings
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { Link, useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";

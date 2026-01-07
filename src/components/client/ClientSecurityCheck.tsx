@@ -1,6 +1,6 @@
 import { useEffect, useState, ReactNode, useCallback } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { Loader2 } from "lucide-react";
 

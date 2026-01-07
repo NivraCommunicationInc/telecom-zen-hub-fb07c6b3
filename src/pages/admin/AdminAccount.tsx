@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Eye, EyeOff, Shield, User, Lock } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";

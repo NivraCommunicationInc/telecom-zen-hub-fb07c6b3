@@ -3,8 +3,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { adminClient as supabase, portalClient as portalSupabase } from "@/integrations/backend";
 import type { ContractSummaryData } from "@/components/contract/ContractSummaryView";
 
 interface UseContractSummaryOptions {

@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, KeyRound, AlertTriangle, Loader2, CheckCircle, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";

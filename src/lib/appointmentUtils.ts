@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 
 // Service types that require installation appointments
 const INSTALLATION_SERVICE_TYPES = ["internet", "tv_internet", "giga_tv", "tv", "Internet", "TV + Internet"];

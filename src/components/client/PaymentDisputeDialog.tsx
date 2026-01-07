@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
