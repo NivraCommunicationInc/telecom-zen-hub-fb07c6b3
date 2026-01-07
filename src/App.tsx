@@ -101,6 +101,8 @@ import EmployeeBilling from "./pages/employee/EmployeeBilling";
 import EmployeeCancellations from "./pages/employee/EmployeeCancellations";
 import EmployeePaymentDisputes from "./pages/employee/EmployeePaymentDisputes";
 import EmployeeTickets from "./pages/employee/EmployeeTickets";
+import EmployeeContracts from "./pages/employee/EmployeeContracts";
+import EmployeeStreaming from "./pages/employee/EmployeeStreaming";
 import EmployeeLayout from "./components/employee/EmployeeLayout";
 import EmployeeErrorBoundary from "./components/employee/EmployeeErrorBoundary";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
@@ -240,6 +242,8 @@ const App = () => (
                   <Route path="clients" element={<EmployeeClients />} />
                   <Route path="orders" element={<EmployeeOrders />} />
                   <Route path="billing" element={<EmployeeBilling />} />
+                  <Route path="contracts" element={<EmployeeContracts />} />
+                  <Route path="streaming" element={<EmployeeStreaming />} />
                   <Route path="cancellations" element={<EmployeeCancellations />} />
                   <Route path="payment-disputes" element={<EmployeePaymentDisputes />} />
                   <Route path="tickets" element={<EmployeeTickets />} />
