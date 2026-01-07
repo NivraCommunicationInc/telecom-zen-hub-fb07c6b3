@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalSupabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Button } from "@/components/ui/button";

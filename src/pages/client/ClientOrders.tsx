@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalSupabase } from "@/integrations/backend/portalClient";
 import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
