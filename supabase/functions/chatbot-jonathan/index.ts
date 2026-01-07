@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +38,7 @@ serve(async (req) => {
   const clientIP = getClientIP(req);
 
   try {
-    const { message, sessionId, language } = await req.json() as ChatRequest;
+    const { message, sessionId, language = "fr" } = await req.json() as ChatRequest;
 
     // Validate inputs
     if (!message || typeof message !== "string" || message.length > 2000) {
@@ -74,7 +74,7 @@ serve(async (req) => {
       if (!authError && user) {
         authenticatedUserId = user.id;
         isAuthenticated = true;
-        console.log("[Chatbot] Authenticated user:", user.id);
+        console.log("[Chatbot] Authenticated user verified");
       } else {
         console.log("[Chatbot] Invalid or expired token");
       }
@@ -93,9 +93,18 @@ serve(async (req) => {
       lockoutMs: 5 * 60 * 1000, // 5 minute lockout on abuse
     });
 
+    // Log rate limit check (no PII)
+    console.log("[Chatbot] Rate limit check:", {
+      rateLimitKey: rateLimitKey.includes("user:") ? "chatbot:user:***" : rateLimitKey,
+      allowed: rateCheck.allowed,
+      remaining: rateCheck.remaining,
+      retryAfter: rateCheck.retryAfter || null,
+      isLocked: rateCheck.isLocked || false,
+    });
+
     if (!rateCheck.allowed) {
-      console.log("[Chatbot] Rate limit exceeded for:", rateLimitKey);
-      return rateLimitResponse(rateCheck, corsHeaders);
+      console.log("[Chatbot] Rate limit exceeded for key (masked)");
+      return rateLimitResponse(rateCheck, corsHeaders, language);
     }
 
     let contextData: Record<string, unknown> = {};
@@ -134,8 +143,9 @@ serve(async (req) => {
         hasProfile: !!profile
       };
 
+      // System prompt with "Nivra" as the assistant name
       systemPrompt = language === "fr"
-        ? `Tu es l'assistant virtuel de Nivra Télécom. Tu es professionnel, amical et efficace.
+        ? `Tu es Nivra, l'assistant virtuel de Nivra Télécom. Tu es professionnel, amical et efficace.
           L'utilisateur est connecté et vérifié. Voici ses données:
           - Nom: ${profile?.full_name || "Non spécifié"}
           - Commandes récentes: ${orders?.length || 0}
@@ -147,8 +157,9 @@ serve(async (req) => {
           - Questions sur les plans et services
           - Création de ticket support si nécessaire
           
-          Réponds de façon concise et utile.`
-        : `You are Nivra Telecom's virtual assistant. You are professional, friendly, and efficient.
+          Réponds de façon concise et professionnelle.
+          Ne jamais inventer de données personnelles.`
+        : `You are Nivra, Nivra Telecom's virtual assistant. You are professional, friendly, and efficient.
           The user is logged in and verified. Here's their data:
           - Name: ${profile?.full_name || "Not specified"}
           - Recent orders: ${orders?.length || 0}
@@ -160,25 +171,29 @@ serve(async (req) => {
           - Questions about plans and services
           - Creating a support ticket if needed
           
-          Respond concisely and helpfully.`;
+          Respond concisely and professionally.
+          Never invent personal data.`;
     } else {
+      // Public mode - no user data
       systemPrompt = language === "fr"
-        ? `Tu es l'assistant virtuel de Nivra Télécom. Tu es professionnel, amical et efficace.
+        ? `Tu es Nivra, l'assistant virtuel de Nivra Télécom. Tu es professionnel, amical et efficace.
           L'utilisateur n'est pas connecté. Tu peux UNIQUEMENT:
           - Répondre aux questions générales sur Nivra et ses services
           - Expliquer les plans (Mobile, Internet, TV, Streaming+)
           - Donner les coordonnées de contact
           - Suggérer de se connecter au portail pour accéder à ses données personnelles
           
-          NE JAMAIS inventer de données personnelles. Réponds de façon concise.`
-        : `You are Nivra Telecom's virtual assistant. You are professional, friendly, and efficient.
+          Réponds de façon concise et professionnelle.
+          Ne jamais inventer de données personnelles.`
+        : `You are Nivra, Nivra Telecom's virtual assistant. You are professional, friendly, and efficient.
           The user is not logged in. You can ONLY:
           - Answer general questions about Nivra and its services
           - Explain plans (Mobile, Internet, TV, Streaming+)
           - Provide contact information
           - Suggest logging into the portal to access personal data
           
-          NEVER invent personal data. Respond concisely.`;
+          Respond concisely and professionally.
+          Never invent personal data.`;
     }
 
     // Call AI gateway

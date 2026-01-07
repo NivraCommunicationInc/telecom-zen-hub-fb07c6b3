@@ -154,15 +154,26 @@ export async function clearRateLimit(key: string): Promise<void> {
 }
 
 /**
- * Create 429 Too Many Requests response
+ * Create 429 Too Many Requests response with FR/EN support
  */
 export function rateLimitResponse(
   result: RateLimitResult,
-  corsHeaders: Record<string, string>
+  corsHeaders: Record<string, string>,
+  language: "fr" | "en" = "fr"
 ): Response {
-  const message = result.isLocked
-    ? `Trop de tentatives. Veuillez réessayer dans ${Math.ceil((result.retryAfter || 1800) / 60)} minutes.`
-    : `Limite de requêtes atteinte. Réessayez dans ${result.retryAfter || 60} secondes.`;
+  let message: string;
+  
+  if (result.isLocked) {
+    const minutes = Math.ceil((result.retryAfter || 1800) / 60);
+    message = language === "fr"
+      ? `Trop de tentatives. Veuillez réessayer dans ${minutes} minutes.`
+      : `Too many attempts. Please retry in ${minutes} minutes.`;
+  } else {
+    const seconds = result.retryAfter || 60;
+    message = language === "fr"
+      ? `Limite de requêtes atteinte. Réessayez dans ${seconds} secondes.`
+      : `Rate limit reached. Retry in ${seconds} seconds.`;
+  }
 
   return new Response(
     JSON.stringify({
