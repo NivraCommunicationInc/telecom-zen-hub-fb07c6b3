@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, AlertTriangle, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
+import OTPVerificationDialog from "@/components/admin/OTPVerificationDialog";
 
 const EmployeeLogin = () => {
   const { signIn, user, isLoading: authLoading } = useAuth();
@@ -18,6 +19,11 @@ const EmployeeLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // 2FA state
+  const [showOTPDialog, setShowOTPDialog] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
 
   // Check if already logged in and is employee/admin
   useEffect(() => {
@@ -67,7 +73,7 @@ const EmployeeLogin = () => {
       // Check if user has employee or admin role
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
-        .select("role, status")
+        .select("role, status, otp_required, otp_verified_at")
         .eq("user_id", currentUser.id)
         .in("role", ["employee", "admin"])
         .maybeSingle();
@@ -86,13 +92,49 @@ const EmployeeLogin = () => {
         return;
       }
 
-      toast.success("Connexion réussie");
-      navigate("/employee", { replace: true });
+      // Check if 2FA is required
+      const requires2FA = roleData.otp_required !== false;
+      
+      if (requires2FA) {
+        // Check if already verified within the last 24 hours
+        const verifiedAt = roleData.otp_verified_at ? new Date(roleData.otp_verified_at) : null;
+        const now = new Date();
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        
+        if (!verifiedAt || verifiedAt < twentyFourHoursAgo) {
+          // Need to verify OTP
+          setPendingUserId(currentUser.id);
+          setPendingUserEmail(currentUser.email || email);
+          setShowOTPDialog(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // No 2FA needed or already verified
+      completeLogin();
     } catch (err: any) {
       setError(err.message || "Erreur de connexion");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const completeLogin = () => {
+    toast.success("Connexion réussie");
+    navigate("/employee", { replace: true });
+  };
+
+  const handleOTPSuccess = () => {
+    setShowOTPDialog(false);
+    setPendingUserId(null);
+    completeLogin();
+  };
+
+  const handleOTPCancel = () => {
+    setShowOTPDialog(false);
+    setPendingUserId(null);
+    setIsLoading(false);
   };
 
   return (
@@ -176,6 +218,16 @@ const EmployeeLogin = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* 2FA OTP Dialog */}
+      <OTPVerificationDialog
+        open={showOTPDialog}
+        onOpenChange={setShowOTPDialog}
+        userId={pendingUserId || ""}
+        userEmail={pendingUserEmail}
+        onSuccess={handleOTPSuccess}
+        onCancel={handleOTPCancel}
+      />
     </div>
   );
 };

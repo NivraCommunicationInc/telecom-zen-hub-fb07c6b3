@@ -59,6 +59,7 @@ const navItems = [
   { icon: Activity, label: "Activité", href: "/admin/activity" },
   { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
   { icon: Mail, label: "Emails", href: "/admin/email-activity" },
+  { icon: ExternalLink, label: "Gestion du Site", href: "/admin/site" },
   { icon: Settings, label: "Mon compte", href: "/admin/account" },
   { icon: Users, label: "Utilisateurs & Accès", href: "/admin/users-access" },
   { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
