@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Phone, Mail, MapPin, Clock } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
@@ -164,9 +164,18 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             {COMPANY_CONTACT.legalName} — Services télécoms prépayés au Québec. Support et activation.
           </p>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-white/40 text-sm">
-              © {currentYear} {COMPANY_CONTACT.legalName}. {t('footer.rights')}
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-white/40 text-sm">
+                © {currentYear} {COMPANY_CONTACT.legalName}. {t('footer.rights')}
+              </p>
+              {/* SSL/TLS Security Badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs font-medium text-emerald-500">
+                  SSL/TLS
+                </span>
+              </div>
+            </div>
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
               <Link to="/conditions-de-service" className="text-white/40 hover:text-accent transition-colors text-sm">
                 Conditions

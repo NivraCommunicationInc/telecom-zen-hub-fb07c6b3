@@ -91,6 +91,7 @@ import AdminQA from "./pages/admin/AdminQA";
 import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "./pages/admin/AdminPaymentDisputes";
 import AdminSite from "./pages/admin/AdminSite";
+import AdminSecurityEvents from "./pages/admin/AdminSecurityEvents";
 import DynamicPage from "./pages/DynamicPage";
 import { lazy, Suspense } from "react";
 
@@ -181,6 +182,7 @@ const App = () => (
             <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
+            <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
             {/* Dynamic pages from site_pages */}
             <Route path="/page/:slug" element={<DynamicPage />} />
             {import.meta.env.DEV && (

@@ -25,7 +25,8 @@ import {
   Radio,
   Mail,
   History,
-  AlertTriangle
+  AlertTriangle,
+  Shield
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,7 @@ const navItems = [
   { icon: Settings, label: "Mon compte", href: "/admin/account" },
   { icon: Users, label: "Utilisateurs & Accès", href: "/admin/users-access" },
   { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
+  { icon: Shield, label: "Événements sécurité", href: "/admin/security-events" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
