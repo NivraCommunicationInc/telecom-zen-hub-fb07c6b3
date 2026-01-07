@@ -146,7 +146,7 @@ export const useEmployeePinGate = () => {
         checkingRef.current.delete(accountId);
       }
     },
-    [callEdgeFunction, unlockedAccounts]
+    [callBackend, unlockedAccounts]
   );
 
   // Check if an account is locked out
@@ -206,7 +206,7 @@ export const useEmployeePinGate = () => {
       setIsVerifying(true);
 
       try {
-        const result = await callEdgeFunction("pin-verify-unlock", {
+        const result = await callBackend("pin-verify-unlock", {
           accountId,
           clientId,
           pin: enteredPin,
@@ -257,7 +257,7 @@ export const useEmployeePinGate = () => {
         setIsVerifying(false);
       }
     },
-    [session, isAccountLockedOut, callEdgeFunction]
+    [session, isAccountLockedOut, callBackend]
   );
 
   // Manually revoke an unlock (client-side cache only)
