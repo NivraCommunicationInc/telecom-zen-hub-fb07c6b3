@@ -3,10 +3,18 @@ import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   const { t } = useLanguage();
+  const { data: siteSettings } = useSiteSettings();
   const currentYear = new Date().getFullYear();
+
+  // Use database values if available, fallback to config
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
+  const address = siteSettings?.address || COMPANY_CONTACT.fullAddress;
 
   const links = {
     services: [
@@ -36,7 +44,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-primary text-primary-foreground">
+    <footer ref={ref} className="bg-primary text-primary-foreground" data-testid="footer">
       <div className="container mx-auto px-4 py-16 max-w-6xl">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10 lg:gap-8">
           {/* Brand */}
@@ -58,23 +66,30 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </p>
             
             <div className="space-y-3">
-              <a href={getTelLink()} className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
+              <a 
+                href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`} 
+                className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm"
+                data-testid="footer-phone"
+              >
                 <Phone className="w-4 h-4" />
-                <span>{COMPANY_CONTACT.supportPhoneDisplay}</span>
+                <span>{supportPhone}</span>
               </a>
-              <a href={getMailtoLink()} className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm">
+              <a 
+                href={`mailto:${supportEmail.toLowerCase()}`} 
+                className="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm"
+                data-testid="footer-email"
+              >
                 <Mail className="w-4 h-4" />
-                <span>{COMPANY_CONTACT.supportEmailDisplay}</span>
+                <span>{supportEmail}</span>
               </a>
-              <div className="flex items-center gap-3 text-white/60 text-sm">
+              <div className="flex items-center gap-3 text-white/60 text-sm" data-testid="footer-address">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span>{COMPANY_CONTACT.fullAddress}</span>
+                <span>{address}</span>
               </div>
-              <div className="flex items-start gap-3 text-white/60 text-sm">
+              <div className="flex items-start gap-3 text-white/60 text-sm" data-testid="footer-hours">
                 <Clock className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p>{COMPANY_CONTACT.supportHoursWeekday}</p>
-                  <p>{COMPANY_CONTACT.supportHoursWeekend}</p>
+                  <p>{businessHours}</p>
                 </div>
               </div>
             </div>

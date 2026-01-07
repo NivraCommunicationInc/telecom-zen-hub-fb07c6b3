@@ -90,6 +90,8 @@ import AdminPDFTest from "./pages/admin/AdminPDFTest";
 import AdminQA from "./pages/admin/AdminQA";
 import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "./pages/admin/AdminPaymentDisputes";
+import AdminSite from "./pages/admin/AdminSite";
+import DynamicPage from "./pages/DynamicPage";
 import EmployeeLogin from "./pages/employee/EmployeeLogin";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeClients from "./pages/employee/EmployeeClients";
@@ -196,7 +198,9 @@ const App = () => (
             <Route path="/admin/pdf-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
-{/* DEV-ONLY QA Routes */}
+            <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
+            {/* Dynamic pages from site_pages */}
+            <Route path="/page/:slug" element={<DynamicPage />} />
             {import.meta.env.DEV && (
               <>
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
