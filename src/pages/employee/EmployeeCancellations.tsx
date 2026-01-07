@@ -518,114 +518,113 @@ const EmployeeCancellations = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {Object.entries(statusConfig).map(([status, config]) => (
-            <Card 
-              key={status} 
-              className={`cursor-pointer transition-all ${statusFilter === status ? 'ring-2 ring-primary' : ''}`}
-              onClick={() => setStatusFilter(statusFilter === status ? "all" : status)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <config.icon className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-2xl font-bold">{stats[status] || 0}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{config.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher par numéro, nom, email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        {Object.entries(statusConfig).map(([status, config]) => (
+          <Card 
+            key={status} 
+            className={`cursor-pointer transition-all ${statusFilter === status ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === status ? "all" : status)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <config.icon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-2xl font-bold">{stats[status] || 0}</span>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  {Object.entries(statusConfig).map(([status, config]) => (
-                    <SelectItem key={status} value={status}>{config.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Type de service" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  {Object.entries(serviceTypeLabels).map(([type, label]) => (
-                    <SelectItem key={type} value={type}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-xs text-muted-foreground mt-1">{config.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher par numéro, nom, email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          </CardContent>
-        </Card>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <SelectItem key={status} value={status}>{config.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Type de service" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                {Object.entries(serviceTypeLabels).map(([type, label]) => (
+                  <SelectItem key={type} value={type}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* List */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center p-12">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredRequests.length === 0 ? (
-              <div className="text-center p-12 text-muted-foreground">
-                Aucune demande d'annulation trouvée
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {filteredRequests.map((request: any) => {
-                  const statusInfo = statusConfig[request.status as CancellationStatus] || statusConfig.requested;
-                  const StatusIcon = statusInfo.icon;
-                  return (
-                    <div
-                      key={request.id}
-                      onClick={() => handleSelectRequest(request)}
-                      className="p-4 hover:bg-accent/50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="font-medium">{request.request_number}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {request.profile?.full_name || "Client inconnu"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-sm">{serviceTypeLabels[request.service_type as ServiceType]}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(request.created_at), "d MMM yyyy", { locale: fr })}
-                            </p>
-                          </div>
-                          <Badge className={statusInfo.color}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {statusInfo.label}
-                          </Badge>
+      {/* List */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredRequests.length === 0 ? (
+            <div className="text-center p-12 text-muted-foreground">
+              Aucune demande d'annulation trouvée
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {filteredRequests.map((request: any) => {
+                const statusInfo = statusConfig[request.status as CancellationStatus] || statusConfig.requested;
+                const StatusIcon = statusInfo.icon;
+                return (
+                  <div
+                    key={request.id}
+                    onClick={() => handleSelectRequest(request)}
+                    className="p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="font-medium">{request.request_number}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {request.profile?.full_name || "Client inconnu"}
+                          </p>
                         </div>
                       </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm">{serviceTypeLabels[request.service_type as ServiceType]}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(request.created_at), "d MMM yyyy", { locale: fr })}
+                          </p>
+                        </div>
+                        <Badge className={statusInfo.color}>
+                          <StatusIcon className="w-3 h-3 mr-1" />
+                          {statusInfo.label}
+                        </Badge>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
