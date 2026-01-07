@@ -3807,6 +3807,228 @@ export type Database = {
         }
         Relationships: []
       }
+      site_offers: {
+        Row: {
+          category: string
+          created_at: string | null
+          created_by_id: string | null
+          created_by_name: string | null
+          description_en: string | null
+          description_fr: string | null
+          discount_amount: number | null
+          discount_percent: number | null
+          features_json: Json | null
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          name_en: string | null
+          name_fr: string
+          offer_type: string
+          price_monthly: number | null
+          price_setup: number | null
+          promo_code: string | null
+          sort_order: number | null
+          updated_at: string | null
+          updated_by_id: string | null
+          updated_by_name: string | null
+          updated_by_role: string | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          description_en?: string | null
+          description_fr?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          features_json?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          name_en?: string | null
+          name_fr: string
+          offer_type: string
+          price_monthly?: number | null
+          price_setup?: number | null
+          promo_code?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          description_en?: string | null
+          description_fr?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          features_json?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          name_en?: string | null
+          name_fr?: string
+          offer_type?: string
+          price_monthly?: number | null
+          price_setup?: number | null
+          promo_code?: string | null
+          sort_order?: number | null
+          updated_at?: string | null
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      site_pages: {
+        Row: {
+          body_en: string | null
+          body_fr: string | null
+          created_at: string | null
+          created_by_id: string | null
+          created_by_name: string | null
+          id: string
+          is_published: boolean | null
+          meta_description_en: string | null
+          meta_description_fr: string | null
+          publish_at: string | null
+          slug: string
+          title_en: string | null
+          title_fr: string
+          updated_at: string | null
+          updated_by_id: string | null
+          updated_by_name: string | null
+          updated_by_role: string | null
+        }
+        Insert: {
+          body_en?: string | null
+          body_fr?: string | null
+          created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          id?: string
+          is_published?: boolean | null
+          meta_description_en?: string | null
+          meta_description_fr?: string | null
+          publish_at?: string | null
+          slug: string
+          title_en?: string | null
+          title_fr: string
+          updated_at?: string | null
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+        }
+        Update: {
+          body_en?: string | null
+          body_fr?: string | null
+          created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          id?: string
+          is_published?: boolean | null
+          meta_description_en?: string | null
+          meta_description_fr?: string | null
+          publish_at?: string | null
+          slug?: string
+          title_en?: string | null
+          title_fr?: string
+          updated_at?: string | null
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          category: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          key: string
+          updated_at: string | null
+          updated_by_id: string | null
+          updated_by_name: string | null
+          updated_by_role: string | null
+          value_json: Json | null
+          value_text: string | null
+        }
+        Insert: {
+          category?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          key: string
+          updated_at?: string | null
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+          value_json?: Json | null
+          value_text?: string | null
+        }
+        Update: {
+          category?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          key?: string
+          updated_at?: string | null
+          updated_by_id?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
+          value_json?: Json | null
+          value_text?: string | null
+        }
+        Relationships: []
+      }
+      staff_otp_codes: {
+        Row: {
+          attempts: number | null
+          code_hash: string
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          max_attempts: number | null
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number | null
+          code_hash: string
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          max_attempts?: number | null
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number | null
+          code_hash?: string
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          max_attempts?: number | null
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       streaming_catalog: {
         Row: {
           category: string
@@ -4347,6 +4569,8 @@ export type Database = {
           is_active: boolean | null
           last_auth_check_at: string | null
           last_login_at: string | null
+          otp_required: boolean | null
+          otp_verified_at: string | null
           permissions: Json | null
           require_password_change: boolean | null
           require_pin_change: boolean | null
@@ -4361,6 +4585,8 @@ export type Database = {
           is_active?: boolean | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
+          otp_required?: boolean | null
+          otp_verified_at?: string | null
           permissions?: Json | null
           require_password_change?: boolean | null
           require_pin_change?: boolean | null
@@ -4375,6 +4601,8 @@ export type Database = {
           is_active?: boolean | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
+          otp_required?: boolean | null
+          otp_verified_at?: string | null
           permissions?: Json | null
           require_password_change?: boolean | null
           require_pin_change?: boolean | null
@@ -4710,6 +4938,17 @@ export type Database = {
         Returns: string
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      create_activity_log: {
+        Args: {
+          p_action: string
+          p_after_data?: Json
+          p_before_data?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_summary?: string
+        }
+        Returns: string
+      }
       create_notification: {
         Args: {
           p_link_id?: string
