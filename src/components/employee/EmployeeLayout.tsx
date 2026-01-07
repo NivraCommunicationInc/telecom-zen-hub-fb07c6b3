@@ -14,27 +14,37 @@ import {
   ExternalLink,
   FileText,
   Tv,
+  Loader2,
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
+import { useServerEmployeePermissions } from "@/hooks/useServerEmployeePermissions";
 import { cn } from "@/lib/utils";
 import { EmployeeNotificationBell } from "@/components/employee/EmployeeNotificationBell";
 
-const navItems = [
+interface NavItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  href: string;
+  permission?: string;
+}
+
+const allNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/employee" },
-  { icon: Users, label: "Clients", href: "/employee/clients" },
-  { icon: Package, label: "Commandes", href: "/employee/orders" },
-  { icon: CreditCard, label: "Facturation", href: "/employee/billing" },
-  { icon: FileText, label: "Contrats", href: "/employee/contracts" },
-  { icon: Tv, label: "Streaming+", href: "/employee/streaming" },
-  { icon: XCircle, label: "Annulations", href: "/employee/cancellations" },
-  { icon: AlertTriangle, label: "Contestations", href: "/employee/payment-disputes" },
-  { icon: MessageSquare, label: "Tickets", href: "/employee/tickets" },
+  { icon: Users, label: "Clients", href: "/employee/clients", permission: "can_view_profiles" },
+  { icon: Package, label: "Commandes", href: "/employee/orders", permission: "can_view_orders" },
+  { icon: CreditCard, label: "Facturation", href: "/employee/billing", permission: "can_view_billing" },
+  { icon: FileText, label: "Contrats", href: "/employee/contracts", permission: "can_view_contracts" },
+  { icon: Tv, label: "Streaming+", href: "/employee/streaming", permission: "can_manage_streaming" },
+  { icon: XCircle, label: "Annulations", href: "/employee/cancellations", permission: "can_view_cancellations" },
+  { icon: AlertTriangle, label: "Contestations", href: "/employee/payment-disputes", permission: "can_view_disputes" },
+  { icon: MessageSquare, label: "Tickets", href: "/employee/tickets", permission: "can_create_tickets" },
 ];
 
 const EmployeeLayout = () => {
   const { signOut, user } = useEmployeeAuth();
+  const { can, isLoading: permissionsLoading } = useServerEmployeePermissions();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -43,6 +53,25 @@ const EmployeeLayout = () => {
     await signOut();
     navigate("/employee/login");
   };
+
+  // Filter nav items based on permissions
+  const navItems = allNavItems.filter((item) => {
+    // Dashboard always visible
+    if (!item.permission) return true;
+    // Check permission from server
+    return can(item.permission as any);
+  });
+
+  if (permissionsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Chargement des permissions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -163,4 +192,3 @@ const EmployeeLayout = () => {
 };
 
 export default EmployeeLayout;
-
