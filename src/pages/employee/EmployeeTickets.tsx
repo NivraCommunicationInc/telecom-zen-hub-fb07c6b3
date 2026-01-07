@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,11 +38,11 @@ import {
   Loader2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { useActivityLog } from "@/hooks/useActivityLog";
+import { useEmployeeActivityLog } from "@/hooks/useEmployeeActivityLog";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "En attente", color: "bg-slate-500/20 text-slate-400", icon: Clock },
@@ -66,7 +65,7 @@ const priorityConfig: Record<string, { label: string; color: string; icon: any }
 const EmployeeTickets = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { logActivity } = useActivityLog();
+  const { logActivity } = useEmployeeActivityLog();
   
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [replyContent, setReplyContent] = useState("");
@@ -79,7 +78,7 @@ const EmployeeTickets = () => {
   const { data: tickets, isLoading } = useQuery({
     queryKey: ["employee-tickets"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await employeeSupabase
         .from("support_tickets")
         .select("*")
         .order("created_at", { ascending: false });
@@ -88,7 +87,7 @@ const EmployeeTickets = () => {
 
       if (data && data.length > 0) {
         const userIds = [...new Set(data.map((t: any) => t.user_id))];
-        const { data: profiles } = await supabase
+        const { data: profiles } = await employeeSupabase
           .from("profiles")
           .select("user_id, email, full_name, phone, client_number")
           .in("user_id", userIds);
@@ -106,7 +105,7 @@ const EmployeeTickets = () => {
   const { data: replies, isLoading: repliesLoading } = useQuery({
     queryKey: ["employee-ticket-replies", selectedTicket?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await employeeSupabase
         .from("ticket_replies")
         .select("*")
         .eq("ticket_id", selectedTicket?.id)
@@ -154,7 +153,7 @@ const EmployeeTickets = () => {
       const { ticketId, ...updateData } = updates;
       updateData.updated_at = new Date().toISOString();
 
-      const { error } = await supabase
+      const { error } = await employeeSupabase
         .from("support_tickets")
         .update(updateData)
         .eq("id", ticketId);
@@ -177,10 +176,10 @@ const EmployeeTickets = () => {
 
   const addReplyMutation = useMutation({
     mutationFn: async (content: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await employeeSupabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
+      const { data, error } = await employeeSupabase
         .from("ticket_replies")
         .insert({
           ticket_id: selectedTicket?.id,
@@ -194,7 +193,7 @@ const EmployeeTickets = () => {
       if (error) throw error;
 
       if (["open", "pending"].includes(selectedTicket?.status)) {
-        await supabase
+        await employeeSupabase
           .from("support_tickets")
           .update({ status: "in_progress", updated_at: new Date().toISOString() })
           .eq("id", selectedTicket.id);
@@ -239,8 +238,8 @@ const EmployeeTickets = () => {
     const PriorityIcon = priorityConfig[selectedTicket.priority]?.icon || Flag;
 
     return (
-      <EmployeeLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={() => setSelectedTicket(null)}>
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -471,14 +470,14 @@ const EmployeeTickets = () => {
             </div>
           </div>
         </div>
-      </EmployeeLayout>
+      </div>
     );
   }
 
   // List View
   return (
-    <EmployeeLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Tickets de support</h1>
@@ -603,7 +602,7 @@ const EmployeeTickets = () => {
           </CardContent>
         </Card>
       </div>
-    </EmployeeLayout>
+    </div>
   );
 };
 

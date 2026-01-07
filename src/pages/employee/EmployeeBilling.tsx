@@ -1,5 +1,4 @@
 import { useState } from "react";
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,16 +8,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { CreditCard, Search, Eye, DollarSign, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 const EmployeeBilling = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useEmployeeAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -30,7 +29,7 @@ const EmployeeBilling = () => {
   const { data: invoices, isLoading } = useQuery({
     queryKey: ["employee-billing"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await employeeSupabase
         .from("billing")
         .select("*")
         .order("created_at", { ascending: false });
@@ -52,14 +51,14 @@ const EmployeeBilling = () => {
         updateData.etransfer_status = status.replace("etransfer_", "");
       }
 
-      const { error } = await supabase
+      const { error } = await employeeSupabase
         .from("billing")
         .update(updateData)
         .eq("id", id);
       if (error) throw error;
 
       // Log activity
-      await supabase.from("activity_logs").insert({
+      await employeeSupabase.from("activity_logs").insert({
         user_id: user?.id || "system",
         entity_type: "billing",
         entity_id: id,
@@ -115,7 +114,7 @@ const EmployeeBilling = () => {
   };
 
   return (
-    <EmployeeLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Facturation</h1>
@@ -306,7 +305,7 @@ const EmployeeBilling = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </EmployeeLayout>
+    </>
   );
 };
 
