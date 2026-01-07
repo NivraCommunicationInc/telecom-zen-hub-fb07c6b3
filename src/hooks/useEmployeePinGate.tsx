@@ -55,25 +55,30 @@ export const useEmployeePinGate = () => {
     }
   }, []);
 
-  // Helper to call edge function
-  const callEdgeFunction = useCallback(async (action: string, body: any) => {
+  // Helper to call backend function
+  const callBackend = useCallback(async (action: string, body: any) => {
     if (!session?.access_token) {
       throw new Error("Non authentifié");
     }
+
+    const hasApiKey = !!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    console.log("[employee-ops] apikey present:", hasApiKey);
 
     const response = await fetch(`${EDGE_FUNCTION_URL}/${action}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${session.access_token}`,
+        // Required by backend function gateway
+        "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       },
       body: JSON.stringify(body),
     });
 
-    const data = await response.json();
-    
-    if (!response.ok && !data.success) {
-      throw new Error(data.error || "Erreur serveur");
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error || "Erreur serveur");
     }
 
     return data;

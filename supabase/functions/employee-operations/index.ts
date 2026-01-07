@@ -1638,13 +1638,34 @@ serve(async (req) => {
   const pathParts = url.pathname.split("/").filter(Boolean);
   const action = pathParts[pathParts.length - 1] || "";
 
+  const authHeader = req.headers.get("authorization");
+  const hasBearer = !!authHeader && authHeader.toLowerCase().startsWith("bearer ");
+  const hasApiKey = !!req.headers.get("apikey");
+
+  console.log(
+    `[employee-operations] request action=${action} origin=${origin ?? ""} bearer=${hasBearer} apikey=${hasApiKey}`
+  );
+
+  if (!hasBearer) {
+    return new Response(
+      JSON.stringify({ ok: false, code: "MISSING_AUTH_BEARER", error: "Non autorisé" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!hasApiKey) {
+    return new Response(
+      JSON.stringify({ ok: false, code: "MISSING_API_KEY", error: "Non autorisé" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   // Create admin client
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
 
   // Validate employee
-  const authHeader = req.headers.get("Authorization");
   const employee = await validateEmployee(authHeader!, supabaseAdmin);
 
   if (!employee) {
