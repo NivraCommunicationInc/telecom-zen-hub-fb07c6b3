@@ -5,6 +5,10 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
+// Rate limit: max 3 OTP requests per 15 minutes per user
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 3;
+
 interface RequestBody {
   user_id: string;
 }
@@ -14,7 +18,7 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Simple hash function for OTP (same as database function)
+// SHA-256 hash for OTP
 async function hashOTP(otp: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode("nivra_otp_salt_2026" + otp);
@@ -65,6 +69,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Rate limiting: check OTP requests in last 15 minutes
+    const rateLimitWindow = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+    const { count: recentRequests } = await supabase
+      .from("staff_otp_codes")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user_id)
+      .gte("created_at", rateLimitWindow);
+
+    if (recentRequests && recentRequests >= RATE_LIMIT_MAX_REQUESTS) {
+      console.log(`Rate limit exceeded for user ${user_id}: ${recentRequests} requests in window`);
+      
+      // Audit log rate limit hit
+      await supabase.from("admin_audit_log").insert({
+        admin_user_id: user_id,
+        action: "2fa_rate_limited",
+        target_type: "user",
+        target_id: user_id,
+        details: { requests_in_window: recentRequests },
+      });
+
+      return new Response(
+        JSON.stringify({ success: false, error: "Trop de demandes. Réessayez dans 15 minutes." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get user email from auth
     const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(user_id);
     
@@ -78,9 +108,9 @@ Deno.serve(async (req) => {
     // Generate OTP
     const otp = generateOTP();
     const otpHash = await hashOTP(otp);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Invalidate any existing OTPs for this user
+    // Invalidate any existing unused OTPs for this user
     await supabase
       .from("staff_otp_codes")
       .update({ used: true })
@@ -92,8 +122,12 @@ Deno.serve(async (req) => {
       .from("staff_otp_codes")
       .insert({
         user_id,
+        email: user.email,
         code_hash: otpHash,
         expires_at: expiresAt.toISOString(),
+        attempts: 0,
+        max_attempts: 5,
+        used: false,
       });
 
     if (insertError) {
@@ -103,6 +137,18 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Audit log OTP send
+    await supabase.from("admin_audit_log").insert({
+      admin_user_id: user_id,
+      admin_email: user.email,
+      action: "2fa_otp_sent",
+      target_type: "user",
+      target_id: user_id,
+      details: { method: "email", expires_in_minutes: 10 },
+    });
+
+    console.log(`OTP generated for ${user.email}, expires at ${expiresAt.toISOString()}`);
 
     // Send email with OTP
     if (RESEND_API_KEY) {
@@ -124,7 +170,7 @@ Deno.serve(async (req) => {
                 <div style="background: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
                   <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">${otp}</span>
                 </div>
-                <p style="color: #6b7280; font-size: 14px;">Ce code expire dans 5 minutes.</p>
+                <p style="color: #6b7280; font-size: 14px;">Ce code expire dans 10 minutes.</p>
                 <p style="color: #6b7280; font-size: 14px;">Si vous n'avez pas demandé ce code, ignorez ce message.</p>
               </div>
             `,
@@ -133,6 +179,8 @@ Deno.serve(async (req) => {
 
         if (!emailResponse.ok) {
           console.error("Resend API error:", await emailResponse.text());
+        } else {
+          console.log(`OTP email sent to ${user.email}`);
         }
       } catch (emailErr) {
         console.error("Failed to send email:", emailErr);

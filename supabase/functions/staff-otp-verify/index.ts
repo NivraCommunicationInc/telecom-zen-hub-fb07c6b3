@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate code format
+    // Validate code format (6 digits)
     if (!/^\d{6}$/.test(code)) {
       return new Response(
         JSON.stringify({ success: false, error: "Code invalide" }),
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     // Hash the submitted code
     const codeHash = await hashOTP(code);
 
-    // Find valid OTP for this user
+    // Find valid OTP for this user (not used, not expired)
     const { data: otpData, error: otpError } = await supabase
       .from("staff_otp_codes")
       .select("*")
@@ -69,19 +69,39 @@ Deno.serve(async (req) => {
     }
 
     if (!otpData) {
+      // Audit log failed verification (no valid OTP)
+      await supabase.from("admin_audit_log").insert({
+        admin_user_id: user_id,
+        action: "2fa_verify_failed",
+        target_type: "user",
+        target_id: user_id,
+        details: { reason: "no_valid_otp" },
+      });
+
       return new Response(
         JSON.stringify({ success: false, error: "Code expiré ou invalide" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check attempts
-    if (otpData.attempts >= 5) {
+    const maxAttempts = otpData.max_attempts || 5;
+
+    // Check if max attempts exceeded
+    if (otpData.attempts >= maxAttempts) {
       // Mark as used to prevent further attempts
       await supabase
         .from("staff_otp_codes")
         .update({ used: true })
         .eq("id", otpData.id);
+
+      // Audit log lockout
+      await supabase.from("admin_audit_log").insert({
+        admin_user_id: user_id,
+        action: "2fa_lockout",
+        target_type: "user",
+        target_id: user_id,
+        details: { attempts: otpData.attempts, max_attempts: maxAttempts },
+      });
 
       return new Response(
         JSON.stringify({ success: false, error: "Trop de tentatives. Demandez un nouveau code." }),
@@ -89,15 +109,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Increment attempts
+    // Increment attempts before verification
+    const newAttempts = otpData.attempts + 1;
     await supabase
       .from("staff_otp_codes")
-      .update({ attempts: otpData.attempts + 1 })
+      .update({ attempts: newAttempts })
       .eq("id", otpData.id);
 
     // Verify code hash
     if (otpData.code_hash !== codeHash) {
-      const remainingAttempts = 5 - (otpData.attempts + 1);
+      const remainingAttempts = maxAttempts - newAttempts;
+      
+      // Audit log failed attempt
+      await supabase.from("admin_audit_log").insert({
+        admin_user_id: user_id,
+        action: "2fa_verify_failed",
+        target_type: "user",
+        target_id: user_id,
+        details: { reason: "invalid_code", attempts: newAttempts, remaining: remainingAttempts },
+      });
+
+      console.log(`OTP verification failed for user ${user_id}: ${remainingAttempts} attempts remaining`);
+
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -107,13 +140,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Code is valid - mark as used
+    // Code is valid - mark as used (one-time use)
     await supabase
       .from("staff_otp_codes")
       .update({ used: true })
       .eq("id", otpData.id);
 
-    // Update user_roles with otp_verified_at
+    // Update user_roles with otp_verified_at for session trust
     const { error: updateError } = await supabase
       .from("user_roles")
       .update({ otp_verified_at: new Date().toISOString() })
@@ -124,21 +157,20 @@ Deno.serve(async (req) => {
       console.error("Failed to update otp_verified_at:", updateError);
     }
 
-    // Log successful verification
-    try {
-      const { data: { user } } = await supabase.auth.admin.getUserById(user_id);
-      
-      await supabase.from("admin_audit_log").insert({
-        admin_user_id: user_id,
-        admin_email: user?.email,
-        action: "2fa_verified",
-        target_type: "user",
-        target_id: user_id,
-        details: { method: "otp_email" },
-      });
-    } catch (logErr) {
-      console.error("Failed to log 2FA verification:", logErr);
-    }
+    // Get user email for audit log
+    const { data: { user } } = await supabase.auth.admin.getUserById(user_id);
+
+    // Audit log successful verification
+    await supabase.from("admin_audit_log").insert({
+      admin_user_id: user_id,
+      admin_email: user?.email,
+      action: "2fa_verified",
+      target_type: "user",
+      target_id: user_id,
+      details: { method: "otp_email", attempts_used: newAttempts },
+    });
+
+    console.log(`OTP verified successfully for user ${user_id} (${user?.email})`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Vérification réussie" }),
