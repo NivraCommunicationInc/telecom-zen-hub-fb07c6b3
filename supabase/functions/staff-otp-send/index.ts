@@ -1,9 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+// CORS headers - allow all origins for now (same as client-pin-send that works)
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 // Rate limit: max 3 OTP requests per 15 minutes per user
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -11,6 +16,11 @@ const RATE_LIMIT_MAX_REQUESTS = 3;
 
 interface RequestBody {
   user_id: string;
+}
+
+// Generate unique request ID for logging
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
 // Generate 6-digit OTP
@@ -28,19 +38,37 @@ async function hashOTP(otp: string): Promise<string> {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  const preflightResponse = handleCorsPreflightRequest(req);
-  if (preflightResponse) return preflightResponse;
+  const requestId = generateRequestId();
+  const origin = req.headers.get("origin") || "unknown";
+  const method = req.method;
+  
+  console.log(`[staff-otp-send][${requestId}] ${method} request from origin: ${origin}`);
 
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    console.log(`[staff-otp-send][${requestId}] Handling OPTIONS preflight`);
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const body: RequestBody = await req.json();
+    
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      console.error(`[staff-otp-send][${requestId}] Invalid JSON body:`, parseErr);
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const { user_id } = body;
+    console.log(`[staff-otp-send][${requestId}] Processing for user_id: ${user_id?.substring(0, 8)}...`);
 
     if (!user_id) {
+      console.error(`[staff-otp-send][${requestId}] Missing user_id`);
       return new Response(
         JSON.stringify({ success: false, error: "user_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -55,9 +83,27 @@ Deno.serve(async (req) => {
       .in("role", ["admin", "employee"])
       .maybeSingle();
 
-    if (roleError || !roleData) {
+    if (roleError) {
+      console.error(`[staff-otp-send][${requestId}] Role lookup error:`, roleError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Database error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!roleData) {
+      console.log(`[staff-otp-send][${requestId}] User is not staff`);
       return new Response(
         JSON.stringify({ success: false, error: "User is not staff" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[staff-otp-send][${requestId}] User role: ${roleData.role}, status: ${roleData.status}`);
+
+    if (roleData.status !== "active") {
+      return new Response(
+        JSON.stringify({ success: false, error: "Account is not active" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

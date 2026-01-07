@@ -1,12 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// CORS headers - allow all origins for now (same as client-pin-send that works)
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 interface RequestBody {
   user_id: string;
   code: string;
+}
+
+// Generate unique request ID for logging
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
 // Same hash function as send
@@ -19,12 +29,17 @@ async function hashOTP(otp: string): Promise<string> {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  const preflightResponse = handleCorsPreflightRequest(req);
-  if (preflightResponse) return preflightResponse;
+  const requestId = generateRequestId();
+  const origin = req.headers.get("origin") || "unknown";
+  const method = req.method;
+  
+  console.log(`[staff-otp-verify][${requestId}] ${method} request from origin: ${origin}`);
 
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    console.log(`[staff-otp-verify][${requestId}] Handling OPTIONS preflight`);
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
