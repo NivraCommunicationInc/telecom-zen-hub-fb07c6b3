@@ -103,6 +103,7 @@ import { lazy, Suspense } from "react";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("./pages/admin/AdminQABlockStatus"));
+const AdminQAEmployeeSmoke = lazy(() => import("./pages/admin/AdminQAEmployeeSmoke"));
 
 
 const queryClient = new QueryClient({
@@ -193,6 +194,7 @@ const App = () => (
               <>
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
                 <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
+                <Route path="/qa/employee-smoke" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSmoke /></Suspense>} />
               </>
             )}
             {/* Employee Portal Routes */}
