@@ -1,11 +1,11 @@
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase as supabase } from "@/integrations/supabase/employeeClient";
 import { Package, MessageSquare, XCircle, AlertTriangle, Clock, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
+
 
 const EmployeeDashboard = () => {
   // Pending orders count
@@ -109,69 +109,65 @@ const EmployeeDashboard = () => {
   ];
 
   return (
-    <EmployeeLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
-          <p className="text-muted-foreground mt-1">Vue d'ensemble de vos tâches</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map((stat) => (
-            <Link key={stat.label} to={stat.href}>
-              <Card className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-lg ${stat.bg} flex items-center justify-center`}>
-                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-
-        {/* Recent Activity */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-muted-foreground" />
-              Activité récente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentActivity && recentActivity.length > 0 ? (
-              <div className="space-y-3">
-                {recentActivity.map((activity: any) => (
-                  <div key={activity.id} className="flex items-start gap-3 p-3 bg-accent/30 rounded-lg">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <CheckCircle className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.action}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {activity.entity_type} • {activity.actor_name || "Système"}
-                      </p>
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {format(new Date(activity.created_at), "d MMM HH:mm", { locale: fr })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">Aucune activité récente</p>
-            )}
-          </CardContent>
-        </Card>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
+        <p className="text-muted-foreground mt-1">Vue d'ensemble de vos tâches</p>
       </div>
-    </EmployeeLayout>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {stats.map((stat) => (
+          <Link key={stat.label} to={stat.href}>
+            <Card className="bg-card border-border hover:border-primary/50 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-lg ${stat.bg} flex items-center justify-center`}>
+                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Recent Activity */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-muted-foreground" />
+            Activité récente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentActivity && recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {recentActivity.map((activity: any) => (
+                <div key={activity.id} className="flex items-start gap-3 p-3 bg-accent/30 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{activity.action}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {activity.entity_type} • {activity.actor_name || "Système"}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {format(new Date(activity.created_at), "d MMM HH:mm", { locale: fr })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">Aucune activité récente</p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

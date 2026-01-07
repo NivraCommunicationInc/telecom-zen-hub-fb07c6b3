@@ -1,5 +1,4 @@
 import { useState } from "react";
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Search, Eye, Phone, Mail, MapPin, Package, CreditCard, MessageSquare, FileText } from "lucide-react";
+import { Users, Search, Eye, Phone, Mail, MapPin, Package, CreditCard, MessageSquare } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase as supabase } from "@/integrations/supabase/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
 
 const EmployeeClients = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,7 +113,7 @@ const EmployeeClients = () => {
   };
 
   return (
-    <EmployeeLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -159,7 +159,9 @@ const EmployeeClients = () => {
                       </div>
                       <div>
                         <p className="font-medium text-foreground">
-                          {client.full_name || `${client.first_name || ""} ${client.last_name || ""}`.trim() || "Sans nom"}
+                          {client.full_name ||
+                            `${client.first_name || ""} ${client.last_name || ""}`.trim() ||
+                            "Sans nom"}
                         </p>
                         <p className="text-sm text-muted-foreground">{client.email}</p>
                         {client.client_number && (
@@ -169,10 +171,13 @@ const EmployeeClients = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <Badge className={statusColors[client.account_status] || statusColors.active}>
-                        {client.account_status === "active" ? "Actif" : 
-                         client.account_status === "suspended" ? "Suspendu" :
-                         client.account_status === "frozen" ? "Gelé" : 
-                         client.account_status || "Actif"}
+                        {client.account_status === "active"
+                          ? "Actif"
+                          : client.account_status === "suspended"
+                            ? "Suspendu"
+                            : client.account_status === "frozen"
+                              ? "Gelé"
+                              : client.account_status || "Actif"}
                       </Badge>
                       <Button variant="outline" size="sm" onClick={() => handleViewClient(client)}>
                         <Eye className="w-4 h-4 mr-1" /> Voir
@@ -193,7 +198,8 @@ const EmployeeClients = () => {
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
-              {selectedClient?.full_name || `${selectedClient?.first_name || ""} ${selectedClient?.last_name || ""}`.trim()}
+              {selectedClient?.full_name ||
+                `${selectedClient?.first_name || ""} ${selectedClient?.last_name || ""}`.trim()}
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
@@ -219,8 +225,9 @@ const EmployeeClients = () => {
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>
-                        {selectedClient?.service_address ? 
-                          `${selectedClient.service_address}, ${selectedClient.service_city || ""}` : "—"}
+                        {selectedClient?.service_address
+                          ? `${selectedClient.service_address}, ${selectedClient.service_city || ""}`
+                          : "—"}
                       </span>
                     </div>
                   </div>
@@ -233,9 +240,7 @@ const EmployeeClients = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Accès portail:</span>
-                      <Badge variant="outline">
-                        {selectedClient?.online_access_status || "Actif"}
-                      </Badge>
+                      <Badge variant="outline">{selectedClient?.online_access_status || "Actif"}</Badge>
                     </div>
                     {clientAccounts && clientAccounts[0] && (
                       <div className="flex items-center justify-between">
@@ -313,7 +318,7 @@ const EmployeeClients = () => {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </EmployeeLayout>
+    </>
   );
 };
 

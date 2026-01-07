@@ -1,5 +1,4 @@
 import { useState } from "react";
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Package, Search, Eye, Calendar, User, DollarSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase as supabase } from "@/integrations/supabase/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
 
 const EmployeeOrders = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,7 +62,7 @@ const EmployeeOrders = () => {
   };
 
   return (
-    <EmployeeLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Commandes</h1>
@@ -133,13 +133,23 @@ const EmployeeOrders = () => {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="font-medium">
-                          {Number(order.total_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          {Number(order.total_amount || 0).toLocaleString("fr-CA", {
+                            style: "currency",
+                            currency: "CAD",
+                          })}
                         </p>
                       </div>
                       <Badge className={statusColors[order.status] || statusColors.pending}>
                         {statusLabels[order.status] || order.status}
                       </Badge>
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedOrder(order); setDetailsOpen(true); }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setDetailsOpen(true);
+                        }}
+                      >
                         <Eye className="w-4 h-4" />
                       </Button>
                     </div>
@@ -166,16 +176,23 @@ const EmployeeOrders = () => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      <span>{selectedOrder.client_first_name} {selectedOrder.client_last_name}</span>
+                      <span>
+                        {selectedOrder.client_first_name} {selectedOrder.client_last_name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span>{format(new Date(selectedOrder.created_at), "d MMMM yyyy HH:mm", { locale: fr })}</span>
+                      <span>
+                        {format(new Date(selectedOrder.created_at), "d MMMM yyyy HH:mm", { locale: fr })}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <DollarSign className="w-4 h-4 text-muted-foreground" />
                       <span className="font-medium">
-                        {Number(selectedOrder.total_amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {Number(selectedOrder.total_amount || 0).toLocaleString("fr-CA", {
+                          style: "currency",
+                          currency: "CAD",
+                        })}
                       </span>
                     </div>
                   </div>
@@ -217,7 +234,7 @@ const EmployeeOrders = () => {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </EmployeeLayout>
+    </>
   );
 };
 
