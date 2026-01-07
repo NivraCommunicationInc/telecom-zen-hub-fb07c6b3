@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import OTPVerificationDialog from "@/components/admin/OTPVerificationDialog";
 
 const loginSchema = z.object({
   email: z.string().email("Adresse courriel invalide"),
@@ -34,6 +35,11 @@ const AdminLogin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // 2FA state
+  const [showOTPDialog, setShowOTPDialog] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +116,7 @@ const AdminLogin = () => {
 
         const { data: roleData, error: roleError } = await supabase
           .from("user_roles")
-          .select("role")
+          .select("role, otp_required, otp_verified_at")
           .eq("user_id", user.id)
           .eq("role", "admin")
           .maybeSingle();
@@ -126,12 +132,28 @@ const AdminLogin = () => {
           return;
         }
 
-        toast({
-          title: "Connexion réussie",
-          description: "Bienvenue dans le portail administrateur",
-        });
+        // Check if 2FA is required
+        // 2FA is required if otp_required is true OR if it's null (default to required for security)
+        const requires2FA = roleData.otp_required !== false;
+        
+        if (requires2FA) {
+          // Check if already verified within the last 24 hours
+          const verifiedAt = roleData.otp_verified_at ? new Date(roleData.otp_verified_at) : null;
+          const now = new Date();
+          const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          
+          if (!verifiedAt || verifiedAt < twentyFourHoursAgo) {
+            // Need to verify OTP
+            setPendingUserId(user.id);
+            setPendingUserEmail(user.email || email);
+            setShowOTPDialog(true);
+            setIsSubmitting(false);
+            return;
+          }
+        }
 
-        navigate("/admin");
+        // No 2FA needed or already verified
+        completeLogin();
 
       } catch (err: any) {
         await supabase.auth.signOut();
@@ -144,6 +166,26 @@ const AdminLogin = () => {
         setIsSubmitting(false);
       }
     }
+  };
+
+  const completeLogin = () => {
+    toast({
+      title: "Connexion réussie",
+      description: "Bienvenue dans le portail administrateur",
+    });
+    navigate("/admin");
+  };
+
+  const handleOTPSuccess = () => {
+    setShowOTPDialog(false);
+    setPendingUserId(null);
+    completeLogin();
+  };
+
+  const handleOTPCancel = () => {
+    setShowOTPDialog(false);
+    setPendingUserId(null);
+    setIsSubmitting(false);
   };
 
   if (isLoading) {
@@ -253,6 +295,16 @@ const AdminLogin = () => {
           </Link>
         </p>
       </div>
+
+      {/* 2FA OTP Dialog */}
+      <OTPVerificationDialog
+        open={showOTPDialog}
+        onOpenChange={setShowOTPDialog}
+        userId={pendingUserId || ""}
+        userEmail={pendingUserEmail}
+        onSuccess={handleOTPSuccess}
+        onCancel={handleOTPCancel}
+      />
     </div>
   );
 };
