@@ -1272,7 +1272,6 @@ export type Database = {
           failed_count_at_attempt: number | null
           id: string
           ip_address: string | null
-          pin_entered_hash: string | null
           user_agent: string | null
         }
         Insert: {
@@ -1286,7 +1285,6 @@ export type Database = {
           failed_count_at_attempt?: number | null
           id?: string
           ip_address?: string | null
-          pin_entered_hash?: string | null
           user_agent?: string | null
         }
         Update: {
@@ -1300,10 +1298,50 @@ export type Database = {
           failed_count_at_attempt?: number | null
           id?: string
           ip_address?: string | null
-          pin_entered_hash?: string | null
           user_agent?: string | null
         }
         Relationships: []
+      }
+      employee_pin_lockouts: {
+        Row: {
+          account_id: string
+          created_at: string
+          employee_id: string
+          failed_attempts: number
+          id: string
+          last_attempt_at: string | null
+          locked_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          employee_id: string
+          failed_attempts?: number
+          id?: string
+          last_attempt_at?: string | null
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          employee_id?: string
+          failed_attempts?: number
+          id?: string
+          last_attempt_at?: string | null
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_pin_lockouts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employee_pin_unlocks: {
         Row: {
@@ -1347,6 +1385,107 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_recorded_payments: {
+        Row: {
+          account_id: string | null
+          amount: number
+          billing_id: string
+          client_id: string
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          payment_method: string
+          payment_reference: string | null
+          recorded_by_employee_email: string | null
+          recorded_by_employee_id: string
+          status: string
+          verified_at: string | null
+          verified_by_admin_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          billing_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          payment_method: string
+          payment_reference?: string | null
+          recorded_by_employee_email?: string | null
+          recorded_by_employee_id: string
+          status?: string
+          verified_at?: string | null
+          verified_by_admin_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          billing_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          payment_method?: string
+          payment_reference?: string | null
+          recorded_by_employee_email?: string | null
+          recorded_by_employee_id?: string
+          status?: string
+          verified_at?: string | null
+          verified_by_admin_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_recorded_payments_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_recorded_payments_recorded_by_employee_id_fkey"
+            columns: ["recorded_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_search_rate_limits: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          search_count: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          search_count?: number
+          window_start?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          search_count?: number
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_search_rate_limits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           badge_number: string | null
@@ -1364,11 +1503,13 @@ export type Database = {
           permissions_json: Json
           phone: string | null
           pin_hash: string
+          pin_salt: string | null
           pin_set_at: string | null
           require_password_change: boolean | null
           require_pin_change: boolean | null
           role: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           badge_number?: string | null
@@ -1386,11 +1527,13 @@ export type Database = {
           permissions_json?: Json
           phone?: string | null
           pin_hash: string
+          pin_salt?: string | null
           pin_set_at?: string | null
           require_password_change?: boolean | null
           require_pin_change?: boolean | null
           role?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           badge_number?: string | null
@@ -1408,11 +1551,13 @@ export type Database = {
           permissions_json?: Json
           phone?: string | null
           pin_hash?: string
+          pin_salt?: string | null
           pin_set_at?: string | null
           require_password_change?: boolean | null
           require_pin_change?: boolean | null
           role?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
