@@ -1,5 +1,5 @@
 import { TVChannelSelectionBase, TVChannelSelectionBaseProps } from "@/components/checkout/TVChannelSelectionBase";
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 
 type PortalTVChannelSelectionProps = Omit<TVChannelSelectionBaseProps, "supabaseClient">;
 

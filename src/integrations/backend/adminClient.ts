@@ -22,6 +22,3 @@ export const adminClient = createClient(
     },
   }
 );
-
-// Alias for backward compatibility during migration
-export const adminSupabase = adminClient;

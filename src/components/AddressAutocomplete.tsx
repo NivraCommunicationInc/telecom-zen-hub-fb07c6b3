@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import type { AddressDetails } from "./AddressAutocompleteBase";
 import AddressAutocompleteBase from "./AddressAutocompleteBase";
-import { supabase } from "@/integrations/backend/client";
+import { backendClient as supabase } from "@/integrations/backend/client";
 
 export type { AddressDetails };
 

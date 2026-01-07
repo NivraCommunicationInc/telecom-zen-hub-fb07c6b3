@@ -41,7 +41,7 @@ import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
-import { supabase } from "@/integrations/backend/portalClient";
+import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 

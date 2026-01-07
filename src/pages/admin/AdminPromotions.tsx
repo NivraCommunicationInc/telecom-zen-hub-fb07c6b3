@@ -38,7 +38,7 @@ import {
   AlertCircle,
   Calculator,
 } from "lucide-react";
-import { supabase } from "@/integrations/backend/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

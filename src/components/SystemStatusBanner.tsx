@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { supabase } from "@/integrations/backend/client";
+import { backendClient as supabase } from "@/integrations/backend/client";
 import {
   SystemStatusBannerBase,
   SystemStatusIndicator as SystemStatusIndicatorBase,

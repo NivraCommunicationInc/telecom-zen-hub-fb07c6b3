@@ -33,7 +33,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/backend/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Users,

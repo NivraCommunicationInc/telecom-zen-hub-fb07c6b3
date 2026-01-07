@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { 
   XCircle, Plus, ArrowLeft, Calendar, Clock, CheckCircle, 
   AlertTriangle, Loader2, FileX, Info
