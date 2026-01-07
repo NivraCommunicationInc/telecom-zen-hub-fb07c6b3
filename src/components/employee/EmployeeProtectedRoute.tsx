@@ -16,8 +16,9 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
   const { user, signOut, isLoading, role } = useEmployeeAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isVerifying, setIsVerifying] = useState(true);
-  const [isStaffVerified, setIsStaffVerified] = useState(false);
+  const [verificationState, setVerificationState] = useState<
+    "pending" | "loading" | "verified" | "denied" | "not_authenticated"
+  >("pending");
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
 
@@ -34,20 +35,21 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
   useIdleTimeout({
     onIdle: handleIdleLogout,
     timeout: IDLE_TIMEOUT_MS,
-    enabled: !!user && isStaffVerified,
+    enabled: verificationState === "verified",
   });
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const verifyStaffRole = async () => {
-      // No user in employee session → redirect to login
+      // No user in employee session → not authenticated
       if (!user) {
-        console.log("[EmployeeProtectedRoute] No user in employee session → redirect to login");
-        if (isMounted) setIsVerifying(false);
+        console.log("[EmployeeProtectedRoute] No user in employee session");
+        if (isMounted) setVerificationState("not_authenticated");
         return;
       }
-      
+
+      if (isMounted) setVerificationState("loading");
       console.log("[EmployeeProtectedRoute] Starting verification for user:", user.id, user.email);
 
       try {
@@ -55,17 +57,17 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
         const now = Date.now();
         const lastCheck = sessionStorage.getItem("employee_last_auth_check");
         const lastCheckTime = lastCheck ? parseInt(lastCheck, 10) : 0;
-        
+
         if (now - lastCheckTime > SESSION_RECHECK_INTERVAL_MS) {
           const { data: { session }, error: sessionError } = await employeeSupabase.auth.getSession();
-          
+
           if (sessionError || !session) {
-            console.log("[EmployeeProtectedRoute] Session invalid or expired → signOut");
+            console.log("[EmployeeProtectedRoute] Session invalid or expired");
             await signOut();
-            navigate("/employee/login", { replace: true });
+            if (isMounted) setVerificationState("not_authenticated");
             return;
           }
-          
+
           sessionStorage.setItem("employee_last_auth_check", now.toString());
           lastAuthCheck.current = now;
         }
@@ -78,17 +80,22 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
           .eq("role", "employee")
           .maybeSingle();
 
+        console.log("[EmployeeProtectedRoute] Role query result:", { roleData, error });
+
         if (error) {
           console.error("[EmployeeProtectedRoute] Role lookup error:", error);
+          toast.error("Erreur de vérification", {
+            description: "Impossible de vérifier vos permissions.",
+          });
           await signOut();
-          navigate("/employee/login", { replace: true });
+          if (isMounted) setVerificationState("not_authenticated");
           return;
         }
 
         // Not employee role
         if (!roleData || roleData.role !== "employee") {
-          console.log("[EmployeeProtectedRoute] Role mismatch → signOut. User role:", roleData?.role || "none");
-          
+          console.log("[EmployeeProtectedRoute] Role mismatch. User role:", roleData?.role || "none");
+
           if (!hasLoggedBlockedAccess.current) {
             hasLoggedBlockedAccess.current = true;
             try {
@@ -99,7 +106,7 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
                 details: {
                   attempted_path: location.pathname,
                   user_role: roleData?.role || "unknown",
-                  reason: "Non-staff attempted to access /employee/* route",
+                  reason: "Non-employee attempted to access /employee/* route",
                   timestamp: new Date().toISOString(),
                 },
                 target_type: "security",
@@ -107,51 +114,52 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
                 target_email: user.email,
               });
             } catch (logErr) {
-              // Ignore logging errors
+              console.error("[EmployeeProtectedRoute] Audit log error:", logErr);
             }
           }
-          
+
           toast.error("Accès refusé", {
             description: "Vous n'êtes pas autorisé à accéder au portail employé.",
           });
           await signOut();
-          navigate("/employee/login", { replace: true });
+          if (isMounted) setVerificationState("denied");
           return;
         }
 
         // Check status and is_active
         if (roleData.status !== "active" || roleData.is_active === false) {
-          console.log("[EmployeeProtectedRoute] Account not active → signOut");
+          console.log("[EmployeeProtectedRoute] Account not active:", roleData.status, roleData.is_active);
           toast.error("Compte désactivé", {
             description: "Votre compte employé est désactivé. Contactez un administrateur.",
           });
           await signOut();
-          navigate("/employee/login", { replace: true });
+          if (isMounted) setVerificationState("denied");
           return;
         }
 
-        console.log("[EmployeeProtectedRoute] Verified as:", roleData.role);
-        if (isMounted) setIsStaffVerified(true);
+        console.log("[EmployeeProtectedRoute] ✓ Verified as employee");
+        if (isMounted) setVerificationState("verified");
       } catch (err) {
         console.error("[EmployeeProtectedRoute] Verification error:", err);
+        toast.error("Erreur", {
+          description: "Une erreur est survenue lors de la vérification.",
+        });
         await signOut();
-        navigate("/employee/login", { replace: true });
-      } finally {
-        if (isMounted) setIsVerifying(false);
+        if (isMounted) setVerificationState("not_authenticated");
       }
     };
 
     if (!isLoading) {
       verifyStaffRole();
     }
-    
+
     return () => {
       isMounted = false;
     };
-  }, [user, isLoading, signOut, navigate, location.pathname]);
+  }, [user, isLoading, signOut, location.pathname]);
 
-  // Loading state
-  if (isLoading || isVerifying) {
+  // Loading state (auth loading OR verification in progress)
+  if (isLoading || verificationState === "pending" || verificationState === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -162,28 +170,28 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
     );
   }
 
-  // Not logged in
-  if (!user) {
+  // Not authenticated - Navigate to login
+  if (verificationState === "not_authenticated" || !user) {
+    console.log("[EmployeeProtectedRoute] Navigate to /employee/login (not authenticated)");
     sessionStorage.removeItem("employee_last_auth_check");
-    console.log("[EmployeeProtectedRoute] No user → Navigate to /employee/login");
     return <Navigate to="/employee/login" replace />;
   }
 
-  // Not verified - should not happen if verification completed correctly
-  // But if we get here, show a loading/redirect state instead of blank page
-  if (!isStaffVerified) {
-    console.log("[EmployeeProtectedRoute] Not verified after loading - redirecting to login");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Redirection en cours...</p>
-        </div>
-      </div>
-    );
+  // Access denied - Navigate to login
+  if (verificationState === "denied") {
+    console.log("[EmployeeProtectedRoute] Navigate to /employee/login (access denied)");
+    sessionStorage.removeItem("employee_last_auth_check");
+    return <Navigate to="/employee/login" replace />;
   }
 
-  return <>{children}</>;
+  // Verified - render children
+  if (verificationState === "verified") {
+    return <>{children}</>;
+  }
+
+  // Fallback (should never reach here) - Navigate to login
+  console.log("[EmployeeProtectedRoute] Fallback Navigate to /employee/login");
+  return <Navigate to="/employee/login" replace />;
 };
 
 export default EmployeeProtectedRoute;
