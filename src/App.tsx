@@ -111,6 +111,7 @@ const AdminQAEmployeeClients = lazy(() => import("./pages/admin/AdminQAEmployeeC
 const AdminQAEmployeeOrders = lazy(() => import("./pages/admin/AdminQAEmployeeOrders"));
 const AdminQAEmployeeBilling = lazy(() => import("./pages/admin/AdminQAEmployeeBilling"));
 const AdminQAEmployeeSidebar = lazy(() => import("./pages/admin/AdminQAEmployeeSidebar"));
+const AdminQAAdminAsEmployee = lazy(() => import("./pages/admin/AdminQAAdminAsEmployee"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -195,7 +196,7 @@ const App = () => (
             <Route path="/admin/pdf-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
-            {/* DEV-ONLY QA Routes */}
+{/* DEV-ONLY QA Routes */}
             {import.meta.env.DEV && (
               <>
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
@@ -208,6 +209,7 @@ const App = () => (
                 <Route path="/qa/employee/payment-disputes" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeDisputes /></Suspense>} />
                 <Route path="/qa/employee/tickets" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeTickets /></Suspense>} />
                 <Route path="/qa/employee/sidebar" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSidebar /></Suspense>} />
+                <Route path="/qa/admin-as-employee" element={<Suspense fallback={<div>Loading...</div>}><AdminQAAdminAsEmployee /></Suspense>} />
               </>
             )}
             {/* Employee Portal Routes */}
