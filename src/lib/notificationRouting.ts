@@ -3,7 +3,7 @@
  * Maps notification types to existing routes with query params for deep-linking
  */
 
-export type NotificationScope = 'admin' | 'portal';
+export type NotificationScope = 'admin' | 'portal' | 'employee';
 
 export interface NotificationData {
   type: string;
@@ -16,6 +16,7 @@ export interface NotificationData {
 interface RouteConfig {
   admin: string;
   portal: string;
+  employee: string;
   queryParam: string;
 }
 
@@ -24,36 +25,43 @@ const routeConfig: Record<string, RouteConfig> = {
   invoice: {
     admin: '/admin/billing',
     portal: '/portal/invoices',
+    employee: '/employee/billing',
     queryParam: 'invoice',
   },
   payment: {
     admin: '/admin/billing',
     portal: '/portal/payments',
+    employee: '/employee/billing',
     queryParam: 'payment',
   },
   order: {
     admin: '/admin/orders',
     portal: '/portal/orders',
+    employee: '/employee/orders',
     queryParam: 'order',
   },
   appointment: {
     admin: '/admin/appointments',
     portal: '/portal/appointments',
+    employee: '/employee',
     queryParam: 'appt',
   },
   ticket: {
     admin: '/admin/tickets',
     portal: '/portal/tickets',
+    employee: '/employee/tickets',
     queryParam: 'ticket',
   },
   contract: {
     admin: '/admin/contracts',
     portal: '/portal/contracts',
+    employee: '/employee',
     queryParam: 'contract',
   },
   system: {
     admin: '/admin',
     portal: '/portal',
+    employee: '/employee',
     queryParam: '',
   },
 };
@@ -144,7 +152,24 @@ function isValidRoute(linkTarget: string, scope: NotificationScope): boolean {
     '/portal/contracts',
   ];
   
-  const validRoutes = scope === 'admin' ? validAdminRoutes : validPortalRoutes;
+  const validEmployeeRoutes = [
+    '/employee',
+    '/employee/clients',
+    '/employee/orders',
+    '/employee/billing',
+    '/employee/cancellations',
+    '/employee/payment-disputes',
+    '/employee/tickets',
+  ];
+  
+  let validRoutes: string[];
+  if (scope === 'admin') {
+    validRoutes = validAdminRoutes;
+  } else if (scope === 'employee') {
+    validRoutes = validEmployeeRoutes;
+  } else {
+    validRoutes = validPortalRoutes;
+  }
   
   // Extract base path (without query params)
   const basePath = linkTarget.split('?')[0];
@@ -179,7 +204,14 @@ export function getNotificationHref(
   
   // Fallback: build route from type
   const config = routeConfig[notification.type] || routeConfig.system;
-  const basePath = scope === 'admin' ? config.admin : config.portal;
+  let basePath: string;
+  if (scope === 'admin') {
+    basePath = config.admin;
+  } else if (scope === 'employee') {
+    basePath = config.employee;
+  } else {
+    basePath = config.portal;
+  }
   
   // Try to add deep-linking query param
   const refId = extractReferenceId(notification);
@@ -199,5 +231,11 @@ export function getNotificationFallbackRoute(
   scope: NotificationScope
 ): string {
   const config = routeConfig[notificationType] || routeConfig.system;
-  return scope === 'admin' ? config.admin : config.portal;
+  if (scope === 'admin') {
+    return config.admin;
+  } else if (scope === 'employee') {
+    return config.employee;
+  } else {
+    return config.portal;
+  }
 }

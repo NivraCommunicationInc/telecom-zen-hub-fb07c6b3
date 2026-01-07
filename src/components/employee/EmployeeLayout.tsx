@@ -17,7 +17,7 @@ import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemSt
 import { Button } from "@/components/ui/button";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 import { cn } from "@/lib/utils";
-import { NotificationBell } from "@/components/ui/notification-bell";
+import { EmployeeNotificationBell } from "@/components/employee/EmployeeNotificationBell";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/employee" },
@@ -55,7 +55,7 @@ const EmployeeLayout = () => {
               </div>
               <span className="font-display font-bold text-lg text-foreground">Nivra Employee</span>
             </Link>
-            <NotificationBell />
+            <EmployeeNotificationBell />
           </div>
 
           <nav className="flex-1 p-4 space-y-1">
