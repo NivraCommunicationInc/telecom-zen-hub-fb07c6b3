@@ -70,21 +70,9 @@ export const useServerEmployeePermissions = () => {
 
   const can = (permission: EmployeePermission): boolean => {
     if (!isEmployee) return false;
-    // If permission is not explicitly set, default to true for basic view permissions
+    // DEFAULT DENY: Permission must be explicitly true
+    // No fallback defaults - server is source of truth
     const value = permissions[permission];
-    if (value === undefined) {
-      // Default permissions for employees
-      const defaultTrue = [
-        "can_view_profiles",
-        "can_view_orders", 
-        "can_view_billing",
-        "can_create_tickets",
-        "can_view_contracts",
-        "can_view_cancellations",
-        "can_view_disputes",
-      ];
-      return defaultTrue.includes(permission);
-    }
     return value === true;
   };
 

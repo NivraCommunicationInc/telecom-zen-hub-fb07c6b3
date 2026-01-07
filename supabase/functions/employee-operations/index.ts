@@ -1195,6 +1195,21 @@ async function handleClient360(
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
+  // Check permission - DEFAULT DENY
+  const { data: empData } = await supabaseAdmin
+    .from("employees")
+    .select("permissions_json")
+    .eq("id", employee.id)
+    .single();
+
+  const permissions = empData?.permissions_json || {};
+  if (permissions.can_view_profiles !== true) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Permission refusée" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   if (!clientId) {
     return new Response(
       JSON.stringify({ success: false, error: "clientId requis" }),
@@ -1371,6 +1386,21 @@ async function handleClientsList(
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
+  // Check permission - DEFAULT DENY
+  const { data: empData } = await supabaseAdmin
+    .from("employees")
+    .select("permissions_json")
+    .eq("id", employee.id)
+    .single();
+
+  const permissions = empData?.permissions_json || {};
+  if (permissions.can_view_profiles !== true) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Permission refusée" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   // Rate limiting
   const windowStart = new Date(Date.now() - SEARCH_RATE_LIMIT_WINDOW_MS).toISOString();
   const { data: rateLimitRecord } = await supabaseAdmin
@@ -1477,7 +1507,8 @@ async function handleOrdersList(
     .single();
 
   const permissions = empData?.permissions_json || {};
-  if (permissions.can_view_orders === false) {
+  // DEFAULT DENY: Permission must be explicitly true
+  if (permissions.can_view_orders !== true) {
     return new Response(
       JSON.stringify({ success: false, error: "Permission refusée" }),
       { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1534,7 +1565,8 @@ async function handleBillingList(
     .single();
 
   const permissions = empData?.permissions_json || {};
-  if (permissions.can_view_billing === false) {
+  // DEFAULT DENY: Permission must be explicitly true
+  if (permissions.can_view_billing !== true) {
     return new Response(
       JSON.stringify({ success: false, error: "Permission refusée" }),
       { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
