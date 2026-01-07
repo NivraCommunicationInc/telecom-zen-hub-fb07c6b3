@@ -38,13 +38,17 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    
     const verifyStaffRole = async () => {
       // No user in employee session → redirect to login
       if (!user) {
         console.log("[EmployeeProtectedRoute] No user in employee session → redirect to login");
-        setIsVerifying(false);
+        if (isMounted) setIsVerifying(false);
         return;
       }
+      
+      console.log("[EmployeeProtectedRoute] Starting verification for user:", user.id, user.email);
 
       try {
         // Session freshness check
@@ -127,19 +131,23 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
         }
 
         console.log("[EmployeeProtectedRoute] Verified as:", roleData.role);
-        setIsStaffVerified(true);
+        if (isMounted) setIsStaffVerified(true);
       } catch (err) {
         console.error("[EmployeeProtectedRoute] Verification error:", err);
         await signOut();
         navigate("/employee/login", { replace: true });
       } finally {
-        setIsVerifying(false);
+        if (isMounted) setIsVerifying(false);
       }
     };
 
     if (!isLoading) {
       verifyStaffRole();
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user, isLoading, signOut, navigate, location.pathname]);
 
   // Loading state
@@ -161,9 +169,18 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
     return <Navigate to="/employee/login" replace />;
   }
 
-  // Not verified
+  // Not verified - should not happen if verification completed correctly
+  // But if we get here, show a loading/redirect state instead of blank page
   if (!isStaffVerified) {
-    return null;
+    console.log("[EmployeeProtectedRoute] Not verified after loading - redirecting to login");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Redirection en cours...</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
