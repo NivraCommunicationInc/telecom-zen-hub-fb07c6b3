@@ -1,0 +1,35 @@
+/*
+  # HTTPS/TLS Security
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  
+  # Content Security Policy - Strict but compatible
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.supabase.co https://*.supabase.com https://*.mapbox.com https://api.mapbox.com; connect-src 'self' https://*.supabase.co https://*.supabase.com wss://*.supabase.co https://api.mapbox.com https://*.mapbox.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+  
+  # Prevent MIME sniffing
+  X-Content-Type-Options: nosniff
+  
+  # Clickjacking protection
+  X-Frame-Options: DENY
+  
+  # XSS Protection (legacy browsers)
+  X-XSS-Protection: 1; mode=block
+  
+  # Referrer Policy
+  Referrer-Policy: strict-origin-when-cross-origin
+  
+  # Permissions Policy - Restrict browser features
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+
+# API routes - additional protections
+/api/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Cache-Control: no-store, no-cache, must-revalidate
+
+# Admin routes - stricter CSP
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+
+# Portal routes - stricter CSP
+/portal/*
+  X-Robots-Tag: noindex, nofollow
