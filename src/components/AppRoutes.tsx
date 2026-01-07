@@ -32,6 +32,9 @@ import EquipementGarantie from "@/pages/legal/EquipementGarantie";
 import SupportEtPlaintes from "@/pages/legal/SupportEtPlaintes";
 import ConfidentialiteLoi25 from "@/pages/legal/ConfidentialiteLoi25";
 import FraisPossibles from "@/pages/legal/FraisPossibles";
+import RefundPolicy from "@/pages/legal/RefundPolicy";
+import PrivacyPolicyPage from "@/pages/legal/PrivacyPolicyPage";
+import TermsAndConditions from "@/pages/legal/TermsAndConditions";
 
 // Admin pages
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -140,6 +143,9 @@ const AppRoutes = () => {
       <Route path="/support-et-plaintes" element={<MaintenanceGuard><SupportEtPlaintes /></MaintenanceGuard>} />
       <Route path="/confidentialite-loi25" element={<MaintenanceGuard><ConfidentialiteLoi25 /></MaintenanceGuard>} />
       <Route path="/frais-possibles" element={<MaintenanceGuard><FraisPossibles /></MaintenanceGuard>} />
+      <Route path="/refund-policy" element={<MaintenanceGuard><RefundPolicy /></MaintenanceGuard>} />
+      <Route path="/privacy-policy" element={<MaintenanceGuard><PrivacyPolicyPage /></MaintenanceGuard>} />
+      <Route path="/terms-and-conditions" element={<MaintenanceGuard><TermsAndConditions /></MaintenanceGuard>} />
       <Route path="/a-propos" element={<MaintenanceGuard><APropos /></MaintenanceGuard>} />
       <Route path="/aide" element={<MaintenanceGuard><Aide /></MaintenanceGuard>} />
       
