@@ -3217,6 +3217,42 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+        }
+        Relationships: []
+      }
+      rate_limit_lockouts: {
+        Row: {
+          created_at: string
+          key: string
+          locked_until: string
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          locked_until: string
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          locked_until?: string
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           action_type: string
