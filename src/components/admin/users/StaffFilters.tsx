@@ -8,8 +8,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Only admin role is supported now
-type StaffRole = "admin";
+// Support admin and employee roles
+type StaffRole = "admin" | "employee";
 type StatusFilter = "all" | "active" | "disabled";
 type PinFilter = "all" | "defined" | "not_defined";
 

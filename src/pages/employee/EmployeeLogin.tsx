@@ -4,15 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
+import { employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, AlertTriangle, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import OTPVerificationDialog from "@/components/admin/OTPVerificationDialog";
 
 const EmployeeLogin = () => {
-  const { signIn, user, isLoading: authLoading } = useAuth();
+  const { signIn, user, isLoading: authLoading, role } = useEmployeeAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,27 +25,13 @@ const EmployeeLogin = () => {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
 
-  // Check if already logged in and is employee/admin
+  // Check if already logged in with valid employee/admin role
   useEffect(() => {
-    const checkExistingSession = async () => {
-      if (user) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .in("role", ["employee", "admin"])
-          .maybeSingle();
-
-        if (roleData) {
-          navigate("/employee", { replace: true });
-        }
-      }
-    };
-
-    if (!authLoading) {
-      checkExistingSession();
+    if (!authLoading && user && role) {
+      console.log("[EmployeeLogin] Already authenticated with role:", role);
+      navigate("/employee", { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +48,7 @@ const EmployeeLogin = () => {
       }
 
       // Get the current user after sign in
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data: { user: currentUser } } = await employeeSupabase.auth.getUser();
 
       if (!currentUser) {
         setError("Erreur d'authentification");
@@ -71,22 +57,24 @@ const EmployeeLogin = () => {
       }
 
       // Check if user has employee or admin role
-      const { data: roleData, error: roleError } = await supabase
+      const { data: roleData, error: roleError } = await employeeSupabase
         .from("user_roles")
-        .select("role, status, otp_required, otp_verified_at")
+        .select("role, status, is_active, otp_required, otp_verified_at")
         .eq("user_id", currentUser.id)
         .in("role", ["employee", "admin"])
         .maybeSingle();
 
       if (roleError || !roleData) {
-        await supabase.auth.signOut();
+        console.log("[EmployeeLogin] Role mismatch → signOut. No employee/admin role found.");
+        await employeeSupabase.auth.signOut();
         setError("Accès non autorisé. Cette page est réservée aux employés.");
         setIsLoading(false);
         return;
       }
 
-      if (roleData.status !== "active") {
-        await supabase.auth.signOut();
+      if (roleData.status !== "active" || roleData.is_active === false) {
+        console.log("[EmployeeLogin] Account not active → signOut");
+        await employeeSupabase.auth.signOut();
         setError("Votre compte est désactivé. Contactez un administrateur.");
         setIsLoading(false);
         return;
@@ -114,6 +102,7 @@ const EmployeeLogin = () => {
       // No 2FA needed or already verified
       completeLogin();
     } catch (err: any) {
+      console.error("[EmployeeLogin] Error:", err);
       setError(err.message || "Erreur de connexion");
     } finally {
       setIsLoading(false);
@@ -131,10 +120,12 @@ const EmployeeLogin = () => {
     completeLogin();
   };
 
-  const handleOTPCancel = () => {
+  const handleOTPCancel = async () => {
     setShowOTPDialog(false);
     setPendingUserId(null);
     setIsLoading(false);
+    // Sign out since 2FA was cancelled
+    await employeeSupabase.auth.signOut();
   };
 
   return (
@@ -196,7 +187,7 @@ const EmployeeLogin = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || authLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

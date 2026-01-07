@@ -80,6 +80,7 @@ const statusConfig: Record<StaffStatus, { label: string; variant: "default" | "s
 
 const roleConfig: Record<StaffRole, { label: string; icon: typeof Shield; variant: "default" | "secondary" | "outline" }> = {
   admin: { label: "Administrateur", icon: Shield, variant: "default" },
+  employee: { label: "Employé", icon: UserCog, variant: "secondary" },
 };
 
 const AdminUsersAccess = () => {
