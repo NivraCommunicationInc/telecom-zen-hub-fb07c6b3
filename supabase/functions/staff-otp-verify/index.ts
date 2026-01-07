@@ -3,11 +3,30 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// CORS headers - allow all origins for now (same as client-pin-send that works)
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Allowed origins whitelist for staff OTP (secure, not "*")
+const ALLOWED_ORIGINS = [
+  "https://nivratelecom.ca",
+  "https://www.nivratelecom.ca",
+  "https://telecom-zen-hub.lovable.app",
+];
+
+// Get CORS headers with proper origin validation
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  // Check if origin is in whitelist or is a lovable.app/lovableproject.com domain
+  const isAllowed = requestOrigin && (
+    ALLOWED_ORIGINS.includes(requestOrigin) ||
+    requestOrigin.endsWith(".lovable.app") ||
+    requestOrigin.endsWith(".lovableproject.com")
+  );
+
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
+  };
+}
 
 interface RequestBody {
   user_id: string;
@@ -30,14 +49,16 @@ async function hashOTP(otp: string): Promise<string> {
 
 Deno.serve(async (req) => {
   const requestId = generateRequestId();
-  const origin = req.headers.get("origin") || "unknown";
+  const origin = req.headers.get("origin");
   const method = req.method;
+  const corsHeaders = getCorsHeaders(origin);
   
-  console.log(`[staff-otp-verify][${requestId}] ${method} request from origin: ${origin}`);
+  console.log(`[staff-otp-verify][${requestId}] ${method} request from origin: ${origin || "none"}`);
+  console.log(`[staff-otp-verify][${requestId}] CORS Allow-Origin: ${corsHeaders["Access-Control-Allow-Origin"]}`);
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    console.log(`[staff-otp-verify][${requestId}] Handling OPTIONS preflight`);
+    console.log(`[staff-otp-verify][${requestId}] Handling OPTIONS preflight - returning 204`);
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
