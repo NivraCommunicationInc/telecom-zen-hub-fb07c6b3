@@ -25,7 +25,7 @@ import {
   Clock,
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { adminSupabase } from "@/integrations/supabase/adminClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -123,23 +123,23 @@ const AdminUsersAccess = () => {
     raw_body?: string | null;
   } | null>(null);
 
-  // Fetch all staff users from multiple sources
+  // Fetch all staff users from multiple sources (admin + employee)
   const { data: staffUsers, isLoading, refetch } = useQuery({
     queryKey: ["admin-all-staff-users"],
     queryFn: async () => {
       const users: StaffUser[] = [];
 
-      // Get admin users from user_roles (admin only - employee/technician portals removed)
-      const { data: rolesData, error: rolesError } = await supabase
+      // Get admin AND employee users from user_roles
+      const { data: rolesData, error: rolesError } = await adminSupabase
         .from("user_roles")
         .select("user_id, role, permissions, is_active, status, require_password_change, last_login_at, created_at")
-        .eq("role", "admin");
+        .in("role", ["admin", "employee"]);
 
       if (rolesError) throw rolesError;
 
       if (rolesData && rolesData.length > 0) {
         const userIds = rolesData.map(r => r.user_id);
-        const { data: profiles } = await supabase
+        const { data: profiles } = await adminSupabase
           .from("profiles")
           .select("user_id, email, full_name, created_at")
           .in("user_id", userIds);
@@ -149,7 +149,7 @@ const AdminUsersAccess = () => {
           users.push({
             id: roleRow.user_id,
             email: profile?.email || "—",
-            role: "admin",
+            role: roleRow.role as StaffRole,
             full_name: profile?.full_name || null,
             created_at: roleRow.created_at || profile?.created_at || new Date().toISOString(),
             last_sign_in_at: null,
@@ -196,7 +196,7 @@ const AdminUsersAccess = () => {
   // Create staff mutation (extended)
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserFormData & { permissions: Partial<PermissionSet> }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: {
           action: "create",
           email: data.email,
@@ -245,7 +245,7 @@ const AdminUsersAccess = () => {
   // Disable user mutation
   const disableMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "disable", user_id: userId },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -268,7 +268,7 @@ const AdminUsersAccess = () => {
   // Enable user mutation
   const enableMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "enable", user_id: userId },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -291,7 +291,7 @@ const AdminUsersAccess = () => {
   // Change role mutation
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: StaffRole }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "change_role", user_id: userId, new_role: newRole },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -316,7 +316,7 @@ const AdminUsersAccess = () => {
   // Send reset mutation
   const sendResetMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "send_reset", email },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -338,7 +338,7 @@ const AdminUsersAccess = () => {
   // Update permissions mutation
   const updatePermissionsMutation = useMutation({
     mutationFn: async ({ userId, permissions }: { userId: string; permissions: Partial<PermissionSet> }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "update_permissions", user_id: userId, permissions },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -365,7 +365,7 @@ const AdminUsersAccess = () => {
   // Set/Reset PIN mutation
   const setPinMutation = useMutation({
     mutationFn: async ({ userId, pin, requireChange, isReset }: { userId: string; pin: string; requireChange: boolean; isReset: boolean }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { 
           action: isReset ? "reset_pin" : "set_pin", 
           user_id: userId, 
@@ -395,7 +395,7 @@ const AdminUsersAccess = () => {
   // Force password change mutation
   const forcePasswordChangeMutation = useMutation({
     mutationFn: async ({ userId, requireChange }: { userId: string; requireChange: boolean }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "force_password_change", user_id: userId, require_change: requireChange },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -418,7 +418,7 @@ const AdminUsersAccess = () => {
   // Set staff password mutation
   const setStaffPasswordMutation = useMutation({
     mutationFn: async ({ userId, password, forceChange }: { userId: string; password: string; forceChange: boolean }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { 
           action: "set_staff_password", 
           user_id: userId, 
@@ -448,7 +448,7 @@ const AdminUsersAccess = () => {
   // Send password reset email mutation (for staff - not PIN!)
   const sendPasswordResetMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "send_password_reset", email },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -470,7 +470,7 @@ const AdminUsersAccess = () => {
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: StaffStatus }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "update_status", user_id: userId, status },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -495,7 +495,7 @@ const AdminUsersAccess = () => {
   // Hard delete mutation
   const hardDeleteMutation = useMutation({
     mutationFn: async ({ email, confirmEmail }: { email: string; confirmEmail: string }) => {
-      const response = await supabase.functions.invoke("admin-manage-staff", {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
         body: { action: "hard_delete_user", email, confirm_email: confirmEmail },
       });
       if (response.error || (response.data as any)?.ok === false) {
@@ -605,6 +605,7 @@ const AdminUsersAccess = () => {
 
   const countByRole = {
     admin: staffUsers?.filter(u => u.role === "admin").length || 0,
+    employee: staffUsers?.filter(u => u.role === "employee").length || 0,
     total: staffUsers?.length || 0,
   };
 
@@ -629,14 +630,14 @@ const AdminUsersAccess = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-2xl font-bold">{countByRole.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Administrateurs</p>
+                  <p className="text-xs text-muted-foreground">Total Personnel</p>
                 </div>
               </div>
             </CardContent>
@@ -647,18 +648,37 @@ const AdminUsersAccess = () => {
                 <Shield className="h-5 w-5 text-primary" />
                 <div>
                   <p className="text-2xl font-bold">{countByRole.admin}</p>
-                  <p className="text-xs text-muted-foreground">Administrateurs Actifs</p>
+                  <p className="text-xs text-muted-foreground">Administrateurs</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2">
+                <UserCog className="h-5 w-5 text-emerald-500" />
+                <div>
+                  <p className="text-2xl font-bold">{countByRole.employee}</p>
+                  <p className="text-xs text-muted-foreground">Employés</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="staff" className="space-y-4">
+        <Tabs defaultValue="all" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="staff">
+            <TabsTrigger value="all" onClick={() => setRoleFilter("all")}>
               <Users className="h-4 w-4 mr-2" />
-              Staff (Admin/Employé/Tech)
+              Tous ({countByRole.total})
+            </TabsTrigger>
+            <TabsTrigger value="admin" onClick={() => setRoleFilter("admin")}>
+              <Shield className="h-4 w-4 mr-2" />
+              Admins ({countByRole.admin})
+            </TabsTrigger>
+            <TabsTrigger value="employee" onClick={() => setRoleFilter("employee")}>
+              <UserCog className="h-4 w-4 mr-2" />
+              Employés ({countByRole.employee})
             </TabsTrigger>
             <TabsTrigger value="clients" asChild>
               <Link to="/admin/clients" className="flex items-center gap-2">
@@ -668,7 +688,7 @@ const AdminUsersAccess = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="staff" className="space-y-4">
+          <TabsContent value="all" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -678,7 +698,7 @@ const AdminUsersAccess = () => {
                       Personnel
                     </CardTitle>
                     <CardDescription>
-                      Administrateurs, employés et techniciens avec accès au système
+                      Administrateurs et employés avec accès au système
                     </CardDescription>
                   </div>
                   <StaffFilters
