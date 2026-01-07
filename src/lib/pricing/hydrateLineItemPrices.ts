@@ -1,4 +1,4 @@
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import type { OrderLineItem } from "@/lib/orderLineItems";
 
 type ServiceRow = {
@@ -45,16 +45,16 @@ export async function hydrateLineItemPricesFromCatalog(
 
   // Fetch catalogue tables (small enough to cache per call)
   const [servicesRes, streamingCatalogRes, streamingServicesRes] = await Promise.all([
-    supabase
+    backendClient
       .from("services")
       .select("id,name,price,category,is_active")
       .eq("is_active", true),
-    supabase
+    backendClient
       .from("streaming_catalog")
       .select("id,name,price_monthly,status")
       .eq("status", "active"),
     // Backward compatibility: some flows still use streaming_services
-    supabase
+    backendClient
       .from("streaming_services")
       .select("id,name,monthly_price,is_active")
       .eq("is_active", true),

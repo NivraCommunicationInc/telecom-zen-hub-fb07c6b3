@@ -1,4 +1,4 @@
-import { backendClient as supabase } from "@/integrations/backend";
+import { backendClient } from "@/integrations/backend";
 import { logClientActivityDirect } from "@/hooks/useClientActivityLog";
 
 export interface FlagClientParams {
@@ -38,7 +38,7 @@ export const flagClientForRiskAtomic = async ({
 }: FlagClientParams): Promise<FlagClientResult> => {
   try {
     // Step 1: Update profile with security status AND account_status = 'hold'
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData, error: profileError } = await backendClient
       .from("profiles")
       .update({
         security_status: "suspended",
@@ -63,7 +63,7 @@ export const flagClientForRiskAtomic = async ({
     }
 
     // Step 2: Suspend all active subscriptions
-    const { data: suspendedSubs, error: subsError } = await supabase
+    const { data: suspendedSubs, error: subsError } = await backendClient
       .from("subscriptions")
       .update({
         status: "suspended",
@@ -79,7 +79,7 @@ export const flagClientForRiskAtomic = async ({
     }
 
     // Step 3: Suspend streaming subscriptions
-    const { data: suspendedStreaming, error: streamingError } = await supabase
+    const { data: suspendedStreaming, error: streamingError } = await backendClient
       .from("client_streaming_subscriptions")
       .update({
         status: "suspended",
@@ -96,7 +96,7 @@ export const flagClientForRiskAtomic = async ({
     }
 
     // Step 4: Put scheduled appointments on hold
-    const { data: heldAppointments, error: apptError } = await supabase
+    const { data: heldAppointments, error: apptError } = await backendClient
       .from("appointments")
       .update({
         status: "on_hold",
@@ -113,7 +113,7 @@ export const flagClientForRiskAtomic = async ({
     }
 
     // Step 5: Log to security_action_logs
-    await supabase.from("security_action_logs").insert({
+    await backendClient.from("security_action_logs").insert({
       client_id: clientId,
       client_email: profileData.email,
       action: `flagged_${alertLevel}`,
@@ -179,7 +179,7 @@ export const liftClientSuspensionAtomic = async (
 ): Promise<FlagClientResult> => {
   try {
     // Step 1: Update profile - restore security AND account_status = 'active'
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData, error: profileError } = await backendClient
       .from("profiles")
       .update({
         security_status: "active",
@@ -208,7 +208,7 @@ export const liftClientSuspensionAtomic = async (
 
     // Step 2: Optionally reactivate services
     if (reactivateServices) {
-      const { data: reactivatedSubs } = await supabase
+      const { data: reactivatedSubs } = await backendClient
         .from("subscriptions")
         .update({
           status: "active",
@@ -218,7 +218,7 @@ export const liftClientSuspensionAtomic = async (
         .eq("status", "suspended")
         .select();
 
-      const { data: reactivatedStreaming } = await supabase
+      const { data: reactivatedStreaming } = await backendClient
         .from("client_streaming_subscriptions")
         .update({
           status: "active",
@@ -233,7 +233,7 @@ export const liftClientSuspensionAtomic = async (
     }
 
     // Step 3: Log to security_action_logs
-    await supabase.from("security_action_logs").insert({
+    await backendClient.from("security_action_logs").insert({
       client_id: clientId,
       client_email: profileData?.email,
       action: "suspension_lifted",
@@ -286,7 +286,7 @@ export const checkClientSecurityStatus = async (userId: string): Promise<{
   isSuspended: boolean;
   isOnHold: boolean;
 }> => {
-  const { data, error } = await supabase
+  const { data, error } = await backendClient
     .from("profiles")
     .select("security_status, security_alert_level, account_status")
     .eq("user_id", userId)

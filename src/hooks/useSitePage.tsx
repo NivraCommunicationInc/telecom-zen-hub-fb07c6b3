@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 
 export interface SitePage {
   id: string;
@@ -18,7 +18,7 @@ export function useSitePage(slug: string) {
   return useQuery({
     queryKey: ["site-page", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("site_pages")
         .select("*")
         .eq("slug", slug)
@@ -40,7 +40,7 @@ export function useSitePages() {
   return useQuery({
     queryKey: ["site-pages"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("site_pages")
         .select("slug, title_fr, title_en, is_published, updated_at")
         .eq("is_published", true)

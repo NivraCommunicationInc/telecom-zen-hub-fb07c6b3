@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 
 export interface SiteSettings {
   support_email: string;
@@ -25,7 +25,7 @@ export function useSiteSettings() {
   return useQuery({
     queryKey: ["site-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from("site_settings")
         .select("key, value_text")
         .eq("is_public", true);

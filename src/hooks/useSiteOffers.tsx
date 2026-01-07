@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 
 export interface SiteOffer {
   id: string;
@@ -25,7 +25,7 @@ export function useSiteOffers(options?: { category?: string; featured?: boolean 
   return useQuery({
     queryKey: ["site-offers", options?.category, options?.featured],
     queryFn: async () => {
-      let query = supabase
+      let query = backendClient
         .from("site_offers")
         .select("*")
         .eq("is_active", true)

@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import { toast } from "sonner";
 
 export interface PaymentProof {
@@ -49,7 +49,7 @@ export function usePaymentProofs(paymentId: string | undefined) {
   return useQuery({
     queryKey: ["payment-proofs", paymentId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from('payment_proofs')
         .select('*')
         .eq('payment_id', paymentId!)
@@ -69,7 +69,7 @@ export function usePendingProofs() {
   return useQuery({
     queryKey: ["pending-payment-proofs"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backendClient
         .from('payment_proofs')
         .select(`
           *,
@@ -101,7 +101,7 @@ export function useSubmitProof() {
   return useMutation({
     mutationFn: async (data: SubmitProofData) => {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await backendClient.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
       let fileUrl: string | null = null;
@@ -113,13 +113,13 @@ export function useSubmitProof() {
         const ext = data.file.name.split('.').pop();
         const path = `${user.id}/${data.paymentId}-${Date.now()}.${ext}`;
         
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await backendClient.storage
           .from('payment-proofs')
           .upload(path, data.file);
 
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = backendClient.storage
           .from('payment-proofs')
           .getPublicUrl(path);
 
@@ -129,7 +129,7 @@ export function useSubmitProof() {
       }
 
       // Insert proof record
-      const { data: proof, error } = await supabase
+      const { data: proof, error } = await backendClient
         .from('payment_proofs')
         .insert({
           payment_id: data.paymentId,
@@ -182,11 +182,11 @@ export function useVerifyProof() {
       notes?: string;
       verifierName?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await backendClient.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
       // Update proof
-      const { error: proofError } = await supabase
+      const { error: proofError } = await backendClient
         .from('payment_proofs')
         .update({
           verification_status: status,
@@ -201,7 +201,7 @@ export function useVerifyProof() {
 
       // Update billing based on verification result
       if (status === 'verified') {
-        const { error: billingError } = await supabase
+        const { error: billingError } = await backendClient
           .from('billing')
           .update({
             status: 'paid',
@@ -213,7 +213,7 @@ export function useVerifyProof() {
 
         if (billingError) throw billingError;
       } else if (status === 'rejected' || status === 'fraud') {
-        const { error: billingError } = await supabase
+        const { error: billingError } = await backendClient
           .from('billing')
           .update({
             etransfer_status: status === 'fraud' ? 'fraud' : 'declined',

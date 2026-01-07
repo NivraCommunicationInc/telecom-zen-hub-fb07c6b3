@@ -1,4 +1,4 @@
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/pdfEngine";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 
@@ -19,7 +19,7 @@ export const runContractTemplateSmokeTest = async (params: {
 }): Promise<SmokeTestResult> => {
   const { contractId } = params;
 
-  const { data: contract, error: contractError } = await supabase
+  const { data: contract, error: contractError } = await backendClient
     .from("contracts")
     .select("*")
     .eq("id", contractId)
@@ -28,7 +28,7 @@ export const runContractTemplateSmokeTest = async (params: {
   if (contractError) throw contractError;
   if (!contract) throw new Error("Contract not found");
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await backendClient
     .from("profiles")
     .select("*")
     .eq("user_id", contract.user_id)
@@ -36,7 +36,7 @@ export const runContractTemplateSmokeTest = async (params: {
 
   if (profileError) throw profileError;
 
-  const { data: order } = await supabase
+  const { data: order } = await backendClient
     .from("orders")
     .select("*")
     .eq("related_contract_id", contractId)

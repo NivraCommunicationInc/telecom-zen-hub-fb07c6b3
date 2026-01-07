@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import type { AddressDetails } from "./AddressAutocompleteBase";
 import AddressAutocompleteBase from "./AddressAutocompleteBase";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { backendClient } from "@/integrations/backend/client";
 
 export type { AddressDetails };
 
@@ -10,6 +10,5 @@ export type { AddressDetails };
 export default function AddressAutocomplete(
   props: Omit<ComponentProps<typeof AddressAutocompleteBase>, "supabaseClient">
 ) {
-  return <AddressAutocompleteBase {...props} supabaseClient={supabase} />;
+  return <AddressAutocompleteBase {...props} supabaseClient={backendClient} />;
 }
-
