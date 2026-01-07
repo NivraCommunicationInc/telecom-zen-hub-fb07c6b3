@@ -14,8 +14,7 @@ interface EmployeeAuthContextType {
   session: Session | null;
   isLoading: boolean;
   isEmployee: boolean;
-  isAdmin: boolean;
-  role: "employee" | "admin" | null;
+  role: "employee" | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -25,20 +24,21 @@ const EmployeeAuthContext = createContext<EmployeeAuthContextType | undefined>(u
 export const EmployeeAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<"employee" | "admin" | null>(null);
+  const [role, setRole] = useState<"employee" | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchEmployeeRole = async (userId: string): Promise<"employee" | "admin" | null> => {
+  const fetchEmployeeRole = async (userId: string): Promise<"employee" | null> => {
     try {
+      // SECURITY: Only employee role allowed on /employee/* routes
       const { data, error } = await employeeSupabase
         .from("user_roles")
         .select("role, status, is_active")
         .eq("user_id", userId)
-        .in("role", ["employee", "admin"])
+        .eq("role", "employee")
         .maybeSingle();
 
       if (error || !data) {
-        console.log("[EmployeeAuth] No employee/admin role found for user", userId);
+        console.log("[EmployeeAuth] No employee role found for user", userId);
         return null;
       }
 
@@ -48,7 +48,7 @@ export const EmployeeAuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
 
-      return data.role as "employee" | "admin";
+      return "employee";
     } catch (err) {
       console.error("[EmployeeAuth] Error fetching role:", err);
       return null;
@@ -136,7 +136,6 @@ export const EmployeeAuthProvider = ({ children }: { children: ReactNode }) => {
         session,
         isLoading,
         isEmployee: role === "employee",
-        isAdmin: role === "admin",
         role,
         signIn,
         signOut,

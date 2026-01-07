@@ -66,12 +66,12 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
           lastAuthCheck.current = now;
         }
 
-        // SECURITY: Verify role from database - allow employee OR admin
+        // SECURITY: Verify role from database - ONLY employee allowed
         const { data: roleData, error } = await employeeSupabase
           .from("user_roles")
           .select("role, status, is_active")
           .eq("user_id", user.id)
-          .in("role", ["employee", "admin"])
+          .eq("role", "employee")
           .maybeSingle();
 
         if (error) {
@@ -81,8 +81,8 @@ const EmployeeProtectedRoute = ({ children }: EmployeeProtectedRouteProps) => {
           return;
         }
 
-        // Not employee or admin
-        if (!roleData || !["employee", "admin"].includes(roleData.role)) {
+        // Not employee role
+        if (!roleData || roleData.role !== "employee") {
           console.log("[EmployeeProtectedRoute] Role mismatch → signOut. User role:", roleData?.role || "none");
           
           if (!hasLoggedBlockedAccess.current) {
