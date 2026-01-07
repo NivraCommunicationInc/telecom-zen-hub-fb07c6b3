@@ -919,8 +919,14 @@ export type Database = {
       client_streaming_subscriptions: {
         Row: {
           account_id: string | null
+          cancel_at_period_end: boolean | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by_employee_email: string | null
+          cancelled_by_employee_id: string | null
           created_at: string
           discount_amount: number | null
+          effective_end_date: string | null
           end_date: string | null
           id: string
           internal_notes: string | null
@@ -934,8 +940,14 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          cancel_at_period_end?: boolean | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by_employee_email?: string | null
+          cancelled_by_employee_id?: string | null
           created_at?: string
           discount_amount?: number | null
+          effective_end_date?: string | null
           end_date?: string | null
           id?: string
           internal_notes?: string | null
@@ -949,8 +961,14 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          cancel_at_period_end?: boolean | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by_employee_email?: string | null
+          cancelled_by_employee_id?: string | null
           created_at?: string
           discount_amount?: number | null
+          effective_end_date?: string | null
           end_date?: string | null
           id?: string
           internal_notes?: string | null
@@ -1191,6 +1209,57 @@ export type Database = {
           },
         ]
       }
+      employee_operations_audit: {
+        Row: {
+          account_id: string | null
+          action: string
+          client_id: string | null
+          created_at: string | null
+          details: Json | null
+          employee_email: string | null
+          employee_id: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          reason: string | null
+          result: string
+          user_agent: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          action: string
+          client_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          employee_email?: string | null
+          employee_id: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          reason?: string | null
+          result: string
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          action?: string
+          client_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          employee_email?: string | null
+          employee_id?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          reason?: string | null
+          result?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       employee_pin_attempts: {
         Row: {
           account_id: string
@@ -1241,6 +1310,7 @@ export type Database = {
           account_id: string
           client_id: string
           client_name: string | null
+          created_by_server: boolean | null
           employee_email: string | null
           employee_id: string
           expires_at: string
@@ -1253,6 +1323,7 @@ export type Database = {
           account_id: string
           client_id: string
           client_name?: string | null
+          created_by_server?: boolean | null
           employee_email?: string | null
           employee_id: string
           expires_at: string
@@ -1265,6 +1336,7 @@ export type Database = {
           account_id?: string
           client_id?: string
           client_name?: string | null
+          created_by_server?: boolean | null
           employee_email?: string | null
           employee_id?: string
           expires_at?: string
