@@ -104,7 +104,9 @@ import { lazy, Suspense } from "react";
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("./pages/admin/AdminQABlockStatus"));
 const AdminQAEmployeeSmoke = lazy(() => import("./pages/admin/AdminQAEmployeeSmoke"));
-
+const AdminQAEmployeeCancellations = lazy(() => import("./pages/admin/AdminQAEmployeeCancellations"));
+const AdminQAEmployeeDisputes = lazy(() => import("./pages/admin/AdminQAEmployeeDisputes"));
+const AdminQAEmployeeTickets = lazy(() => import("./pages/admin/AdminQAEmployeeTickets"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -195,6 +197,9 @@ const App = () => (
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
                 <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
                 <Route path="/qa/employee-smoke" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeSmoke /></Suspense>} />
+                <Route path="/qa/employee/cancellations" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeCancellations /></Suspense>} />
+                <Route path="/qa/employee/payment-disputes" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeDisputes /></Suspense>} />
+                <Route path="/qa/employee/tickets" element={<Suspense fallback={<div>Loading...</div>}><AdminQAEmployeeTickets /></Suspense>} />
               </>
             )}
             {/* Employee Portal Routes */}
