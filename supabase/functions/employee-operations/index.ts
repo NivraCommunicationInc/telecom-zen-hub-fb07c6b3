@@ -1134,6 +1134,448 @@ function maskPhone(phone: string): string {
   return `***-***-**${lastTwo}`;
 }
 
+/**
+ * Employee Permissions - Server-side permission check
+ * Returns actual permissions from employees.permissions_json
+ */
+async function handleEmployeePermissions(
+  supabaseAdmin: any,
+  employee: EmployeeInfo,
+  req: Request
+): Promise<Response> {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Get employee permissions from database
+  const { data: empData, error: empError } = await supabaseAdmin
+    .from("employees")
+    .select("permissions_json, is_active")
+    .eq("id", employee.id)
+    .single();
+
+  if (empError || !empData) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Employé non trouvé" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!empData.is_active) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Compte employé désactivé" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const permissions = empData.permissions_json || {};
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      permissions,
+      employeeId: employee.id,
+      employeeEmail: employee.email,
+      employeeName: employee.fullName,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+/**
+ * Client 360 - Full client data with PIN gate
+ * Returns masked data if no unlock, full data if unlocked
+ */
+async function handleClient360(
+  supabaseAdmin: any,
+  employee: EmployeeInfo,
+  body: any,
+  req: Request
+): Promise<Response> {
+  const { clientId, accountId } = body;
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  if (!clientId) {
+    return new Response(
+      JSON.stringify({ success: false, error: "clientId requis" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Get client profile
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("*")
+    .eq("user_id", clientId)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Client non trouvé" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Get client's accounts
+  const { data: accounts } = await supabaseAdmin
+    .from("accounts")
+    .select("*")
+    .eq("client_id", clientId);
+
+  // Check for active unlock for this account (if provided) or any of client's accounts
+  let hasUnlock = false;
+  let unlockedAccountId: string | null = null;
+
+  if (accountId) {
+    const unlockStatus = await checkActiveUnlock(supabaseAdmin, employee.id, accountId);
+    hasUnlock = unlockStatus.unlocked;
+    if (hasUnlock) unlockedAccountId = accountId;
+  }
+
+  // If no specific account, check all client's accounts
+  if (!hasUnlock && accounts && accounts.length > 0) {
+    for (const acc of accounts) {
+      const unlockStatus = await checkActiveUnlock(supabaseAdmin, employee.id, acc.id);
+      if (unlockStatus.unlocked) {
+        hasUnlock = true;
+        unlockedAccountId = acc.id;
+        break;
+      }
+    }
+  }
+
+  // Log access to audit
+  await logAudit(supabaseAdmin, employee, "client_360_access", "profile", clientId, 
+    hasUnlock ? "full_access" : "masked_access", null,
+    { hasUnlock, unlockedAccountId }, clientId, unlockedAccountId, req);
+
+  if (hasUnlock) {
+    // Return full data
+    const { data: orders } = await supabaseAdmin
+      .from("orders")
+      .select("*")
+      .eq("user_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const { data: billing } = await supabaseAdmin
+      .from("billing")
+      .select("*")
+      .eq("user_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const { data: tickets } = await supabaseAdmin
+      .from("support_tickets")
+      .select("*")
+      .eq("user_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const { data: streaming } = await supabaseAdmin
+      .from("client_streaming_subscriptions")
+      .select("*, streaming_services(*)")
+      .eq("user_id", clientId);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        unlocked: true,
+        unlockedAccountId,
+        profile,
+        accounts,
+        orders: orders || [],
+        billing: billing || [],
+        tickets: tickets || [],
+        streaming: streaming || [],
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } else {
+    // Return masked data
+    const maskedProfile = {
+      user_id: profile.user_id,
+      full_name: profile.full_name,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      client_number: profile.client_number,
+      account_status: profile.account_status,
+      online_access_status: profile.online_access_status,
+      created_at: profile.created_at,
+      // Masked fields
+      email: profile.email ? maskEmail(profile.email) : null,
+      phone: profile.phone ? maskPhone(profile.phone) : null,
+      service_address: profile.service_address ? "***" : null,
+      service_city: profile.service_city,
+      service_postal_code: profile.service_postal_code ? profile.service_postal_code.substring(0, 3) + " ***" : null,
+      // Mark as masked
+      masked: true,
+    };
+
+    const maskedAccounts = (accounts || []).map((acc: any) => ({
+      id: acc.id,
+      account_number: acc.account_number,
+      status: acc.status,
+      client_id: acc.client_id,
+      // Mask addresses
+      billing_address: "***",
+      billing_city: acc.billing_city,
+      primary_service_address: "***",
+      primary_service_city: acc.primary_service_city,
+      masked: true,
+    }));
+
+    // Get limited order info (no sensitive data)
+    const { data: orders } = await supabaseAdmin
+      .from("orders")
+      .select("id, order_number, status, service_type, created_at, total_amount")
+      .eq("user_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    // Get limited billing info (no sensitive data)
+    const { data: billing } = await supabaseAdmin
+      .from("billing")
+      .select("id, invoice_number, status, amount, created_at, due_date")
+      .eq("user_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        unlocked: false,
+        requiresPin: true,
+        profile: maskedProfile,
+        accounts: maskedAccounts,
+        orders: orders || [],
+        billing: billing || [],
+        tickets: [], // Don't show tickets without unlock
+        streaming: [], // Don't show streaming without unlock
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+}
+
+/**
+ * Get clients list - Paginated, masked by default
+ */
+async function handleClientsList(
+  supabaseAdmin: any,
+  employee: EmployeeInfo,
+  body: any,
+  req: Request
+): Promise<Response> {
+  const { page = 0, pageSize = 50, search = "" } = body;
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Rate limiting
+  const windowStart = new Date(Date.now() - SEARCH_RATE_LIMIT_WINDOW_MS).toISOString();
+  const { data: rateLimitRecord } = await supabaseAdmin
+    .from("employee_search_rate_limits")
+    .select("*")
+    .eq("employee_id", employee.id)
+    .gte("window_start", windowStart)
+    .order("window_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (rateLimitRecord && rateLimitRecord.search_count >= SEARCH_RATE_LIMIT_MAX) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Trop de recherches. Veuillez attendre." }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Update rate limit
+  if (rateLimitRecord) {
+    await supabaseAdmin
+      .from("employee_search_rate_limits")
+      .update({ search_count: rateLimitRecord.search_count + 1 })
+      .eq("id", rateLimitRecord.id);
+  } else {
+    await supabaseAdmin.from("employee_search_rate_limits").insert({
+      employee_id: employee.id,
+      search_count: 1,
+      window_start: new Date().toISOString(),
+    });
+  }
+
+  // Log search
+  await logAudit(supabaseAdmin, employee, "clients_list", "profile", null, "success", null,
+    { page, pageSize, searchLength: search.length }, null, null, req);
+
+  // Build query
+  let query = supabaseAdmin
+    .from("profiles")
+    .select("user_id, full_name, first_name, last_name, email, phone, client_number, account_status, created_at", { count: "exact" });
+
+  if (search && search.length >= 2) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%,client_number.ilike.%${search}%`);
+  }
+
+  query = query
+    .order("created_at", { ascending: false })
+    .range(page * pageSize, (page + 1) * pageSize - 1);
+
+  const { data: clients, count, error } = await query;
+
+  if (error) {
+    console.error("[employee-operations] clients-list error:", error);
+    return new Response(
+      JSON.stringify({ success: false, error: "Erreur lors de la récupération" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Mask PII (always masked in list view)
+  const maskedClients = (clients || []).map((client: any) => ({
+    user_id: client.user_id,
+    full_name: client.full_name,
+    first_name: client.first_name,
+    last_name: client.last_name,
+    client_number: client.client_number,
+    account_status: client.account_status,
+    created_at: client.created_at,
+    email: client.email ? maskEmail(client.email) : null,
+    phone: client.phone ? maskPhone(client.phone) : null,
+    masked: true,
+  }));
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      clients: maskedClients,
+      total: count || 0,
+      page,
+      pageSize,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+/**
+ * Get orders list - Paginated, respects permissions
+ */
+async function handleOrdersList(
+  supabaseAdmin: any,
+  employee: EmployeeInfo,
+  body: any,
+  req: Request
+): Promise<Response> {
+  const { page = 0, pageSize = 50, status, search } = body;
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Check permission
+  const { data: empData } = await supabaseAdmin
+    .from("employees")
+    .select("permissions_json")
+    .eq("id", employee.id)
+    .single();
+
+  const permissions = empData?.permissions_json || {};
+  if (permissions.can_view_orders === false) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Permission refusée" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let query = supabaseAdmin
+    .from("orders")
+    .select("id, order_number, confirmation_number, status, service_type, total_amount, created_at, client_first_name, client_last_name", { count: "exact" });
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  if (search && search.length >= 2) {
+    query = query.or(`order_number.ilike.%${search}%,client_first_name.ilike.%${search}%,client_last_name.ilike.%${search}%`);
+  }
+
+  const { data: orders, count, error } = await query
+    .order("created_at", { ascending: false })
+    .range(page * pageSize, (page + 1) * pageSize - 1);
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Erreur" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ success: true, orders: orders || [], total: count || 0, page, pageSize }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+/**
+ * Get billing list - Paginated, respects permissions
+ */
+async function handleBillingList(
+  supabaseAdmin: any,
+  employee: EmployeeInfo,
+  body: any,
+  req: Request
+): Promise<Response> {
+  const { page = 0, pageSize = 50, status, search } = body;
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Check permission
+  const { data: empData } = await supabaseAdmin
+    .from("employees")
+    .select("permissions_json")
+    .eq("id", employee.id)
+    .single();
+
+  const permissions = empData?.permissions_json || {};
+  if (permissions.can_view_billing === false) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Permission refusée" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let query = supabaseAdmin
+    .from("billing")
+    .select("id, invoice_number, status, amount, created_at, due_date, client_email, etransfer_status", { count: "exact" });
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  if (search && search.length >= 2) {
+    query = query.or(`invoice_number.ilike.%${search}%,client_email.ilike.%${search}%`);
+  }
+
+  const { data: billing, count, error } = await query
+    .order("created_at", { ascending: false })
+    .range(page * pageSize, (page + 1) * pageSize - 1);
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Erreur" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Mask client emails
+  const maskedBilling = (billing || []).map((b: any) => ({
+    ...b,
+    client_email: b.client_email ? maskEmail(b.client_email) : null,
+  }));
+
+  return new Response(
+    JSON.stringify({ success: true, billing: maskedBilling, total: count || 0, page, pageSize }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 // ================== MAIN HANDLER ==================
 
 serve(async (req) => {
@@ -1211,6 +1653,21 @@ serve(async (req) => {
 
       case "client-search":
         return await handleClientSearch(supabaseAdmin, employee, body, req);
+
+      case "employee-permissions":
+        return await handleEmployeePermissions(supabaseAdmin, employee, req);
+
+      case "client-360":
+        return await handleClient360(supabaseAdmin, employee, body, req);
+
+      case "clients-list":
+        return await handleClientsList(supabaseAdmin, employee, body, req);
+
+      case "orders-list":
+        return await handleOrdersList(supabaseAdmin, employee, body, req);
+
+      case "billing-list":
+        return await handleBillingList(supabaseAdmin, employee, body, req);
 
       default:
         return new Response(
