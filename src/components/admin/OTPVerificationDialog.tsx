@@ -66,11 +66,21 @@ export const OTPVerificationDialog = ({
     setError("");
 
     try {
+      // Log the function URL being called
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      console.log(`[OTP] Calling staff-otp-send at: ${supabaseUrl}/functions/v1/staff-otp-send`);
+      console.log(`[OTP] User ID: ${userId}`);
+      
       const { data, error } = await supabase.functions.invoke("staff-otp-send", {
         body: { user_id: userId },
       });
 
-      if (error) throw error;
+      console.log(`[OTP] Response:`, { data, error });
+
+      if (error) {
+        console.error("[OTP] Function invoke error:", error);
+        throw error;
+      }
 
       if (!data?.success) {
         throw new Error(data?.error || "Échec de l'envoi du code");
@@ -79,7 +89,7 @@ export const OTPVerificationDialog = ({
       toast.success("Code de vérification envoyé à votre adresse courriel");
       setCountdown(60); // 60 second cooldown
     } catch (err: any) {
-      console.error("OTP send error:", err);
+      console.error("[OTP] Send error:", err);
       setError(err.message || "Impossible d'envoyer le code");
       toast.error("Erreur lors de l'envoi du code");
     } finally {
