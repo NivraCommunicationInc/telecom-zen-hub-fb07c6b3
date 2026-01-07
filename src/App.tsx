@@ -92,6 +92,12 @@ import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "./pages/admin/AdminPaymentDisputes";
 import AdminSite from "./pages/admin/AdminSite";
 import AdminSecurityEvents from "./pages/admin/AdminSecurityEvents";
+import AdminMaintenance from "./pages/admin/AdminMaintenance";
+import AdminMessages from "./pages/admin/AdminMessages";
+import AdminSecurityGuardian from "./pages/admin/AdminSecurityGuardian";
+import ClientMessages from "./pages/client/ClientMessages";
+import MaintenanceGuard from "./components/MaintenanceGuard";
+import ChatbotWidget from "./components/chatbot/ChatbotWidget";
 import DynamicPage from "./pages/DynamicPage";
 import { lazy, Suspense } from "react";
 
@@ -183,8 +189,11 @@ const App = () => (
             <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
             <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
+            <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
+            <Route path="/admin/messages" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMessages /></ProtectedRoute></AuthProvider>} />
+            <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
             {/* Dynamic pages from site_pages */}
-            <Route path="/page/:slug" element={<DynamicPage />} />
+            <Route path="/page/:slug" element={<MaintenanceGuard><DynamicPage /></MaintenanceGuard>} />
             {import.meta.env.DEV && (
               <>
                 <Route path="/qa/block-status" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
@@ -217,6 +226,7 @@ const App = () => (
             <Route path="/portal/profile" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/payments" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             <Route path="/portal/contracts" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
+            <Route path="/portal/messages" element={<ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientMessages /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider>} />
             
             {/* Catch-all 404 */}
             <Route path="*" element={<NotFound />} />

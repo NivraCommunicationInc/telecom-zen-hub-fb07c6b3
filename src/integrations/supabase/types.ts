@@ -1757,6 +1757,53 @@ export type Database = {
           },
         ]
       }
+      helpdesk_messages: {
+        Row: {
+          attachments: Json | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_internal_note: boolean | null
+          read_at: string | null
+          sender_id: string
+          sender_name: string
+          sender_role: string
+        }
+        Insert: {
+          attachments?: Json | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean | null
+          read_at?: string | null
+          sender_id: string
+          sender_name: string
+          sender_role: string
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean | null
+          read_at?: string | null
+          sender_id?: string
+          sender_name?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "helpdesk_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "message_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       internal_ticket_replies: {
         Row: {
           author_email: string | null
@@ -2074,6 +2121,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      message_conversations: {
+        Row: {
+          client_id: string
+          closed_at: string | null
+          closed_by_id: string | null
+          closed_by_name: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          priority: string | null
+          status: string
+          subject: string
+          unread_by_admin: boolean | null
+          unread_by_client: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          closed_at?: string | null
+          closed_by_id?: string | null
+          closed_by_name?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          priority?: string | null
+          status?: string
+          subject: string
+          unread_by_admin?: boolean | null
+          unread_by_client?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          closed_at?: string | null
+          closed_by_id?: string | null
+          closed_by_name?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          priority?: string | null
+          status?: string
+          subject?: string
+          unread_by_admin?: boolean | null
+          unread_by_client?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {

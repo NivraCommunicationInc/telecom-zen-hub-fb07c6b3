@@ -168,12 +168,20 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <p className="text-white/40 text-sm">
                 © {currentYear} {COMPANY_CONTACT.legalName}. {t('footer.rights')}
               </p>
-              {/* SSL/TLS Security Badge - informational only, no false certification claims */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-xs font-medium text-emerald-500">
-                  Connexion sécurisée (HTTPS)
-                </span>
+              {/* Security badges - informational only, no false certification claims */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-500">
+                    Connexion sécurisée (HTTPS)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="text-xs font-medium text-blue-500">
+                    Protection Cloudflare (WAF/DDoS)
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
