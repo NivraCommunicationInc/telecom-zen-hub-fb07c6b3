@@ -167,19 +167,7 @@ export const EmployeePinGateModal = ({
             </div>
           ) : (
             <>
-              {/* Failed attempts warning */}
-              {lockoutStatus.attempts > 0 && (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm text-amber-600">
-                      {3 - lockoutStatus.attempts} tentative(s) restante(s)
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Reason select */}
+              {/* PIN input section */}
               <div className="space-y-2">
                 <Label>Raison d'accès *</Label>
                 <Select value={reason} onValueChange={setReason}>

@@ -33,6 +33,9 @@ verify_jwt = false
 [functions.employee-data]
 verify_jwt = false
 
+[functions.employee-operations]
+verify_jwt = false
+
 [functions.admin-employee-management]
 verify_jwt = true
 
@@ -70,4 +73,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.technician-update-status]
+verify_jwt = false
+
+[functions.send-cancellation-notification]
+verify_jwt = false
+
+[functions.staff-otp-send]
+verify_jwt = false
+
+[functions.staff-otp-verify]
 verify_jwt = false
