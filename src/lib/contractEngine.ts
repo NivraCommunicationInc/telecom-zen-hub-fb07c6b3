@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/backend/client";
 import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/pdfEngine";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";

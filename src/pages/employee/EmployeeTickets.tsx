@@ -38,7 +38,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { employeeClient as employeeSupabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as employeeSupabase } from "@/integrations/backend/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";

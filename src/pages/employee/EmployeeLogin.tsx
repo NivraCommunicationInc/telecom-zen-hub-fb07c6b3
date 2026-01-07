@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
-import { employeeClient as employeeSupabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as employeeSupabase } from "@/integrations/backend/employeeClient";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, AlertTriangle, Lock } from "lucide-react";
 import { Link } from "react-router-dom";

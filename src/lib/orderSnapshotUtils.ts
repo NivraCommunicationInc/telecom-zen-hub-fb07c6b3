@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/backend/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { OrderSnapshotData, FulfillmentSnapshotData, OrderDocumentData } from "./orderDocumentGenerator";

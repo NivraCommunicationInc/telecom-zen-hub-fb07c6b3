@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users, Search, Eye, Phone, Mail, MapPin, Package, CreditCard, MessageSquare } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { employeeClient as supabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as supabase } from "@/integrations/backend/employeeClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 

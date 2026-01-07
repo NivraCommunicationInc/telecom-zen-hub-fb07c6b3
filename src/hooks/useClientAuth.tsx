@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalSupabase } from "@/integrations/backend/portalClient";
 
 type AppRole = "admin" | "client";
 

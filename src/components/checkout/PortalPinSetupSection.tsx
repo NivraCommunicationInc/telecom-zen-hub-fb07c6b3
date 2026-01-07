@@ -1,5 +1,5 @@
 import { PinSetupSectionBase, PinSetupSectionBaseProps } from "@/components/checkout/PinSetupSectionBase";
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalSupabase } from "@/integrations/backend/portalClient";
 
 type PortalPinSetupSectionProps = Omit<PinSetupSectionBaseProps, "supabaseClient">;
 

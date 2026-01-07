@@ -1,4 +1,4 @@
-import { employeeClient as employeeSupabase } from "@/integrations/supabase/employeeClient";
+import { employeeClient as employeeSupabase } from "@/integrations/backend/employeeClient";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 interface ActivityLogOptions {

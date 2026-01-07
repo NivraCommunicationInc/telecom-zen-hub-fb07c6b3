@@ -1,4 +1,4 @@
-import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { portalSupabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 
 interface ActivityLogOptions {
