@@ -51,6 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data: { session } } = await adminSupabase.auth.getSession();
         
+        console.log("[AdminAuth] initial getSession", { hasSession: !!session });
+        
         if (!mounted) return;
         
         setSession(session);
@@ -74,6 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = adminSupabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return;
+        
+        console.log("[AdminAuth] event", event, { hasSession: !!session });
         
         setSession(session);
         setUser(session?.user ?? null);
