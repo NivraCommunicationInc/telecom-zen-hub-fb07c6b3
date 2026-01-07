@@ -74,6 +74,7 @@ import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
 import AdminMessages from "@/pages/admin/AdminMessages";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
+import AdminRLSTest from "@/pages/admin/AdminRLSTest";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Client portal pages
@@ -191,6 +192,7 @@ const AppRoutes = () => {
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/messages" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMessages /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/rls-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminRLSTest /></ProtectedRoute></AuthProvider>} />
 
       {/* DEV-ONLY routes */}
       {import.meta.env.DEV && (
