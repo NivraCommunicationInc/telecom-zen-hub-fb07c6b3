@@ -8,6 +8,7 @@ import Benefits from "@/components/Benefits";
 import Testimonials from "@/components/Testimonials";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
+import { FeaturedOffers } from "@/components/FeaturedOffers";
 
 const Index = () => {
   return (
@@ -16,6 +17,7 @@ const Index = () => {
       <main>
         <Hero />
         <CoverageSetupBand />
+        <FeaturedOffers />
         <Services />
         <HowItWorks />
         <ServiceStandards />
