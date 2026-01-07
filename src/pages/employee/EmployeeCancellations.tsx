@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { 
   FileX, Search, ArrowLeft, Calendar, Clock, CheckCircle, 
   XCircle, AlertTriangle, User, Mail, Phone, RefreshCw,
@@ -37,8 +36,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { useActivityLog } from "@/hooks/useActivityLog";
-import { useAuth } from "@/hooks/useAuth";
+import { useEmployeeActivityLog } from "@/hooks/useEmployeeActivityLog";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 type ServiceType = "mobile" | "internet" | "tv" | "security" | "streaming" | "bundle";
 type ReasonCode = "price" | "moving" | "not_needed" | "service_issue" | "billing_issue" | "other";
@@ -75,8 +74,8 @@ const statusConfig: Record<CancellationStatus, { label: string; color: string; i
 const EmployeeCancellations = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { logActivity } = useActivityLog();
-  const { user } = useAuth();
+  const { logActivity } = useEmployeeActivityLog();
+  const { user } = useEmployeeAuth();
   
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,7 +95,7 @@ const EmployeeCancellations = () => {
   const { data: requests, isLoading } = useQuery({
     queryKey: ["employee-cancellation-requests"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await employeeSupabase
         .from("service_cancellation_requests")
         .select("*")
         .order("created_at", { ascending: false });
@@ -104,7 +103,7 @@ const EmployeeCancellations = () => {
 
       if (data && data.length > 0) {
         const userIds = [...new Set(data.map((r: any) => r.user_id))];
-        const { data: profiles } = await supabase
+        const { data: profiles } = await employeeSupabase
           .from("profiles")
           .select("user_id, email, full_name, phone, client_number")
           .in("user_id", userIds);
@@ -149,7 +148,7 @@ const EmployeeCancellations = () => {
     mutationFn: async (updates: { id: string; [key: string]: any }) => {
       const { id, ...updateFields } = updates;
       
-      const { data: profile } = await supabase
+      const { data: profile } = await employeeSupabase
         .from("profiles")
         .select("full_name")
         .eq("user_id", user?.id)
@@ -160,7 +159,7 @@ const EmployeeCancellations = () => {
       updateFields.processed_by_name = profile?.full_name || user?.email;
       updateFields.processed_at = new Date().toISOString();
 
-      const { error } = await supabase
+      const { error } = await employeeSupabase
         .from("service_cancellation_requests")
         .update(updateFields)
         .eq("id", id);
@@ -245,7 +244,7 @@ const EmployeeCancellations = () => {
     const isReadOnly = selectedRequest.status === "completed";
 
     return (
-      <EmployeeLayout>
+      <>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={() => setSelectedRequest(null)}>
@@ -502,15 +501,14 @@ const EmployeeCancellations = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </EmployeeLayout>
+      </>
     );
   }
 
   // List View
   return (
-    <EmployeeLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Annulations</h1>
             <p className="text-muted-foreground">Gestion des demandes d'annulation</p>
@@ -627,7 +625,7 @@ const EmployeeCancellations = () => {
           </CardContent>
         </Card>
       </div>
-    </EmployeeLayout>
+    </div>
   );
 };
 

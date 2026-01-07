@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import EmployeeLayout from "@/components/employee/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { employeeSupabase } from "@/integrations/supabase/employeeClient";
 import { 
   AlertTriangle, Search, ArrowLeft, Clock, CheckCircle, 
   XCircle, RefreshCw, Loader2, DollarSign, User, Mail, Phone
@@ -36,8 +35,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { useActivityLog } from "@/hooks/useActivityLog";
-import { useAuth } from "@/hooks/useAuth";
+import { useEmployeeActivityLog } from "@/hooks/useEmployeeActivityLog";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 type DisputeStatus = "submitted" | "under_review" | "awaiting_client" | "resolved_approved" | "resolved_rejected";
 type ReasonCode = "duplicate_charge" | "incorrect_amount" | "service_not_received" | "unauthorized" | "fraud" | "other";
@@ -62,8 +61,8 @@ const statusConfig: Record<DisputeStatus, { label: string; color: string; icon: 
 const EmployeePaymentDisputes = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { logActivity } = useActivityLog();
-  const { user } = useAuth();
+  const { logActivity } = useEmployeeActivityLog();
+  const { user } = useEmployeeAuth();
   
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,7 +82,7 @@ const EmployeePaymentDisputes = () => {
   const { data: disputes, isLoading } = useQuery({
     queryKey: ["employee-payment-disputes"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await employeeSupabase
         .from("payment_disputes")
         .select("*")
         .order("created_at", { ascending: false });
@@ -94,8 +93,8 @@ const EmployeePaymentDisputes = () => {
         const paymentIds = [...new Set(data.map((d: any) => d.payment_id))];
         
         const [profilesRes, paymentsRes] = await Promise.all([
-          supabase.from("profiles").select("user_id, email, full_name, phone, client_number").in("user_id", userIds),
-          supabase.from("billing").select("id, invoice_number, amount, status, payment_method_type, created_at").in("id", paymentIds),
+          employeeSupabase.from("profiles").select("user_id, email, full_name, phone, client_number").in("user_id", userIds),
+          employeeSupabase.from("billing").select("id, invoice_number, amount, status, payment_method_type, created_at").in("id", paymentIds),
         ]);
 
         return data.map((dispute: any) => ({
@@ -139,7 +138,7 @@ const EmployeePaymentDisputes = () => {
     mutationFn: async (updates: { id: string; [key: string]: any }) => {
       const { id, ...updateFields } = updates;
       
-      const { data: profile } = await supabase
+      const { data: profile } = await employeeSupabase
         .from("profiles")
         .select("full_name")
         .eq("user_id", user?.id)
@@ -150,7 +149,7 @@ const EmployeePaymentDisputes = () => {
       updateFields.processed_by_name = profile?.full_name || user?.email;
       updateFields.processed_at = new Date().toISOString();
 
-      const { error } = await supabase
+      const { error } = await employeeSupabase
         .from("payment_disputes")
         .update(updateFields)
         .eq("id", id);
@@ -241,7 +240,7 @@ const EmployeePaymentDisputes = () => {
     const isResolved = selectedDispute.status?.startsWith("resolved");
 
     return (
-      <EmployeeLayout>
+      <>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={() => setSelectedDispute(null)}>
@@ -543,15 +542,14 @@ const EmployeePaymentDisputes = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </EmployeeLayout>
+      </>
     );
   }
 
   // List View
   return (
-    <EmployeeLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Contestations de paiement</h1>
             <p className="text-muted-foreground">Gestion des contestations clients</p>
@@ -659,7 +657,7 @@ const EmployeePaymentDisputes = () => {
           </CardContent>
         </Card>
       </div>
-    </EmployeeLayout>
+    </div>
   );
 };
 
