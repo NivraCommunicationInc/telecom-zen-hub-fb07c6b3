@@ -14,13 +14,23 @@ const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
-  const { user, signOut, isLoading } = useAuth();
+  const { user, session, signOut, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAdminVerified, setIsAdminVerified] = useState(false);
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
+
+  // DEBUG: Log guard state
+  console.log("[AdminGuard] state", { 
+    loading: isLoading, 
+    hasUser: !!user, 
+    hasSession: !!session,
+    isVerifying,
+    isAdminVerified,
+    path: location.pathname 
+  });
 
   // Handle idle timeout - auto logout after 5 minutes of inactivity
   const handleIdleLogout = useCallback(async () => {

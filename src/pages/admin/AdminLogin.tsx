@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { z } from "zod";
-import { adminClient as supabase } from "@/integrations/backend";
+import { adminClient } from "@/integrations/backend";
 import OTPVerificationDialog from "@/components/admin/OTPVerificationDialog";
 
 const loginSchema = z.object({
@@ -16,18 +16,8 @@ const loginSchema = z.object({
 });
 
 const AdminLogin = () => {
-  // Add noindex meta tag for SEO protection
-  useEffect(() => {
-    const meta = document.createElement('meta');
-    meta.name = 'robots';
-    meta.content = 'noindex, nofollow';
-    document.head.appendChild(meta);
-    return () => {
-      document.head.removeChild(meta);
-    };
-  }, []);
   const navigate = useNavigate();
-  const { signIn, isLoading } = useAuth();
+  const { user, session, signIn, isLoading } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +30,28 @@ const AdminLogin = () => {
   const [showOTPDialog, setShowOTPDialog] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
+
+  // DEBUG: Log auth state
+  console.log("[AdminLogin] render", { hasUser: !!user, hasSession: !!session, isLoading });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && user && session) {
+      console.log("[AdminLogin] Already authenticated, redirecting to /admin");
+      navigate("/admin", { replace: true });
+    }
+  }, [user, session, isLoading, navigate]);
+
+  // Add noindex meta tag for SEO protection
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex, nofollow';
+    document.head.appendChild(meta);
+    return () => {
+      document.head.removeChild(meta);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +68,7 @@ const AdminLogin = () => {
       setIsSubmitting(true);
 
       const redirectUrl = `${window.location.origin}/admin/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await adminClient.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
 
@@ -92,8 +104,17 @@ const AdminLogin = () => {
 
       setIsSubmitting(true);
 
-      // Authenticate with email/password via Supabase Auth
-      const { error: signInError } = await signIn(email, password);
+      // Authenticate with email/password via adminClient (same as useAuth)
+      const { data, error: signInError } = await adminClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      console.log("[AdminLogin] sign-in result", { 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session, 
+        error: signInError 
+      });
 
       if (signInError) {
         toast({
@@ -109,20 +130,20 @@ const AdminLogin = () => {
 
       // Verify user has admin role
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const authUser = data?.user;
+        if (!authUser) {
           throw new Error("Session invalide");
         }
 
-        const { data: roleData, error: roleError } = await supabase
+        const { data: roleData, error: roleError } = await adminClient
           .from("user_roles")
           .select("role, otp_required, otp_verified_at")
-          .eq("user_id", user.id)
+          .eq("user_id", authUser.id)
           .eq("role", "admin")
           .maybeSingle();
 
         if (roleError || !roleData) {
-          await supabase.auth.signOut();
+          await adminClient.auth.signOut();
           toast({
             title: "Accès refusé",
             description: "Vous n'avez pas les permissions administrateur.",
@@ -144,19 +165,19 @@ const AdminLogin = () => {
           
           if (!verifiedAt || verifiedAt < twentyFourHoursAgo) {
             // Need to verify OTP
-            setPendingUserId(user.id);
-            setPendingUserEmail(user.email || email);
+            setPendingUserId(authUser.id);
+            setPendingUserEmail(authUser.email || email);
             setShowOTPDialog(true);
             setIsSubmitting(false);
             return;
           }
         }
 
-        // No 2FA needed or already verified
+        // No 2FA needed or already verified - navigate immediately
         completeLogin();
 
       } catch (err: any) {
-        await supabase.auth.signOut();
+        await adminClient.auth.signOut();
         toast({
           title: "Erreur",
           description: err.message || "Erreur de vérification des permissions",
@@ -169,11 +190,12 @@ const AdminLogin = () => {
   };
 
   const completeLogin = () => {
+    console.log("[AdminLogin] completeLogin - navigating to /admin");
     toast({
       title: "Connexion réussie",
       description: "Bienvenue dans le portail administrateur",
     });
-    navigate("/admin");
+    navigate("/admin", { replace: true });
   };
 
   const handleOTPSuccess = () => {
