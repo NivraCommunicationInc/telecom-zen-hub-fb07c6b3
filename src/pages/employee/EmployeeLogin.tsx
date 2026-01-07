@@ -56,18 +56,18 @@ const EmployeeLogin = () => {
         return;
       }
 
-      // Check if user has employee or admin role
+      // SECURITY: Check if user has ONLY employee role (not admin)
       const { data: roleData, error: roleError } = await employeeSupabase
         .from("user_roles")
         .select("role, status, is_active, otp_required, otp_verified_at")
         .eq("user_id", currentUser.id)
-        .in("role", ["employee", "admin"])
+        .eq("role", "employee")
         .maybeSingle();
 
       if (roleError || !roleData) {
-        console.log("[EmployeeLogin] Role mismatch → signOut. No employee/admin role found.");
+        console.log("[EmployeeLogin] Role mismatch → signOut. No employee role found.");
         await employeeSupabase.auth.signOut();
-        setError("Accès non autorisé. Cette page est réservée aux employés.");
+        setError("Accès non autorisé. Cette page est réservée aux employés uniquement.");
         setIsLoading(false);
         return;
       }
