@@ -4,11 +4,19 @@ import { Calendar, Clock, CheckCircle, Phone, Mail, MapPin } from "lucide-react"
 import { useLanguage } from "@/contexts/LanguageContext";
 import ContactForm from "@/components/ContactForm";
 import { Button } from "@/components/ui/button";
-import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
+import { COMPANY_CONTACT } from "@/config/company";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Contact = () => {
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  const { data: siteSettings } = useSiteSettings();
+
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const address = siteSettings?.address || COMPANY_CONTACT.fullAddress;
+  const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
 
   const supportBenefits = [
     {
@@ -99,29 +107,28 @@ const Contact = () => {
                   </h4>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href={getTelLink()}>
+                    <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
                       <Phone className="w-4 h-4 text-cyan-400" />
-                      <span>{COMPANY_CONTACT.supportPhoneDisplay}</span>
+                      <span>{supportPhone}</span>
                     </a>
                   </Button>
                   
                   <Button variant="outline" className="w-full justify-start gap-3" asChild>
-                    <a href={getMailtoLink()}>
+                    <a href={`mailto:${supportEmail.toLowerCase()}`}>
                       <Mail className="w-4 h-4 text-cyan-400" />
-                      <span>{COMPANY_CONTACT.supportEmailDisplay}</span>
+                      <span>{supportEmail}</span>
                     </a>
                   </Button>
                   
                   <div className="flex items-start gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
                     <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-                    <span>{COMPANY_CONTACT.fullAddress}</span>
+                    <span>{address}</span>
                   </div>
                   
                   <div className="flex items-start gap-3 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
                     <Clock className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p>{COMPANY_CONTACT.supportHoursWeekday}</p>
-                      <p>{COMPANY_CONTACT.supportHoursWeekend}</p>
+                      <p>{businessHours}</p>
                     </div>
                   </div>
                 </div>

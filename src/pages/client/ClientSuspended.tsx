@@ -3,8 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldAlert, Mail, Phone, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const ClientSuspended = () => {
+  const { data: siteSettings } = useSiteSettings();
+  
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const { language } = useLanguage();
 
   const content = {
@@ -47,14 +54,14 @@ const ClientSuspended = () => {
             </Button>
             
             <Button asChild variant="outline" className="w-full">
-              <a href="mailto:support@nivratelecom.ca">
+              <a href={`mailto:${supportEmail.toLowerCase()}`}>
                 <Mail className="w-4 h-4 mr-2" />
                 {t.emailSupport}
               </a>
             </Button>
             
             <Button asChild variant="outline" className="w-full">
-              <a href="tel:+14385442233">
+              <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
                 <Phone className="w-4 h-4 mr-2" />
                 {t.callSupport}
               </a>

@@ -2,9 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Phone } from "lucide-react";
 import ContactForm from "./ContactForm";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const CTA = () => {
   const { t } = useLanguage();
+  const { data: siteSettings } = useSiteSettings();
+  
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
 
   return (
     <section id="contact" className="section-padding bg-primary">
@@ -36,7 +42,7 @@ const CTA = () => {
                 className="gap-2" 
                 asChild
               >
-                <a href="tel:+14385442233">
+                <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
                   <Phone className="w-4 h-4" />
                   {t('cta.phone')}
                 </a>

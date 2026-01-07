@@ -8,10 +8,16 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SecurityInfoBox } from "@/components/ServiceInfoBox";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const ServicesDetail = () => {
   const { language } = useLanguage();
   const isFrench = language === 'fr';
+  const { data: siteSettings } = useSiteSettings();
+  
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
 
   const services = [
     {
@@ -247,7 +253,7 @@ const ServicesDetail = () => {
                 {isFrench ? "Demander une soumission" : "Request a quote"}
               </Button>
               <Button variant="outline" size="lg" asChild>
-                <a href="tel:+14385442233">
+                <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
                   <Phone className="w-4 h-4 mr-2" />
                   {isFrench ? "Nous joindre" : "Contact us"}
                 </a>
@@ -512,9 +518,9 @@ const ServicesDetail = () => {
                     </Link>
                   </Button>
                   <Button variant="outline" size="lg" className="gap-2" asChild>
-                    <a href="tel:+14385442233">
+                    <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
                       <Phone className="w-4 h-4" />
-                      438-544-2233
+                      {supportPhone}
                     </a>
                   </Button>
                 </div>

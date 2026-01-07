@@ -5,8 +5,15 @@ import { Shield, Phone, Mail, Home } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
 import { portalSupabase } from "@/integrations/supabase/portalClient";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const ClientAccessBlocked = () => {
+  const { data: siteSettings } = useSiteSettings();
+  
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const { user } = useClientAuth();
 
   const { data: profile } = useQuery({
@@ -68,13 +75,13 @@ const ClientAccessBlocked = () => {
               Pour rétablir l'accès, veuillez contacter notre équipe:
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <a href="tel:4385442233" className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
+              <a href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
                 <Phone className="w-4 h-4" />
-                438-544-2233
+                {supportPhone}
               </a>
-              <a href="mailto:support@nivratelecom.ca" className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
+              <a href={`mailto:${supportEmail.toLowerCase()}`} className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
                 <Mail className="w-4 h-4" />
-                support@nivratelecom.ca
+                {supportEmail}
               </a>
             </div>
           </div>

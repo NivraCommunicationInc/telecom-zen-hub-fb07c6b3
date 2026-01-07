@@ -1595,7 +1595,7 @@ const ClientMyServices = () => {
             <div>
               <Label>Nouveau numéro souhaité</Label>
               <Input
-                placeholder="514-XXX-XXXX"
+                placeholder="XXX-XXX-XXXX"
                 value={newPhoneNumber}
                 onChange={(e) => handlePhoneNumberChange(e.target.value)}
               />
