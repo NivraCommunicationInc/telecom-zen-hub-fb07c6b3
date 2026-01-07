@@ -116,13 +116,14 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           lastAuthCheck.current = now;
         }
 
-        // SECURITY: Verify admin OR employee role from database - never trust client state
+        // SECURITY: Verify admin-only role from database - never trust client state
+        // IMPORTANT: Admin portal is STRICTLY admin-only. Employees must NOT have access.
         console.log("[AdminGuard] Checking role for user:", user.id);
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role, status")
           .eq("user_id", user.id)
-          .in("role", ["admin", "employee"])
+          .eq("role", "admin")
           .maybeSingle();
 
         console.log("[AdminGuard] Role query result:", { roleData, error: error?.message });
@@ -135,8 +136,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           return;
         }
 
-        // SECURITY: Non-admin/employee attempting to access /admin/*
-        if (!roleData || !["admin", "employee"].includes(roleData.role)) {
+        // SECURITY: Non-admin attempting to access /admin/*
+        if (!roleData || roleData.role !== "admin") {
           console.warn("[AdminGuard] SECURITY: Unauthorized role:", roleData?.role || "none");
           
           // Log blocked access attempt to audit log (only once per mount)
