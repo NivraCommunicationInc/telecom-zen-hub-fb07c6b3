@@ -333,7 +333,7 @@ const ClientCancellations = () => {
                     <Input
                       value={newRequest.service_identifier}
                       onChange={(e) => setNewRequest({ ...newRequest, service_identifier: e.target.value })}
-                      placeholder={newRequest.service_type === "mobile" ? "514-XXX-XXXX" : "123 rue Exemple"}
+                      placeholder={newRequest.service_type === "mobile" ? "XXX-XXX-XXXX" : "123 rue Exemple"}
                     />
                   </div>
                 )}

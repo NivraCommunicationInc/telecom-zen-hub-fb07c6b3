@@ -6,6 +6,8 @@ import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSelector from "./LanguageSelector";
 import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } from "@/config/navigation";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,6 +16,11 @@ const Header = () => {
   const navigate = useNavigate();
   const { user } = useOptionalAuth();
   const { t, language } = useLanguage();
+  const { data: siteSettings } = useSiteSettings();
+
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportPhoneTel = supportPhone.replace(/[^+\d]/g, '');
 
   const portalLink = user ? "/portal" : "/portal/auth";
 
@@ -130,9 +137,9 @@ const Header = () => {
           <div className="hidden lg:flex items-center gap-2">
             <LanguageSelector />
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-              <a href="tel:+14385442233">
+              <a href={`tel:+1${supportPhoneTel}`} data-testid="header-phone">
                 <Phone className="w-4 h-4" />
-                <span className="hidden xl:inline">438-544-2233</span>
+                <span className="hidden xl:inline">{supportPhone}</span>
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
@@ -198,9 +205,9 @@ const Header = () => {
               <div className="pt-4 mt-2 border-t border-border flex flex-col gap-2">
                 <LanguageSelector />
                 <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
-                  <a href="tel:+14385442233">
+                  <a href={`tel:+1${supportPhoneTel}`}>
                     <Phone className="w-4 h-4" />
-                    <span>438-544-2233</span>
+                    <span>{supportPhone}</span>
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" className="justify-start" asChild>

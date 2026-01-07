@@ -1258,7 +1258,7 @@ const AdminAppointments = () => {
                     <Input 
                       value={appointmentForm.client_phone}
                       onChange={(e) => setAppointmentForm(prev => ({ ...prev, client_phone: e.target.value }))}
-                      placeholder="514-XXX-XXXX"
+                      placeholder="XXX-XXX-XXXX"
                     />
                   </div>
                 </div>
@@ -1521,7 +1521,7 @@ const AdminAppointments = () => {
                 <Input 
                   value={clientForm.phone}
                   onChange={(e) => setClientForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="514-XXX-XXXX"
+                  placeholder="XXX-XXX-XXXX"
                 />
               </div>
               <div className="space-y-2">
@@ -1607,7 +1607,7 @@ const AdminAppointments = () => {
                 <Input 
                   value={techForm.phone}
                   onChange={(e) => setTechForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="514-XXX-XXXX"
+                  placeholder="XXX-XXX-XXXX"
                 />
               </div>
               <div className="space-y-2">

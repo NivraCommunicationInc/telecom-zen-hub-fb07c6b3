@@ -37,6 +37,8 @@ import {
   Router,
   Download
 } from "lucide-react";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/portalClient";
@@ -101,11 +103,17 @@ const ClientOrderConfirmation = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useClientAuth();
+  const { data: siteSettings } = useSiteSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
 
   const orderId = searchParams.get("orderId");
 
@@ -869,17 +877,17 @@ END:VCALENDAR`;
         <Card className="bg-card border">
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-              <a href="tel:+14385442233" className="flex items-center gap-2 hover:text-foreground transition-colors">
+              <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`} className="flex items-center gap-2 hover:text-foreground transition-colors">
                 <Phone className="w-4 h-4" />
-                438-544-2233
+                {supportPhone}
               </a>
               <span className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                Support@nivratelecom.ca
+                {supportEmail}
               </span>
               <span className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                Lun-Ven 9h-18h
+                {businessHours}
               </span>
             </div>
           </CardContent>
