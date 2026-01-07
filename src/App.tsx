@@ -90,6 +90,12 @@ import AdminPDFTest from "./pages/admin/AdminPDFTest";
 import AdminQA from "./pages/admin/AdminQA";
 import AdminRecouvrement from "./pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "./pages/admin/AdminPaymentDisputes";
+import EmployeeLogin from "./pages/employee/EmployeeLogin";
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
+import EmployeeClients from "./pages/employee/EmployeeClients";
+import EmployeeOrders from "./pages/employee/EmployeeOrders";
+import EmployeeBilling from "./pages/employee/EmployeeBilling";
+import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import { lazy, Suspense } from "react";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
@@ -186,6 +192,15 @@ const App = () => (
                 <Route path="/qa/block-status/:mode" element={<Suspense fallback={<div>Loading...</div>}><AdminQABlockStatus /></Suspense>} />
               </>
             )}
+            {/* Employee Portal Routes */}
+            <Route path="/employee/login" element={<AuthProvider><EmployeeLogin /></AuthProvider>} />
+            <Route path="/employee" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/clients" element={<AuthProvider><EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/orders" element={<AuthProvider><EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/billing" element={<AuthProvider><EmployeeProtectedRoute><EmployeeBilling /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/cancellations" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/payment-disputes" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/tickets" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
