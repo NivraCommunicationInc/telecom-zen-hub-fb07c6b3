@@ -168,11 +168,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <p className="text-white/40 text-sm">
                 © {currentYear} {COMPANY_CONTACT.legalName}. {t('footer.rights')}
               </p>
-              {/* SSL/TLS Security Badge */}
+              {/* SSL/TLS Security Badge - informational only, no false certification claims */}
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="text-xs font-medium text-emerald-500">
-                  SSL/TLS
+                  Connexion sécurisée (HTTPS)
                 </span>
               </div>
             </div>
