@@ -11,6 +11,3 @@ export const backendClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, 
     autoRefreshToken: true,
   }
 });
-
-// Alias for backward compatibility
-export const supabase = backendClient;

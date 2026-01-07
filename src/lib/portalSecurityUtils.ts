@@ -1,4 +1,4 @@
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 
 /**
  * Portal-only security utilities.

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/backend/client";
+import { backendClient as supabase } from "@/integrations/backend/client";
 
 interface CartItem {
   type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';

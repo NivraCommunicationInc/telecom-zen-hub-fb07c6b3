@@ -1,4 +1,4 @@
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 
 export interface AccountBlockCheckResult {
   allowed: boolean;

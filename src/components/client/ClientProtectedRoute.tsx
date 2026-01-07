@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { Loader2 } from "lucide-react";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { toast } from "sonner";

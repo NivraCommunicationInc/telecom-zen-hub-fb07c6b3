@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck } from "lucide-react";
-import { supabase } from "@/integrations/backend/client";
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { backendClient as supabase } from "@/integrations/backend/client";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 
 type AuthStep = "credentials" | "pin";
 

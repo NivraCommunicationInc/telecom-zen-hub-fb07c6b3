@@ -23,6 +23,3 @@ export const employeeClient = createClient(
     },
   }
 );
-
-// Alias for backward compatibility during migration
-export const employeeSupabase = employeeClient;

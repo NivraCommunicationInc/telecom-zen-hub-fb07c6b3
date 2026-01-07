@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/backend/client";
+import { backendClient as supabase } from "@/integrations/backend/client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ActivityLogOptions {

@@ -1,5 +1,5 @@
 // Central export for all backend clients
-export { backendClient, supabase } from "./client";
-export { adminClient, adminSupabase } from "./adminClient";
-export { employeeClient, employeeSupabase } from "./employeeClient";
-export { portalClient, portalSupabase } from "./portalClient";
+export { backendClient } from "./client";
+export { adminClient } from "./adminClient";
+export { employeeClient } from "./employeeClient";
+export { portalClient } from "./portalClient";

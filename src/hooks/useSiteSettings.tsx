@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/backend/client";
+import { backendClient as supabase } from "@/integrations/backend/client";
 
 export interface SiteSettings {
   support_email: string;

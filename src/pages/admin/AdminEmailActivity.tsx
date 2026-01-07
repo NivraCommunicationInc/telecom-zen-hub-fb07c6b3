@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { supabase } from "@/integrations/backend/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, FileText } from "lucide-react";

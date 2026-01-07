@@ -18,7 +18,3 @@ export const portalClient = createClient(BACKEND_URL, BACKEND_PUBLISHABLE_KEY, {
     autoRefreshToken: true,
   },
 });
-
-// Aliases for backward compatibility
-export const portalSupabase = portalClient;
-export const supabase = portalClient;

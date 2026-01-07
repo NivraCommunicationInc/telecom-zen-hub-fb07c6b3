@@ -12,7 +12,7 @@ import {
 import { FileText, Download, CheckCircle, Eye, Pen } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { portalSupabase } from "@/integrations/backend/portalClient";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
