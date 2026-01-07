@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/backend/client";
 import type { OrderLineItem } from "@/lib/orderLineItems";
 
 type ServiceRow = {
