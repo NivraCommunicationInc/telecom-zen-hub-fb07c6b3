@@ -95,6 +95,9 @@ import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeClients from "./pages/employee/EmployeeClients";
 import EmployeeOrders from "./pages/employee/EmployeeOrders";
 import EmployeeBilling from "./pages/employee/EmployeeBilling";
+import EmployeeCancellations from "./pages/employee/EmployeeCancellations";
+import EmployeePaymentDisputes from "./pages/employee/EmployeePaymentDisputes";
+import EmployeeTickets from "./pages/employee/EmployeeTickets";
 import EmployeeProtectedRoute from "./components/employee/EmployeeProtectedRoute";
 import { lazy, Suspense } from "react";
 
@@ -198,9 +201,9 @@ const App = () => (
             <Route path="/employee/clients" element={<AuthProvider><EmployeeProtectedRoute><EmployeeClients /></EmployeeProtectedRoute></AuthProvider>} />
             <Route path="/employee/orders" element={<AuthProvider><EmployeeProtectedRoute><EmployeeOrders /></EmployeeProtectedRoute></AuthProvider>} />
             <Route path="/employee/billing" element={<AuthProvider><EmployeeProtectedRoute><EmployeeBilling /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/cancellations" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/payment-disputes" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
-            <Route path="/employee/tickets" element={<AuthProvider><EmployeeProtectedRoute><EmployeeDashboard /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/cancellations" element={<AuthProvider><EmployeeProtectedRoute><EmployeeCancellations /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/payment-disputes" element={<AuthProvider><EmployeeProtectedRoute><EmployeePaymentDisputes /></EmployeeProtectedRoute></AuthProvider>} />
+            <Route path="/employee/tickets" element={<AuthProvider><EmployeeProtectedRoute><EmployeeTickets /></EmployeeProtectedRoute></AuthProvider>} />
             {/* Client Portal Routes - Wrapped with ClientAuthProvider (portal storage key) */}
             <Route path="/portal/auth" element={<ClientAuthProvider><ClientAuth /></ClientAuthProvider>} />
             <Route path="/portal/suspended" element={<ClientAuthProvider><ClientSuspended /></ClientAuthProvider>} />
