@@ -159,6 +159,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <Link to="/confidentialite-loi25" className="text-white/40 hover:text-accent transition-colors text-sm">
                 Confidentialité
               </Link>
+              <Link to="/employee/login" className="text-white/40 hover:text-accent transition-colors text-sm">
+                {t('nav.employeePortal') || 'Portail Employé'}
+              </Link>
               <Link to="/admin" className="text-white/40 hover:text-accent transition-colors text-sm">
                 Admin
               </Link>
