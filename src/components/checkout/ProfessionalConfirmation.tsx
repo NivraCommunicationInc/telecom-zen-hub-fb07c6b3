@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 import {
   CheckCircle2,
   FileText,
@@ -109,6 +111,32 @@ interface ProfessionalConfirmationProps {
   onPrint?: () => void;
   onAddToCalendar?: () => void;
 }
+
+// Inline contact info component using site_settings
+const ContactInfoInline = ({ isFrench }: { isFrench: boolean }) => {
+  const { data: siteSettings } = useSiteSettings();
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
+  const supportPhoneTel = supportPhone.replace(/[^+\d]/g, '');
+  
+  return (
+    <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
+      <a href={`tel:+1${supportPhoneTel}`} className="flex items-center gap-2 hover:text-foreground transition-colors">
+        <Phone className="w-4 h-4" />
+        {supportPhone}
+      </a>
+      <span className="flex items-center gap-2">
+        <Mail className="w-4 h-4" />
+        {supportEmail}
+      </span>
+      <span className="flex items-center gap-2">
+        <Clock className="w-4 h-4" />
+        {businessHours}
+      </span>
+    </div>
+  );
+};
 
 export const ProfessionalConfirmation = ({
   isFrench = true,
@@ -649,20 +677,7 @@ export const ProfessionalConfirmation = ({
                 {" "}
                 <span className="font-mono font-semibold text-foreground">{orderNumber}</span>
               </p>
-              <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                <a href="tel:+14385442233" className="flex items-center gap-2 hover:text-foreground transition-colors">
-                  <Phone className="w-4 h-4" />
-                  438-544-2233
-                </a>
-                <span className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  Support@nivratelecom.ca
-                </span>
-                <span className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  {isFrench ? "Lun-Ven 9h-18h" : "Mon-Fri 9AM-6PM"}
-                </span>
-              </div>
+              <ContactInfoInline isFrench={isFrench} />
             </div>
           </div>
         </CardContent>

@@ -25,8 +25,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const About = () => {
+  const { data: siteSettings } = useSiteSettings();
+  
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
+  const address = siteSettings?.address || COMPANY_CONTACT.fullAddress;
   const services = [
     {
       icon: Zap,
@@ -416,7 +425,7 @@ const About = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Adresse</p>
-                      <p className="text-sm text-muted-foreground">Montréal, Québec, Canada</p>
+                      <p className="text-sm text-muted-foreground">{address}</p>
                     </div>
                   </div>
                   
@@ -426,7 +435,9 @@ const About = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Téléphone</p>
-                      <p className="text-sm text-muted-foreground">438-544-2233</p>
+                      <a href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`} className="text-sm text-muted-foreground hover:text-accent transition-colors">
+                        {supportPhone}
+                      </a>
                     </div>
                   </div>
                   
@@ -436,7 +447,9 @@ const About = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Courriel</p>
-                      <p className="text-sm text-muted-foreground">Support@nivratelecom.ca</p>
+                      <a href={`mailto:${supportEmail.toLowerCase()}`} className="text-sm text-muted-foreground hover:text-accent transition-colors">
+                        {supportEmail}
+                      </a>
                     </div>
                   </div>
                   
@@ -446,7 +459,7 @@ const About = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Heures de support</p>
-                      <p className="text-sm text-muted-foreground">Lun–Ven : 9 h – 18 h (HE)</p>
+                      <p className="text-sm text-muted-foreground">{businessHours}</p>
                     </div>
                   </div>
                 </div>

@@ -20,7 +20,8 @@ import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
 import PaymentDisputeTimeline from "@/components/client/PaymentDisputeTimeline";
-import { ETRANSFER_CONFIG } from "@/config/company";
+import { ETRANSFER_CONFIG, COMPANY_CONTACT } from "@/config/company";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -34,6 +35,12 @@ type PaymentMethod = "etransfer" | "credit_card";
 
 const ClientInvoices = () => {
   const { user } = useClientAuth();
+  const { data: siteSettings } = useSiteSettings();
+  
+  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const address = siteSettings?.address || COMPANY_CONTACT.fullAddress;
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("invoices");
   const [filterTab, setFilterTab] = useState("all");
@@ -1228,7 +1235,7 @@ const ClientInvoices = () => {
                   <div className="bg-cyan-500 text-white rounded-lg p-6 text-center">
                     <h2 className="text-2xl font-bold">NIVRA</h2>
                     <p className="text-sm opacity-90">Compagnie Télécom Indépendante</p>
-                    <p className="text-xs opacity-75 mt-1">514-757-5162 | info@nivra.ca</p>
+                    <p className="text-xs opacity-75 mt-1">{supportPhone} | {supportEmail}</p>
                   </div>
 
                   {/* Invoice Info */}
@@ -1281,9 +1288,9 @@ const ClientInvoices = () => {
                     <div className="border border-cyan-500/30 rounded-lg p-4">
                       <h4 className="font-bold text-cyan-500 mb-2 text-sm">DE</h4>
                       <p className="text-sm font-medium">Nivra Télécommunications</p>
-                      <p className="text-xs text-muted-foreground">Montréal, QC</p>
-                      <p className="text-xs text-muted-foreground">514-757-5162</p>
-                      <p className="text-xs text-muted-foreground">info@nivra.ca</p>
+                      <p className="text-xs text-muted-foreground">{address}</p>
+                      <p className="text-xs text-muted-foreground">{supportPhone}</p>
+                      <p className="text-xs text-muted-foreground">{supportEmail}</p>
                     </div>
                     <div className="border border-cyan-500/30 rounded-lg p-4">
                       <h4 className="font-bold text-cyan-500 mb-2 text-sm">À</h4>

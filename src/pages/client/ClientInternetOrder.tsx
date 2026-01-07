@@ -12,6 +12,8 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/portalClient";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { COMPANY_CONTACT } from "@/config/company";
 import { 
   Wifi, 
   Check, 
@@ -27,7 +29,7 @@ import {
   Shield, 
   Zap, 
   Star, 
-  Router, 
+  Router,
   Package, 
   Info,
   XCircle,
@@ -115,6 +117,34 @@ const ROUTER_DETAILS = {
     fr: "Garantie 1 an couvrant les défauts de fabrication",
     en: "1-year warranty covering manufacturer defects"
   }
+};
+
+// Contact info card component using site_settings
+const ContactInfoCard = ({ isFrench }: { isFrench: boolean }) => {
+  const { data: siteSettings } = useSiteSettings();
+  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
+  const supportPhoneTel = supportPhone.replace(/[^+\d]/g, '');
+  
+  return (
+    <Card className="bg-muted/30 border-border">
+      <CardContent className="py-6">
+        <div className="text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {isFrench ? "Des questions? Contactez-nous:" : "Questions? Contact us:"}
+          </p>
+          <div className="flex justify-center gap-6">
+            <a href={`tel:+1${supportPhoneTel}`} className="flex items-center gap-2 text-accent hover:text-accent/80 transition-colors">
+              <span className="font-medium">{supportPhone}</span>
+            </a>
+            <a href={`mailto:${supportEmail.toLowerCase()}`} className="flex items-center gap-2 text-accent hover:text-accent/80 transition-colors">
+              <span className="font-medium">{supportEmail}</span>
+            </a>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 interface AddressValidation {
@@ -1604,23 +1634,7 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
             </Card>
 
             {/* Contact Info */}
-            <Card className="bg-muted/30 border-border">
-              <CardContent className="py-6">
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {isFrench ? "Des questions? Contactez-nous:" : "Questions? Contact us:"}
-                  </p>
-                  <div className="flex justify-center gap-6">
-                    <a href="tel:+14385442233" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
-                      <span className="font-medium">438-544-2233</span>
-                    </a>
-                    <a href="mailto:support@nivratelecom.ca" className="flex items-center gap-2 text-cyan-500 hover:text-cyan-400 transition-colors">
-                      <span className="font-medium">Support@nivratelecom.ca</span>
-                    </a>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ContactInfoCard isFrench={isFrench} />
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-center gap-4">
