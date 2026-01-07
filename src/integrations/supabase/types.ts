@@ -1191,6 +1191,90 @@ export type Database = {
           },
         ]
       }
+      employee_pin_attempts: {
+        Row: {
+          account_id: string
+          attempt_result: string
+          attempted_at: string
+          client_id: string
+          client_name: string | null
+          employee_email: string | null
+          employee_id: string
+          failed_count_at_attempt: number | null
+          id: string
+          ip_address: string | null
+          pin_entered_hash: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          account_id: string
+          attempt_result: string
+          attempted_at?: string
+          client_id: string
+          client_name?: string | null
+          employee_email?: string | null
+          employee_id: string
+          failed_count_at_attempt?: number | null
+          id?: string
+          ip_address?: string | null
+          pin_entered_hash?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string
+          attempt_result?: string
+          attempted_at?: string
+          client_id?: string
+          client_name?: string | null
+          employee_email?: string | null
+          employee_id?: string
+          failed_count_at_attempt?: number | null
+          id?: string
+          ip_address?: string | null
+          pin_entered_hash?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      employee_pin_unlocks: {
+        Row: {
+          account_id: string
+          client_id: string
+          client_name: string | null
+          employee_email: string | null
+          employee_id: string
+          expires_at: string
+          id: string
+          is_active: boolean | null
+          unlock_reason: string
+          unlocked_at: string
+        }
+        Insert: {
+          account_id: string
+          client_id: string
+          client_name?: string | null
+          employee_email?: string | null
+          employee_id: string
+          expires_at: string
+          id?: string
+          is_active?: boolean | null
+          unlock_reason: string
+          unlocked_at?: string
+        }
+        Update: {
+          account_id?: string
+          client_id?: string
+          client_name?: string | null
+          employee_email?: string | null
+          employee_id?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean | null
+          unlock_reason?: string
+          unlocked_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           badge_number: string | null

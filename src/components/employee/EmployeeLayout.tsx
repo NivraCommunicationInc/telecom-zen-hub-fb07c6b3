@@ -12,6 +12,8 @@ import {
   XCircle,
   AlertTriangle,
   ExternalLink,
+  FileText,
+  Tv,
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,8 @@ const navItems = [
   { icon: Users, label: "Clients", href: "/employee/clients" },
   { icon: Package, label: "Commandes", href: "/employee/orders" },
   { icon: CreditCard, label: "Facturation", href: "/employee/billing" },
+  { icon: FileText, label: "Contrats", href: "/employee/contracts" },
+  { icon: Tv, label: "Streaming+", href: "/employee/streaming" },
   { icon: XCircle, label: "Annulations", href: "/employee/cancellations" },
   { icon: AlertTriangle, label: "Contestations", href: "/employee/payment-disputes" },
   { icon: MessageSquare, label: "Tickets", href: "/employee/tickets" },
