@@ -41,8 +41,9 @@ async function checkStorageForTokens(page: Page, storageName: 'localStorage' | '
   }, storageName);
 }
 
-// Helper to check IndexedDB for token-like data (names AND records)
-async function checkIndexedDBForTokens(page: Page): Promise<{ databases: string[], records: string[] }> {
+// Helper to check IndexedDB for token-like data (DB names AND object store names)
+// NOTE: This checks DB names and object store names, not individual record values
+async function checkIndexedDBForTokens(page: Page): Promise<{ dbNames: string[], storeNames: string[] }> {
   return page.evaluate(async () => {
     const tokenPatterns = [
       /sb-.*-auth-token/,
@@ -54,7 +55,7 @@ async function checkIndexedDBForTokens(page: Page): Promise<{ databases: string[
     ];
     
     const suspiciousDBs: string[] = [];
-    const suspiciousRecords: string[] = [];
+    const suspiciousStores: string[] = [];
     
     try {
       const databases = await indexedDB.databases();
@@ -63,7 +64,7 @@ async function checkIndexedDBForTokens(page: Page): Promise<{ databases: string[
           suspiciousDBs.push(db.name);
         }
         
-        // Try to open each database and check for token-like object stores
+        // Open each database and check for token-like object store names
         if (db.name) {
           try {
             const openRequest = indexedDB.open(db.name);
@@ -74,7 +75,7 @@ async function checkIndexedDBForTokens(page: Page): Promise<{ databases: string[
                 const storeNames = Array.from(database.objectStoreNames);
                 for (const storeName of storeNames) {
                   if (tokenPatterns.some(p => p.test(storeName))) {
-                    suspiciousRecords.push(`${db.name}/${storeName}`);
+                    suspiciousStores.push(`${db.name}/${storeName}`);
                   }
                 }
                 database.close();
@@ -90,7 +91,7 @@ async function checkIndexedDBForTokens(page: Page): Promise<{ databases: string[
       // indexedDB.databases() may not be available in all browsers
     }
     
-    return { databases: suspiciousDBs, records: suspiciousRecords };
+    return { dbNames: suspiciousDBs, storeNames: suspiciousStores };
   });
 }
 
@@ -118,8 +119,8 @@ async function verifyNoTokensInAnyStorage(page: Page, context: string) {
   
   expect(localSessionKeys, `[${context}] No session tokens in localStorage`).toHaveLength(0);
   expect(sessionSessionKeys, `[${context}] No session tokens in sessionStorage`).toHaveLength(0);
-  expect(indexedDBResult.databases, `[${context}] No suspicious IndexedDB databases`).toHaveLength(0);
-  expect(indexedDBResult.records, `[${context}] No suspicious IndexedDB records`).toHaveLength(0);
+  expect(indexedDBResult.dbNames, `[${context}] No suspicious IndexedDB database names`).toHaveLength(0);
+  expect(indexedDBResult.storeNames, `[${context}] No suspicious IndexedDB object store names`).toHaveLength(0);
   expect(cookieTokens, `[${context}] No session tokens in cookies`).toHaveLength(0);
   
   return {
@@ -172,17 +173,17 @@ test.describe('Security: Admin Portal POST-LOGIN Token Verification', () => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     
-    // Perform real login
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', ADMIN_PASSWORD);
-    await page.click('button[type="submit"]');
+    // Perform real login using data-testid selectors
+    await page.locator('[data-testid="admin-login-email"]').fill(ADMIN_EMAIL);
+    await page.locator('[data-testid="admin-login-password"]').fill(ADMIN_PASSWORD);
+    await page.locator('[data-testid="admin-login-submit"]').click();
     
     // Wait for successful login - detect redirect to dashboard
     await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15000 });
     
-    // Verify we're on the dashboard (login was successful)
-    const dashboardIndicator = page.locator('text=Dashboard').or(page.locator('text=Tableau de bord')).or(page.locator('[data-testid="admin-dashboard"]'));
-    await expect(dashboardIndicator.first()).toBeVisible({ timeout: 10000 });
+    // Verify we're on the dashboard (login was successful) using data-testid
+    const dashboardIndicator = page.locator('[data-testid="admin-dashboard"]');
+    await expect(dashboardIndicator).toBeVisible({ timeout: 10000 });
     
     // CRITICAL: Verify NO tokens in any persistent storage after successful login
     await verifyNoTokensInAnyStorage(page, 'admin-post-login');
@@ -193,17 +194,17 @@ test.describe('Security: Admin Portal POST-LOGIN Token Verification', () => {
   });
 
   test('should NOT persist session after page refresh (memory-only)', async ({ page }) => {
-    // Login first
+    // Login first using data-testid selectors
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', ADMIN_PASSWORD);
-    await page.click('button[type="submit"]');
+    await page.locator('[data-testid="admin-login-email"]').fill(ADMIN_EMAIL);
+    await page.locator('[data-testid="admin-login-password"]').fill(ADMIN_PASSWORD);
+    await page.locator('[data-testid="admin-login-submit"]').click();
     await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15000 });
     
-    // Verify login was successful
-    const dashboardIndicator = page.locator('text=Dashboard').or(page.locator('text=Tableau de bord'));
-    await expect(dashboardIndicator.first()).toBeVisible({ timeout: 10000 });
+    // Verify login was successful using data-testid
+    const dashboardIndicator = page.locator('[data-testid="admin-dashboard"]');
+    await expect(dashboardIndicator).toBeVisible({ timeout: 10000 });
     
     // Verify no tokens before refresh
     await verifyNoTokensInAnyStorage(page, 'admin-pre-refresh');
@@ -234,17 +235,17 @@ test.describe('Security: Client Portal POST-LOGIN Token Verification', () => {
     await page.goto('/portal/auth');
     await page.waitForLoadState('networkidle');
     
-    // Perform real login
-    await page.fill('input[type="email"]', CLIENT_EMAIL);
-    await page.fill('input[type="password"]', CLIENT_PASSWORD);
-    await page.click('button[type="submit"]');
+    // Perform real login using data-testid selectors
+    await page.locator('[data-testid="client-login-email"]').fill(CLIENT_EMAIL);
+    await page.locator('[data-testid="client-login-password"]').fill(CLIENT_PASSWORD);
+    await page.locator('[data-testid="client-login-submit"]').click();
     
     // Wait for successful login - detect redirect to dashboard
     await page.waitForURL(/\/portal(?!\/auth)/, { timeout: 15000 });
     
-    // Verify we're on the client dashboard (login was successful)
-    const dashboardIndicator = page.locator('text=Mon compte').or(page.locator('text=Tableau de bord')).or(page.locator('[data-testid="client-dashboard"]'));
-    await expect(dashboardIndicator.first()).toBeVisible({ timeout: 10000 });
+    // Verify we're on the client dashboard (login was successful) using data-testid
+    const dashboardIndicator = page.locator('[data-testid="client-dashboard"]');
+    await expect(dashboardIndicator).toBeVisible({ timeout: 10000 });
     
     // CRITICAL: Verify NO tokens in any persistent storage after successful login
     await verifyNoTokensInAnyStorage(page, 'client-post-login');
@@ -255,17 +256,17 @@ test.describe('Security: Client Portal POST-LOGIN Token Verification', () => {
   });
 
   test('should NOT persist session after page refresh (memory-only)', async ({ page }) => {
-    // Login first
+    // Login first using data-testid selectors
     await page.goto('/portal/auth');
     await page.waitForLoadState('networkidle');
-    await page.fill('input[type="email"]', CLIENT_EMAIL);
-    await page.fill('input[type="password"]', CLIENT_PASSWORD);
-    await page.click('button[type="submit"]');
+    await page.locator('[data-testid="client-login-email"]').fill(CLIENT_EMAIL);
+    await page.locator('[data-testid="client-login-password"]').fill(CLIENT_PASSWORD);
+    await page.locator('[data-testid="client-login-submit"]').click();
     await page.waitForURL(/\/portal(?!\/auth)/, { timeout: 15000 });
     
-    // Verify login was successful
-    const dashboardIndicator = page.locator('text=Mon compte').or(page.locator('text=Tableau de bord'));
-    await expect(dashboardIndicator.first()).toBeVisible({ timeout: 10000 });
+    // Verify login was successful using data-testid
+    const dashboardIndicator = page.locator('[data-testid="client-dashboard"]');
+    await expect(dashboardIndicator).toBeVisible({ timeout: 10000 });
     
     // Verify no tokens before refresh
     await verifyNoTokensInAnyStorage(page, 'client-pre-refresh');
@@ -317,9 +318,9 @@ test.describe('Security: Form Interaction Token Verification', () => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     
-    // Try to interact with login form (without valid credentials)
-    const emailInput = page.locator('input[type="email"]').first();
-    const passwordInput = page.locator('input[type="password"]').first();
+    // Use data-testid selectors for stable form interaction
+    const emailInput = page.locator('[data-testid="admin-login-email"]');
+    const passwordInput = page.locator('[data-testid="admin-login-password"]');
     
     if (await emailInput.isVisible()) {
       await emailInput.fill('test@example.com');
@@ -338,7 +339,8 @@ test.describe('Security: Form Interaction Token Verification', () => {
     await page.goto('/portal/auth');
     await page.waitForLoadState('networkidle');
     
-    const emailInput = page.locator('input[type="email"]').first();
+    // Use data-testid selectors for stable form interaction
+    const emailInput = page.locator('[data-testid="client-login-email"]');
     
     if (await emailInput.isVisible()) {
       await emailInput.fill('client@example.com');
