@@ -1,5 +1,22 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+
+export type DevOverflowOffender = {
+  selector: string;
+  clientWidth: number;
+  scrollWidth: number;
+  boundingRight: number;
+};
+
+export type DevOverflowReport = {
+  route: string;
+  viewportWidth: number;
+  offenders: DevOverflowOffender[];
+  checkedAt: number;
+};
+
+const OFFENDER_ATTR = 'data-dev-overflow-offender';
+const OUTLINE_STYLE = '2px solid red';
 
 /**
  * DEV-ONLY: Detects horizontal overflow and outlines offending elements in red.
@@ -9,78 +26,126 @@ import { useLocation } from 'react-router-dom';
 export function useDevOverflowDetector() {
   const location = useLocation();
 
-  useEffect(() => {
-    // Only run in development mode
-    if (!import.meta.env.DEV) return;
+  const [report, setReport] = useState<DevOverflowReport>(() => ({
+    route: location.pathname,
+    viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 0,
+    offenders: [],
+    checkedAt: Date.now(),
+  }));
 
-    const checkOverflow = () => {
-      const viewportWidth = window.innerWidth;
-      const offenders: Array<{
-        selector: string;
-        element: HTMLElement;
-        clientWidth: number;
-        scrollWidth: number;
-        boundingRight: number;
-      }> = [];
+  const route = location.pathname;
+  const routeRef = useRef(route);
+  routeRef.current = route;
 
-      // Check all elements
-      document.querySelectorAll('*').forEach((el) => {
-        if (!(el instanceof HTMLElement)) return;
+  const clearTimersRef = useRef<() => void>(() => undefined);
 
-        const rect = el.getBoundingClientRect();
-        const hasScrollOverflow = el.scrollWidth > el.clientWidth;
-        const extendsViewport = rect.right > viewportWidth + 1; // +1 for rounding
+  const clearOutlines = useCallback(() => {
+    document.querySelectorAll(`[${OFFENDER_ATTR}="true"]`).forEach((el) => {
+      if (!(el instanceof HTMLElement)) return;
+      el.style.outline = '';
+      el.removeAttribute(OFFENDER_ATTR);
+    });
+  }, []);
 
-        if (hasScrollOverflow || extendsViewport) {
-          // Skip body/html for scroll check (they naturally have scrollWidth)
-          if ((el.tagName === 'BODY' || el.tagName === 'HTML') && !extendsViewport) {
-            return;
-          }
+  const checkOverflow = useCallback(() => {
+    const viewportWidth = window.innerWidth;
+    const offenders: DevOverflowOffender[] = [];
 
-          // Generate a selector for the element
-          const selector = generateSelector(el);
+    clearOutlines();
 
-          offenders.push({
-            selector,
-            element: el,
-            clientWidth: el.clientWidth,
-            scrollWidth: el.scrollWidth,
-            boundingRight: Math.round(rect.right),
-          });
+    document.querySelectorAll('*').forEach((el) => {
+      if (!(el instanceof HTMLElement)) return;
 
-          // Outline in red
-          el.style.outline = '2px solid red';
-        }
+      const rect = el.getBoundingClientRect();
+      const hasScrollOverflow = el.scrollWidth > el.clientWidth;
+      const extendsViewport = rect.right > viewportWidth + 1; // +1 for rounding
+
+      if (!hasScrollOverflow && !extendsViewport) return;
+
+      // Skip body/html for scroll check (they naturally have scrollWidth)
+      if ((el.tagName === 'BODY' || el.tagName === 'HTML') && !extendsViewport) {
+        return;
+      }
+
+      const selector = generateSelector(el);
+
+      offenders.push({
+        selector,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+        boundingRight: Math.round(rect.right),
       });
 
-      // Log results
-      if (offenders.length > 0) {
-        console.group(`🔴 [DEV] Overflow detected on ${location.pathname} @ ${viewportWidth}px`);
-        offenders.forEach(({ selector, clientWidth, scrollWidth, boundingRight }) => {
-          console.warn(
-            `${selector}\n  clientWidth: ${clientWidth}, scrollWidth: ${scrollWidth}, boundingRight: ${boundingRight}, viewport: ${viewportWidth}`
-          );
-        });
-        console.groupEnd();
-      } else {
-        console.log(`✅ [DEV] No overflow on ${location.pathname} @ ${viewportWidth}px`);
-      }
-
-      return offenders.length;
-    };
-
-    // Clear previous outlines
-    document.querySelectorAll('[style*="outline: 2px solid red"]').forEach((el) => {
-      if (el instanceof HTMLElement) {
-        el.style.outline = '';
-      }
+      el.setAttribute(OFFENDER_ATTR, 'true');
+      el.style.outline = OUTLINE_STYLE;
     });
 
-    // Run after a short delay to let layout settle
-    const timeoutId = setTimeout(checkOverflow, 500);
+    const next: DevOverflowReport = {
+      route: routeRef.current,
+      viewportWidth,
+      offenders,
+      checkedAt: Date.now(),
+    };
 
-    return () => clearTimeout(timeoutId);
-  }, [location.pathname]);
+    setReport(next);
+
+    if (offenders.length > 0) {
+      console.group(`🔴 [DEV] Overflow detected on ${next.route} @ ${viewportWidth}px`);
+      offenders.forEach(({ selector, clientWidth, scrollWidth, boundingRight }) => {
+        console.warn(
+          `${selector}\n  clientWidth: ${clientWidth}, scrollWidth: ${scrollWidth}, boundingRight: ${boundingRight}, viewport: ${viewportWidth}`
+        );
+      });
+      console.groupEnd();
+    } else {
+      console.log(`✅ [DEV] No overflow on ${next.route} @ ${viewportWidth}px`);
+    }
+
+    return next;
+  }, [clearOutlines]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    let timer: number | undefined;
+    let resizeTimer: number | undefined;
+
+    const schedule = (delay = 250) => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        checkOverflow();
+      }, delay);
+    };
+
+    const onResize = () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => schedule(0), 120);
+    };
+
+    schedule(350);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+
+    clearTimersRef.current = () => {
+      if (timer) window.clearTimeout(timer);
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+    };
+
+    return () => {
+      clearTimersRef.current?.();
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+      clearOutlines();
+    };
+  }, [route, checkOverflow, clearOutlines]);
+
+  return useMemo(
+    () => ({
+      report,
+      checkOverflow,
+    }),
+    [report, checkOverflow]
+  );
 }
 
 function generateSelector(el: HTMLElement): string {
@@ -93,7 +158,10 @@ function generateSelector(el: HTMLElement): string {
     if (current.id) {
       selector += `#${current.id}`;
     } else if (current.className && typeof current.className === 'string') {
-      const classes = current.className.split(' ').filter(c => c && !c.startsWith('_')).slice(0, 2);
+      const classes = current.className
+        .split(' ')
+        .filter((c) => c && !c.startsWith('_'))
+        .slice(0, 2);
       if (classes.length > 0) {
         selector += `.${classes.join('.')}`;
       }
