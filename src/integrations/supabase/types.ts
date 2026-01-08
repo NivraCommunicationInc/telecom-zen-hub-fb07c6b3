@@ -2020,6 +2020,7 @@ export type Database = {
         Row: {
           account_id: string | null
           amount: number
+          amount_allocated: number | null
           captured_at: string | null
           client_id: string
           created_at: string
@@ -2039,6 +2040,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           amount: number
+          amount_allocated?: number | null
           captured_at?: string | null
           client_id: string
           created_at?: string
@@ -2058,6 +2060,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           amount?: number
+          amount_allocated?: number | null
           captured_at?: string | null
           client_id?: string
           created_at?: string
@@ -2080,6 +2083,57 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_invoice_allocations: {
+        Row: {
+          allocated_at: string
+          amount_allocated: number
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
+          id: string
+          invoice_entry_id: string
+          notes: string | null
+          payment_entry_id: string
+        }
+        Insert: {
+          allocated_at?: string
+          amount_allocated: number
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          id?: string
+          invoice_entry_id: string
+          notes?: string | null
+          payment_entry_id: string
+        }
+        Update: {
+          allocated_at?: string
+          amount_allocated?: number
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          id?: string
+          invoice_entry_id?: string
+          notes?: string | null
+          payment_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_invoice_allocations_invoice_entry_id_fkey"
+            columns: ["invoice_entry_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_invoice_allocations_payment_entry_id_fkey"
+            columns: ["payment_entry_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -5384,6 +5438,27 @@ export type Database = {
       }
     }
     Functions: {
+      allocate_payment_to_invoice: {
+        Args: {
+          p_actor_id?: string
+          p_actor_name?: string
+          p_actor_role?: string
+          p_amount: number
+          p_invoice_entry_id: string
+          p_notes?: string
+          p_payment_entry_id: string
+        }
+        Returns: Json
+      }
+      allocate_payment_to_invoices: {
+        Args: {
+          p_actor_id?: string
+          p_actor_name?: string
+          p_actor_role?: string
+          p_payment_entry_id: string
+        }
+        Returns: Json
+      }
       calculate_next_invoice_date: {
         Args: { p_billing_day: number; p_from_date?: string }
         Returns: string
@@ -5453,8 +5528,22 @@ export type Database = {
         Returns: {
           available_credit: number
           balance: number
+          oldest_unpaid_date: string
+          outstanding_invoices: number
           total_credits: number
           total_debits: number
+        }[]
+      }
+      get_invoice_payment_history: {
+        Args: { p_invoice_entry_id: string }
+        Returns: {
+          allocated_at: string
+          allocated_by_name: string
+          allocation_id: string
+          amount_allocated: number
+          payment_entry_id: string
+          payment_method: string
+          payment_reference: string
         }[]
       }
       has_role: {
