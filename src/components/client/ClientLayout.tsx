@@ -165,8 +165,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       )}
 
       {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
-        <div className="p-6 lg:p-8">{children}</div>
+      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0 min-w-0">
+        <div className="p-4 sm:p-6 lg:p-8 min-w-0">{children}</div>
       </main>
       </div>
     </div>
