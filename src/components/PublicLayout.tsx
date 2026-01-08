@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { AnnouncementBar } from "./AnnouncementBar";
+import AnnouncementBar from "./AnnouncementBar";
 
 interface PublicLayoutProps {
   children: ReactNode;
