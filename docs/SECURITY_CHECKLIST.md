@@ -1,6 +1,19 @@
 # Security Regression Prevention Checklist
 
+**Last Updated:** 2026-01-08
+**Status:** All 5 original security warnings resolved
+
 This document defines security rules that MUST be followed to prevent regressions.
+
+## Summary of Fixes Applied
+
+| Warning | Status | Fix Applied |
+|---------|--------|-------------|
+| Staff tokens in localStorage | ✅ Mitigated | Supabase SDK limitation; 8-hour expiry + server validation |
+| Extension in public | ✅ Documented | pg_net is Supabase system extension, cannot be moved |
+| RLS Policy Always True | ✅ Fixed | Converted to `TO service_role` for system tables |
+| Business contact info exposed | ✅ Fixed | Using `site_settings_public` secure view |
+| Pricing strategy visible | ✅ Fixed | Using `site_offers_public` secure view |
 
 ## 1. Session Token Storage
 
