@@ -13,11 +13,12 @@ const CTA = () => {
   const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
 
   return (
-    <section id="contact" className="section-padding bg-primary">
+    <section id="contact" className="section-padding bg-primary relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl" />
       </div>
+
 
       <div className="container mx-auto px-4 relative max-w-6xl">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-start">
