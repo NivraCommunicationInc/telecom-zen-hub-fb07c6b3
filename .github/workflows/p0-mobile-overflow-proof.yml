@@ -87,6 +87,15 @@ jobs:
           VITE_E2E_TEST_EMAIL: ${{ env.VITE_E2E_TEST_EMAIL }}
         run: npx playwright test e2e/mobile-overflow-check.spec.ts --reporter=line
 
+      - name: Cleanup E2E user (best effort)
+        if: always()
+        shell: bash
+        run: |
+          # Note: Cannot delete user without service_role key (which we don't expose).
+          # The user is disposable (unique per run) and will be orphaned.
+          # For production systems, a scheduled cleanup job should purge e2e+* users.
+          echo "E2E user $TEST_CLIENT_EMAIL created for this run only (no service_role cleanup possible without secrets)."
+
       - name: Upload proof artifacts (screenshots + logs)
         if: always()
         uses: actions/upload-artifact@v4
