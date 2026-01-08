@@ -1809,7 +1809,10 @@ const AdminChannels = () => {
                       <Shield className="h-3 w-3" />
                       Référence technique (admin)
                     </p>
-                    <p className="text-muted-foreground break-all">
+                    <p
+                      className="text-muted-foreground truncate max-w-full"
+                      title={`IDs: ${selectedPackageForDetails.channels.join(", ")}`}
+                    >
                       IDs: {selectedPackageForDetails.channels.join(", ")}
                     </p>
                   </div>

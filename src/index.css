@@ -154,15 +154,17 @@
     height: auto;
   }
 
-  /* Prevent text overflow - headings use normal breaks, body text can wrap */
-  p, span, a, li {
+  /* Safe text wrapping defaults (no mid-word splits) */
+  p, li, a, span, div {
     overflow-wrap: break-word;
-    word-break: break-word;
+    word-break: normal;
   }
 
+  /* Headings must never break mid-word; allow proper hyphenation */
   h1, h2, h3, h4, h5, h6 {
     word-break: normal;
     overflow-wrap: normal;
+    hyphens: auto;
   }
   
   /* Typography Scale - Premium Telecom */
