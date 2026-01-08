@@ -154,10 +154,18 @@
     height: auto;
   }
 
-  /* Safe text wrapping defaults (no mid-word splits) */
+  /* Disable hyphenation site-wide (no mid-word hyphen splits) */
+  body {
+    hyphens: none;
+    -webkit-hyphens: none;
+  }
+
+  /* Safe text wrapping defaults */
   p, li, a, span, div {
     overflow-wrap: break-word;
     word-break: normal;
+    hyphens: none;
+    -webkit-hyphens: none;
   }
 
   /* Headings must never break mid-word or hyphenate */

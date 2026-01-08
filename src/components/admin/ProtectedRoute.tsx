@@ -225,9 +225,19 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/admin/login" replace />;
   }
 
-  // SECURITY: Not verified as admin - show access denied instead of redirect loop
+  // SECURITY: Not verified as admin - show access denied + redirect away
   if (requireAdmin && !isAdminVerified) {
     console.log("[AdminGuard] Admin not verified, showing access denied");
+
+    // Redirect away automatically (no lingering on /admin)
+    setTimeout(() => {
+      try {
+        navigate("/", { replace: true });
+      } catch {
+        // ignore
+      }
+    }, 800);
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4 max-w-md p-8">
@@ -237,13 +247,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
             Vous n'avez pas les permissions nécessaires pour accéder à cette page.
           </p>
           <button
-            onClick={async () => {
-              await signOut();
-              navigate("/admin/login", { replace: true });
-            }}
+            onClick={() => navigate("/", { replace: true })}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
-            Retour à la connexion
+            Retour au site
           </button>
         </div>
       </div>
