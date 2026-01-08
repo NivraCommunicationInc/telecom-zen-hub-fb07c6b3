@@ -5526,6 +5526,7 @@ export type Database = {
       get_client_ledger_balance: {
         Args: { p_client_id: string }
         Returns: {
+          amount_due: number
           available_credit: number
           balance: number
           oldest_unpaid_date: string
@@ -5533,6 +5534,10 @@ export type Database = {
           total_credits: number
           total_debits: number
         }[]
+      }
+      get_entry_allocation_count: {
+        Args: { p_entry_id: string }
+        Returns: number
       }
       get_invoice_payment_history: {
         Args: { p_invoice_entry_id: string }

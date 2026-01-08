@@ -57,8 +57,8 @@ export function LedgerBalanceCard({
     );
   }
 
-  const hasBalance = balance.balance > 0;
-  const hasCredit = balance.isCredit;
+  const hasBalance = balance.amountDue > 0;
+  const hasCredit = balance.hasCredit;
   const creditBlocked = balance.creditBlocked;
   const outstandingInvoices = balance.outstandingInvoices || 0;
 
@@ -90,8 +90,8 @@ export function LedgerBalanceCard({
                 hasBalance ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-foreground'
               }`}>
                 {hasCredit 
-                  ? balance.availableCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
-                  : balance.balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
+                  ? balance.availableCreditDisplay
+                  : balance.amountDueDisplay
                 }
               </p>
             </div>

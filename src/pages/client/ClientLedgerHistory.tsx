@@ -1,17 +1,19 @@
 /**
  * Client Ledger History Page
  * 
- * Displays full ledger history with:
- * - All ledger entries (debits/credits)
- * - Payment allocations to invoices
- * - Outstanding amounts
- * - Credit blocked status
+ * NIVRA RULES:
+ * - Debit (invoice/charge) = show "-" in red
+ * - Credit (payment) = show "+" in green
+ * - amount_due (>= 0) and available_credit (>= 0) displayed separately
+ * - No "negative balance" display
+ * - Allocation icon only shown if actual allocations exist
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useLedgerBalance, useLedgerEntries } from "@/hooks/useLedgerBalance";
 import { useLedgerAllocations } from "@/hooks/useLedgerAllocations";
+import { backendClient } from "@/integrations/backend/client";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +52,41 @@ const ClientLedgerHistory = () => {
   const { data: balance, isLoading: balanceLoading } = useLedgerBalance(user?.id);
   const { data: entries, isLoading: entriesLoading } = useLedgerEntries(user?.id);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [allocationCounts, setAllocationCounts] = useState<Record<string, number>>({});
+
+  // Fetch allocation counts for all entries
+  useEffect(() => {
+    if (!entries || entries.length === 0) return;
+    
+    const fetchCounts = async () => {
+      const counts: Record<string, number> = {};
+      for (const entry of entries) {
+        const { data } = await backendClient.rpc('get_entry_allocation_count', {
+          p_entry_id: entry.id
+        });
+        counts[entry.id] = data || 0;
+      }
+      setAllocationCounts(counts);
+    };
+    
+    fetchCounts();
+  }, [entries]);
+
+  // Format currency with proper sign for display
+  const formatAmount = (amount: number) => {
+    const absAmount = Math.abs(amount).toLocaleString("fr-CA", {
+      style: "currency",
+      currency: "CAD",
+    });
+    // Debit (positive amount) = show with "-" in red
+    // Credit (negative amount) = show with "+" in green
+    if (amount > 0) {
+      return { text: `- ${absAmount}`, isDebit: true };
+    } else if (amount < 0) {
+      return { text: `+ ${absAmount}`, isDebit: false };
+    }
+    return { text: absAmount, isDebit: false };
+  };
 
   const formatCurrency = (amount: number) => {
     return Math.abs(amount).toLocaleString("fr-CA", {
@@ -67,10 +104,12 @@ const ClientLedgerHistory = () => {
   };
 
   const getEntryType = (entry: { amount: number; entry_type: string }) => {
+    // Positive amount = debit (invoice/charge)
+    // Negative amount = credit (payment)
     if (entry.amount > 0) {
-      return { label: "Débit", icon: ArrowDownCircle, color: "text-red-500" };
+      return { label: "Facture/Frais", icon: ArrowDownCircle, color: "text-red-500" };
     }
-    return { label: "Crédit", icon: ArrowUpCircle, color: "text-green-500" };
+    return { label: "Paiement", icon: ArrowUpCircle, color: "text-green-500" };
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -113,9 +152,11 @@ const ClientLedgerHistory = () => {
             ) : balance ? (
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Solde actuel</p>
-                  <p className={`text-2xl font-bold ${balance.isCredit ? "text-green-500" : balance.balance > 0 ? "text-red-500" : "text-foreground"}`}>
-                    {balance.display}
+                  <p className="text-sm text-muted-foreground">
+                    {balance.hasCredit ? 'Crédit disponible' : 'Solde à payer'}
+                  </p>
+                  <p className={`text-2xl font-bold ${balance.hasCredit ? "text-green-500" : balance.amountDue > 0 ? "text-red-500" : "text-foreground"}`}>
+                    {balance.hasCredit ? balance.availableCreditDisplay : balance.amountDueDisplay}
                   </p>
                 </div>
                 <div>
@@ -140,7 +181,7 @@ const ClientLedgerHistory = () => {
                 <AlertTitle>Crédit bloqué</AlertTitle>
                 <AlertDescription>
                   Vous avez {balance.outstandingInvoices} facture(s) impayée(s). 
-                  Le crédit disponible ({formatCurrency(Math.abs(balance.balance))}) sera libéré après paiement complet.
+                  Le crédit sera libéré après paiement complet de toutes les factures.
                 </AlertDescription>
               </Alert>
             )}
@@ -180,7 +221,9 @@ const ClientLedgerHistory = () => {
                     {entries.map((entry) => {
                       const typeInfo = getEntryType(entry);
                       const TypeIcon = typeInfo.icon;
-                      const hasAllocations = entry.amount !== 0;
+                      const amountDisplay = formatAmount(entry.amount);
+                      // Only show allocation icon if there are actual allocations
+                      const hasAllocations = (allocationCounts[entry.id] || 0) > 0;
 
                       return (
                         <TableRow
@@ -203,8 +246,8 @@ const ClientLedgerHistory = () => {
                           <TableCell className="text-muted-foreground">
                             {entry.reference_number || "—"}
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${entry.amount > 0 ? "text-red-500" : "text-green-500"}`}>
-                            {entry.amount > 0 ? "+" : ""}{formatCurrency(entry.amount)}
+                          <TableCell className={`text-right font-medium ${amountDisplay.isDebit ? "text-red-500" : "text-green-500"}`}>
+                            {amountDisplay.text}
                           </TableCell>
                           <TableCell>
                             {getStatusBadge(entry.payment_status)}
