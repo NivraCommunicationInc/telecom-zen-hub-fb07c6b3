@@ -42,7 +42,7 @@ const Hero = () => {
           </div>
 
           {/* Main Heading */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight text-white mb-5 animate-fade-in break-normal hyphens-none" style={{ animationDelay: "0.1s" }}>
+          <h1 className="text-[1.625rem] sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight text-white mb-5 animate-fade-in hyphens-none" style={{ animationDelay: "0.1s" }}>
             {t('hero.title1')}
             <br />
             <span className="text-accent">{t('hero.title2')}</span>
@@ -87,7 +87,7 @@ const Hero = () => {
                 className="flex items-center justify-center gap-2 p-3 lg:p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
               >
                 <div className="w-2 h-2 rounded-full bg-accent flex-shrink-0" />
-                <span className="text-xs lg:text-sm text-white/80 font-medium text-center">{t(item.key)}</span>
+                <span className="text-[11px] sm:text-xs lg:text-sm text-white/80 font-medium text-center hyphens-none break-normal">{t(item.key)}</span>
               </div>
             ))}
           </div>
