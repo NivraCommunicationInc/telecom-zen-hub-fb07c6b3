@@ -96,65 +96,48 @@ test.describe('P0 Mobile Overflow Check', () => {
 
   test('Portal dashboard (/portal) - logged in, no horizontal overflow', async ({ page }) => {
     await page.setViewportSize({ width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT });
-    
+
     // Navigate to auth page
     await page.goto('/portal/auth');
     await page.waitForLoadState('networkidle');
-    
+
     // Fill login form
     const emailInput = page.locator('input[type="email"]').first();
     const passwordInput = page.locator('input[type="password"]').first();
-    
-    if (await emailInput.isVisible()) {
-      await emailInput.fill(TEST_EMAIL);
-      await passwordInput.fill(TEST_PASSWORD);
-      
-      // Submit login
-      const loginButton = page.locator('button[type="submit"]').first();
-      await loginButton.click();
-      
-      // Wait for navigation or PIN step
-      await page.waitForTimeout(2000);
-      
-      // Check if we're on PIN verification step
-      const pinInput = page.locator('input[inputmode="numeric"]');
-      if (await pinInput.isVisible()) {
-        // For testing, we'll skip PIN and just screenshot the auth page
-        console.log('PIN verification required - capturing auth page instead');
-        await page.screenshot({ 
-          path: 'e2e/screenshots/portal-auth-390px.png',
-          fullPage: false 
-        });
-      } else {
-        // Successfully logged in, navigate to dashboard
-        await page.goto('/portal');
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(1000);
-        
-        await page.screenshot({ 
-          path: 'e2e/screenshots/portal-dashboard-390px.png',
-          fullPage: false 
-        });
-      }
-    } else {
-      // Already on dashboard or different state
-      await page.goto('/portal');
-      await page.waitForTimeout(2000);
-      
-      await page.screenshot({ 
-        path: 'e2e/screenshots/portal-390px.png',
-        fullPage: false 
-      });
+
+    await expect(emailInput, 'Expected portal login email input to be visible').toBeVisible();
+    await emailInput.fill(TEST_EMAIL);
+    await passwordInput.fill(TEST_PASSWORD);
+
+    // Submit login
+    const loginButton = page.locator('button[type="submit"]').first();
+    await loginButton.click();
+
+    // In E2E mode the dedicated test user must bypass PIN and land on /portal
+    await page.waitForURL('**/portal', { timeout: 15000 });
+
+    // If PIN UI still appears, that's a hard failure for this P0 proof
+    const pinInput = page.locator('input[inputmode="numeric"], input[autocomplete="one-time-code"], input[name*="pin" i]');
+    if (await pinInput.first().isVisible().catch(() => false)) {
+      throw new Error('PIN verification UI is visible during E2E run; expected bypass to reach /portal dashboard.');
     }
-    
-    // Check overflow at all mobile widths (on current page)
+
+    // Confirm dashboard rendered (requires authenticated user context)
+    await expect(page.locator('[data-testid="portal-dashboard"]'), 'Expected portal dashboard to render after login').toBeVisible({ timeout: 15000 });
+
+    await page.screenshot({
+      path: 'e2e/screenshots/portal-dashboard-390px.png',
+      fullPage: false,
+    });
+
+    // Check overflow at all mobile widths (on dashboard)
     const results: OverflowResult[] = [];
     for (const width of MOBILE_WIDTHS) {
       const result = await checkOverflow(page, width);
       results.push(result);
       console.log(`Portal @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
     }
-    
+
     // Assert no overflow
     for (const result of results) {
       expect(result.scrollWidth, `Portal has horizontal overflow at ${result.width}px`).toBeLessThanOrEqual(result.innerWidth);

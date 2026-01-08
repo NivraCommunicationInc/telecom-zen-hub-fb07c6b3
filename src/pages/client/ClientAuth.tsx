@@ -175,6 +175,23 @@ const ClientAuth = () => {
     // Check if device is trusted (within 20 minutes window)
     const trustedUntil = Number(localStorage.getItem("portal_trusted_until") || 0);
     const isTrusted = Date.now() < trustedUntil;
+
+    // DEV/PREVIEW-ONLY E2E BYPASS: allow a dedicated test user to skip PIN
+    // Guarded by VITE_E2E_MODE + DEV so it is never active in production builds.
+    const isE2E = import.meta.env.DEV && import.meta.env.VITE_E2E_MODE === "true";
+    const e2eEmail = (import.meta.env.VITE_E2E_TEST_EMAIL || "").toLowerCase();
+    if (isE2E && e2eEmail && userEmail.toLowerCase() === e2eEmail) {
+      // Mark PIN as verified and trust device for 20 minutes.
+      sessionStorage.setItem("client_pin_verified", "true");
+      sessionStorage.removeItem("client_pin_pending_email");
+      sessionStorage.removeItem("client_pin_pending_user_id");
+      localStorage.setItem("portal_trusted_until", (Date.now() + 20 * 60 * 1000).toString());
+
+      setIsLoading(false);
+      toast({ title: "Connexion réussie" });
+      navigate("/portal");
+      return;
+    }
     
     if (isTrusted) {
       // Trusted device: skip PIN step entirely
