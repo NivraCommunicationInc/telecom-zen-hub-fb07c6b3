@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ClientAuthProvider } from "@/hooks/useClientAuth";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
+import { PublicLayout } from "@/components/PublicLayout";
 import { lazy, Suspense } from "react";
 
 // Public pages
@@ -117,40 +118,40 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* ============================================ */}
-      {/* PUBLIC ROUTES - Wrapped with MaintenanceGuard */}
+      {/* PUBLIC ROUTES - Wrapped with MaintenanceGuard + PublicLayout */}
       {/* ============================================ */}
-      <Route path="/" element={<MaintenanceGuard><Index /></MaintenanceGuard>} />
-      <Route path="/about" element={<MaintenanceGuard><About /></MaintenanceGuard>} />
-      <Route path="/services" element={<MaintenanceGuard><ServicesDetail /></MaintenanceGuard>} />
-      <Route path="/internet" element={<MaintenanceGuard><InternetPlans /></MaintenanceGuard>} />
-      <Route path="/tv" element={<MaintenanceGuard><TVPlans /></MaintenanceGuard>} />
-      <Route path="/mobile" element={<MaintenanceGuard><MobilePlans /></MaintenanceGuard>} />
-      <Route path="/streaming" element={<MaintenanceGuard><StreamingPlans /></MaintenanceGuard>} />
-      <Route path="/careers" element={<MaintenanceGuard><Careers /></MaintenanceGuard>} />
-      <Route path="/apply" element={<MaintenanceGuard><JobApplication /></MaintenanceGuard>} />
-      <Route path="/apply/:jobId" element={<MaintenanceGuard><JobApplication /></MaintenanceGuard>} />
-      <Route path="/faq" element={<MaintenanceGuard><FAQ /></MaintenanceGuard>} />
-      <Route path="/contact" element={<MaintenanceGuard><Contact /></MaintenanceGuard>} />
-      <Route path="/privacy" element={<MaintenanceGuard><PrivacyPolicy /></MaintenanceGuard>} />
-      <Route path="/terms" element={<MaintenanceGuard><TermsOfUse /></MaintenanceGuard>} />
-      <Route path="/not-authorized" element={<MaintenanceGuard><NotAuthorized /></MaintenanceGuard>} />
+      <Route path="/" element={<MaintenanceGuard><PublicLayout><Index /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/about" element={<MaintenanceGuard><PublicLayout><About /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/services" element={<MaintenanceGuard><PublicLayout><ServicesDetail /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/internet" element={<MaintenanceGuard><PublicLayout><InternetPlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/tv" element={<MaintenanceGuard><PublicLayout><TVPlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/mobile" element={<MaintenanceGuard><PublicLayout><MobilePlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/streaming" element={<MaintenanceGuard><PublicLayout><StreamingPlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/careers" element={<MaintenanceGuard><PublicLayout><Careers /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/apply" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/apply/:jobId" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/faq" element={<MaintenanceGuard><PublicLayout><FAQ /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/contact" element={<MaintenanceGuard><PublicLayout><Contact /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/privacy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicy /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/terms" element={<MaintenanceGuard><PublicLayout><TermsOfUse /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/not-authorized" element={<MaintenanceGuard><PublicLayout><NotAuthorized /></PublicLayout></MaintenanceGuard>} />
       
       {/* Legal pages */}
-      <Route path="/conditions-de-service" element={<MaintenanceGuard><ConditionsDeService /></MaintenanceGuard>} />
-      <Route path="/installation-rendezvous" element={<MaintenanceGuard><InstallationRendezvous /></MaintenanceGuard>} />
-      <Route path="/modalites-paiement" element={<MaintenanceGuard><ModalitesPaiement /></MaintenanceGuard>} />
-      <Route path="/equipement-garantie" element={<MaintenanceGuard><EquipementGarantie /></MaintenanceGuard>} />
-      <Route path="/support-et-plaintes" element={<MaintenanceGuard><SupportEtPlaintes /></MaintenanceGuard>} />
-      <Route path="/confidentialite-loi25" element={<MaintenanceGuard><ConfidentialiteLoi25 /></MaintenanceGuard>} />
-      <Route path="/frais-possibles" element={<MaintenanceGuard><FraisPossibles /></MaintenanceGuard>} />
-      <Route path="/refund-policy" element={<MaintenanceGuard><RefundPolicy /></MaintenanceGuard>} />
-      <Route path="/privacy-policy" element={<MaintenanceGuard><PrivacyPolicyPage /></MaintenanceGuard>} />
-      <Route path="/terms-and-conditions" element={<MaintenanceGuard><TermsAndConditions /></MaintenanceGuard>} />
-      <Route path="/a-propos" element={<MaintenanceGuard><APropos /></MaintenanceGuard>} />
-      <Route path="/aide" element={<MaintenanceGuard><Aide /></MaintenanceGuard>} />
+      <Route path="/conditions-de-service" element={<MaintenanceGuard><PublicLayout><ConditionsDeService /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/installation-rendezvous" element={<MaintenanceGuard><PublicLayout><InstallationRendezvous /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/modalites-paiement" element={<MaintenanceGuard><PublicLayout><ModalitesPaiement /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/equipement-garantie" element={<MaintenanceGuard><PublicLayout><EquipementGarantie /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/support-et-plaintes" element={<MaintenanceGuard><PublicLayout><SupportEtPlaintes /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/confidentialite-loi25" element={<MaintenanceGuard><PublicLayout><ConfidentialiteLoi25 /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/frais-possibles" element={<MaintenanceGuard><PublicLayout><FraisPossibles /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/refund-policy" element={<MaintenanceGuard><PublicLayout><RefundPolicy /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/a-propos" element={<MaintenanceGuard><PublicLayout><APropos /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/aide" element={<MaintenanceGuard><PublicLayout><Aide /></PublicLayout></MaintenanceGuard>} />
       
       {/* Dynamic pages from site_pages */}
-      <Route path="/page/:slug" element={<MaintenanceGuard><DynamicPage /></MaintenanceGuard>} />
+      <Route path="/page/:slug" element={<MaintenanceGuard><PublicLayout><DynamicPage /></PublicLayout></MaintenanceGuard>} />
 
       {/* ============================================ */}
       {/* ADMIN ROUTES - NO MaintenanceGuard (always accessible) */}
