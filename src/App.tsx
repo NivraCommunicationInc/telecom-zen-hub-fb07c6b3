@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import AppRoutes from "@/components/AppRoutes";
 import ChatbotWidget from "@/components/chatbot/ChatbotWidget";
+import { DevOverflowDetector } from "@/components/DevOverflowDetector";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          {/* DEV-ONLY: Overflow detector - only active in development */}
+          {import.meta.env.DEV && <DevOverflowDetector />}
           <AppRoutes />
           <ChatbotWidget />
         </BrowserRouter>
