@@ -42,7 +42,7 @@ const Hero = () => {
           </div>
 
           {/* Main Heading */}
-          <h1 className="text-white mb-5 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight text-white mb-5 animate-fade-in break-normal hyphens-auto" style={{ animationDelay: "0.1s" }}>
             {t('hero.title1')}
             <br />
             <span className="text-accent">{t('hero.title2')}</span>
