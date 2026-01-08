@@ -5370,6 +5370,93 @@ export type Database = {
         }
         Relationships: []
       }
+      site_offers_public: {
+        Row: {
+          category: string | null
+          description_en: string | null
+          description_fr: string | null
+          discount_amount: number | null
+          discount_percent: number | null
+          features_json: Json | null
+          id: string | null
+          is_featured: boolean | null
+          name_en: string | null
+          name_fr: string | null
+          offer_type: string | null
+          price_monthly: number | null
+          price_setup: number | null
+          promo_code: string | null
+          sort_order: number | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          category?: string | null
+          description_en?: string | null
+          description_fr?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          features_json?: Json | null
+          id?: string | null
+          is_featured?: boolean | null
+          name_en?: string | null
+          name_fr?: string | null
+          offer_type?: string | null
+          price_monthly?: number | null
+          price_setup?: number | null
+          promo_code?: string | null
+          sort_order?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          category?: string | null
+          description_en?: string | null
+          description_fr?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          features_json?: Json | null
+          id?: string | null
+          is_featured?: boolean | null
+          name_en?: string | null
+          name_fr?: string | null
+          offer_type?: string | null
+          price_monthly?: number | null
+          price_setup?: number | null
+          promo_code?: string | null
+          sort_order?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      site_settings_public: {
+        Row: {
+          category: string | null
+          description: string | null
+          id: string | null
+          key: string | null
+          value_json: Json | null
+          value_text: string | null
+        }
+        Insert: {
+          category?: string | null
+          description?: string | null
+          id?: string | null
+          key?: string | null
+          value_json?: Json | null
+          value_text?: string | null
+        }
+        Update: {
+          category?: string | null
+          description?: string | null
+          id?: string | null
+          key?: string | null
+          value_json?: Json | null
+          value_text?: string | null
+        }
+        Relationships: []
+      }
       tv_channels_public: {
         Row: {
           category: string | null
@@ -5592,6 +5679,7 @@ export type Database = {
         Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean
       }
+      is_staff: { Args: never; Returns: boolean }
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
