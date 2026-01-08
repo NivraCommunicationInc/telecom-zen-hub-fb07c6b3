@@ -166,7 +166,14 @@ test.describe('Security: Token Storage Verification (No Login)', () => {
 // ============================================================================
 
 test.describe('Security: Admin Portal POST-LOGIN Token Verification', () => {
-  test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'Skipping - E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD not set');
+  const requireCreds = !!process.env.CI;
+  test.skip(!requireCreds && (!ADMIN_EMAIL || !ADMIN_PASSWORD), 'Skipping locally - E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD not set');
+
+  test.beforeAll(() => {
+    if (requireCreds && (!ADMIN_EMAIL || !ADMIN_PASSWORD)) {
+      throw new Error('Missing required env vars in CI: E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD');
+    }
+  });
 
   test('should NOT persist tokens after SUCCESSFUL admin login', async ({ page }) => {
     // Navigate to admin login
@@ -228,7 +235,14 @@ test.describe('Security: Admin Portal POST-LOGIN Token Verification', () => {
 // ============================================================================
 
 test.describe('Security: Client Portal POST-LOGIN Token Verification', () => {
-  test.skip(!CLIENT_EMAIL || !CLIENT_PASSWORD, 'Skipping - E2E_CLIENT_EMAIL/E2E_CLIENT_PASSWORD not set');
+  const requireCreds = !!process.env.CI;
+  test.skip(!requireCreds && (!CLIENT_EMAIL || !CLIENT_PASSWORD), 'Skipping locally - E2E_CLIENT_EMAIL/E2E_CLIENT_PASSWORD not set');
+
+  test.beforeAll(() => {
+    if (requireCreds && (!CLIENT_EMAIL || !CLIENT_PASSWORD)) {
+      throw new Error('Missing required env vars in CI: E2E_CLIENT_EMAIL/E2E_CLIENT_PASSWORD');
+    }
+  });
 
   test('should NOT persist tokens after SUCCESSFUL client login', async ({ page }) => {
     // Navigate to client auth

@@ -1,7 +1,7 @@
 # Security Checklist — Nivra Télécom
 
 **Last Updated:** 2026-01-08
-**Status:** All security warnings resolved with measurable proofs
+**Status:** ⏳ Acceptance gate pending CI evidence (post-login, no-skip)
 
 ---
 
@@ -275,13 +275,41 @@ curl -X POST "https://xtgngmtxggascbxnswvb.supabase.co/rest/v1/rpc/http_post" \
 
 | Requirement | Status | Proof |
 |-------------|--------|-------|
-| CI proof (no skip) | ⏳ PENDING | Set E2E secrets in CI, run job, paste logs |
+| CI proof (no skip) | ⏳ PENDING | Run workflow `.github/workflows/security-post-login-proof.yml` and paste CI Evidence block below |
 | Stabilized selectors | ✅ DONE | All tests use `data-testid` |
 | pg_net proof anon | ✅ DONE | 404 response logged above |
 | pg_net proof auth | ✅ DONE | 404 response logged above |
 | IndexedDB wording | ✅ DONE | Renamed to `dbNames` + `storeNames` |
 
-**Next Step:** Configure CI secrets and run Playwright job. Paste job logs showing tests executed (not skipped) and passing.
+---
+
+## 9. CI Evidence (READY TO PASTE)
+
+> After running the GitHub Actions workflow **Security Post-Login Proof**, paste the following block **filled + with the log excerpt**.
+
+```md
+### CI Evidence
+- Date (UTC): YYYY-MM-DD
+- Workflow: Security Post-Login Proof
+- Job: security_post_login_proof
+- Run URL: <paste GitHub Actions run link>
+- Artifact: security-post-login-proof
+- Required secrets: E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, E2E_CLIENT_EMAIL, E2E_CLIENT_PASSWORD
+
+**Playwright summary (copy from log):**
+<copy the final Playwright summary line here>
+
+**Post-login suites executed (copy 4 test lines from log):**
+- Security: Admin Portal POST-LOGIN Token Verification › should NOT persist tokens after SUCCESSFUL admin login
+- Security: Admin Portal POST-LOGIN Token Verification › should NOT persist session after page refresh (memory-only)
+- Security: Client Portal POST-LOGIN Token Verification › should NOT persist tokens after SUCCESSFUL client login
+- Security: Client Portal POST-LOGIN Token Verification › should NOT persist session after page refresh (memory-only)
+
+**No-skip proof (copy from log):**
+Skipped lines in log: 0
+
+**Result:** 0 failed (job success)
+```
 
 ---
 
