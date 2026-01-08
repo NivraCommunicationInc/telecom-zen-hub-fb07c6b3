@@ -160,11 +160,12 @@
     word-break: normal;
   }
 
-  /* Headings must never break mid-word; allow proper hyphenation */
+  /* Headings must never break mid-word or hyphenate */
   h1, h2, h3, h4, h5, h6 {
     word-break: normal;
     overflow-wrap: normal;
-    hyphens: auto;
+    hyphens: none;
+    -webkit-hyphens: none;
   }
   
   /* Typography Scale - Premium Telecom */
