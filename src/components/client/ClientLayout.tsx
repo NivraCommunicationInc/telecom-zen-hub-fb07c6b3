@@ -16,6 +16,7 @@ import {
   Package,
   ShoppingCart,
   Tv,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -52,8 +53,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     { path: "/portal/services", label: "Mes services", icon: CreditCard },
     { path: "/portal/channels", label: "Chaînes TV", icon: Tv },
     { path: "/portal/invoices", label: "Factures", icon: FileText },
+    { path: "/portal/ledger", label: "Historique compte", icon: BookOpen },
     { path: "/portal/contracts", label: "Contrats", icon: FileText },
-    
     { path: "/portal/tickets", label: "Support", icon: MessageSquare },
     { path: "/portal/profile", label: "Mon profil", icon: User },
     { path: "/portal/payments", label: "Paiements", icon: CreditCard },
