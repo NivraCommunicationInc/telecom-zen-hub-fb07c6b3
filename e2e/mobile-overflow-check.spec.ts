@@ -7,11 +7,25 @@
  * 3. Fails if any page has horizontal overflow
  */
 
+import fs from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 const MOBILE_WIDTHS = [375, 390, 414];
 const SCREENSHOT_WIDTH = 390;
 const SCREENSHOT_HEIGHT = 844;
+
+const OUTPUT_DIR = 'e2e/screenshots';
+const OVERFLOW_LOG_PATH = `${OUTPUT_DIR}/overflow-logs.txt`;
+
+function logLine(line: string) {
+  console.log(line);
+  try {
+    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    fs.appendFileSync(OVERFLOW_LOG_PATH, `${line}\n`);
+  } catch {
+    // If FS isn't available in a given runner, we still keep console output.
+  }
+}
 
 // Test user credentials - use environment variables or fallback to test account
 const TEST_EMAIL = process.env.TEST_CLIENT_EMAIL || 'test@nivratelecom.ca';
@@ -42,7 +56,14 @@ async function checkOverflow(page: any, width: number): Promise<OverflowResult> 
 }
 
 test.describe('P0 Mobile Overflow Check', () => {
-  
+  test.beforeAll(() => {
+    try {
+      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+      fs.writeFileSync(OVERFLOW_LOG_PATH, '');
+    } catch {
+      // ignore
+    }
+  });
   test('Homepage (/) - no horizontal overflow at mobile widths', async ({ page }) => {
     // Set viewport to 390px for screenshot
     await page.setViewportSize({ width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT });
@@ -60,7 +81,7 @@ test.describe('P0 Mobile Overflow Check', () => {
     for (const width of MOBILE_WIDTHS) {
       const result = await checkOverflow(page, width);
       results.push(result);
-      console.log(`Homepage @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
+      logLine(`Homepage @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
     }
     
     // Assert no overflow
@@ -85,7 +106,7 @@ test.describe('P0 Mobile Overflow Check', () => {
     for (const width of MOBILE_WIDTHS) {
       const result = await checkOverflow(page, width);
       results.push(result);
-      console.log(`Internet @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
+      logLine(`Internet @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
     }
     
     // Assert no overflow
@@ -135,7 +156,7 @@ test.describe('P0 Mobile Overflow Check', () => {
     for (const width of MOBILE_WIDTHS) {
       const result = await checkOverflow(page, width);
       results.push(result);
-      console.log(`Portal @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
+      logLine(`Portal @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
     }
 
     // Assert no overflow
@@ -162,14 +183,16 @@ test.describe('P0 Mobile Overflow Check', () => {
     }
     
     // Print summary
-    console.log('\n=== OVERFLOW CHECK SUMMARY ===');
+    logLine('');
+    logLine('=== OVERFLOW CHECK SUMMARY ===');
     for (const { page: pagePath, results } of allResults) {
       for (const result of results) {
-        const status = result.hasOverflow ? '❌ OVERFLOW' : '✅ OK';
-        console.log(`${pagePath} @ ${result.width}px: ${status} (scrollW=${result.scrollWidth}, innerW=${result.innerWidth})`);
+        const status = result.hasOverflow ? 'OVERFLOW' : 'OK';
+        logLine(`${pagePath} @ ${result.width}px: ${status} (scrollW=${result.scrollWidth}, innerW=${result.innerWidth})`);
       }
     }
-    console.log('==============================\n');
+    logLine('==============================');
+    logLine('');
     
     // Assert no overflow on any page
     for (const { page: pagePath, results } of allResults) {
