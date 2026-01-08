@@ -54,17 +54,24 @@ const ClientLedgerHistory = () => {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [allocationCounts, setAllocationCounts] = useState<Record<string, number>>({});
 
-  // Fetch allocation counts for all entries
+  // Fetch allocation counts using BATCH RPC (avoid N+1)
   useEffect(() => {
     if (!entries || entries.length === 0) return;
     
     const fetchCounts = async () => {
+      const entryIds = entries.map(e => e.id);
+      const { data, error } = await backendClient.rpc('get_entries_allocation_counts', {
+        p_entry_ids: entryIds
+      });
+      
+      if (error) {
+        console.error("[ClientLedgerHistory] Error fetching allocation counts:", error);
+        return;
+      }
+      
       const counts: Record<string, number> = {};
-      for (const entry of entries) {
-        const { data } = await backendClient.rpc('get_entry_allocation_count', {
-          p_entry_id: entry.id
-        });
-        counts[entry.id] = data || 0;
+      for (const row of data || []) {
+        counts[row.entry_id] = row.allocation_count || 0;
       }
       setAllocationCounts(counts);
     };
@@ -134,11 +141,11 @@ const ClientLedgerHistory = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Historique du compte</h1>
           <p className="text-muted-foreground">
-            Toutes vos transactions et allocations de paiements
+            Transactions, factures, paiements et allocations
           </p>
         </div>
 
-        {/* Balance Summary */}
+        {/* Balance Summary - Show Solde à payer AND Crédit disponible separately */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Résumé du solde</CardTitle>
@@ -150,29 +157,36 @@ const ClientLedgerHistory = () => {
                 <Skeleton className="h-4 w-48" />
               </div>
             ) : balance ? (
-              <div className="grid gap-4 md:grid-cols-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    {balance.hasCredit ? 'Crédit disponible' : 'Solde à payer'}
-                  </p>
-                  <p className={`text-2xl font-bold ${balance.hasCredit ? "text-green-500" : balance.amountDue > 0 ? "text-red-500" : "text-foreground"}`}>
-                    {balance.hasCredit ? balance.availableCreditDisplay : balance.amountDueDisplay}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* Solde à payer - always shown */}
+                <div className={`p-4 rounded-lg ${balance.amountDue > 0 ? 'bg-red-500/10 border border-red-500/30' : 'bg-muted/50'}`}>
+                  <p className="text-sm text-muted-foreground">Solde à payer</p>
+                  <p className={`text-2xl font-bold ${balance.amountDue > 0 ? "text-red-500" : "text-foreground"}`}>
+                    {balance.amountDueDisplay}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total facturé</p>
-                  <p className="text-lg font-medium">{formatCurrency(balance.totalDebits)}</p>
+                {/* Crédit disponible - always shown */}
+                <div className={`p-4 rounded-lg ${balance.hasCredit ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted/50'}`}>
+                  <p className="text-sm text-muted-foreground">Crédit disponible</p>
+                  <p className={`text-2xl font-bold ${balance.hasCredit ? "text-green-500" : "text-foreground"}`}>
+                    {balance.availableCreditDisplay}
+                  </p>
                 </div>
-                <div>
+                <div className="p-4 rounded-lg bg-muted/50">
                   <p className="text-sm text-muted-foreground">Total payé</p>
                   <p className="text-lg font-medium text-green-500">{formatCurrency(balance.totalCredits)}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Factures impayées</p>
-                  <p className="text-lg font-medium">{balance.outstandingInvoices}</p>
-                </div>
               </div>
             ) : null}
+
+            {/* Outstanding Invoices Count */}
+            {balance && balance.outstandingInvoices > 0 && (
+              <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                <p className="text-sm font-medium text-amber-600">
+                  {balance.outstandingInvoices} facture{balance.outstandingInvoices > 1 ? 's' : ''} impayée{balance.outstandingInvoices > 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
 
             {/* Credit Blocked Warning */}
             {balance?.creditBlocked && (

@@ -69,8 +69,9 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
     // Use amount_due and available_credit directly from DB
     const amountDue = Math.max(0, Number(result.amount_due) || 0);
     const availableCredit = Math.max(0, Number(result.available_credit) || 0);
-    const hasCredit = availableCredit > 0 && outstandingInvoices === 0;
-    const creditBlocked = outstandingInvoices > 0 && balance < 0;
+    const hasCredit = availableCredit > 0;
+    // STRICT RULE: creditBlocked = outstanding_invoices > 0 (simple, no balance check)
+    const creditBlocked = result.credit_blocked ?? (outstandingInvoices > 0);
     
     const formatCurrency = (amount: number) => 
       amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
