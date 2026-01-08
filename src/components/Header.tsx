@@ -96,9 +96,15 @@ const Header = () => {
         : 'bg-white/95 backdrop-blur-sm border-b border-border/50'
     }`}>
       <div className="container mx-auto px-4 max-w-6xl">
-        <div className="flex items-center justify-between h-16 lg:h-18">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5">
+        <div className="relative flex items-center justify-between h-16 lg:h-18">
+          {/* Left spacer - matches hamburger width on mobile for centering */}
+          <div className="w-10 lg:hidden" aria-hidden="true" />
+
+          {/* Logo - centered on mobile, left-aligned on desktop */}
+          <Link 
+            to="/" 
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 lg:static lg:translate-x-0"
+          >
             <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
               <span className="font-bold text-white text-lg">N</span>
             </div>
@@ -157,7 +163,7 @@ const Header = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+            className="lg:hidden p-2 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
             type="button"
