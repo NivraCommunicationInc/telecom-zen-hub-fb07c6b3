@@ -5546,6 +5546,19 @@ export type Database = {
           payment_reference: string
         }[]
       }
+      get_ledger_allocations: {
+        Args: { p_entry_id: string }
+        Returns: {
+          allocated_at: string
+          allocation_id: string
+          amount_allocated: number
+          is_payment: boolean
+          other_description: string
+          other_entry_id: string
+          other_entry_type: string
+          other_reference_number: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
