@@ -83,9 +83,9 @@ export const CheckoutProgress = ({
         </div>
       </div>
 
-      {/* Mobile Progress */}
-      <div className="md:hidden">
-        <div className="flex items-center gap-3 overflow-x-auto pb-2">
+      {/* Mobile Progress - contained horizontal scroll, no page-level overflow */}
+      <div className="md:hidden w-full max-w-full">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {steps.map((step) => {
             const isCompleted = currentStep > step.id;
             const isCurrent = currentStep === step.id;
@@ -94,18 +94,18 @@ export const CheckoutProgress = ({
               <div 
                 key={step.id}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-all",
                   isCompleted && "bg-primary/10 text-primary",
                   isCurrent && "bg-primary text-primary-foreground",
                   !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
                 )}
               >
                 {isCompleted ? (
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-3.5 h-3.5 flex-shrink-0" />
                 ) : (
                   <span>{step.id}</span>
                 )}
-                <span>{isFrench ? step.labelFr : step.labelEn}</span>
+                <span className="truncate max-w-[60px]">{isFrench ? step.labelFr : step.labelEn}</span>
               </div>
             );
           })}
