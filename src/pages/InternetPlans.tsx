@@ -126,7 +126,7 @@ const InternetPlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden" data-testid="internet-plans-page">
+    <div className="min-h-screen bg-background" data-testid="internet-plans-page">
       <Header />
       
       <main className="pt-24 pb-20 relative">
