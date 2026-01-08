@@ -197,7 +197,7 @@ const ServicesDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background">
       <Header />
       
       <main className="pt-24 pb-20 relative">

@@ -137,23 +137,6 @@
     min-width: 320px;
   }
 
-  /* Prevent all sections/containers from causing overflow */
-  section, article, aside, main, header, footer, nav {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  /* Flex children must shrink */
-  .flex > *, .inline-flex > * {
-    min-width: 0;
-  }
-
-  /* Grid children must stay contained */
-  .grid > * {
-    min-width: 0;
-    max-width: 100%;
-  }
-
   * {
     @apply border-border;
   }
