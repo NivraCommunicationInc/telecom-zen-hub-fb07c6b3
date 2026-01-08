@@ -6,9 +6,12 @@ import { Loader2, Copy, Check, X, AlertTriangle, Play } from 'lucide-react';
 
 /**
  * DEV-ONLY: Automated 12-check overflow audit.
- * Activated via: ?dev_overflow_audit=1 in DEV mode only.
+ * Activated ONLY when:
+ *   - import.meta.env.DEV === true
+ *   - AND URLSearchParams has dev_overflow_audit=1
  * 
  * Tests 4 routes × 3 widths = 12 combinations using hidden iframes.
+ * Detection is done DIRECTLY in iframe via contentDocument (no global function dependency).
  */
 
 const ROUTES = ['/', '/internet', '/tv', '/portal'] as const;
@@ -19,12 +22,16 @@ type OffenderInfo = {
   clientWidth: number;
   scrollWidth: number;
   boundingRight: number;
+  viewportWidth: number;
+  isDecorative: boolean; // Label only, NOT skipped
 };
 
 type AuditResult = {
   route: string;
   width: number;
   status: 'OK' | 'OVERFLOW' | 'SKIPPED' | 'ERROR';
+  htmlScrollWidth: number;
+  innerWidth: number;
   offenders: OffenderInfo[];
   reason?: string;
   checkedAt: number;
@@ -39,21 +46,12 @@ type AuditState = {
 
 const STORAGE_KEY = 'dev_overflow_audit_results';
 
-// Check if audit mode is enabled
-export function isAuditModeEnabled(): boolean {
-  if (!import.meta.env.DEV) return false;
-  
-  const params = new URLSearchParams(window.location.search);
-  return params.get('dev_overflow_audit') === '1' || 
-         import.meta.env.VITE_DEV_AUDIT === 'true';
-}
-
-// Generate CSS selector for element
-function generateSelector(el: HTMLElement): string {
+// Generate CSS selector for element (works in any document context)
+function generateSelectorInDoc(el: Element, doc: Document): string {
   const parts: string[] = [];
-  let current: HTMLElement | null = el;
+  let current: Element | null = el;
 
-  while (current && current !== document.body && parts.length < 4) {
+  while (current && current !== doc.body && parts.length < 4) {
     let selector = current.tagName.toLowerCase();
 
     if (current.id) {
@@ -75,106 +73,182 @@ function generateSelector(el: HTMLElement): string {
   return parts.join(' > ');
 }
 
-// Detect overflow offenders in current document
-function detectOverflowOffenders(): OffenderInfo[] {
-  const viewportWidth = window.innerWidth;
-  const offenders: OffenderInfo[] = [];
-
-  document.querySelectorAll('*').forEach((el) => {
-    if (!(el instanceof HTMLElement)) return;
-
-    const rect = el.getBoundingClientRect();
-    const hasScrollOverflow = el.scrollWidth > el.clientWidth;
-    const extendsViewport = rect.right > viewportWidth + 1;
-
-    if (!hasScrollOverflow && !extendsViewport) return;
-
-    // Skip body/html for scroll check
-    if ((el.tagName === 'BODY' || el.tagName === 'HTML') && !extendsViewport) {
-      return;
-    }
-
-    // Skip elements with overflow-hidden that are properly containing decorative content
-    const style = window.getComputedStyle(el);
-    if (style.overflow === 'hidden' || style.overflowX === 'hidden') {
-      // Check if it's a decorative wrapper (pointer-events-none, inset-0, etc.)
-      if (style.pointerEvents === 'none' || el.getAttribute('aria-hidden') === 'true') {
-        return;
-      }
-    }
-
-    offenders.push({
-      selector: generateSelector(el),
-      clientWidth: el.clientWidth,
-      scrollWidth: el.scrollWidth,
-      boundingRight: Math.round(rect.right),
-    });
-  });
-
-  return offenders;
+// Check if element appears decorative (for LABELING only, never skip)
+function isDecorativeElement(el: Element, computedStyle: CSSStyleDeclaration): boolean {
+  const pointerEvents = computedStyle.getPropertyValue('pointer-events');
+  const ariaHidden = el.getAttribute('aria-hidden');
+  const className = el.className && typeof el.className === 'string' ? el.className : '';
+  const hasDecoClass = className.includes('decorative') || 
+                       className.includes('background') ||
+                       className.includes('gradient');
+  
+  return pointerEvents === 'none' || ariaHidden === 'true' || hasDecoClass;
 }
 
-// Exposed globally for iframe communication
-if (import.meta.env.DEV) {
-  (window as any).__detectOverflowOffenders = detectOverflowOffenders;
+// Direct detection in iframe - NO global function needed
+function detectOverflowInIframe(
+  iframeDoc: Document, 
+  iframeWin: Window, 
+  viewportWidth: number
+): { offenders: OffenderInfo[]; htmlScrollWidth: number } {
+  const offenders: OffenderInfo[] = [];
+  const htmlScrollWidth = iframeDoc.documentElement.scrollWidth;
+  
+  const allElements = iframeDoc.querySelectorAll('*');
+  
+  allElements.forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    
+    // Skip html/body for basic scroll check (handled by htmlScrollWidth)
+    if (el.tagName === 'HTML' || el.tagName === 'BODY') return;
+    
+    const rect = el.getBoundingClientRect();
+    const computedStyle = iframeWin.getComputedStyle(el);
+    
+    // Check if element extends beyond viewport
+    const extendsRight = rect.right > viewportWidth + 1; // 1px tolerance
+    const hasHorizontalScroll = el.scrollWidth > el.clientWidth + 1;
+    
+    if (extendsRight || hasHorizontalScroll) {
+      const selector = generateSelectorInDoc(el, iframeDoc);
+      const isDecorative = isDecorativeElement(el, computedStyle);
+      
+      // NO SKIP - we log ALL offenders, decorative is just a label
+      offenders.push({
+        selector,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+        boundingRight: Math.round(rect.right),
+        viewportWidth,
+        isDecorative
+      });
+    }
+  });
+  
+  // Deduplicate by selector
+  const seen = new Set<string>();
+  const uniqueOffenders = offenders.filter(o => {
+    if (seen.has(o.selector)) return false;
+    seen.add(o.selector);
+    return true;
+  });
+  
+  // Sort: non-decorative first, then by overflow amount
+  uniqueOffenders.sort((a, b) => {
+    if (a.isDecorative !== b.isDecorative) {
+      return a.isDecorative ? 1 : -1;
+    }
+    return (b.boundingRight - b.viewportWidth) - (a.boundingRight - a.viewportWidth);
+  });
+  
+  return {
+    offenders: uniqueOffenders.slice(0, 20),
+    htmlScrollWidth
+  };
 }
 
 export function DevOverflowAudit() {
-  const [state, setState] = useState<AuditState>(() => {
-    // Load previous results from localStorage
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          results: parsed.results || [],
-          isRunning: false,
-          currentTest: null,
-          completedAt: parsed.completedAt || null,
-        };
-      }
-    } catch {
-      // Ignore parse errors
-    }
-    return { results: [], isRunning: false, currentTest: null, completedAt: null };
+  const [isActive, setIsActive] = useState(false);
+  const [state, setState] = useState<AuditState>({
+    results: [],
+    isRunning: false,
+    currentTest: null,
+    completedAt: null
   });
-
   const [copied, setCopied] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const abortRef = useRef(false);
 
-  // Save results to localStorage whenever they change
+  // Check activation: DEV mode + query param
   useEffect(() => {
-    if (state.results.length > 0) {
+    const checkActivation = () => {
+      // Must be DEV mode
+      if (!import.meta.env.DEV) {
+        setIsActive(false);
+        return;
+      }
+      
+      // Must have query param
+      const params = new URLSearchParams(window.location.search);
+      const hasParam = params.get('dev_overflow_audit') === '1';
+      setIsActive(hasParam);
+    };
+
+    checkActivation();
+    
+    // Re-check on navigation
+    window.addEventListener('popstate', checkActivation);
+    
+    // Also check periodically for SPA navigation
+    const interval = setInterval(checkActivation, 500);
+    
+    return () => {
+      window.removeEventListener('popstate', checkActivation);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Load previous results when active
+  useEffect(() => {
+    if (isActive) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setState({
+            results: parsed.results || [],
+            isRunning: false,
+            currentTest: null,
+            completedAt: parsed.completedAt || null
+          });
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }, [isActive]);
+
+  // Save results on change
+  useEffect(() => {
+    if (state.results.length > 0 && isActive) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         results: state.results,
-        completedAt: state.completedAt,
+        completedAt: state.completedAt
       }));
     }
-  }, [state.results, state.completedAt]);
+  }, [state.results, state.completedAt, isActive]);
 
   const runSingleTest = useCallback(async (route: string, width: number): Promise<AuditResult> => {
     return new Promise((resolve) => {
-      // Create hidden iframe
       const iframe = document.createElement('iframe');
       iframe.style.cssText = `position:fixed;left:-99999px;top:0;width:${width}px;height:900px;border:none;`;
+      // Add __audit param to prevent recursion
       iframe.src = `${route}${route.includes('?') ? '&' : '?'}__audit=1`;
       
       let resolved = false;
+      
       const timeout = setTimeout(() => {
         if (!resolved) {
           resolved = true;
-          document.body.removeChild(iframe);
+          cleanup();
           resolve({
             route,
             width,
             status: 'ERROR',
+            htmlScrollWidth: 0,
+            innerWidth: width,
             offenders: [],
             reason: 'Timeout (10s)',
-            checkedAt: Date.now(),
+            checkedAt: Date.now()
           });
         }
       }, 10000);
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        if (iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
+        }
+      };
 
       iframe.onload = () => {
         // Wait for layout to settle
@@ -182,116 +256,101 @@ export function DevOverflowAudit() {
           if (resolved) return;
           
           try {
-            const iframeWindow = iframe.contentWindow;
+            const iframeWin = iframe.contentWindow;
             const iframeDoc = iframe.contentDocument;
             
-            if (!iframeWindow || !iframeDoc) {
+            if (!iframeWin || !iframeDoc) {
               resolved = true;
-              clearTimeout(timeout);
-              document.body.removeChild(iframe);
+              cleanup();
               resolve({
                 route,
                 width,
                 status: 'ERROR',
+                htmlScrollWidth: 0,
+                innerWidth: width,
                 offenders: [],
                 reason: 'Cannot access iframe content',
-                checkedAt: Date.now(),
+                checkedAt: Date.now()
               });
               return;
             }
 
             // Check if redirected to auth (for /portal)
-            const currentPath = iframeWindow.location.pathname;
-            if (route === '/portal' && currentPath.includes('/auth')) {
+            const currentPath = iframeWin.location.pathname;
+            if (route === '/portal' && (currentPath.includes('/auth') || currentPath.includes('/client/auth'))) {
               resolved = true;
-              clearTimeout(timeout);
-              document.body.removeChild(iframe);
+              cleanup();
               resolve({
                 route,
                 width,
                 status: 'SKIPPED',
+                htmlScrollWidth: 0,
+                innerWidth: width,
                 offenders: [],
-                reason: 'Not authenticated',
-                checkedAt: Date.now(),
+                reason: 'Not authenticated (redirected to login)',
+                checkedAt: Date.now()
               });
               return;
             }
 
-            // Run detection in iframe context
-            const detectFn = (iframeWindow as any).__detectOverflowOffenders;
-            if (typeof detectFn === 'function') {
-              const offenders = detectFn();
-              resolved = true;
-              clearTimeout(timeout);
-              document.body.removeChild(iframe);
-              resolve({
-                route,
-                width,
-                status: offenders.length > 0 ? 'OVERFLOW' : 'OK',
-                offenders,
-                checkedAt: Date.now(),
-              });
-            } else {
-              // Fallback: check basic overflow
-              const docWidth = iframeDoc.documentElement.scrollWidth;
-              const hasOverflow = docWidth > width;
-              resolved = true;
-              clearTimeout(timeout);
-              document.body.removeChild(iframe);
-              resolve({
-                route,
-                width,
-                status: hasOverflow ? 'OVERFLOW' : 'OK',
-                offenders: hasOverflow ? [{ 
-                  selector: 'html', 
-                  clientWidth: width, 
-                  scrollWidth: docWidth, 
-                  boundingRight: docWidth 
-                }] : [],
-                reason: 'Fallback detection (no __detectOverflowOffenders)',
-                checkedAt: Date.now(),
-              });
-            }
+            // Run DIRECT detection (no global function dependency)
+            const { offenders, htmlScrollWidth } = detectOverflowInIframe(iframeDoc, iframeWin, width);
+            
+            const hasDocumentOverflow = htmlScrollWidth > width;
+            const hasOffenders = offenders.length > 0;
+            
+            resolved = true;
+            cleanup();
+            resolve({
+              route,
+              width,
+              status: (hasDocumentOverflow || hasOffenders) ? 'OVERFLOW' : 'OK',
+              htmlScrollWidth,
+              innerWidth: width,
+              offenders,
+              checkedAt: Date.now()
+            });
           } catch (err: any) {
             resolved = true;
-            clearTimeout(timeout);
-            document.body.removeChild(iframe);
+            cleanup();
             resolve({
               route,
               width,
               status: 'ERROR',
+              htmlScrollWidth: 0,
+              innerWidth: width,
               offenders: [],
-              reason: err.message || 'Unknown error',
-              checkedAt: Date.now(),
+              reason: err.message || 'Detection failed',
+              checkedAt: Date.now()
             });
           }
-        }, 800); // Wait 800ms for layout
+        }, 800);
       };
 
       iframe.onerror = () => {
         if (!resolved) {
           resolved = true;
-          clearTimeout(timeout);
-          document.body.removeChild(iframe);
+          cleanup();
           resolve({
             route,
             width,
             status: 'ERROR',
+            htmlScrollWidth: 0,
+            innerWidth: width,
             offenders: [],
-            reason: 'Failed to load',
-            checkedAt: Date.now(),
+            reason: 'Failed to load iframe',
+            checkedAt: Date.now()
           });
         }
       };
 
       document.body.appendChild(iframe);
-      iframeRef.current = iframe;
     });
   }, []);
 
   const runFullAudit = useCallback(async () => {
     abortRef.current = false;
-    setState(prev => ({ ...prev, isRunning: true, results: [], currentTest: null }));
+    setState({ results: [], isRunning: true, currentTest: null, completedAt: null });
 
     const results: AuditResult[] = [];
 
@@ -311,15 +370,12 @@ export function DevOverflowAudit() {
       ...prev,
       isRunning: false,
       currentTest: null,
-      completedAt: Date.now(),
+      completedAt: Date.now()
     }));
   }, [runSingleTest]);
 
   const stopAudit = useCallback(() => {
     abortRef.current = true;
-    if (iframeRef.current && iframeRef.current.parentNode) {
-      iframeRef.current.parentNode.removeChild(iframeRef.current);
-    }
   }, []);
 
   const formatResults = useCallback(() => {
@@ -337,13 +393,28 @@ export function DevOverflowAudit() {
     lines.push('');
 
     for (const result of state.results) {
-      const icon = result.status === 'OK' ? '✅' : result.status === 'OVERFLOW' ? '🔴' : result.status === 'SKIPPED' ? '⏭️' : '❌';
-      lines.push(`${icon} ${result.route} @ ${result.width}px: ${result.status}${result.reason ? ` (${result.reason})` : ''}`);
+      const icon = result.status === 'OK' ? '✅' : 
+                   result.status === 'OVERFLOW' ? '🔴' : 
+                   result.status === 'SKIPPED' ? '⏭️' : '❌';
+      
+      lines.push(`${icon} ${result.route} @ ${result.width}px: ${result.status}`);
+      lines.push(`   scrollWidth: ${result.htmlScrollWidth}px | innerWidth: ${result.innerWidth}px`);
+      
+      if (result.htmlScrollWidth > result.innerWidth) {
+        lines.push(`   ⚠️ Document overflow: ${result.htmlScrollWidth - result.innerWidth}px`);
+      }
+      
+      if (result.reason) {
+        lines.push(`   Note: ${result.reason}`);
+      }
       
       if (result.offenders.length > 0) {
+        lines.push(`   Offenders (${result.offenders.length}):`);
         result.offenders.forEach((o, i) => {
-          lines.push(`   ${i + 1}) ${o.selector}`);
-          lines.push(`      cw: ${o.clientWidth}, sw: ${o.scrollWidth}, right: ${o.boundingRight}`);
+          const decorLabel = o.isDecorative ? ' [DECORATIVE]' : '';
+          lines.push(`     ${i + 1}) ${o.selector}${decorLabel}`);
+          lines.push(`        clientWidth: ${o.clientWidth}px, scrollWidth: ${o.scrollWidth}px`);
+          lines.push(`        boundingRight: ${o.boundingRight}px (overflow: ${o.boundingRight - o.viewportWidth}px)`);
         });
       }
       lines.push('');
@@ -361,8 +432,7 @@ export function DevOverflowAudit() {
       // Fallback
       const ta = document.createElement('textarea');
       ta.value = formatResults();
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
+      ta.style.cssText = 'position:fixed;left:-9999px;';
       document.body.appendChild(ta);
       ta.select();
       document.execCommand('copy');
@@ -377,9 +447,19 @@ export function DevOverflowAudit() {
     setState({ results: [], isRunning: false, currentTest: null, completedAt: null });
   }, []);
 
-  if (!isAuditModeEnabled()) return null;
+  const closeAudit = useCallback(() => {
+    // Navigate to current path without the audit param
+    const url = new URL(window.location.href);
+    url.searchParams.delete('dev_overflow_audit');
+    window.history.replaceState({}, '', url.toString());
+    setIsActive(false);
+  }, []);
+
+  // Don't render if not active
+  if (!isActive) return null;
 
   const okCount = state.results.filter(r => r.status === 'OK').length;
+  const overflowCount = state.results.filter(r => r.status === 'OVERFLOW').length;
   const total = state.results.length;
 
   return (
@@ -391,22 +471,22 @@ export function DevOverflowAudit() {
               <AlertTriangle className="w-5 h-5 text-amber-500" />
               DEV Overflow Audit (12 checks)
             </CardTitle>
-            <Badge variant="outline" className="text-xs">
-              DEV-ONLY
-            </Badge>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="text-xs">DEV-ONLY</Badge>
+              <Button onClick={closeAudit} variant="ghost" size="sm">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Tests 4 routes × 3 widths (375, 390, 414) using hidden iframes.
+            Tests 4 routes × 3 widths (375, 390, 414) using hidden iframes.<br/>
+            Direct detection in iframe - no global function dependency.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Controls */}
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={runFullAudit}
-              disabled={state.isRunning}
-              variant="default"
-            >
+            <Button onClick={runFullAudit} disabled={state.isRunning} variant="default">
               {state.isRunning ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -421,25 +501,21 @@ export function DevOverflowAudit() {
             </Button>
             
             {state.isRunning && (
-              <Button onClick={stopAudit} variant="destructive" size="sm">
-                Stop
-              </Button>
+              <Button onClick={stopAudit} variant="destructive" size="sm">Stop</Button>
             )}
             
-            {state.results.length > 0 && !state.isRunning && (
+            {total > 0 && !state.isRunning && (
               <>
                 <Button onClick={handleCopy} variant="outline" size="sm">
                   {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
                   {copied ? 'Copied' : 'Copy Results'}
                 </Button>
-                <Button onClick={clearResults} variant="ghost" size="sm">
-                  Clear
-                </Button>
+                <Button onClick={clearResults} variant="ghost" size="sm">Clear</Button>
               </>
             )}
           </div>
 
-          {/* Current test indicator */}
+          {/* Current test */}
           {state.currentTest && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -449,10 +525,13 @@ export function DevOverflowAudit() {
 
           {/* Summary */}
           {total > 0 && (
-            <div className="flex items-center gap-4">
-              <Badge variant={okCount === 12 ? 'default' : 'destructive'} className="text-sm">
+            <div className="flex items-center gap-4 flex-wrap">
+              <Badge variant={okCount === 12 ? 'default' : overflowCount > 0 ? 'destructive' : 'secondary'}>
                 {okCount}/12 OK
               </Badge>
+              {overflowCount > 0 && (
+                <Badge variant="destructive">{overflowCount} OVERFLOW</Badge>
+              )}
               {state.completedAt && (
                 <span className="text-xs text-muted-foreground">
                   Completed: {new Date(state.completedAt).toLocaleTimeString()}
@@ -462,30 +541,32 @@ export function DevOverflowAudit() {
           )}
 
           {/* Results table */}
-          {state.results.length > 0 && (
+          {total > 0 && (
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Route</th>
-                    <th className="px-3 py-2 text-left font-medium">Width</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                    <th className="px-3 py-2 text-left font-medium">#Offenders</th>
+                    <th className="px-3 py-2 text-center font-medium">Width</th>
+                    <th className="px-3 py-2 text-center font-medium">Status</th>
+                    <th className="px-3 py-2 text-center font-medium">scrollW</th>
+                    <th className="px-3 py-2 text-center font-medium">innerW</th>
+                    <th className="px-3 py-2 text-center font-medium">#Off</th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.results.map((result, idx) => (
                     <tr key={idx} className="border-t">
                       <td className="px-3 py-2 font-mono text-xs">{result.route}</td>
-                      <td className="px-3 py-2">{result.width}px</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 text-center">{result.width}px</td>
+                      <td className="px-3 py-2 text-center">
                         {result.status === 'OK' && (
-                          <span className="flex items-center gap-1 text-emerald-600">
+                          <span className="flex items-center justify-center gap-1 text-emerald-600">
                             <Check className="w-4 h-4" /> OK
                           </span>
                         )}
                         {result.status === 'OVERFLOW' && (
-                          <span className="flex items-center gap-1 text-destructive">
+                          <span className="flex items-center justify-center gap-1 text-destructive">
                             <X className="w-4 h-4" /> OVERFLOW
                           </span>
                         )}
@@ -496,12 +577,12 @@ export function DevOverflowAudit() {
                           <span className="text-amber-600">ERROR</span>
                         )}
                       </td>
-                      <td className="px-3 py-2">
-                        {result.offenders.length > 0 ? (
-                          <span className="text-destructive font-medium">{result.offenders.length}</span>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
+                      <td className={`px-3 py-2 text-center ${result.htmlScrollWidth > result.innerWidth ? 'text-destructive font-medium' : ''}`}>
+                        {result.htmlScrollWidth}
+                      </td>
+                      <td className="px-3 py-2 text-center">{result.innerWidth}</td>
+                      <td className={`px-3 py-2 text-center ${result.offenders.length > 0 ? 'text-destructive font-medium' : ''}`}>
+                        {result.offenders.length}
                       </td>
                     </tr>
                   ))}
@@ -517,17 +598,22 @@ export function DevOverflowAudit() {
               {state.results
                 .filter(r => r.offenders.length > 0)
                 .map((result, idx) => (
-                  <div key={idx} className="border rounded-lg p-3 bg-destructive/5">
+                  <div key={idx} className="border rounded-lg p-3 bg-destructive/5 border-destructive/30">
                     <div className="font-mono text-xs font-medium text-destructive mb-2">
-                      {result.route} @ {result.width}px
+                      🔴 {result.route} @ {result.width}px (scrollW: {result.htmlScrollWidth}, innerW: {result.innerWidth})
                     </div>
-                    <ul className="space-y-1 text-xs">
+                    <ul className="space-y-2 text-xs">
                       {result.offenders.map((o, i) => (
                         <li key={i} className="font-mono">
-                          <span className="text-muted-foreground">{i + 1})</span> {o.selector}
+                          <span className="text-muted-foreground">{i + 1})</span>{' '}
+                          <code className="bg-muted px-1 rounded">{o.selector}</code>
+                          {o.isDecorative && (
+                            <span className="text-amber-600 ml-2">[DECORATIVE]</span>
+                          )}
                           <br />
                           <span className="text-muted-foreground ml-4">
-                            cw:{o.clientWidth} sw:{o.scrollWidth} right:{o.boundingRight}
+                            clientW: {o.clientWidth} | scrollW: {o.scrollWidth} | 
+                            right: {o.boundingRight} (overflow: {o.boundingRight - o.viewportWidth}px)
                           </span>
                         </li>
                       ))}
@@ -537,10 +623,11 @@ export function DevOverflowAudit() {
             </div>
           )}
 
-          {/* Instructions */}
-          <div className="text-xs text-muted-foreground border-t pt-3 mt-4">
+          {/* Notes */}
+          <div className="text-xs text-muted-foreground border-t pt-3 mt-4 space-y-1">
             <p><strong>Note:</strong> /portal tests require being logged in. If SKIPPED, log in first then re-run.</p>
-            <p className="mt-1">Results are saved to localStorage for persistence.</p>
+            <p>[DECORATIVE] = element has pointer-events:none, aria-hidden, or decorative class (labeled, NOT skipped).</p>
+            <p>Results saved to localStorage for persistence.</p>
           </div>
         </CardContent>
       </Card>
