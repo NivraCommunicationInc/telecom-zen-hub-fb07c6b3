@@ -119,9 +119,9 @@ const ClientDashboard = () => {
 
   return (
     <ClientLayout>
-      <div className="space-y-6 sm:space-y-8 min-w-0" data-testid="portal-dashboard">
+      <div className="space-y-6 sm:space-y-8 min-w-0" data-testid="client-dashboard">
         <div className="min-w-0">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground hyphens-none" data-testid="dashboard-greeting">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground hyphens-none" data-testid="client-dashboard-greeting">
             Bonjour, {user?.user_metadata?.full_name?.split(" ")[0] || "Client"}!
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">Bienvenue dans votre espace client</p>

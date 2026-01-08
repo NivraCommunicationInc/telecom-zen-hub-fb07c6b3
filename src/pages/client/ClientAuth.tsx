@@ -628,6 +628,7 @@ const ClientAuth = () => {
                       placeholder="votre@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      data-testid="client-login-email"
                     />
                   </div>
                   <div>
@@ -638,6 +639,7 @@ const ClientAuth = () => {
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      data-testid="client-login-password"
                     />
                   </div>
                   <div className="text-right">
@@ -649,7 +651,7 @@ const ClientAuth = () => {
                       Mot de passe oublié?
                     </button>
                   </div>
-                  <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
+                  <Button type="submit" className="w-full" variant="hero" disabled={isLoading} data-testid="client-login-submit">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Se connecter
                   </Button>

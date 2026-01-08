@@ -126,8 +126,8 @@ const AdminDashboard = () => {
     <AdminLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Tableau de bord</h1>
+        <div data-testid="admin-dashboard">
+          <h1 className="font-display text-3xl font-bold text-foreground" data-testid="admin-dashboard-title">Tableau de bord</h1>
           <p className="text-muted-foreground mt-1">
             Bienvenue dans l'administration Nivra • {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
           </p>
