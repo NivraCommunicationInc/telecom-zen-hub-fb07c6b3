@@ -419,28 +419,3 @@
     opacity: 1;
   }
 }
-
-/* Announcement Bar Marquee */
-.nivra-marquee {
-  display: flex;
-  overflow: hidden;
-  width: 100%;
-}
-
-.nivra-marquee__inner {
-  display: flex;
-  animation: nivra-scroll 20s linear infinite;
-}
-
-.nivra-marquee.is-paused .nivra-marquee__inner {
-  animation-play-state: paused;
-}
-
-@keyframes nivra-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
