@@ -119,12 +119,12 @@ const ClientDashboard = () => {
 
   return (
     <ClientLayout>
-      <div className="space-y-8" data-testid="portal-dashboard">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground" data-testid="dashboard-greeting">
+      <div className="space-y-6 sm:space-y-8 min-w-0" data-testid="portal-dashboard">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground hyphens-none" data-testid="dashboard-greeting">
             Bonjour, {user?.user_metadata?.full_name?.split(" ")[0] || "Client"}!
           </h1>
-          <p className="text-muted-foreground mt-1">Bienvenue dans votre espace client</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Bienvenue dans votre espace client</p>
         </div>
 
 
@@ -134,48 +134,48 @@ const ClientDashboard = () => {
         )}
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-cyan-500" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="bg-card border-border min-w-0">
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{appointments?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Rendez-vous</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <Package className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{orders?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Commandes</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-foreground">{appointments?.length || 0}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Rendez-vous</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-amber-500" />
+          <Card className="bg-card border-border min-w-0">
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{invoices?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Factures</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-foreground">{orders?.length || 0}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Commandes</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-purple-500" />
+          <Card className="bg-card border-border min-w-0">
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{subscriptions?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Abonnements</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-foreground">{invoices?.length || 0}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Factures</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border min-w-0">
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold text-foreground">{subscriptions?.length || 0}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Abonnements</p>
               </div>
             </CardContent>
           </Card>

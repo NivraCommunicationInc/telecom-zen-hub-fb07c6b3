@@ -12,7 +12,7 @@ import { FeaturedOffers } from "@/components/FeaturedOffers";
 
 const Index = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <Header />
       <main>
         <Hero />

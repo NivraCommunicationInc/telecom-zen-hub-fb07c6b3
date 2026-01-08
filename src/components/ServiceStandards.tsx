@@ -50,18 +50,18 @@ const ServiceStandards = () => {
           {standards.map((item, index) => (
             <div 
               key={index}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 text-center hover:bg-white/8 transition-colors"
+              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-5 text-center hover:bg-white/8 transition-colors min-w-0"
             >
               <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-accent/15 flex items-center justify-center">
                 <item.icon className="w-5 h-5 text-accent" />
               </div>
-              <div className="text-lg font-semibold text-white mb-1">
+              <div className="text-base sm:text-lg font-semibold text-white mb-1 break-words hyphens-none">
                 {item.metric}
               </div>
-              <div className="text-sm font-medium text-accent mb-1">
+              <div className="text-xs sm:text-sm font-medium text-accent mb-1 break-words">
                 {item.label}
               </div>
-              <p className="text-xs text-white/50">
+              <p className="text-[11px] sm:text-xs text-white/50 break-words">
                 {item.desc}
               </p>
             </div>

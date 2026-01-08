@@ -126,12 +126,12 @@ const InternetPlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background" data-testid="internet-plans-page">
+    <div className="min-h-screen bg-background overflow-x-hidden" data-testid="internet-plans-page">
       <Header />
       
       <main className="pt-24 pb-20 relative">
         {/* Background Effects */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-radial from-cyan-500/5 via-transparent to-transparent rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" />
           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-radial from-accent/5 via-transparent to-transparent rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" />
         </div>
@@ -144,7 +144,7 @@ const InternetPlans = () => {
               {isFrench ? "Internet haute vitesse" : "High-Speed Internet"}
             </Badge>
             
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
+            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight hyphens-none">
               <span className="block">
                 {isFrench ? "Internet résidentiel" : "Residential Internet"}
               </span>
@@ -293,28 +293,28 @@ const InternetPlans = () => {
         {/* Equipment Section */}
         <section className="container mx-auto px-4 mb-16 relative">
           <Card className="max-w-4xl mx-auto bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-lg border-border/50">
-            <CardContent className="p-8 md:p-12">
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="w-24 h-24 rounded-2xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                  <Router className="w-12 h-12 text-cyan-500" />
+            <CardContent className="p-6 sm:p-8 md:p-12">
+              <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8 min-w-0">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                  <Router className="w-10 h-10 sm:w-12 sm:h-12 text-cyan-500" />
                 </div>
-                <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-2xl font-bold text-foreground mb-2">
+                <div className="flex-1 text-center md:text-left min-w-0">
+                  <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
                     Nivra Born Wifi
                   </h3>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground mb-4 break-words">
                     {isFrench 
                       ? "Routeur haute performance inclus avec tous les forfaits. Frais uniques de 60$ payables avant l'installation."
                       : "High-performance router included with all plans. One-time $60 fee payable before installation."}
                   </p>
-                  <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                  <div className="flex flex-wrap gap-3 sm:gap-4 justify-center md:justify-start">
                     <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
                       <Shield className="w-3 h-3 mr-1" />
                       {isFrench ? "Garantie 1 an" : "1-Year Warranty"}
                     </Badge>
                     <Badge variant="outline" className="text-cyan-500 border-cyan-500/30">
                       <Star className="w-3 h-3 mr-1" />
-                      {isFrench ? "Défauts fabricant couverts" : "Manufacturer Defects Covered"}
+                      <span className="break-words">{isFrench ? "Défauts couverts" : "Defects Covered"}</span>
                     </Badge>
                   </div>
                 </div>
