@@ -169,7 +169,7 @@ const ClientAuth = () => {
       return;
     }
     
-    const userEmail = loginData.email;
+    const userEmail = loginData.email.trim();
     const userId = currentUser.id;
     
     // Check if device is trusted (within 20 minutes window)
@@ -178,7 +178,7 @@ const ClientAuth = () => {
 
     // DEV/PREVIEW-ONLY E2E BYPASS: allow a dedicated test user to skip PIN
     // Guarded by VITE_E2E_MODE + DEV so it is never active in production builds.
-    const isE2E = import.meta.env.DEV && import.meta.env.VITE_E2E_MODE === "true";
+    const isE2E = import.meta.env.DEV === true && import.meta.env.VITE_E2E_MODE === "true";
     const e2eEmail = (import.meta.env.VITE_E2E_TEST_EMAIL || "").toLowerCase();
     if (isE2E && e2eEmail && userEmail.toLowerCase() === e2eEmail) {
       // Mark PIN as verified and trust device for 20 minutes.

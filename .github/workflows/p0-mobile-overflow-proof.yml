@@ -1,0 +1,55 @@
+name: P0 Mobile Overflow Proof
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/p0-mobile-overflow-proof.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/p0-mobile-overflow-proof.yml'
+
+jobs:
+  mobile_overflow_proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run P0 mobile overflow test
+        env:
+          # Used by the Playwright test runner (Node process)
+          TEST_CLIENT_EMAIL: test@nivratelecom.ca
+          TEST_CLIENT_PASSWORD: ${{ secrets.TEST_CLIENT_PASSWORD }}
+        run: npx playwright test e2e/mobile-overflow-check.spec.ts --reporter=line
+
+      - name: Upload proof artifacts (screenshots + logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-mobile-overflow-proof
+          if-no-files-found: warn
+          path: |
+            e2e/screenshots/**
+            playwright-report/**
+            test-results/**
