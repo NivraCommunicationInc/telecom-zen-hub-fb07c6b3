@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080',
     trace: 'on-first-retry',
   },
   projects: [
@@ -18,8 +18,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    // Enable dev-only E2E bypasses inside the app (never active in production builds)
+    command: 'VITE_E2E_MODE=true VITE_E2E_TEST_EMAIL=test@nivratelecom.ca npm run dev',
+    url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
   },
 });
