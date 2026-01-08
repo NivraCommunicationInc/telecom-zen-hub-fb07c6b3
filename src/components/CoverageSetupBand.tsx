@@ -29,10 +29,10 @@ const CoverageSetupBand = () => {
         <div className="flex flex-wrap items-center justify-center gap-6 lg:gap-10">
           {items.map((item, index) => (
             <div key={index} className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
                 <item.icon className="w-4 h-4 text-accent" />
               </div>
-              <span className="text-sm font-medium text-foreground">
+              <span className="text-xs sm:text-sm font-medium text-foreground hyphens-none whitespace-nowrap">
                 {t(item.textKey)}
               </span>
             </div>
