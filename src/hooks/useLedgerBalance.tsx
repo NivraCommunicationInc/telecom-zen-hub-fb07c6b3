@@ -15,6 +15,12 @@ export interface LedgerBalance {
   isCredit: boolean;
   display: string;
   preauthorized: number;
+  /** Number of outstanding invoices with remaining balance */
+  outstandingInvoices: number;
+  /** Date of oldest unpaid invoice */
+  oldestUnpaidDate: string | null;
+  /** Whether credit is blocked (outstanding invoices exist) */
+  creditBlocked: boolean;
 }
 
 export interface LedgerEntry {
@@ -51,17 +57,25 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
     const result = data[0];
     const balance = Number(result.balance) || 0;
     const isCredit = balance < 0;
+    const outstandingInvoices = Number(result.outstanding_invoices) || 0;
+    
+    // CRITICAL RULE: No available credit while outstanding invoices exist
+    const availableCredit = outstandingInvoices > 0 ? 0 : (Number(result.available_credit) || 0);
+    const creditBlocked = outstandingInvoices > 0 && balance < 0;
     
     return {
       totalDebits: Number(result.total_debits) || 0,
       totalCredits: Number(result.total_credits) || 0,
       balance,
-      availableCredit: Number(result.available_credit) || 0,
-      isCredit,
-      display: isCredit
+      availableCredit,
+      isCredit: isCredit && !creditBlocked,
+      display: isCredit && !creditBlocked
         ? `Crédit: ${Math.abs(balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
-        : balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
-      preauthorized: 0, // Would need separate query for preauthorized
+        : Math.max(0, balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
+      preauthorized: 0,
+      outstandingInvoices,
+      oldestUnpaidDate: result.oldest_unpaid_date || null,
+      creditBlocked,
     };
   }
 
@@ -73,6 +87,9 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
     isCredit: false,
     display: "0,00 $",
     preauthorized: 0,
+    outstandingInvoices: 0,
+    oldestUnpaidDate: null,
+    creditBlocked: false,
   };
 }
 
@@ -95,6 +112,9 @@ async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalan
       isCredit: false,
       display: "0,00 $",
       preauthorized: 0,
+      outstandingInvoices: 0,
+      oldestUnpaidDate: null,
+      creditBlocked: false,
     };
   }
 
@@ -117,17 +137,30 @@ async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalan
 
   const balance = totalDebits - totalCredits;
   const isCredit = balance < 0;
+  
+  // Count outstanding invoices (invoices with remaining balance)
+  const outstandingInvoices = (entries || []).filter(e => {
+    const amount = Number(e.amount) || 0;
+    const allocated = Number(e.amount_allocated) || 0;
+    return amount > 0 && e.entry_type === 'invoice' && (amount - allocated) > 0.01;
+  }).length;
+  
+  // CRITICAL: No credit while invoices outstanding
+  const creditBlocked = outstandingInvoices > 0 && balance < 0;
 
   return {
     totalDebits,
     totalCredits,
     balance,
-    availableCredit: isCredit ? Math.abs(balance) : 0,
-    isCredit,
-    display: isCredit
+    availableCredit: creditBlocked ? 0 : (isCredit ? Math.abs(balance) : 0),
+    isCredit: isCredit && !creditBlocked,
+    display: isCredit && !creditBlocked
       ? `Crédit: ${Math.abs(balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
-      : balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
+      : Math.max(0, balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
     preauthorized: 0,
+    outstandingInvoices,
+    oldestUnpaidDate: null,
+    creditBlocked,
   };
 }
 
