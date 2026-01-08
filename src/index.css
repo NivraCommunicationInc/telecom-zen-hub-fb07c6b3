@@ -126,6 +126,17 @@
 }
 
 @layer base {
+  /* Global overflow prevention */
+  html {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body {
+    overflow-x: hidden;
+    min-width: 320px;
+  }
+
   * {
     @apply border-border;
   }
@@ -135,6 +146,18 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-size: 16px;
     line-height: 1.6;
+  }
+
+  /* Global responsive media */
+  img, svg, video, iframe, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Prevent text overflow */
+  h1, h2, h3, h4, h5, h6, p, span, a, li {
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   
   /* Typography Scale - Premium Telecom */
