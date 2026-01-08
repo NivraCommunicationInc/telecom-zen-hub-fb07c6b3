@@ -5529,10 +5529,18 @@ export type Database = {
           amount_due: number
           available_credit: number
           balance: number
+          credit_blocked: boolean
           oldest_unpaid_date: string
           outstanding_invoices: number
           total_credits: number
           total_debits: number
+        }[]
+      }
+      get_entries_allocation_counts: {
+        Args: { p_entry_ids: string[] }
+        Returns: {
+          allocation_count: number
+          entry_id: string
         }[]
       }
       get_entry_allocation_count: {
