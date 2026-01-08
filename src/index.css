@@ -154,26 +154,18 @@
     height: auto;
   }
 
-  /* Disable hyphenation site-wide (no mid-word hyphen splits) */
-  body {
-    hyphens: none;
-    -webkit-hyphens: none;
-  }
-
-  /* Safe text wrapping defaults */
-  p, li, a, span, div {
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: none;
-    -webkit-hyphens: none;
-  }
-
   /* Headings must never break mid-word or hyphenate */
   h1, h2, h3, h4, h5, h6 {
     word-break: normal;
     overflow-wrap: normal;
     hyphens: none;
     -webkit-hyphens: none;
+  }
+
+  /* Body text: normal wrapping allowed (break-word is OK) */
+  p, li {
+    overflow-wrap: break-word;
+    word-break: normal;
   }
   
   /* Typography Scale - Premium Telecom */
