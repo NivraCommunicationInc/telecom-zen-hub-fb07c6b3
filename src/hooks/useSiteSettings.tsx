@@ -25,10 +25,10 @@ export function useSiteSettings() {
   return useQuery({
     queryKey: ["site-settings"],
     queryFn: async () => {
+      // Use secure public view that excludes internal metadata (updated_by_id, etc.)
       const { data, error } = await backendClient
-        .from("site_settings")
-        .select("key, value_text")
-        .eq("is_public", true);
+        .from("site_settings_public")
+        .select("key, value_text");
 
       if (error) {
         console.error("Failed to fetch site settings:", error);
