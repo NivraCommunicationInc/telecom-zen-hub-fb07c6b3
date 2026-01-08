@@ -2091,7 +2091,9 @@ const AdminClients = () => {
                 <div className="p-8 bg-muted/30 rounded-lg border border-dashed border-border text-center">
                   <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground mb-4">Aperçu du document</p>
-                  <p className="text-sm text-muted-foreground break-all">{selectedDocument.document_url}</p>
+                  <p className="text-sm text-muted-foreground truncate max-w-full" title={selectedDocument.document_url}>
+                    {selectedDocument.document_url}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button 
