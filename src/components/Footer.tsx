@@ -53,7 +53,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-bold text-lg text-white">Nivra</span>
+              <span className="font-bold text-lg text-white">{COMPANY_CONTACT.companyName}</span>
             </div>
             
             <p className="text-accent text-sm font-medium mb-3">
@@ -159,7 +159,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             {/* Copyright */}
             <p className="text-white/50 text-xs text-center sm:text-left">
-              © {currentYear} Nivra Communications Inc. {isFr ? "Tous droits réservés." : "All rights reserved."}
+              © {currentYear} {COMPANY_CONTACT.legalName} {isFr ? "Tous droits réservés." : "All rights reserved."}
             </p>
 
             {/* Legal shortcuts + Security */}

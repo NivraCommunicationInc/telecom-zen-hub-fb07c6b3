@@ -76,7 +76,7 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-foreground">
-                      {isFrench ? "Support Nivra" : "Nivra Support"}
+                      {isFrench ? `Support ${COMPANY_CONTACT.companyName}` : `${COMPANY_CONTACT.companyName} Support`}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {isFrench ? "Réponse rapide garantie" : "Fast response guaranteed"}
