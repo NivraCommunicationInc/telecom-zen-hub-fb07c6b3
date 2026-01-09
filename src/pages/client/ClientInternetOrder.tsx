@@ -449,7 +449,10 @@ const ClientInternetOrder = () => {
         console.error("Profile update error:", profileError);
       }
 
-      // Build payment reference info (without storing CVV)
+      // SECURITY: Extract only safe metadata from card - NEVER send PAN/CVV to backend
+      const { extractCardMetadata } = await import("@/lib/validation");
+      
+      // Build payment reference info with metadata only (no PAN, no CVV, no raw expiry)
       const paymentInfo = selectedPaymentMethod === "saved" 
         ? {
             method: "saved_card",
@@ -457,11 +460,16 @@ const ClientInternetOrder = () => {
             card_type: savedCards?.find((c: any) => c.id === selectedCardId)?.card_type,
             last_four: savedCards?.find((c: any) => c.id === selectedCardId)?.last_four,
           }
-        : {
-            method: "new_card",
-            card_type: newCardData.cardNumber.startsWith("4") ? "Visa" : newCardData.cardNumber.startsWith("5") ? "Mastercard" : "Card",
-            last_four: newCardData.cardNumber.replace(/\s/g, "").slice(-4),
-          };
+        : (() => {
+            const metadata = extractCardMetadata(newCardData.cardNumber, newCardData.expiry);
+            return {
+              method: "new_card",
+              card_type: metadata?.brand || "Card",
+              last_four: metadata?.last4 || "****",
+              exp_month: metadata?.expMonth,
+              exp_year: metadata?.expYear,
+            };
+          })();
 
       // Build structured line_items for contract PDF
       const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");

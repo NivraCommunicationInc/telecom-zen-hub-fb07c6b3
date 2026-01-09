@@ -21,7 +21,11 @@ import {
   REGEX_EXAMPLES,
   
   // Normalization
-  normalizeIdNumber
+  normalizeIdNumber,
+  
+  // Security utilities
+  extractCardMetadata,
+  stripSensitiveCardData
 } from './index';
 
 let passed = 0;
@@ -257,6 +261,48 @@ test('QC regex matches correct pattern', () => {
 test('ON regex matches correct pattern', () => {
   const regex = getProvinceRegex('ON');
   return regex.test('A12345678901234') === true;
+});
+
+// ============ SECURITY UTILITIES ============
+console.log('\n--- Security Utilities ---\n');
+
+test('extractCardMetadata: returns correct metadata', () => {
+  const metadata = extractCardMetadata('4111 1111 1111 1111', '12/25');
+  return metadata !== null && 
+    metadata.brand === 'visa' && 
+    metadata.last4 === '1111' && 
+    metadata.expMonth === 12 && 
+    metadata.expYear === 2025;
+});
+
+test('extractCardMetadata: works with MMYYYY format', () => {
+  const metadata = extractCardMetadata('5500000000000004', '122026');
+  return metadata !== null && 
+    metadata.brand === 'mastercard' && 
+    metadata.last4 === '0004' && 
+    metadata.expMonth === 12 && 
+    metadata.expYear === 2026;
+});
+
+test('extractCardMetadata: returns null for invalid expiry', () => {
+  const metadata = extractCardMetadata('4111111111111111', '1');
+  return metadata === null;
+});
+
+test('stripSensitiveCardData: removes all sensitive fields', () => {
+  const formData = {
+    cardNumber: '4111111111111111',
+    expiry: '12/25',
+    cvv: '123',
+    cardholderName: 'John Doe',
+    orderId: '12345'
+  };
+  const safe = stripSensitiveCardData(formData);
+  return !('cardNumber' in safe) && 
+    !('expiry' in safe) && 
+    !('cvv' in safe) && 
+    safe.cardholderName === 'John Doe' &&
+    safe.orderId === '12345';
 });
 
 // ============ SUMMARY ============

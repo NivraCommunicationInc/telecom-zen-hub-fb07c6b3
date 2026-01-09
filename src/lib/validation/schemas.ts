@@ -14,7 +14,8 @@ import {
   validateCardNumber, 
   validateExpiry, 
   validateCvv,
-  detectCardBrand 
+  detectCardBrand,
+  type CardBrand
 } from './card';
 import { validateDob } from './dob';
 import { validateDriversLicense, type CanadianProvince } from './identity';
@@ -190,12 +191,67 @@ export const stripCvvFromData = <T extends Record<string, unknown>>(
 
 /**
  * SECURITY: Strip all sensitive card data before logging/storage
+ * Removes PAN, expiry raw values, and CVV
  */
 export const stripSensitiveCardData = <T extends Record<string, unknown>>(
   data: T
-): Omit<T, 'cvv' | 'cardNumber'> => {
-  const { cvv, cardNumber, ...safeData } = data as T & { cvv?: unknown; cardNumber?: unknown };
-  return safeData as Omit<T, 'cvv' | 'cardNumber'>;
+): Omit<T, 'cvv' | 'cardNumber' | 'expiry' | 'card_number'> => {
+  const { cvv, cardNumber, expiry, card_number, ...safeData } = data as T & { 
+    cvv?: unknown; 
+    cardNumber?: unknown; 
+    expiry?: unknown;
+    card_number?: unknown;
+  };
+  return safeData as Omit<T, 'cvv' | 'cardNumber' | 'expiry' | 'card_number'>;
+};
+
+/**
+ * Card metadata safe to store/send to backend
+ * This is the ONLY card info that should be sent to your server
+ */
+export interface CardMetadata {
+  brand: CardBrand;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+/**
+ * Extract safe metadata from card data
+ * Use this to get the only info that can be stored/sent to backend
+ * 
+ * IMPORTANT: The actual card number/expiry/cvv should ONLY go to
+ * the payment processor (Stripe, etc.) for tokenization
+ */
+export const extractCardMetadata = (
+  cardNumber: string,
+  expiry: string
+): CardMetadata | null => {
+  const normalizedCard = normalizeCardNumber(cardNumber);
+  
+  if (normalizedCard.length < 4) return null;
+  
+  // Parse expiry (MM/YY or MM/YYYY)
+  const expiryMatch = expiry.replace(/\D/g, '');
+  let expMonth: number;
+  let expYear: number;
+  
+  if (expiryMatch.length === 4) {
+    expMonth = parseInt(expiryMatch.slice(0, 2), 10);
+    expYear = 2000 + parseInt(expiryMatch.slice(2, 4), 10);
+  } else if (expiryMatch.length === 6) {
+    expMonth = parseInt(expiryMatch.slice(0, 2), 10);
+    expYear = parseInt(expiryMatch.slice(2, 6), 10);
+  } else {
+    return null;
+  }
+  
+  return {
+    brand: detectCardBrand(normalizedCard),
+    last4: normalizedCard.slice(-4),
+    expMonth,
+    expYear
+  };
 };
 
 /**
@@ -208,12 +264,61 @@ export const maskCardNumber = (cardNumber: string): string => {
 };
 
 /**
+ * SECURITY: Prepare card data for payment processor
+ * This is the structure to send to Stripe/payment processor for tokenization
+ * NEVER send this to your own backend - only to the processor
+ */
+export interface PaymentProcessorData {
+  number: string;      // Full card number (normalized)
+  exp_month: number;
+  exp_year: number;
+  cvc: string;
+  name?: string;
+}
+
+/**
+ * Convert form data to payment processor format
+ * The returned data should ONLY be sent to the payment processor (Stripe, etc.)
+ * NEVER to your own backend
+ */
+export const toPaymentProcessorData = (
+  cardNumber: string,
+  expiry: string,
+  cvv: string,
+  cardholderName?: string
+): PaymentProcessorData | null => {
+  const normalizedCard = normalizeCardNumber(cardNumber);
+  const expiryMatch = expiry.replace(/\D/g, '');
+  
+  let expMonth: number;
+  let expYear: number;
+  
+  if (expiryMatch.length === 4) {
+    expMonth = parseInt(expiryMatch.slice(0, 2), 10);
+    expYear = 2000 + parseInt(expiryMatch.slice(2, 4), 10);
+  } else if (expiryMatch.length === 6) {
+    expMonth = parseInt(expiryMatch.slice(0, 2), 10);
+    expYear = parseInt(expiryMatch.slice(2, 6), 10);
+  } else {
+    return null;
+  }
+  
+  return {
+    number: normalizedCard,
+    exp_month: expMonth,
+    exp_year: expYear,
+    cvc: cvv.replace(/\D/g, ''),
+    ...(cardholderName ? { name: cardholderName } : {})
+  };
+};
+
+/**
  * Type exports for form data
  */
 export type CreditCardFormData = z.infer<typeof creditCardFormSchema>;
 export type IdentityDocumentFormData = z.infer<typeof identityDocumentSchema>;
 
 /**
- * Safe card data type (without CVV, for backend)
+ * Safe card data type (metadata only, for backend storage)
  */
-export type SafeCardData = Omit<CreditCardFormData, 'cvv'>;
+export type SafeCardData = CardMetadata & { cardholderName?: string };
