@@ -22,6 +22,7 @@ import { backendClient as supabase } from "@/integrations/backend";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 interface Job {
   id: string;
@@ -101,6 +102,7 @@ const Careers = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead {...SEO_DATA.careers} />
       <Header />
       
       {/* Hero Section */}

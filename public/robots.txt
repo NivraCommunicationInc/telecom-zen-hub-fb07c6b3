@@ -1,14 +1,12 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
+# Nivra Telecom - robots.txt
+# Site: https://nivratelecom.ca
 
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /portal/
+Disallow: /employee/
+Disallow: /qa/
+
+# Sitemap
+Sitemap: https://nivratelecom.ca/sitemap.xml

@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import { SecurityInfoBox } from "@/components/ServiceInfoBox";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const ServicesDetail = () => {
   const { language } = useLanguage();
@@ -198,6 +199,7 @@ const ServicesDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead {...SEO_DATA.services} />
       <Header />
       
       <main className="pt-24 pb-20 relative">

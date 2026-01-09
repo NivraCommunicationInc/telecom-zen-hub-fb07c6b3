@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MobileInfoBox } from "@/components/ServiceInfoBox";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
@@ -73,6 +74,7 @@ const MobilePlans = () => {
 
   return (
     <div className="min-h-screen bg-background" data-testid="mobile-plans-page">
+      <SEOHead {...SEO_DATA.mobile} />
       <Header />
       
       <main className="pt-24 pb-20 relative">

@@ -1,9 +1,11 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const PrivacyPolicy = () => {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead {...SEO_DATA.privacy} />
       <Header />
       
       <main className="pt-24 pb-16">

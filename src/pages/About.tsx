@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/accordion";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const About = () => {
   const { data: siteSettings } = useSiteSettings();
@@ -114,6 +115,7 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead {...SEO_DATA.about} />
       <Header />
       
       {/* Hero Section */}

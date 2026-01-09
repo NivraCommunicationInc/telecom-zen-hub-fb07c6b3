@@ -6,6 +6,7 @@ import ContactForm from "@/components/ContactForm";
 import { Button } from "@/components/ui/button";
 import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const Contact = () => {
   const { language } = useLanguage();
@@ -39,6 +40,7 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead {...SEO_DATA.contact} />
       <Header />
 
       {/* Hero Section */}
