@@ -255,6 +255,10 @@ export function extractCardMetadata(
   // Validate month is 01-12
   if (month < 1 || month > 12) return null;
   
+  // Validate year is reasonable (not before 2000, not more than 20 years in future)
+  const currentYear = new Date().getFullYear();
+  if (year < 2000 || year > currentYear + 20) return null;
+  
   return {
     brand: detectCardBrand(normalizedCard),
     last4: normalizedCard.slice(-4),
