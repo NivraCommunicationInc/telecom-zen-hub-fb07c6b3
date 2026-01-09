@@ -52,8 +52,12 @@ const ClientPayments = () => {
       const expiryMonth = parseInt(month);
       const expiryYear = 2000 + parseInt(year);
       
-      // Generate fingerprint for deduplication
-      const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
+      // Generate deterministic fingerprint for deduplication
+      // Format: network-last4-MM-YYYY (optionally with normalized cardholder name)
+      const normalizedName = card.cardName ? card.cardName.toUpperCase().replace(/\s+/g, '') : '';
+      const paymentFingerprint = normalizedName 
+        ? `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}-${normalizedName}`
+        : `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
       
       // Use UPSERT to prevent duplicate cards
       const { data, error } = await portalSupabase
