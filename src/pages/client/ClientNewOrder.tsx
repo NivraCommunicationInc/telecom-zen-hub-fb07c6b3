@@ -1183,8 +1183,12 @@ const ClientNewOrder = () => {
         const expiryMonth = parseInt(month);
         const expiryYear = 2000 + parseInt(year);
         
-        // Generate fingerprint for deduplication
-        const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
+        // Generate deterministic fingerprint for deduplication
+        // Format: network-last4-MM-YYYY (optionally with normalized cardholder name)
+        const normalizedName = cardName ? cardName.toUpperCase().replace(/\s+/g, '') : '';
+        const paymentFingerprint = normalizedName 
+          ? `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}-${normalizedName}`
+          : `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
         
         // Simple encryption for storage (in production, use proper encryption)
         const encryptedCard = btoa(cardNum); // Base64 encode for demo purposes
@@ -1252,6 +1256,9 @@ const ClientNewOrder = () => {
             }, {
               onConflict: 'user_id',
             });
+          
+          // Invalidate billing preferences query to reflect new state
+          queryClient.invalidateQueries({ queryKey: ["client-billing-preferences", user.id] });
         }
       }
 
