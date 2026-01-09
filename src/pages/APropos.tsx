@@ -89,10 +89,10 @@ const APropos = () => {
               <span className="text-sm font-medium text-accent">Fournisseur télécom québécois</span>
             </div>
             <h1 className="text-white mb-4">
-              À propos de <span className="text-accent">Nivra</span>
+              À propos de <span className="text-accent">{COMPANY_CONTACT.companyName}</span>
             </h1>
             <p className="text-lg text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
-              {COMPANY_CONTACT.legalName} — Services télécommunications prépayés au Québec. 
+              <strong>{COMPANY_CONTACT.companyName}</strong> ({COMPANY_CONTACT.legalName}) — Services télécommunications prépayés au Québec. 
               Simplicité, transparence et contrôle sur vos services.
             </p>
           </div>
@@ -112,7 +112,7 @@ const APropos = () => {
             <div>
               <h2 className="mb-4">Notre mission</h2>
               <p className="text-muted-foreground mb-6 leading-relaxed">
-                Nivra offre des services de téléphonie mobile prépayée, Internet, télévision et sécurité 
+                <strong>{COMPANY_CONTACT.companyName}</strong> offre des services de téléphonie mobile prépayée, Internet, télévision et sécurité 
                 au Québec. Notre approche : <strong>simplicité</strong>, <strong>transparence</strong> et 
                 <strong> contrôle</strong> pour nos clients.
               </p>
@@ -137,8 +137,9 @@ const APropos = () => {
                   <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-4">
                     <span className="font-bold text-white text-4xl">N</span>
                   </div>
-                  <p className="text-white font-semibold mb-1">{COMPANY_CONTACT.legalName}</p>
-                  <p className="text-white/60 text-sm">Services prépayés au Québec</p>
+                  <p className="text-white font-semibold mb-1">{COMPANY_CONTACT.companyName}</p>
+                  <p className="text-white/50 text-xs">{COMPANY_CONTACT.legalName}</p>
+                  <p className="text-white/60 text-sm mt-1">Services prépayés au Québec</p>
                 </div>
               </div>
             </div>
@@ -211,7 +212,7 @@ const APropos = () => {
       <section className="section-padding bg-muted/30">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-10">
-            <h2 className="mb-3">Pourquoi choisir Nivra?</h2>
+            <h2 className="mb-3">Pourquoi choisir {COMPANY_CONTACT.companyName}?</h2>
             <p className="text-muted-foreground">Ce qui nous différencie</p>
           </div>
           <div className="grid md:grid-cols-2 gap-5">

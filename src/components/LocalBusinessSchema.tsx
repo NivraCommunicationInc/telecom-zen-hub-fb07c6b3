@@ -21,6 +21,7 @@ export const LocalBusinessSchema = () => {
       "@id": "https://nivratelecom.ca/#organization",
       name: COMPANY_CONTACT.companyName,
       legalName: COMPANY_CONTACT.legalName,
+      alternateName: ["Nivra Communications", "Nivra Communications Inc", "Nivra Télécom"],
       url: "https://nivratelecom.ca",
       logo: "https://nivratelecom.ca/favicon.png",
       image: "https://nivratelecom.ca/og-image.png",
