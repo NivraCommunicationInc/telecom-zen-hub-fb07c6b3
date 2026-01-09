@@ -1,6 +1,12 @@
 import { useAuth } from "@/hooks/useAuth";
 
-type AppRole = "admin" | "employee" | "technician" | "client";
+/**
+ * Role-based access hook - ADMIN ONLY
+ * 
+ * All staff roles (employee, technician) have been removed.
+ * Only admin and client roles remain.
+ */
+type AppRole = "admin" | "client";
 
 interface RolePermissions {
   canViewFullCardDetails: boolean;
@@ -11,13 +17,13 @@ interface RolePermissions {
   canManageClients: boolean;
   canManageOrders: boolean;
   canExportData: boolean;
-  // Appointment permissions
   canViewAllAppointments: boolean;
   canModifyAppointments: boolean;
   canCancelAppointments: boolean;
   canAssignTechnicians: boolean;
   canUpdateInstallationStatus: boolean;
   canAddInternalNotes: boolean;
+  canVerifyPayments: boolean;
 }
 
 const rolePermissions: Record<AppRole, RolePermissions> = {
@@ -30,100 +36,55 @@ const rolePermissions: Record<AppRole, RolePermissions> = {
     canManageClients: true,
     canManageOrders: true,
     canExportData: true,
-    // Admin has full appointment access
     canViewAllAppointments: true,
     canModifyAppointments: true,
     canCancelAppointments: true,
     canAssignTechnicians: true,
     canUpdateInstallationStatus: true,
     canAddInternalNotes: true,
-  },
-  employee: {
-    // Employee has admin-equivalent operational access
-    canViewFullCardDetails: true,
-    canViewLastFourOnly: true,
-    canUpdatePaymentStatus: true,
-    canViewActivityLogs: true,
-    canViewInternalNotes: true,
-    canManageClients: true,
-    canManageOrders: true,
-    canExportData: true,
-    // Employee has full appointment access like admin
-    canViewAllAppointments: true,
-    canModifyAppointments: true,
-    canCancelAppointments: true,
-    canAssignTechnicians: true,
-    canUpdateInstallationStatus: true,
-    canAddInternalNotes: true,
-  },
-  technician: {
-    canViewFullCardDetails: false,
-    canViewLastFourOnly: false,
-    canUpdatePaymentStatus: false,
-    canViewActivityLogs: false,
-    canViewInternalNotes: false,
-    canManageClients: false,
-    canManageOrders: false,
-    canExportData: false,
-    // Technician can only view assigned and update status
-    canViewAllAppointments: false, // Only sees assigned
-    canModifyAppointments: false,
-    canCancelAppointments: false,
-    canAssignTechnicians: false,
-    canUpdateInstallationStatus: true,
-    canAddInternalNotes: false,
+    canVerifyPayments: true,
   },
   client: {
     canViewFullCardDetails: false,
-    canViewLastFourOnly: true, // Own cards only
+    canViewLastFourOnly: true,
     canUpdatePaymentStatus: false,
     canViewActivityLogs: false,
     canViewInternalNotes: false,
     canManageClients: false,
     canManageOrders: false,
     canExportData: false,
-    // Client cannot manage appointments from admin
     canViewAllAppointments: false,
     canModifyAppointments: false,
     canCancelAppointments: false,
     canAssignTechnicians: false,
     canUpdateInstallationStatus: false,
     canAddInternalNotes: false,
+    canVerifyPayments: false,
   },
 };
 
 export const useRoleAccess = () => {
   const { role } = useAuth();
 
-  const currentRole = (role as AppRole) || "client";
-  const permissions = rolePermissions[currentRole] || rolePermissions.client;
+  // Only admin or client - no other roles
+  const currentRole: AppRole = role === "admin" ? "admin" : "client";
+  const permissions = rolePermissions[currentRole];
 
   const isAdmin = currentRole === "admin";
-  const isEmployee = currentRole === "employee";
-  const isTechnician = currentRole === "technician";
   const isClient = currentRole === "client";
 
-  // Mask card number based on role
+  // Legacy flags - always false (staff roles removed)
+  const isEmployee = false;
+  const isTechnician = false;
+
+  // Mask card number - only admin sees full details
   const maskCardNumber = (cardNumber: string): string => {
     if (!cardNumber) return "";
-    
-    // Admin sees full card number
-    if (isAdmin) {
-      return cardNumber;
-    }
-    
-    // Employee sees only last 4 digits
-    if (isEmployee) {
-      const lastFour = cardNumber.slice(-4);
-      return `****${lastFour}`;
-    }
-    
-    // Everyone else (including clients for their own cards) sees masked
+    if (isAdmin) return cardNumber;
     const lastFour = cardNumber.slice(-4);
     return `****${lastFour}`;
   };
 
-  // Format display for card in UI
   const formatCardDisplay = (cardType: string, lastFour: string): string => {
     return `${cardType} •••• ${lastFour}`;
   };
@@ -132,8 +93,8 @@ export const useRoleAccess = () => {
     role: currentRole,
     permissions,
     isAdmin,
-    isEmployee,
-    isTechnician,
+    isEmployee, // Always false
+    isTechnician, // Always false
     isClient,
     maskCardNumber,
     formatCardDisplay,

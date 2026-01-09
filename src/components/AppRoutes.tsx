@@ -73,6 +73,7 @@ import AdminPDFTest from "@/pages/admin/AdminPDFTest";
 import AdminQA from "@/pages/admin/AdminQA";
 import AdminRecouvrement from "@/pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "@/pages/admin/AdminPaymentDisputes";
+import AdminPaymentVerification from "@/pages/admin/AdminPaymentVerification";
 import AdminSite from "@/pages/admin/AdminSite";
 import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
@@ -192,6 +193,7 @@ const AppRoutes = () => {
       <Route path="/admin/pdf-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/payment-verification" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentVerification /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
