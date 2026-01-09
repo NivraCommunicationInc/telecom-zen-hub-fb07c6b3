@@ -1614,9 +1614,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Navigate to confirmation page with order ID
       navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Order creation error:", error);
-      toast.error("Erreur lors de la soumission de la commande");
+      const errorMessage = error?.message || "Erreur lors de la soumission de la commande";
+      // Display detailed error in toast
+      toast.error(`Erreur: ${errorMessage}`, {
+        description: "Veuillez réessayer. Si le problème persiste, contactez le support.",
+        duration: 8000,
+      });
     },
     onSettled: () => {
       // Reset the submit guard so user can try again if it truly failed
