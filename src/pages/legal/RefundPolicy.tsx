@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const RefundPolicy = () => {
   const { language } = useLanguage();
@@ -29,17 +30,17 @@ const RefundPolicy = () => {
                   </p>
                   <p>
                     <strong>Contact :</strong>{" "}
-                    <a href="mailto:Support@nivratelecom.ca" className="text-primary hover:underline">
-                      Support@nivratelecom.ca
+                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
+                      {COMPANY_CONTACT.supportEmailDisplay}
                     </a>{" "}
-                    | 514-544-2233 | 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
+                    | {COMPANY_CONTACT.supportPhoneDisplay} | {COMPANY_CONTACT.fullAddress}
                   </p>
                 </section>
 
                 <section className="space-y-4">
                   <h2 className="text-2xl font-display font-bold text-foreground">1.1 Portée</h2>
                   <p>
-                    Cette politique s'applique aux achats effectués sur le site Nivra Telecom ou via nos canaux de paiement autorisés, incluant :
+                    Cette politique s'applique aux achats effectués sur le site {COMPANY_CONTACT.companyName} ou via nos canaux de paiement autorisés, incluant :
                   </p>
                   <ul className="list-disc pl-6 space-y-2">
                     <li>Forfaits et combos (mobile, internet, télévision, sécurité connectée)</li>
@@ -99,8 +100,8 @@ const RefundPolicy = () => {
                   <h2 className="text-2xl font-display font-bold text-foreground">1.7 Contestations (chargebacks)</h2>
                   <p>
                     Avant toute contestation auprès de la banque, contacte-nous :{" "}
-                    <a href="mailto:Support@nivratelecom.ca" className="text-primary hover:underline">
-                      Support@nivratelecom.ca
+                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
+                      {COMPANY_CONTACT.supportEmailDisplay}
                     </a>.
                   </p>
                   <p>
@@ -129,17 +130,17 @@ const RefundPolicy = () => {
                   </p>
                   <p>
                     <strong>Contact:</strong>{" "}
-                    <a href="mailto:Support@nivratelecom.ca" className="text-primary hover:underline">
-                      Support@nivratelecom.ca
+                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
+                      {COMPANY_CONTACT.supportEmailDisplay}
                     </a>{" "}
-                    | 514-544-2233 | 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
+                    | {COMPANY_CONTACT.supportPhoneDisplay} | {COMPANY_CONTACT.fullAddress}
                   </p>
                 </section>
 
                 <section className="space-y-4">
                   <h2 className="text-2xl font-display font-bold text-foreground">1.1 Scope</h2>
                   <p>
-                    This policy applies to purchases made on the Nivra Telecom website or through our authorized payment channels, including:
+                    This policy applies to purchases made on the {COMPANY_CONTACT.companyName} website or through our authorized payment channels, including:
                   </p>
                   <ul className="list-disc pl-6 space-y-2">
                     <li>Plans and bundles (mobile, internet, television, connected security)</li>
@@ -199,8 +200,8 @@ const RefundPolicy = () => {
                   <h2 className="text-2xl font-display font-bold text-foreground">1.7 Disputes (Chargebacks)</h2>
                   <p>
                     Before any dispute with your bank, contact us:{" "}
-                    <a href="mailto:Support@nivratelecom.ca" className="text-primary hover:underline">
-                      Support@nivratelecom.ca
+                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
+                      {COMPANY_CONTACT.supportEmailDisplay}
                     </a>.
                   </p>
                   <p>

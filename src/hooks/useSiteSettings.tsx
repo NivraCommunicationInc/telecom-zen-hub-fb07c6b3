@@ -14,7 +14,7 @@ export interface SiteSettings {
 const defaultSettings: SiteSettings = {
   support_email: "support@nivratelecom.ca",
   support_phone: "438-544-2233",
-  business_hours: "Lun–Ven : 9 h – 22 h | Sam–Dim : 9 h – 20 h",
+  business_hours: "Lun–Ven : 9AM – 10PM | Sam–Dim : 9AM – 8PM",
   address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
   outage_banner_enabled: false,
   outage_banner_message_fr: "",
