@@ -901,6 +901,36 @@ export type Database = {
         }
         Relationships: []
       }
+      client_billing_preferences: {
+        Row: {
+          created_at: string
+          preauth_discount_active: boolean
+          preauth_discount_amount: number | null
+          preauth_opt_in: boolean
+          preauth_opt_in_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          preauth_discount_active?: boolean
+          preauth_discount_amount?: number | null
+          preauth_opt_in?: boolean
+          preauth_opt_in_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          preauth_discount_active?: boolean
+          preauth_discount_amount?: number | null
+          preauth_opt_in?: boolean
+          preauth_opt_in_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_documents: {
         Row: {
           created_at: string
