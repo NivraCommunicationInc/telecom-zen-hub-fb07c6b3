@@ -69,11 +69,8 @@ const ClientPayments = () => {
       const expiryYear = 2000 + parseInt(year);
       
       // Generate deterministic fingerprint for deduplication
-      // Format: network-last4-MM-YYYY (optionally with normalized cardholder name)
-      const normalizedName = card.cardName ? card.cardName.toUpperCase().replace(/\s+/g, '') : '';
-      const paymentFingerprint = normalizedName 
-        ? `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}-${normalizedName}`
-        : `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
+      // Format: network-last4-MM-YYYY (no cardholder name to avoid variations)
+      const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
       
       // Use UPSERT to prevent duplicate cards
       const { data, error } = await portalSupabase
@@ -131,6 +128,10 @@ const ClientPayments = () => {
   // Soft delete mutation
   const deleteCardMutation = useMutation({
     mutationFn: async (cardId: string) => {
+      // First, check if this card is the default
+      const cardBeingDeleted = paymentMethods?.find(c => c.id === cardId);
+      const wasDefault = cardBeingDeleted?.is_default === true;
+      
       // Soft delete: set deleted_at and remove default status
       const { error } = await portalSupabase
         .from("payment_methods")
@@ -143,22 +144,27 @@ const ClientPayments = () => {
       
       if (error) throw error;
       
-      // Check if we need to assign a new default card
-      const { data: remainingCards } = await portalSupabase
-        .from("payment_methods")
-        .select("id")
-        .eq("user_id", user?.id)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      
-      // If there are remaining cards but none is default, set the first one as default
-      if (remainingCards && remainingCards.length > 0) {
-        await portalSupabase
+      // Only reassign default if deleted card was default OR no remaining card is default
+      if (wasDefault) {
+        // Find remaining active cards
+        const { data: remainingCards } = await portalSupabase
           .from("payment_methods")
-          .update({ is_default: true })
-          .eq("id", remainingCards[0].id)
-          .eq("user_id", user?.id);
+          .select("id, is_default")
+          .eq("user_id", user?.id)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false });
+        
+        // Check if any remaining card is already default
+        const hasDefault = remainingCards?.some(c => c.is_default);
+        
+        // If no default exists and we have remaining cards, set the first one as default
+        if (!hasDefault && remainingCards && remainingCards.length > 0) {
+          await portalSupabase
+            .from("payment_methods")
+            .update({ is_default: true })
+            .eq("id", remainingCards[0].id)
+            .eq("user_id", user?.id);
+        }
       }
     },
     onSuccess: () => {
@@ -338,21 +344,10 @@ const ClientPayments = () => {
                               Par défaut
                             </span>
                           )}
-                          {card.is_preauthorized && (
-                            <span className="text-xs bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded flex items-center gap-1">
-                              <Check className="w-3 h-3" />
-                              Pré-autorisé
-                            </span>
-                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Expire {card.expiry_month.toString().padStart(2, "0")}/{card.expiry_year}
                         </p>
-                        {card.is_preauthorized && (
-                          <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
-                            ✓ Rabais 5$/mois appliqué automatiquement
-                          </p>
-                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
