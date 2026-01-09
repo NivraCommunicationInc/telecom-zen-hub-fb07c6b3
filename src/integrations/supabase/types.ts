@@ -3107,6 +3107,7 @@ export type Database = {
           is_default: boolean
           is_preauthorized: boolean | null
           last_four: string
+          payment_fingerprint: string | null
           preauthorized_at: string | null
           user_id: string
         }
@@ -3121,6 +3122,7 @@ export type Database = {
           is_default?: boolean
           is_preauthorized?: boolean | null
           last_four: string
+          payment_fingerprint?: string | null
           preauthorized_at?: string | null
           user_id: string
         }
@@ -3135,6 +3137,7 @@ export type Database = {
           is_default?: boolean
           is_preauthorized?: boolean | null
           last_four?: string
+          payment_fingerprint?: string | null
           preauthorized_at?: string | null
           user_id?: string
         }
