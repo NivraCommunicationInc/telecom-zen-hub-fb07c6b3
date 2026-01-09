@@ -3130,6 +3130,7 @@ export type Database = {
           card_type: string
           cardholder_name: string | null
           created_at: string
+          deleted_at: string | null
           encrypted_card_number: string | null
           expiry_month: number
           expiry_year: number
@@ -3145,6 +3146,7 @@ export type Database = {
           card_type: string
           cardholder_name?: string | null
           created_at?: string
+          deleted_at?: string | null
           encrypted_card_number?: string | null
           expiry_month: number
           expiry_year: number
@@ -3160,6 +3162,7 @@ export type Database = {
           card_type?: string
           cardholder_name?: string | null
           created_at?: string
+          deleted_at?: string | null
           encrypted_card_number?: string | null
           expiry_month?: number
           expiry_year?: number

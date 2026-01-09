@@ -10,11 +10,23 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { CreditCard, Plus, Trash2, Check } from "lucide-react";
+import { CreditCard, Plus, Trash2, Check, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ClientPayments = () => {
@@ -22,6 +34,8 @@ const ClientPayments = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState<{ id: string; lastFour: string; cardType: string } | null>(null);
   const [newCard, setNewCard] = useState({
     cardNumber: "",
     cardName: "",
@@ -29,6 +43,7 @@ const ClientPayments = () => {
     cvv: "",
   });
 
+  // Fetch only active cards (deleted_at IS NULL)
   const { data: paymentMethods, isLoading } = useQuery({
     queryKey: ["client-payment-methods", user?.id],
     queryFn: async () => {
@@ -36,6 +51,7 @@ const ClientPayments = () => {
         .from("payment_methods")
         .select("*")
         .eq("user_id", user?.id)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -71,6 +87,7 @@ const ClientPayments = () => {
           payment_fingerprint: paymentFingerprint,
           is_default: paymentMethods?.length === 0,
           cardholder_name: card.cardName || null,
+          deleted_at: null, // Ensure we're reactivating if it was soft-deleted
         }, {
           onConflict: 'user_id,payment_fingerprint',
           ignoreDuplicates: false,
@@ -111,20 +128,49 @@ const ClientPayments = () => {
     },
   });
 
+  // Soft delete mutation
   const deleteCardMutation = useMutation({
     mutationFn: async (cardId: string) => {
+      // Soft delete: set deleted_at and remove default status
       const { error } = await portalSupabase
         .from("payment_methods")
-        .delete()
-        .eq("id", cardId);
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          is_default: false 
+        })
+        .eq("id", cardId)
+        .eq("user_id", user?.id); // RLS ensures only own cards
+      
       if (error) throw error;
+      
+      // Check if we need to assign a new default card
+      const { data: remainingCards } = await portalSupabase
+        .from("payment_methods")
+        .select("id")
+        .eq("user_id", user?.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      
+      // If there are remaining cards but none is default, set the first one as default
+      if (remainingCards && remainingCards.length > 0) {
+        await portalSupabase
+          .from("payment_methods")
+          .update({ is_default: true })
+          .eq("id", remainingCards[0].id)
+          .eq("user_id", user?.id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-payment-methods"] });
-      toast({ title: "Carte supprimée" });
+      toast({ title: "Carte supprimée", description: "La carte a été retirée de votre compte." });
+      setDeleteDialogOpen(false);
+      setCardToDelete(null);
     },
     onError: () => {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+      toast({ title: "Erreur lors de la suppression", description: "Impossible de supprimer cette carte.", variant: "destructive" });
+      setDeleteDialogOpen(false);
+      setCardToDelete(null);
     },
   });
 
@@ -134,13 +180,15 @@ const ClientPayments = () => {
       await portalSupabase
         .from("payment_methods")
         .update({ is_default: false })
-        .eq("user_id", user?.id);
+        .eq("user_id", user?.id)
+        .is("deleted_at", null);
       
       // Then set the new default
       const { error } = await portalSupabase
         .from("payment_methods")
         .update({ is_default: true })
-        .eq("id", cardId);
+        .eq("id", cardId)
+        .eq("user_id", user?.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -158,6 +206,17 @@ const ClientPayments = () => {
       return;
     }
     addCardMutation.mutate(newCard);
+  };
+
+  const handleDeleteClick = (card: any) => {
+    setCardToDelete({ id: card.id, lastFour: card.last_four, cardType: card.card_type });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (cardToDelete) {
+      deleteCardMutation.mutate(cardToDelete.id);
+    }
   };
 
   return (
@@ -178,6 +237,9 @@ const ClientPayments = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Ajouter une carte de paiement</DialogTitle>
+                <DialogDescription>
+                  Entrez les informations de votre carte. Les données sensibles ne sont jamais stockées en clair.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div>
@@ -299,6 +361,8 @@ const ClientPayments = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => setDefaultMutation.mutate(card.id)}
+                          disabled={setDefaultMutation.isPending}
+                          title="Définir comme carte par défaut"
                         >
                           <Check className="w-4 h-4" />
                         </Button>
@@ -306,8 +370,10 @@ const ClientPayments = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => deleteCardMutation.mutate(card.id)}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                        onClick={() => handleDeleteClick(card)}
+                        disabled={deleteCardMutation.isPending}
+                        title="Supprimer cette carte"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -327,6 +393,35 @@ const ClientPayments = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Supprimer cette carte?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer la carte <strong>{cardToDelete?.cardType} •••• {cardToDelete?.lastFour}</strong>?
+              <br /><br />
+              Cette action retirera la carte de votre compte. Si vous avez des paiements préautorisés actifs, assurez-vous d'avoir une autre carte enregistrée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCardMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteCardMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteCardMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ClientLayout>
   );
 };
