@@ -175,6 +175,9 @@ const AppRoutes = () => {
       <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/crypto-settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCryptoSettings /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/crypto-payments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCryptoPayments /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/crypto-ipn-logs" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCryptoIPNLogs /></ProtectedRoute></AuthProvider>} />
 
       {/* DEV-ONLY routes */}
       {import.meta.env.DEV && (
