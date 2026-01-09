@@ -4,6 +4,7 @@
  * SECURITY NOTICE:
  * - Never log full card numbers (PAN) or CVV values
  * - CVV should never be sent to backend - only to payment processor
+ * - Use stripCvvFromData() before any network request
  * - These validations are for UX - final card validation is done by processor
  */
 
@@ -42,6 +43,14 @@ export {
   type DobValidationResult,
   type DobConfig
 } from './dob';
+
+// Security utilities for form submission
+export {
+  stripCvvFromData,
+  stripSensitiveCardData,
+  maskCardNumber,
+  type SafeCardData
+} from './schemas';
 
 // Identity document validation
 export {
