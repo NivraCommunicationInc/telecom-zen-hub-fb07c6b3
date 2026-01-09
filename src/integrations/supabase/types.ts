@@ -1231,6 +1231,143 @@ export type Database = {
         }
         Relationships: []
       }
+      crypto_ipn_logs: {
+        Row: {
+          created_at: string
+          crypto_payment_id: string | null
+          error_message: string | null
+          event_type: string | null
+          id: string
+          payment_id: string | null
+          processed: boolean
+          raw_payload: Json
+          signature_valid: boolean
+        }
+        Insert: {
+          created_at?: string
+          crypto_payment_id?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          payment_id?: string | null
+          processed?: boolean
+          raw_payload: Json
+          signature_valid?: boolean
+        }
+        Update: {
+          created_at?: string
+          crypto_payment_id?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          payment_id?: string | null
+          processed?: boolean
+          raw_payload?: Json
+          signature_valid?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crypto_ipn_logs_crypto_payment_id_fkey"
+            columns: ["crypto_payment_id"]
+            isOneToOne: false
+            referencedRelation: "crypto_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crypto_payments: {
+        Row: {
+          actually_paid: number | null
+          billing_id: string | null
+          client_id: string
+          created_at: string
+          id: string
+          invoice_url: string | null
+          notes: string | null
+          order_id: string | null
+          outcome_amount: number | null
+          outcome_currency: string | null
+          pay_address: string | null
+          pay_amount: number | null
+          pay_currency: string
+          payment_id: string | null
+          payment_status: string
+          price_amount: number
+          price_currency: string
+          provider: string
+          raw_ipn: Json | null
+          reconciled_at: string | null
+          reconciled_by: string | null
+          txid: string | null
+          updated_at: string
+        }
+        Insert: {
+          actually_paid?: number | null
+          billing_id?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          invoice_url?: string | null
+          notes?: string | null
+          order_id?: string | null
+          outcome_amount?: number | null
+          outcome_currency?: string | null
+          pay_address?: string | null
+          pay_amount?: number | null
+          pay_currency: string
+          payment_id?: string | null
+          payment_status?: string
+          price_amount: number
+          price_currency?: string
+          provider?: string
+          raw_ipn?: Json | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          txid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actually_paid?: number | null
+          billing_id?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          invoice_url?: string | null
+          notes?: string | null
+          order_id?: string | null
+          outcome_amount?: number | null
+          outcome_currency?: string | null
+          pay_address?: string | null
+          pay_amount?: number | null
+          pay_currency?: string
+          payment_id?: string | null
+          payment_status?: string
+          price_amount?: number
+          price_currency?: string
+          provider?: string
+          raw_ipn?: Json | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          txid?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crypto_payments_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crypto_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_queue: {
         Row: {
           attempts: number
@@ -2912,6 +3049,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_gateway_settings: {
+        Row: {
+          created_at: string
+          enabled_currencies: Json
+          id: string
+          is_enabled: boolean
+          min_confirmations: number
+          mode: string
+          payout_wallet_btc: string | null
+          payout_wallet_eth: string | null
+          payout_wallet_sol: string | null
+          payout_wallet_xrp: string | null
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled_currencies?: Json
+          id?: string
+          is_enabled?: boolean
+          min_confirmations?: number
+          mode?: string
+          payout_wallet_btc?: string | null
+          payout_wallet_eth?: string | null
+          payout_wallet_sol?: string | null
+          payout_wallet_xrp?: string | null
+          provider?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled_currencies?: Json
+          id?: string
+          is_enabled?: boolean
+          min_confirmations?: number
+          mode?: string
+          payout_wallet_btc?: string | null
+          payout_wallet_eth?: string | null
+          payout_wallet_sol?: string | null
+          payout_wallet_xrp?: string | null
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       payment_methods: {
         Row: {
