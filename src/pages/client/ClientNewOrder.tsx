@@ -569,6 +569,35 @@ const ClientNewOrder = () => {
   // Pre-authorized payment state
   const [acceptPreauthorized, setAcceptPreauthorized] = useState(false);
   const PREAUTH_MONTHLY_DISCOUNT = 5;
+  
+  // Query client billing preferences to check if preauth already opted-in
+  const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
+    queryKey: ["client-billing-preferences", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("client_billing_preferences")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) {
+        console.warn("[ClientNewOrder] Failed to load billing preferences:", error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  
+  // Derived: has client already opted into preauth?
+  const hasExistingPreauthOptIn = billingPreferences?.preauth_opt_in === true;
+  
+  // If client already has preauth, auto-set and show badge instead of checkbox
+  useEffect(() => {
+    if (hasExistingPreauthOptIn) {
+      setAcceptPreauthorized(true);
+    }
+  }, [hasExistingPreauthOptIn]);
 
   // Hydrate state from sessionStorage on mount
   useEffect(() => {
@@ -1144,34 +1173,63 @@ const ClientNewOrder = () => {
       const orderActivationFee = isEquipmentOnlyOrder ? 0 : 25;
 
       // Save pre-authorized payment method if credit card and checkbox selected
+      // Use UPSERT to prevent duplicate cards (unique on user_id + payment_fingerprint)
       let savedPaymentMethodId: string | null = null;
       if (paymentMethod === "credit_card" && acceptPreauthorized) {
         const cardNum = cardNumber.replace(/\s/g, '');
         const lastFour = cardNum.slice(-4);
         const cardType = cardNum.startsWith('4') ? 'Visa' : cardNum.startsWith('5') ? 'Mastercard' : 'Card';
         const [month, year] = cardExpiry.split('/');
+        const expiryMonth = parseInt(month);
+        const expiryYear = 2000 + parseInt(year);
+        
+        // Generate fingerprint for deduplication
+        const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
         
         // Simple encryption for storage (in production, use proper encryption)
         const encryptedCard = btoa(cardNum); // Base64 encode for demo purposes
         
+        // UPSERT: insert or return existing card if duplicate
         const { data: paymentMethodData, error: paymentMethodError } = await supabase
           .from("payment_methods")
-          .insert({
+          .upsert({
             user_id: user.id,
             card_type: cardType,
             last_four: lastFour,
-            expiry_month: parseInt(month),
-            expiry_year: 2000 + parseInt(year),
+            expiry_month: expiryMonth,
+            expiry_year: expiryYear,
+            payment_fingerprint: paymentFingerprint,
             is_default: true,
             is_preauthorized: true,
             preauthorized_at: new Date().toISOString(),
             encrypted_card_number: encryptedCard,
             cardholder_name: cardName,
+          }, {
+            onConflict: 'user_id,payment_fingerprint',
+            ignoreDuplicates: false,
           })
           .select()
           .single();
         
-        if (!paymentMethodError && paymentMethodData) {
+        if (paymentMethodError) {
+          // If it's a duplicate key error, try to find existing card
+          if (paymentMethodError.code === '23505') {
+            console.log("[ClientNewOrder] Card already exists, finding existing...");
+            const { data: existingCard } = await supabase
+              .from("payment_methods")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("payment_fingerprint", paymentFingerprint)
+              .single();
+            
+            if (existingCard) {
+              savedPaymentMethodId = existingCard.id;
+              toast.info("Cette carte est déjà enregistrée. Nous l'avons sélectionnée pour vous.");
+            }
+          } else {
+            console.error("[ClientNewOrder] Payment method error:", paymentMethodError);
+          }
+        } else if (paymentMethodData) {
           savedPaymentMethodId = paymentMethodData.id;
           
           // Set this as default, unset others
@@ -1180,6 +1238,20 @@ const ClientNewOrder = () => {
             .update({ is_default: false })
             .eq("user_id", user.id)
             .neq("id", paymentMethodData.id);
+        }
+        
+        // Save/update billing preferences for preauth opt-in (only if first time)
+        if (!hasExistingPreauthOptIn) {
+          await supabase
+            .from("client_billing_preferences")
+            .upsert({
+              user_id: user.id,
+              preauth_opt_in: true,
+              preauth_opt_in_at: new Date().toISOString(),
+              preauth_discount_active: true,
+            }, {
+              onConflict: 'user_id',
+            });
         }
       }
 
@@ -4411,35 +4483,59 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </div>
                       </div>
                       
-                      {/* Pre-authorized Payment Checkbox */}
-                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg space-y-3">
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            id="preauth-accept"
-                            checked={acceptPreauthorized}
-                            onCheckedChange={(checked) => setAcceptPreauthorized(checked === true)}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1">
-                            <Label htmlFor="preauth-accept" className="text-sm font-medium cursor-pointer leading-relaxed">
-                              J'autorise Nivra à débiter automatiquement cette carte pour mes paiements mensuels futurs
-                            </Label>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
-                                <Star className="w-3 h-3 mr-1" />
-                                Économisez 5$/mois
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">Rabais automatique appliqué</span>
+                      {/* Pre-authorized Payment - Show different UI based on existing opt-in */}
+                      {hasExistingPreauthOptIn ? (
+                        /* Already opted-in: show badge, no checkbox */
+                        <div className="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+                              <Check className="w-5 h-5 text-white" />
                             </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Paiement préautorisé déjà activé
+                              </p>
+                              <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                                Votre rabais de 5$/mois est automatiquement appliqué sur toutes vos factures.
+                              </p>
+                            </div>
+                            <Badge className="bg-emerald-500 text-white">
+                              <Star className="w-3 h-3 mr-1" />
+                              -5$/mois
+                            </Badge>
                           </div>
                         </div>
-                        {acceptPreauthorized && (
-                          <div className="text-xs text-emerald-600 bg-emerald-500/20 p-2 rounded">
-                            ✓ Votre carte sera enregistrée de façon sécurisée pour les paiements automatiques.
-                            Un rabais de 5$/mois sera appliqué sur toutes vos factures mensuelles.
+                      ) : (
+                        /* First time: show checkbox to opt-in */
+                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg space-y-3">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              id="preauth-accept"
+                              checked={acceptPreauthorized}
+                              onCheckedChange={(checked) => setAcceptPreauthorized(checked === true)}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="preauth-accept" className="text-sm font-medium cursor-pointer leading-relaxed">
+                                J'autorise Nivra à débiter automatiquement cette carte pour mes paiements mensuels futurs
+                              </Label>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
+                                  <Star className="w-3 h-3 mr-1" />
+                                  Économisez 5$/mois
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">Rabais automatique appliqué</span>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </div>
+                          {acceptPreauthorized && (
+                            <div className="text-xs text-emerald-600 bg-emerald-500/20 p-2 rounded">
+                              ✓ Votre carte sera enregistrée de façon sécurisée pour les paiements automatiques.
+                              Un rabais de 5$/mois sera appliqué sur toutes vos factures mensuelles.
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <Button
                         variant="hero"

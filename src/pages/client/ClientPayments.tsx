@@ -49,25 +49,56 @@ const ClientPayments = () => {
       const lastFour = cardNum.slice(-4);
       const cardType = cardNum.startsWith("4") ? "Visa" : cardNum.startsWith("5") ? "Mastercard" : "Card";
       const [month, year] = card.expiry.split("/");
+      const expiryMonth = parseInt(month);
+      const expiryYear = 2000 + parseInt(year);
       
+      // Generate fingerprint for deduplication
+      const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
+      
+      // Use UPSERT to prevent duplicate cards
       const { data, error } = await portalSupabase
         .from("payment_methods")
-        .insert({
+        .upsert({
           user_id: user?.id,
           card_type: cardType,
           last_four: lastFour,
-          expiry_month: parseInt(month),
-          expiry_year: 2000 + parseInt(year),
+          expiry_month: expiryMonth,
+          expiry_year: expiryYear,
+          payment_fingerprint: paymentFingerprint,
           is_default: paymentMethods?.length === 0,
+          cardholder_name: card.cardName || null,
+        }, {
+          onConflict: 'user_id,payment_fingerprint',
+          ignoreDuplicates: false,
         })
         .select()
         .single();
-      if (error) throw error;
+      
+      if (error) {
+        // If it's a duplicate key error, find and return existing card
+        if (error.code === '23505') {
+          const { data: existingCard } = await portalSupabase
+            .from("payment_methods")
+            .select("*")
+            .eq("user_id", user?.id)
+            .eq("payment_fingerprint", paymentFingerprint)
+            .single();
+          
+          if (existingCard) {
+            return { ...existingCard, _isDuplicate: true };
+          }
+        }
+        throw error;
+      }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["client-payment-methods"] });
-      toast({ title: "Carte ajoutée avec succès" });
+      if (data?._isDuplicate) {
+        toast({ title: "Cette carte est déjà enregistrée", description: "Nous l'avons sélectionnée pour vous." });
+      } else {
+        toast({ title: "Carte ajoutée avec succès" });
+      }
       setDialogOpen(false);
       setNewCard({ cardNumber: "", cardName: "", expiry: "", cvv: "" });
     },
