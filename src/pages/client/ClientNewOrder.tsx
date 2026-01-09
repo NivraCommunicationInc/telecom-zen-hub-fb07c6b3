@@ -1184,11 +1184,8 @@ const ClientNewOrder = () => {
         const expiryYear = 2000 + parseInt(year);
         
         // Generate deterministic fingerprint for deduplication
-        // Format: network-last4-MM-YYYY (optionally with normalized cardholder name)
-        const normalizedName = cardName ? cardName.toUpperCase().replace(/\s+/g, '') : '';
-        const paymentFingerprint = normalizedName 
-          ? `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}-${normalizedName}`
-          : `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
+        // Format: network-last4-MM-YYYY (no cardholder name to avoid variations)
+        const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
         
         // Simple encryption for storage (in production, use proper encryption)
         const encryptedCard = btoa(cardNum); // Base64 encode for demo purposes
