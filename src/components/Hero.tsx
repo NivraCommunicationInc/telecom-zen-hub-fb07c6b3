@@ -1,14 +1,26 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
+import { useOptionalAuth } from "@/hooks/useAuth";
 
 const Hero = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { user } = useOptionalAuth();
 
   const scrollToContact = () => {
     const contactSection = document.getElementById('contact');
     if (contactSection) {
       contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleOrder = () => {
+    if (user) {
+      navigate('/portal/new-order');
+    } else {
+      navigate('/portal/auth', { state: { redirectTo: '/portal/new-order' } });
     }
   };
 
@@ -59,7 +71,7 @@ const Hero = () => {
               variant="hero" 
               size="lg" 
               className="group w-full sm:w-auto" 
-              onClick={scrollToContact}
+              onClick={handleOrder}
             >
               {t('hero.cta.order')}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
