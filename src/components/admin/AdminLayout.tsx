@@ -26,7 +26,8 @@ import {
   History,
   AlertTriangle,
   Shield,
-  Wallet
+  Wallet,
+  Bitcoin
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ const navItems = [
   { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
   { icon: Shield, label: "Événements sécurité", href: "/admin/security-events" },
   { icon: Shield, label: "Security Guardian", href: "/admin/security-guardian" },
+  { icon: Bitcoin, label: "Crypto Payments", href: "/admin/crypto-payments" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {

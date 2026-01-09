@@ -77,6 +77,9 @@ import AdminSite from "@/pages/admin/AdminSite";
 import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
+import AdminCryptoSettings from "@/pages/admin/AdminCryptoSettings";
+import AdminCryptoPayments from "@/pages/admin/AdminCryptoPayments";
+import AdminCryptoIPNLogs from "@/pages/admin/AdminCryptoIPNLogs";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
