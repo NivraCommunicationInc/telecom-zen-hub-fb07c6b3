@@ -5530,6 +5530,58 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_requests_admin_view: {
+        Row: {
+          account_id: string | null
+          account_number: string | null
+          account_status: string | null
+          amount: number | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_reference: string | null
+          created_at: string | null
+          crypto_currency: string | null
+          crypto_txid: string | null
+          crypto_wallet_address: string | null
+          currency: string | null
+          id: string | null
+          invoice_id: string | null
+          method: string | null
+          payment_instructions: string | null
+          reference_code: string | null
+          rejection_reason: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          verification_note: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_requests_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_offers_public: {
         Row: {
           category: string | null
