@@ -3,10 +3,17 @@
 
 User-agent: *
 Allow: /
+
+# Exclude private / transactional areas
 Disallow: /admin/
 Disallow: /portal/
 Disallow: /employee/
+Disallow: /technician/
+Disallow: /client-portal/
+Disallow: /client/
+Disallow: /checkout/
 Disallow: /qa/
 
 # Sitemap
 Sitemap: https://nivratelecom.ca/sitemap.xml
+
