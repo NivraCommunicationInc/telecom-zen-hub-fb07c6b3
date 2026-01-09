@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { COMPANY_CONTACT } from "@/config/company";
+import { SEO_CONFIG } from "@/config/seo";
 
 interface SEOHeadProps {
   title?: string;
@@ -12,17 +13,18 @@ interface SEOHeadProps {
 
 /**
  * SEOHead - Dynamic SEO meta tags for each page
- * Updates document head with title, description, canonical, and OG tags
+ * Updates document head with title, description, canonical, OG, Twitter cards
+ * Also injects Google Site Verification meta tag if configured
  */
 export const SEOHead = ({
   title,
   description,
   canonical,
-  ogImage = "/og-image.png",
+  ogImage = SEO_CONFIG.defaultOgImage,
   noindex = false,
 }: SEOHeadProps) => {
   const location = useLocation();
-  const baseUrl = "https://nivratelecom.ca";
+  const baseUrl = SEO_CONFIG.baseUrl;
   const fullCanonical = canonical || `${baseUrl}${location.pathname}`;
   const fullOgImage = ogImage.startsWith("http") ? ogImage : `${baseUrl}${ogImage}`;
 
@@ -76,15 +78,20 @@ export const SEOHead = ({
     setMeta("og:type", "website", true);
     setMeta("og:site_name", COMPANY_CONTACT.companyName, true);
 
-    // Handle robots
+    // Handle robots - public pages should NEVER have noindex
     if (noindex) {
       setMeta("robots", "noindex, nofollow");
     } else {
-      // Remove noindex if it exists
-      const robotsMeta = document.querySelector('meta[name="robots"]');
-      if (robotsMeta) {
-        robotsMeta.remove();
-      }
+      // Ensure public pages are indexable - set index, follow
+      setMeta("robots", "index, follow");
+    }
+
+    // Twitter card type
+    setMeta("twitter:card", "summary_large_image");
+
+    // Google Site Verification - inject if configured
+    if (SEO_CONFIG.googleSiteVerification) {
+      setMeta("google-site-verification", SEO_CONFIG.googleSiteVerification);
     }
 
     // Cleanup function not needed since we want meta tags to persist

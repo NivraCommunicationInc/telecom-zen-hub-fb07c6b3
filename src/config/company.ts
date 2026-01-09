@@ -7,9 +7,9 @@ export const COMPANY_CONTACT = {
   // Support contact details
   supportEmail: "support@nivratelecom.ca",
   supportEmailDisplay: "Support@nivratelecom.ca",
-  supportPhoneDisplay: "438-544-2233",
-  supportPhoneTel: "+14385442233",
-  supportPhoneFormatted: "(438) 544-2233",
+  supportPhoneDisplay: "514-544-2233",
+  supportPhoneTel: "+15145442233",
+  supportPhoneFormatted: "(514) 544-2233",
   
   // E-Transfer payment info (if different from support email)
   paymentEmail: "support@nivratelecom.ca",
