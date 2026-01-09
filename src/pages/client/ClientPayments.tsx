@@ -111,7 +111,7 @@ const ClientPayments = () => {
       return data;
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["client-payment-methods"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payment-methods", user?.id] });
       if (data?._isDuplicate) {
         toast({ title: "Cette carte est déjà enregistrée", description: "Nous l'avons sélectionnée pour vous." });
       } else {
@@ -128,47 +128,62 @@ const ClientPayments = () => {
   // Soft delete mutation
   const deleteCardMutation = useMutation({
     mutationFn: async (cardId: string) => {
-      // First, check if this card is the default
-      const cardBeingDeleted = paymentMethods?.find(c => c.id === cardId);
+      if (!user?.id) throw new Error("Missing user");
+
+      // (Optionnel) Was default? basé sur le state (OK mais peut être stale)
+      const cardBeingDeleted = paymentMethods?.find((c) => c.id === cardId);
       const wasDefault = cardBeingDeleted?.is_default === true;
-      
+
       // Soft delete: set deleted_at and remove default status
       const { error } = await portalSupabase
         .from("payment_methods")
-        .update({ 
+        .update({
           deleted_at: new Date().toISOString(),
-          is_default: false 
+          is_default: false,
         })
         .eq("id", cardId)
-        .eq("user_id", user?.id); // RLS ensures only own cards
-      
+        .eq("user_id", user.id);
+
       if (error) throw error;
-      
-      // Only reassign default if deleted card was default OR no remaining card is default
-      if (wasDefault) {
-        // Find remaining active cards
-        const { data: remainingCards } = await portalSupabase
+
+      // Vérifier s'il existe une carte default active après suppression
+      const { data: activeDefault, error: defErr } = await portalSupabase
+        .from("payment_methods")
+        .select("id")
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .eq("is_default", true)
+        .limit(1);
+
+      if (defErr) throw defErr;
+
+      const hasDefault = (activeDefault?.length ?? 0) > 0;
+
+      // Réassigner si nécessaire (carte supprimée était default OU aucune default active)
+      if (wasDefault || !hasDefault) {
+        const { data: remainingCards, error: remErr } = await portalSupabase
           .from("payment_methods")
-          .select("id, is_default")
-          .eq("user_id", user?.id)
+          .select("id")
+          .eq("user_id", user.id)
           .is("deleted_at", null)
-          .order("created_at", { ascending: false });
-        
-        // Check if any remaining card is already default
-        const hasDefault = remainingCards?.some(c => c.is_default);
-        
-        // If no default exists and we have remaining cards, set the first one as default
-        if (!hasDefault && remainingCards && remainingCards.length > 0) {
-          await portalSupabase
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (remErr) throw remErr;
+
+        if (remainingCards && remainingCards.length > 0) {
+          const { error: setErr } = await portalSupabase
             .from("payment_methods")
             .update({ is_default: true })
             .eq("id", remainingCards[0].id)
-            .eq("user_id", user?.id);
+            .eq("user_id", user.id);
+
+          if (setErr) throw setErr;
         }
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-payment-methods"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payment-methods", user?.id] });
       toast({ title: "Carte supprimée", description: "La carte a été retirée de votre compte." });
       setDeleteDialogOpen(false);
       setCardToDelete(null);
@@ -198,7 +213,7 @@ const ClientPayments = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-payment-methods"] });
+      queryClient.invalidateQueries({ queryKey: ["client-payment-methods", user?.id] });
       toast({ title: "Carte par défaut mise à jour" });
     },
     onError: () => {
