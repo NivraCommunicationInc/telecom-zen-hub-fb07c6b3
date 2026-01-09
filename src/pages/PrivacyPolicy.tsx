@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { COMPANY_CONTACT } from "@/config/company";
 
 const PrivacyPolicy = () => {
   return (
@@ -22,7 +23,7 @@ const PrivacyPolicy = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">1. Introduction</h2>
               <p>
-                Nivra Telecom (« nous », « notre » ou « nos ») s'engage à protéger la vie privée de ses clients et visiteurs. 
+                {COMPANY_CONTACT.companyName} (« nous », « notre » ou « nos ») s'engage à protéger la vie privée de ses clients et visiteurs. 
                 Cette politique de confidentialité explique comment nous collectons, utilisons, divulguons et protégeons 
                 vos informations personnelles lorsque vous utilisez nos services télécom.
               </p>
@@ -54,7 +55,7 @@ const PrivacyPolicy = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">4. Protection des données</h2>
               <p>
-                Nivra Telecom s'engage à protéger vos données personnelles. Nous ne partageons aucune information 
+                {COMPANY_CONTACT.companyName} s'engage à protéger vos données personnelles. Nous ne partageons aucune information 
                 personnelle avec des tiers sans votre consentement explicite. Vos données sont utilisées 
                 uniquement pour la prestation de nos services télécom.
               </p>
@@ -101,8 +102,8 @@ const PrivacyPolicy = () => {
                 veuillez nous contacter :
               </p>
               <ul className="list-none space-y-2">
-                <li><strong>Courriel :</strong> Support@nivratelecom.ca</li>
-                <li><strong>Téléphone :</strong> 438-544-2233</li>
+                <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
+                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
               </ul>
             </section>
           </div>

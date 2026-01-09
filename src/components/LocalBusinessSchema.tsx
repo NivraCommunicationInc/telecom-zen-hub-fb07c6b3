@@ -26,7 +26,7 @@ export const LocalBusinessSchema = () => {
       logo: "https://nivratelecom.ca/favicon.png",
       image: "https://nivratelecom.ca/og-image.png",
       description:
-        "Entreprise de télécommunications prépayées au Québec offrant des services de téléphonie mobile, Internet, télévision et sécurité sans contrat.",
+        "Nivra Telecom est une entreprise de télécommunications prépayées au Québec. Services mobiles, Internet, télévision et solutions connectées. Sans engagement, sans vérification de crédit. Meilleur prix garanti.",
       telephone: COMPANY_CONTACT.supportPhoneTel,
       email: COMPANY_CONTACT.supportEmail,
       address: {
@@ -47,6 +47,7 @@ export const LocalBusinessSchema = () => {
         name: "Province of Quebec",
         addressCountry: "CA",
       },
+      slogan: "Meilleur prix garanti",
       openingHoursSpecification: [
         {
           "@type": "OpeningHoursSpecification",

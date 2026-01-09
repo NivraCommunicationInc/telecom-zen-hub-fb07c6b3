@@ -39,7 +39,7 @@ assert(COMPANY_CONTACT.supportPhoneTel === "+14385442233", "supportPhoneTel is +
 assert(COMPANY_CONTACT.supportEmail === "support@nivratelecom.ca", "supportEmail is support@nivratelecom.ca");
 assert(COMPANY_CONTACT.supportEmailDisplay === "Support@nivratelecom.ca", "supportEmailDisplay is Support@nivratelecom.ca");
 assert(COMPANY_CONTACT.fullAddress === "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5", "fullAddress is correct");
-assert(COMPANY_CONTACT.supportHours === "Lun–Ven : 9 h – 22 h | Sam–Dim : 9 h – 20 h", "supportHours is correct");
+assert(COMPANY_CONTACT.supportHours === "Lun–Ven : 9AM – 10PM | Sam–Dim : 9AM – 8PM", "supportHours is correct");
 
 // Test ETRANSFER_CONFIG uses correct email
 assert(ETRANSFER_CONFIG.email === "support@nivratelecom.ca", "ETRANSFER_CONFIG.email is correct");
