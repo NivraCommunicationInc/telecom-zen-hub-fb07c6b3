@@ -1,4 +1,10 @@
+# SEO-critical files - must be served directly (not rewritten to SPA)
 /sitemap.xml /sitemap.xml 200
 /robots.txt /robots.txt 200
+
+# Google Search Console HTML file verification (pattern: googleXXXXXXXX.html)
+/google*.html /google*.html 200
+
+# SPA catch-all - must be LAST
 /* /index.html 200
 

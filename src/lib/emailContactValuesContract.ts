@@ -7,7 +7,7 @@
  * Run with: npx tsx src/lib/emailContactValuesContract.ts
  * 
  * Expected values:
- * - Phone: 438-544-2233
+ * - Phone: 514-544-2233
  * - Email: Support@nivratelecom.ca
  * - Address: 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
  */
@@ -34,8 +34,8 @@ console.log("Email Contact Values Contract Test");
 console.log("========================================\n");
 
 // Test correct values
-assert(COMPANY_CONTACT.supportPhoneDisplay === "438-544-2233", "supportPhoneDisplay is 438-544-2233");
-assert(COMPANY_CONTACT.supportPhoneTel === "+14385442233", "supportPhoneTel is +14385442233");
+assert(COMPANY_CONTACT.supportPhoneDisplay === "514-544-2233", "supportPhoneDisplay is 514-544-2233");
+assert(COMPANY_CONTACT.supportPhoneTel === "+15145442233", "supportPhoneTel is +15145442233");
 assert(COMPANY_CONTACT.supportEmail === "support@nivratelecom.ca", "supportEmail is support@nivratelecom.ca");
 assert(COMPANY_CONTACT.supportEmailDisplay === "Support@nivratelecom.ca", "supportEmailDisplay is Support@nivratelecom.ca");
 assert(COMPANY_CONTACT.fullAddress === "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5", "fullAddress is correct");
