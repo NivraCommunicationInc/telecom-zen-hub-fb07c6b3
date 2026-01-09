@@ -1052,7 +1052,8 @@ const ClientNewOrder = () => {
   // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error("Not authenticated");
+      console.log("[ClientNewOrder] Starting order creation...", { userId: user?.id, clientRequestId });
+      if (!user?.id) throw new Error("Utilisateur non authentifié. Veuillez vous reconnecter.");
 
       // Security check before sensitive action
       const { allowed, reason } = await verifyPortalSensitiveActionAllowed(user.id);
@@ -1615,12 +1616,32 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
     },
     onError: (error: any) => {
-      console.error("Order creation error:", error);
-      const errorMessage = error?.message || "Erreur lors de la soumission de la commande";
-      // Display detailed error in toast
-      toast.error(`Erreur: ${errorMessage}`, {
-        description: "Veuillez réessayer. Si le problème persiste, contactez le support.",
-        duration: 8000,
+      console.error("[ClientNewOrder] Order creation error:", error);
+      
+      // Parse error for user-friendly message
+      let errorMessage = "Erreur lors de la soumission de la commande";
+      let errorDescription = "Veuillez réessayer. Si le problème persiste, contactez le support.";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      if (error?.code) {
+        // Supabase/PostgreSQL error codes
+        if (error.code === "42501" || error.message?.includes("permission denied")) {
+          errorMessage = "Erreur de permissions";
+          errorDescription = "Votre session a peut-être expiré. Veuillez vous reconnecter et réessayer.";
+        } else if (error.code === "23505") {
+          errorMessage = "Commande déjà créée";
+          errorDescription = "Cette commande existe déjà. Vérifiez votre historique de commandes.";
+        } else if (error.code === "PGRST301") {
+          errorMessage = "Session expirée";
+          errorDescription = "Veuillez vous reconnecter pour continuer.";
+        }
+      }
+      
+      toast.error(errorMessage, {
+        description: errorDescription,
+        duration: 10000,
       });
     },
     onSettled: () => {
