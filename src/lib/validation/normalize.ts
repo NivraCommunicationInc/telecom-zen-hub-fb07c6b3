@@ -41,14 +41,19 @@ export const formatCardNumberDisplay = (value: string): string => {
 };
 
 /**
- * Format expiry date as MM/YY
+ * Format expiry date as MM/YY or MM/YYYY depending on input length
  */
 export const formatExpiryDisplay = (value: string): string => {
   const digits = digitsOnly(value);
-  if (digits.length >= 2) {
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    // MMYY format -> MM/YY
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
   }
-  return digits;
+  // MMYYYY format -> MM/YYYY
+  return `${digits.slice(0, 2)}/${digits.slice(2, 6)}`;
 };
 
 /**

@@ -38,32 +38,73 @@ export const calculateAge = (dob: Date): number => {
 };
 
 /**
- * Parse date string in various formats
- * Accepts: YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY (ISO preferred)
+ * Validate that a Date object matches the expected year/month/day
+ * This catches impossible dates like Feb 31 that JS auto-corrects
+ */
+const validateDateComponents = (
+  date: Date,
+  expectedYear: number,
+  expectedMonth: number,
+  expectedDay: number
+): boolean => {
+  return (
+    date.getFullYear() === expectedYear &&
+    date.getMonth() === expectedMonth - 1 &&
+    date.getDate() === expectedDay
+  );
+};
+
+/**
+ * Parse date string in strict formats only
+ * Accepts ONLY:
+ * - YYYY-MM-DD (ISO, recommended)
+ * - DD/MM/YYYY (Quebec format)
+ * 
+ * NO fallback to native Date parsing (ambiguous across browsers)
+ * Rejects impossible dates like 2024-02-31
  */
 export const parseDate = (value: string): Date | null => {
   if (!value) return null;
   
-  // Try ISO format first (YYYY-MM-DD)
-  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const trimmed = value.trim();
+  
+  // Try ISO format (YYYY-MM-DD)
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
-    const [, year, month, day] = isoMatch;
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    if (!isNaN(date.getTime())) return date;
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    
+    // Basic range validation
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    
+    const date = new Date(year, month - 1, day);
+    
+    // Validate that JS didn't auto-correct an impossible date
+    if (!validateDateComponents(date, year, month, day)) return null;
+    
+    return date;
   }
   
-  // Try DD/MM/YYYY format
-  const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  // Try DD/MM/YYYY format (Quebec)
+  const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (slashMatch) {
-    const [, day, month, year] = slashMatch;
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    if (!isNaN(date.getTime())) return date;
+    const day = parseInt(slashMatch[1], 10);
+    const month = parseInt(slashMatch[2], 10);
+    const year = parseInt(slashMatch[3], 10);
+    
+    // Basic range validation
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    
+    const date = new Date(year, month - 1, day);
+    
+    // Validate that JS didn't auto-correct an impossible date
+    if (!validateDateComponents(date, year, month, day)) return null;
+    
+    return date;
   }
   
-  // Try native Date parsing as fallback
-  const parsed = new Date(value);
-  if (!isNaN(parsed.getTime())) return parsed;
-  
+  // No fallback - reject ambiguous formats
   return null;
 };
 

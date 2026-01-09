@@ -149,6 +149,35 @@ test('DOB: Too old (> 120) fails', () => {
   return validateDob('1850-01-01').isValid === false;
 });
 
+// IMPOSSIBLE DATE TESTS
+test('DOB: Impossible date Feb 31 fails', () => {
+  return validateDob('2024-02-31').isValid === false;
+});
+
+test('DOB: Impossible date Feb 30 fails', () => {
+  return validateDob('2024-02-30').isValid === false;
+});
+
+test('DOB: Impossible date Apr 31 fails', () => {
+  return validateDob('2024-04-31').isValid === false;
+});
+
+test('DOB: Valid Feb 29 leap year passes', () => {
+  return validateDob('2024-02-29').isValid === true;
+});
+
+test('DOB: Invalid Feb 29 non-leap year fails', () => {
+  return validateDob('2023-02-29').isValid === false;
+});
+
+test('DOB: Impossible date month 13 fails', () => {
+  return validateDob('2024-13-01').isValid === false;
+});
+
+test('DOB: DD/MM/YYYY format with impossible date fails', () => {
+  return validateDob('31/02/2024').isValid === false;
+});
+
 test('DOB: Empty required fails', () => {
   return validateDob('', { required: true }).isValid === false;
 });
