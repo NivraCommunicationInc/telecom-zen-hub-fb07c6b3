@@ -57,10 +57,8 @@ export function LedgerBalanceCard({
     );
   }
 
-  const hasBalance = balance.amountDue > 0;
-  const hasCredit = balance.hasCredit;
-  const creditBlocked = balance.creditBlocked;
-  const outstandingInvoices = balance.outstandingInvoices || 0;
+  const hasBalance = balance.balance > 0;
+  const hasCredit = balance.isCredit;
 
   return (
     <Card className={`bg-card border-border ${hasBalance ? 'border-amber-500/30' : hasCredit ? 'border-emerald-500/30' : ''}`}>
@@ -90,8 +88,8 @@ export function LedgerBalanceCard({
                 hasBalance ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-foreground'
               }`}>
                 {hasCredit 
-                  ? balance.availableCreditDisplay
-                  : balance.amountDueDisplay
+                  ? balance.availableCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
+                  : balance.balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
                 }
               </p>
             </div>
@@ -118,21 +116,6 @@ export function LedgerBalanceCard({
               <p className="text-muted-foreground">Total payé</p>
               <p className="text-lg font-semibold text-emerald-600">
                 {balance.totalCredits.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Credit Blocked Warning */}
-        {creditBlocked && (
-          <div className="mt-3 flex items-center gap-2 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
-            <AlertCircle className="w-4 h-4 text-amber-500" />
-            <div className="flex-1">
-              <p className="text-sm text-amber-600 font-medium">
-                Crédit bloqué: {outstandingInvoices} facture{outstandingInvoices > 1 ? 's' : ''} impayée{outstandingInvoices > 1 ? 's' : ''}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Le crédit sera disponible après paiement de toutes les factures
               </p>
             </div>
           </div>

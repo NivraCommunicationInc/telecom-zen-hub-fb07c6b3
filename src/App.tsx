@@ -7,7 +7,6 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import AppRoutes from "@/components/AppRoutes";
 import ChatbotWidget from "@/components/chatbot/ChatbotWidget";
 import { DevOverflowDetector } from "@/components/DevOverflowDetector";
-import { DevOverflowAudit } from "@/components/DevOverflowAudit";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,8 +30,6 @@ const App = () => (
         <BrowserRouter>
           {/* DEV-ONLY: Overflow detector - only active in development */}
           {import.meta.env.DEV && <DevOverflowDetector />}
-          {/* DEV-ONLY: Full 12-check audit UI - only with ?dev_overflow_audit=1 */}
-          {import.meta.env.DEV && <DevOverflowAudit />}
           <AppRoutes />
           <ChatbotWidget />
         </BrowserRouter>

@@ -83,12 +83,3 @@ verify_jwt = false
 
 [functions.staff-otp-verify]
 verify_jwt = false
-
-[functions.create-crypto-payment]
-verify_jwt = false
-
-[functions.nowpayments-ipn]
-verify_jwt = false
-
-[functions.test-nowpayments-connection]
-verify_jwt = false

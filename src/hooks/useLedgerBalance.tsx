@@ -10,25 +10,11 @@ import { backendClient } from "@/integrations/backend/client";
 export interface LedgerBalance {
   totalDebits: number;
   totalCredits: number;
-  /** Raw balance (positive = owes money) - internal use only */
   balance: number;
-  /** Amount client owes (always >= 0) - USE THIS for display */
-  amountDue: number;
-  /** Available credit (>= 0, = 0 if outstanding invoices) - USE THIS for display */
   availableCredit: number;
-  /** Whether client has available credit */
-  hasCredit: boolean;
-  /** Formatted display string for amount due */
-  amountDueDisplay: string;
-  /** Formatted display string for available credit */
-  availableCreditDisplay: string;
+  isCredit: boolean;
+  display: string;
   preauthorized: number;
-  /** Number of outstanding invoices with remaining balance */
-  outstandingInvoices: number;
-  /** Date of oldest unpaid invoice */
-  oldestUnpaidDate: string | null;
-  /** Whether credit is blocked (outstanding invoices exist) */
-  creditBlocked: boolean;
 }
 
 export interface LedgerEntry {
@@ -64,31 +50,18 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
   if (data && data.length > 0) {
     const result = data[0];
     const balance = Number(result.balance) || 0;
-    const outstandingInvoices = Number(result.outstanding_invoices) || 0;
-    
-    // Use amount_due and available_credit directly from DB
-    const amountDue = Math.max(0, Number(result.amount_due) || 0);
-    const availableCredit = Math.max(0, Number(result.available_credit) || 0);
-    const hasCredit = availableCredit > 0;
-    // STRICT RULE: creditBlocked = outstanding_invoices > 0 (simple, no balance check)
-    const creditBlocked = result.credit_blocked ?? (outstandingInvoices > 0);
-    
-    const formatCurrency = (amount: number) => 
-      amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+    const isCredit = balance < 0;
     
     return {
       totalDebits: Number(result.total_debits) || 0,
       totalCredits: Number(result.total_credits) || 0,
       balance,
-      amountDue,
-      availableCredit,
-      hasCredit,
-      amountDueDisplay: formatCurrency(amountDue),
-      availableCreditDisplay: formatCurrency(availableCredit),
-      preauthorized: 0,
-      outstandingInvoices,
-      oldestUnpaidDate: result.oldest_unpaid_date || null,
-      creditBlocked,
+      availableCredit: Number(result.available_credit) || 0,
+      isCredit,
+      display: isCredit
+        ? `Crédit: ${Math.abs(balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
+        : balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
+      preauthorized: 0, // Would need separate query for preauthorized
     };
   }
 
@@ -96,15 +69,10 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
     totalDebits: 0,
     totalCredits: 0,
     balance: 0,
-    amountDue: 0,
     availableCredit: 0,
-    hasCredit: false,
-    amountDueDisplay: "0,00 $",
-    availableCreditDisplay: "0,00 $",
+    isCredit: false,
+    display: "0,00 $",
     preauthorized: 0,
-    outstandingInvoices: 0,
-    oldestUnpaidDate: null,
-    creditBlocked: false,
   };
 }
 
@@ -117,24 +85,16 @@ async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalan
     .select('*')
     .eq('client_id', clientId);
 
-  const formatCurrency = (amount: number) => 
-    amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
-
   if (error) {
     console.error("[useLedgerBalance] Error fetching entries:", error);
     return {
       totalDebits: 0,
       totalCredits: 0,
       balance: 0,
-      amountDue: 0,
       availableCredit: 0,
-      hasCredit: false,
-      amountDueDisplay: "0,00 $",
-      availableCreditDisplay: "0,00 $",
+      isCredit: false,
+      display: "0,00 $",
       preauthorized: 0,
-      outstandingInvoices: 0,
-      oldestUnpaidDate: null,
-      creditBlocked: false,
     };
   }
 
@@ -148,7 +108,7 @@ async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalan
     } else if (amount < 0) {
       // Only count captured payments
       const isCaptured = entry.captured_at || 
-        ['paid', 'complete', 'captured', 'confirmed'].includes(entry.payment_status || '');
+        ['paid', 'complete', 'captured'].includes(entry.payment_status || '');
       if (isCaptured) {
         totalCredits += Math.abs(amount);
       }
@@ -156,39 +116,18 @@ async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalan
   }
 
   const balance = totalDebits - totalCredits;
-  
-  // Count outstanding invoices and calculate amount due
-  let amountDue = 0;
-  let outstandingInvoices = 0;
-  for (const e of entries || []) {
-    const amount = Number(e.amount) || 0;
-    const allocated = Number(e.amount_allocated) || 0;
-    const remaining = amount - allocated;
-    if (amount > 0 && ['invoice', 'charge', 'fee', 'order'].includes(e.entry_type) && remaining > 0.01) {
-      outstandingInvoices++;
-      amountDue += remaining;
-    }
-  }
-  amountDue = Math.max(0, amountDue);
-  
-  // CRITICAL: No credit while invoices outstanding
-  const creditBlocked = outstandingInvoices > 0 && balance < 0;
-  const availableCredit = creditBlocked ? 0 : (balance < 0 ? Math.abs(balance) : 0);
-  const hasCredit = availableCredit > 0 && outstandingInvoices === 0;
+  const isCredit = balance < 0;
 
   return {
     totalDebits,
     totalCredits,
     balance,
-    amountDue,
-    availableCredit,
-    hasCredit,
-    amountDueDisplay: formatCurrency(amountDue),
-    availableCreditDisplay: formatCurrency(availableCredit),
+    availableCredit: isCredit ? Math.abs(balance) : 0,
+    isCredit,
+    display: isCredit
+      ? `Crédit: ${Math.abs(balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
+      : balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
     preauthorized: 0,
-    outstandingInvoices,
-    oldestUnpaidDate: null,
-    creditBlocked,
   };
 }
 

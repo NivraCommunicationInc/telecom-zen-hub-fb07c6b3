@@ -251,7 +251,6 @@ const AdminLogin = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@nivra.ca"
                 className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12"
-                data-testid="admin-login-email"
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
@@ -270,7 +269,6 @@ const AdminLogin = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-cyan-400 h-12 pr-10"
-                    data-testid="admin-login-password"
                   />
                   <button
                     type="button"
@@ -290,7 +288,6 @@ const AdminLogin = () => {
               size="lg"
               className="w-full"
               disabled={isSubmitting}
-              data-testid="admin-login-submit"
             >
               {isSubmitting 
                 ? (isForgotPassword ? "Envoi..." : "Connexion...") 

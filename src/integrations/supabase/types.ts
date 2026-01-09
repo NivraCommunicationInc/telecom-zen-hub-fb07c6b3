@@ -238,75 +238,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_security_audit: {
-        Row: {
-          action: string
-          admin_user_id: string
-          created_at: string
-          details: Json | null
-          id: string
-          ip_address: string | null
-          target_id: string | null
-          target_type: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          action: string
-          admin_user_id: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          ip_address?: string | null
-          target_id?: string | null
-          target_type?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          action?: string
-          admin_user_id?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          ip_address?: string | null
-          target_id?: string | null
-          target_type?: string | null
-          user_agent?: string | null
-        }
-        Relationships: []
-      }
-      admin_users: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          deactivated_at: string | null
-          deactivated_by: string | null
-          id: string
-          is_active: boolean
-          notes: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          id?: string
-          is_active?: boolean
-          notes?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          deactivated_at?: string | null
-          deactivated_by?: string | null
-          id?: string
-          is_active?: boolean
-          notes?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       appointments: {
         Row: {
           admin_id: string | null
@@ -1231,143 +1162,6 @@ export type Database = {
         }
         Relationships: []
       }
-      crypto_ipn_logs: {
-        Row: {
-          created_at: string
-          crypto_payment_id: string | null
-          error_message: string | null
-          event_type: string | null
-          id: string
-          payment_id: string | null
-          processed: boolean
-          raw_payload: Json
-          signature_valid: boolean
-        }
-        Insert: {
-          created_at?: string
-          crypto_payment_id?: string | null
-          error_message?: string | null
-          event_type?: string | null
-          id?: string
-          payment_id?: string | null
-          processed?: boolean
-          raw_payload: Json
-          signature_valid?: boolean
-        }
-        Update: {
-          created_at?: string
-          crypto_payment_id?: string | null
-          error_message?: string | null
-          event_type?: string | null
-          id?: string
-          payment_id?: string | null
-          processed?: boolean
-          raw_payload?: Json
-          signature_valid?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crypto_ipn_logs_crypto_payment_id_fkey"
-            columns: ["crypto_payment_id"]
-            isOneToOne: false
-            referencedRelation: "crypto_payments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crypto_payments: {
-        Row: {
-          actually_paid: number | null
-          billing_id: string | null
-          client_id: string
-          created_at: string
-          id: string
-          invoice_url: string | null
-          notes: string | null
-          order_id: string | null
-          outcome_amount: number | null
-          outcome_currency: string | null
-          pay_address: string | null
-          pay_amount: number | null
-          pay_currency: string
-          payment_id: string | null
-          payment_status: string
-          price_amount: number
-          price_currency: string
-          provider: string
-          raw_ipn: Json | null
-          reconciled_at: string | null
-          reconciled_by: string | null
-          txid: string | null
-          updated_at: string
-        }
-        Insert: {
-          actually_paid?: number | null
-          billing_id?: string | null
-          client_id: string
-          created_at?: string
-          id?: string
-          invoice_url?: string | null
-          notes?: string | null
-          order_id?: string | null
-          outcome_amount?: number | null
-          outcome_currency?: string | null
-          pay_address?: string | null
-          pay_amount?: number | null
-          pay_currency: string
-          payment_id?: string | null
-          payment_status?: string
-          price_amount: number
-          price_currency?: string
-          provider?: string
-          raw_ipn?: Json | null
-          reconciled_at?: string | null
-          reconciled_by?: string | null
-          txid?: string | null
-          updated_at?: string
-        }
-        Update: {
-          actually_paid?: number | null
-          billing_id?: string | null
-          client_id?: string
-          created_at?: string
-          id?: string
-          invoice_url?: string | null
-          notes?: string | null
-          order_id?: string | null
-          outcome_amount?: number | null
-          outcome_currency?: string | null
-          pay_address?: string | null
-          pay_amount?: number | null
-          pay_currency?: string
-          payment_id?: string | null
-          payment_status?: string
-          price_amount?: number
-          price_currency?: string
-          provider?: string
-          raw_ipn?: Json | null
-          reconciled_at?: string | null
-          reconciled_by?: string | null
-          txid?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crypto_payments_billing_id_fkey"
-            columns: ["billing_id"]
-            isOneToOne: false
-            referencedRelation: "billing"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crypto_payments_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       email_queue: {
         Row: {
           attempts: number
@@ -2226,7 +2020,6 @@ export type Database = {
         Row: {
           account_id: string | null
           amount: number
-          amount_allocated: number | null
           captured_at: string | null
           client_id: string
           created_at: string
@@ -2246,7 +2039,6 @@ export type Database = {
         Insert: {
           account_id?: string | null
           amount: number
-          amount_allocated?: number | null
           captured_at?: string | null
           client_id: string
           created_at?: string
@@ -2266,7 +2058,6 @@ export type Database = {
         Update: {
           account_id?: string | null
           amount?: number
-          amount_allocated?: number | null
           captured_at?: string | null
           client_id?: string
           created_at?: string
@@ -2289,57 +2080,6 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ledger_invoice_allocations: {
-        Row: {
-          allocated_at: string
-          amount_allocated: number
-          created_by_id: string | null
-          created_by_name: string | null
-          created_by_role: string | null
-          id: string
-          invoice_entry_id: string
-          notes: string | null
-          payment_entry_id: string
-        }
-        Insert: {
-          allocated_at?: string
-          amount_allocated: number
-          created_by_id?: string | null
-          created_by_name?: string | null
-          created_by_role?: string | null
-          id?: string
-          invoice_entry_id: string
-          notes?: string | null
-          payment_entry_id: string
-        }
-        Update: {
-          allocated_at?: string
-          amount_allocated?: number
-          created_by_id?: string | null
-          created_by_name?: string | null
-          created_by_role?: string | null
-          id?: string
-          invoice_entry_id?: string
-          notes?: string | null
-          payment_entry_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ledger_invoice_allocations_invoice_entry_id_fkey"
-            columns: ["invoice_entry_id"]
-            isOneToOne: false
-            referencedRelation: "ledger_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ledger_invoice_allocations_payment_entry_id_fkey"
-            columns: ["payment_entry_id"]
-            isOneToOne: false
-            referencedRelation: "ledger_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -3050,51 +2790,6 @@ export type Database = {
           },
         ]
       }
-      payment_gateway_settings: {
-        Row: {
-          created_at: string
-          enabled_currencies: Json
-          id: string
-          is_enabled: boolean
-          min_confirmations: number
-          mode: string
-          payout_wallet_btc: string | null
-          payout_wallet_eth: string | null
-          payout_wallet_sol: string | null
-          payout_wallet_xrp: string | null
-          provider: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          enabled_currencies?: Json
-          id?: string
-          is_enabled?: boolean
-          min_confirmations?: number
-          mode?: string
-          payout_wallet_btc?: string | null
-          payout_wallet_eth?: string | null
-          payout_wallet_sol?: string | null
-          payout_wallet_xrp?: string | null
-          provider?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          enabled_currencies?: Json
-          id?: string
-          is_enabled?: boolean
-          min_confirmations?: number
-          mode?: string
-          payout_wallet_btc?: string | null
-          payout_wallet_eth?: string | null
-          payout_wallet_sol?: string | null
-          payout_wallet_xrp?: string | null
-          provider?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       payment_methods: {
         Row: {
           card_type: string
@@ -3214,97 +2909,6 @@ export type Database = {
           verified_by_name?: string | null
         }
         Relationships: []
-      }
-      payment_requests: {
-        Row: {
-          account_id: string | null
-          amount: number
-          client_reference: string | null
-          created_at: string
-          crypto_currency: string | null
-          crypto_txid: string | null
-          crypto_wallet_address: string | null
-          currency: string
-          id: string
-          invoice_id: string | null
-          method: string
-          payment_instructions: string | null
-          reference_code: string
-          rejection_reason: string | null
-          status: string
-          updated_at: string
-          user_id: string
-          verification_note: string | null
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          account_id?: string | null
-          amount: number
-          client_reference?: string | null
-          created_at?: string
-          crypto_currency?: string | null
-          crypto_txid?: string | null
-          crypto_wallet_address?: string | null
-          currency?: string
-          id?: string
-          invoice_id?: string | null
-          method: string
-          payment_instructions?: string | null
-          reference_code: string
-          rejection_reason?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-          verification_note?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          account_id?: string | null
-          amount?: number
-          client_reference?: string | null
-          created_at?: string
-          crypto_currency?: string | null
-          crypto_txid?: string | null
-          crypto_wallet_address?: string | null
-          currency?: string
-          id?: string
-          invoice_id?: string | null
-          method?: string
-          payment_instructions?: string | null
-          reference_code?: string
-          rejection_reason?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-          verification_note?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_requests_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_requests_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "billing"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_requests_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       payments: {
         Row: {
@@ -5712,145 +5316,6 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_requests_admin_view: {
-        Row: {
-          account_id: string | null
-          account_number: string | null
-          account_status: string | null
-          amount: number | null
-          client_email: string | null
-          client_name: string | null
-          client_phone: string | null
-          client_reference: string | null
-          created_at: string | null
-          crypto_currency: string | null
-          crypto_txid: string | null
-          crypto_wallet_address: string | null
-          currency: string | null
-          id: string | null
-          invoice_id: string | null
-          method: string | null
-          payment_instructions: string | null
-          reference_code: string | null
-          rejection_reason: string | null
-          status: string | null
-          updated_at: string | null
-          user_id: string | null
-          verification_note: string | null
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_requests_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_requests_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "billing"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_requests_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      site_offers_public: {
-        Row: {
-          category: string | null
-          description_en: string | null
-          description_fr: string | null
-          discount_amount: number | null
-          discount_percent: number | null
-          features_json: Json | null
-          id: string | null
-          is_featured: boolean | null
-          name_en: string | null
-          name_fr: string | null
-          offer_type: string | null
-          price_monthly: number | null
-          price_setup: number | null
-          promo_code: string | null
-          sort_order: number | null
-          valid_from: string | null
-          valid_until: string | null
-        }
-        Insert: {
-          category?: string | null
-          description_en?: string | null
-          description_fr?: string | null
-          discount_amount?: number | null
-          discount_percent?: number | null
-          features_json?: Json | null
-          id?: string | null
-          is_featured?: boolean | null
-          name_en?: string | null
-          name_fr?: string | null
-          offer_type?: string | null
-          price_monthly?: number | null
-          price_setup?: number | null
-          promo_code?: string | null
-          sort_order?: number | null
-          valid_from?: string | null
-          valid_until?: string | null
-        }
-        Update: {
-          category?: string | null
-          description_en?: string | null
-          description_fr?: string | null
-          discount_amount?: number | null
-          discount_percent?: number | null
-          features_json?: Json | null
-          id?: string | null
-          is_featured?: boolean | null
-          name_en?: string | null
-          name_fr?: string | null
-          offer_type?: string | null
-          price_monthly?: number | null
-          price_setup?: number | null
-          promo_code?: string | null
-          sort_order?: number | null
-          valid_from?: string | null
-          valid_until?: string | null
-        }
-        Relationships: []
-      }
-      site_settings_public: {
-        Row: {
-          category: string | null
-          description: string | null
-          id: string | null
-          key: string | null
-          value_json: Json | null
-          value_text: string | null
-        }
-        Insert: {
-          category?: string | null
-          description?: string | null
-          id?: string | null
-          key?: string | null
-          value_json?: Json | null
-          value_text?: string | null
-        }
-        Update: {
-          category?: string | null
-          description?: string | null
-          id?: string | null
-          key?: string | null
-          value_json?: Json | null
-          value_text?: string | null
-        }
-        Relationships: []
-      }
       tv_channels_public: {
         Row: {
           category: string | null
@@ -5919,27 +5384,6 @@ export type Database = {
       }
     }
     Functions: {
-      allocate_payment_to_invoice: {
-        Args: {
-          p_actor_id?: string
-          p_actor_name?: string
-          p_actor_role?: string
-          p_amount: number
-          p_invoice_entry_id: string
-          p_notes?: string
-          p_payment_entry_id: string
-        }
-        Returns: Json
-      }
-      allocate_payment_to_invoices: {
-        Args: {
-          p_actor_id?: string
-          p_actor_name?: string
-          p_actor_role?: string
-          p_payment_entry_id: string
-        }
-        Returns: Json
-      }
       calculate_next_invoice_date: {
         Args: { p_billing_day: number; p_from_date?: string }
         Returns: string
@@ -6007,50 +5451,10 @@ export type Database = {
       get_client_ledger_balance: {
         Args: { p_client_id: string }
         Returns: {
-          amount_due: number
           available_credit: number
           balance: number
-          credit_blocked: boolean
-          oldest_unpaid_date: string
-          outstanding_invoices: number
           total_credits: number
           total_debits: number
-        }[]
-      }
-      get_entries_allocation_counts: {
-        Args: { p_entry_ids: string[] }
-        Returns: {
-          allocation_count: number
-          entry_id: string
-        }[]
-      }
-      get_entry_allocation_count: {
-        Args: { p_entry_id: string }
-        Returns: number
-      }
-      get_invoice_payment_history: {
-        Args: { p_invoice_entry_id: string }
-        Returns: {
-          allocated_at: string
-          allocated_by_name: string
-          allocation_id: string
-          amount_allocated: number
-          payment_entry_id: string
-          payment_method: string
-          payment_reference: string
-        }[]
-      }
-      get_ledger_allocations: {
-        Args: { p_entry_id: string }
-        Returns: {
-          allocated_at: string
-          allocation_id: string
-          amount_allocated: number
-          is_payment: boolean
-          other_description: string
-          other_entry_id: string
-          other_entry_type: string
-          other_reference_number: string
         }[]
       }
       has_role: {
@@ -6061,7 +5465,6 @@ export type Database = {
         Returns: boolean
       }
       hash_pin: { Args: { pin: string }; Returns: string }
-      is_admin: { Args: never; Returns: boolean }
       is_assigned_technician: {
         Args: { _work_order_id: string }
         Returns: boolean
@@ -6074,7 +5477,6 @@ export type Database = {
         Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean
       }
-      is_staff: { Args: never; Returns: boolean }
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined

@@ -126,9 +126,7 @@
 }
 
 @layer base {
-  /* Global overflow prevention (prod default).
-     In DEV, DevOverflowDetector sets data-dev-overflow="true" on <html>
-     to temporarily allow horizontal scrolling for overflow auditing. */
+  /* Global overflow prevention */
   html {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -137,11 +135,6 @@
   body {
     overflow-x: hidden;
     min-width: 320px;
-  }
-
-  html[data-dev-overflow="true"],
-  html[data-dev-overflow="true"] body {
-    overflow-x: visible;
   }
 
   * {

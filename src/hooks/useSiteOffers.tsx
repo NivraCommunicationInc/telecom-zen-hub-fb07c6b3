@@ -25,11 +25,10 @@ export function useSiteOffers(options?: { category?: string; featured?: boolean 
   return useQuery({
     queryKey: ["site-offers", options?.category, options?.featured],
     queryFn: async () => {
-      // Use secure public view that excludes internal metadata (created_by_id, updated_by_id, etc.)
-      // The view already filters is_active and date validity
       let query = backendClient
-        .from("site_offers_public")
+        .from("site_offers")
         .select("*")
+        .eq("is_active", true)
         .order("sort_order", { ascending: true });
 
       if (options?.category) {
@@ -39,6 +38,11 @@ export function useSiteOffers(options?: { category?: string; featured?: boolean 
       if (options?.featured) {
         query = query.eq("is_featured", true);
       }
+
+      // Filter by valid date range
+      const now = new Date().toISOString();
+      query = query.or(`valid_from.is.null,valid_from.lte.${now}`);
+      query = query.or(`valid_until.is.null,valid_until.gte.${now}`);
 
       const { data, error } = await query;
 

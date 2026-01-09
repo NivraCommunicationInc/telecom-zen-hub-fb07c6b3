@@ -18,6 +18,7 @@ import {
   Ticket,
   Tv,
   Wrench,
+  UserCog,
   ExternalLink,
   Building2,
   Film,
@@ -25,9 +26,7 @@ import {
   Mail,
   History,
   AlertTriangle,
-  Shield,
-  Wallet,
-  Bitcoin
+  Shield
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -49,7 +48,6 @@ const navItems = [
   { icon: Tv, label: "Chaînes TV", href: "/admin/channels" },
   { icon: Film, label: "Streaming+", href: "/admin/streaming" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
-  { icon: Wallet, label: "Vérifier paiements", href: "/admin/payment-verification" },
   { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
   { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
@@ -70,7 +68,6 @@ const navItems = [
   { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
   { icon: Shield, label: "Événements sécurité", href: "/admin/security-events" },
   { icon: Shield, label: "Security Guardian", href: "/admin/security-guardian" },
-  { icon: Bitcoin, label: "Crypto Payments", href: "/admin/crypto-payments" },
 ];
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {

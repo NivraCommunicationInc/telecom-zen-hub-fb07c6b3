@@ -1,6 +1,6 @@
 /**
  * Dialog wrapper for ContractSummaryView
- * ADMIN-ONLY: Used in admin portal
+ * Used in both client and admin portals
  */
 
 import {
@@ -20,14 +20,16 @@ interface ContractSummaryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderId: string;
+  usePortalClient?: boolean;
 }
 
 export function ContractSummaryDialog({
   open,
   onOpenChange,
   orderId,
+  usePortalClient = false,
 }: ContractSummaryDialogProps) {
-  const { data, isLoading, error } = useContractSummary({ orderId });
+  const { data, isLoading, error } = useContractSummary({ orderId, usePortalClient });
 
   const handleDownloadPDF = async () => {
     if (!data) {

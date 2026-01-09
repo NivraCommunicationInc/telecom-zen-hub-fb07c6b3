@@ -156,14 +156,14 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       {/* Tier 2: Bottom Bar */}
       <div className="border-t border-white/10">
         <div className="container mx-auto px-4 py-5 max-w-6xl">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 min-w-0">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             {/* Copyright */}
-            <p className="text-white/50 text-xs text-center sm:text-left min-w-0 break-words">
+            <p className="text-white/50 text-xs text-center sm:text-left">
               © {currentYear} Nivra Communications Inc. {isFr ? "Tous droits réservés." : "All rights reserved."}
             </p>
 
             {/* Legal shortcuts + Security */}
-            <div className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 gap-y-2 min-w-0">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
               <Link 
                 to="/privacy-policy" 
                 className="text-white/50 hover:text-accent transition-colors text-xs"

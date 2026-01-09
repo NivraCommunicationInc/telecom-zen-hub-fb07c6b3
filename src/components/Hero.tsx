@@ -1,13 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useNavigate } from "react-router-dom";
-import { useOptionalAuth } from "@/hooks/useAuth";
 
 const Hero = () => {
   const { t } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useOptionalAuth();
 
   const scrollToContact = () => {
     const contactSection = document.getElementById('contact');
@@ -16,24 +12,16 @@ const Hero = () => {
     }
   };
 
-  const handleOrder = () => {
-    if (user) {
-      navigate('/portal/new-order');
-    } else {
-      navigate('/portal/auth', { state: { redirectTo: '/portal/new-order' } });
-    }
-  };
-
   return (
     <section className="relative min-h-[85vh] bg-hero overflow-hidden">
       {/* Background Elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+      <div className="absolute inset-0 pointer-events-none">
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-navy-800 to-navy-700" />
         
         {/* Subtle accent glow */}
-        <div className="absolute top-1/3 right-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl translate-x-1/3" />
-        <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-accent/5 rounded-full blur-3xl -translate-x-1/3" />
+        <div className="absolute top-1/3 -right-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -left-20 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
         
         {/* Grid pattern */}
         <div 
@@ -71,7 +59,7 @@ const Hero = () => {
               variant="hero" 
               size="lg" 
               className="group w-full sm:w-auto" 
-              onClick={handleOrder}
+              onClick={scrollToContact}
             >
               {t('hero.cta.order')}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
@@ -96,10 +84,10 @@ const Hero = () => {
             ].map((item, index) => (
               <div 
                 key={index}
-                className="flex items-center justify-center gap-2 p-3 lg:p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm min-w-0"
+                className="flex items-center justify-center gap-2 p-3 lg:p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
               >
                 <div className="w-2 h-2 rounded-full bg-accent flex-shrink-0" />
-                <span className="text-[11px] sm:text-xs lg:text-sm text-white/80 font-medium text-center hyphens-none break-words min-w-0">{t(item.key)}</span>
+                <span className="text-[11px] sm:text-xs lg:text-sm text-white/80 font-medium text-center hyphens-none break-normal">{t(item.key)}</span>
               </div>
             ))}
           </div>

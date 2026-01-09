@@ -283,7 +283,7 @@ const TVPlans = () => {
       
       <main className="pt-24 pb-20 relative">
         {/* Background Effects */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-radial from-purple-500/5 via-transparent to-transparent rounded-full blur-3xl transform -translate-y-1/2 translate-x-1/3" />
           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-radial from-accent/5 via-transparent to-transparent rounded-full blur-3xl transform translate-y-1/2 -translate-x-1/3" />
         </div>
@@ -296,7 +296,7 @@ const TVPlans = () => {
               {isFrench ? "Forfaits TV + Internet" : "TV + Internet Plans"}
             </Badge>
             
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight hyphens-none">
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
               <span className="block">
                 {isFrench ? "Forfaits TV Nivra" : "Nivra TV Plans"}
               </span>

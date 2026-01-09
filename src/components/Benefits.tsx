@@ -72,32 +72,32 @@ const Benefits = () => {
         <div className="pt-10 border-t border-border">
           {/* Primary Trust Badge */}
           <div className="bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-6 max-w-2xl mx-auto">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-center min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <Shield className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                <span className="font-semibold text-foreground break-words">{t('benefits.trust.nocredit')}</span>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-500" />
+                <span className="font-semibold text-foreground">{t('benefits.trust.nocredit')}</span>
               </div>
-              <span className="hidden sm:block text-muted-foreground flex-shrink-0">—</span>
-              <span className="text-sm text-muted-foreground break-words min-w-0">
+              <span className="hidden sm:block text-muted-foreground">—</span>
+              <span className="text-sm text-muted-foreground">
                 {t('benefits.nocredit.audience')}
               </span>
             </div>
           </div>
           
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 text-center min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <MapPin className="w-4 h-4 text-accent flex-shrink-0" />
-              <span className="text-sm text-muted-foreground break-words">{t('benefits.trust.local')}</span>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-center">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-accent" />
+              <span className="text-sm text-muted-foreground">{t('benefits.trust.local')}</span>
             </div>
-            <div className="hidden md:block w-px h-5 bg-border flex-shrink-0" />
-            <div className="flex items-center gap-2 min-w-0">
-              <Shield className="w-4 h-4 text-accent flex-shrink-0" />
-              <span className="text-sm text-muted-foreground break-words">{t('benefits.trust.secure')}</span>
+            <div className="hidden md:block w-px h-5 bg-border" />
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-accent" />
+              <span className="text-sm text-muted-foreground">{t('benefits.trust.secure')}</span>
             </div>
-            <div className="hidden md:block w-px h-5 bg-border flex-shrink-0" />
-            <div className="flex items-center gap-2 min-w-0">
-              <Check className="w-4 h-4 text-accent flex-shrink-0" />
-              <span className="text-sm text-muted-foreground break-words">{t('benefits.trust.pricing')}</span>
+            <div className="hidden md:block w-px h-5 bg-border" />
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-accent" />
+              <span className="text-sm text-muted-foreground">{t('benefits.trust.pricing')}</span>
             </div>
           </div>
         </div>

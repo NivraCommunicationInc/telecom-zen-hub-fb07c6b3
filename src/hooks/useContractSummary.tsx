@@ -1,14 +1,14 @@
 /**
  * Hook to fetch and build ContractSummaryData from order snapshots
- * ADMIN-ONLY: Uses adminClient for all queries
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { adminClient as supabase, portalClient as portalSupabase } from "@/integrations/backend";
 import type { ContractSummaryData } from "@/components/contract/ContractSummaryView";
 
 interface UseContractSummaryOptions {
   orderId: string;
+  usePortalClient?: boolean;
 }
 
 /**
@@ -118,14 +118,16 @@ export function buildContractSummaryFromOrder(
   };
 }
 
-export function useContractSummary({ orderId }: UseContractSummaryOptions) {
+export function useContractSummary({ orderId, usePortalClient = false }: UseContractSummaryOptions) {
+  const client = usePortalClient ? portalSupabase : supabase;
+
   return useQuery({
     queryKey: ["contract-summary", orderId],
     queryFn: async () => {
       if (!orderId) return null;
 
       // Fetch order with profile
-      const { data: order, error: orderErr } = await supabase
+      const { data: order, error: orderErr } = await client
         .from("orders")
         .select("*")
         .eq("id", orderId)
@@ -137,14 +139,14 @@ export function useContractSummary({ orderId }: UseContractSummaryOptions) {
       }
 
       // Fetch profile
-      const { data: profile } = await supabase
+      const { data: profile } = await client
         .from("profiles")
         .select("*")
         .eq("user_id", order.user_id)
         .maybeSingle();
 
       // Fetch order snapshot - prioritize contract_summary_snapshot if available
-      const { data: snapshot } = await supabase
+      const { data: snapshot } = await client
         .from("order_snapshots")
         .select("*")
         .eq("order_id", orderId)
@@ -209,7 +211,7 @@ export function useContractSummary({ orderId }: UseContractSummaryOptions) {
       // Fetch account if linked
       let account = null;
       if (order.account_id) {
-        const { data: acc } = await supabase
+        const { data: acc } = await client
           .from("accounts")
           .select("*")
           .eq("id", order.account_id)

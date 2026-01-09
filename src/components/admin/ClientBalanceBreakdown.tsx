@@ -101,8 +101,8 @@ export const ClientBalanceBreakdown = ({
   const isLoading = billingLoading || monthlyLoading || ledgerLoading;
 
   // Use ledger balance as the source of truth (only counts CAPTURED payments)
-  const amountDue = ledgerBalance?.amountDue ?? 0;
-  const hasCredit = ledgerBalance?.hasCredit ?? false;
+  const totalBalance = ledgerBalance?.balance ?? 0;
+  const hasCredit = ledgerBalance?.isCredit ?? false;
   const availableCredit = ledgerBalance?.availableCredit ?? 0;
   const preauthorized = ledgerBalance?.preauthorized ?? 0;
 
@@ -159,11 +159,11 @@ export const ClientBalanceBreakdown = ({
   }
 
   return (
-    <Card className={`bg-card border-border ${amountDue > 0 ? 'border-amber-500/30' : hasCredit ? 'border-emerald-500/30' : ''}`}>
+    <Card className={`bg-card border-border ${totalBalance > 0 ? 'border-amber-500/30' : hasCredit ? 'border-emerald-500/30' : ''}`}>
       {showTitle && (
         <CardHeader className={compact ? "py-3" : ""}>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Wallet className={`w-5 h-5 ${amountDue > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+            <Wallet className={`w-5 h-5 ${totalBalance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
             Solde du compte
           </CardTitle>
         </CardHeader>
@@ -171,7 +171,7 @@ export const ClientBalanceBreakdown = ({
       <CardContent className={compact ? "pt-0" : ""}>
         {/* Total Balance */}
         <div className={`p-4 rounded-lg mb-4 ${
-          amountDue > 0 
+          totalBalance > 0 
             ? 'bg-amber-500/10 border border-amber-500/30' 
             : hasCredit
             ? 'bg-emerald-500/10 border border-emerald-500/30'
@@ -180,19 +180,19 @@ export const ClientBalanceBreakdown = ({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                {hasCredit ? 'Crédit disponible' : 'Solde à payer'}
+                {hasCredit ? 'Crédit disponible' : 'Solde en souffrance'}
               </p>
-              <p className={`text-3xl font-bold ${amountDue > 0 ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-foreground'}`}>
+              <p className={`text-3xl font-bold ${totalBalance > 0 ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-foreground'}`}>
                 {hasCredit 
                   ? availableCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
-                  : amountDue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
+                  : totalBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
                 }
               </p>
             </div>
-            {amountDue === 0 && !hasCredit && (
+            {totalBalance === 0 && !hasCredit && (
               <CheckCircle className="w-8 h-8 text-emerald-500" />
             )}
-            {amountDue > 0 && (
+            {totalBalance > 0 && (
               <AlertCircle className="w-8 h-8 text-amber-500" />
             )}
             {hasCredit && (
