@@ -188,8 +188,13 @@ const ClientPayments = () => {
       setDeleteDialogOpen(false);
       setCardToDelete(null);
     },
-    onError: () => {
-      toast({ title: "Erreur lors de la suppression", description: "Impossible de supprimer cette carte.", variant: "destructive" });
+    onError: (err: any) => {
+      console.error("[ClientPayments] deleteCardMutation error:", err);
+      toast({
+        title: "Erreur lors de la suppression",
+        description: err?.message || err?.hint || "Impossible de supprimer cette carte.",
+        variant: "destructive",
+      });
       setDeleteDialogOpen(false);
       setCardToDelete(null);
     },
