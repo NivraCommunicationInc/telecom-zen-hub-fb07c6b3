@@ -71,12 +71,13 @@ const AdminPaymentVerification = () => {
   const [verificationNote, setVerificationNote] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
 
-  // Fetch payment requests with profile info
+  // Fetch payment requests with profile info using admin view (fixes N+1)
   const { data: payments, isLoading, refetch } = useQuery({
     queryKey: ["admin-payment-requests", statusFilter, searchTerm],
     queryFn: async () => {
+      // Use the admin view which joins profiles and accounts
       let query = supabase
-        .from("payment_requests")
+        .from("payment_requests_admin_view" as any)
         .select("*")
         .order("created_at", { ascending: false });
       
@@ -91,19 +92,14 @@ const AdminPaymentVerification = () => {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Fetch profiles separately for each payment
-      const paymentsWithProfiles = await Promise.all(
-        (data || []).map(async (payment) => {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email, full_name")
-            .eq("user_id", payment.user_id)
-            .single();
-          return { ...payment, profiles: profile } as PaymentRequest;
-        })
-      );
-      
-      return paymentsWithProfiles;
+      // Map view columns to expected PaymentRequest shape
+      return (data || []).map((row: any) => ({
+        ...row,
+        profiles: {
+          email: row.client_email,
+          full_name: row.client_name,
+        },
+      })) as PaymentRequest[];
     },
   });
 
