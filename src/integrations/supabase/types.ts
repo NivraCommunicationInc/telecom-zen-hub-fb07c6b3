@@ -238,6 +238,75 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_security_audit: {
+        Row: {
+          action: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          target_id: string | null
+          target_type: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           admin_id: string | null
@@ -2964,6 +3033,97 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_requests: {
+        Row: {
+          account_id: string | null
+          amount: number
+          client_reference: string | null
+          created_at: string
+          crypto_currency: string | null
+          crypto_txid: string | null
+          crypto_wallet_address: string | null
+          currency: string
+          id: string
+          invoice_id: string | null
+          method: string
+          payment_instructions: string | null
+          reference_code: string
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          verification_note: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          client_reference?: string | null
+          created_at?: string
+          crypto_currency?: string | null
+          crypto_txid?: string | null
+          crypto_wallet_address?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          method: string
+          payment_instructions?: string | null
+          reference_code: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          verification_note?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          client_reference?: string | null
+          created_at?: string
+          crypto_currency?: string | null
+          crypto_txid?: string | null
+          crypto_wallet_address?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          method?: string
+          payment_instructions?: string | null
+          reference_code?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verification_note?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_requests_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -5667,6 +5827,7 @@ export type Database = {
         Returns: boolean
       }
       hash_pin: { Args: { pin: string }; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
       is_assigned_technician: {
         Args: { _work_order_id: string }
         Returns: boolean
