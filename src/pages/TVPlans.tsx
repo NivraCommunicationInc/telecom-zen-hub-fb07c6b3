@@ -11,6 +11,7 @@ import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { TVInfoBox } from "@/components/ServiceInfoBox";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 interface AddressDetails {
   formattedAddress: string;
@@ -279,6 +280,7 @@ const TVPlans = () => {
 
   return (
     <div className="min-h-screen bg-background" data-testid="tv-plans-page">
+      <SEOHead {...SEO_DATA.tv} />
       <Header />
       
       <main className="pt-24 pb-20 relative">

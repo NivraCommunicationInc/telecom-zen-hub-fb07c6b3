@@ -11,6 +11,7 @@ import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { InternetInfoBox } from "@/components/ServiceInfoBox";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 interface AddressDetails {
   formattedAddress: string;
@@ -127,8 +128,8 @@ const InternetPlans = () => {
 
   return (
     <div className="min-h-screen bg-background" data-testid="internet-plans-page">
+      <SEOHead {...SEO_DATA.internet} />
       <Header />
-      
       <main className="pt-24 pb-20 relative">
         {/* Background Effects */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">

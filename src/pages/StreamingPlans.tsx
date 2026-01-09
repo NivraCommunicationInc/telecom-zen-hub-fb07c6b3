@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Film, Music, Tv, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useStreamingCatalogActive, StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
+import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const categoryLabels: Record<string, { en: string; fr: string }> = {
   video: { en: "Video", fr: "Vidéo" },
@@ -107,6 +108,7 @@ const StreamingPlans = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead {...SEO_DATA.streaming} />
       <Header />
       
       <section className="relative py-16 md:py-24 bg-gradient-to-br from-primary/5 via-background to-accent/5">
