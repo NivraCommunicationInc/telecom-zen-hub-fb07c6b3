@@ -82,6 +82,15 @@ import AdminCryptoPayments from "@/pages/admin/AdminCryptoPayments";
 import AdminCryptoIPNLogs from "@/pages/admin/AdminCryptoIPNLogs";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
+// Client Portal pages
+import PortalAuth from "@/pages/portal/PortalAuth";
+import PortalDashboard from "@/pages/portal/PortalDashboard";
+import PortalNewOrder from "@/pages/portal/PortalNewOrder";
+import PortalOrders from "@/pages/portal/PortalOrders";
+import PortalContracts from "@/pages/portal/PortalContracts";
+import PortalPayments from "@/pages/portal/PortalPayments";
+import PortalSupport from "@/pages/portal/PortalSupport";
+
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
 
@@ -91,7 +100,7 @@ const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus")
  * Structure:
  * - Public routes: Wrapped with MaintenanceGuard
  * - Admin routes: NEVER wrapped with MaintenanceGuard (admins always have access)
- * - CLIENT PORTAL REMOVED: Admin-only system
+ * - Client Portal: PIN-authenticated client access
  */
 const AppRoutes = () => {
   return (
@@ -191,10 +200,22 @@ const AppRoutes = () => {
       <Route path="/employee/*" element={<NotFound />} />
       <Route path="/employee" element={<NotFound />} />
       
-      {/* CLIENT PORTAL REMOVED - Admin-only system */}
-      {/* All /portal/* routes redirect to NotFound */}
-      <Route path="/portal/*" element={<NotFound />} />
-      <Route path="/portal" element={<NotFound />} />
+      {/* ============================================ */}
+      {/* CLIENT PORTAL ROUTES */}
+      {/* ============================================ */}
+      <Route path="/portal" element={<Navigate to="/portal/dashboard" replace />} />
+      <Route path="/portal/auth" element={<PortalAuth />} />
+      <Route path="/portal/dashboard" element={<PortalDashboard />} />
+      <Route path="/portal/new-order" element={<PortalNewOrder />} />
+      <Route path="/portal/orders" element={<PortalOrders />} />
+      <Route path="/portal/contracts" element={<PortalContracts />} />
+      <Route path="/portal/payments" element={<PortalPayments />} />
+      <Route path="/portal/support" element={<PortalSupport />} />
+      {/* Additional portal routes for order flows */}
+      <Route path="/portal/internet" element={<PortalNewOrder />} />
+      <Route path="/portal/tv-order" element={<PortalNewOrder />} />
+      <Route path="/portal/mobile-order" element={<PortalNewOrder />} />
+      <Route path="/portal/streaming-order" element={<PortalNewOrder />} />
 
       {/* 404 Catch-all */}
       <Route path="*" element={<MaintenanceGuard><PublicLayout><NotFound /></PublicLayout></MaintenanceGuard>} />
