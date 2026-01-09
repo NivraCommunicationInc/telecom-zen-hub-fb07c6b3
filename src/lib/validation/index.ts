@@ -48,7 +48,11 @@ export {
 export {
   stripCvvFromData,
   stripSensitiveCardData,
+  extractCardMetadata,
   maskCardNumber,
+  toPaymentProcessorData,
+  type CardMetadata,
+  type PaymentProcessorData,
   type SafeCardData
 } from './schemas';
 

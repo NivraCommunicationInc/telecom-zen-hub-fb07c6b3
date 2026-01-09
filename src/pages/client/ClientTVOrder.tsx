@@ -552,6 +552,9 @@ const ClientTVOrder = () => {
       }
 
       // Build payment reference info (without storing CVV)
+      // SECURITY: Extract only safe metadata from card - NEVER send PAN/CVV to backend
+      const { extractCardMetadata } = await import("@/lib/validation");
+      
       const paymentInfo = selectedPaymentMethod === "saved" 
         ? {
             method: "saved_card",
@@ -559,11 +562,16 @@ const ClientTVOrder = () => {
             card_type: savedCards?.find((c: any) => c.id === selectedCardId)?.card_type,
             last_four: savedCards?.find((c: any) => c.id === selectedCardId)?.last_four,
           }
-        : {
-            method: "new_card",
-            card_type: newCardData.cardNumber.startsWith("4") ? "Visa" : newCardData.cardNumber.startsWith("5") ? "Mastercard" : "Card",
-            last_four: newCardData.cardNumber.replace(/\s/g, "").slice(-4),
-          };
+        : (() => {
+            const metadata = extractCardMetadata(newCardData.cardNumber, newCardData.expiry);
+            return {
+              method: "new_card",
+              card_type: metadata?.brand || "Card",
+              last_four: metadata?.last4 || "****",
+              exp_month: metadata?.expMonth,
+              exp_year: metadata?.expYear,
+            };
+          })();
 
       // Build selected channels data
       const selectedChannelsData = [
