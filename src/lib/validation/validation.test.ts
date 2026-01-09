@@ -289,6 +289,16 @@ test('extractCardMetadata: returns null for invalid expiry', () => {
   return metadata === null;
 });
 
+test('extractCardMetadata: returns null for month 00', () => {
+  const metadata = extractCardMetadata('4111111111111111', '00/25');
+  return metadata === null;
+});
+
+test('extractCardMetadata: returns null for month 13', () => {
+  const metadata = extractCardMetadata('4111111111111111', '13/25');
+  return metadata === null;
+});
+
 test('stripSensitiveCardData: removes all sensitive fields', () => {
   const formData = {
     cardNumber: '4111111111111111',
