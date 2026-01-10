@@ -41,47 +41,91 @@ export interface AddressAutocompleteBaseProps {
   disabled?: boolean;
   restrictToQuebec?: boolean;
   supabaseClient: SupabaseClient;
-  /** Show diagnostic status line under the input (for debugging without DevTools) */
+  /** Show diagnostic status panel under the input (for debugging without DevTools) */
   showDiagnostic?: boolean;
 }
 
-type DiagnosticStatus = 
-  | { type: "idle" }
-  | { type: "loading" }
-  | { type: "token_missing" }
-  | { type: "error"; code: number; message?: string }
-  | { type: "no_results" }
-  | { type: "ok"; count: number };
+interface DiagnosticState {
+  endpoint: "idle" | "loading" | "ok" | "fail";
+  httpStatus: number | null;
+  resultCount: number | null;
+  errorMessage: string | null;
+  lastQuery: string | null;
+  tokenMissing: boolean;
+}
 
 const AUTOCOMPLETE_MIN_CHARS = 3;
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
 const AUTOCOMPLETE_MAX_RESULTS = 8;
 
-const DiagnosticLine = ({ status }: { status: DiagnosticStatus }) => {
-  if (status.type === "idle") return null;
-
-  const configs: Record<DiagnosticStatus["type"], { icon: typeof CheckCircle2; color: string; text: string }> = {
-    idle: { icon: CheckCircle2, color: "text-muted-foreground", text: "" },
-    loading: { icon: Loader2, color: "text-muted-foreground", text: "Mapbox: Chargement..." },
-    token_missing: { icon: XCircle, color: "text-destructive", text: "Mapbox: TOKEN MANQUANT" },
-    error: { icon: AlertCircle, color: "text-destructive", text: `Mapbox: ERREUR ${(status as { type: "error"; code: number }).code}` },
-    no_results: { icon: AlertTriangle, color: "text-amber-600", text: "Mapbox: 0 résultat" },
-    ok: { icon: CheckCircle2, color: "text-green-600", text: `Mapbox: OK (${(status as { type: "ok"; count: number }).count} résultats)` },
+const DiagnosticPanel = ({ state, dropdownActuallyVisible }: { state: DiagnosticState; dropdownActuallyVisible: boolean }) => {
+  const getEndpointColor = () => {
+    if (state.endpoint === "idle") return "text-muted-foreground";
+    if (state.endpoint === "loading") return "text-blue-500";
+    if (state.endpoint === "ok") return "text-green-600";
+    return "text-destructive";
   };
 
-  const config = configs[status.type];
-  const Icon = config.icon;
+  const showDropdownWarning = state.resultCount !== null && state.resultCount > 0 && !dropdownActuallyVisible;
 
   return (
-    <div className={cn("flex items-center gap-1.5 text-xs mt-1", config.color)}>
-      <Icon className={cn("h-3 w-3", status.type === "loading" && "animate-spin")} />
-      <span>{config.text}</span>
-      {status.type === "error" && (status as { message?: string }).message && (
-        <span className="opacity-70">— {(status as { message?: string }).message}</span>
+    <div className="mt-1.5 p-2 rounded border border-dashed border-muted-foreground/30 bg-muted/20 text-xs font-mono space-y-0.5">
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+        <span>
+          Endpoint: <span className={cn("font-semibold", getEndpointColor())}>
+            {state.endpoint === "idle" ? "—" : state.endpoint === "loading" ? "..." : state.endpoint.toUpperCase()}
+          </span>
+        </span>
+        <span>
+          HTTP: <span className={cn("font-semibold", state.httpStatus === 200 ? "text-green-600" : state.httpStatus ? "text-destructive" : "text-muted-foreground")}>
+            {state.httpStatus ?? "—"}
+          </span>
+        </span>
+        <span>
+          Résultats: <span className="font-semibold">{state.resultCount ?? "—"}</span>
+        </span>
+      </div>
+      {state.lastQuery && (
+        <div className="text-muted-foreground truncate">
+          Requête: "<span className="text-foreground">{state.lastQuery}</span>"
+        </div>
+      )}
+      {state.tokenMissing && (
+        <div className="flex items-center gap-1 text-destructive">
+          <XCircle className="h-3 w-3" />
+          <span>TOKEN MANQUANT (MAPBOX_PUBLIC_TOKEN)</span>
+        </div>
+      )}
+      {state.errorMessage && !state.tokenMissing && (
+        <div className="flex items-center gap-1 text-destructive">
+          <AlertCircle className="h-3 w-3" />
+          <span className="truncate">Erreur: {state.errorMessage}</span>
+        </div>
+      )}
+      {showDropdownWarning && (
+        <div className="flex items-center gap-1 text-amber-600">
+          <AlertTriangle className="h-3 w-3" />
+          <span>UI: dropdown hidden (z-index/overflow issue)</span>
+        </div>
+      )}
+      {state.endpoint === "ok" && state.resultCount !== null && state.resultCount > 0 && dropdownActuallyVisible && (
+        <div className="flex items-center gap-1 text-green-600">
+          <CheckCircle2 className="h-3 w-3" />
+          <span>OK — suggestions visibles</span>
+        </div>
       )}
     </div>
   );
 };
+
+const createInitialDiagnostic = (): DiagnosticState => ({
+  endpoint: "idle",
+  httpStatus: null,
+  resultCount: null,
+  errorMessage: null,
+  lastQuery: null,
+  tokenMissing: false,
+});
 
 const AddressAutocompleteBase = ({
   value,
@@ -100,7 +144,7 @@ const AddressAutocompleteBase = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [noResults, setNoResults] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [diagnosticStatus, setDiagnosticStatus] = useState<DiagnosticStatus>({ type: "idle" });
+  const [diagnostic, setDiagnostic] = useState<DiagnosticState>(createInitialDiagnostic);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -108,9 +152,7 @@ const AddressAutocompleteBase = ({
   const debounceRef = useRef<number | null>(null);
   const sessionTokenRef = useRef<string>(crypto.randomUUID());
 
-  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(
-    null
-  );
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const endpointForLogs = useMemo(() => {
     const base = import.meta.env.VITE_SUPABASE_URL;
@@ -186,14 +228,14 @@ const AddressAutocompleteBase = ({
         setShowSuggestions(false);
         setNoResults(false);
         setErrorMessage(null);
-        setDiagnosticStatus({ type: "idle" });
+        setDiagnostic(createInitialDiagnostic());
         return;
       }
 
       setIsLoading(true);
       setNoResults(false);
       setErrorMessage(null);
-      setDiagnosticStatus({ type: "loading" });
+      setDiagnostic((prev) => ({ ...prev, endpoint: "loading", lastQuery: trimmed }));
 
       debounceRef.current = window.setTimeout(async () => {
         try {
@@ -219,13 +261,17 @@ const AddressAutocompleteBase = ({
               console.debug("[Mapbox] suggest failed", { url: endpointForLogs, error });
             }
             
-            // Check for token missing error
             const errorMsg = error.message?.toLowerCase() || "";
-            if (errorMsg.includes("token") && (errorMsg.includes("missing") || errorMsg.includes("not configured"))) {
-              setDiagnosticStatus({ type: "token_missing" });
-            } else {
-              setDiagnosticStatus({ type: "error", code: 500, message: error.message });
-            }
+            const isTokenError = errorMsg.includes("token") && (errorMsg.includes("missing") || errorMsg.includes("not configured"));
+            
+            setDiagnostic({
+              endpoint: "fail",
+              httpStatus: 500,
+              resultCount: 0,
+              errorMessage: error.message,
+              lastQuery: trimmed,
+              tokenMissing: isTokenError,
+            });
             
             setSuggestions([]);
             setNoResults(false);
@@ -234,15 +280,19 @@ const AddressAutocompleteBase = ({
             return;
           }
 
-          // Check for Mapbox-specific errors in response
-          if (data?.error) {
-            const mapboxStatus = data.mapbox_status || 500;
+          // Check for API-level errors in response
+          if (data?.error || data?.ok === false) {
+            const mapboxStatus = data.mapbox_status || data.status || 500;
+            const isTokenError = data.error?.toLowerCase()?.includes("token") || false;
             
-            if (data.error.toLowerCase().includes("token")) {
-              setDiagnosticStatus({ type: "token_missing" });
-            } else {
-              setDiagnosticStatus({ type: "error", code: mapboxStatus, message: data.error });
-            }
+            setDiagnostic({
+              endpoint: "fail",
+              httpStatus: mapboxStatus,
+              resultCount: 0,
+              errorMessage: data.error || data.message,
+              lastQuery: trimmed,
+              tokenMissing: isTokenError,
+            });
             
             setSuggestions([]);
             setNoResults(false);
@@ -260,18 +310,21 @@ const AddressAutocompleteBase = ({
             });
           }
 
-          const results: MapboxSuggestion[] = (data?.suggestions || []).slice(0, AUTOCOMPLETE_MAX_RESULTS);
+          const results: MapboxSuggestion[] = (data?.suggestions || data?.results || []).slice(0, AUTOCOMPLETE_MAX_RESULTS);
           const filtered = applyQuebecFilter(results);
 
           setSuggestions(filtered);
           setNoResults(filtered.length === 0);
           setShowSuggestions(true);
           
-          if (filtered.length === 0) {
-            setDiagnosticStatus({ type: "no_results" });
-          } else {
-            setDiagnosticStatus({ type: "ok", count: filtered.length });
-          }
+          setDiagnostic({
+            endpoint: "ok",
+            httpStatus: data?.mapbox_status || 200,
+            resultCount: filtered.length,
+            errorMessage: null,
+            lastQuery: trimmed,
+            tokenMissing: false,
+          });
         } catch (err) {
           if (import.meta.env.DEV) {
             console.debug("[Mapbox] suggest exception", { url: endpointForLogs, err });
@@ -280,7 +333,14 @@ const AddressAutocompleteBase = ({
           setNoResults(false);
           setErrorMessage("Service temporairement indisponible — saisie manuelle possible.");
           setShowSuggestions(true);
-          setDiagnosticStatus({ type: "error", code: 0, message: "Exception réseau" });
+          setDiagnostic({
+            endpoint: "fail",
+            httpStatus: 0,
+            resultCount: 0,
+            errorMessage: "Exception réseau",
+            lastQuery: trimmed,
+            tokenMissing: false,
+          });
         } finally {
           setIsLoading(false);
         }
@@ -364,7 +424,7 @@ const AddressAutocompleteBase = ({
     setShowSuggestions(false);
     setSuggestions([]);
     setErrorMessage(null);
-    setDiagnosticStatus({ type: "idle" });
+    setDiagnostic(createInitialDiagnostic());
 
     const details = await retrieveAddressDetails(suggestion);
     onAddressSelect(details);
@@ -408,7 +468,9 @@ const AddressAutocompleteBase = ({
     }
   };
 
-  const dropdown = showSuggestions && dropdownRect
+  const dropdownVisible = showSuggestions && dropdownRect !== null;
+
+  const dropdown = dropdownVisible
     ? createPortal(
         <div
           ref={dropdownRef}
@@ -417,8 +479,9 @@ const AddressAutocompleteBase = ({
             top: dropdownRect.top,
             left: dropdownRect.left,
             width: dropdownRect.width,
+            zIndex: 99999,
           }}
-          className="z-[9999] rounded-lg border border-border bg-popover shadow-lg"
+          className="rounded-lg border border-border bg-popover shadow-lg"
           role="listbox"
         >
           {errorMessage ? (
@@ -482,7 +545,7 @@ const AddressAutocompleteBase = ({
         )}
       </div>
 
-      {showDiagnostic && <DiagnosticLine status={diagnosticStatus} />}
+      {showDiagnostic && <DiagnosticPanel state={diagnostic} dropdownActuallyVisible={dropdownVisible} />}
 
       {dropdown}
     </div>

@@ -23,6 +23,9 @@ const getAllowedOrigin = (origin: string | null): string => {
   // Allow Lovable preview domains (variable subdomains)
   if (o.endsWith(".lovableproject.com")) return o;
   if (o.endsWith(".lovable.app")) return o;
+  
+  // Allow localhost for development
+  if (o.startsWith("http://localhost:")) return o;
 
   // Fallback (do NOT reflect unknown origins)
   return "https://nivratelecom.ca";
@@ -51,7 +54,7 @@ serve(async (req) => {
 
   if (req.method !== "POST") {
     return new Response(
-      JSON.stringify({ request_id, error: "Method not allowed" }),
+      JSON.stringify({ ok: false, request_id, status: 405, message: "Method not allowed" }),
       { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -62,15 +65,21 @@ serve(async (req) => {
     if (!MAPBOX_TOKEN) {
       console.error(`[mapbox-autocomplete] missing token request_id=${request_id}`);
       return new Response(
-        JSON.stringify({ request_id, error: "Mapbox token not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          ok: false, 
+          request_id, 
+          status: 401,
+          message: "Mapbox token not configured",
+          hint: "MAPBOX_PUBLIC_TOKEN secret is missing"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const body = (await req.json().catch(() => null)) as MapboxRequestBody | null;
     if (!body?.action) {
       return new Response(
-        JSON.stringify({ request_id, error: "Invalid JSON body" }),
+        JSON.stringify({ ok: false, request_id, status: 400, message: "Invalid JSON body - action required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -87,14 +96,14 @@ serve(async (req) => {
     if (action === "suggest") {
       if (query.length < 3) {
         return new Response(
-          JSON.stringify({ request_id, suggestions: [] }),
+          JSON.stringify({ ok: true, request_id, suggestions: [], mapbox_status: 200 }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       if (query.length > 200) {
         return new Response(
-          JSON.stringify({ request_id, error: "Query too long" }),
+          JSON.stringify({ ok: false, request_id, status: 400, message: "Query too long (max 200 chars)" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -126,33 +135,42 @@ serve(async (req) => {
           `[mapbox-autocomplete] request_id=${request_id} mapbox_error status=${response.status} body=${errorText}`
         );
         
-        // If 401/403, likely token issue - provide helpful message
-        if (response.status === 401 || response.status === 403) {
-          return new Response(
-            JSON.stringify({
-              request_id,
-              error: "Mapbox token invalid or missing Search API scope",
-              mapbox_status: response.status,
-              hint: "Ensure MAPBOX_PUBLIC_TOKEN has Search API enabled in Mapbox dashboard",
-            }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+        // Provide clear error messages for common issues
+        let message = "Mapbox API error";
+        let hint = "";
+        
+        if (response.status === 401) {
+          message = "Mapbox token invalid";
+          hint = "Check MAPBOX_PUBLIC_TOKEN secret value";
+        } else if (response.status === 403) {
+          message = "Mapbox token missing Search API scope";
+          hint = "Enable Search API in Mapbox dashboard for this token";
+        } else if (response.status === 429) {
+          message = "Mapbox rate limit exceeded";
+          hint = "Too many requests - please wait";
         }
 
         return new Response(
           JSON.stringify({
+            ok: false,
             request_id,
-            error: "Mapbox API error",
+            status: response.status,
             mapbox_status: response.status,
-            details: errorText,
+            message,
+            hint,
           }),
-          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       const data = await response.json();
       return new Response(
-        JSON.stringify({ request_id, mapbox_status: response.status, ...data }),
+        JSON.stringify({ 
+          ok: true, 
+          request_id, 
+          mapbox_status: response.status, 
+          suggestions: data.suggestions || [],
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -160,7 +178,7 @@ serve(async (req) => {
     if (action === "retrieve") {
       if (!mapbox_id) {
         return new Response(
-          JSON.stringify({ request_id, error: "mapbox_id is required" }),
+          JSON.stringify({ ok: false, request_id, status: 400, message: "mapbox_id is required" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -181,24 +199,31 @@ serve(async (req) => {
         const errorText = await response.text();
         return new Response(
           JSON.stringify({
+            ok: false,
             request_id,
-            error: "Mapbox API error",
+            status: response.status,
             mapbox_status: response.status,
+            message: "Mapbox retrieve API error",
             details: errorText,
           }),
-          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       const data = await response.json();
       return new Response(
-        JSON.stringify({ request_id, mapbox_status: response.status, ...data }),
+        JSON.stringify({ 
+          ok: true, 
+          request_id, 
+          mapbox_status: response.status, 
+          features: data.features || [],
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ request_id, error: "Invalid action. Use \"suggest\" or \"retrieve\"" }),
+      JSON.stringify({ ok: false, request_id, status: 400, message: "Invalid action. Use 'suggest' or 'retrieve'" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
@@ -206,7 +231,7 @@ serve(async (req) => {
     console.error(`[mapbox-autocomplete] request_id=${request_id} error=${message}`);
 
     return new Response(
-      JSON.stringify({ request_id, error: "Internal server error", details: message }),
+      JSON.stringify({ ok: false, request_id, status: 500, message: "Internal server error", details: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
