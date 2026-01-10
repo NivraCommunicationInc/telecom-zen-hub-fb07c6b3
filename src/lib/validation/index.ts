@@ -40,6 +40,9 @@ export {
   validateDob,
   formatDateForInput,
   formatDateDisplay,
+  getMaxDobDate,
+  isUnderMinAge,
+  MIN_AGE_TELECOM,
   type DobValidationResult,
   type DobConfig
 } from './dob';

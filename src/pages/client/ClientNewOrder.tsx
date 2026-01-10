@@ -3281,18 +3281,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       type="date"
                       value={dateOfBirth}
                       onChange={(e) => setDateOfBirth(e.target.value)}
-                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
+                      max={(() => {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() - 13);
+                        return maxDate.toISOString().split('T')[0];
+                      })()}
                     />
                     {dateOfBirth && (() => {
-                      const dob = new Date(dateOfBirth);
-                      const today = new Date();
-                      const age = today.getFullYear() - dob.getFullYear();
-                      const isUnder13 = age < 13 || (age === 13 && today < new Date(dob.setFullYear(dob.getFullYear() + 13)));
-                      if (isUnder13) {
+                      // Use centralized validation from dob.ts
+                      const { validateDob, MIN_AGE_TELECOM } = require("@/lib/validation/dob");
+                      const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+                      if (!result.isValid) {
                         return (
                           <p className="text-xs text-destructive flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
-                            Vous devez avoir au moins 13 ans pour souscrire à nos services.
+                            {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
                           </p>
                         );
                       }
