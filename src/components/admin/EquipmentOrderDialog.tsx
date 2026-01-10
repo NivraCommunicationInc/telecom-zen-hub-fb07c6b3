@@ -13,6 +13,8 @@ import { Package, Plus, Minus, Truck, ShoppingCart, Loader2 } from "lucide-react
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
+import AdminAddressAutocomplete from "./AdminAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 interface EquipmentOrderDialogProps {
   open: boolean;
@@ -303,10 +305,22 @@ export default function EquipmentOrderDialog({
             {deliveryMethod === "ship" && (
               <div className="space-y-2 p-3 border rounded-md bg-muted/30">
                 <Label className="text-sm font-medium">Adresse de livraison</Label>
-                <Input
-                  placeholder="Adresse"
+                <AdminAddressAutocomplete
                   value={shippingAddress.address}
-                  onChange={(e) => setShippingAddress({ ...shippingAddress, address: e.target.value })}
+                  onChange={(value) => setShippingAddress({ ...shippingAddress, address: value })}
+                  onAddressSelect={(details: AddressDetails) => {
+                    const streetAddress = [details.streetNumber, details.street]
+                      .filter(Boolean)
+                      .join(" ") || details.formattedAddress.split(",")[0];
+                    setShippingAddress({
+                      address: streetAddress,
+                      city: details.city || shippingAddress.city,
+                      province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
+                      postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : shippingAddress.postal_code,
+                    });
+                  }}
+                  placeholder="Rechercher une adresse..."
+                  restrictToQuebec={true}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <Input

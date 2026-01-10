@@ -61,6 +61,8 @@ import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
+import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 interface Service {
   id: string;
@@ -3358,11 +3360,25 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2 space-y-2">
                         <Label htmlFor="service-address">Adresse (numéro + rue) <span className="text-destructive">*</span></Label>
-                        <Input
-                          id="service-address"
-                          placeholder="Ex: 123 Rue Saint-Laurent"
+                        <PortalAddressAutocomplete
                           value={serviceAddressStreet}
-                          onChange={(e) => setServiceAddressStreet(e.target.value)}
+                          onChange={(value) => setServiceAddressStreet(value)}
+                          onAddressSelect={(details: AddressDetails) => {
+                            const streetAddress = [details.streetNumber, details.street]
+                              .filter(Boolean)
+                              .join(" ") || details.formattedAddress.split(",")[0];
+                            setServiceAddressStreet(streetAddress);
+                            if (details.city) setServiceAddressCity(details.city);
+                            if (details.province) {
+                              setServiceAddressProvince(details.province === "Quebec" || details.province === "Québec" ? "QC" : details.province);
+                            }
+                            if (details.postalCode) {
+                              const cleaned = details.postalCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6);
+                              setServiceAddressPostalCode(cleaned.length <= 3 ? cleaned : `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`);
+                            }
+                          }}
+                          placeholder="Rechercher une adresse..."
+                          restrictToQuebec={true}
                         />
                       </div>
 

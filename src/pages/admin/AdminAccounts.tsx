@@ -50,6 +50,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import AdminAddressAutocomplete from "@/components/admin/AdminAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 const creditClassLabels: Record<string, { label: string; color: string }> = {
   A: { label: "Excellent", color: "bg-green-500" },
@@ -1007,10 +1009,23 @@ const AdminAccounts = () => {
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground block mb-3">Adresse de facturation</Label>
                 <div className="space-y-3">
-                  <Input
-                    placeholder="Adresse"
-                    value={editedAccount.billing_address}
-                    onChange={(e) => setEditedAccount({ ...editedAccount, billing_address: e.target.value })}
+                  <AdminAddressAutocomplete
+                    value={editedAccount.billing_address || ""}
+                    onChange={(value) => setEditedAccount({ ...editedAccount, billing_address: value })}
+                    onAddressSelect={(details: AddressDetails) => {
+                      const streetAddress = [details.streetNumber, details.street]
+                        .filter(Boolean)
+                        .join(" ") || details.formattedAddress.split(",")[0];
+                      setEditedAccount({
+                        ...editedAccount,
+                        billing_address: streetAddress,
+                        billing_city: details.city || editedAccount.billing_city,
+                        billing_province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
+                        billing_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : editedAccount.billing_postal_code,
+                      });
+                    }}
+                    placeholder="Rechercher une adresse..."
+                    restrictToQuebec={true}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <Input
@@ -1029,10 +1044,23 @@ const AdminAccounts = () => {
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground block mb-3">Adresse de service principale</Label>
                 <div className="space-y-3">
-                  <Input
-                    placeholder="Adresse"
-                    value={editedAccount.primary_service_address}
-                    onChange={(e) => setEditedAccount({ ...editedAccount, primary_service_address: e.target.value })}
+                  <AdminAddressAutocomplete
+                    value={editedAccount.primary_service_address || ""}
+                    onChange={(value) => setEditedAccount({ ...editedAccount, primary_service_address: value })}
+                    onAddressSelect={(details: AddressDetails) => {
+                      const streetAddress = [details.streetNumber, details.street]
+                        .filter(Boolean)
+                        .join(" ") || details.formattedAddress.split(",")[0];
+                      setEditedAccount({
+                        ...editedAccount,
+                        primary_service_address: streetAddress,
+                        primary_service_city: details.city || editedAccount.primary_service_city,
+                        primary_service_province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
+                        primary_service_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : editedAccount.primary_service_postal_code,
+                      });
+                    }}
+                    placeholder="Rechercher une adresse..."
+                    restrictToQuebec={true}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <Input

@@ -24,6 +24,8 @@ import {
 import { z } from "zod";
 import { backendClient as supabase } from "@/integrations/backend";
 import { useLanguage } from "@/contexts/LanguageContext";
+import AddressAutocomplete from "./AddressAutocomplete";
+import type { AddressDetails } from "./AddressAutocompleteBase";
 
 const SUBJECT_OPTIONS = [
   { value: "new_order", labelFr: "Nouvelle commande / Info forfaits", labelEn: "New order / Plan info" },
@@ -400,12 +402,23 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                   <Label htmlFor="addressStreet" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Adresse (rue)" : "Street Address"}
                   </Label>
-                  <Input
-                    id="addressStreet"
-                    name="addressStreet"
-                    placeholder={isFrench ? "123 Rue Saint-Laurent" : "123 Main Street"}
+                  <AddressAutocomplete
                     value={formData.addressStreet}
-                    onChange={handleChange}
+                    onChange={(value) => setFormData({ ...formData, addressStreet: value })}
+                    onAddressSelect={(details: AddressDetails) => {
+                      const streetAddress = [details.streetNumber, details.street]
+                        .filter(Boolean)
+                        .join(" ") || details.formattedAddress.split(",")[0];
+                      setFormData({
+                        ...formData,
+                        addressStreet: streetAddress,
+                        addressCity: details.city || formData.addressCity,
+                        addressProvince: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
+                        addressPostalCode: details.postalCode ? formatPostalCode(details.postalCode) : formData.addressPostalCode,
+                      });
+                    }}
+                    placeholder={isFrench ? "Rechercher une adresse..." : "Search for an address..."}
+                    restrictToQuebec={true}
                     className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
                   />
                 </div>
