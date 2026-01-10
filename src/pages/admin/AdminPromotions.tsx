@@ -66,6 +66,7 @@ interface Promotion {
   created_at: string;
   updated_at: string;
   redemption_count?: number;
+  unique_users_count?: number;
 }
 
 const defaultAppliesTo: Record<string, boolean> = {
@@ -134,22 +135,31 @@ const AdminPromotions = () => {
 
       if (error) throw error;
 
-      // Fetch redemption counts
+      // Fetch redemption counts AND unique users
       const promoIds = promos?.map(p => p.id) || [];
       const { data: redemptions } = await supabase
         .from("promotion_redemptions")
-        .select("promotion_id")
+        .select("promotion_id, client_id")
         .in("promotion_id", promoIds);
 
       const countMap: Record<string, number> = {};
+      const uniqueUsersMap: Record<string, Set<string>> = {};
+      
       redemptions?.forEach(r => {
         countMap[r.promotion_id] = (countMap[r.promotion_id] || 0) + 1;
+        if (!uniqueUsersMap[r.promotion_id]) {
+          uniqueUsersMap[r.promotion_id] = new Set();
+        }
+        if (r.client_id) {
+          uniqueUsersMap[r.promotion_id].add(r.client_id);
+        }
       });
 
       const promosWithCounts = promos?.map(p => ({
         ...p,
         applies_to: p.applies_to as Promotion['applies_to'],
         redemption_count: countMap[p.id] || 0,
+        unique_users_count: uniqueUsersMap[p.id]?.size || 0,
       })) || [];
 
       setPromotions(promosWithCounts);
@@ -440,10 +450,20 @@ const AdminPromotions = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">
-                          {promo.redemption_count || 0}
-                          {promo.usage_limit_total && ` / ${promo.usage_limit_total}`}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">
+                            {promo.redemption_count || 0}
+                            {promo.usage_limit_total && ` / ${promo.usage_limit_total}`}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {promo.unique_users_count || 0} client{(promo.unique_users_count || 0) !== 1 ? 's' : ''} unique{(promo.unique_users_count || 0) !== 1 ? 's' : ''}
+                          </span>
+                          {promo.usage_limit_total && (
+                            <span className="text-xs text-muted-foreground">
+                              Restant: {Math.max(0, promo.usage_limit_total - (promo.redemption_count || 0))}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
