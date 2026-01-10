@@ -51,8 +51,7 @@ import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 import { CreateClientDialog } from "@/components/admin/CreateClientDialog";
-import AdminAddressAutocomplete from "@/components/admin/AdminAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1329,7 +1328,7 @@ const AdminClients = () => {
                         </div>
                         <div>
                           <Label>Adresse de service</Label>
-                          <AdminAddressAutocomplete
+                          <UnifiedAddressAutocomplete
                             value={selectedClient.service_address || ""}
                             onChange={(value) => setSelectedClient({ ...selectedClient, service_address: value })}
                             onAddressSelect={(details: AddressDetails) => {
