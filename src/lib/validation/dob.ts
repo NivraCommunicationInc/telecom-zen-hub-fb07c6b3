@@ -196,6 +196,28 @@ export const validateDob = (
 };
 
 /**
+ * Get maximum DOB date (for date picker max attribute)
+ * Returns YYYY-MM-DD string for someone who is exactly minAge years old today
+ */
+export const getMaxDobDate = (minAge: number = MIN_AGE_TELECOM): string => {
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() - minAge);
+  return formatDateForInput(maxDate);
+};
+
+/**
+ * Check if a DOB string represents someone under the minimum age
+ * Returns true if the person is under minAge years old
+ */
+export const isUnderMinAge = (dobString: string, minAge: number = MIN_AGE_TELECOM): boolean => {
+  if (!dobString) return false;
+  const dob = parseDate(dobString);
+  if (!dob) return true; // Invalid date = treat as under age for safety
+  const age = calculateAge(dob);
+  return age < minAge;
+};
+
+/**
  * Format date for display (YYYY-MM-DD for inputs)
  */
 export const formatDateForInput = (date: Date): string => {

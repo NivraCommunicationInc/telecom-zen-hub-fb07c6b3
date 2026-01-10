@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, User, Calendar, CreditCard, MapPin, AlertCircle } from "lucide-react";
 import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
+import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 
 const CANADIAN_PROVINCES = [
   { code: "AB", name: { fr: "Alberta", en: "Alberta" } },
@@ -114,11 +115,8 @@ export const ClientIDVerificationForm = ({
     onAddressValidated?.(true, isQuebec);
   };
 
-  // Get today's date for max DOB (must be at least 13 - legal requirement for telecom in Quebec)
-  const MIN_AGE = 13;
-  const maxDOB = new Date();
-  maxDOB.setFullYear(maxDOB.getFullYear() - MIN_AGE);
-  const maxDOBString = maxDOB.toISOString().split('T')[0];
+  // Get max DOB date using centralized validation (minimum 13 years - legal requirement for telecom in Quebec)
+  const maxDOBString = getMaxDobDate(MIN_AGE_TELECOM);
 
   // Min expiration date is today
   const minExpiration = new Date().toISOString().split('T')[0];
@@ -354,17 +352,12 @@ export const validateIDData = (data: ClientIDData, requireAddress: boolean = tru
   if (!data.idExpiration) errors.push("ID expiration date is required");
   if (!data.idProvince) errors.push("ID province is required");
 
-  // Validate age (13+ - legal requirement for telecom in Quebec)
-  const MIN_AGE = 13;
+  // Validate age using centralized DOB validation (13+ - legal requirement for telecom in Quebec)
   if (data.dateOfBirth) {
-    const dob = new Date(data.dateOfBirth);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--;
+    const dobResult = validateDob(data.dateOfBirth, { minAge: MIN_AGE_TELECOM, required: false });
+    if (!dobResult.isValid && dobResult.error) {
+      errors.push(dobResult.error.en);
     }
-    if (age < MIN_AGE) errors.push(`You must be at least ${MIN_AGE} years old`);
   }
 
   // Validate ID expiration (not expired)
