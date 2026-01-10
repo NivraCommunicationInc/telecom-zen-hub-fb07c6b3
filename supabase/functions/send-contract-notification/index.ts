@@ -24,8 +24,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify(emailResponse), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (error: any) {
-    console.error("Error in send-contract-notification:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } });
+    // Generate error ID for tracking without exposing details
+    const errorId = `ERR-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().substring(0, 4).toUpperCase()}`;
+    console.error(`[${errorId}] Error in send-contract-notification:`, error);
+    
+    // Return generic error message with tracking ID
+    const isProd = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
+    const safeMessage = isProd 
+      ? `Erreur d'envoi. (Réf: ${errorId})`
+      : (error?.message || "Erreur inconnue");
+    
+    return new Response(JSON.stringify({ error: safeMessage, errorId }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 
+    });
   }
 };
 
