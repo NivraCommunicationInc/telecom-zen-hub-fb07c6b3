@@ -6355,10 +6355,6 @@ export type Database = {
           last_name: string
         }[]
       }
-      validate_minimum_age: {
-        Args: { dob: string; min_age?: number }
-        Returns: boolean
-      }
       verify_pin: {
         Args: { pin_input: string; user_id_input: string }
         Returns: boolean
