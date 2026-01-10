@@ -929,21 +929,51 @@ const AdminTickets = () => {
                   <DialogTitle>Créer un ticket pour un client</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-1">
-                  <div>
-                    <Label>Email du client *</Label>
-                    <Input
-                      type="email"
-                      placeholder="client@exemple.com"
-                      value={newTicket.client_email}
-                      onChange={(e) => {
-                        setNewTicket({ ...newTicket, client_email: e.target.value, related_order_id: "" });
-                        // Find client by email for order lookup
-                        const client = (clients || []).find((c: any) => 
-                          c.email?.toLowerCase() === e.target.value.toLowerCase()
-                        );
-                        setSelectedClientId(client?.user_id || "");
+                  <div className="space-y-2">
+                    <Label>Client *</Label>
+                    <Select
+                      value={selectedClientId}
+                      onValueChange={(clientUserId) => {
+                        const client = (clients || []).find((c: any) => c.user_id === clientUserId);
+                        setSelectedClientId(clientUserId);
+                        setNewTicket({ 
+                          ...newTicket, 
+                          client_email: client?.email || "", 
+                          related_order_id: "" 
+                        });
                       }}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Rechercher par nom ou email..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <div className="px-2 pb-2">
+                          <Input
+                            placeholder="Rechercher..."
+                            className="h-8"
+                            onChange={(e) => {
+                              // Filter is handled by the SelectContent
+                            }}
+                          />
+                        </div>
+                        {(clients || [])
+                          .filter((c: any) => c.full_name || c.email)
+                          .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
+                          .map((client: any) => (
+                            <SelectItem key={client.user_id} value={client.user_id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{client.full_name || 'Sans nom'}</span>
+                                <span className="text-xs text-muted-foreground">{client.email} {client.phone && `• ${client.phone}`}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedClientId && (
+                      <p className="text-xs text-muted-foreground">
+                        Email: {newTicket.client_email}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label>Sujet *</Label>

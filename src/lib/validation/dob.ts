@@ -17,7 +17,7 @@ export interface DobConfig {
 }
 
 const DEFAULT_CONFIG: Required<DobConfig> = {
-  minAge: 14,
+  minAge: 13,
   maxAge: 120,
   required: true
 };
