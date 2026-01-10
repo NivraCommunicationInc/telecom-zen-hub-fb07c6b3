@@ -27,6 +27,8 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CreateClientDialog } from "./CreateClientDialog";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
+import AdminAddressAutocomplete from "./AdminAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 // Constants
 const TPS_RATE = 0.05;
@@ -1106,10 +1108,23 @@ export default function ManualOrderWizard({
                 <MapPin className="w-4 h-4" />
                 Adresse de service
               </Label>
-              <Input
-                placeholder="Adresse"
+              <AdminAddressAutocomplete
                 value={orderState.serviceAddress}
-                onChange={(e) => setOrderState((prev) => ({ ...prev, serviceAddress: e.target.value }))}
+                onChange={(value) => setOrderState((prev) => ({ ...prev, serviceAddress: value }))}
+                onAddressSelect={(details: AddressDetails) => {
+                  const streetAddress = [details.streetNumber, details.street]
+                    .filter(Boolean)
+                    .join(" ") || details.formattedAddress.split(",")[0];
+                  setOrderState((prev) => ({
+                    ...prev,
+                    serviceAddress: streetAddress,
+                    serviceCity: details.city || prev.serviceCity,
+                    serviceProvince: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
+                    servicePostalCode: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : prev.servicePostalCode,
+                  }));
+                }}
+                placeholder="Rechercher une adresse..."
+                restrictToQuebec={true}
               />
               <div className="grid grid-cols-3 gap-2">
                 <Input

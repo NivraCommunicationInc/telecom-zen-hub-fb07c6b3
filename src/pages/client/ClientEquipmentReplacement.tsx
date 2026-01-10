@@ -39,6 +39,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 const reasonOptions = [
   { value: "defective", label: "Défectueux (problème de fabrication)" },
@@ -477,10 +479,22 @@ const ClientEquipmentReplacement = () => {
                 {/* Delivery Address */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Adresse de livraison préférée</Label>
-                  <Input
+                  <PortalAddressAutocomplete
                     value={formData.preferredAddress}
-                    onChange={(e) => setFormData({ ...formData, preferredAddress: e.target.value })}
-                    placeholder="Adresse"
+                    onChange={(value) => setFormData({ ...formData, preferredAddress: value })}
+                    onAddressSelect={(details: AddressDetails) => {
+                      const streetAddress = [details.streetNumber, details.street]
+                        .filter(Boolean)
+                        .join(" ") || details.formattedAddress.split(",")[0];
+                      setFormData({
+                        ...formData,
+                        preferredAddress: streetAddress,
+                        preferredCity: details.city || formData.preferredCity,
+                        preferredPostalCode: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : formData.preferredPostalCode,
+                      });
+                    }}
+                    placeholder="Rechercher une adresse..."
+                    restrictToQuebec={true}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <Input
