@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MapPin, Home, Building, Mail } from "lucide-react";
-import AddressAutocomplete, { AddressDetails } from "@/components/AddressAutocomplete";
+import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 import { useState } from "react";
 
 interface ServiceAddress {
@@ -92,7 +92,7 @@ export const CheckoutServiceAddress = ({
               <Home className="w-4 h-4 text-muted-foreground" />
               Adresse (numéro + rue) <span className="text-destructive">*</span>
             </Label>
-            <AddressAutocomplete
+            <UnifiedAddressAutocomplete
               value={addressInputValue}
               onChange={handleAddressInputChange}
               onAddressSelect={handleAddressSelect}

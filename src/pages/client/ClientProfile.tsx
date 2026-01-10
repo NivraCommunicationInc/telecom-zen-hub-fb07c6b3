@@ -23,8 +23,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
-import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 const ClientProfile = () => {
   const { user } = useClientAuth();
@@ -619,7 +618,7 @@ const ClientProfile = () => {
             </div>
             <div>
               <Label>Adresse *</Label>
-              <PortalAddressAutocomplete
+              <UnifiedAddressAutocomplete
                 value={newLocation.service_address}
                 onChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
                 onAddressSelect={(details: AddressDetails) => {

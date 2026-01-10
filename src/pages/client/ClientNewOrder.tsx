@@ -61,8 +61,7 @@ import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
-import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 interface Service {
   id: string;
@@ -3360,7 +3359,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2 space-y-2">
                         <Label htmlFor="service-address">Adresse (numéro + rue) <span className="text-destructive">*</span></Label>
-                        <PortalAddressAutocomplete
+                        <UnifiedAddressAutocomplete
                           value={serviceAddressStreet}
                           onChange={(value) => setServiceAddressStreet(value)}
                           onAddressSelect={(details: AddressDetails) => {
