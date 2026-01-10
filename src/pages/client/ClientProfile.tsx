@@ -633,6 +633,7 @@ const ClientProfile = () => {
                 }}
                 placeholder="Rechercher une adresse..."
                 restrictToQuebec={true}
+                showDiagnostic={true}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -321,6 +321,7 @@ export default function EquipmentOrderDialog({
                   }}
                   placeholder="Rechercher une adresse..."
                   restrictToQuebec={true}
+                  showDiagnostic={true}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <Input

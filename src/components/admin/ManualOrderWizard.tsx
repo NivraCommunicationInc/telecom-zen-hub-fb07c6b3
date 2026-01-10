@@ -1125,6 +1125,7 @@ export default function ManualOrderWizard({
                 }}
                 placeholder="Rechercher une adresse..."
                 restrictToQuebec={true}
+                showDiagnostic={true}
               />
               <div className="grid grid-cols-3 gap-2">
                 <Input

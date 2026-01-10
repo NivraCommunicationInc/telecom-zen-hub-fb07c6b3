@@ -420,6 +420,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                     placeholder={isFrench ? "Rechercher une adresse..." : "Search for an address..."}
                     restrictToQuebec={true}
                     className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
+                    showDiagnostic={true}
                   />
                 </div>
 

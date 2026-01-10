@@ -5,10 +5,15 @@ import { backendClient } from "@/integrations/backend/client";
 
 export type { AddressDetails };
 
-// Wrapper that keeps the legacy import path for non-portal usage.
-// Portal routes must use the portal-specific wrapper to avoid depending on the global client.
-export default function AddressAutocomplete(
-  props: Omit<ComponentProps<typeof AddressAutocompleteBase>, "supabaseClient">
-) {
+type AddressAutocompleteProps = Omit<ComponentProps<typeof AddressAutocompleteBase>, "supabaseClient">;
+
+/**
+ * Public/shared Address Autocomplete using Mapbox.
+ * Uses backendClient for public-facing forms.
+ * 
+ * Props:
+ * - showDiagnostic: boolean (default: false) - Show diagnostic status line for debugging
+ */
+export default function AddressAutocomplete(props: AddressAutocompleteProps) {
   return <AddressAutocompleteBase {...props} supabaseClient={backendClient} />;
 }
