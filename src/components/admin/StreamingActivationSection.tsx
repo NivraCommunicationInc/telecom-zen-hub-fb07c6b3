@@ -17,14 +17,17 @@ import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { createAuditNote } from "@/lib/clientAuditNotes";
+import { buildStreamingEmailPayload, logEmailPayload } from "@/lib/serviceEmailPayloadBuilder";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface StreamingActivationSectionProps {
   orderId: string;
+  orderNumber: string;
   userId: string;
   clientEmail?: string;
   clientName?: string;
+  clientFirstName?: string;
   streamingServices?: string[];
   onUpdate?: () => void;
 }
@@ -39,9 +42,11 @@ const statusConfig: Record<string, { color: string; label: string; icon: any }> 
 
 export const StreamingActivationSection = ({
   orderId,
+  orderNumber,
   userId,
   clientEmail,
   clientName,
+  clientFirstName,
   streamingServices = [],
   onUpdate,
 }: StreamingActivationSectionProps) => {
@@ -51,6 +56,21 @@ export const StreamingActivationSection = ({
 
   const [promoCode, setPromoCode] = useState("");
   const [serviceName, setServiceName] = useState(streamingServices[0] || "Streaming+");
+
+  // Helper to build order context
+  const getOrderContext = () => ({
+    id: orderId,
+    order_number: orderNumber,
+    user_id: userId,
+    client_email: clientEmail,
+  });
+
+  const getClientContext = () => ({
+    id: userId,
+    email: clientEmail,
+    full_name: clientName,
+    first_name: clientFirstName,
+  });
 
   // Fetch activation tokens
   const { data: tokens, refetch } = useQuery({
@@ -95,7 +115,8 @@ export const StreamingActivationSection = ({
         eventType: 'status_changed',
         message: `Lien d'activation Streaming+ envoyé pour ${serviceName}${promoCode ? ` (Code: ${promoCode})` : ''}`,
         metadata: { 
-          order_id: orderId, 
+          order_id: orderId,
+          order_number: orderNumber,
           service_name: serviceName, 
           promo_code: promoCode,
           token_id: token.id,
@@ -104,19 +125,50 @@ export const StreamingActivationSection = ({
         actorRole: 'admin',
       });
 
-      // Send email with activation link
+      // Send email with proper payload
       if (clientEmail) {
-        await supabase.functions.invoke("send-streaming-activation-email", {
-          body: {
-            client_email: clientEmail,
-            client_name: clientName,
+        const payload = buildStreamingEmailPayload(
+          getOrderContext(),
+          getClientContext(),
+          'link_sent',
+          {
+            token_id: token.id,
             service_name: serviceName,
-            activation_url: token.activation_url,
-            activation_token: token.activation_token,
-            promo_code: promoCode,
-            expires_at: token.expires_at,
+            activation_link: token.activation_url,
+            promo_code: promoCode || undefined,
+            expires_at: token.expires_at 
+              ? format(new Date(token.expires_at), "d MMMM yyyy", { locale: fr })
+              : undefined,
+          }
+        );
+        
+        logEmailPayload(payload, 'send-streaming-activation-email');
+
+        const { error: emailError } = await supabase.functions.invoke("send-streaming-activation-email", {
+          body: {
+            client_id: payload.client_id,
+            client_email: payload.client_email,
+            client_first_name: payload.client_first_name,
+            token_id: payload.token_id,
+            service_name: payload.service_name,
+            status: payload.status,
+            activation_link: payload.activation_link,
+            promo_code: payload.promo_code,
+            expires_at: payload.expires_at,
           },
         });
+
+        if (emailError) {
+          console.error("Email send failed:", emailError);
+          await createAuditNote({
+            clientId: userId,
+            eventType: 'status_changed',
+            message: `[EMAIL_FAILED] Échec de l'envoi de l'email d'activation streaming`,
+            metadata: { order_id: orderId, error: emailError.message },
+            actorId: 'system',
+            actorRole: 'system',
+          });
+        }
       }
 
       return token;
@@ -137,7 +189,7 @@ export const StreamingActivationSection = ({
     mutationFn: async (tokenId: string) => {
       const baseUrl = import.meta.env.VITE_SITE_URL || "https://nivratelecom.ca";
       
-      // Mark old token as reissued
+      // Mark old token as expired
       await supabase
         .from("streaming_activation_tokens")
         .update({ status: "expired" })
@@ -170,7 +222,8 @@ export const StreamingActivationSection = ({
         eventType: 'status_changed',
         message: `Lien d'activation Streaming+ réémis pour ${existingToken?.service_name}`,
         metadata: { 
-          order_id: orderId, 
+          order_id: orderId,
+          order_number: orderNumber,
           old_token_id: tokenId,
           new_token_id: newToken.id,
         },
@@ -178,18 +231,36 @@ export const StreamingActivationSection = ({
         actorRole: 'admin',
       });
 
-      // Send new email
+      // Send new email with proper payload
       if (clientEmail) {
+        const payload = buildStreamingEmailPayload(
+          getOrderContext(),
+          getClientContext(),
+          'link_reissued',
+          {
+            token_id: newToken.id,
+            service_name: newToken.service_name,
+            activation_link: newToken.activation_url,
+            promo_code: newToken.promo_code || undefined,
+            expires_at: newToken.expires_at 
+              ? format(new Date(newToken.expires_at), "d MMMM yyyy", { locale: fr })
+              : undefined,
+          }
+        );
+        
+        logEmailPayload(payload, 'send-streaming-activation-email');
+
         await supabase.functions.invoke("send-streaming-activation-email", {
           body: {
-            client_email: clientEmail,
-            client_name: clientName,
-            service_name: newToken.service_name,
-            activation_url: newToken.activation_url,
-            activation_token: newToken.activation_token,
-            promo_code: newToken.promo_code,
-            expires_at: newToken.expires_at,
-            is_reissue: true,
+            client_id: payload.client_id,
+            client_email: payload.client_email,
+            client_first_name: payload.client_first_name,
+            token_id: payload.token_id,
+            service_name: payload.service_name,
+            status: payload.status,
+            activation_link: payload.activation_link,
+            promo_code: payload.promo_code,
+            expires_at: payload.expires_at,
           },
         });
       }

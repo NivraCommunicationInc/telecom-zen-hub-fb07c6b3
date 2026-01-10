@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -25,14 +24,17 @@ import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { createAuditNote } from "@/lib/clientAuditNotes";
+import { buildMobileEmailPayload, logEmailPayload } from "@/lib/serviceEmailPayloadBuilder";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface MobileFulfillmentSectionProps {
   orderId: string;
+  orderNumber: string;
   userId: string;
   clientEmail?: string;
   clientName?: string;
+  clientFirstName?: string;
   portRequest?: any;
   onUpdate?: () => void;
 }
@@ -53,9 +55,11 @@ const simStatusConfig: Record<string, { color: string; label: string }> = {
 
 export const MobileFulfillmentSection = ({
   orderId,
+  orderNumber,
   userId,
   clientEmail,
   clientName,
+  clientFirstName,
   portRequest,
   onUpdate,
 }: MobileFulfillmentSectionProps) => {
@@ -83,6 +87,21 @@ export const MobileFulfillmentSection = ({
       if (error && error.code !== "PGRST116") throw error;
       return data;
     },
+  });
+
+  // Helper to build order context
+  const getOrderContext = () => ({
+    id: orderId,
+    order_number: orderNumber,
+    user_id: userId,
+    client_email: clientEmail,
+  });
+
+  const getClientContext = () => ({
+    id: userId,
+    email: clientEmail,
+    full_name: clientName,
+    first_name: clientFirstName,
   });
 
   // Initialize or update fulfillment record
@@ -129,22 +148,45 @@ export const MobileFulfillmentSection = ({
         clientId: userId,
         eventType: 'equipment_assigned',
         message: `Numéro mobile attribué: ${number}`,
-        metadata: { order_id: orderId, assigned_number: number },
+        metadata: { order_id: orderId, order_number: orderNumber, assigned_number: number },
         actorId: user?.id,
         actorRole: 'admin',
       });
 
-      // Send email notification
+      // Send email notification with proper payload
       if (clientEmail) {
-        await supabase.functions.invoke("send-mobile-status-email", {
+        const payload = buildMobileEmailPayload(
+          getOrderContext(),
+          getClientContext(),
+          'number_assigned',
+          { phone_number: number }
+        );
+        
+        logEmailPayload(payload, 'send-mobile-status-email');
+
+        const { error: emailError } = await supabase.functions.invoke("send-mobile-status-email", {
           body: {
-            client_email: clientEmail,
-            client_name: clientName,
-            action: "number_assigned",
-            phone_number: number,
-            order_id: orderId,
+            client_id: payload.client_id,
+            client_email: payload.client_email,
+            client_first_name: payload.client_first_name,
+            order_id: payload.order_id,
+            order_number: payload.order_number,
+            phone_number: payload.phone_number,
+            status: payload.status,
           },
         });
+
+        if (emailError) {
+          console.error("Email send failed:", emailError);
+          await createAuditNote({
+            clientId: userId,
+            eventType: 'status_changed',
+            message: `[EMAIL_FAILED] Échec de l'envoi de l'email d'attribution de numéro`,
+            metadata: { order_id: orderId, error: emailError.message },
+            actorId: 'system',
+            actorRole: 'system',
+          });
+        }
       }
 
       return number;
@@ -174,27 +216,91 @@ export const MobileFulfillmentSection = ({
         clientId: userId,
         eventType: 'status_changed',
         message: `Demande de portage soumise: ${portInNumber} depuis ${portInCarrier}`,
-        metadata: { order_id: orderId, port_number: portInNumber, carrier: portInCarrier },
+        metadata: { order_id: orderId, order_number: orderNumber, port_number: portInNumber, carrier: portInCarrier },
         actorId: user?.id,
         actorRole: 'admin',
       });
 
-      // Send email
+      // Send email with proper payload
       if (clientEmail) {
+        const payload = buildMobileEmailPayload(
+          getOrderContext(),
+          getClientContext(),
+          'port_in_submitted',
+          { 
+            phone_number: portInNumber,
+            port_in_number: portInNumber,
+            port_in_carrier: portInCarrier,
+            carrier: portInCarrier,
+          }
+        );
+        
+        logEmailPayload(payload, 'send-mobile-status-email');
+
         await supabase.functions.invoke("send-mobile-status-email", {
           body: {
-            client_email: clientEmail,
-            client_name: clientName,
-            action: "port_in_submitted",
-            phone_number: portInNumber,
-            carrier: portInCarrier,
-            order_id: orderId,
+            client_id: payload.client_id,
+            client_email: payload.client_email,
+            client_first_name: payload.client_first_name,
+            order_id: payload.order_id,
+            order_number: payload.order_number,
+            phone_number: payload.phone_number,
+            status: 'port_in_initiated', // Map to email function status
+            carrier: payload.carrier,
           },
         });
       }
     },
     onSuccess: () => {
       toast({ title: "Portage soumis", description: `Demande pour ${portInNumber}` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Complete port-in mutation
+  const completePortInMutation = useMutation({
+    mutationFn: async () => {
+      await upsertFulfillmentMutation.mutateAsync({
+        port_in_status: 'completed',
+        port_in_completed_at: new Date().toISOString(),
+      });
+
+      await createAuditNote({
+        clientId: userId,
+        eventType: 'status_changed',
+        message: `Portage complété pour ${fulfillment?.port_in_number}`,
+        metadata: { order_id: orderId, order_number: orderNumber },
+        actorId: user?.id,
+        actorRole: 'admin',
+      });
+
+      if (clientEmail) {
+        const payload = buildMobileEmailPayload(
+          getOrderContext(),
+          getClientContext(),
+          'port_in_completed',
+          { phone_number: fulfillment?.port_in_number }
+        );
+        
+        logEmailPayload(payload, 'send-mobile-status-email');
+
+        await supabase.functions.invoke("send-mobile-status-email", {
+          body: {
+            client_id: payload.client_id,
+            client_email: payload.client_email,
+            client_first_name: payload.client_first_name,
+            order_id: payload.order_id,
+            order_number: payload.order_number,
+            phone_number: payload.phone_number,
+            status: payload.status,
+          },
+        });
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Portage complété" });
     },
     onError: (err: any) => {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -216,23 +322,50 @@ export const MobileFulfillmentSection = ({
         clientId: userId,
         eventType: 'equipment_assigned',
         message: `SIM expédiée - ICCID: ${simIccid}, Suivi: ${simTracking}`,
-        metadata: { order_id: orderId, sim_iccid: simIccid, tracking: simTracking, carrier: simCarrier },
+        metadata: { order_id: orderId, order_number: orderNumber, sim_iccid: simIccid, tracking: simTracking, carrier: simCarrier },
         actorId: user?.id,
         actorRole: 'admin',
       });
 
-      // Send email
+      // Send email with proper payload
       if (clientEmail) {
-        await supabase.functions.invoke("send-mobile-status-email", {
-          body: {
-            client_email: clientEmail,
-            client_name: clientName,
-            action: "sim_shipped",
+        const payload = buildMobileEmailPayload(
+          getOrderContext(),
+          getClientContext(),
+          'sim_shipped',
+          {
             tracking_number: simTracking,
             carrier: simCarrier,
-            order_id: orderId,
+            sim_iccid: simIccid,
+          }
+        );
+        
+        logEmailPayload(payload, 'send-mobile-status-email');
+
+        const { error: emailError } = await supabase.functions.invoke("send-mobile-status-email", {
+          body: {
+            client_id: payload.client_id,
+            client_email: payload.client_email,
+            client_first_name: payload.client_first_name,
+            order_id: payload.order_id,
+            order_number: payload.order_number,
+            status: payload.status,
+            carrier: payload.carrier,
+            tracking_number: payload.tracking_number,
           },
         });
+
+        if (emailError) {
+          console.error("Email send failed:", emailError);
+          await createAuditNote({
+            clientId: userId,
+            eventType: 'status_changed',
+            message: `[EMAIL_FAILED] Échec de l'envoi de l'email d'expédition SIM`,
+            metadata: { order_id: orderId, error: emailError.message },
+            actorId: 'system',
+            actorRole: 'system',
+          });
+        }
       }
     },
     onSuccess: () => {
@@ -319,14 +452,31 @@ export const MobileFulfillmentSection = ({
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => upsertFulfillmentMutation.mutate({ 
-                        port_in_status: 'completed',
-                        port_in_completed_at: new Date().toISOString(),
-                      })}
+                      onClick={() => completePortInMutation.mutate()}
+                      disabled={completePortInMutation.isPending}
                     >
-                      Marquer complété
+                      {completePortInMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Marquer complété"
+                      )}
                     </Button>
                   </div>
+                )}
+                
+                {fulfillment.port_in_status === 'in_progress' && (
+                  <Button
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => completePortInMutation.mutate()}
+                    disabled={completePortInMutation.isPending}
+                  >
+                    {completePortInMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Marquer complété"
+                    )}
+                  </Button>
                 )}
               </div>
             ) : (
