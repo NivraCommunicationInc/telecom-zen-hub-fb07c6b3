@@ -1096,6 +1096,30 @@ const AdminClients = () => {
                       securityReason={selectedClient.security_reason}
                     />
 
+                    {/* Profile Incomplete Indicator */}
+                    {(!selectedClient.first_name || !selectedClient.last_name || !selectedClient.date_of_birth || !selectedClient.phone) && (
+                      <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                        <div className="flex items-center gap-2 text-amber-600 mb-2">
+                          <AlertCircle className="w-5 h-5" />
+                          <span className="font-medium">Profil incomplet</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {!selectedClient.first_name && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-500/30">Prénom manquant</Badge>
+                          )}
+                          {!selectedClient.last_name && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-500/30">Nom manquant</Badge>
+                          )}
+                          {!selectedClient.date_of_birth && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-500/30">Date de naissance manquante</Badge>
+                          )}
+                          {!selectedClient.phone && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-500/30">Téléphone manquant</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {selectedClient.account_status && selectedClient.account_status !== 'active' && (
                       <div className={`p-4 rounded-lg border ${
                         selectedClient.account_status === 'frozen' ? 'bg-blue-500/10 border-blue-500/30' :
@@ -1589,13 +1613,56 @@ const AdminClients = () => {
                           </div>
                         )}
 
-                        {/* No services at all */}
+                        {/* Services derived from Active Orders (fallback when no subscriptions) */}
                         {(!clientSubscriptions || clientSubscriptions.length === 0) && 
                          (!clientStreamingSubscriptions || clientStreamingSubscriptions.length === 0) && (
-                          <div className="text-center py-8">
-                            <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-muted-foreground">Aucun service souscrit</p>
-                          </div>
+                          <>
+                            {/* Derive services from active/completed orders */}
+                            {clientOrders && clientOrders.filter((o: any) => 
+                              ['active', 'completed', 'installed', 'delivered', 'installation_completed'].includes(o.status)
+                            ).length > 0 ? (
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-2 mb-3 text-amber-500">
+                                  <AlertCircle className="w-4 h-4" />
+                                  <p className="text-sm">Services déduits des commandes actives (aucun abonnement formel)</p>
+                                </div>
+                                {clientOrders.filter((o: any) => 
+                                  ['active', 'completed', 'installed', 'delivered', 'installation_completed'].includes(o.status)
+                                ).map((order: any) => (
+                                  <div key={order.id} className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/5">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        {order.service_type?.toLowerCase().includes("mobile") ? (
+                                          <Smartphone className="w-6 h-6 text-blue-500" />
+                                        ) : order.service_type?.toLowerCase().includes("tv") ? (
+                                          <Monitor className="w-6 h-6 text-purple-500" />
+                                        ) : (
+                                          <Router className="w-6 h-6 text-cyan-500" />
+                                        )}
+                                        <div>
+                                          <p className="font-medium text-foreground">{order.service_type || order.plan_name || 'Service'}</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Commande: {order.order_number}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            Depuis le {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <Badge className={statusColors[order.status] || statusColors.active}>
+                                        {order.status === "active" || order.status === "completed" ? "Actif" : order.status}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <Package className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                                <p className="text-muted-foreground">Aucun service actif</p>
+                              </div>
+                            )}
+                          </>
                         )}
                       </CardContent>
                     </Card>
