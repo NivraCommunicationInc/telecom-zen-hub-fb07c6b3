@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard, FileText } from "lucide-react";
 import { format } from "date-fns";
@@ -22,6 +22,7 @@ import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDial
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
+  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -41,6 +42,29 @@ const ClientOrders = () => {
     },
     enabled: !!user?.id,
   });
+
+  // REALTIME: Subscribe to order changes for automatic status updates
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const channel = portalSupabase
+      .channel("client-orders-realtime")
+      .on("postgres_changes", { 
+        event: "*", 
+        schema: "public", 
+        table: "orders",
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        console.log("[ClientOrders] Realtime update received:", payload);
+        // Invalidate to refetch - RLS will filter appropriately
+        queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
+      })
+      .subscribe();
+
+    return () => {
+      portalSupabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
 
   const statusColors: Record<string, string> = {
     pending: "bg-amber-500/20 text-amber-500",
