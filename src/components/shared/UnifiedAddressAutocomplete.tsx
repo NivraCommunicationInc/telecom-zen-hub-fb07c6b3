@@ -1,13 +1,17 @@
 /**
- * UnifiedAddressAutocomplete — the single source of truth for address autocomplete.
+ * UnifiedAddressAutocomplete — the SINGLE source of truth for address autocomplete.
  * 
- * Uses the edge function mapbox-address-autocomplete for suggestions.
- * Selection is handled with onMouseDown + preventDefault to avoid blur issues.
+ * CRITICAL IMPLEMENTATION NOTES:
+ * - Uses internalValue as fallback when parent doesn't update value prop
+ * - Uses onPointerDownCapture with preventDefault() to ensure selection before blur
+ * - Calls onValueChange/onChange BEFORE closing dropdown
+ * - Shows warning if parent binding is incorrect
  * 
- * API (compatible with old components):
- *   value: string                             — controlled input value
- *   onChange: (value: string) => void         — REQUIRED: called on typing AND selection
- *   onAddressSelect?: (address) => void       — optional: structured address object
+ * API:
+ *   value?: string                            — controlled input value (optional)
+ *   onChange?: (value: string) => void        — called on typing AND selection
+ *   onValueChange?: (value: string) => void   — alias for onChange
+ *   onAddressSelect?: (address) => void       — structured address object
  *   placeholder?: string
  *   disabled?: boolean
  *   restrictToQuebec?: boolean
@@ -63,8 +67,9 @@ interface DiagnosticState {
 }
 
 export interface UnifiedAddressAutocompleteProps {
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  onChange?: (value: string) => void;
+  onValueChange?: (value: string) => void;
   onAddressSelect?: (address: AddressDetails) => void;
   placeholder?: string;
   className?: string;
@@ -120,9 +125,17 @@ const toLine1 = (details: AddressDetails) =>
 const DiagnosticPanel = ({
   state,
   dropdownVisible,
+  displayedValue,
+  lastSelection,
+  mode,
+  bindingWarning,
 }: {
   state: DiagnosticState;
   dropdownVisible: boolean;
+  displayedValue: string;
+  lastSelection: string | null;
+  mode: "controlled" | "uncontrolled";
+  bindingWarning: boolean;
 }) => {
   const endpointColor =
     state.endpoint === "idle"
@@ -138,6 +151,26 @@ const DiagnosticPanel = ({
 
   return (
     <div className="mt-1.5 p-2 rounded border border-dashed border-muted-foreground/30 bg-muted/20 text-xs font-mono space-y-0.5">
+      {/* Debug values */}
+      <div className="space-y-0.5 mb-1 pb-1 border-b border-dashed border-muted-foreground/20">
+        <div className="truncate">
+          Valeur affichée: "<span className="text-foreground font-semibold">{displayedValue || "(vide)"}</span>"
+        </div>
+        <div className="truncate">
+          Dernière sélection: "<span className="text-foreground font-semibold">{lastSelection || "(aucune)"}</span>"
+        </div>
+        <div>
+          Mode: <span className="font-semibold">{mode}</span>
+        </div>
+      </div>
+
+      {bindingWarning && (
+        <div className="flex items-center gap-1 text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded">
+          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+          <span className="text-[10px]">Adresse sélectionnée mais le parent ne met pas à jour value (binding incorrect).</span>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-x-4 gap-y-0.5">
         <span>
           Endpoint:{" "}
@@ -208,6 +241,7 @@ const DiagnosticPanel = ({
 export const UnifiedAddressAutocomplete = ({
   value,
   onChange,
+  onValueChange,
   onAddressSelect,
   placeholder = "Entrez votre adresse...",
   className,
@@ -215,6 +249,11 @@ export const UnifiedAddressAutocomplete = ({
   restrictToQuebec = false,
   showDiagnostic = false,
 }: UnifiedAddressAutocompleteProps) => {
+  // CRITICAL: Internal value as fallback when parent doesn't update
+  const [internalValue, setInternalValue] = useState(value ?? "");
+  const [lastSelection, setLastSelection] = useState<string | null>(null);
+  const [bindingWarning, setBindingWarning] = useState(false);
+
   const [suggestions, setSuggestions] = useState<MapboxSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -231,10 +270,25 @@ export const UnifiedAddressAutocomplete = ({
 
   const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
+  // Determine if controlled or uncontrolled
+  const isControlled = value !== undefined;
+  const displayedValue = isControlled ? (value ?? internalValue) : internalValue;
+
   const endpointForLogs = useMemo(() => {
     const base = import.meta.env.VITE_SUPABASE_URL;
     return base ? `${base}/functions/v1/mapbox-address-autocomplete` : "(unknown)";
   }, []);
+
+  // Sync internal value when parent provides value (controlled mode)
+  useEffect(() => {
+    if (isControlled && value !== undefined) {
+      setInternalValue(value);
+      // Clear binding warning if parent updated correctly
+      if (lastSelection && value === lastSelection) {
+        setBindingWarning(false);
+      }
+    }
+  }, [value, isControlled, lastSelection]);
 
   // Update dropdown position
   const updateDropdownPosition = useCallback(() => {
@@ -456,29 +510,77 @@ export const UnifiedAddressAutocomplete = ({
     }
   };
 
+  // CRITICAL: Call all callbacks to notify parent
+  const notifyParent = useCallback((newValue: string) => {
+    // Try onValueChange first (preferred)
+    if (onValueChange) {
+      onValueChange(newValue);
+    }
+    
+    // Also call onChange for compatibility
+    if (onChange) {
+      try {
+        // Try calling with string first
+        onChange(newValue);
+      } catch {
+        // If that fails, try with event-like object
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (onChange as any)({ target: { value: newValue } });
+        } catch {
+          // Ignore if this also fails
+        }
+      }
+    }
+  }, [onChange, onValueChange]);
+
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    onChange(newValue);
+    setInternalValue(newValue);
+    setBindingWarning(false);
+    notifyParent(newValue);
     setHighlightedIndex(-1);
     fetchSuggestions(newValue);
   };
 
-  // Handle suggestion selection — CRITICAL: update value BEFORE closing dropdown
+  // Handle suggestion selection — CRITICAL: update BEFORE closing dropdown
   const handleSuggestionSelect = async (suggestion: MapboxSuggestion) => {
     const parsed = parseFromSuggestion(suggestion);
-    const displayValue = toLine1(parsed);
+    const selectedLabel = toLine1(parsed);
 
-    // ALWAYS call onChange first with the selected address
-    onChange(displayValue);
+    // STEP 1: Update internal value IMMEDIATELY
+    setInternalValue(selectedLabel);
+    setLastSelection(selectedLabel);
+    
+    // STEP 2: Notify parent BEFORE closing dropdown
+    notifyParent(selectedLabel);
 
-    // Then close dropdown
-    setShowSuggestions(false);
-    setSuggestions([]);
-    setErrorMessage(null);
-    setDiagnostic(createInitialDiagnostic());
+    // STEP 3: Call onAddressSelect for structured data
+    if (onAddressSelect) {
+      // First call with parsed data, then retrieve full details async
+      onAddressSelect(parsed);
+    }
 
-    // Retrieve full details and call onAddressSelect if provided
+    // STEP 4: Close dropdown after with requestAnimationFrame
+    requestAnimationFrame(() => {
+      setShowSuggestions(false);
+      setSuggestions([]);
+      setErrorMessage(null);
+      setDiagnostic(createInitialDiagnostic());
+    });
+
+    // STEP 5: Check if parent updated value after 50ms
+    if (isControlled) {
+      setTimeout(() => {
+        // If value prop still doesn't match what we selected, show warning
+        if (value !== selectedLabel && internalValue === selectedLabel) {
+          setBindingWarning(true);
+        }
+      }, 50);
+    }
+
+    // STEP 6: Retrieve full details and update if we have onAddressSelect
     const details = await retrieveDetails(suggestion);
     if (onAddressSelect) {
       onAddressSelect(details);
@@ -520,8 +622,9 @@ export const UnifiedAddressAutocomplete = ({
   // On focus, refresh suggestions if already has content
   const handleFocus = () => {
     sessionTokenRef.current = crypto.randomUUID();
-    if (value.trim().length >= MIN_CHARS) {
-      fetchSuggestions(value);
+    const currentValue = displayedValue;
+    if (currentValue.trim().length >= MIN_CHARS) {
+      fetchSuggestions(currentValue);
     }
   };
 
@@ -553,8 +656,8 @@ export const UnifiedAddressAutocomplete = ({
                     "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
                     highlightedIndex === index && "bg-muted/50"
                   )}
-                  onPointerDown={(e) => {
-                    // CRITICAL: Prevent blur from firing before selection
+                  // CRITICAL: Use onPointerDownCapture to ensure we capture before blur
+                  onPointerDownCapture={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     handleSuggestionSelect(suggestion);
@@ -593,7 +696,7 @@ export const UnifiedAddressAutocomplete = ({
         <Input
           ref={inputRef}
           type="text"
-          value={value}
+          value={displayedValue}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
@@ -607,7 +710,24 @@ export const UnifiedAddressAutocomplete = ({
         )}
       </div>
 
-      {showDiagnostic && <DiagnosticPanel state={diagnostic} dropdownVisible={dropdownVisible} />}
+      {/* Binding warning - always visible if there's an issue */}
+      {bindingWarning && !showDiagnostic && (
+        <div className="mt-1 flex items-center gap-1 text-amber-600 text-xs">
+          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+          <span>Adresse sélectionnée mais le parent ne met pas à jour value.</span>
+        </div>
+      )}
+
+      {showDiagnostic && (
+        <DiagnosticPanel
+          state={diagnostic}
+          dropdownVisible={dropdownVisible}
+          displayedValue={displayedValue}
+          lastSelection={lastSelection}
+          mode={isControlled ? "controlled" : "uncontrolled"}
+          bindingWarning={bindingWarning}
+        />
+      )}
 
       {dropdown}
     </div>
