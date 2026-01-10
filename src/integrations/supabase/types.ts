@@ -2425,6 +2425,92 @@ export type Database = {
           },
         ]
       }
+      mobile_fulfillment: {
+        Row: {
+          activated_at: string | null
+          activation_status: string | null
+          assigned_number: string | null
+          created_at: string
+          id: string
+          number_assigned_at: string | null
+          number_assigned_by: string | null
+          order_id: string
+          port_in_account_number: string | null
+          port_in_carrier: string | null
+          port_in_completed_at: string | null
+          port_in_number: string | null
+          port_in_requested: boolean | null
+          port_in_status: string | null
+          port_in_submitted_at: string | null
+          sim_carrier: string | null
+          sim_iccid: string | null
+          sim_shipped_at: string | null
+          sim_tracking_number: string | null
+          sim_tracking_url: string | null
+          sim_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activation_status?: string | null
+          assigned_number?: string | null
+          created_at?: string
+          id?: string
+          number_assigned_at?: string | null
+          number_assigned_by?: string | null
+          order_id: string
+          port_in_account_number?: string | null
+          port_in_carrier?: string | null
+          port_in_completed_at?: string | null
+          port_in_number?: string | null
+          port_in_requested?: boolean | null
+          port_in_status?: string | null
+          port_in_submitted_at?: string | null
+          sim_carrier?: string | null
+          sim_iccid?: string | null
+          sim_shipped_at?: string | null
+          sim_tracking_number?: string | null
+          sim_tracking_url?: string | null
+          sim_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          activation_status?: string | null
+          assigned_number?: string | null
+          created_at?: string
+          id?: string
+          number_assigned_at?: string | null
+          number_assigned_by?: string | null
+          order_id?: string
+          port_in_account_number?: string | null
+          port_in_carrier?: string | null
+          port_in_completed_at?: string | null
+          port_in_number?: string | null
+          port_in_requested?: boolean | null
+          port_in_status?: string | null
+          port_in_submitted_at?: string | null
+          sim_carrier?: string | null
+          sim_iccid?: string | null
+          sim_shipped_at?: string | null
+          sim_tracking_number?: string | null
+          sim_tracking_url?: string | null
+          sim_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_fulfillment_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_invoice_lines: {
         Row: {
           created_at: string
@@ -4615,6 +4701,81 @@ export type Database = {
           },
         ]
       }
+      service_instances: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          end_date: string | null
+          equipment_details: Json | null
+          id: string
+          metadata: Json | null
+          monthly_price: number | null
+          order_id: string | null
+          plan_name: string | null
+          service_type: string
+          start_date: string | null
+          status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
+          status_reason: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          end_date?: string | null
+          equipment_details?: Json | null
+          id?: string
+          metadata?: Json | null
+          monthly_price?: number | null
+          order_id?: string | null
+          plan_name?: string | null
+          service_type: string
+          start_date?: string | null
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_reason?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          end_date?: string | null
+          equipment_details?: Json | null
+          id?: string
+          metadata?: Json | null
+          monthly_price?: number | null
+          order_id?: string | null
+          plan_name?: string | null
+          service_type?: string
+          start_date?: string | null
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_reason?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_instances_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_instances_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_status: {
         Row: {
           description: string | null
@@ -4911,6 +5072,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      streaming_activation_tokens: {
+        Row: {
+          activated_at: string | null
+          activation_token: string
+          activation_url: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          order_id: string | null
+          promo_code: string | null
+          reissued_count: number | null
+          sent_at: string | null
+          sent_by: string | null
+          service_name: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activation_token?: string
+          activation_url?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          order_id?: string | null
+          promo_code?: string | null
+          reissued_count?: number | null
+          sent_at?: string | null
+          sent_by?: string | null
+          service_name: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          activation_token?: string
+          activation_url?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          order_id?: string | null
+          promo_code?: string | null
+          reissued_count?: number | null
+          sent_at?: string | null
+          sent_by?: string | null
+          service_name?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streaming_activation_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       streaming_catalog: {
         Row: {
