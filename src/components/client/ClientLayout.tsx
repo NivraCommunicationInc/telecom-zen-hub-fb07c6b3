@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { PortalSystemStatusBanner } from "@/components/client/PortalSystemStatusBanner";
 import { PortalNotificationBell } from "@/components/client/PortalNotificationBell";
 import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { toast } from "sonner";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -32,6 +34,29 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const navigate = useNavigate();
   const { user, signOut } = useClientAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Auto-logout handler for idle timeout
+  const handleIdleLogout = useCallback(async () => {
+    console.log("[ClientLayout] Idle timeout reached - logging out user");
+    // Clear session data
+    sessionStorage.removeItem("client_pin_verified");
+    sessionStorage.removeItem("client_pin_pending_email");
+    sessionStorage.removeItem("client_pin_pending_user_id");
+    sessionStorage.removeItem("client_last_auth_check");
+    
+    await signOut();
+    toast.info("Vous avez été déconnecté après 1 heure d'inactivité", {
+      duration: 5000,
+    });
+    navigate("/portal/auth");
+  }, [signOut, navigate]);
+
+  // Enable idle timeout (1 hour = 60 * 60 * 1000 ms)
+  useIdleTimeout({
+    onIdle: handleIdleLogout,
+    timeout: 60 * 60 * 1000, // 1 hour
+    enabled: !!user, // Only enable when user is logged in
+  });
 
   const handleSignOut = async () => {
     // Clear PIN verification state on sign out (but NOT trusted device)
