@@ -186,37 +186,30 @@ export const identityDocumentSchema = z.object({
 export type CreditCardFormData = z.infer<typeof creditCardFormSchema>;
 export type IdentityDocumentFormData = z.infer<typeof identityDocumentSchema>;
 
-/**
- * SECURITY: Strip CVV from form data before any network request
- * This ensures CVV never leaves the client (except to payment processor SDK)
- */
 export function stripCvvFromData<T extends Record<string, unknown>>(
   data: T
-): Omit<T, 'cvv'> {
+): Omit<T, "cvv"> {
   const { cvv: _cvv, ...safeData } = data as T & { cvv?: unknown };
-  return safeData as Omit<T, 'cvv'>;
+  return safeData as Omit<T, "cvv">;
 }
 
-/**
- * SECURITY: Strip all sensitive card data before logging/storage
- * Removes PAN, expiry raw values, and CVV
- */
 export function stripSensitiveCardData<T extends Record<string, unknown>>(
   data: T
-): Omit<T, 'cvv' | 'cardNumber' | 'expiry' | 'card_number'> {
-  const { 
-    cvv: _cvv, 
-    cardNumber: _cardNumber, 
-    expiry: _expiry, 
-    card_number: _card_number, 
-    ...safeData 
-  } = data as T & { 
-    cvv?: unknown; 
-    cardNumber?: unknown; 
+): Omit<T, "cvv" | "cardNumber" | "expiry" | "card_number"> {
+  const {
+    cvv: _cvv,
+    cardNumber: _cardNumber,
+    expiry: _expiry,
+    card_number: _card_number,
+    ...safeData
+  } = data as T & {
+    cvv?: unknown;
+    cardNumber?: unknown;
     expiry?: unknown;
     card_number?: unknown;
   };
-  return safeData as Omit<T, 'cvv' | 'cardNumber' | 'expiry' | 'card_number'>;
+
+  return safeData as Omit<T, "cvv" | "cardNumber" | "expiry" | "card_number">;
 }
 
 /**
