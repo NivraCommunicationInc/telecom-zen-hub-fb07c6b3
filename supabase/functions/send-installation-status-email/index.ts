@@ -285,7 +285,9 @@ Deno.serve(async (req) => {
     }
 
     const statusInfo = STATUS_INFO[new_status];
-    const portalUrl = "https://nivratelecom.ca/client";
+    // Use environment variable for base URL with fallback to /portal (not /client)
+    const siteBaseUrl = Deno.env.get("SITE_URL") || Deno.env.get("VITE_SITE_URL") || "https://nivratelecom.ca";
+    const portalUrl = `${siteBaseUrl}/portal`;
 
     const emailHtml = buildEmailHtml({
       clientFirstName: client_first_name || "Client",
