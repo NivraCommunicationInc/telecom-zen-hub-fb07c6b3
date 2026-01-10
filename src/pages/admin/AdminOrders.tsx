@@ -77,6 +77,8 @@ import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
+import { shouldAutoCompleteOrder, shouldAutoSetInstallationScheduled, isInstallationStatus } from "@/lib/installationStatusUtils";
+import { logClientActivityDirect } from "@/hooks/useClientActivityLog";
 
 // Status configurations - includes installation statuses
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
@@ -915,17 +917,87 @@ const AdminOrders = () => {
         details: { technician_id: technicianId, technician_name: technician?.full_name },
       };
       const currentAudit = Array.isArray(order?.audit_timeline) ? order.audit_timeline : [];
+      
+      // Check if status should auto-transition to installation_scheduled
+      const currentStatus = order?.status || "pending";
+      const shouldAutoSchedule = shouldAutoSetInstallationScheduled(currentStatus);
+      const newStatus = shouldAutoSchedule ? "installation_scheduled" : currentStatus;
 
       const { error: orderError } = await supabase
         .from("orders")
         .update({
           technician_id: technicianId,
+          status: newStatus, // Auto-set to installation_scheduled if applicable
           audit_timeline: [...currentAudit, auditEntry],
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderId);
 
       if (orderError) throw orderError;
+      
+      // Log client activity for technician assignment
+      if (order?.user_id) {
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("user_id", currentUser?.id)
+            .maybeSingle();
+            
+          await logClientActivityDirect({
+            clientId: order.user_id,
+            actorUserId: currentUser?.id || "",
+            actorName: profile?.full_name || currentUser?.email || "Admin",
+            actorRole: "admin",
+            actionType: "technician_assigned",
+            entityType: "order",
+            entityId: orderId,
+            summary: `Technicien ${technician?.full_name} assigné à la commande #${order.order_number}`,
+            afterData: { technician_id: technicianId, technician_name: technician?.full_name },
+          });
+          
+          // Also log status change if auto-transitioned
+          if (shouldAutoSchedule) {
+            await logClientActivityDirect({
+              clientId: order.user_id,
+              actorUserId: "system",
+              actorName: "Système",
+              actorRole: "system",
+              actionType: "order_status_change",
+              entityType: "order",
+              entityId: orderId,
+              summary: `Statut de commande #${order.order_number} automatiquement changé vers Installation planifiée`,
+              beforeData: { status: currentStatus },
+              afterData: { status: "installation_scheduled" },
+            });
+          }
+        } catch (err) {
+          console.error("Failed to log technician assignment:", err);
+        }
+      }
+      
+      // Send installation scheduled email if status changed
+      if (shouldAutoSchedule && order?.user_id) {
+        try {
+          await supabase.functions.invoke("send-installation-status-email", {
+            body: {
+              order_id: orderId,
+              client_email: order.client_email || order.profiles?.email,
+              client_first_name: order.profiles?.first_name || order.profiles?.full_name?.split(" ")[0],
+              order_number: order.order_number,
+              new_status: "installation_scheduled",
+              old_status: currentStatus,
+              service_address: order.profiles?.service_address,
+              scheduled_date_time: order.appointment_date 
+                ? format(new Date(order.appointment_date), "d MMMM yyyy à HH:mm", { locale: fr })
+                : undefined,
+              technician_name: technician?.full_name,
+            },
+          });
+        } catch (emailErr) {
+          console.error("Failed to send installation scheduled email:", emailErr);
+        }
+      }
 
       // Create appointment for client if order has scheduled date
       let appointmentId: string | undefined;
@@ -972,25 +1044,48 @@ const AdminOrders = () => {
         console.error("Failed to create work order:", workOrderResult.error);
       }
 
-      return { technicianName: technician?.full_name, workOrderNumber: workOrderResult.workOrderNumber };
+      return { 
+        technicianName: technician?.full_name, 
+        workOrderNumber: workOrderResult.workOrderNumber,
+        statusChanged: shouldAutoSchedule,
+        newStatus,
+      };
     },
     onSuccess: (data, { orderId, technicianId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
       const order = orders?.find((o: any) => o.id === orderId);
+      
+      // Update local selectedOrder state if this order is selected
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev: any) => prev ? { 
+          ...prev, 
+          technician_id: technicianId,
+          status: data?.newStatus || prev.status,
+        } : prev);
+      }
+      
       logActivity("technician_assigned", "order", orderId, { 
         technician_id: technicianId,
         technician_name: data?.technicianName,
         order_number: order?.order_number,
         work_order_number: data?.workOrderNumber,
+        status_auto_changed: data?.statusChanged,
       }, {
         changedField: "technician",
         newValue: data?.technicianName,
         reason: "Technicien assigné à la commande"
       });
+      
+      const description = data?.statusChanged 
+        ? `${data.technicianName} - Statut → Installation planifiée`
+        : data?.workOrderNumber 
+          ? `${data.technicianName} - ${data.workOrderNumber}` 
+          : data?.technicianName;
+          
       toast({ 
         title: "Technicien assigné", 
-        description: data?.workOrderNumber ? `${data.technicianName} - ${data.workOrderNumber}` : data?.technicianName 
+        description,
       });
     },
     onError: () => {
@@ -1020,6 +1115,128 @@ const AdminOrders = () => {
       toast({ title: "Erreur d'envoi", variant: "destructive" });
     },
   });
+
+  // Handle order status change with auto-transition and email notification
+  const handleOrderStatusChange = async (newStatus: string) => {
+    if (!selectedOrder) return;
+    
+    const oldStatus = selectedOrder.status;
+    const currentUser = (await supabase.auth.getUser()).data.user;
+    
+    // First update to the new status
+    let finalStatus = newStatus;
+    
+    // Check if installation_completed should auto-transition to completed
+    if (shouldAutoCompleteOrder(newStatus)) {
+      finalStatus = "completed";
+    }
+    
+    // Update local state immediately for UI feedback
+    setSelectedOrder({ ...selectedOrder, status: newStatus });
+    
+    // Log client activity for status change
+    if (selectedOrder.user_id) {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("user_id", currentUser?.id)
+          .maybeSingle();
+          
+        await logClientActivityDirect({
+          clientId: selectedOrder.user_id,
+          actorUserId: currentUser?.id || "",
+          actorName: profile?.full_name || currentUser?.email || "Admin",
+          actorRole: "admin",
+          actionType: "order_status_change",
+          entityType: "order",
+          entityId: selectedOrder.id,
+          summary: `Statut de commande #${selectedOrder.order_number} changé: ${orderStatusConfig[oldStatus]?.label || oldStatus} → ${orderStatusConfig[newStatus]?.label || newStatus}`,
+          beforeData: { status: oldStatus },
+          afterData: { status: newStatus },
+        });
+      } catch (err) {
+        console.error("Failed to log status change:", err);
+      }
+    }
+    
+    // Send installation status email for relevant statuses
+    if (isInstallationStatus(newStatus) || newStatus === "completed") {
+      try {
+        const technician = technicians?.find((t: any) => t.id === selectedOrder.technician_id);
+        
+        await supabase.functions.invoke("send-installation-status-email", {
+          body: {
+            order_id: selectedOrder.id,
+            client_email: selectedOrder.client_email || selectedOrder.profiles?.email,
+            client_first_name: selectedOrder.profiles?.first_name || selectedOrder.profiles?.full_name?.split(" ")[0],
+            order_number: selectedOrder.order_number,
+            new_status: newStatus,
+            old_status: oldStatus,
+            service_address: selectedOrder.profiles?.service_address,
+            scheduled_date_time: selectedOrder.appointment_date 
+              ? format(new Date(selectedOrder.appointment_date), "d MMMM yyyy à HH:mm", { locale: fr })
+              : undefined,
+            technician_name: technician?.full_name,
+          },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send status email:", emailErr);
+        // Don't block status change if email fails
+      }
+    }
+    
+    // If installation_completed, auto-transition to completed
+    if (shouldAutoCompleteOrder(newStatus)) {
+      setTimeout(async () => {
+        setSelectedOrder((prev: any) => prev ? { ...prev, status: "completed" } : prev);
+        
+        // Log the auto-transition
+        if (selectedOrder.user_id) {
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("user_id", currentUser?.id)
+              .maybeSingle();
+              
+            await logClientActivityDirect({
+              clientId: selectedOrder.user_id,
+              actorUserId: "system",
+              actorName: "Système",
+              actorRole: "system",
+              actionType: "order_status_change",
+              entityType: "order",
+              entityId: selectedOrder.id,
+              summary: `Statut de commande #${selectedOrder.order_number} automatiquement changé: Installation terminée → Commande complétée`,
+              beforeData: { status: "installation_completed" },
+              afterData: { status: "completed" },
+            });
+          } catch (err) {
+            console.error("Failed to log auto-transition:", err);
+          }
+        }
+        
+        // Send completed email
+        try {
+          await supabase.functions.invoke("send-installation-status-email", {
+            body: {
+              order_id: selectedOrder.id,
+              client_email: selectedOrder.client_email || selectedOrder.profiles?.email,
+              client_first_name: selectedOrder.profiles?.first_name || selectedOrder.profiles?.full_name?.split(" ")[0],
+              order_number: selectedOrder.order_number,
+              new_status: "completed",
+              old_status: "installation_completed",
+            },
+          });
+        } catch (emailErr) {
+          console.error("Failed to send completion email:", emailErr);
+        }
+        
+        toast({ title: "Commande complétée", description: "La commande a été automatiquement marquée comme complétée." });
+      }, 500);
+    }
+  };
 
   const handleViewDetails = (order: any) => {
     setSelectedOrder({ ...order });
@@ -1444,7 +1661,7 @@ const AdminOrders = () => {
                         <Label>Statut commande</Label>
                         <Select
                           value={selectedOrder.status}
-                          onValueChange={(v) => setSelectedOrder({ ...selectedOrder, status: v })}
+                          onValueChange={handleOrderStatusChange}
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
