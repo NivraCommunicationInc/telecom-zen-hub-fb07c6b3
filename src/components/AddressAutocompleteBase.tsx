@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, CheckCircle2, AlertCircle, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MapboxSuggestion {
@@ -41,11 +41,47 @@ export interface AddressAutocompleteBaseProps {
   disabled?: boolean;
   restrictToQuebec?: boolean;
   supabaseClient: SupabaseClient;
+  /** Show diagnostic status line under the input (for debugging without DevTools) */
+  showDiagnostic?: boolean;
 }
+
+type DiagnosticStatus = 
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "token_missing" }
+  | { type: "error"; code: number; message?: string }
+  | { type: "no_results" }
+  | { type: "ok"; count: number };
 
 const AUTOCOMPLETE_MIN_CHARS = 3;
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
 const AUTOCOMPLETE_MAX_RESULTS = 8;
+
+const DiagnosticLine = ({ status }: { status: DiagnosticStatus }) => {
+  if (status.type === "idle") return null;
+
+  const configs: Record<DiagnosticStatus["type"], { icon: typeof CheckCircle2; color: string; text: string }> = {
+    idle: { icon: CheckCircle2, color: "text-muted-foreground", text: "" },
+    loading: { icon: Loader2, color: "text-muted-foreground", text: "Mapbox: Chargement..." },
+    token_missing: { icon: XCircle, color: "text-destructive", text: "Mapbox: TOKEN MANQUANT" },
+    error: { icon: AlertCircle, color: "text-destructive", text: `Mapbox: ERREUR ${(status as { type: "error"; code: number }).code}` },
+    no_results: { icon: AlertTriangle, color: "text-amber-600", text: "Mapbox: 0 résultat" },
+    ok: { icon: CheckCircle2, color: "text-green-600", text: `Mapbox: OK (${(status as { type: "ok"; count: number }).count} résultats)` },
+  };
+
+  const config = configs[status.type];
+  const Icon = config.icon;
+
+  return (
+    <div className={cn("flex items-center gap-1.5 text-xs mt-1", config.color)}>
+      <Icon className={cn("h-3 w-3", status.type === "loading" && "animate-spin")} />
+      <span>{config.text}</span>
+      {status.type === "error" && (status as { message?: string }).message && (
+        <span className="opacity-70">— {(status as { message?: string }).message}</span>
+      )}
+    </div>
+  );
+};
 
 const AddressAutocompleteBase = ({
   value,
@@ -56,6 +92,7 @@ const AddressAutocompleteBase = ({
   disabled = false,
   restrictToQuebec = false,
   supabaseClient,
+  showDiagnostic = false,
 }: AddressAutocompleteBaseProps) => {
   const [suggestions, setSuggestions] = useState<MapboxSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +100,7 @@ const AddressAutocompleteBase = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [noResults, setNoResults] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [diagnosticStatus, setDiagnosticStatus] = useState<DiagnosticStatus>({ type: "idle" });
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -73,7 +111,6 @@ const AddressAutocompleteBase = ({
   const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(
     null
   );
-
 
   const endpointForLogs = useMemo(() => {
     const base = import.meta.env.VITE_SUPABASE_URL;
@@ -149,12 +186,14 @@ const AddressAutocompleteBase = ({
         setShowSuggestions(false);
         setNoResults(false);
         setErrorMessage(null);
+        setDiagnosticStatus({ type: "idle" });
         return;
       }
 
       setIsLoading(true);
       setNoResults(false);
       setErrorMessage(null);
+      setDiagnosticStatus({ type: "loading" });
 
       debounceRef.current = window.setTimeout(async () => {
         try {
@@ -179,9 +218,35 @@ const AddressAutocompleteBase = ({
             if (import.meta.env.DEV) {
               console.debug("[Mapbox] suggest failed", { url: endpointForLogs, error });
             }
+            
+            // Check for token missing error
+            const errorMsg = error.message?.toLowerCase() || "";
+            if (errorMsg.includes("token") && (errorMsg.includes("missing") || errorMsg.includes("not configured"))) {
+              setDiagnosticStatus({ type: "token_missing" });
+            } else {
+              setDiagnosticStatus({ type: "error", code: 500, message: error.message });
+            }
+            
             setSuggestions([]);
             setNoResults(false);
             setErrorMessage("Service temporairement indisponible — saisie manuelle possible.");
+            setShowSuggestions(true);
+            return;
+          }
+
+          // Check for Mapbox-specific errors in response
+          if (data?.error) {
+            const mapboxStatus = data.mapbox_status || 500;
+            
+            if (data.error.toLowerCase().includes("token")) {
+              setDiagnosticStatus({ type: "token_missing" });
+            } else {
+              setDiagnosticStatus({ type: "error", code: mapboxStatus, message: data.error });
+            }
+            
+            setSuggestions([]);
+            setNoResults(false);
+            setErrorMessage(data.hint || "Service temporairement indisponible — saisie manuelle possible.");
             setShowSuggestions(true);
             return;
           }
@@ -201,6 +266,12 @@ const AddressAutocompleteBase = ({
           setSuggestions(filtered);
           setNoResults(filtered.length === 0);
           setShowSuggestions(true);
+          
+          if (filtered.length === 0) {
+            setDiagnosticStatus({ type: "no_results" });
+          } else {
+            setDiagnosticStatus({ type: "ok", count: filtered.length });
+          }
         } catch (err) {
           if (import.meta.env.DEV) {
             console.debug("[Mapbox] suggest exception", { url: endpointForLogs, err });
@@ -209,12 +280,13 @@ const AddressAutocompleteBase = ({
           setNoResults(false);
           setErrorMessage("Service temporairement indisponible — saisie manuelle possible.");
           setShowSuggestions(true);
+          setDiagnosticStatus({ type: "error", code: 0, message: "Exception réseau" });
         } finally {
           setIsLoading(false);
         }
       }, AUTOCOMPLETE_DEBOUNCE_MS);
     },
-    [applyQuebecFilter, endpointForLogs]
+    [applyQuebecFilter, endpointForLogs, supabaseClient]
   );
 
   const parseFromSuggestion = (suggestion: MapboxSuggestion): AddressDetails => {
@@ -292,6 +364,7 @@ const AddressAutocompleteBase = ({
     setShowSuggestions(false);
     setSuggestions([]);
     setErrorMessage(null);
+    setDiagnosticStatus({ type: "idle" });
 
     const details = await retrieveAddressDetails(suggestion);
     onAddressSelect(details);
@@ -408,6 +481,8 @@ const AddressAutocompleteBase = ({
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
         )}
       </div>
+
+      {showDiagnostic && <DiagnosticLine status={diagnosticStatus} />}
 
       {dropdown}
     </div>
