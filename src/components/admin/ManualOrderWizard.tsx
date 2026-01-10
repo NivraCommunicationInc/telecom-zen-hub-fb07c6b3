@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CreateClientDialog } from "./CreateClientDialog";
+import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
 
 // Constants
 const TPS_RATE = 0.05;
@@ -89,6 +90,7 @@ interface ManualOrderWizardProps {
 interface OrderState {
   // Step 1: Client
   clientId: string;
+  clientDob: string; // REQUIRED - Date of birth for the client (YYYY-MM-DD)
   // Step 2: Services
   selectedPlans: Array<{ plan: any; quantity: number }>;
   terminalQuantity: number;
@@ -119,6 +121,7 @@ interface OrderState {
 
 const initialOrderState: OrderState = {
   clientId: "",
+  clientDob: "", // REQUIRED - must be filled before order creation
   selectedPlans: [],
   terminalQuantity: 1,
   includeRouter: false,
@@ -390,6 +393,19 @@ export default function ManualOrderWizard({
     mutationFn: async () => {
       if (!orderState.clientId) throw new Error("Client requis");
       if (orderState.selectedPlans.length === 0) throw new Error("Sélectionnez au moins un service");
+      
+      // CRITICAL: Validate DOB before order creation (required by DB)
+      if (!orderState.clientDob || !orderState.clientDob.trim()) {
+        throw new Error("Date de naissance requise");
+      }
+      const parsedDob = parseDate(orderState.clientDob);
+      if (!parsedDob) {
+        throw new Error("Format de date de naissance invalide");
+      }
+      const dobResult = validateDob(orderState.clientDob, { minAge: MIN_AGE_TELECOM, required: true });
+      if (!dobResult.isValid) {
+        throw new Error(dobResult.error?.fr || "Date de naissance invalide");
+      }
 
       const client = clients?.find((c) => c.user_id === orderState.clientId);
       const mainPlan = orderState.selectedPlans[0]?.plan;
@@ -415,12 +431,13 @@ export default function ManualOrderWizard({
         premium: orderState.selectedPaidChannels.map((ch: any) => ({ id: ch.id, name: ch.name, price: ch.price })),
       };
 
-      // Create order
+      // Create order - client_dob is REQUIRED (enforced by trigger + CHECK)
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           user_id: orderState.clientId,
           client_email: client?.email,
+          client_dob: orderState.clientDob, // REQUIRED - never null
           service_type: serviceType,
           category: mainPlan?.category || serviceType,
           order_type: "service",
@@ -557,16 +574,22 @@ export default function ManualOrderWizard({
     onOpenChange(newOpen);
   };
 
-  // Step validation
+  // Step validation - DOB is required at step 1 before proceeding
+  const isDobValid = useMemo(() => {
+    if (!orderState.clientDob) return false;
+    const result = validateDob(orderState.clientDob, { minAge: MIN_AGE_TELECOM, required: true });
+    return result.isValid;
+  }, [orderState.clientDob]);
+
   const canProceed = useMemo(() => {
     switch (step) {
-      case 1: return !!orderState.clientId;
+      case 1: return !!orderState.clientId && isDobValid;
       case 2: return orderState.selectedPlans.length > 0;
       case 3: return !!orderState.deliveryMethod && !!orderState.serviceAddress;
       case 4: return true;
       default: return true;
     }
-  }, [step, orderState]);
+  }, [step, orderState, isDobValid]);
 
   // Render step content
   const renderStep = () => {
@@ -637,16 +660,56 @@ export default function ManualOrderWizard({
 
             {selectedClient && (
               <Card className="bg-muted/30">
-                <CardContent className="p-4">
-                  <p className="text-sm font-medium mb-2">Client sélectionné:</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-2">Client sélectionné:</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                        <User className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{selectedClient.full_name}</p>
+                        <p className="text-sm text-muted-foreground">{selectedClient.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold">{selectedClient.full_name}</p>
-                      <p className="text-sm text-muted-foreground">{selectedClient.email}</p>
-                    </div>
+                  </div>
+                  
+                  {/* REQUIRED: Date of Birth field */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label className="flex items-center gap-2 font-medium">
+                      <Calendar className="w-4 h-4" />
+                      Date de naissance <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      value={orderState.clientDob}
+                      onChange={(e) => setOrderState((prev) => ({ ...prev, clientDob: e.target.value }))}
+                      max={getMaxDobDate(MIN_AGE_TELECOM)}
+                      className="w-full"
+                    />
+                    {orderState.clientDob && (() => {
+                      const result = validateDob(orderState.clientDob, { minAge: MIN_AGE_TELECOM, required: true });
+                      if (!result.isValid) {
+                        return (
+                          <p className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {result.error?.fr || "Date de naissance invalide"}
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="text-xs text-emerald-500 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Âge vérifié (13+ ans)
+                        </p>
+                      );
+                    })()}
+                    {!orderState.clientDob && (
+                      <p className="text-xs text-amber-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Requis pour créer une commande
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
