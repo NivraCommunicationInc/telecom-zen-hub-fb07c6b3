@@ -64,10 +64,16 @@ import {
   Phone,
   ChevronDown,
   ShoppingCart,
+  Smartphone,
+  MonitorPlay,
 } from "lucide-react";
 import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
 import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
 import ManualOrderWizard from "@/components/admin/ManualOrderWizard";
+import { MobileFulfillmentSection } from "@/components/admin/MobileFulfillmentSection";
+import { StreamingActivationSection } from "@/components/admin/StreamingActivationSection";
+import { InstallationFulfillmentSection } from "@/components/admin/InstallationFulfillmentSection";
+import { detectOrderServices, requiresTechnicianInstallation, getServiceLabels } from "@/lib/orderServiceDetection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { format } from "date-fns";
@@ -1645,8 +1651,12 @@ const AdminOrders = () => {
                   />
                 ) : (
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="grid w-full grid-cols-6">
+                  <TabsList className="grid w-full grid-cols-7">
                     <TabsTrigger value="details">Détails</TabsTrigger>
+                    <TabsTrigger value="fulfillment" className="flex items-center gap-1">
+                      <Wrench className="w-3 h-3" />
+                      Traitement
+                    </TabsTrigger>
                     <TabsTrigger value="payment">Paiement</TabsTrigger>
                     <TabsTrigger value="identity">Identité</TabsTrigger>
                     <TabsTrigger value="equipment">Équipement</TabsTrigger>
@@ -1856,6 +1866,117 @@ const AdminOrders = () => {
                         ))}
                       </div>
                     </div>
+                  </TabsContent>
+
+                  {/* Fulfillment Tab - Order Processing Multi-services */}
+                  <TabsContent value="fulfillment" className="space-y-4 mt-4">
+                    {(() => {
+                      const detectedServices = detectOrderServices({
+                        service_type: selectedOrder.service_type,
+                        services: selectedOrder.services,
+                        category: selectedOrder.category,
+                      });
+                      const serviceLabels = getServiceLabels(detectedServices);
+                      const hasServices = detectedServices.size > 0;
+
+                      return (
+                        <>
+                          {/* Services detection header */}
+                          <Card className="border-primary/30 bg-primary/5">
+                            <CardContent className="py-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Package className="w-5 h-5 text-primary" />
+                                  <span className="font-medium">Services détectés</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  {serviceLabels.length > 0 ? (
+                                    serviceLabels.map((label) => (
+                                      <Badge key={label} variant="outline" className="bg-primary/10">
+                                        {label === 'Mobile' && <Smartphone className="w-3 h-3 mr-1" />}
+                                        {label === 'Internet' && <Wifi className="w-3 h-3 mr-1" />}
+                                        {label === 'TV' && <Monitor className="w-3 h-3 mr-1" />}
+                                        {label === 'Streaming+' && <MonitorPlay className="w-3 h-3 mr-1" />}
+                                        {label}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <Badge variant="outline" className="text-muted-foreground">
+                                      Aucun service reconnu
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Type de service: {selectedOrder.service_type || 'Non spécifié'}
+                              </p>
+                            </CardContent>
+                          </Card>
+
+                          {/* Mobile Fulfillment Section */}
+                          {detectedServices.has('mobile') && (
+                            <MobileFulfillmentSection
+                              orderId={selectedOrder.id}
+                              orderNumber={selectedOrder.order_number || selectedOrder.id.slice(0, 8).toUpperCase()}
+                              userId={selectedOrder.user_id}
+                              clientEmail={selectedOrder.profiles?.email || selectedOrder.client_email}
+                              clientName={selectedOrder.profiles?.full_name}
+                              clientFirstName={selectedOrder.profiles?.first_name}
+                              portRequest={selectedOrder.port_request}
+                              onUpdate={() => {
+                                refetch();
+                              }}
+                            />
+                          )}
+
+                          {/* Streaming Activation Section */}
+                          {detectedServices.has('streaming') && (
+                            <StreamingActivationSection
+                              orderId={selectedOrder.id}
+                              orderNumber={selectedOrder.order_number || selectedOrder.id.slice(0, 8).toUpperCase()}
+                              userId={selectedOrder.user_id}
+                              clientEmail={selectedOrder.profiles?.email || selectedOrder.client_email}
+                              clientName={selectedOrder.profiles?.full_name}
+                              clientFirstName={selectedOrder.profiles?.first_name}
+                              streamingServices={selectedOrder.streaming_services || []}
+                              onUpdate={() => {
+                                refetch();
+                              }}
+                            />
+                          )}
+
+                          {/* Installation Fulfillment Section (Internet/TV) */}
+                          {(detectedServices.has('internet') || detectedServices.has('tv')) && (
+                            <InstallationFulfillmentSection
+                              orderId={selectedOrder.id}
+                              orderNumber={selectedOrder.order_number || selectedOrder.id.slice(0, 8).toUpperCase()}
+                              userId={selectedOrder.user_id}
+                              clientEmail={selectedOrder.profiles?.email || selectedOrder.client_email}
+                              clientName={selectedOrder.profiles?.full_name}
+                              clientFirstName={selectedOrder.profiles?.first_name}
+                              serviceAddress={`${selectedOrder.profiles?.service_address || ''}, ${selectedOrder.profiles?.service_city || ''} ${selectedOrder.profiles?.service_province || ''} ${selectedOrder.profiles?.service_postal_code || ''}`.trim()}
+                              currentStatus={selectedOrder.status}
+                              appointmentDate={selectedOrder.appointment_date}
+                              currentTechnicianId={selectedOrder.technician_id}
+                              onUpdate={() => {
+                                refetch();
+                              }}
+                            />
+                          )}
+
+                          {/* No services detected message */}
+                          {!hasServices && (
+                            <div className="text-center py-12">
+                              <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-muted-foreground">Aucun service détecté pour cette commande</p>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Vérifiez le type de service: "{selectedOrder.service_type}"
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </TabsContent>
 
                   {/* Payment Tab */}
