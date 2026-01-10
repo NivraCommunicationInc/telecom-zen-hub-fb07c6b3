@@ -1606,6 +1606,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             description: ticketDescription,
             priority: "high",
             status: "open",
+            category: "tv_setup",
+            issue_type: "TV_CONFIGURATION",
+            related_order_id: data.id,
+            related_order_reference: data.order_number,
+            id_verification_status: "not_received",
           });
         } catch (ticketErr) {
           console.error("TV ticket creation failed:", ticketErr);

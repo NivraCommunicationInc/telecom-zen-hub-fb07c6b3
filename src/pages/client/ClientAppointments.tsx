@@ -165,6 +165,9 @@ const ClientAppointments = () => {
         description: `**Annulation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Date originale:** ${format(new Date(selectedAppointment?.scheduled_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a annulé son rendez-vous d'installation.`,
         priority: "high",
         status: "open",
+        category: "appointment",
+        issue_type: "APPOINTMENT_CANCELLED",
+        id_verification_status: "not_received",
       });
     },
     onSuccess: () => {
@@ -202,6 +205,9 @@ const ClientAppointments = () => {
         description: `**Reprogrammation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Ancienne date:** ${format(new Date(oldDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n**Nouvelle date:** ${format(newScheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a reprogrammé son rendez-vous d'installation.`,
         priority: "high",
         status: "open",
+        category: "appointment",
+        issue_type: "APPOINTMENT_RESCHEDULED",
+        id_verification_status: "not_received",
       });
     },
     onSuccess: () => {

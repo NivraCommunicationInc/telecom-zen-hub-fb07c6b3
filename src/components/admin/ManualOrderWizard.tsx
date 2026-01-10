@@ -502,6 +502,7 @@ export default function ManualOrderWizard({
           related_order_reference: order.order_number,
           created_by_role: "admin",
           created_by_user_id: user?.id,
+          id_verification_status: "not_received",
         });
       }
 
