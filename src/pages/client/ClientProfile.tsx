@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
+import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 const ClientProfile = () => {
   const { user } = useClientAuth();
@@ -617,7 +619,21 @@ const ClientProfile = () => {
             </div>
             <div>
               <Label>Adresse *</Label>
-              <Input value={newLocation.service_address} onChange={(e) => setNewLocation({ ...newLocation, service_address: e.target.value })} placeholder="123 rue Exemple" />
+              <PortalAddressAutocomplete
+                value={newLocation.service_address}
+                onChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
+                onAddressSelect={(details: AddressDetails) => {
+                  const streetAddress = [details.streetNumber, details.street].filter(Boolean).join(" ") || details.formattedAddress?.split(",")[0] || "";
+                  setNewLocation({
+                    ...newLocation,
+                    service_address: streetAddress,
+                    service_city: details.city || newLocation.service_city,
+                    service_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : newLocation.service_postal_code,
+                  });
+                }}
+                placeholder="Rechercher une adresse..."
+                restrictToQuebec={true}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

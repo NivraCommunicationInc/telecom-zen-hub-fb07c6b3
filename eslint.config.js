@@ -34,6 +34,15 @@ export default tseslint.config(
         {
           selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
           message: "SECURITY: dangerouslySetInnerHTML detected. Ensure content is sanitized with DOMPurify before use."
+        },
+        // Anti-regression: Forbid free-text address inputs (except line2/unit/apt)
+        {
+          selector: "JSXOpeningElement[name.name='Input'][attributes.length>0]:has(JSXAttribute[name.name='placeholder'][value.value=/(?:^|\\s)(adresse|address)(?!.*(?:apt|unit|suite|line2|appartement|unité)).*$/i])",
+          message: "ADDRESS SECURITY: Free-text address inputs are forbidden. Use AddressAutocomplete, PortalAddressAutocomplete, or AdminAddressAutocomplete instead. Only Apt/Suite/Unit fields may use plain Input."
+        },
+        {
+          selector: "JSXOpeningElement[name.name='Input'][attributes.length>0]:has(JSXAttribute[name.name='id'][value.value=/^(?:.*-)?address(?!.*(?:apartment|apt|unit|suite|line2)).*$/i]):not(:has(JSXAttribute[name.name='type'][value.value='hidden']))",
+          message: "ADDRESS SECURITY: Input with 'address' id pattern detected. Use AddressAutocomplete components instead of plain Input for address fields."
         }
       ]
     },
