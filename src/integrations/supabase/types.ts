@@ -5330,7 +5330,7 @@ export type Database = {
           description: string
           id: string
           id_files: Json | null
-          id_verification_status: string | null
+          id_verification_status: string
           internal_notes: string | null
           issue_type: string | null
           point_of_contact_id: string | null
@@ -5353,7 +5353,7 @@ export type Database = {
           description: string
           id?: string
           id_files?: Json | null
-          id_verification_status?: string | null
+          id_verification_status?: string
           internal_notes?: string | null
           issue_type?: string | null
           point_of_contact_id?: string | null
@@ -5376,7 +5376,7 @@ export type Database = {
           description?: string
           id?: string
           id_files?: Json | null
-          id_verification_status?: string | null
+          id_verification_status?: string
           internal_notes?: string | null
           issue_type?: string | null
           point_of_contact_id?: string | null

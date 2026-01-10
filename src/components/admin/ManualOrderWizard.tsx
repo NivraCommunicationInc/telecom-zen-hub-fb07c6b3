@@ -483,27 +483,34 @@ export default function ManualOrderWizard({
         console.error("Failed to create billing:", billingError);
       }
 
-      // Create TV setup ticket if TV service included
+      // Create TV setup ticket if TV service included (non-blocking)
       const hasTVService = orderState.selectedPlans.some((p) => 
         p.plan.category.includes("TV") || p.plan.category.includes("GIGA")
       );
 
       if (hasTVService) {
-        await supabase.from("support_tickets").insert({
-          user_id: orderState.clientId,
-          client_email: client?.email,
-          subject: `Configuration TV - Commande ${order.order_number}`,
-          description: `Configuration des chaînes TV pour la commande ${order.order_number}.\n\nChaînes sélectionnées:\n- Base: ${baseChannels.length} chaînes\n- Choix gratuits: ${orderState.selectedFreeChannels.length}/${freeChannelCount}\n- Premium: ${orderState.selectedPaidChannels.length}`,
-          status: "open",
-          priority: "high",
-          category: "tv_setup",
-          issue_type: "TV_CONFIGURATION",
-          related_order_id: order.id,
-          related_order_reference: order.order_number,
-          created_by_role: "admin",
-          created_by_user_id: user?.id,
-          id_verification_status: "not_received",
-        });
+        try {
+          const { error: ticketError } = await supabase.from("support_tickets").insert({
+            user_id: orderState.clientId,
+            client_email: client?.email,
+            subject: `Configuration TV - Commande ${order.order_number}`,
+            description: `Configuration des chaînes TV pour la commande ${order.order_number}.\n\nChaînes sélectionnées:\n- Base: ${baseChannels.length} chaînes\n- Choix gratuits: ${orderState.selectedFreeChannels.length}/${freeChannelCount}\n- Premium: ${orderState.selectedPaidChannels.length}`,
+            status: "open",
+            priority: "high",
+            category: "tv_setup",
+            issue_type: "TV_CONFIGURATION",
+            related_order_id: order.id,
+            related_order_reference: order.order_number,
+            created_by_role: "admin",
+            created_by_user_id: user?.id,
+            id_verification_status: "not_received",
+          });
+          if (ticketError) {
+            console.error("TV ticket creation failed (non-blocking):", ticketError);
+          }
+        } catch (ticketErr) {
+          console.error("TV ticket creation exception (non-blocking):", ticketErr);
+        }
       }
 
       return order;

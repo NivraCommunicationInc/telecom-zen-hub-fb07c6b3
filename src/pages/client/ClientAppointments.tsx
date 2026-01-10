@@ -157,18 +157,22 @@ const ClientAppointments = () => {
         .eq("id", aptId);
       if (error) throw error;
 
-      // Create notification ticket for admin
-      await portalSupabase.from("support_tickets").insert({
-        user_id: user?.id,
-        client_email: profile?.email || user?.email,
-        subject: `Installation annulée - ${selectedAppointment?.title}`,
-        description: `**Annulation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Date originale:** ${format(new Date(selectedAppointment?.scheduled_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a annulé son rendez-vous d'installation.`,
-        priority: "high",
-        status: "open",
-        category: "appointment",
-        issue_type: "APPOINTMENT_CANCELLED",
-        id_verification_status: "not_received",
-      });
+      // Create notification ticket for admin (non-blocking)
+      try {
+        await portalSupabase.from("support_tickets").insert({
+          user_id: user?.id,
+          client_email: profile?.email || user?.email,
+          subject: `Installation annulée - ${selectedAppointment?.title}`,
+          description: `**Annulation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Date originale:** ${format(new Date(selectedAppointment?.scheduled_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a annulé son rendez-vous d'installation.`,
+          priority: "high",
+          status: "open",
+          category: "appointment",
+          issue_type: "APPOINTMENT_CANCELLED",
+          id_verification_status: "not_received",
+        });
+      } catch (ticketErr) {
+        console.error("Cancel appointment ticket creation failed (non-blocking):", ticketErr);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
@@ -197,18 +201,22 @@ const ClientAppointments = () => {
         .eq("id", aptId);
       if (error) throw error;
 
-      // Create notification ticket for admin
-      await portalSupabase.from("support_tickets").insert({
-        user_id: user?.id,
-        client_email: profile?.email || user?.email,
-        subject: `Installation reprogrammée - ${selectedAppointment?.title}`,
-        description: `**Reprogrammation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Ancienne date:** ${format(new Date(oldDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n**Nouvelle date:** ${format(newScheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a reprogrammé son rendez-vous d'installation.`,
-        priority: "high",
-        status: "open",
-        category: "appointment",
-        issue_type: "APPOINTMENT_RESCHEDULED",
-        id_verification_status: "not_received",
-      });
+      // Create notification ticket for admin (non-blocking)
+      try {
+        await portalSupabase.from("support_tickets").insert({
+          user_id: user?.id,
+          client_email: profile?.email || user?.email,
+          subject: `Installation reprogrammée - ${selectedAppointment?.title}`,
+          description: `**Reprogrammation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Ancienne date:** ${format(new Date(oldDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n**Nouvelle date:** ${format(newScheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a reprogrammé son rendez-vous d'installation.`,
+          priority: "high",
+          status: "open",
+          category: "appointment",
+          issue_type: "APPOINTMENT_RESCHEDULED",
+          id_verification_status: "not_received",
+        });
+      } catch (ticketErr) {
+        console.error("Reschedule appointment ticket creation failed (non-blocking):", ticketErr);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
