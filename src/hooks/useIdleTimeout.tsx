@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
+// Default: 60 minutes for client portal (1 hour security requirement)
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes (1 hour)
+const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click", "focus"];
 
 interface UseIdleTimeoutOptions {
   onIdle: () => void;
