@@ -238,6 +238,114 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_auth_audit_log: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          email: string
+          event: string
+          id: string
+          meta: Json | null
+          request_id: string
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          email: string
+          event: string
+          id?: string
+          meta?: Json | null
+          request_id: string
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          email?: string
+          event?: string
+          id?: string
+          meta?: Json | null
+          request_id?: string
+        }
+        Relationships: []
+      }
+      admin_otp_codes: {
+        Row: {
+          admin_user_id: string
+          attempts: number
+          consumed_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip: string | null
+          locked_at: string | null
+          max_attempts: number
+          otp_hash: string
+          request_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          attempts?: number
+          consumed_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          otp_hash: string
+          request_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          attempts?: number
+          consumed_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          otp_hash?: string
+          request_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      admin_otp_sessions: {
+        Row: {
+          admin_user_id: string
+          expires_at: string
+          id: string
+          request_id: string
+          revoked_at: string | null
+          session_token_hash: string
+          verified_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          expires_at?: string
+          id?: string
+          request_id: string
+          revoked_at?: string | null
+          session_token_hash: string
+          verified_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          expires_at?: string
+          id?: string
+          request_id?: string
+          revoked_at?: string | null
+          session_token_hash?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
       admin_security_audit: {
         Row: {
           action: string
@@ -6257,6 +6365,11 @@ export type Database = {
         Args: { p_billing_day: number; p_from_date?: string }
         Returns: string
       }
+      check_admin_otp_session: {
+        Args: { p_admin_user_id: string; p_session_token_hash: string }
+        Returns: boolean
+      }
+      cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       create_activity_log: {
         Args: {

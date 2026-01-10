@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useAdminOTPSession } from "@/hooks/useAdminOTPSession";
 import { toast } from "sonner";
 
 interface ProtectedRouteProps {
@@ -22,6 +23,9 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
 
+  // OTP Session verification
+  const { isValidSession: isOTPSessionValid, isChecking: isCheckingOTP, clearSession } = useAdminOTPSession();
+
   // DEBUG: Log guard state
   console.log("[AdminGuard] state", { 
     loading: isLoading, 
@@ -29,6 +33,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     hasSession: !!session,
     isVerifying,
     isAdminVerified,
+    isCheckingOTP,
+    isOTPSessionValid,
     path: location.pathname 
   });
 
@@ -39,15 +45,16 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       description: "Vous avez été déconnecté après 5 minutes d'inactivité.",
     });
     sessionStorage.removeItem("admin_last_auth_check");
+    clearSession(); // Clear OTP session
     await signOut();
     navigate("/admin/login", { replace: true });
-  }, [signOut, navigate]);
+  }, [signOut, navigate, clearSession]);
 
   // Enable idle timeout only when user is authenticated and verified
   useIdleTimeout({
     onIdle: handleIdleLogout,
     timeout: IDLE_TIMEOUT_MS,
-    enabled: !!user && isAdminVerified,
+    enabled: !!user && isAdminVerified && isOTPSessionValid === true,
   });
 
   useEffect(() => {
@@ -55,12 +62,14 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       console.log("[AdminGuard] verifyAdminRole called", { 
         hasUser: !!user, 
         hasSession: !!session,
-        isLoading 
+        isLoading,
+        isCheckingOTP,
+        isOTPSessionValid
       });
 
-      // CRITICAL: Wait for auth to finish loading before making any decisions
-      if (isLoading) {
-        console.log("[AdminGuard] Auth still loading, waiting...");
+      // CRITICAL: Wait for auth and OTP check to finish before making any decisions
+      if (isLoading || isCheckingOTP) {
+        console.log("[AdminGuard] Still loading, waiting...");
         return; // Keep isVerifying true, don't make any decisions yet
       }
 
@@ -68,6 +77,21 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       if (!user || !session) {
         console.log("[AdminGuard] No user or session after auth loaded");
         setIsVerifying(false);
+        return;
+      }
+
+      // CRITICAL: Check OTP session validity
+      if (isOTPSessionValid === false) {
+        console.log("[AdminGuard] OTP session invalid or missing - blocking access");
+        setIsVerifying(false);
+        setIsAdminVerified(false);
+        
+        // Redirect to login for OTP
+        toast.warning("Vérification OTP requise", {
+          description: "Veuillez vous reconnecter et vérifier votre identité.",
+        });
+        await signOut();
+        navigate("/admin/login", { replace: true });
         return;
       }
 
@@ -85,6 +109,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           
           if (sessionError || !freshSession) {
             console.warn("[AdminGuard] SECURITY: Session expired or invalid");
+            clearSession();
             await signOut();
             
             // Log security event
@@ -189,10 +214,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       }
     };
 
-    if (!isLoading) {
+    if (!isLoading && !isCheckingOTP) {
       verifyAdminRole();
     }
-  }, [user, session, isLoading, signOut, navigate, location.pathname]);
+  }, [user, session, isLoading, isCheckingOTP, isOTPSessionValid, signOut, navigate, location.pathname, clearSession]);
 
   // Clear session storage on sign out
   useEffect(() => {
@@ -207,7 +232,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   }, []);
 
   // SECURITY: Show nothing while verifying - prevent any admin UI flash
-  if (isLoading || isVerifying) {
+  if (isLoading || isVerifying || isCheckingOTP) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -222,6 +247,12 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   if (!user || !session) {
     console.log("[AdminGuard] No user/session, redirecting to login");
     sessionStorage.removeItem("admin_last_auth_check");
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  // OTP session not valid - redirect to login
+  if (isOTPSessionValid === false) {
+    console.log("[AdminGuard] OTP session invalid, redirecting to login");
     return <Navigate to="/admin/login" replace />;
   }
 
