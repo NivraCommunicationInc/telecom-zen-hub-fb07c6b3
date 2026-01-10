@@ -5320,6 +5320,30 @@ export type Database = {
         }
         Relationships: []
       }
+      support_ticket_id_status_debug: {
+        Row: {
+          created_at: string
+          id: string
+          normalized_value: string | null
+          raw_value: string | null
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          normalized_value?: string | null
+          raw_value?: string | null
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          normalized_value?: string | null
+          raw_value?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           category: string | null
