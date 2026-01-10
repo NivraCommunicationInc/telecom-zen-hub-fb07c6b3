@@ -24,8 +24,7 @@ import {
 import { z } from "zod";
 import { backendClient as supabase } from "@/integrations/backend";
 import { useLanguage } from "@/contexts/LanguageContext";
-import AddressAutocomplete from "./AddressAutocomplete";
-import type { AddressDetails } from "./AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 const SUBJECT_OPTIONS = [
   { value: "new_order", labelFr: "Nouvelle commande / Info forfaits", labelEn: "New order / Plan info" },
@@ -402,7 +401,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                   <Label htmlFor="addressStreet" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Adresse (rue)" : "Street Address"}
                   </Label>
-                  <AddressAutocomplete
+                  <UnifiedAddressAutocomplete
                     value={formData.addressStreet}
                     onChange={(value) => setFormData({ ...formData, addressStreet: value })}
                     onAddressSelect={(details: AddressDetails) => {

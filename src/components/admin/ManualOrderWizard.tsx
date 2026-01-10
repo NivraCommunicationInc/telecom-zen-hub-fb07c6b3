@@ -27,8 +27,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CreateClientDialog } from "./CreateClientDialog";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
-import AdminAddressAutocomplete from "./AdminAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 // Constants
 const TPS_RATE = 0.05;
@@ -1108,7 +1107,7 @@ export default function ManualOrderWizard({
                 <MapPin className="w-4 h-4" />
                 Adresse de service
               </Label>
-              <AdminAddressAutocomplete
+              <UnifiedAddressAutocomplete
                 value={orderState.serviceAddress}
                 onChange={(value) => setOrderState((prev) => ({ ...prev, serviceAddress: value }))}
                 onAddressSelect={(details: AddressDetails) => {
