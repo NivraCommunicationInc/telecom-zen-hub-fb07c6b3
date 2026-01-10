@@ -9,19 +9,10 @@ import { useOptionalAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 import { TVInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
-interface AddressDetails {
-  formattedAddress: string;
-  streetNumber?: string;
-  street?: string;
-  city?: string;
-  province?: string;
-  postalCode?: string;
-  country?: string;
-}
 
 const TVPlans = () => {
   const { language } = useLanguage();
@@ -343,7 +334,7 @@ const TVPlans = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <AddressAutocomplete
+                <UnifiedAddressAutocomplete
                   value={address}
                   onChange={(value) => {
                     setAddress(value);

@@ -39,8 +39,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 const reasonOptions = [
   { value: "defective", label: "Défectueux (problème de fabrication)" },
@@ -479,7 +478,7 @@ const ClientEquipmentReplacement = () => {
                 {/* Delivery Address */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Adresse de livraison préférée</Label>
-                  <PortalAddressAutocomplete
+                  <UnifiedAddressAutocomplete
                     value={formData.preferredAddress}
                     onChange={(value) => setFormData({ ...formData, preferredAddress: value })}
                     onAddressSelect={(details: AddressDetails) => {

@@ -13,8 +13,7 @@ import { Package, Plus, Minus, Truck, ShoppingCart, Loader2 } from "lucide-react
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
-import AdminAddressAutocomplete from "./AdminAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 interface EquipmentOrderDialogProps {
   open: boolean;
@@ -305,7 +304,7 @@ export default function EquipmentOrderDialog({
             {deliveryMethod === "ship" && (
               <div className="space-y-2 p-3 border rounded-md bg-muted/30">
                 <Label className="text-sm font-medium">Adresse de livraison</Label>
-                <AdminAddressAutocomplete
+                <UnifiedAddressAutocomplete
                   value={shippingAddress.address}
                   onChange={(value) => setShippingAddress({ ...shippingAddress, address: value })}
                   onAddressSelect={(details: AddressDetails) => {

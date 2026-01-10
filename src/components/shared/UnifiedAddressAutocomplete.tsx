@@ -553,7 +553,7 @@ export const UnifiedAddressAutocomplete = ({
                     "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
                     highlightedIndex === index && "bg-muted/50"
                   )}
-                  onMouseDown={(e) => {
+                  onPointerDown={(e) => {
                     // CRITICAL: Prevent blur from firing before selection
                     e.preventDefault();
                     e.stopPropagation();

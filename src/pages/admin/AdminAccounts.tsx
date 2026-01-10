@@ -50,8 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import AdminAddressAutocomplete from "@/components/admin/AdminAddressAutocomplete";
-import type { AddressDetails } from "@/components/AddressAutocompleteBase";
+import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
 
 const creditClassLabels: Record<string, { label: string; color: string }> = {
   A: { label: "Excellent", color: "bg-green-500" },
@@ -847,7 +846,7 @@ const AdminAccounts = () => {
             </div>
             <div>
               <Label htmlFor="billing_address">Adresse de facturation *</Label>
-              <AdminAddressAutocomplete
+              <UnifiedAddressAutocomplete
                 value={newAccountForm.billing_address}
                 onChange={(value) => setNewAccountForm({ ...newAccountForm, billing_address: value })}
                 onAddressSelect={(details: AddressDetails) => {
@@ -1053,7 +1052,7 @@ const AdminAccounts = () => {
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground block mb-3">Adresse de facturation</Label>
                 <div className="space-y-3">
-                  <AdminAddressAutocomplete
+                  <UnifiedAddressAutocomplete
                     value={editedAccount.billing_address || ""}
                     onChange={(value) => setEditedAccount({ ...editedAccount, billing_address: value })}
                     onAddressSelect={(details: AddressDetails) => {
@@ -1088,7 +1087,7 @@ const AdminAccounts = () => {
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground block mb-3">Adresse de service principale</Label>
                 <div className="space-y-3">
-                  <AdminAddressAutocomplete
+                  <UnifiedAddressAutocomplete
                     value={editedAccount.primary_service_address || ""}
                     onChange={(value) => setEditedAccount({ ...editedAccount, primary_service_address: value })}
                     onAddressSelect={(details: AddressDetails) => {
