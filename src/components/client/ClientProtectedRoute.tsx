@@ -13,7 +13,7 @@ interface ClientProtectedRouteProps {
 }
 
 const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour (security requirement)
 
 const ClientProtectedRoute = ({ children, allowBlocked = false }: ClientProtectedRouteProps) => {
   const { user, session, signOut, isLoading } = useClientAuth();
