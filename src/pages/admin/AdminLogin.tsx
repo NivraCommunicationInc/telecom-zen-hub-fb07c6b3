@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminOTPSession } from "@/hooks/useAdminOTPSession";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { z } from "zod";
 import { adminClient } from "@/integrations/backend";
-import OTPVerificationDialog from "@/components/admin/OTPVerificationDialog";
+import AdminOTPDialog from "@/components/admin/AdminOTPDialog";
 
 const loginSchema = z.object({
   email: z.string().email("Adresse courriel invalide"),
@@ -19,6 +20,8 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { user, session, signIn, isLoading } = useAuth();
   const { toast } = useToast();
+  const { storeSession, isValidSession, isChecking } = useAdminOTPSession();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,21 +29,27 @@ const AdminLogin = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // 2FA state
+  // OTP state
   const [showOTPDialog, setShowOTPDialog] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
 
   // DEBUG: Log auth state
-  console.log("[AdminLogin] render", { hasUser: !!user, hasSession: !!session, isLoading });
+  console.log("[AdminLogin] render", { 
+    hasUser: !!user, 
+    hasSession: !!session, 
+    isLoading,
+    isChecking,
+    isValidSession 
+  });
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated AND has valid OTP session
   useEffect(() => {
-    if (!isLoading && user && session) {
-      console.log("[AdminLogin] Already authenticated, redirecting to /admin");
+    if (!isLoading && !isChecking && user && session && isValidSession === true) {
+      console.log("[AdminLogin] Already authenticated with valid OTP session, redirecting to /admin");
       navigate("/admin", { replace: true });
     }
-  }, [user, session, isLoading, navigate]);
+  }, [user, session, isLoading, isChecking, isValidSession, navigate]);
 
   // Add noindex meta tag for SEO protection
   useEffect(() => {
@@ -89,7 +98,7 @@ const AdminLogin = () => {
       setIsForgotPassword(false);
       setIsSubmitting(false);
     } else {
-      // Login flow: email + password only
+      // Login flow: email + password, then OTP
       const result = loginSchema.safeParse({ email, password });
       if (!result.success) {
         const fieldErrors: Record<string, string> = {};
@@ -104,7 +113,7 @@ const AdminLogin = () => {
 
       setIsSubmitting(true);
 
-      // Authenticate with email/password via adminClient (same as useAuth)
+      // Authenticate with email/password via adminClient
       const { data, error: signInError } = await adminClient.auth.signInWithPassword({
         email,
         password,
@@ -137,7 +146,7 @@ const AdminLogin = () => {
 
         const { data: roleData, error: roleError } = await adminClient
           .from("user_roles")
-          .select("role, otp_required, otp_verified_at")
+          .select("role, status")
           .eq("user_id", authUser.id)
           .eq("role", "admin")
           .maybeSingle();
@@ -153,28 +162,23 @@ const AdminLogin = () => {
           return;
         }
 
-        // Check if 2FA is required
-        // 2FA is required if otp_required is true OR if it's null (default to required for security)
-        const requires2FA = roleData.otp_required !== false;
-        
-        if (requires2FA) {
-          // Check if already verified within the last 24 hours
-          const verifiedAt = roleData.otp_verified_at ? new Date(roleData.otp_verified_at) : null;
-          const now = new Date();
-          const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          
-          if (!verifiedAt || verifiedAt < twentyFourHoursAgo) {
-            // Need to verify OTP
-            setPendingUserId(authUser.id);
-            setPendingUserEmail(authUser.email || email);
-            setShowOTPDialog(true);
-            setIsSubmitting(false);
-            return;
-          }
+        if (roleData.status !== "active") {
+          await adminClient.auth.signOut();
+          toast({
+            title: "Compte désactivé",
+            description: "Votre compte administrateur est désactivé.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
         }
 
-        // No 2FA needed or already verified - navigate immediately
-        completeLogin();
+        // Credentials OK - Always require OTP (no bypass)
+        console.log("[AdminLogin] Credentials verified, showing OTP dialog");
+        setPendingUserId(authUser.id);
+        setPendingUserEmail(authUser.email || email);
+        setShowOTPDialog(true);
+        setIsSubmitting(false);
 
       } catch (err: any) {
         await adminClient.auth.signOut();
@@ -183,25 +187,28 @@ const AdminLogin = () => {
           description: err.message || "Erreur de vérification des permissions",
           variant: "destructive",
         });
-      } finally {
         setIsSubmitting(false);
       }
     }
   };
 
-  const completeLogin = () => {
-    console.log("[AdminLogin] completeLogin - navigating to /admin");
-    toast({
-      title: "Connexion réussie",
-      description: "Bienvenue dans le portail administrateur",
-    });
-    navigate("/admin", { replace: true });
-  };
-
-  const handleOTPSuccess = () => {
+  const handleOTPSuccess = (sessionToken: string, expiresAt: string, requestId: string) => {
+    console.log("[AdminLogin] OTP verified successfully, request_id:", requestId);
+    
+    // Store the OTP session
+    if (pendingUserId) {
+      storeSession(sessionToken, expiresAt, pendingUserId);
+    }
+    
     setShowOTPDialog(false);
     setPendingUserId(null);
-    completeLogin();
+    
+    toast({
+      title: "Connexion réussie",
+      description: `Bienvenue dans le portail administrateur. (ID: ${requestId.slice(-12)})`,
+    });
+    
+    navigate("/admin", { replace: true });
   };
 
   const handleOTPCancel = () => {
@@ -210,7 +217,7 @@ const AdminLogin = () => {
     setIsSubmitting(false);
   };
 
-  if (isLoading) {
+  if (isLoading || isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-hero">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
@@ -318,12 +325,12 @@ const AdminLogin = () => {
         </p>
       </div>
 
-      {/* 2FA OTP Dialog */}
-      <OTPVerificationDialog
+      {/* OTP Dialog */}
+      <AdminOTPDialog
         open={showOTPDialog}
         onOpenChange={setShowOTPDialog}
-        userId={pendingUserId || ""}
-        userEmail={pendingUserEmail}
+        adminUserId={pendingUserId || ""}
+        adminEmail={pendingUserEmail}
         onSuccess={handleOTPSuccess}
         onCancel={handleOTPCancel}
       />
