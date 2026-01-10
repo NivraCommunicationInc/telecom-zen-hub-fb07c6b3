@@ -35,6 +35,8 @@ interface MobileFulfillmentSectionProps {
   clientEmail?: string;
   clientName?: string;
   clientFirstName?: string;
+  locale?: 'fr' | 'en';
+  portalBaseUrl?: string;
   portRequest?: any;
   onUpdate?: () => void;
 }

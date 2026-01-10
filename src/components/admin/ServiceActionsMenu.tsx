@@ -30,7 +30,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import AuditNotes from "@/lib/clientAuditNotes";
+import AuditNotes, { createAuditNote } from "@/lib/clientAuditNotes";
 
 interface ServiceActionsMenuProps {
   serviceInstance: {
@@ -43,6 +43,7 @@ interface ServiceActionsMenuProps {
   };
   clientEmail?: string;
   clientName?: string;
+  clientFirstName?: string;
   onStatusChanged?: () => void;
 }
 
@@ -61,6 +62,7 @@ export const ServiceActionsMenu = ({
   serviceInstance,
   clientEmail,
   clientName,
+  clientFirstName,
   onStatusChanged,
 }: ServiceActionsMenuProps) => {
   const { toast } = useToast();
@@ -102,6 +104,7 @@ export const ServiceActionsMenu = ({
     mutationFn: async ({ action, reason }: { action: ActionType; reason: string }) => {
       const actionInfo = actionLabels[action];
       const now = new Date().toISOString();
+      const oldStatus = serviceInstance.status;
       
       // Update service_instances table
       const { error: updateError } = await supabase
@@ -126,21 +129,54 @@ export const ServiceActionsMenu = ({
         'admin'
       );
 
-      // Send email notification
+      // Send email notification with correct payload for send-service-status-email
       if (clientEmail) {
         try {
-          await supabase.functions.invoke("send-service-status-email", {
+          const { error: emailError } = await supabase.functions.invoke("send-service-status-email", {
             body: {
+              client_id: serviceInstance.user_id,
               client_email: clientEmail,
-              client_name: clientName,
+              client_first_name: clientFirstName || clientName?.split(' ')[0] || 'Client',
+              service_instance_id: serviceInstance.id,
               service_name: serviceInstance.plan_name || serviceInstance.service_type,
+              service_type: serviceInstance.service_type,
               new_status: actionInfo.status,
+              old_status: oldStatus,
               reason: reason,
-              action_type: action,
             },
           });
-        } catch (emailErr) {
+
+          if (emailError) {
+            console.error("Failed to send service status email:", emailError);
+            // Create [EMAIL_FAILED] note
+            await createAuditNote({
+              clientId: serviceInstance.user_id,
+              eventType: 'status_changed',
+              message: `[EMAIL_FAILED] send-service-status-email status=${emailError.message || 'unknown'} service=${serviceInstance.plan_name || serviceInstance.service_type}`,
+              metadata: { 
+                service_instance_id: serviceInstance.id,
+                action: action,
+                error: emailError.message,
+              },
+              actorId: 'system',
+              actorRole: 'system',
+            });
+          }
+        } catch (emailErr: any) {
           console.error("Failed to send service status email:", emailErr);
+          // Create [EMAIL_FAILED] note
+          await createAuditNote({
+            clientId: serviceInstance.user_id,
+            eventType: 'status_changed',
+            message: `[EMAIL_FAILED] send-service-status-email status=exception service=${serviceInstance.plan_name || serviceInstance.service_type}`,
+            metadata: { 
+              service_instance_id: serviceInstance.id,
+              action: action,
+              error: emailErr?.message || 'Unknown error',
+            },
+            actorId: 'system',
+            actorRole: 'system',
+          });
         }
       }
 

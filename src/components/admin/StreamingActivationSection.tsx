@@ -28,6 +28,8 @@ interface StreamingActivationSectionProps {
   clientEmail?: string;
   clientName?: string;
   clientFirstName?: string;
+  locale?: 'fr' | 'en';
+  portalBaseUrl?: string;
   streamingServices?: string[];
   onUpdate?: () => void;
 }

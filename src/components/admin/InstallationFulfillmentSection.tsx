@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { 
   Wrench, User, Calendar, Truck, CheckCircle, Clock, 
-  AlertCircle, Loader2, MapPin
+  AlertCircle, Loader2, MapPin, Router, Tv, Save
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
@@ -36,10 +36,13 @@ interface InstallationFulfillmentSectionProps {
   clientEmail?: string;
   clientName?: string;
   clientFirstName?: string;
+  locale?: 'fr' | 'en';
+  portalBaseUrl?: string;
   serviceAddress?: string;
   currentStatus?: string;
   appointmentDate?: string;
   currentTechnicianId?: string;
+  equipmentDetails?: any;
   onUpdate?: () => void;
 }
 
@@ -60,10 +63,13 @@ export const InstallationFulfillmentSection = ({
   clientEmail,
   clientName,
   clientFirstName,
+  locale = 'fr',
+  portalBaseUrl = '/portal',
   serviceAddress,
   currentStatus = "pending",
   appointmentDate,
   currentTechnicianId,
+  equipmentDetails,
   onUpdate,
 }: InstallationFulfillmentSectionProps) => {
   const { toast } = useToast();
@@ -74,6 +80,11 @@ export const InstallationFulfillmentSection = ({
   const [scheduledDate, setScheduledDate] = useState(appointmentDate?.split('T')[0] || "");
   const [scheduledTime, setScheduledTime] = useState(appointmentDate?.split('T')[1]?.slice(0, 5) || "09:00");
   const [installationNotes, setInstallationNotes] = useState("");
+  
+  // Equipment state
+  const [routerSerial, setRouterSerial] = useState(equipmentDetails?.router_serial_number || "");
+  const [terminalSerials, setTerminalSerials] = useState<string[]>(equipmentDetails?.terminal_serial_numbers || [""]);
+  const [equipmentSaved, setEquipmentSaved] = useState(!!(equipmentDetails?.router_serial_number || equipmentDetails?.terminal_serial_numbers?.length));
 
   // Fetch technicians
   const { data: technicians } = useQuery({
@@ -261,6 +272,75 @@ export const InstallationFulfillmentSection = ({
     },
   });
 
+  // Equipment assignment mutation
+  const saveEquipmentMutation = useMutation({
+    mutationFn: async () => {
+      if (!routerSerial.trim() && terminalSerials.every(s => !s.trim())) {
+        throw new Error("Veuillez entrer au moins un numéro de série (routeur ou terminal)");
+      }
+
+      // Fetch current equipment_details
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("equipment_details")
+        .eq("id", orderId)
+        .single();
+
+      const currentEquipment = orderData?.equipment_details || {};
+      
+      const updatedEquipment = {
+        ...currentEquipment,
+        router_serial_number: routerSerial.trim() || currentEquipment.router_serial_number,
+        terminal_serial_numbers: terminalSerials.filter(s => s.trim()),
+        equipment_assigned_at: new Date().toISOString(),
+        equipment_assigned_by: user?.id,
+      };
+
+      // Update order with equipment details
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          equipment_details: updatedEquipment,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      // Create audit note [EQUIPMENT_ASSIGNED]
+      const assignedItems = [];
+      if (routerSerial.trim()) assignedItems.push(`Routeur: ${routerSerial}`);
+      terminalSerials.filter(s => s.trim()).forEach((s, i) => {
+        assignedItems.push(`Terminal ${i + 1}: ${s}`);
+      });
+
+      await createAuditNote({
+        clientId: userId,
+        eventType: 'equipment_assigned',
+        message: `[EQUIPMENT_ASSIGNED] Équipement assigné: ${assignedItems.join(', ')}`,
+        metadata: {
+          order_id: orderId,
+          order_number: orderNumber,
+          router_serial: routerSerial.trim() || null,
+          terminal_serials: terminalSerials.filter(s => s.trim()),
+        },
+        actorId: user?.id,
+        actorRole: 'admin',
+      });
+
+      return updatedEquipment;
+    },
+    onSuccess: () => {
+      toast({ title: "Équipement sauvegardé", description: "Les numéros de série ont été enregistrés" });
+      setEquipmentSaved(true);
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      onUpdate?.();
+    },
+    onError: (err: any) => {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    },
+  });
+
   const currentTechnician = technicians?.find(t => t.id === currentTechnicianId);
   const statusInfo = installationStatusConfig[currentStatus] || installationStatusConfig.pending;
   const StatusIcon = statusInfo.icon;
@@ -425,6 +505,90 @@ export const InstallationFulfillmentSection = ({
             </div>
           </div>
         )}
+
+        {/* Equipment Assignment Section */}
+        <div className="space-y-3 pt-4 border-t border-border">
+          <Label className="flex items-center gap-2">
+            <Router className="w-4 h-4" />
+            Attribution équipement
+          </Label>
+          
+          {equipmentSaved ? (
+            <div className="p-3 bg-emerald-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-medium text-emerald-600">Équipement assigné</span>
+              </div>
+              <div className="text-sm text-muted-foreground space-y-1">
+                {routerSerial && <p>Routeur WiFi: <span className="font-mono">{routerSerial}</span></p>}
+                {terminalSerials.filter(s => s.trim()).map((s, i) => (
+                  <p key={i}>Terminal {i + 1}: <span className="font-mono">{s}</span></p>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => setEquipmentSaved(false)}
+              >
+                Modifier
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Numéro de série Routeur WiFi</Label>
+                <Input
+                  placeholder="Ex: NVR-2024-XXXXX"
+                  value={routerSerial}
+                  onChange={(e) => setRouterSerial(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <Label className="text-xs flex items-center gap-2">
+                  <Tv className="w-3 h-3" />
+                  Numéros de série Terminal(s)
+                </Label>
+                {terminalSerials.map((serial, idx) => (
+                  <div key={idx} className="flex gap-2 mt-1">
+                    <Input
+                      placeholder={`Terminal ${idx + 1}`}
+                      value={serial}
+                      onChange={(e) => {
+                        const updated = [...terminalSerials];
+                        updated[idx] = e.target.value;
+                        setTerminalSerials(updated);
+                      }}
+                    />
+                    {idx === terminalSerials.length - 1 && terminalSerials.length < 4 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTerminalSerials([...terminalSerials, ""])}
+                      >
+                        +
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <Button
+                onClick={() => saveEquipmentMutation.mutate()}
+                disabled={saveEquipmentMutation.isPending || (!routerSerial.trim() && terminalSerials.every(s => !s.trim()))}
+                className="w-full"
+              >
+                {saveEquipmentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Sauvegarder équipement
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Completed Status */}
         {(currentStatus === 'installation_completed' || currentStatus === 'completed') && (
