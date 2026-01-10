@@ -352,12 +352,11 @@ export const validateIDData = (data: ClientIDData, requireAddress: boolean = tru
   if (!data.idExpiration) errors.push("ID expiration date is required");
   if (!data.idProvince) errors.push("ID province is required");
 
-  // Validate age using centralized DOB validation (13+ - legal requirement for telecom in Quebec)
-  if (data.dateOfBirth) {
-    const dobResult = validateDob(data.dateOfBirth, { minAge: MIN_AGE_TELECOM, required: false });
-    if (!dobResult.isValid && dobResult.error) {
-      errors.push(dobResult.error.en);
-    }
+  // CRITICAL: Validate DOB using centralized validation (13+ - legal requirement for telecom in Quebec)
+  // DOB is REQUIRED for orders - this catches empty/invalid/future/<13/>120
+  const dobResult = validateDob(data.dateOfBirth, { minAge: MIN_AGE_TELECOM, required: true });
+  if (!dobResult.isValid && dobResult.error) {
+    errors.push(dobResult.error.en);
   }
 
   // Validate ID expiration (not expired)

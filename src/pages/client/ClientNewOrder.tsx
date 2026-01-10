@@ -1416,7 +1416,7 @@ const ClientNewOrder = () => {
         // Client identity fields for profile sync trigger
         client_first_name: firstName || null,
         client_last_name: lastName || null,
-        client_dob: dateOfBirth || null,
+        client_dob: dateOfBirth, // REQUIRED - never null (validated above)
         client_phone: checkoutPhone || null,
         // Shipping/service address fields
         shipping_address: serviceAddressStreet || null,
@@ -2101,22 +2101,31 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return;
     }
     
-    // CRITICAL VALIDATION: Minimum age 13 years (legal requirement for telecom in Quebec)
-    if (dateOfBirth) {
-      const { validateDob, MIN_AGE_TELECOM } = await import("@/lib/validation/dob");
-      const dobResult = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
-      if (!dobResult.isValid) {
-        submittingRef.current = false;
-        toast.error(dobResult.error?.fr || "Date de naissance invalide");
-        return;
-      }
-    } else {
-      // DOB is required for non-equipment orders
-      if (!isEquipmentOnlyOrder) {
-        submittingRef.current = false;
-        toast.error("La date de naissance est requise");
-        return;
-      }
+    // CRITICAL VALIDATION: DOB is ALWAYS required for orders (enforced by DB trigger + CHECK constraint)
+    // This UI validation prevents wasted DB roundtrips
+    const { validateDob, MIN_AGE_TELECOM, parseDate } = await import("@/lib/validation/dob");
+    
+    // Step 1: DOB must be provided (non-empty)
+    if (!dateOfBirth || !dateOfBirth.trim()) {
+      submittingRef.current = false;
+      toast.error("La date de naissance est requise pour passer une commande");
+      return;
+    }
+    
+    // Step 2: DOB must be parseable (valid date format)
+    const parsedDob = parseDate(dateOfBirth);
+    if (!parsedDob) {
+      submittingRef.current = false;
+      toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
+      return;
+    }
+    
+    // Step 3: DOB must pass all validation rules (not future, >= 13 years, <= 120 years)
+    const dobResult = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM, required: true });
+    if (!dobResult.isValid) {
+      submittingRef.current = false;
+      toast.error(dobResult.error?.fr || "Date de naissance invalide");
+      return;
     }
     
     if (selectedServices.length === 0) {
