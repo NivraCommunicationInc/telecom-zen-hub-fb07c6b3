@@ -12,6 +12,7 @@ export type ActionType =
   | "channels_change"
   | "equipment_request"
   | "equipment_change"
+  | "equipment_assigned"
   | "billing_adjustment"
   | "credit_add"
   | "credit_remove"
@@ -42,7 +43,9 @@ export type ActionType =
   | "subscription_change"
   | "document_upload"
   | "document_delete"
-  | "account_create";
+  | "account_create"
+  | "technician_assigned"
+  | "installation_status_change";
 
 export type EntityType =
   | "profile"
@@ -55,7 +58,8 @@ export type EntityType =
   | "appointment"
   | "document"
   | "subscription"
-  | "account";
+  | "account"
+  | "equipment";
 
 interface LogClientActivityParams {
   clientId: string;
@@ -206,6 +210,7 @@ export const actionTypeLabels: Record<ActionType, string> = {
   channels_change: "Modification des chaînes",
   equipment_request: "Demande d'équipement",
   equipment_change: "Modification d'équipement",
+  equipment_assigned: "Équipement attribué",
   billing_adjustment: "Ajustement de facturation",
   credit_add: "Ajout de crédit",
   credit_remove: "Retrait de crédit",
@@ -237,4 +242,6 @@ export const actionTypeLabels: Record<ActionType, string> = {
   document_upload: "Téléversement de document",
   document_delete: "Suppression de document",
   account_create: "Création de compte",
+  technician_assigned: "Technicien assigné",
+  installation_status_change: "Changement de statut d'installation",
 };

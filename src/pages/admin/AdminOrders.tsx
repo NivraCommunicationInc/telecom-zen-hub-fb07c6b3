@@ -78,7 +78,7 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 
-// Status configurations
+// Status configurations - includes installation statuses
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
   pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente", icon: Clock },
   hold: { color: "bg-purple-500/20 text-purple-500", label: "Suspendu", icon: AlertTriangle },
@@ -89,6 +89,11 @@ const orderStatusConfig: Record<string, { color: string; label: string; icon: an
   shipped: { color: "bg-cyan-500/20 text-cyan-400", label: "Expédié", icon: Truck },
   completed: { color: "bg-emerald-500/20 text-emerald-500", label: "Terminé", icon: CheckCircle },
   completed_installation: { color: "bg-green-500/20 text-green-400", label: "Installation terminée", icon: CheckCircle },
+  // New installation statuses
+  installation_scheduled: { color: "bg-blue-500/20 text-blue-500", label: "Installation planifiée", icon: Clock },
+  technician_en_route: { color: "bg-cyan-500/20 text-cyan-500", label: "Technicien en route", icon: Truck },
+  installation_in_progress: { color: "bg-amber-500/20 text-amber-500", label: "Installation en cours", icon: Wrench },
+  installation_completed: { color: "bg-emerald-500/20 text-emerald-500", label: "Installation terminée", icon: CheckCircle },
 };
 
 const paymentStatusConfig: Record<string, { color: string; label: string }> = {
@@ -133,8 +138,11 @@ const orderStatusOptions = [
   { value: "back_order", label: "Back Order" },
   { value: "cancelled", label: "Annulé" },
   { value: "shipped", label: "Expédié" },
-  { value: "completed", label: "Terminé" },
-  { value: "completed_installation", label: "Installation terminée" },
+  { value: "installation_scheduled", label: "Installation planifiée" },
+  { value: "technician_en_route", label: "Technicien en route" },
+  { value: "installation_in_progress", label: "Installation en cours" },
+  { value: "installation_completed", label: "Installation terminée" },
+  { value: "completed", label: "Commande complétée" },
 ];
 
 const paymentStatusOptions = [
@@ -187,6 +195,7 @@ const AdminOrders = () => {
   const [equipmentForm, setEquipmentForm] = useState({
     terminal_count: 0,
     router_included: false,
+    router_serial_number: "", // WiFi router serial number
     serial_numbers: ["", "", "", ""],
     imei_numbers: ["", "", "", ""],
     inventory_refs: ["", "", "", ""],
@@ -1017,6 +1026,7 @@ const AdminOrders = () => {
     setEquipmentForm({
       terminal_count: order.terminal_count || 0,
       router_included: (order.router_fee || 0) > 0,
+      router_serial_number: order.equipment_details?.router_serial_number || "",
       serial_numbers: order.equipment_details?.serial_numbers || ["", "", "", ""],
       imei_numbers: order.equipment_details?.imei_numbers || ["", "", "", ""],
       inventory_refs: order.equipment_details?.inventory_refs || ["", "", "", ""],
@@ -1036,12 +1046,24 @@ const AdminOrders = () => {
     setDetailsDialogOpen(true);
   };
 
-  const handleSaveEquipment = () => {
+  const handleSaveEquipment = async () => {
     if (!selectedOrder) return;
+    
+    // Validate router serial if router is included
+    if (equipmentForm.router_included && !equipmentForm.router_serial_number.trim()) {
+      toast({ 
+        title: "Numéro de série requis", 
+        description: "Veuillez entrer le numéro de série de la borne WiFi",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     const equipmentDetails = {
       serial_numbers: equipmentForm.serial_numbers.filter(s => s),
       imei_numbers: equipmentForm.imei_numbers.filter(s => s),
       inventory_refs: equipmentForm.inventory_refs.filter(s => s),
+      router_serial_number: equipmentForm.router_serial_number.trim() || null,
       sim_type: equipmentForm.sim_type,
       warranty: "1 year manufacturer coverage",
     };
@@ -1060,6 +1082,48 @@ const AdminOrders = () => {
       terminal_fee: equipmentForm.terminal_count * TERMINAL_PRICE,
       router_fee: equipmentForm.router_included ? ROUTER_PRICE : 0,
     });
+    
+    // Log equipment assignment to client activity (auto-note)
+    if (selectedOrder.user_id) {
+      try {
+        const { logClientActivityDirect } = await import("@/hooks/useClientActivityLog");
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("user_id", currentUser?.id)
+          .maybeSingle();
+        
+        // Build equipment summary
+        const equipmentParts: string[] = [];
+        if (equipmentForm.terminal_count > 0) {
+          const serials = equipmentForm.serial_numbers.filter(s => s).join(", ");
+          equipmentParts.push(`${equipmentForm.terminal_count} Terminal(s)${serials ? ` (S/N: ${serials})` : ""}`);
+        }
+        if (equipmentForm.router_included) {
+          equipmentParts.push(`Borne WiFi (S/N: ${equipmentForm.router_serial_number.trim()})`);
+        }
+        if (equipmentForm.sim_type) {
+          equipmentParts.push(`${equipmentForm.sim_type === "esim" ? "eSIM" : "Carte SIM"}${equipmentForm.sim_serial_number ? ` (S/N: ${equipmentForm.sim_serial_number})` : ""}`);
+        }
+        
+        if (equipmentParts.length > 0) {
+          await logClientActivityDirect({
+            clientId: selectedOrder.user_id,
+            actorUserId: currentUser?.id || "",
+            actorName: profile?.full_name || profile?.email || "Admin",
+            actorRole: "admin",
+            actionType: "equipment_assigned",
+            entityType: "equipment",
+            entityId: selectedOrder.id,
+            summary: `Équipement attribué à la commande #${selectedOrder.order_number}: ${equipmentParts.join(", ")}`,
+            afterData: { equipment: equipmentParts },
+          });
+        }
+      } catch (err) {
+        console.error("Failed to log equipment assignment:", err);
+      }
+    }
   };
 
   // Save identity information
@@ -2177,18 +2241,38 @@ const AdminOrders = () => {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id="router"
-                              checked={equipmentForm.router_included}
-                              onChange={(e) => setEquipmentForm({ ...equipmentForm, router_included: e.target.checked })}
-                              className="h-4 w-4"
-                            />
-                            <Label htmlFor="router" className="flex items-center gap-2">
-                              <Wifi className="w-4 h-4" />
-                              Routeur Nivra Born ({ROUTER_PRICE}$)
-                            </Label>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                id="router"
+                                checked={equipmentForm.router_included}
+                                onChange={(e) => setEquipmentForm({ ...equipmentForm, router_included: e.target.checked })}
+                                className="h-4 w-4"
+                              />
+                              <Label htmlFor="router" className="flex items-center gap-2">
+                                <Wifi className="w-4 h-4" />
+                                Borne WiFi Nivra ({ROUTER_PRICE}$)
+                              </Label>
+                            </div>
+                            {/* WiFi Router Serial Number - Required when router is included */}
+                            {equipmentForm.router_included && (
+                              <div className="ml-6 p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                                <Label className="text-xs text-cyan-500">Numéro de série Borne WiFi *</Label>
+                                <Input
+                                  placeholder="Entrez le numéro de série..."
+                                  value={equipmentForm.router_serial_number}
+                                  onChange={(e) => setEquipmentForm({ ...equipmentForm, router_serial_number: e.target.value })}
+                                  className="font-mono mt-1"
+                                />
+                                {!equipmentForm.router_serial_number.trim() && (
+                                  <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    Numéro de série obligatoire
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
