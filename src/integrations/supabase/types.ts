@@ -1398,6 +1398,36 @@ export type Database = {
           },
         ]
       }
+      dob_validation_debug: {
+        Row: {
+          calculated_age: number | null
+          column_name: string
+          created_at: string
+          id: string
+          raw_value: string | null
+          result: string | null
+          table_name: string
+        }
+        Insert: {
+          calculated_age?: number | null
+          column_name: string
+          created_at?: string
+          id?: string
+          raw_value?: string | null
+          result?: string | null
+          table_name: string
+        }
+        Update: {
+          calculated_age?: number | null
+          column_name?: string
+          created_at?: string
+          id?: string
+          raw_value?: string | null
+          result?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       email_queue: {
         Row: {
           attempts: number

@@ -114,9 +114,10 @@ export const ClientIDVerificationForm = ({
     onAddressValidated?.(true, isQuebec);
   };
 
-  // Get today's date for max DOB (must be at least 18)
+  // Get today's date for max DOB (must be at least 13 - legal requirement for telecom in Quebec)
+  const MIN_AGE = 13;
   const maxDOB = new Date();
-  maxDOB.setFullYear(maxDOB.getFullYear() - 18);
+  maxDOB.setFullYear(maxDOB.getFullYear() - MIN_AGE);
   const maxDOBString = maxDOB.toISOString().split('T')[0];
 
   // Min expiration date is today
@@ -210,7 +211,7 @@ export const ClientIDVerificationForm = ({
               className="w-full md:w-1/2"
             />
             <p className="text-xs text-muted-foreground">
-              {isFrench ? "Vous devez avoir au moins 18 ans" : "You must be at least 18 years old"}
+              {isFrench ? "Vous devez avoir au moins 13 ans" : "You must be at least 13 years old"}
             </p>
           </div>
         </CardContent>
@@ -353,7 +354,8 @@ export const validateIDData = (data: ClientIDData, requireAddress: boolean = tru
   if (!data.idExpiration) errors.push("ID expiration date is required");
   if (!data.idProvince) errors.push("ID province is required");
 
-  // Validate age (18+)
+  // Validate age (13+ - legal requirement for telecom in Quebec)
+  const MIN_AGE = 13;
   if (data.dateOfBirth) {
     const dob = new Date(data.dateOfBirth);
     const today = new Date();
@@ -362,7 +364,7 @@ export const validateIDData = (data: ClientIDData, requireAddress: boolean = tru
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
       age--;
     }
-    if (age < 18) errors.push("You must be at least 18 years old");
+    if (age < MIN_AGE) errors.push(`You must be at least ${MIN_AGE} years old`);
   }
 
   // Validate ID expiration (not expired)
