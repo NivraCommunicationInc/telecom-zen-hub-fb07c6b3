@@ -76,6 +76,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
+import { AuditNotes } from "@/lib/clientAuditNotes";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 import { shouldAutoCompleteOrder, shouldAutoSetInstallationScheduled, isInstallationStatus } from "@/lib/installationStatusUtils";
 import { logClientActivityDirect } from "@/hooks/useClientActivityLog";
@@ -650,8 +651,21 @@ const AdminOrders = () => {
           console.error("Failed to generate contract audit on payment capture", orderId, e);
         }
       }
-
+      
+      // Create automatic audit note for payment status change
       const order = orders?.find((o: any) => o.id === orderId);
+      if (order?.user_id && newStatus === "captured") {
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        AuditNotes.paymentRecorded(
+          order.user_id,
+          order.total_amount || 0,
+          "card",
+          data?.paymentReference || "",
+          currentUser?.id || "",
+          "admin"
+        );
+      }
+
       logActivity("update", "order", orderId, {
         payment_status: newStatus,
         payment_reference: data?.paymentReference,
@@ -1051,10 +1065,22 @@ const AdminOrders = () => {
         newStatus,
       };
     },
-    onSuccess: (data, { orderId, technicianId }) => {
+    onSuccess: async (data, { orderId, technicianId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["technician-work-orders"] });
       const order = orders?.find((o: any) => o.id === orderId);
+      
+      // Create automatic audit note for technician assignment
+      if (order?.user_id) {
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        AuditNotes.technicianAssigned(
+          order.user_id,
+          orderId,
+          data?.technicianName || "Technicien",
+          currentUser?.id || "",
+          "admin"
+        );
+      }
       
       // Update local selectedOrder state if this order is selected
       if (selectedOrder?.id === orderId) {
@@ -1134,7 +1160,7 @@ const AdminOrders = () => {
     // Update local state immediately for UI feedback
     setSelectedOrder({ ...selectedOrder, status: newStatus });
     
-    // Log client activity for status change
+    // Log client activity for status change + create audit note
     if (selectedOrder.user_id) {
       try {
         const { data: profile } = await supabase
@@ -1142,6 +1168,16 @@ const AdminOrders = () => {
           .select("full_name, email")
           .eq("user_id", currentUser?.id)
           .maybeSingle();
+        
+        // Create automatic audit note for status change
+        AuditNotes.statusChanged(
+          selectedOrder.user_id,
+          selectedOrder.id,
+          orderStatusConfig[oldStatus]?.label || oldStatus,
+          orderStatusConfig[newStatus]?.label || newStatus,
+          currentUser?.id || "",
+          "admin"
+        );
           
         await logClientActivityDirect({
           clientId: selectedOrder.user_id,
@@ -1300,7 +1336,7 @@ const AdminOrders = () => {
       router_fee: equipmentForm.router_included ? ROUTER_PRICE : 0,
     });
     
-    // Log equipment assignment to client activity (auto-note)
+    // Log equipment assignment to client activity + create audit note
     if (selectedOrder.user_id) {
       try {
         const { logClientActivityDirect } = await import("@/hooks/useClientActivityLog");
@@ -1313,18 +1349,29 @@ const AdminOrders = () => {
         
         // Build equipment summary
         const equipmentParts: string[] = [];
+        const terminalSerial = equipmentForm.serial_numbers.filter(s => s).join(", ");
+        const routerSerial = equipmentForm.router_serial_number.trim();
+        
         if (equipmentForm.terminal_count > 0) {
-          const serials = equipmentForm.serial_numbers.filter(s => s).join(", ");
-          equipmentParts.push(`${equipmentForm.terminal_count} Terminal(s)${serials ? ` (S/N: ${serials})` : ""}`);
+          equipmentParts.push(`${equipmentForm.terminal_count} Terminal(s)${terminalSerial ? ` (S/N: ${terminalSerial})` : ""}`);
         }
         if (equipmentForm.router_included) {
-          equipmentParts.push(`Borne WiFi (S/N: ${equipmentForm.router_serial_number.trim()})`);
+          equipmentParts.push(`Borne WiFi (S/N: ${routerSerial})`);
         }
         if (equipmentForm.sim_type) {
           equipmentParts.push(`${equipmentForm.sim_type === "esim" ? "eSIM" : "Carte SIM"}${equipmentForm.sim_serial_number ? ` (S/N: ${equipmentForm.sim_serial_number})` : ""}`);
         }
         
         if (equipmentParts.length > 0) {
+          // Create automatic audit note
+          AuditNotes.equipmentAssigned(
+            selectedOrder.user_id,
+            selectedOrder.id,
+            { terminalSerial: terminalSerial || undefined, routerSerial: routerSerial || undefined },
+            currentUser?.id || "",
+            "admin"
+          );
+          
           await logClientActivityDirect({
             clientId: selectedOrder.user_id,
             actorUserId: currentUser?.id || "",

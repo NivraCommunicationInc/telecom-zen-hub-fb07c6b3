@@ -1678,6 +1678,32 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Navigate to dedicated confirmation page with order ID
       const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
       
+      // Record promo redemption if promo was applied
+      if (appliedPromo && user?.id) {
+        try {
+          await supabase.from("promotion_redemptions").insert({
+            promotion_id: appliedPromo.id,
+            order_id: orderData.id,
+            order_number: orderData.order_number,
+            client_id: user.id,
+            client_email: (profile?.email || user.email || "").toLowerCase(),
+            discount_amount: appliedPromo.discount_amount,
+          });
+          console.log("[Promo] Redemption recorded for order:", orderData.order_number);
+          
+          // Create audit note for promo applied
+          const { AuditNotes } = await import("@/lib/clientAuditNotes");
+          AuditNotes.promoApplied(
+            user.id,
+            orderData.id,
+            appliedPromo.code,
+            appliedPromo.discount_amount
+          );
+        } catch (promoErr) {
+          console.error("[Promo] Failed to record redemption (non-blocking):", promoErr);
+        }
+      }
+      
       // Invalidate queries so orders/invoices/appointments appear in admin & client views
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
@@ -2064,6 +2090,24 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       submittingRef.current = false;
       toast.error(blockCheck.errorMessage);
       return;
+    }
+    
+    // CRITICAL VALIDATION: Minimum age 13 years (legal requirement for telecom in Quebec)
+    if (dateOfBirth) {
+      const { validateDob, MIN_AGE_TELECOM } = await import("@/lib/validation/dob");
+      const dobResult = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+      if (!dobResult.isValid) {
+        submittingRef.current = false;
+        toast.error(dobResult.error?.fr || "Date de naissance invalide");
+        return;
+      }
+    } else {
+      // DOB is required for non-equipment orders
+      if (!isEquipmentOnlyOrder) {
+        submittingRef.current = false;
+        toast.error("La date de naissance est requise");
+        return;
+      }
     }
     
     if (selectedServices.length === 0) {
