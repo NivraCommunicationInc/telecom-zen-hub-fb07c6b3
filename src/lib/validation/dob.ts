@@ -16,11 +16,20 @@ export interface DobConfig {
   required?: boolean;
 }
 
+/**
+ * Default configuration - minimum age is 13 (legal requirement for telecommunications)
+ */
 const DEFAULT_CONFIG: Required<DobConfig> = {
   minAge: 13,
   maxAge: 120,
   required: true
 };
+
+/**
+ * CRITICAL VALIDATION: Enforces minimum age of 13 years
+ * This is a legal requirement for telecommunications services in Quebec
+ */
+export const MIN_AGE_TELECOM = 13;
 
 /**
  * Calculate age from date of birth
