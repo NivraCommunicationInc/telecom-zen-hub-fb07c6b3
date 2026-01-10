@@ -1922,6 +1922,8 @@ const AdminOrders = () => {
                               clientEmail={selectedOrder.profiles?.email || selectedOrder.client_email}
                               clientName={selectedOrder.profiles?.full_name}
                               clientFirstName={selectedOrder.profiles?.first_name}
+                              locale="fr"
+                              portalBaseUrl="/portal"
                               portRequest={selectedOrder.port_request}
                               onUpdate={() => {
                                 refetch();
@@ -1938,6 +1940,8 @@ const AdminOrders = () => {
                               clientEmail={selectedOrder.profiles?.email || selectedOrder.client_email}
                               clientName={selectedOrder.profiles?.full_name}
                               clientFirstName={selectedOrder.profiles?.first_name}
+                              locale="fr"
+                              portalBaseUrl="/portal"
                               streamingServices={selectedOrder.streaming_services || []}
                               onUpdate={() => {
                                 refetch();
@@ -1954,10 +1958,13 @@ const AdminOrders = () => {
                               clientEmail={selectedOrder.profiles?.email || selectedOrder.client_email}
                               clientName={selectedOrder.profiles?.full_name}
                               clientFirstName={selectedOrder.profiles?.first_name}
+                              locale="fr"
+                              portalBaseUrl="/portal"
                               serviceAddress={`${selectedOrder.profiles?.service_address || ''}, ${selectedOrder.profiles?.service_city || ''} ${selectedOrder.profiles?.service_province || ''} ${selectedOrder.profiles?.service_postal_code || ''}`.trim()}
                               currentStatus={selectedOrder.status}
                               appointmentDate={selectedOrder.appointment_date}
                               currentTechnicianId={selectedOrder.technician_id}
+                              equipmentDetails={selectedOrder.equipment_details}
                               onUpdate={() => {
                                 refetch();
                               }}
