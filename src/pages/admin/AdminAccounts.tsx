@@ -89,6 +89,14 @@ const AdminAccounts = () => {
   const [statusReason, setStatusReason] = useState("");
   const [editAccountOpen, setEditAccountOpen] = useState(false);
   const [editedAccount, setEditedAccount] = useState<any>(null);
+  const [newAccountForm, setNewAccountForm] = useState({
+    client_id: "",
+    account_name: "Principal",
+    billing_address: "",
+    billing_city: "",
+    billing_postal_code: "",
+    billing_cycle_day: 1,
+  });
 
   // Fetch all accounts
   const { data: accounts, isLoading } = useQuery({
@@ -800,21 +808,23 @@ const AdminAccounts = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const formData = new FormData(e.currentTarget);
               createAccountMutation.mutate({
-                client_id: formData.get("client_id") as string,
-                account_name: formData.get("account_name") as string,
-                billing_address: formData.get("billing_address") as string,
-                billing_city: formData.get("billing_city") as string,
-                billing_postal_code: formData.get("billing_postal_code") as string,
-                billing_cycle_day: parseInt(formData.get("billing_cycle_day") as string) || 1,
+                client_id: newAccountForm.client_id,
+                account_name: newAccountForm.account_name,
+                billing_address: newAccountForm.billing_address,
+                billing_city: newAccountForm.billing_city,
+                billing_postal_code: newAccountForm.billing_postal_code,
+                billing_cycle_day: newAccountForm.billing_cycle_day,
               });
             }}
             className="space-y-4"
           >
             <div>
               <Label htmlFor="client_id">Client *</Label>
-              <Select name="client_id" required>
+              <Select 
+                value={newAccountForm.client_id} 
+                onValueChange={(v) => setNewAccountForm({ ...newAccountForm, client_id: v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un client..." />
                 </SelectTrigger>
@@ -829,25 +839,56 @@ const AdminAccounts = () => {
             </div>
             <div>
               <Label htmlFor="account_name">Nom du compte</Label>
-              <Input name="account_name" placeholder="ex: Résidence principale" defaultValue="Principal" />
+              <Input 
+                value={newAccountForm.account_name} 
+                onChange={(e) => setNewAccountForm({ ...newAccountForm, account_name: e.target.value })}
+                placeholder="ex: Résidence principale" 
+              />
             </div>
             <div>
               <Label htmlFor="billing_address">Adresse de facturation *</Label>
-              <Input name="billing_address" required placeholder="123 rue Exemple" />
+              <AdminAddressAutocomplete
+                value={newAccountForm.billing_address}
+                onChange={(value) => setNewAccountForm({ ...newAccountForm, billing_address: value })}
+                onAddressSelect={(details: AddressDetails) => {
+                  const streetAddress = [details.streetNumber, details.street].filter(Boolean).join(" ") || details.formattedAddress?.split(",")[0] || "";
+                  setNewAccountForm({
+                    ...newAccountForm,
+                    billing_address: streetAddress,
+                    billing_city: details.city || newAccountForm.billing_city,
+                    billing_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : newAccountForm.billing_postal_code,
+                  });
+                }}
+                placeholder="Rechercher une adresse..."
+                restrictToQuebec={true}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="billing_city">Ville *</Label>
-                <Input name="billing_city" required placeholder="Montréal" />
+                <Input 
+                  value={newAccountForm.billing_city} 
+                  onChange={(e) => setNewAccountForm({ ...newAccountForm, billing_city: e.target.value })}
+                  required 
+                  placeholder="Montréal" 
+                />
               </div>
               <div>
                 <Label htmlFor="billing_postal_code">Code postal *</Label>
-                <Input name="billing_postal_code" required placeholder="H2X 1Y4" />
+                <Input 
+                  value={newAccountForm.billing_postal_code} 
+                  onChange={(e) => setNewAccountForm({ ...newAccountForm, billing_postal_code: e.target.value })}
+                  required 
+                  placeholder="H2X 1Y4" 
+                />
               </div>
             </div>
             <div>
               <Label htmlFor="billing_cycle_day">Jour du cycle de facturation</Label>
-              <Select name="billing_cycle_day" defaultValue="1">
+              <Select 
+                value={newAccountForm.billing_cycle_day.toString()} 
+                onValueChange={(v) => setNewAccountForm({ ...newAccountForm, billing_cycle_day: parseInt(v) })}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -864,7 +905,10 @@ const AdminAccounts = () => {
               <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit" disabled={createAccountMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={createAccountMutation.isPending || !newAccountForm.client_id || !newAccountForm.billing_address}
+              >
                 Créer le compte
               </Button>
             </DialogFooter>

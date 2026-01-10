@@ -1,0 +1,36 @@
+name: P0 Address Input Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-address-inputs:
+    runs-on: ubuntu-latest
+    name: Check for free-text address inputs
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run address input check
+        run: node scripts/check-address-inputs.js
+
+      - name: Summary
+        if: failure()
+        run: |
+          echo "## ❌ Free-text address input detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All address fields must use AddressAutocomplete components:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`AddressAutocomplete\` for public forms" >> $GITHUB_STEP_SUMMARY
+          echo "- \`PortalAddressAutocomplete\` for client portal" >> $GITHUB_STEP_SUMMARY
+          echo "- \`AdminAddressAutocomplete\` for admin portal" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Exception**: Apartment/Unit/Suite fields may use plain \`<Input>\`" >> $GITHUB_STEP_SUMMARY

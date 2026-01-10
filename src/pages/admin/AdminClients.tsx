@@ -51,6 +51,8 @@ import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 import { CreateClientDialog } from "@/components/admin/CreateClientDialog";
+import AdminAddressAutocomplete from "@/components/admin/AdminAddressAutocomplete";
+import type { AddressDetails } from "@/components/AddressAutocompleteBase";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1327,7 +1329,22 @@ const AdminClients = () => {
                         </div>
                         <div>
                           <Label>Adresse de service</Label>
-                          <Input value={selectedClient.service_address || ""} onChange={(e) => setSelectedClient({ ...selectedClient, service_address: e.target.value })} />
+                          <AdminAddressAutocomplete
+                            value={selectedClient.service_address || ""}
+                            onChange={(value) => setSelectedClient({ ...selectedClient, service_address: value })}
+                            onAddressSelect={(details: AddressDetails) => {
+                              const streetAddress = [details.streetNumber, details.street].filter(Boolean).join(" ") || details.formattedAddress?.split(",")[0] || "";
+                              setSelectedClient({
+                                ...selectedClient,
+                                service_address: streetAddress,
+                                service_city: details.city || selectedClient.service_city,
+                                service_province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
+                                service_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : selectedClient.service_postal_code,
+                              });
+                            }}
+                            placeholder="Rechercher une adresse..."
+                            restrictToQuebec={true}
+                          />
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div>
