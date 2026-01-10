@@ -71,6 +71,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { format } from "date-fns";
+import { ClientSearchAutocomplete } from "@/components/admin/ClientSearchAutocomplete";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -929,52 +930,20 @@ const AdminTickets = () => {
                   <DialogTitle>Créer un ticket pour un client</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-1">
-                  <div className="space-y-2">
-                    <Label>Client *</Label>
-                    <Select
-                      value={selectedClientId}
-                      onValueChange={(clientUserId) => {
-                        const client = (clients || []).find((c: any) => c.user_id === clientUserId);
-                        setSelectedClientId(clientUserId);
-                        setNewTicket({ 
-                          ...newTicket, 
-                          client_email: client?.email || "", 
-                          related_order_id: "" 
-                        });
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Rechercher par nom ou email..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-64">
-                        <div className="px-2 pb-2">
-                          <Input
-                            placeholder="Rechercher..."
-                            className="h-8"
-                            onChange={(e) => {
-                              // Filter is handled by the SelectContent
-                            }}
-                          />
-                        </div>
-                        {(clients || [])
-                          .filter((c: any) => c.full_name || c.email)
-                          .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
-                          .map((client: any) => (
-                            <SelectItem key={client.user_id} value={client.user_id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{client.full_name || 'Sans nom'}</span>
-                                <span className="text-xs text-muted-foreground">{client.email} {client.phone && `• ${client.phone}`}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedClientId && (
-                      <p className="text-xs text-muted-foreground">
-                        Email: {newTicket.client_email}
-                      </p>
-                    )}
-                  </div>
+                  <ClientSearchAutocomplete
+                    label="Client *"
+                    placeholder="Rechercher par nom, email, téléphone..."
+                    selectedClientId={selectedClientId}
+                    onSelect={(client) => {
+                      setSelectedClientId(client.user_id);
+                      setNewTicket({ 
+                        ...newTicket, 
+                        client_email: client.email || "", 
+                        related_order_id: "" 
+                      });
+                    }}
+                    required
+                  />
                   <div>
                     <Label>Sujet *</Label>
                     <Input
