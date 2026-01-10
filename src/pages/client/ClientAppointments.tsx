@@ -159,7 +159,7 @@ const ClientAppointments = () => {
 
       // Create notification ticket for admin (non-blocking)
       try {
-        await portalSupabase.from("support_tickets").insert({
+        const { error: ticketError } = await portalSupabase.from("support_tickets").insert({
           user_id: user?.id,
           client_email: profile?.email || user?.email,
           subject: `Installation annulée - ${selectedAppointment?.title}`,
@@ -170,6 +170,9 @@ const ClientAppointments = () => {
           issue_type: "APPOINTMENT_CANCELLED",
           id_verification_status: "not_received",
         });
+        if (ticketError) {
+          console.error("Cancel appointment ticket creation failed (non-blocking):", ticketError);
+        }
       } catch (ticketErr) {
         console.error("Cancel appointment ticket creation failed (non-blocking):", ticketErr);
       }
@@ -203,7 +206,7 @@ const ClientAppointments = () => {
 
       // Create notification ticket for admin (non-blocking)
       try {
-        await portalSupabase.from("support_tickets").insert({
+        const { error: ticketError } = await portalSupabase.from("support_tickets").insert({
           user_id: user?.id,
           client_email: profile?.email || user?.email,
           subject: `Installation reprogrammée - ${selectedAppointment?.title}`,
@@ -214,6 +217,9 @@ const ClientAppointments = () => {
           issue_type: "APPOINTMENT_RESCHEDULED",
           id_verification_status: "not_received",
         });
+        if (ticketError) {
+          console.error("Reschedule appointment ticket creation failed (non-blocking):", ticketError);
+        }
       } catch (ticketErr) {
         console.error("Reschedule appointment ticket creation failed (non-blocking):", ticketErr);
       }

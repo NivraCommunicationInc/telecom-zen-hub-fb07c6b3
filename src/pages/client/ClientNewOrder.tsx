@@ -1599,7 +1599,7 @@ ${paidChannelsList}
 Veuillez confirmer les chaînes et procéder à l'activation du service.
           `.trim();
 
-          await supabase.from("support_tickets").insert({
+          const { error: ticketError } = await supabase.from("support_tickets").insert({
             user_id: user.id,
             client_email: profile?.email || user.email,
             subject: `Configuration TV - Commande ${data.order_number}`,
@@ -1612,6 +1612,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             related_order_reference: data.order_number,
             id_verification_status: "not_received",
           });
+          if (ticketError) {
+            console.error("TV ticket creation failed (non-blocking):", ticketError);
+            postStepErrors.push("ticket");
+          }
         } catch (ticketErr) {
           console.error("TV ticket creation failed:", ticketErr);
           postStepErrors.push("ticket");
