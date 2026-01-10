@@ -767,15 +767,37 @@ const ClientNewOrder = () => {
 
   // Pre-fill from client profile when profile loads (if not already set from draft)
   // This ensures checkout forms are autofilled from the single source of truth (profiles table)
+  // ROBUST: Handles full_name fallback when first_name/last_name are missing
   useEffect(() => {
     if (profile && isHydrated) {
-      // Only pre-fill if fields are empty (draft takes priority)
-      // Name fields
-      if (!firstName && profile.first_name) {
-        setFirstName(profile.first_name);
+      // Only pre-fill if fields are empty (draft takes priority) - dirty-safe logic
+      
+      // Name fields with full_name fallback
+      if (!firstName) {
+        if (profile.first_name) {
+          setFirstName(profile.first_name);
+        } else if (profile.full_name && !profile.first_name && !profile.last_name) {
+          // Split full_name: last token = last name, rest = first name
+          const nameParts = profile.full_name.trim().split(/\s+/);
+          if (nameParts.length === 1) {
+            setFirstName(nameParts[0]);
+          } else {
+            setFirstName(nameParts.slice(0, -1).join(" "));
+          }
+        }
       }
-      if (!lastName && profile.last_name) {
-        setLastName(profile.last_name);
+      if (!lastName) {
+        if (profile.last_name) {
+          setLastName(profile.last_name);
+        } else if (profile.full_name && !profile.first_name && !profile.last_name) {
+          // Split full_name: last token = last name
+          const nameParts = profile.full_name.trim().split(/\s+/);
+          if (nameParts.length > 1) {
+            setLastName(nameParts[nameParts.length - 1]);
+          } else {
+            setLastName(""); // Single word name
+          }
+        }
       }
       // Date of birth
       if (!dateOfBirth && profile.date_of_birth) {
@@ -811,13 +833,15 @@ const ClientNewOrder = () => {
       if (!idProvince && profile.id_province) {
         setIdProvince(profile.id_province);
       }
+      
+      console.log("[ClientNewOrder] Profile autofill applied:", {
+        firstName: firstName || profile.first_name || "(from full_name)",
+        lastName: lastName || profile.last_name || "(from full_name)",
+        dateOfBirth: dateOfBirth || profile.date_of_birth,
+        phone: checkoutPhone || profile.phone,
+      });
     }
-  }, [
-    profile, isHydrated, 
-    firstName, lastName, dateOfBirth,
-    checkoutPhone, serviceAddressStreet, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
-    idType, idNumber, idExpiration, idProvince
-  ]);
+  }, [profile, isHydrated]);
 
   // Categorize channels - strict pack filter for La Base (26 channels)
   const baseChannels = tvChannels.filter(ch => ch.base_pack === 'LA_BASE_26');

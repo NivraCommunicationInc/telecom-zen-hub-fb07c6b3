@@ -232,6 +232,31 @@ const AppRoutes = () => {
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       
+      {/* ============================================ */}
+      {/* CLIENT-TO-PORTAL REDIRECTS (SPA fallback) */}
+      {/* ============================================ */}
+      <Route path="/client" element={<Navigate to="/portal" replace />} />
+      <Route path="/client/new-order" element={<Navigate to="/portal/new-order" replace />} />
+      <Route path="/client/internet-order" element={<Navigate to="/portal/internet" replace />} />
+      <Route path="/client/tv-order" element={<Navigate to="/portal/tv-order" replace />} />
+      <Route path="/client/services" element={<Navigate to="/portal/services" replace />} />
+      <Route path="/client/dashboard" element={<Navigate to="/portal" replace />} />
+      <Route path="/client/appointments" element={<Navigate to="/portal/appointments" replace />} />
+      <Route path="/client/invoices" element={<Navigate to="/portal/invoices" replace />} />
+      <Route path="/client/monthly-invoices" element={<Navigate to="/portal/monthly-invoices" replace />} />
+      <Route path="/client/tickets" element={<Navigate to="/portal/tickets" replace />} />
+      <Route path="/client/channels" element={<Navigate to="/portal/channels" replace />} />
+      <Route path="/client/profile" element={<Navigate to="/portal/profile" replace />} />
+      <Route path="/client/payments" element={<Navigate to="/portal/payments" replace />} />
+      <Route path="/client/contracts" element={<Navigate to="/portal/contracts" replace />} />
+      <Route path="/client/orders" element={<Navigate to="/portal/orders" replace />} />
+      <Route path="/client/order-confirmation" element={<Navigate to="/portal/order-confirmation" replace />} />
+      <Route path="/client/replacement" element={<Navigate to="/portal/replacement" replace />} />
+      <Route path="/client/cancellations" element={<Navigate to="/portal/cancellations" replace />} />
+      <Route path="/client/auth" element={<Navigate to="/portal/auth" replace />} />
+      <Route path="/client/suspended" element={<Navigate to="/portal/suspended" replace />} />
+      <Route path="/client/access-blocked" element={<Navigate to="/portal/access-blocked" replace />} />
+      <Route path="/client/*" element={<Navigate to="/portal" replace />} />
       
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />

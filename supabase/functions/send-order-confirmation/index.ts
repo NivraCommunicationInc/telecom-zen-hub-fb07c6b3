@@ -125,7 +125,7 @@ const buildOrderConfirmationHtml = (params: {
               <table role="presentation" style="width: 100%;">
                 <tr>
                   <td align="center">
-                    <a href="https://nivratelecom.ca/client" style="display: inline-block; padding: 14px 32px; background-color: #1a1a2e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                    <a href="https://nivratelecom.ca/portal" style="display: inline-block; padding: 14px 32px; background-color: #1a1a2e; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
                       Accéder à mon espace client
                     </a>
                   </td>
