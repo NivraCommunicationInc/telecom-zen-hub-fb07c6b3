@@ -496,7 +496,12 @@ const AddressAutocompleteBase = ({
                     "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
                     highlightedIndex === index && "bg-muted/50"
                   )}
-                  onClick={() => handleSuggestionClick(suggestion)}
+                  onMouseDown={(e) => {
+                    // Prevent blur from firing before selection is applied
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSuggestionClick(suggestion);
+                  }}
                   onMouseEnter={() => setHighlightedIndex(index)}
                 >
                   <MapPin className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
