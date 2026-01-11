@@ -68,7 +68,7 @@ export function useAdminSecretSession() {
     }
   }, []);
 
-  // Verify session with backend (using existing admin_otp_sessions table)
+  // Verify session with backend
   const verifySession = useCallback(async (): Promise<boolean> => {
     const stored = getStoredSession();
     
@@ -81,8 +81,7 @@ export function useAdminSecretSession() {
     try {
       console.log("[useAdminSecretSession] Verifying session with backend...");
       
-      // Use the existing otp-session-check endpoint since we're using the same sessions table
-      const { data, error } = await supabase.functions.invoke("admin-otp-session-check", {
+      const { data, error } = await supabase.functions.invoke("admin-session-check", {
         body: { 
           admin_user_id: stored.adminUserId, 
           session_token: stored.token 

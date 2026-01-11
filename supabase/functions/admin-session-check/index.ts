@@ -25,9 +25,9 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const requestId = `otp-check-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+const requestId = `session-check-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   
-  console.log(`[${requestId}] admin-otp-session-check started`);
+  console.log(`[${requestId}] admin-session-check started`);
 
   try {
     // Parse request body
