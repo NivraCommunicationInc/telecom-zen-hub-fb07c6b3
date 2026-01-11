@@ -117,44 +117,56 @@ export const AdminOTPDialog = ({
     try {
       console.log(`[AdminOTP] Sending OTP for user: ${adminUserId}, email: ${adminEmail}`);
       
-      const { data, error } = await supabase.functions.invoke("admin-otp-send", {
-        body: { admin_user_id: adminUserId, email: adminEmail },
+      // Use fetch() directly to properly handle non-2xx responses with JSON body
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/admin-otp-send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseKey}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({ admin_user_id: adminUserId, email: adminEmail }),
       });
 
-      console.log("[AdminOTP] Send response:", { data, error });
-
-      // Handle network/invoke errors
-      if (error) {
-        console.error("[AdminOTP] Function invoke error:", error);
-        const result: SendResult = {
+      // ALWAYS parse JSON, even on non-2xx
+      let data: SendResult & { resend_error?: string };
+      try {
+        data = await response.json();
+      } catch {
+        data = {
           ok: false,
-          error: error.message || "Erreur lors de l'envoi du code",
-          request_id: "invoke-error"
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          request_id: "parse-error"
         };
-        setSendResult(result);
-        setSendStatus("error");
-        toast.error("Erreur d'envoi OTP", {
-          description: result.error,
-        });
-        return;
       }
 
-      // Check if response has ok:true AND message_id
-      if (!data?.ok) {
+      console.log("[AdminOTP] Send response:", { status: response.status, data });
+
+      // Handle non-2xx responses - show the exact error from backend
+      if (!response.ok || !data.ok) {
+        const errorMsg = data.resend_error 
+          ? `${data.error}: ${data.resend_error}`
+          : data.error || `HTTP ${response.status}`;
+        
         const result: SendResult = {
           ok: false,
-          error: data?.error || "Échec de l'envoi du code",
-          request_id: data?.request_id || "unknown"
+          error: errorMsg,
+          request_id: data.request_id || "unknown",
+          from_email: data.from_email,
+          to_email: data.to_email
         };
         setSendResult(result);
         setSendStatus("error");
         toast.error("Échec envoi OTP", {
-          description: `${result.error} (ID: ${result.request_id})`,
+          description: `${errorMsg} (ID: ${result.request_id})`,
         });
         return;
       }
 
-      // Verify message_id exists
+      // Verify message_id exists - CRITICAL for proof
       if (!data.message_id) {
         const result: SendResult = {
           ok: false,
@@ -182,7 +194,7 @@ export const AdminOTPDialog = ({
       
       setSendResult(result);
       setSendStatus("success");
-      setExpiresAt(new Date(data.expires_at));
+      setExpiresAt(new Date(data.expires_at!));
       setAttemptsLeft(5);
       setCountdown(30);
       
@@ -194,12 +206,12 @@ export const AdminOTPDialog = ({
       console.error("[AdminOTP] Send error:", err);
       const result: SendResult = {
         ok: false,
-        error: err.message || "Impossible d'envoyer le code",
-        request_id: "exception"
+        error: err.message || "Erreur réseau - impossible d'envoyer le code",
+        request_id: "network-error"
       };
       setSendResult(result);
       setSendStatus("error");
-      toast.error("Erreur", { description: result.error });
+      toast.error("Erreur réseau", { description: result.error });
     }
   };
 
