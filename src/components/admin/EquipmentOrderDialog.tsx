@@ -13,7 +13,7 @@ import { Package, Plus, Minus, Truck, ShoppingCart, Loader2 } from "lucide-react
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
-import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 interface EquipmentOrderDialogProps {
   open: boolean;
@@ -304,23 +304,19 @@ export default function EquipmentOrderDialog({
             {deliveryMethod === "ship" && (
               <div className="space-y-2 p-3 border rounded-md bg-muted/30">
                 <Label className="text-sm font-medium">Adresse de livraison</Label>
-                <UnifiedAddressAutocomplete
+                <AddressAutocomplete
                   value={shippingAddress.address}
-                  onChange={(value) => setShippingAddress({ ...shippingAddress, address: value })}
-                  onAddressSelect={(details: AddressDetails) => {
-                    const streetAddress = [details.streetNumber, details.street]
-                      .filter(Boolean)
-                      .join(" ") || details.formattedAddress.split(",")[0];
+                  onValueChange={(value) => setShippingAddress({ ...shippingAddress, address: value })}
+                  onSelect={(details: AddressValue) => {
                     setShippingAddress({
-                      address: streetAddress,
+                      address: details.line1,
                       city: details.city || shippingAddress.city,
-                      province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
-                      postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : shippingAddress.postal_code,
+                      province: details.region || "QC",
+                      postal_code: details.postalCode || shippingAddress.postal_code,
                     });
                   }}
                   placeholder="Rechercher une adresse..."
                   restrictToQuebec={true}
-                  showDiagnostic={true}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <Input

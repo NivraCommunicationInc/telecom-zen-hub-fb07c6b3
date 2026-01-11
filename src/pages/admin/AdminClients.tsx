@@ -51,7 +51,7 @@ import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 import { CreateClientDialog } from "@/components/admin/CreateClientDialog";
-import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1328,17 +1328,16 @@ const AdminClients = () => {
                         </div>
                         <div>
                           <Label>Adresse de service</Label>
-                          <UnifiedAddressAutocomplete
+                          <AddressAutocomplete
                             value={selectedClient.service_address || ""}
-                            onChange={(value) => setSelectedClient({ ...selectedClient, service_address: value })}
-                            onAddressSelect={(details: AddressDetails) => {
-                              const streetAddress = [details.streetNumber, details.street].filter(Boolean).join(" ") || details.formattedAddress?.split(",")[0] || "";
+                            onValueChange={(value) => setSelectedClient({ ...selectedClient, service_address: value })}
+                            onSelect={(details: AddressValue) => {
                               setSelectedClient({
                                 ...selectedClient,
-                                service_address: streetAddress,
+                                service_address: details.line1,
                                 service_city: details.city || selectedClient.service_city,
-                                service_province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
-                                service_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : selectedClient.service_postal_code,
+                                service_province: details.region || "QC",
+                                service_postal_code: details.postalCode || selectedClient.service_postal_code,
                               });
                             }}
                             placeholder="Rechercher une adresse..."

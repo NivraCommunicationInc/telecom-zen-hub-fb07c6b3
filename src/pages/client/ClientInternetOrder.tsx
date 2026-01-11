@@ -43,7 +43,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { 
@@ -350,25 +350,20 @@ const ClientInternetOrder = () => {
   }, [profile, user?.email, address]);
 
   // Handle address selection from autocomplete
-  const handleAddressSelect = useCallback((details: { 
-    formattedAddress: string; 
-    city?: string; 
-    province?: string; 
-    postalCode?: string;
-  }) => {
+  const handleAddressSelect = useCallback((details: AddressValue) => {
     const postalCode = details.postalCode || "";
-    const province = details.province || "";
+    const region = details.region || "";
     
     // Check if it's a Quebec address
     const isQuebecPostal = /^[GHJ]/i.test(postalCode);
-    const isQuebecProvince = province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
-    const isQuebec = isQuebecPostal || isQuebecProvince;
+    const isQuebecRegion = region.toUpperCase() === "QC";
+    const isQuebec = isQuebecPostal || isQuebecRegion;
     
     if (isQuebec) {
       setAddressValidation({
         isValid: true,
         isQuebec: true,
-        formattedAddress: details.formattedAddress,
+        formattedAddress: details.formatted,
         city: details.city || "",
         province: "QC",
         postalCode: postalCode
@@ -379,9 +374,9 @@ const ClientInternetOrder = () => {
       setAddressValidation({
         isValid: true,
         isQuebec: false,
-        formattedAddress: details.formattedAddress,
+        formattedAddress: details.formatted,
         city: details.city || "",
-        province: province,
+        province: region,
         postalCode: postalCode
       });
       setAddressBlocked(true);
@@ -797,16 +792,16 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   <Label>
                     {isFrench ? "Adresse complète (incluant le code postal)" : "Full address (including postal code)"}
                   </Label>
-                  <PortalAddressAutocomplete
+                  <AddressAutocomplete
                     value={address}
-                    onChange={(value) => {
+                    onValueChange={(value) => {
                       setAddress(value);
                       if (!value) {
                         setAddressValidation(null);
                         setAddressBlocked(false);
                       }
                     }}
-                    onAddressSelect={handleAddressSelect}
+                    onSelect={handleAddressSelect}
                     placeholder={isFrench ? "Ex: 123 rue Exemple, Montréal, QC H2X 1Y4" : "E.g., 123 Example St, Montreal, QC H2X 1Y4"}
                     restrictToQuebec={true}
                   />

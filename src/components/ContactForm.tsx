@@ -24,7 +24,7 @@ import {
 import { z } from "zod";
 import { backendClient as supabase } from "@/integrations/backend";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 const SUBJECT_OPTIONS = [
   { value: "new_order", labelFr: "Nouvelle commande / Info forfaits", labelEn: "New order / Plan info" },
@@ -401,25 +401,21 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
                   <Label htmlFor="addressStreet" className="text-slate-900 font-medium text-sm">
                     {isFrench ? "Adresse (rue)" : "Street Address"}
                   </Label>
-                  <UnifiedAddressAutocomplete
+                  <AddressAutocomplete
                     value={formData.addressStreet}
-                    onChange={(value) => setFormData({ ...formData, addressStreet: value })}
-                    onAddressSelect={(details: AddressDetails) => {
-                      const streetAddress = [details.streetNumber, details.street]
-                        .filter(Boolean)
-                        .join(" ") || details.formattedAddress.split(",")[0];
+                    onValueChange={(value) => setFormData({ ...formData, addressStreet: value })}
+                    onSelect={(details: AddressValue) => {
                       setFormData({
                         ...formData,
-                        addressStreet: streetAddress,
+                        addressStreet: details.line1,
                         addressCity: details.city || formData.addressCity,
-                        addressProvince: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
-                        addressPostalCode: details.postalCode ? formatPostalCode(details.postalCode) : formData.addressPostalCode,
+                        addressProvince: details.region || "QC",
+                        addressPostalCode: details.postalCode || formData.addressPostalCode,
                       });
                     }}
                     placeholder={isFrench ? "Rechercher une adresse..." : "Search for an address..."}
                     restrictToQuebec={true}
                     className="bg-background border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-accent focus:ring-accent/30 h-11"
-                    showDiagnostic={true}
                   />
                 </div>
 

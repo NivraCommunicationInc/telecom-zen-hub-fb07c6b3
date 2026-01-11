@@ -39,7 +39,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 const reasonOptions = [
   { value: "defective", label: "Défectueux (problème de fabrication)" },
@@ -478,18 +478,15 @@ const ClientEquipmentReplacement = () => {
                 {/* Delivery Address */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Adresse de livraison préférée</Label>
-                  <UnifiedAddressAutocomplete
+                  <AddressAutocomplete
                     value={formData.preferredAddress}
-                    onChange={(value) => setFormData({ ...formData, preferredAddress: value })}
-                    onAddressSelect={(details: AddressDetails) => {
-                      const streetAddress = [details.streetNumber, details.street]
-                        .filter(Boolean)
-                        .join(" ") || details.formattedAddress.split(",")[0];
+                    onValueChange={(value) => setFormData({ ...formData, preferredAddress: value })}
+                    onSelect={(details: AddressValue) => {
                       setFormData({
                         ...formData,
-                        preferredAddress: streetAddress,
+                        preferredAddress: details.line1,
                         preferredCity: details.city || formData.preferredCity,
-                        preferredPostalCode: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : formData.preferredPostalCode,
+                        preferredPostalCode: details.postalCode || formData.preferredPostalCode,
                       });
                     }}
                     placeholder="Rechercher une adresse..."

@@ -1,22 +1,20 @@
-import AddressAutocompleteBase, { AddressAutocompleteBaseProps } from "@/components/AddressAutocompleteBase";
-import { adminClient as adminSupabase } from "@/integrations/backend";
-
-type AdminAddressAutocompleteProps = Omit<AddressAutocompleteBaseProps, "supabaseClient">;
-
 /**
- * Admin-only Address Autocomplete using Mapbox.
- * Uses adminSupabase client to avoid session conflicts with portal.
+ * AdminAddressAutocomplete — Simple pass-through wrapper around AddressAutocomplete.
  * 
- * Props:
- * - showDiagnostic: boolean (default: false) - Show diagnostic status line for debugging
+ * DEPRECATED: Use AddressAutocomplete directly from "@/components/shared/AddressAutocomplete"
+ * This file exists only for backwards compatibility during migration.
+ * 
+ * All props are passed directly to AddressAutocomplete with no state management or logic changes.
  */
+import { AddressAutocomplete, type AddressAutocompleteProps, type AddressValue } from "@/components/shared/AddressAutocomplete";
+
+// Re-export types for backwards compatibility
+export type { AddressValue };
+
+export type AdminAddressAutocompleteProps = AddressAutocompleteProps;
+
 export const AdminAddressAutocomplete = (props: AdminAddressAutocompleteProps) => {
-  return (
-    <AddressAutocompleteBase 
-      {...props}
-      supabaseClient={adminSupabase}
-    />
-  );
+  return <AddressAutocomplete {...props} />;
 };
 
 export default AdminAddressAutocomplete;

@@ -50,7 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 const creditClassLabels: Record<string, { label: string; color: string }> = {
   A: { label: "Excellent", color: "bg-green-500" },
@@ -846,16 +846,15 @@ const AdminAccounts = () => {
             </div>
             <div>
               <Label htmlFor="billing_address">Adresse de facturation *</Label>
-              <UnifiedAddressAutocomplete
+              <AddressAutocomplete
                 value={newAccountForm.billing_address}
-                onChange={(value) => setNewAccountForm({ ...newAccountForm, billing_address: value })}
-                onAddressSelect={(details: AddressDetails) => {
-                  const streetAddress = [details.streetNumber, details.street].filter(Boolean).join(" ") || details.formattedAddress?.split(",")[0] || "";
+                onValueChange={(value) => setNewAccountForm({ ...newAccountForm, billing_address: value })}
+                onSelect={(details: AddressValue) => {
                   setNewAccountForm({
                     ...newAccountForm,
-                    billing_address: streetAddress,
+                    billing_address: details.line1,
                     billing_city: details.city || newAccountForm.billing_city,
-                    billing_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : newAccountForm.billing_postal_code,
+                    billing_postal_code: details.postalCode || newAccountForm.billing_postal_code,
                   });
                 }}
                 placeholder="Rechercher une adresse..."
@@ -1052,19 +1051,16 @@ const AdminAccounts = () => {
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground block mb-3">Adresse de facturation</Label>
                 <div className="space-y-3">
-                  <UnifiedAddressAutocomplete
+                  <AddressAutocomplete
                     value={editedAccount.billing_address || ""}
-                    onChange={(value) => setEditedAccount({ ...editedAccount, billing_address: value })}
-                    onAddressSelect={(details: AddressDetails) => {
-                      const streetAddress = [details.streetNumber, details.street]
-                        .filter(Boolean)
-                        .join(" ") || details.formattedAddress.split(",")[0];
+                    onValueChange={(value) => setEditedAccount({ ...editedAccount, billing_address: value })}
+                    onSelect={(details: AddressValue) => {
                       setEditedAccount({
                         ...editedAccount,
-                        billing_address: streetAddress,
+                        billing_address: details.line1,
                         billing_city: details.city || editedAccount.billing_city,
-                        billing_province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
-                        billing_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : editedAccount.billing_postal_code,
+                        billing_province: details.region || "QC",
+                        billing_postal_code: details.postalCode || editedAccount.billing_postal_code,
                       });
                     }}
                     placeholder="Rechercher une adresse..."
@@ -1087,19 +1083,16 @@ const AdminAccounts = () => {
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground block mb-3">Adresse de service principale</Label>
                 <div className="space-y-3">
-                  <UnifiedAddressAutocomplete
+                  <AddressAutocomplete
                     value={editedAccount.primary_service_address || ""}
-                    onChange={(value) => setEditedAccount({ ...editedAccount, primary_service_address: value })}
-                    onAddressSelect={(details: AddressDetails) => {
-                      const streetAddress = [details.streetNumber, details.street]
-                        .filter(Boolean)
-                        .join(" ") || details.formattedAddress.split(",")[0];
+                    onValueChange={(value) => setEditedAccount({ ...editedAccount, primary_service_address: value })}
+                    onSelect={(details: AddressValue) => {
                       setEditedAccount({
                         ...editedAccount,
-                        primary_service_address: streetAddress,
+                        primary_service_address: details.line1,
                         primary_service_city: details.city || editedAccount.primary_service_city,
-                        primary_service_province: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
-                        primary_service_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : editedAccount.primary_service_postal_code,
+                        primary_service_province: details.region || "QC",
+                        primary_service_postal_code: details.postalCode || editedAccount.primary_service_postal_code,
                       });
                     }}
                     placeholder="Rechercher une adresse..."

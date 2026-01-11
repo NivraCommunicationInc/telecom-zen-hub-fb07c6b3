@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
-import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 const ClientProfile = () => {
   const { user } = useClientAuth();
@@ -618,21 +618,19 @@ const ClientProfile = () => {
             </div>
             <div>
               <Label>Adresse *</Label>
-              <UnifiedAddressAutocomplete
+              <AddressAutocomplete
                 value={newLocation.service_address}
-                onChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
-                onAddressSelect={(details: AddressDetails) => {
-                  const streetAddress = [details.streetNumber, details.street].filter(Boolean).join(" ") || details.formattedAddress?.split(",")[0] || "";
+                onValueChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
+                onSelect={(details: AddressValue) => {
                   setNewLocation({
                     ...newLocation,
-                    service_address: streetAddress,
+                    service_address: details.line1,
                     service_city: details.city || newLocation.service_city,
-                    service_postal_code: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : newLocation.service_postal_code,
+                    service_postal_code: details.postalCode || newLocation.service_postal_code,
                   });
                 }}
                 placeholder="Rechercher une adresse..."
                 restrictToQuebec={true}
-                showDiagnostic={true}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
