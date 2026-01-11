@@ -9,7 +9,7 @@ import { useOptionalAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { UnifiedAddressAutocomplete, type AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { InternetInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
@@ -21,7 +21,7 @@ const InternetPlans = () => {
   const isFrench = language === 'fr';
   
   const [address, setAddress] = useState("");
-  const [addressDetails, setAddressDetails] = useState<AddressDetails | null>(null);
+  const [addressDetails, setAddressDetails] = useState<AddressValue | null>(null);
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
 
@@ -80,13 +80,14 @@ const InternetPlans = () => {
     },
   ];
 
-  const handleAddressSelect = (details: AddressDetails) => {
+  const handleAddressSelect = (details: AddressValue) => {
     setAddressDetails(details);
+    setAddress(details.line1);
     
     // Check if it's a Quebec address
     const postalCode = details.postalCode || "";
-    const province = details.province || "";
-    const isQuebec = /^[GHJ]/i.test(postalCode) || province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
+    const region = details.region || "";
+    const isQuebec = /^[GHJ]/i.test(postalCode) || region.toUpperCase().includes("QC") || region.toUpperCase().includes("QUEBEC");
     
     if (isQuebec) {
       setAddressValidated(true);
@@ -171,9 +172,9 @@ const InternetPlans = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <UnifiedAddressAutocomplete
+                <AddressAutocomplete
                   value={address}
-                  onChange={(value) => {
+                  onValueChange={(value) => {
                     setAddress(value);
                     if (!value) {
                       setAddressValidated(false);
@@ -181,7 +182,7 @@ const InternetPlans = () => {
                       setAddressError("");
                     }
                   }}
-                  onAddressSelect={handleAddressSelect}
+                  onSelect={handleAddressSelect}
                   placeholder={isFrench ? "123 rue Exemple, Montréal, QC H1A 1A1" : "123 Example St, Montreal, QC H1A 1A1"}
                   restrictToQuebec={true}
                 />

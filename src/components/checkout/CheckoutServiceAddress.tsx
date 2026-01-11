@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MapPin, Home, Building, Mail } from "lucide-react";
-import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, AddressValue } from "@/components/shared/AddressAutocomplete";
 import { useState } from "react";
 
 interface ServiceAddress {
@@ -49,11 +49,9 @@ export const CheckoutServiceAddress = ({
 }: CheckoutServiceAddressProps) => {
   const [addressInputValue, setAddressInputValue] = useState(address.address);
 
-  const handleAddressSelect = (details: AddressDetails) => {
-    // Build the street address from components
-    const streetAddress = [details.streetNumber, details.street]
-      .filter(Boolean)
-      .join(" ") || details.formattedAddress.split(",")[0];
+  const handleAddressSelect = (details: AddressValue) => {
+    // Use line1 from structured address
+    const streetAddress = details.line1;
     
     onChange("address", streetAddress);
     setAddressInputValue(streetAddress);
@@ -61,11 +59,11 @@ export const CheckoutServiceAddress = ({
     if (details.city) {
       onChange("city", details.city);
     }
-    if (details.province) {
-      onChange("province", details.province === "Quebec" || details.province === "Québec" ? "QC" : details.province);
+    if (details.region) {
+      onChange("province", details.region);
     }
     if (details.postalCode) {
-      onChange("postalCode", formatPostalCode(details.postalCode));
+      onChange("postalCode", details.postalCode);
     }
   };
 
@@ -92,10 +90,10 @@ export const CheckoutServiceAddress = ({
               <Home className="w-4 h-4 text-muted-foreground" />
               Adresse (numéro + rue) <span className="text-destructive">*</span>
             </Label>
-            <UnifiedAddressAutocomplete
+            <AddressAutocomplete
               value={addressInputValue}
-              onChange={handleAddressInputChange}
-              onAddressSelect={handleAddressSelect}
+              onValueChange={handleAddressInputChange}
+              onSelect={handleAddressSelect}
               placeholder="Ex: 123 Rue Saint-Laurent"
               className={errors.address ? "border-destructive" : ""}
               restrictToQuebec={true}
