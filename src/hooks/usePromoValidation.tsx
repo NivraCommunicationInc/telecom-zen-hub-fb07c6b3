@@ -16,6 +16,8 @@ interface AppliedPromo {
   discount_amount: number;
   applies_to: Record<string, boolean>;
   stackable: boolean;
+  new_customers_only?: boolean;
+  duration?: string;
 }
 
 interface PromoValidationResult {
@@ -61,6 +63,8 @@ export const usePromoValidation = () => {
           discount_amount: data.discount_amount,
           applies_to: data.promo.applies_to,
           stackable: data.promo.stackable,
+          new_customers_only: data.promo.new_customers_only,
+          duration: data.promo.duration,
         };
         setAppliedPromo(promo);
         return { valid: true, promo, discount_amount: data.discount_amount, eligible_subtotal: data.eligible_subtotal };
