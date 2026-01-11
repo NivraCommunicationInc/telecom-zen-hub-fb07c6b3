@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Ticket, X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { backendClient } from "@/integrations/backend/client";
 import { useToast } from "@/hooks/use-toast";
+import { normalizePromoCode } from "@/lib/validation/normalize";
 
 interface CartItem {
   type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
@@ -64,9 +65,12 @@ export const PromoCodeInput = ({
     setError(null);
 
     try {
+      // Normalize code: trim, uppercase, remove trailing punctuation
+      const normalizedCode = normalizePromoCode(code);
+      
       const { data, error: invokeError } = await backendClient.functions.invoke("validate-promo", {
         body: {
-          code: code.trim(),
+          code: normalizedCode,
           client_email: clientEmail,
           client_id: clientId,
           cart_items: cartItems,
@@ -157,7 +161,8 @@ export const PromoCodeInput = ({
                 placeholder="Code promo"
                 value={code}
                 onChange={(e) => {
-                  setCode(e.target.value.toUpperCase());
+                  // Show uppercase in field but full normalization on submit
+                  setCode(e.target.value.toUpperCase().replace(/[.,;:!?]+$/, ''));
                   setError(null);
                 }}
                 onKeyDown={(e) => {

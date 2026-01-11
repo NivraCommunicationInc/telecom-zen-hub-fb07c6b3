@@ -1,11 +1,21 @@
 /**
  * Contest Entry Utilities
- * Handles automatic contest entry creation for new customers
+ * 
+ * IMPORTANT: Contest entry is now handled SERVER-SIDE via database trigger.
+ * The trigger `trigger_order_contest_entry` fires on order status change to
+ * 'completed' or 'installation_completed' and creates the entry automatically.
+ * 
+ * This client-side utility is kept as a FALLBACK only, for manual intervention
+ * or edge cases where the trigger might not fire.
  */
 
 import { adminClient } from "@/integrations/backend/adminClient";
 
 const CURRENT_CONTEST_SLUG = "welcome-500-2026";
+
+// Final statuses that qualify for contest entry
+// NARROWED: Only truly final statuses (payment confirmed, service activated)
+const COMPLETION_STATUSES = ["completed", "installation_completed"] as const;
 
 interface ContestEntryResult {
   success: boolean;
@@ -15,14 +25,15 @@ interface ContestEntryResult {
 
 /**
  * Check if a user is a new customer (no prior completed orders)
+ * Uses narrowed status list: only 'completed' and 'installation_completed'
  */
 export async function isNewCustomer(userId: string, currentOrderId?: string): Promise<boolean> {
-  // Check for any prior completed orders
+  // Check for any prior completed orders (truly final statuses only)
   const { data: priorOrders, error } = await adminClient
     .from("orders")
     .select("id")
     .eq("user_id", userId)
-    .in("status", ["completed", "active", "delivered", "shipped", "installation_completed"])
+    .in("status", COMPLETION_STATUSES)
     .neq("id", currentOrderId || "00000000-0000-0000-0000-000000000000")
     .limit(1);
     
@@ -127,8 +138,15 @@ export async function createContestEntry(
 }
 
 /**
- * Process contest entry when order is completed
- * Call this when order status changes to "completed"
+ * Process contest entry when order is completed (FALLBACK)
+ * 
+ * NOTE: This is now handled automatically by database trigger
+ * `trigger_order_contest_entry`. This function is kept as a fallback
+ * for manual admin intervention if needed.
+ * 
+ * Final statuses for contest entry:
+ * - 'completed': Order fully processed and paid
+ * - 'installation_completed': Installation finished for tech-install orders
  */
 export async function processOrderCompletionContest(
   order: {
