@@ -55,13 +55,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { format, addDays, addMonths } from "date-fns";
+import { format, addDays, addMonths, isValid, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
 
 interface Service {
   id: string;
@@ -2105,7 +2106,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     
     // CRITICAL VALIDATION: DOB is ALWAYS required for orders (enforced by DB trigger + CHECK constraint)
     // This UI validation prevents wasted DB roundtrips
-    const { validateDob, MIN_AGE_TELECOM, parseDate } = await import("@/lib/validation/dob");
     
     // Step 1: DOB must be provided (non-empty)
     if (!dateOfBirth || !dateOfBirth.trim()) {
@@ -2114,19 +2114,26 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return;
     }
     
-    // Step 2: DOB must be parseable (valid date format)
-    const parsedDob = parseDate(dateOfBirth);
-    if (!parsedDob) {
+    // Step 2: DOB must be parseable (valid date format YYYY-MM-DD)
+    // Safe validation with try/catch to prevent any crash
+    try {
+      const parsed = parseISO(dateOfBirth);
+      if (!isValid(parsed)) {
+        submittingRef.current = false;
+        toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
+        return;
+      }
+      
+      // Step 3: DOB must pass all validation rules (not future, >= 13 years, <= 120 years)
+      const dobResult = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM, required: true });
+      if (!dobResult.isValid) {
+        submittingRef.current = false;
+        toast.error(dobResult.error?.fr || "Date de naissance invalide");
+        return;
+      }
+    } catch {
       submittingRef.current = false;
-      toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
-      return;
-    }
-    
-    // Step 3: DOB must pass all validation rules (not future, >= 13 years, <= 120 years)
-    const dobResult = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM, required: true });
-    if (!dobResult.isValid) {
-      submittingRef.current = false;
-      toast.error(dobResult.error?.fr || "Date de naissance invalide");
+      toast.error("Date de naissance invalide");
       return;
     }
     
@@ -3299,23 +3306,43 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       })()}
                     />
                     {dateOfBirth && (() => {
-                      // Use centralized validation from dob.ts
-                      const { validateDob, MIN_AGE_TELECOM } = require("@/lib/validation/dob");
-                      const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
-                      if (!result.isValid) {
+                      // Safe DOB validation with try/catch to prevent crashes
+                      try {
+                        // First verify the date string is valid before validation
+                        const parsed = parseISO(dateOfBirth);
+                        if (!isValid(parsed)) {
+                          return (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Date invalide
+                            </p>
+                          );
+                        }
+                        
+                        const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+                        if (!result.isValid) {
+                          return (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
+                            </p>
+                          );
+                        }
+                        return (
+                          <p className="text-xs text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Âge vérifié
+                          </p>
+                        );
+                      } catch {
+                        // Guard: never crash, just show error
                         return (
                           <p className="text-xs text-destructive flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
-                            {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
+                            Date invalide
                           </p>
                         );
                       }
-                      return (
-                        <p className="text-xs text-emerald-500 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Âge vérifié
-                        </p>
-                      );
                     })()}
                   </div>
 
