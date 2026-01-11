@@ -45,7 +45,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { PortalAddressAutocomplete } from "@/components/client/PortalAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSection";
 import { PortalTVChannelSelection } from "@/components/checkout/PortalTVChannelSelection";
@@ -449,29 +449,24 @@ const ClientTVOrder = () => {
   }, [profile, user?.email, address]);
 
   // Handle address selection
-  const handleAddressSelect = useCallback((details: { 
-    formattedAddress: string; 
-    city?: string; 
-    province?: string; 
-    postalCode?: string;
-  }) => {
+  const handleAddressSelect = useCallback((details: AddressValue) => {
     const postalCode = details.postalCode || "";
-    const province = details.province || "";
+    const region = details.region || "";
     
     const isQuebecPostal = /^[GHJ]/i.test(postalCode);
-    const isQuebecProvince = province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
-    const isQuebec = isQuebecPostal || isQuebecProvince;
+    const isQuebecRegion = region.toUpperCase() === "QC";
+    const isQuebec = isQuebecPostal || isQuebecRegion;
     
     const validation: OrderDraft['addressValidation'] = {
       isValid: true,
       isQuebec,
-      formattedAddress: details.formattedAddress,
+      formattedAddress: details.formatted,
       city: details.city || "",
-      province: isQuebec ? "QC" : province,
+      province: isQuebec ? "QC" : region,
       postalCode: postalCode
     };
     
-    handleAddressValidation(validation, details.formattedAddress);
+    handleAddressValidation(validation, details.line1);
     
     if (isQuebec) {
       toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
@@ -945,14 +940,14 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   <Label>
                     {isFrench ? "Adresse complète (incluant le code postal)" : "Full address (including postal code)"}
                   </Label>
-                  <PortalAddressAutocomplete
+                  <AddressAutocomplete
                     value={address}
-                    onChange={(value) => {
+                    onValueChange={(value) => {
                       if (!value) {
                         setDraftAddress('', null);
                       }
                     }}
-                    onAddressSelect={handleAddressSelect}
+                    onSelect={handleAddressSelect}
                     placeholder={isFrench ? "Ex: 123 rue Exemple, Montréal, QC H2X 1Y4" : "E.g., 123 Example St, Montreal, QC H2X 1Y4"}
                     restrictToQuebec={true}
                   />

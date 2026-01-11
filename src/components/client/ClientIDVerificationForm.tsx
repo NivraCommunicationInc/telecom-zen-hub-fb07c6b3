@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, User, Calendar, CreditCard, MapPin, AlertCircle } from "lucide-react";
-import { UnifiedAddressAutocomplete } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 
 const CANADIAN_PROVINCES = [
@@ -91,24 +91,19 @@ export const ClientIDVerificationForm = ({
     onChange({ ...data, [field]: value });
   };
 
-  const handleAddressSelect = (details: {
-    formattedAddress: string;
-    city?: string;
-    province?: string;
-    postalCode?: string;
-  }) => {
+  const handleAddressSelect = (details: AddressValue) => {
     const postalCode = details.postalCode || "";
-    const province = details.province || "";
+    const region = details.region || "";
     
     const isQuebecPostal = /^[GHJ]/i.test(postalCode);
-    const isQuebecProvince = province.toUpperCase().includes("QC") || province.toUpperCase().includes("QUEBEC");
-    const isQuebec = isQuebecPostal || isQuebecProvince;
+    const isQuebecRegion = region.toUpperCase() === "QC";
+    const isQuebec = isQuebecPostal || isQuebecRegion;
     
     onChange({
       ...data,
-      serviceAddress: details.formattedAddress,
+      serviceAddress: details.line1,
       serviceCity: details.city || "",
-      serviceProvince: isQuebec ? "QC" : province,
+      serviceProvince: isQuebec ? "QC" : region,
       servicePostalCode: postalCode
     });
     
@@ -227,10 +222,10 @@ export const ClientIDVerificationForm = ({
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>{isFrench ? "Adresse complète (Québec seulement) *" : "Full Address (Quebec only) *"}</Label>
-              <UnifiedAddressAutocomplete
+              <AddressAutocomplete
                 value={data.serviceAddress}
-                onChange={(value) => updateField("serviceAddress", value)}
-                onAddressSelect={handleAddressSelect}
+                onValueChange={(value) => updateField("serviceAddress", value)}
+                onSelect={handleAddressSelect}
                 placeholder={isFrench ? "123 rue Exemple, Montréal, QC H2X 1Y4" : "123 Example St, Montreal, QC H2X 1Y4"}
                 restrictToQuebec={true}
               />
