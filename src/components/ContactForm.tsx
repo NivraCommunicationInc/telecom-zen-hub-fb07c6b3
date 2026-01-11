@@ -535,21 +535,29 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         </div>
 
         {/* Consent Checkbox */}
-        <div className="flex items-start gap-3">
+        <div className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${errors.consentGiven ? 'bg-destructive/10 border border-destructive/30' : ''}`}>
           <Checkbox
             id="consentGiven"
             checked={formData.consentGiven}
             onCheckedChange={(checked) => handleCheckboxChange("consentGiven", checked === true)}
-            className="mt-1 border-slate-300 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+            className={`mt-1 ${errors.consentGiven ? 'border-destructive' : 'border-slate-300'} data-[state=checked]:bg-accent data-[state=checked]:border-accent`}
           />
-          <Label htmlFor="consentGiven" className="text-sm text-slate-600 cursor-pointer leading-relaxed">
-            {isFrench 
-              ? "J'accepte d'être contacté par Nivra pour le traitement de ma demande." 
-              : "I agree to be contacted by Nivra to process my request."}
-            <span className="text-destructive"> *</span>
-          </Label>
+          <div className="space-y-1">
+            <Label htmlFor="consentGiven" className="text-sm text-slate-600 cursor-pointer leading-relaxed">
+              {isFrench 
+                ? "J'accepte d'être contacté par Nivra pour le traitement de ma demande." 
+                : "I agree to be contacted by Nivra to process my request."}
+              <span className="text-destructive"> *</span>
+            </Label>
+            {errors.consentGiven && (
+              <p className="text-sm text-destructive font-medium">
+                {isFrench 
+                  ? "⚠️ Veuillez accepter le consentement pour envoyer le message." 
+                  : "⚠️ Please accept the consent to send the message."}
+              </p>
+            )}
+          </div>
         </div>
-        {errors.consentGiven && <p className="text-sm text-destructive -mt-2">{errors.consentGiven}</p>}
 
         {/* Security Warning */}
         <Card className="bg-amber-50 border-amber-200">
