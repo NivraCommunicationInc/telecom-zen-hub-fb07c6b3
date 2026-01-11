@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
-import { useAdminOTPSession } from "@/hooks/useAdminOTPSession";
+import { useAdminSecretSession } from "@/hooks/useAdminSecretSession";
 import { toast } from "sonner";
 
 interface ProtectedRouteProps {
@@ -23,8 +23,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
 
-  // OTP Session verification
-  const { isValidSession: isOTPSessionValid, isChecking: isCheckingOTP, clearSession } = useAdminOTPSession();
+  // Secret code session verification
+  const { isValidSession: isSecretSessionValid, isChecking: isCheckingSecret, clearSession } = useAdminSecretSession();
 
   // DEBUG: Log guard state
   console.log("[AdminGuard] state", { 
@@ -33,8 +33,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     hasSession: !!session,
     isVerifying,
     isAdminVerified,
-    isCheckingOTP,
-    isOTPSessionValid,
+    isCheckingSecret,
+    isSecretSessionValid,
     path: location.pathname 
   });
 
@@ -54,7 +54,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   useIdleTimeout({
     onIdle: handleIdleLogout,
     timeout: IDLE_TIMEOUT_MS,
-    enabled: !!user && isAdminVerified && isOTPSessionValid === true,
+    enabled: !!user && isAdminVerified && isSecretSessionValid === true,
   });
 
   useEffect(() => {
@@ -63,12 +63,12 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         hasUser: !!user, 
         hasSession: !!session,
         isLoading,
-        isCheckingOTP,
-        isOTPSessionValid
+        isCheckingSecret,
+        isSecretSessionValid
       });
 
-      // CRITICAL: Wait for auth and OTP check to finish before making any decisions
-      if (isLoading || isCheckingOTP) {
+      // CRITICAL: Wait for auth and secret code check to finish before making any decisions
+      if (isLoading || isCheckingSecret) {
         console.log("[AdminGuard] Still loading, waiting...");
         return; // Keep isVerifying true, don't make any decisions yet
       }
@@ -80,15 +80,15 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         return;
       }
 
-      // CRITICAL: Check OTP session validity
-      if (isOTPSessionValid === false) {
-        console.log("[AdminGuard] OTP session invalid or missing - blocking access");
+      // CRITICAL: Check secret code session validity
+      if (isSecretSessionValid === false) {
+        console.log("[AdminGuard] Secret code session invalid or missing - blocking access");
         setIsVerifying(false);
         setIsAdminVerified(false);
         
-        // Redirect to login for OTP
-        toast.warning("Vérification OTP requise", {
-          description: "Veuillez vous reconnecter et vérifier votre identité.",
+        // Redirect to login for secret code
+        toast.warning("Code secret requis", {
+          description: "Veuillez vous reconnecter et entrer votre code secret.",
         });
         await signOut();
         navigate("/admin/login", { replace: true });
@@ -214,10 +214,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       }
     };
 
-    if (!isLoading && !isCheckingOTP) {
+    if (!isLoading && !isCheckingSecret) {
       verifyAdminRole();
     }
-  }, [user, session, isLoading, isCheckingOTP, isOTPSessionValid, signOut, navigate, location.pathname, clearSession]);
+  }, [user, session, isLoading, isCheckingSecret, isSecretSessionValid, signOut, navigate, location.pathname, clearSession]);
 
   // Clear session storage on sign out
   useEffect(() => {
@@ -232,7 +232,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   }, []);
 
   // SECURITY: Show nothing while verifying - prevent any admin UI flash
-  if (isLoading || isVerifying || isCheckingOTP) {
+  if (isLoading || isVerifying || isCheckingSecret) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -250,9 +250,9 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/admin/login" replace />;
   }
 
-  // OTP session not valid - redirect to login
-  if (isOTPSessionValid === false) {
-    console.log("[AdminGuard] OTP session invalid, redirecting to login");
+  // Secret code session not valid - redirect to login
+  if (isSecretSessionValid === false) {
+    console.log("[AdminGuard] Secret code session invalid, redirecting to login");
     return <Navigate to="/admin/login" replace />;
   }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Shield, User, Lock } from "lucide-react";
+import { Eye, EyeOff, Shield, User, Lock, KeyRound } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend";
@@ -11,7 +11,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import AdminSecurityCodeSection from "@/components/admin/AdminSecurityCodeSection";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Mot de passe actuel requis"),
@@ -124,6 +126,20 @@ const AdminAccount = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Security Section Header */}
+        <div className="pt-4">
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Sécurité
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Gérez vos paramètres de sécurité et d'authentification
+          </p>
+        </div>
+
+        {/* Secret Code Section */}
+        <AdminSecurityCodeSection />
 
         {/* Change Password Card */}
         <Card>

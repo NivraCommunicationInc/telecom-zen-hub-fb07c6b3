@@ -346,6 +346,69 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_secret_attempts: {
+        Row: {
+          admin_user_id: string
+          attempts: number
+          created_at: string
+          id: string
+          locked_until: string | null
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          attempts?: number
+          created_at?: string
+          id?: string
+          locked_until?: string | null
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          attempts?: number
+          created_at?: string
+          id?: string
+          locked_until?: string | null
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_secret_audit_log: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          event: string
+          id: string
+          ip_address: string | null
+          meta: Json | null
+          request_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          event: string
+          id?: string
+          ip_address?: string | null
+          meta?: Json | null
+          request_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          event?: string
+          id?: string
+          ip_address?: string | null
+          meta?: Json | null
+          request_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       admin_security_audit: {
         Row: {
           action: string
@@ -379,6 +442,30 @@ export type Database = {
           target_id?: string | null
           target_type?: string | null
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      admin_security_codes: {
+        Row: {
+          admin_user_id: string
+          code_hash: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          code_hash: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          code_hash?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
         }
         Relationships: []
       }
