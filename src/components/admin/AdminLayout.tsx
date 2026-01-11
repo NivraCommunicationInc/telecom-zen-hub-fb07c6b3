@@ -26,7 +26,8 @@ import {
   Mail,
   History,
   AlertTriangle,
-  Shield
+  Shield,
+  Trophy
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const navItems = [
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
   { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
   { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
+  { icon: Trophy, label: "Concours", href: "/admin/concours" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: Ticket, label: "Tickets clients", href: "/admin/tickets" },
   { icon: MessageSquare, label: "Tickets internes", href: "/admin/internal-tickets" },
