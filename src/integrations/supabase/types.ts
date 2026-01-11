@@ -3658,62 +3658,116 @@ export type Database = {
       }
       payments: {
         Row: {
+          account_id: string | null
           amount: number
           billing_id: string | null
+          captured_at: string | null
           card_last_four: string | null
           card_type: string | null
+          client_id: string | null
           created_at: string
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
+          error_reason: string | null
           etransfer_amount: number | null
           etransfer_sender_name: string | null
           id: string
+          invoice_id: string | null
           notes: string | null
+          order_id: string | null
           payment_method: string
           payment_reference: string | null
+          provider_payment_id: string | null
           received_by: string | null
           reference_number: string
+          source: string | null
           status: string
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           amount: number
           billing_id?: string | null
+          captured_at?: string | null
           card_last_four?: string | null
           card_type?: string | null
+          client_id?: string | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          error_reason?: string | null
           etransfer_amount?: number | null
           etransfer_sender_name?: string | null
           id?: string
+          invoice_id?: string | null
           notes?: string | null
+          order_id?: string | null
           payment_method: string
           payment_reference?: string | null
+          provider_payment_id?: string | null
           received_by?: string | null
           reference_number: string
+          source?: string | null
           status?: string
           user_id: string
         }
         Update: {
+          account_id?: string | null
           amount?: number
           billing_id?: string | null
+          captured_at?: string | null
           card_last_four?: string | null
           card_type?: string | null
+          client_id?: string | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
+          error_reason?: string | null
           etransfer_amount?: number | null
           etransfer_sender_name?: string | null
           id?: string
+          invoice_id?: string | null
           notes?: string | null
+          order_id?: string | null
           payment_method?: string
           payment_reference?: string | null
+          provider_payment_id?: string | null
           received_by?: string | null
           reference_number?: string
+          source?: string | null
           status?: string
           user_id?: string
         }
         Relationships: [
           {
+            foreignKeyName: "payments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_billing_id_fkey"
             columns: ["billing_id"]
             isOneToOne: false
             referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
