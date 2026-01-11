@@ -576,6 +576,7 @@ const ClientInvoices = () => {
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Frais</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédits</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde dû</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Échéance</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
                           <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
@@ -621,6 +622,23 @@ const ClientInvoices = () => {
                               </td>
                               <td className="py-3 px-4 text-sm font-medium text-foreground">
                                 {total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                              </td>
+                              <td className="py-3 px-4 text-sm">
+                                {/* Solde dû column */}
+                                {inv.balance_due !== null && inv.balance_due !== undefined ? (
+                                  Number(inv.balance_due) <= 0 ? (
+                                    <span className="text-emerald-500 font-medium flex items-center gap-1">
+                                      <CheckCircle className="w-3 h-3" />
+                                      0,00 $
+                                    </span>
+                                  ) : (
+                                    <span className="text-amber-500 font-medium">
+                                      {Number(inv.balance_due).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
                               </td>
                               <td className="py-3 px-4 text-sm text-muted-foreground">
                                 <span className={isOverdue ? "text-red-500 font-medium" : ""}>
@@ -669,11 +687,24 @@ const ClientInvoices = () => {
                                   >
                                     <Eye className="w-4 h-4" />
                                   </Button>
-                                  {inv.status !== "paid" && (
-                                    <Button size="sm" variant="hero" onClick={() => handlePayClick(inv)}>
+                                  {/* Pay button: disabled if already paid OR balance_due <= 0 */}
+                                  {inv.status !== "paid" && (Number(inv.balance_due) > 0 || inv.balance_due === null || inv.balance_due === undefined) && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="hero" 
+                                      onClick={() => handlePayClick(inv)}
+                                      disabled={Number(inv.balance_due) <= 0 && inv.balance_due !== null && inv.balance_due !== undefined}
+                                    >
                                       <DollarSign className="w-4 h-4 mr-1" />
                                       Payer
                                     </Button>
+                                  )}
+                                  {/* Show "Paid" badge when balance is 0 but status not yet updated */}
+                                  {inv.status !== "paid" && Number(inv.balance_due) <= 0 && inv.balance_due !== null && inv.balance_due !== undefined && (
+                                    <Badge className="bg-emerald-500/20 text-emerald-500">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Payé
+                                    </Badge>
                                   )}
                                   {inv.status === "paid" && (
                                     <Button 
