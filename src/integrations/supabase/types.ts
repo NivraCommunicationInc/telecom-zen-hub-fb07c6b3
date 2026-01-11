@@ -657,6 +657,7 @@ export type Database = {
           activation_fee: number | null
           amount: number
           amount_paid: number | null
+          balance_due: number | null
           captured_at: string | null
           client_email: string | null
           created_at: string
@@ -697,6 +698,7 @@ export type Database = {
           activation_fee?: number | null
           amount: number
           amount_paid?: number | null
+          balance_due?: number | null
           captured_at?: string | null
           client_email?: string | null
           created_at?: string
@@ -737,6 +739,7 @@ export type Database = {
           activation_fee?: number | null
           amount?: number
           amount_paid?: number | null
+          balance_due?: number | null
           captured_at?: string | null
           client_email?: string | null
           created_at?: string
