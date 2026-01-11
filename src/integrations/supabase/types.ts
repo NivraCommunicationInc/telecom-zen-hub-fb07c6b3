@@ -6737,6 +6737,10 @@ export type Database = {
         Args: { p_order_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_new_customer: {
+        Args: { p_current_order_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_payment_captured: {
         Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean

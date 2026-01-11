@@ -26,7 +26,8 @@ serve(async (req) => {
       );
     }
 
-    const normalizedCode = code.trim().toUpperCase();
+    // Normalize: trim, uppercase, remove trailing punctuation (accepts "Bienvenue." etc.)
+    const normalizedCode = code.trim().toUpperCase().replace(/[.,;:!?]+$/, '');
 
     // Fetch promotion by code
     const { data: promo, error: promoError } = await supabase

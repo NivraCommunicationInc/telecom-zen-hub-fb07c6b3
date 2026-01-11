@@ -84,3 +84,14 @@ export const parseExpiry = (value: string): { month: number; year: number } | nu
 export const normalizeText = (value: string): string => {
   return value.trim();
 };
+
+/**
+ * Normalize promo code: trim, uppercase, remove trailing punctuation
+ * Accepts: "BIENVENUE", "Bienvenue", "bienvenue.", "BIENVENUE. " etc.
+ */
+export const normalizePromoCode = (value: string): string => {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[.,;:!?]+$/, ''); // Remove trailing punctuation
+};

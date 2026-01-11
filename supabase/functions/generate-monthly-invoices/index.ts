@@ -199,7 +199,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Calculate totals
+        // ================================================================
+        // IMPORTANT: first_cycle_only promo enforcement
+        // ----------------------------------------------------------------
+        // Promo discounts (e.g., BIENVENUE 50%) are applied ONLY to the 
+        // initial order, NOT to recurring invoices. The subscription.amount
+        // is the base plan price without promo. This ensures promos with
+        // duration='first_cycle_only' never affect the 2nd+ billing cycle.
+        // ================================================================
+        
+        // Calculate totals (NO promo discount - subscriptions carry base price only)
         const subtotal = subs.reduce((sum, s) => sum + (s.amount || 0), 0);
         const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
         const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
