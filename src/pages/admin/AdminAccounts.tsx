@@ -850,9 +850,11 @@ const AdminAccounts = () => {
                 value={newAccountForm.billing_address}
                 onValueChange={(value) => setNewAccountForm({ ...newAccountForm, billing_address: value })}
                 onSelect={(details: AddressValue) => {
+                  // Defense-in-depth: also call setter with formatted address
+                  const addressText = details.formatted || details.line1;
                   setNewAccountForm({
                     ...newAccountForm,
-                    billing_address: details.line1,
+                    billing_address: addressText,
                     billing_city: details.city || newAccountForm.billing_city,
                     billing_postal_code: details.postalCode || newAccountForm.billing_postal_code,
                   });
@@ -931,10 +933,21 @@ const AdminAccounts = () => {
             </div>
             <div>
               <Label>Adresse *</Label>
-              <Input
+              <AddressAutocomplete
                 value={newLocation.service_address}
-                onChange={(e) => setNewLocation({ ...newLocation, service_address: e.target.value })}
-                placeholder="123 rue Exemple"
+                onValueChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
+                onSelect={(details: AddressValue) => {
+                  // Defense-in-depth: also call setter with formatted address
+                  const addressText = details.formatted || details.line1;
+                  setNewLocation({
+                    ...newLocation,
+                    service_address: addressText,
+                    service_city: details.city || newLocation.service_city,
+                    service_postal_code: details.postalCode || newLocation.service_postal_code,
+                  });
+                }}
+                placeholder="Rechercher une adresse..."
+                restrictToQuebec={true}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -308,8 +308,10 @@ export default function EquipmentOrderDialog({
                   value={shippingAddress.address}
                   onValueChange={(value) => setShippingAddress({ ...shippingAddress, address: value })}
                   onSelect={(details: AddressValue) => {
+                    // Defense-in-depth: also call setter with formatted/line1
+                    const addressText = details.formatted || details.line1;
                     setShippingAddress({
-                      address: details.line1,
+                      address: addressText,
                       city: details.city || shippingAddress.city,
                       province: details.region || "QC",
                       postal_code: details.postalCode || shippingAddress.postal_code,

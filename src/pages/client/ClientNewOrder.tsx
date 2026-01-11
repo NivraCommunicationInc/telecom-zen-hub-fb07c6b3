@@ -3363,7 +3363,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           value={serviceAddressStreet}
                           onValueChange={(value) => setServiceAddressStreet(value)}
                           onSelect={(details: AddressValue) => {
-                            setServiceAddressStreet(details.line1);
+                            // Defense-in-depth: set street with formatted or line1
+                            const addressText = details.formatted || details.line1;
+                            setServiceAddressStreet(addressText);
                             if (details.city) setServiceAddressCity(details.city);
                             if (details.region) {
                               setServiceAddressProvince(details.region);
