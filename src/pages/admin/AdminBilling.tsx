@@ -431,7 +431,24 @@ const AdminBilling = () => {
       // Get client info
       const selectedClient = clients?.find((c: any) => c.user_id === payment.user_id);
       
-      // Insert payment record
+      // Get current admin user info for audit trail
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      let adminName = currentUser?.email || 'Admin';
+      let adminRole = 'admin';
+      
+      // Try to get profile name
+      if (currentUser?.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+        if (profile?.full_name) {
+          adminName = profile.full_name;
+        }
+      }
+      
+      // Insert payment record with full audit trail
       const { data, error } = await supabase
         .from("payments")
         .insert({
@@ -443,6 +460,10 @@ const AdminBilling = () => {
           notes: payment.notes,
           billing_id: payment.billing_id || null,
           status: "completed",
+          source: "admin",
+          created_by_id: currentUser?.id || null,
+          created_by_name: adminName,
+          created_by_role: adminRole,
         })
         .select()
         .single();
@@ -464,17 +485,7 @@ const AdminBilling = () => {
         .update({ balance: newBalance })
         .eq("user_id", payment.user_id);
 
-      // If linked to a billing record, update it
-      if (payment.billing_id) {
-        await supabase
-          .from("billing")
-          .update({ 
-            status: "paid", 
-            paid_at: new Date().toISOString(),
-            payment_reference: refNumber 
-          })
-          .eq("id", payment.billing_id);
-      }
+      // Note: billing update is now handled by recompute_invoice_balance trigger
 
       // Send notification
       if (selectedClient?.email) {

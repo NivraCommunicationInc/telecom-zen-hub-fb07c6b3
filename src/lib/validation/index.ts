@@ -70,3 +70,23 @@ export {
   type ProvinceInfo,
   type IdentityValidationResult
 } from './identity';
+
+// Payment validation
+export {
+  validatePaymentPayload,
+  enhancePaymentPayload,
+  isValidPaymentStatusTransition,
+  generatePaymentReference,
+  type PaymentPayload,
+  type ValidationResult
+} from './payment';
+
+// Invoice validation
+export {
+  validateInvoicePayload,
+  validateInvoiceStatusChange,
+  calculateBalanceDue,
+  determineInvoiceStatus,
+  type InvoicePayload,
+  type InvoiceValidationResult
+} from './invoice';
