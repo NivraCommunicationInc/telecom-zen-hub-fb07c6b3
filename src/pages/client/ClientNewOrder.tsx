@@ -1602,6 +1602,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
           const { error: ticketError } = await supabase.from("support_tickets").insert({
             user_id: user.id,
+            owner_user_id: user.id, // REQUIRED: Must match auth.uid() for RLS
             client_email: profile?.email || user.email,
             subject: `Configuration TV - Commande ${data.order_number}`,
             description: ticketDescription,

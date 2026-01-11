@@ -508,8 +508,19 @@ export default function ManualOrderWizard({
 
       if (hasTVService) {
         try {
+          // CRITICAL: owner_user_id must be the CLIENT's user_id (from profiles.user_id), NOT admin's
+          // Fetch the client's auth user_id from profiles
+          const { data: clientProfile } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("id", orderState.clientId)
+            .single();
+          
+          const clientAuthUserId = clientProfile?.user_id || orderState.clientId;
+          
           const { error: ticketError } = await supabase.from("support_tickets").insert({
-            user_id: orderState.clientId,
+            user_id: clientAuthUserId,
+            owner_user_id: clientAuthUserId, // REQUIRED: Client's auth.uid() for RLS
             client_email: client?.email,
             subject: `Configuration TV - Commande ${order.order_number}`,
             description: `Configuration des chaînes TV pour la commande ${order.order_number}.\n\nChaînes sélectionnées:\n- Base: ${baseChannels.length} chaînes\n- Choix gratuits: ${orderState.selectedFreeChannels.length}/${freeChannelCount}\n- Premium: ${orderState.selectedPaidChannels.length}`,

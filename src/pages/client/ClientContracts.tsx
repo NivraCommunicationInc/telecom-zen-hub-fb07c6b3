@@ -35,14 +35,14 @@ const ClientContracts = () => {
   const [isAgreed, setIsAgreed] = useState(false);
   const pdfViewer = usePDFViewer();
 
-  // Fetch contracts for current user
+  // Fetch contracts for current user - SECURITY: Filter by owner_user_id for RLS compliance
   const { data: contracts, isLoading } = useQuery({
     queryKey: ["client-contracts", user?.id],
     queryFn: async () => {
       const { data, error } = await portalSupabase
         .from("contracts")
         .select("*")
-        .eq("user_id", user?.id)
+        .eq("owner_user_id", user?.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

@@ -1419,6 +1419,7 @@ export type Database = {
           created_at: string
           id: string
           is_signed: boolean | null
+          owner_user_id: string
           pdf_generated_at: string | null
           pdf_hash: string | null
           signed_at: string | null
@@ -1433,6 +1434,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_signed?: boolean | null
+          owner_user_id: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           signed_at?: string | null
@@ -1447,6 +1449,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_signed?: boolean | null
+          owner_user_id?: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           signed_at?: string | null
@@ -5582,6 +5585,7 @@ export type Database = {
           id_verification_status: string
           internal_notes: string | null
           issue_type: string | null
+          owner_user_id: string
           point_of_contact_id: string | null
           priority: string
           related_order_id: string | null
@@ -5605,6 +5609,7 @@ export type Database = {
           id_verification_status?: string
           internal_notes?: string | null
           issue_type?: string | null
+          owner_user_id: string
           point_of_contact_id?: string | null
           priority?: string
           related_order_id?: string | null
@@ -5628,6 +5633,7 @@ export type Database = {
           id_verification_status?: string
           internal_notes?: string | null
           issue_type?: string | null
+          owner_user_id?: string
           point_of_contact_id?: string | null
           priority?: string
           related_order_id?: string | null
