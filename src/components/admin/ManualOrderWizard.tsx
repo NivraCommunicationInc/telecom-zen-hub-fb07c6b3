@@ -27,7 +27,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CreateClientDialog } from "./CreateClientDialog";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
-import { UnifiedAddressAutocomplete, AddressDetails } from "@/components/shared/UnifiedAddressAutocomplete";
+import { AddressAutocomplete, AddressValue } from "@/components/shared/AddressAutocomplete";
 
 // Constants
 const TPS_RATE = 0.05;
@@ -1107,24 +1107,20 @@ export default function ManualOrderWizard({
                 <MapPin className="w-4 h-4" />
                 Adresse de service
               </Label>
-              <UnifiedAddressAutocomplete
+              <AddressAutocomplete
                 value={orderState.serviceAddress}
-                onChange={(value) => setOrderState((prev) => ({ ...prev, serviceAddress: value }))}
-                onAddressSelect={(details: AddressDetails) => {
-                  const streetAddress = [details.streetNumber, details.street]
-                    .filter(Boolean)
-                    .join(" ") || details.formattedAddress.split(",")[0];
+                onValueChange={(value) => setOrderState((prev) => ({ ...prev, serviceAddress: value }))}
+                onSelect={(details: AddressValue) => {
                   setOrderState((prev) => ({
                     ...prev,
-                    serviceAddress: streetAddress,
+                    serviceAddress: details.line1,
                     serviceCity: details.city || prev.serviceCity,
-                    serviceProvince: details.province === "Quebec" || details.province === "Québec" ? "QC" : (details.province || "QC"),
-                    servicePostalCode: details.postalCode ? details.postalCode.toUpperCase().replace(/(.{3})(.{3})/, "$1 $2") : prev.servicePostalCode,
+                    serviceProvince: details.region || "QC",
+                    servicePostalCode: details.postalCode || prev.servicePostalCode,
                   }));
                 }}
                 placeholder="Rechercher une adresse..."
                 restrictToQuebec={true}
-                showDiagnostic={true}
               />
               <div className="grid grid-cols-3 gap-2">
                 <Input

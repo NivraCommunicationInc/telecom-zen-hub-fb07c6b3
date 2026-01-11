@@ -1,5 +1,5 @@
 /**
- * Structured address value returned by AddressAutocomplete components.
+ * AddressValue - Structured address type returned by AddressAutocomplete.
  * This is the canonical type for all address data in the application.
  */
 export interface AddressValue {
@@ -69,44 +69,9 @@ export const formatPostalCode = (value: string): string => {
 };
 
 /**
- * Converts legacy AddressDetails to the new AddressValue structure.
- */
-export const addressDetailsToValue = (
-  details: {
-    formattedAddress?: string;
-    streetNumber?: string;
-    street?: string;
-    city?: string;
-    province?: string;
-    postalCode?: string;
-    country?: string;
-    latitude?: number;
-    longitude?: number;
-  },
-  mapboxPlaceId?: string
-): AddressValue => {
-  const line1 = [details.streetNumber, details.street]
-    .filter(Boolean)
-    .join(" ")
-    .trim() || details.formattedAddress?.split(",")[0] || "";
-
-  return {
-    formatted: details.formattedAddress || "",
-    line1,
-    city: details.city || "",
-    region: normalizeProvince(details.province),
-    postalCode: details.postalCode ? formatPostalCode(details.postalCode) : "",
-    country: details.country || "Canada",
-    lat: details.latitude,
-    lng: details.longitude,
-    mapboxPlaceId,
-  };
-};
-
-/**
  * Normalizes province names to codes.
  */
-const normalizeProvince = (province?: string): string => {
+export const normalizeProvince = (province?: string): string => {
   if (!province) return "QC";
   const lower = province.toLowerCase();
   if (lower === "quebec" || lower === "québec") return "QC";
