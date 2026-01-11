@@ -1423,6 +1423,7 @@ export type Database = {
           id: string
           order_id: string | null
           phone_snapshot: string | null
+          promo_code_snapshot: string | null
           user_id: string
         }
         Insert: {
@@ -1433,6 +1434,7 @@ export type Database = {
           id?: string
           order_id?: string | null
           phone_snapshot?: string | null
+          promo_code_snapshot?: string | null
           user_id: string
         }
         Update: {
@@ -1443,6 +1445,7 @@ export type Database = {
           id?: string
           order_id?: string | null
           phone_snapshot?: string | null
+          promo_code_snapshot?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1451,6 +1454,53 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contest_winners: {
+        Row: {
+          contest_slug: string
+          created_at: string
+          drawn_at: string
+          drawn_by_admin_id: string | null
+          id: string
+          notes: string | null
+          winner_email: string | null
+          winner_entry_id: string
+          winner_name: string | null
+          winner_user_id: string
+        }
+        Insert: {
+          contest_slug: string
+          created_at?: string
+          drawn_at?: string
+          drawn_by_admin_id?: string | null
+          id?: string
+          notes?: string | null
+          winner_email?: string | null
+          winner_entry_id: string
+          winner_name?: string | null
+          winner_user_id: string
+        }
+        Update: {
+          contest_slug?: string
+          created_at?: string
+          drawn_at?: string
+          drawn_by_admin_id?: string | null
+          id?: string
+          notes?: string | null
+          winner_email?: string | null
+          winner_entry_id?: string
+          winner_name?: string | null
+          winner_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_winners_winner_entry_id_fkey"
+            columns: ["winner_entry_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entries"
             referencedColumns: ["id"]
           },
         ]
