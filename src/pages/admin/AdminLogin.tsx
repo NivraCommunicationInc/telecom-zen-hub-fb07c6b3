@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useAdminOTPSession } from "@/hooks/useAdminOTPSession";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useAdminSecretSession } from "@/hooks/useAdminSecretSession";
+import { Eye, EyeOff, Lock, Mail, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { adminClient } from "@/integrations/backend";
-import AdminOTPDialog from "@/components/admin/AdminOTPDialog";
+import AdminSecretCodeDialog from "@/components/admin/AdminSecretCodeDialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const loginSchema = z.object({
   email: z.string().email("Adresse courriel invalide"),
@@ -20,7 +21,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { user, session, signIn, isLoading } = useAuth();
   const { toast } = useToast();
-  const { storeSession, isValidSession, isChecking } = useAdminOTPSession();
+  const { storeSession, isValidSession, isChecking } = useAdminSecretSession();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +30,8 @@ const AdminLogin = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // OTP state
-  const [showOTPDialog, setShowOTPDialog] = useState(false);
+  // Secret code state
+  const [showSecretDialog, setShowSecretDialog] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [pendingUserEmail, setPendingUserEmail] = useState<string>("");
 
@@ -43,10 +44,10 @@ const AdminLogin = () => {
     isValidSession 
   });
 
-  // Redirect if already authenticated AND has valid OTP session
+  // Redirect if already authenticated AND has valid secret session
   useEffect(() => {
     if (!isLoading && !isChecking && user && session && isValidSession === true) {
-      console.log("[AdminLogin] Already authenticated with valid OTP session, redirecting to /admin");
+      console.log("[AdminLogin] Already authenticated with valid secret session, redirecting to /admin");
       navigate("/admin", { replace: true });
     }
   }, [user, session, isLoading, isChecking, isValidSession, navigate]);
@@ -98,7 +99,7 @@ const AdminLogin = () => {
       setIsForgotPassword(false);
       setIsSubmitting(false);
     } else {
-      // Login flow: email + password, then OTP
+      // Login flow: email + password, then secret code
       const result = loginSchema.safeParse({ email, password });
       if (!result.success) {
         const fieldErrors: Record<string, string> = {};
@@ -173,11 +174,11 @@ const AdminLogin = () => {
           return;
         }
 
-        // Credentials OK - Always require OTP (no bypass)
-        console.log("[AdminLogin] Credentials verified, showing OTP dialog");
+        // Credentials OK - Show secret code dialog
+        console.log("[AdminLogin] Credentials verified, showing secret code dialog");
         setPendingUserId(authUser.id);
         setPendingUserEmail(authUser.email || email);
-        setShowOTPDialog(true);
+        setShowSecretDialog(true);
         setIsSubmitting(false);
 
       } catch (err: any) {
@@ -192,27 +193,35 @@ const AdminLogin = () => {
     }
   };
 
-  const handleOTPSuccess = (sessionToken: string, expiresAt: string, requestId: string) => {
-    console.log("[AdminLogin] OTP verified successfully, request_id:", requestId);
+  const handleSecretSuccess = (sessionToken: string, expiresAt: string, usingDefaultCode: boolean) => {
+    console.log("[AdminLogin] Secret code verified successfully");
     
-    // Store the OTP session
+    // Store the session
     if (pendingUserId) {
-      storeSession(sessionToken, expiresAt, pendingUserId);
+      storeSession(sessionToken, expiresAt, pendingUserId, usingDefaultCode);
     }
     
-    setShowOTPDialog(false);
+    setShowSecretDialog(false);
     setPendingUserId(null);
     
-    toast({
-      title: "Connexion réussie",
-      description: `Bienvenue dans le portail administrateur. (ID: ${requestId.slice(-12)})`,
-    });
+    if (usingDefaultCode) {
+      toast({
+        title: "Connexion réussie",
+        description: "Pensez à définir votre propre code secret dans Paramètres > Sécurité.",
+        duration: 8000,
+      });
+    } else {
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue dans le portail administrateur.",
+      });
+    }
     
     navigate("/admin", { replace: true });
   };
 
-  const handleOTPCancel = () => {
-    setShowOTPDialog(false);
+  const handleSecretCancel = () => {
+    setShowSecretDialog(false);
     setPendingUserId(null);
     setIsSubmitting(false);
   };
@@ -325,14 +334,14 @@ const AdminLogin = () => {
         </p>
       </div>
 
-      {/* OTP Dialog */}
-      <AdminOTPDialog
-        open={showOTPDialog}
-        onOpenChange={setShowOTPDialog}
-        adminUserId={pendingUserId || ""}
-        adminEmail={pendingUserEmail}
-        onSuccess={handleOTPSuccess}
-        onCancel={handleOTPCancel}
+      {/* Secret Code Dialog */}
+      <AdminSecretCodeDialog
+        open={showSecretDialog}
+        onOpenChange={setShowSecretDialog}
+        userId={pendingUserId || ""}
+        userEmail={pendingUserEmail}
+        onSuccess={handleSecretSuccess}
+        onCancel={handleSecretCancel}
       />
     </div>
   );
