@@ -211,7 +211,7 @@ const AdminContests = () => {
   // Copy winner info
   const handleCopyWinner = () => {
     if (!spinResult) return;
-    const info = `Gagnant: ${spinResult.full_name_snapshot || "N/A"}\nEmail: ${spinResult.email_snapshot}\nTéléphone: ${spinResult.phone_snapshot || "N/A"}`;
+    const info = `Gagnant: ${spinResult.full_name_snapshot || spinResult.email_snapshot || "N/A"}\nEmail: ${spinResult.email_snapshot}\nTéléphone: ${spinResult.phone_snapshot || "N/A"}`;
     navigator.clipboard.writeText(info);
     toast({ title: "Copié!", description: "Informations du gagnant copiées." });
   };
@@ -302,7 +302,7 @@ const AdminContests = () => {
                               {format(new Date(entry.created_at), "d MMM yyyy HH:mm", { locale: fr })}
                             </TableCell>
                             <TableCell className="font-medium">
-                              {entry.full_name_snapshot || "—"}
+                              {entry.full_name_snapshot || entry.email_snapshot || "—"}
                             </TableCell>
                             <TableCell>{entry.email_snapshot}</TableCell>
                             <TableCell>{entry.phone_snapshot || "—"}</TableCell>
@@ -343,7 +343,7 @@ const AdminContests = () => {
                     {isSpinning || selectedWinner ? (
                       <div className="text-center p-6">
                         <p className="text-2xl font-bold text-primary animate-pulse">
-                          {selectedWinner?.full_name_snapshot || selectedWinner?.email_snapshot || "..."}
+                          {selectedWinner?.full_name_snapshot || selectedWinner?.email_snapshot || "Participant"}
                         </p>
                         {isSpinning && (
                           <p className="text-sm text-muted-foreground mt-2">Tirage en cours...</p>
@@ -407,7 +407,7 @@ const AdminContests = () => {
                           <div>
                             <p className="text-sm text-muted-foreground">Nom</p>
                             <p className="font-semibold text-lg">
-                              {spinResult.full_name_snapshot || "Non spécifié"}
+                              {spinResult.full_name_snapshot || spinResult.email_snapshot || "Non spécifié"}
                             </p>
                           </div>
                           <div>
