@@ -6699,6 +6699,14 @@ export type Database = {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
       }
+      mark_payment_error_captured: {
+        Args: {
+          p_admin_user_id?: string
+          p_error_reason: string
+          p_payment_id: string
+        }
+        Returns: undefined
+      }
       normalize_text: { Args: { val: string }; Returns: string }
       queue_email: {
         Args: {
@@ -6709,10 +6717,23 @@ export type Database = {
         }
         Returns: string
       }
+      recompute_invoice_balance: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       record_payment_error_captured: {
         Args: {
           p_error_reason: string
           p_order_id: string
+          p_payment_id: string
+        }
+        Returns: undefined
+      }
+      recover_error_captured_payment: {
+        Args: {
+          p_action: string
+          p_admin_user_id: string
+          p_notes?: string
           p_payment_id: string
         }
         Returns: undefined
