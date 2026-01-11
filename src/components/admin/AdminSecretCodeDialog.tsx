@@ -142,6 +142,9 @@ export function AdminSecretCodeDialog({
           </DialogTitle>
           <DialogDescription>
             Entrez votre code secret à 6 chiffres pour accéder au portail admin.
+            <span className="block mt-1 text-xs text-muted-foreground">
+              Ce code n’est pas envoyé par courriel.
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -159,7 +162,7 @@ export function AdminSecretCodeDialog({
           <Alert variant="default" className="bg-muted/50">
             <Info className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              Connexion pour: <strong>{userEmail}</strong>
+              Compte administrateur: <strong>{userEmail}</strong>
             </AlertDescription>
           </Alert>
 
