@@ -199,6 +199,30 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_access_limits: {
+        Row: {
+          created_at: string | null
+          id: string
+          max_admins: number
+          max_staff: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          max_admins?: number
+          max_staff?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          max_admins?: number
+          max_staff?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -4940,6 +4964,30 @@ export type Database = {
         }
         Relationships: []
       }
+      security_events: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          event_type: string
+          id: string
+          severity: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          event_type: string
+          id?: string
+          severity?: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          event_type?: string
+          id?: string
+          severity?: string
+        }
+        Relationships: []
+      }
       security_incidents: {
         Row: {
           affected_entity_id: string | null
@@ -5416,6 +5464,33 @@ export type Database = {
           updated_by_role?: string | null
           value_json?: Json | null
           value_text?: string | null
+        }
+        Relationships: []
+      }
+      staff_email_allowlist: {
+        Row: {
+          allowed_role: string
+          created_at: string | null
+          created_by: string | null
+          email: string
+          id: string
+          is_bootstrap: boolean | null
+        }
+        Insert: {
+          allowed_role: string
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          id?: string
+          is_bootstrap?: boolean | null
+        }
+        Update: {
+          allowed_role?: string
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          id?: string
+          is_bootstrap?: boolean | null
         }
         Relationships: []
       }
