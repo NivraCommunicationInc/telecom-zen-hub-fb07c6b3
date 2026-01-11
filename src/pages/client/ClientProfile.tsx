@@ -622,9 +622,11 @@ const ClientProfile = () => {
                 value={newLocation.service_address}
                 onValueChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
                 onSelect={(details: AddressValue) => {
+                  // Defense-in-depth: also call setter with formatted address
+                  const addressText = details.formatted || details.line1;
                   setNewLocation({
                     ...newLocation,
-                    service_address: details.line1,
+                    service_address: addressText,
                     service_city: details.city || newLocation.service_city,
                     service_postal_code: details.postalCode || newLocation.service_postal_code,
                   });

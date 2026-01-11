@@ -2,10 +2,11 @@
  * AddressAutocomplete — THE SINGLE source of truth for address autocomplete.
  * 
  * CRITICAL IMPLEMENTATION NOTES:
- * - Uses internalValue as fallback when parent doesn't update value prop
- * - Uses onPointerDownCapture with preventDefault() to ensure selection before blur
- * - Calls onValueChange BEFORE closing dropdown
+ * - Uses internalValue as the source of truth for display (not parent's value)
+ * - Uses onPointerDownCapture with preventDefault() + stopPropagation() to ensure selection before blur
+ * - applySuggestion: setInternalValue → onValueChange → onSelect → then close dropdown (requestAnimationFrame)
  * - Shows warning if parent binding is incorrect (300ms after selection)
+ * - DEV diagnostic panel shows prop value, internalValue, lastSelected, lastEvent
  * 
  * STANDARDIZED API:
  *   value: string                              — controlled input value
@@ -17,7 +18,7 @@
  *   className?: string
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { MapPin, Loader2, AlertTriangle } from "lucide-react";
@@ -77,6 +78,7 @@ const MIN_CHARS = 3;
 const DEBOUNCE_MS = 300;
 const MAX_RESULTS = 8;
 const BINDING_CHECK_DELAY_MS = 300;
+const DEV_MODE = import.meta.env.DEV;
 
 // --------------------------------------------------------------------------
 // Helpers
@@ -119,10 +121,12 @@ export function AddressAutocomplete({
   disabled = false,
   restrictToQuebec = false,
 }: AddressAutocompleteProps) {
-  // CRITICAL: Internal value as fallback when parent is slow or doesn't update
-  const [internalValue, setInternalValue] = useState(value);
+  // CRITICAL: Internal value is the source of truth for display
+  // We sync from parent but prioritize our internal state during selection
+  const [internalValue, setInternalValue] = useState(value || "");
   const [bindingWarning, setBindingWarning] = useState(false);
   const lastSelectionRef = useRef<string | null>(null);
+  const lastEventRef = useRef<string>("init");
   const bindingCheckTimeoutRef = useRef<number | null>(null);
 
   const [suggestions, setSuggestions] = useState<MapboxSuggestion[]>([]);
@@ -140,15 +144,23 @@ export function AddressAutocomplete({
 
   const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // Displayed value: prefer parent's value, fallback to internal
-  const displayedValue = value ?? internalValue;
+  // Displayed value: use internalValue (we control this)
+  const displayedValue = internalValue;
 
   // Sync internal value when parent provides value
+  // BUT: don't reset if we just made a selection (protect against parent overwriting)
   useEffect(() => {
-    setInternalValue(value);
-    // Clear binding warning if parent updated correctly
+    // If parent's value matches our last selection, we're good
     if (lastSelectionRef.current && value === lastSelectionRef.current) {
       setBindingWarning(false);
+      lastEventRef.current = "parent-confirmed";
+      return;
+    }
+    
+    // If we have no pending selection, sync with parent
+    if (!lastSelectionRef.current) {
+      setInternalValue(value || "");
+      lastEventRef.current = "parent-sync";
     }
   }, [value]);
 
@@ -311,65 +323,88 @@ export function AddressAutocomplete({
     }
   };
 
-  // Handle input change
+  // Handle input change (user typing)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    setInternalValue(newValue);
-    setBindingWarning(false);
+    // Clear any pending selection tracking when user types
     lastSelectionRef.current = null;
+    lastEventRef.current = "typing";
+    setBindingWarning(false);
+    
+    // Update internal value immediately
+    setInternalValue(newValue);
+    // Notify parent
     onValueChange(newValue);
+    
     setHighlightedIndex(-1);
     fetchSuggestions(newValue);
   };
 
   // Handle suggestion selection — CRITICAL: update BEFORE closing dropdown
+  // This is the core "applySuggestion" logic
   const handleSuggestionSelect = async (suggestion: MapboxSuggestion) => {
     const parsed = parseAddressValue(suggestion);
-    const selectedLabel = parsed.line1;
+    // Use full_address for the input display (more descriptive)
+    const selectedLabel = suggestion.full_address || parsed.formatted || parsed.line1;
 
-    // STEP 1: Update internal value IMMEDIATELY
+    // STEP 1: Update internal value IMMEDIATELY (this ensures the input stays filled)
     setInternalValue(selectedLabel);
     lastSelectionRef.current = selectedLabel;
+    lastEventRef.current = "selection";
     setBindingWarning(false);
 
-    // STEP 2: Notify parent BEFORE closing dropdown
+    // STEP 2: Notify parent IMMEDIATELY (before anything else)
     onValueChange(selectedLabel);
 
-    // STEP 3: Close dropdown IMMEDIATELY (use requestAnimationFrame for smooth transition)
-    requestAnimationFrame(() => {
-      setShowSuggestions(false);
-      setSuggestions([]);
-      setErrorMessage(null);
-    });
-
-    // STEP 4: Check if parent updated value after BINDING_CHECK_DELAY_MS
-    if (bindingCheckTimeoutRef.current) {
-      window.clearTimeout(bindingCheckTimeoutRef.current);
-    }
-    bindingCheckTimeoutRef.current = window.setTimeout(() => {
-      // Access the current value prop via a ref-like check
-      // We check if internal still matches but parent didn't update
-      const currentPropValue = inputRef.current?.value;
-      if (currentPropValue !== selectedLabel && lastSelectionRef.current === selectedLabel) {
-        setBindingWarning(true);
-        if (import.meta.env.DEV) {
-          console.warn(
-            "[AddressAutocomplete] Parent is not updating value (controlled input broken). " +
-            `Expected: "${selectedLabel}", Got: "${currentPropValue}"`
-          );
-        }
-      }
-    }, BINDING_CHECK_DELAY_MS);
-
-    // STEP 5: Call onSelect for structured data (sync first, then async with lat/lng)
+    // STEP 3: Call onSelect for structured data IMMEDIATELY
     if (onSelect) {
       onSelect(parsed);
     }
 
-    // STEP 6: Retrieve full details async and update if we have onSelect
-    const details = await retrieveDetails(suggestion);
-    if (onSelect && (details.lat !== undefined || details.lng !== undefined)) {
-      onSelect(details);
+    // STEP 4: Close dropdown AFTER updating values (use requestAnimationFrame for smooth transition)
+    requestAnimationFrame(() => {
+      setShowSuggestions(false);
+      setSuggestions([]);
+      setErrorMessage(null);
+      setHighlightedIndex(-1);
+    });
+
+    // STEP 5: Check if parent updated value after BINDING_CHECK_DELAY_MS
+    if (bindingCheckTimeoutRef.current) {
+      window.clearTimeout(bindingCheckTimeoutRef.current);
+    }
+    bindingCheckTimeoutRef.current = window.setTimeout(() => {
+      // Check if our selection was reset by parent
+      // We compare by checking if our internal value still matches what we set
+      // and if the parent's value prop doesn't match
+      if (lastSelectionRef.current === selectedLabel) {
+        // Check current prop value
+        const currentPropValue = value;
+        if (currentPropValue !== selectedLabel) {
+          setBindingWarning(true);
+          lastEventRef.current = "parent-reset-detected";
+          if (DEV_MODE) {
+            console.warn(
+              "[AddressAutocomplete] PARENT IS RESETTING VALUE. " +
+              `Expected: "${selectedLabel}", Got prop: "${currentPropValue}"`
+            );
+          }
+        } else {
+          // Parent updated correctly, clear the selection tracker
+          lastSelectionRef.current = null;
+          lastEventRef.current = "parent-confirmed";
+        }
+      }
+    }, BINDING_CHECK_DELAY_MS);
+
+    // STEP 6: Retrieve full details async and update if we have onSelect (for lat/lng)
+    try {
+      const details = await retrieveDetails(suggestion);
+      if (onSelect && (details.lat !== undefined || details.lng !== undefined)) {
+        onSelect(details);
+      }
+    } catch {
+      // Silent fail - we already sent the initial parsed data
     }
 
     // New session token for next interaction
@@ -496,11 +531,21 @@ export function AddressAutocomplete({
         )}
       </div>
 
-      {/* Binding warning - visible in DEV or if there's an issue */}
+      {/* Binding warning - visible if there's an issue */}
       {bindingWarning && (
-        <div className="mt-1 flex items-center gap-1 text-amber-600 text-xs bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded">
+        <div className="mt-1 flex items-center gap-1 text-red-600 text-xs bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded border border-red-300">
           <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-          <span>Parent is not updating value (controlled input broken)</span>
+          <span className="font-medium">PARENT IS RESETTING VALUE</span>
+        </div>
+      )}
+
+      {/* DEV Diagnostic panel */}
+      {DEV_MODE && (
+        <div className="mt-1 text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 space-y-0.5">
+          <div><span className="text-slate-500">prop.value:</span> "{value}"</div>
+          <div><span className="text-slate-500">internalValue:</span> "{internalValue}"</div>
+          <div><span className="text-slate-500">lastSelected:</span> "{lastSelectionRef.current || "(none)"}"</div>
+          <div><span className="text-slate-500">lastEvent:</span> {lastEventRef.current}</div>
         </div>
       )}
 
