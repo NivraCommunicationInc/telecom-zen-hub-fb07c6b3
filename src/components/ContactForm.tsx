@@ -141,6 +141,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     e.preventDefault();
     setErrors({});
 
+    // Validation Zod
     const result = contactSchema.safeParse(formData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -155,41 +156,60 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
     setIsLoading(true);
     
-    const { data, error } = await supabase.from("contact_requests").insert({
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      name: `${formData.firstName} ${formData.lastName}`.trim(),
-      email: formData.email.toLowerCase().trim(),
-      phone: formData.phone,
-      subject: formData.subject,
-      notes: formData.message,
-      preferred_contact: formData.preferredContact,
-      consent_given: formData.consentGiven,
-      address_street: formData.addressStreet || null,
-      address_apartment: formData.addressApartment || null,
-      address_city: formData.addressCity || null,
-      address_province: formData.addressProvince || null,
-      address_postal_code: formData.addressPostalCode || null,
-      source: 'website_contact',
-      status: 'new',
-    }).select('request_number').single();
-    
-    setIsLoading(false);
-    
-    if (error) {
-      console.error("Contact form error:", error);
+    try {
+      const { data, error } = await supabase.from("contact_requests").insert({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email.toLowerCase().trim(),
+        phone: formData.phone,
+        subject: formData.subject,
+        notes: formData.message,
+        preferred_contact: formData.preferredContact,
+        consent_given: formData.consentGiven,
+        address_street: formData.addressStreet || null,
+        address_apartment: formData.addressApartment || null,
+        address_city: formData.addressCity || null,
+        address_province: formData.addressProvince || null,
+        address_postal_code: formData.addressPostalCode || null,
+        source: 'website_contact',
+        status: 'new',
+      }).select('request_number').single();
+      
+      if (error) {
+        console.error("Contact form DB error:", error);
+        toast({
+          title: isFrench ? "Erreur" : "Error",
+          description: isFrench 
+            ? "Impossible d'envoyer votre demande. Veuillez réessayer." 
+            : "Unable to send your request. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Success
+      setRequestNumber(data?.request_number || null);
+      setIsSubmitted(true);
+      
+      toast({
+        title: isFrench ? "Demande envoyée!" : "Request sent!",
+        description: isFrench 
+          ? "Nous vous répondrons dans les plus brefs délais." 
+          : "We will respond as soon as possible.",
+      });
+    } catch (err) {
+      console.error("Contact form unexpected error:", err);
       toast({
         title: isFrench ? "Erreur" : "Error",
         description: isFrench 
-          ? "Une erreur est survenue. Veuillez vérifier vos informations." 
-          : "An error occurred. Please check your information.",
+          ? "Une erreur inattendue est survenue. Veuillez réessayer." 
+          : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-    
-    setRequestNumber(data?.request_number || null);
-    setIsSubmitted(true);
   };
 
   if (isSubmitted) {
