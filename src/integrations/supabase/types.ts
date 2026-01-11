@@ -1382,6 +1382,7 @@ export type Database = {
           last_name: string | null
           name: string
           notes: string | null
+          page_url: string | null
           phone: string
           preferred_contact: string | null
           priority: string | null
@@ -1405,6 +1406,7 @@ export type Database = {
           last_name?: string | null
           name: string
           notes?: string | null
+          page_url?: string | null
           phone: string
           preferred_contact?: string | null
           priority?: string | null
@@ -1428,6 +1430,7 @@ export type Database = {
           last_name?: string | null
           name?: string
           notes?: string | null
+          page_url?: string | null
           phone?: string
           preferred_contact?: string | null
           priority?: string | null

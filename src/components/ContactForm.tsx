@@ -141,6 +141,21 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     e.preventDefault();
     setErrors({});
 
+    // Hard block (no network call) when consent is not accepted
+    if (formData.consentGiven !== true) {
+      const msg = isFrench
+        ? "Veuillez accepter le consentement pour envoyer le message."
+        : "Please accept the consent to send the message.";
+
+      setErrors({ consentGiven: msg });
+      toast({
+        title: isFrench ? "Consentement requis" : "Consent required",
+        description: msg,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validation Zod
     const result = contactSchema.safeParse(formData);
     if (!result.success) {
@@ -155,9 +170,9 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     }
 
     setIsLoading(true);
-    
+
     try {
-      const { data, error } = await supabase.from("contact_requests").insert({
+      const payload = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         name: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -166,45 +181,61 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         subject: formData.subject,
         notes: formData.message,
         preferred_contact: formData.preferredContact,
-        consent_given: formData.consentGiven,
+        status: "new",
+        consent_given: true,
+        page_url: typeof window !== "undefined" ? window.location.href : null,
         address_street: formData.addressStreet || null,
         address_apartment: formData.addressApartment || null,
         address_city: formData.addressCity || null,
         address_province: formData.addressProvince || null,
         address_postal_code: formData.addressPostalCode || null,
-        source: 'website_contact',
-        status: 'new',
-      }).select('request_number').single();
-      
-      if (error) {
-        console.error("Contact form DB error:", error);
-        toast({
-          title: isFrench ? "Erreur" : "Error",
-          description: isFrench 
-            ? "Impossible d'envoyer votre demande. Veuillez réessayer." 
-            : "Unable to send your request. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
+        source: "website_contact",
+      };
+
+      const { data, error } = await supabase
+        .from("contact_requests")
+        .insert(payload)
+        .select("request_number")
+        .single();
+
+      if (error) throw error;
+
       // Success
       setRequestNumber(data?.request_number || null);
       setIsSubmitted(true);
-      
+
+      // Reset form state for next submission
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+        preferredContact: "email",
+        consentGiven: false,
+        addressStreet: "",
+        addressApartment: "",
+        addressCity: "",
+        addressProvince: "QC",
+        addressPostalCode: "",
+      });
+
       toast({
         title: isFrench ? "Demande envoyée!" : "Request sent!",
-        description: isFrench 
-          ? "Nous vous répondrons dans les plus brefs délais." 
+        description: isFrench
+          ? "Nous vous répondrons dans les plus brefs délais."
           : "We will respond as soon as possible.",
       });
-    } catch (err) {
-      console.error("Contact form unexpected error:", err);
+    } catch (e: any) {
+      console.error("CONTACT_SUBMIT_ERROR", e);
       toast({
         title: isFrench ? "Erreur" : "Error",
-        description: isFrench 
-          ? "Une erreur inattendue est survenue. Veuillez réessayer." 
-          : "An unexpected error occurred. Please try again.",
+        description:
+          e?.message ??
+          (isFrench
+            ? "Impossible d'envoyer votre demande. Veuillez réessayer."
+            : "Unable to send your request. Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -538,8 +569,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         <div className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${errors.consentGiven ? 'bg-destructive/10 border border-destructive/30' : ''}`}>
           <Checkbox
             id="consentGiven"
-            checked={formData.consentGiven}
-            onCheckedChange={(checked) => handleCheckboxChange("consentGiven", checked === true)}
+            checked={formData.consentGiven === true}
+            onCheckedChange={(v) => handleCheckboxChange("consentGiven", v === true)}
             className={`mt-1 ${errors.consentGiven ? 'border-destructive' : 'border-slate-300'} data-[state=checked]:bg-accent data-[state=checked]:border-accent`}
           />
           <div className="space-y-1">
