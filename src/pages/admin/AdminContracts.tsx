@@ -326,8 +326,19 @@ const AdminContracts = () => {
   const createContractMutation = useMutation({
     mutationFn: async (data: ContractFormData) => {
       const contractNumber = `CTR-${Date.now().toString(36).toUpperCase()}`;
+      // CRITICAL: owner_user_id must be the CLIENT's auth user_id, NOT admin's
+      // Fetch the client's auth user_id from profiles
+      const { data: clientProfile } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("id", data.user_id)
+        .single();
+      
+      const clientAuthUserId = clientProfile?.user_id || data.user_id;
+      
       const { error } = await supabase.from("contracts").insert({
-        user_id: data.user_id,
+        user_id: clientAuthUserId,
+        owner_user_id: clientAuthUserId, // REQUIRED: Client's auth.uid() for RLS
         contract_name: data.contract_name,
         contract_url: contractNumber,
         contract_number: contractNumber,

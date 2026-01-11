@@ -161,6 +161,7 @@ const ClientAppointments = () => {
       try {
         const { error: ticketError } = await portalSupabase.from("support_tickets").insert({
           user_id: user?.id,
+          owner_user_id: user?.id, // REQUIRED: Must match auth.uid() for RLS
           client_email: profile?.email || user?.email,
           subject: `Installation annulée - ${selectedAppointment?.title}`,
           description: `**Annulation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Date originale:** ${format(new Date(selectedAppointment?.scheduled_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a annulé son rendez-vous d'installation.`,
@@ -208,6 +209,7 @@ const ClientAppointments = () => {
       try {
         const { error: ticketError } = await portalSupabase.from("support_tickets").insert({
           user_id: user?.id,
+          owner_user_id: user?.id, // REQUIRED: Must match auth.uid() for RLS
           client_email: profile?.email || user?.email,
           subject: `Installation reprogrammée - ${selectedAppointment?.title}`,
           description: `**Reprogrammation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Ancienne date:** ${format(new Date(oldDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n**Nouvelle date:** ${format(newScheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a reprogrammé son rendez-vous d'installation.`,

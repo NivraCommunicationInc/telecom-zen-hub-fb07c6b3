@@ -73,11 +73,11 @@ const ClientTickets = () => {
     queryKey: ["client-tickets-all", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
+      // SECURITY: Filter by owner_user_id (auth.uid()) for RLS compliance
       const { data, error } = await portalSupabase
         .from("support_tickets")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("owner_user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -127,10 +127,12 @@ const ClientTickets = () => {
         relatedOrderReference = orderData?.order_number || ticket.related_order_id;
       }
 
+      // CRITICAL: Always set owner_user_id = currentUserId for RLS
       const { data, error } = await portalSupabase
         .from("support_tickets")
         .insert({
           user_id: user?.id,
+          owner_user_id: user?.id, // REQUIRED: Must match auth.uid() for RLS
           subject: ticket.subject,
           description: ticket.description,
           priority: ticket.priority,
