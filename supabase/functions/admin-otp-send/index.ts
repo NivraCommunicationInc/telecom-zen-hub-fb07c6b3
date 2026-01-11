@@ -71,6 +71,27 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // CRITICAL: Validate RESEND_FROM_EMAIL - NO FALLBACK
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL");
+    
+    // Validate format: must be "email@domain.com" or "Name <email@domain.com>"
+    const emailRegex = /^([^<]+<)?[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}>?$/;
+    const isValidFromEmail = fromEmail && emailRegex.test(fromEmail.trim());
+    
+    if (!fromEmail || !isValidFromEmail) {
+      console.error(`[${requestId}] FATAL: RESEND_FROM_EMAIL is missing or invalid: "${fromEmail}"`);
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: `RESEND_FROM_EMAIL missing or invalid (got: "${fromEmail || "undefined"}")`,
+          request_id: requestId 
+        }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log(`[${requestId}] Using from_email: ${fromEmail}`);
+
     // Parse request body
     const body: RequestBody = await req.json();
     const { admin_user_id, email } = body;
@@ -185,16 +206,17 @@ serve(async (req: Request): Promise<Response> => {
 
     // Send email via Resend - REQUIRE message_id for verification
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "Nivra <noreply@nivra.ca>";
     
-    console.log(`[${requestId}] Sending OTP email via Resend to: ${email}, from: ${fromEmail}`);
+    console.log(`[${requestId}] Sending OTP email via Resend to: ${maskEmail(email)}, from: ${fromEmail}`);
     
     let emailResult: any;
+    let resendError: any = null;
+    
     try {
       emailResult = await resend.emails.send({
         from: fromEmail,
         to: [email],
-        subject: `Votre code de vérification Nivra Admin: ${otp}`,
+        subject: `Votre code de vérification Nivra Admin`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -243,10 +265,15 @@ serve(async (req: Request): Promise<Response> => {
         `,
         text: `Votre code de vérification Nivra Admin: ${otp}\n\nCe code expire dans 10 minutes.\n\nSi vous n'avez pas demandé ce code, ignorez cet email.\n\nRequest ID: ${requestId}`,
       });
-    } catch (resendError: any) {
-      console.error(`[${requestId}] Resend API call failed:`, resendError);
+    } catch (err: any) {
+      resendError = err;
+      console.error(`[${requestId}] Resend API threw exception:`, err);
+    }
+    
+    // Handle BOTH failure modes: thrown exception OR returned { error }
+    if (resendError) {
+      console.error(`[${requestId}] Resend send failed (exception):`, resendError.message);
       
-      // Audit log the failure
       await supabase.from("admin_auth_audit_log").insert({
         event: "otp_send_email_failed",
         admin_user_id,
@@ -255,16 +282,55 @@ serve(async (req: Request): Promise<Response> => {
         meta: { 
           ip, 
           user_agent: userAgent,
-          error: resendError.message || "Resend API error",
-          error_name: resendError.name
+          from_email: fromEmail,
+          to_email: maskEmail(email),
+          error: resendError.message || "Resend API exception",
+          error_name: resendError.name,
+          timestamp: new Date().toISOString()
         }
       });
 
       return new Response(
         JSON.stringify({ 
           ok: false, 
-          error: `Email sending failed: ${resendError.message || "Resend API error"}`,
-          request_id: requestId 
+          error: "Email sending failed (exception)",
+          resend_error: resendError.message || "Unknown error",
+          request_id: requestId,
+          from_email: fromEmail,
+          to_email: maskEmail(email)
+        }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    // Check if Resend returned an error in the response (without throwing)
+    if (emailResult?.error) {
+      const errorMsg = emailResult.error.message || emailResult.error.name || JSON.stringify(emailResult.error);
+      console.error(`[${requestId}] Resend returned error:`, emailResult.error);
+      
+      await supabase.from("admin_auth_audit_log").insert({
+        event: "otp_send_email_failed",
+        admin_user_id,
+        email,
+        request_id: requestId,
+        meta: { 
+          ip, 
+          user_agent: userAgent,
+          from_email: fromEmail,
+          to_email: maskEmail(email),
+          resend_error: emailResult.error,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: "Email sending failed (Resend error)",
+          resend_error: errorMsg,
+          request_id: requestId,
+          from_email: fromEmail,
+          to_email: maskEmail(email)
         }),
         { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
