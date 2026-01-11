@@ -40,7 +40,7 @@ function createOtpBlockingClient(): SupabaseClient {
 
   // Override functions.invoke to block OTP calls
   const originalInvoke = baseClient.functions.invoke.bind(baseClient.functions);
-  
+
   baseClient.functions.invoke = async (functionName: string, options?: any) => {
     // SECURITY: Block any OTP function calls from admin portal
     if (OTP_FUNCTION_PATTERN.test(functionName)) {
@@ -48,16 +48,39 @@ function createOtpBlockingClient(): SupabaseClient {
       console.error(`[ADMIN-CLIENT] Blocked function: ${functionName}`);
       console.error(`[ADMIN-CLIENT] Admin portal must use SECRET CODE only!`);
       console.trace("[ADMIN-CLIENT] Call stack:");
-      
+
       throw new Error(
         `SECURITY: OTP functions are disabled for admin portal. ` +
-        `Function "${functionName}" was blocked. ` +
-        `Admin authentication uses SECRET CODE (admin-secret-verify), not email OTP.`
+          `Function "${functionName}" was blocked. ` +
+          `Admin authentication uses SECRET CODE (admin-secret-verify), not email OTP.`
       );
     }
-    
+
     return originalInvoke(functionName, options);
   };
+
+  // ALSO block OTP-based auth methods, just in case any code tries to use them.
+  const authAny = baseClient.auth as any;
+
+  if (typeof authAny.signInWithOtp === "function") {
+    authAny.signInWithOtp = async () => {
+      console.error("[ADMIN-CLIENT] ❌ OTP AUTH BLOCKED (signInWithOtp)");
+      console.trace("[ADMIN-CLIENT] Call stack:");
+      throw new Error(
+        "SECURITY: signInWithOtp is disabled for admin portal. Use email+password + secret code only."
+      );
+    };
+  }
+
+  if (typeof authAny.verifyOtp === "function") {
+    authAny.verifyOtp = async () => {
+      console.error("[ADMIN-CLIENT] ❌ OTP AUTH BLOCKED (verifyOtp)");
+      console.trace("[ADMIN-CLIENT] Call stack:");
+      throw new Error(
+        "SECURITY: verifyOtp is disabled for admin portal. Use email+password + secret code only."
+      );
+    };
+  }
 
   return baseClient;
 }

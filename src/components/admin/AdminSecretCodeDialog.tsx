@@ -147,12 +147,12 @@ export function AdminSecretCodeDialog({
 
         <div className="space-y-4 py-4">
           {/* DEBUG: Auth gate info - TEMPORARY */}
-          <div className="bg-green-500/10 border border-green-500/30 rounded-md p-3 text-xs font-mono">
-            <div className="text-green-600 font-bold mb-1">🔐 DEBUG - Auth Gate Info</div>
-            <div><strong>Auth gate:</strong> SECRET_CODE (NO email OTP)</div>
+          <div className="bg-muted/50 border border-border/50 rounded-md p-3 text-xs font-mono text-foreground">
+            <div className="font-semibold mb-1">DEBUG — Auth Gate Info</div>
+            <div><strong>Auth gate:</strong> SECRET_CODE</div>
+            <div><strong>Session checker endpoint:</strong> admin-session-check</div>
             <div><strong>Verify endpoint:</strong> admin-secret-verify</div>
-            <div><strong>Session check:</strong> admin-session-check</div>
-            <div className="text-green-500 mt-1">✓ Zero *-otp-* functions called</div>
+            <div className="mt-1 text-muted-foreground">No email OTP is used or sent for admin login.</div>
           </div>
 
           {/* Info about user */}

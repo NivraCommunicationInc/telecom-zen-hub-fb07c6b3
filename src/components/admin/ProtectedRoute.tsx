@@ -45,7 +45,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
       description: "Vous avez été déconnecté après 5 minutes d'inactivité.",
     });
     sessionStorage.removeItem("admin_last_auth_check");
-    clearSession(); // Clear OTP session
+    clearSession(); // Clear secret-code session
     await signOut();
     navigate("/admin/login", { replace: true });
   }, [signOut, navigate, clearSession]);
