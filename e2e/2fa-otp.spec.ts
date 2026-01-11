@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * 2FA OTP Verification E2E Tests
- * Tests for staff two-factor authentication
+ * Admin 2FA Secret Code Verification E2E Tests
+ * Tests for admin two-factor authentication using secret code
  */
 
-test.describe("2FA OTP Verification", () => {
+test.describe("Admin Secret Code Verification", () => {
   test("Admin login page loads correctly", async ({ page }) => {
     await page.goto("/admin/login");
     
@@ -30,7 +30,7 @@ test.describe("2FA OTP Verification", () => {
     await page.screenshot({ path: "e2e/screenshots/employee-login.png" });
   });
 
-  test.skip("OTP dialog appears after valid login", async ({ page }) => {
+  test.skip("Secret code dialog appears after valid login", async ({ page }) => {
     // This test requires a valid admin account
     await page.goto("/admin/login");
     
@@ -41,14 +41,14 @@ test.describe("2FA OTP Verification", () => {
     // Click login
     await page.getByRole("button", { name: /Se connecter/i }).click();
     
-    // Wait for OTP dialog
-    await expect(page.getByText(/Vérification en deux étapes/i)).toBeVisible({ timeout: 10000 });
+    // Wait for Secret Code dialog (NOT email OTP)
+    await expect(page.getByText(/Code secret administrateur/i)).toBeVisible({ timeout: 10000 });
     
-    // Verify OTP input is visible
+    // Verify code input is visible (6 digits)
     await expect(page.getByRole("textbox")).toBeVisible();
     
-    // Take screenshot of OTP dialog
-    await page.screenshot({ path: "e2e/screenshots/admin-otp-dialog.png" });
+    // Take screenshot of secret code dialog
+    await page.screenshot({ path: "e2e/screenshots/admin-secret-code-dialog.png" });
   });
 
   test("Invalid login shows error", async ({ page }) => {
