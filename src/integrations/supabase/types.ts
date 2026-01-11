@@ -6637,6 +6637,7 @@ export type Database = {
           total_debits: number
         }[]
       }
+      get_db_context: { Args: never; Returns: Json }
       get_entries_allocation_counts: {
         Args: { p_entry_ids: string[] }
         Returns: {
@@ -6745,6 +6746,7 @@ export type Database = {
           last_name: string
         }[]
       }
+      test_bypass_update: { Args: { invoice_id: string }; Returns: Json }
       verify_pin: {
         Args: { pin_input: string; user_id_input: string }
         Returns: boolean
