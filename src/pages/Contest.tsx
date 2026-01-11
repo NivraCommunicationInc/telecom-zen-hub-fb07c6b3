@@ -287,8 +287,8 @@ const Contest = () => {
                     </p>
                     <p className="text-muted-foreground">
                       Pour toute question, contactez-nous à{" "}
-                      <a href="mailto:info@nivra.ca" className="text-primary hover:underline">
-                        info@nivra.ca
+                      <a href="mailto:support@nivratelecom.ca" className="text-primary hover:underline">
+                        Support@nivratelecom.ca
                       </a>
                     </p>
                   </div>
