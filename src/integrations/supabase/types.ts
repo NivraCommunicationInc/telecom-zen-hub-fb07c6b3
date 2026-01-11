@@ -6871,6 +6871,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: never; Returns: boolean }
+      is_staff_user: { Args: { _user_id: string }; Returns: boolean }
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
