@@ -6265,6 +6265,50 @@ export type Database = {
       }
     }
     Views: {
+      client_payment_history: {
+        Row: {
+          amount: number | null
+          billing_id: string | null
+          captured_at: string | null
+          client_id: string | null
+          created_at: string | null
+          created_by_name: string | null
+          created_by_role: string | null
+          id: string | null
+          invoice_balance_due: number | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_status: string | null
+          order_id: string | null
+          payment_method: string | null
+          reference_number: string | null
+          source: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_unpaid_invoices: {
         Row: {
           amount_due: number | null
@@ -6664,6 +6708,14 @@ export type Database = {
           p_to_email: string
         }
         Returns: string
+      }
+      record_payment_error_captured: {
+        Args: {
+          p_error_reason: string
+          p_order_id: string
+          p_payment_id: string
+        }
+        Returns: undefined
       }
       split_full_name: {
         Args: { full_name_val: string }
