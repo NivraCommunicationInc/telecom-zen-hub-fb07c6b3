@@ -1414,6 +1414,47 @@ export type Database = {
         }
         Relationships: []
       }
+      contest_entries: {
+        Row: {
+          contest_slug: string
+          created_at: string
+          email_snapshot: string
+          full_name_snapshot: string | null
+          id: string
+          order_id: string | null
+          phone_snapshot: string | null
+          user_id: string
+        }
+        Insert: {
+          contest_slug: string
+          created_at?: string
+          email_snapshot: string
+          full_name_snapshot?: string | null
+          id?: string
+          order_id?: string | null
+          phone_snapshot?: string | null
+          user_id: string
+        }
+        Update: {
+          contest_slug?: string
+          created_at?: string
+          email_snapshot?: string
+          full_name_snapshot?: string | null
+          id?: string
+          order_id?: string | null
+          phone_snapshot?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_entries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           contract_name: string
@@ -4005,11 +4046,13 @@ export type Database = {
           description: string | null
           discount_type: string
           discount_value: number
+          duration: string
           end_at: string | null
           id: string
           max_discount_amount: number | null
           min_subtotal: number | null
           name: string
+          new_customers_only: boolean
           restricted_client_ids: string[] | null
           restricted_email_domains: string[] | null
           scope: string
@@ -4028,11 +4071,13 @@ export type Database = {
           description?: string | null
           discount_type: string
           discount_value: number
+          duration?: string
           end_at?: string | null
           id?: string
           max_discount_amount?: number | null
           min_subtotal?: number | null
           name: string
+          new_customers_only?: boolean
           restricted_client_ids?: string[] | null
           restricted_email_domains?: string[] | null
           scope?: string
@@ -4051,11 +4096,13 @@ export type Database = {
           description?: string | null
           discount_type?: string
           discount_value?: number
+          duration?: string
           end_at?: string | null
           id?: string
           max_discount_amount?: number | null
           min_subtotal?: number | null
           name?: string
+          new_customers_only?: boolean
           restricted_client_ids?: string[] | null
           restricted_email_domains?: string[] | null
           scope?: string

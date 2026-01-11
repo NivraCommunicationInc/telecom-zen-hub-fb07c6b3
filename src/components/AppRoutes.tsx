@@ -24,6 +24,7 @@ import NotAuthorized from "@/pages/NotAuthorized";
 import APropos from "@/pages/APropos";
 import Aide from "@/pages/Aide";
 import DynamicPage from "@/pages/DynamicPage";
+import Contest from "@/pages/Contest";
 
 // Legal pages
 import ConditionsDeService from "@/pages/legal/ConditionsDeService";
@@ -149,6 +150,7 @@ const AppRoutes = () => {
       <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
       <Route path="/a-propos" element={<MaintenanceGuard><PublicLayout><APropos /></PublicLayout></MaintenanceGuard>} />
       <Route path="/aide" element={<MaintenanceGuard><PublicLayout><Aide /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/concours" element={<MaintenanceGuard><PublicLayout><Contest /></PublicLayout></MaintenanceGuard>} />
       
       {/* Dynamic pages from site_pages */}
       <Route path="/page/:slug" element={<MaintenanceGuard><PublicLayout><DynamicPage /></PublicLayout></MaintenanceGuard>} />

@@ -66,6 +66,23 @@ serve(async (req) => {
       );
     }
 
+    // Check if "new customers only" promo
+    if (promo.new_customers_only === true && client_id) {
+      // Check if client has any completed orders
+      const { count: orderCount } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', client_id)
+        .in('status', ['completed', 'active', 'processing', 'paid']);
+
+      if (orderCount !== null && orderCount > 0) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Ce code est réservé aux nouveaux clients" }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Check scope restrictions
     if (promo.scope === 'restricted') {
       let allowed = false;
@@ -198,6 +215,12 @@ serve(async (req) => {
 
     console.log(`[validate-promo] Valid promo ${normalizedCode}: discount ${discountAmount} CAD`);
 
+    // Build label for first-cycle-only promos
+    let discountLabel = promo.name;
+    if (promo.duration === 'first_cycle_only') {
+      discountLabel = `${promo.name} (1er mois seulement)`;
+    }
+
     const result = {
       valid: true,
       promo: {
@@ -208,6 +231,9 @@ serve(async (req) => {
         discount_value: promo.discount_value,
         applies_to: appliesTo,
         stackable: promo.stackable,
+        new_customers_only: promo.new_customers_only,
+        duration: promo.duration,
+        discount_label: discountLabel,
       },
       discount_amount: discountAmount,
       eligible_subtotal: eligibleSubtotal,
