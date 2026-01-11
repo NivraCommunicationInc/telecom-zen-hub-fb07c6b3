@@ -6732,11 +6732,11 @@ export type Database = {
       recover_error_captured_payment: {
         Args: {
           p_action: string
-          p_admin_user_id: string
-          p_notes?: string
+          p_admin_id: string
           p_payment_id: string
+          p_reason?: string
         }
-        Returns: undefined
+        Returns: Json
       }
       split_full_name: {
         Args: { full_name_val: string }
