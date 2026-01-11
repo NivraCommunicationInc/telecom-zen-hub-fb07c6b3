@@ -56,6 +56,21 @@ serve(async (req: Request): Promise<Response> => {
   console.log(`[${requestId}] admin-otp-send started at ${new Date().toISOString()}`);
 
   try {
+    // CRITICAL: Verify RESEND_API_KEY exists before anything else
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    
+    if (!resendApiKey) {
+      console.error(`[${requestId}] FATAL: RESEND_API_KEY is missing from environment`);
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: "RESEND_API_KEY missing - cannot send OTP email",
+          request_id: requestId 
+        }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Parse request body
     const body: RequestBody = await req.json();
     const { admin_user_id, email } = body;
@@ -65,7 +80,7 @@ serve(async (req: Request): Promise<Response> => {
     if (!admin_user_id || !email) {
       console.error(`[${requestId}] Missing required fields`);
       return new Response(
-        JSON.stringify({ success: false, error: "Missing admin_user_id or email", request_id: requestId }),
+        JSON.stringify({ ok: false, error: "Missing admin_user_id or email", request_id: requestId }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -101,7 +116,7 @@ serve(async (req: Request): Promise<Response> => {
       });
 
       return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized", request_id: requestId }),
+        JSON.stringify({ ok: false, error: "Unauthorized", request_id: requestId }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -127,7 +142,7 @@ serve(async (req: Request): Promise<Response> => {
 
       return new Response(
         JSON.stringify({ 
-          success: false, 
+          ok: false, 
           error: "Trop de demandes de code. Veuillez patienter 5 minutes.", 
           request_id: requestId 
         }),
@@ -168,15 +183,15 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Failed to create OTP code");
     }
 
-    // Send email via Resend
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Send email via Resend - REQUIRE message_id for verification
+    const resend = new Resend(resendApiKey);
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "Nivra <noreply@nivra.ca>";
     
-    if (resendApiKey) {
-      const resend = new Resend(resendApiKey);
-      
-      const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "Nivra <noreply@nivra.ca>";
-      
-      const emailResult = await resend.emails.send({
+    console.log(`[${requestId}] Sending OTP email via Resend to: ${email}, from: ${fromEmail}`);
+    
+    let emailResult: any;
+    try {
+      emailResult = await resend.emails.send({
         from: fromEmail,
         to: [email],
         subject: `Votre code de vérification Nivra Admin: ${otp}`,
@@ -228,14 +243,71 @@ serve(async (req: Request): Promise<Response> => {
         `,
         text: `Votre code de vérification Nivra Admin: ${otp}\n\nCe code expire dans 10 minutes.\n\nSi vous n'avez pas demandé ce code, ignorez cet email.\n\nRequest ID: ${requestId}`,
       });
+    } catch (resendError: any) {
+      console.error(`[${requestId}] Resend API call failed:`, resendError);
+      
+      // Audit log the failure
+      await supabase.from("admin_auth_audit_log").insert({
+        event: "otp_send_email_failed",
+        admin_user_id,
+        email,
+        request_id: requestId,
+        meta: { 
+          ip, 
+          user_agent: userAgent,
+          error: resendError.message || "Resend API error",
+          error_name: resendError.name
+        }
+      });
 
-      console.log(`[${requestId}] Email sent successfully:`, emailResult);
-    } else {
-      // Dev mode: log OTP to console
-      console.log(`[${requestId}] DEV MODE - OTP Code: ${otp}`);
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: `Email sending failed: ${resendError.message || "Resend API error"}`,
+          request_id: requestId 
+        }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    // Audit log successful send
+    console.log(`[${requestId}] Resend API response:`, JSON.stringify(emailResult));
+
+    // CRITICAL: Verify we got a message_id from Resend
+    const messageId = emailResult?.data?.id || emailResult?.id;
+    
+    if (!messageId) {
+      console.error(`[${requestId}] Resend did not return a message_id:`, emailResult);
+      
+      // Check for error in response
+      const resendErrorMsg = emailResult?.error?.message || emailResult?.message || "No message_id returned";
+      
+      await supabase.from("admin_auth_audit_log").insert({
+        event: "otp_send_no_message_id",
+        admin_user_id,
+        email,
+        request_id: requestId,
+        meta: { 
+          ip, 
+          user_agent: userAgent,
+          resend_response: emailResult,
+          error: resendErrorMsg
+        }
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: `Email send failed: ${resendErrorMsg}`,
+          request_id: requestId,
+          resend_response: emailResult
+        }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log(`[${requestId}] Email sent successfully with message_id: ${messageId}`);
+
+    // Audit log successful send with message_id
     await supabase.from("admin_auth_audit_log").insert({
       event: "otp_send",
       admin_user_id,
@@ -245,7 +317,10 @@ serve(async (req: Request): Promise<Response> => {
         ip, 
         user_agent: userAgent,
         expires_at: expiresAt.toISOString(),
-        duration_ms: Date.now() - startTime
+        duration_ms: Date.now() - startTime,
+        message_id: messageId,
+        from_email: fromEmail,
+        to_email: email
       }
     });
 
@@ -253,8 +328,11 @@ serve(async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        ok: true,
         request_id: requestId,
+        message_id: messageId,
+        to_email: email,
+        from_email: fromEmail,
         expires_at: expiresAt.toISOString(),
         masked_email: maskEmail(email)
       }),
@@ -266,7 +344,7 @@ serve(async (req: Request): Promise<Response> => {
     
     return new Response(
       JSON.stringify({ 
-        success: false, 
+        ok: false, 
         error: error.message || "Internal server error",
         request_id: requestId 
       }),
