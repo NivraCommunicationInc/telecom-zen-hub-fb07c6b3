@@ -86,6 +86,7 @@ import { AuditNotes } from "@/lib/clientAuditNotes";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 import { shouldAutoCompleteOrder, shouldAutoSetInstallationScheduled, isInstallationStatus } from "@/lib/installationStatusUtils";
 import { logClientActivityDirect } from "@/hooks/useClientActivityLog";
+import { processOrderCompletionContest } from "@/lib/contestUtils";
 
 // Status configurations - includes installation statuses
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
@@ -1226,6 +1227,22 @@ const AdminOrders = () => {
         console.error("Failed to send status email:", emailErr);
         // Don't block status change if email fails
       }
+      
+      // Process contest entry for direct completion (not auto-transition)
+      if (newStatus === "completed" && !shouldAutoCompleteOrder(oldStatus)) {
+        try {
+          const contestResult = await processOrderCompletionContest({
+            id: selectedOrder.id,
+            user_id: selectedOrder.user_id,
+            order_number: selectedOrder.order_number,
+          });
+          if (contestResult.success && contestResult.entryId) {
+            console.log("Contest entry created:", contestResult.message);
+          }
+        } catch (contestErr) {
+          console.error("Failed to process contest entry:", contestErr);
+        }
+      }
     }
     
     // If installation_completed, auto-transition to completed
@@ -1273,6 +1290,20 @@ const AdminOrders = () => {
           });
         } catch (emailErr) {
           console.error("Failed to send completion email:", emailErr);
+        }
+        
+        // Process contest entry for new customers
+        try {
+          const contestResult = await processOrderCompletionContest({
+            id: selectedOrder.id,
+            user_id: selectedOrder.user_id,
+            order_number: selectedOrder.order_number,
+          });
+          if (contestResult.success && contestResult.entryId) {
+            console.log("Contest entry created:", contestResult.message);
+          }
+        } catch (contestErr) {
+          console.error("Failed to process contest entry:", contestErr);
         }
         
         toast({ title: "Commande complétée", description: "La commande a été automatiquement marquée comme complétée." });

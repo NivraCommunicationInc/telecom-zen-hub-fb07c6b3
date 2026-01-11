@@ -21,6 +21,8 @@ interface AppliedPromo {
   discount_amount: number;
   applies_to: Record<string, boolean>;
   stackable: boolean;
+  new_customers_only?: boolean;
+  duration?: string;
 }
 
 interface PromoCodeInputProps {
@@ -88,6 +90,8 @@ export const PromoCodeInput = ({
         discount_amount: data.discount_amount,
         applies_to: data.promo.applies_to,
         stackable: data.promo.stackable,
+        new_customers_only: data.promo.new_customers_only,
+        duration: data.promo.duration,
       };
 
       onPromoApplied(newPromo);
@@ -116,11 +120,21 @@ export const PromoCodeInput = ({
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-600" />
             <div>
-              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                {appliedPromo.code}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  {appliedPromo.code}
+                </p>
+                {appliedPromo.duration === "first_cycle_only" && (
+                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    1er mois seulement
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-emerald-600 dark:text-emerald-500">
-                -{appliedPromo.discount_amount.toFixed(2)} $ de réduction
+                {appliedPromo.discount_type === "percent" 
+                  ? `${appliedPromo.discount_value}% de rabais`
+                  : `-${appliedPromo.discount_amount.toFixed(2)} $`}
+                {appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
               </p>
             </div>
           </div>

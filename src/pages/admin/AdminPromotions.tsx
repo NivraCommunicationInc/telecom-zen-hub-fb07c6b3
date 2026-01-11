@@ -63,6 +63,8 @@ interface Promotion {
   usage_limit_total: number | null;
   usage_limit_per_client: number | null;
   stackable: boolean;
+  new_customers_only: boolean;
+  duration: string | null;
   created_at: string;
   updated_at: string;
   redemption_count?: number;
@@ -114,6 +116,8 @@ const AdminPromotions = () => {
     usage_limit_total: "",
     usage_limit_per_client: "",
     stackable: false,
+    new_customers_only: false,
+    duration: "ongoing",
   });
 
   useEffect(() => {
@@ -197,6 +201,8 @@ const AdminPromotions = () => {
       usage_limit_total: "",
       usage_limit_per_client: "",
       stackable: false,
+      new_customers_only: false,
+      duration: "ongoing",
     });
   };
 
@@ -237,6 +243,8 @@ const AdminPromotions = () => {
         usage_limit_total: formData.usage_limit_total ? parseInt(formData.usage_limit_total) : null,
         usage_limit_per_client: formData.usage_limit_per_client ? parseInt(formData.usage_limit_per_client) : null,
         stackable: formData.stackable,
+        new_customers_only: formData.new_customers_only,
+        duration: formData.duration || null,
         created_by_admin_id: user?.id || null,
       };
 
@@ -304,6 +312,8 @@ const AdminPromotions = () => {
       usage_limit_total: promo.usage_limit_total?.toString() || "",
       usage_limit_per_client: promo.usage_limit_per_client?.toString() || "",
       stackable: promo.stackable,
+      new_customers_only: promo.new_customers_only || false,
+      duration: promo.duration || "ongoing",
     });
     setIsEditing(false);
     setShowCreateDialog(true);
@@ -328,6 +338,8 @@ const AdminPromotions = () => {
       usage_limit_total: promo.usage_limit_total?.toString() || "",
       usage_limit_per_client: promo.usage_limit_per_client?.toString() || "",
       stackable: promo.stackable,
+      new_customers_only: promo.new_customers_only || false,
+      duration: promo.duration || "ongoing",
     });
     setIsEditing(true);
     setShowCreateDialog(true);
@@ -702,6 +714,28 @@ const AdminPromotions = () => {
                 />
                 <Label htmlFor="stackable">Cumulable avec d'autres promotions</Label>
               </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="new_customers_only"
+                  checked={formData.new_customers_only}
+                  onCheckedChange={(checked) => setFormData({ ...formData, new_customers_only: checked })}
+                />
+                <Label htmlFor="new_customers_only">Nouveaux clients uniquement</Label>
+              </div>
+
+              <div>
+                <Label>Durée du rabais</Label>
+                <Select value={formData.duration} onValueChange={(v) => setFormData({ ...formData, duration: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ongoing">Continu (tous les cycles)</SelectItem>
+                    <SelectItem value="first_cycle_only">Premier mois seulement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </TabsContent>
 
             <TabsContent value="preview" className="space-y-4 mt-4">
@@ -838,6 +872,21 @@ const AdminPromotions = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Portée</p>
                   <p className="font-medium capitalize">{selectedPromo.scope}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nouveaux clients</p>
+                  <Badge variant={selectedPromo.new_customers_only ? "default" : "outline"}>
+                    {selectedPromo.new_customers_only ? "Oui" : "Non"}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Durée</p>
+                  <Badge variant="outline">
+                    {selectedPromo.duration === "first_cycle_only" ? "1er mois seulement" : "Continu"}
+                  </Badge>
                 </div>
               </div>
 
