@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Ticket, X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Ticket, X, CheckCircle, Loader2, AlertCircle, Gift } from "lucide-react";
 import { backendClient } from "@/integrations/backend/client";
 import { useToast } from "@/hooks/use-toast";
 import { normalizePromoCode } from "@/lib/validation/normalize";
@@ -120,37 +120,48 @@ export const PromoCodeInput = ({
   return (
     <div className="space-y-3">
       {appliedPromo ? (
-        <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-600" />
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                  {appliedPromo.code}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    {appliedPromo.code}
+                  </p>
+                  {appliedPromo.duration === "first_cycle_only" && (
+                    <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      1er mois seulement
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                  {appliedPromo.discount_type === "percent" 
+                    ? `${appliedPromo.discount_value}% de rabais`
+                    : `-${appliedPromo.discount_amount.toFixed(2)} $`}
+                  {appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
                 </p>
-                {appliedPromo.duration === "first_cycle_only" && (
-                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                    1er mois seulement
-                  </Badge>
-                )}
               </div>
-              <p className="text-xs text-emerald-600 dark:text-emerald-500">
-                {appliedPromo.discount_type === "percent" 
-                  ? `${appliedPromo.discount_value}% de rabais`
-                  : `-${appliedPromo.discount_amount.toFixed(2)} $`}
-                {appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRemovePromo}
+              disabled={disabled}
+              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          {/* Contest entry notification for BIENVENUE code */}
+          {appliedPromo.code.toUpperCase() === "BIENVENUE" && (
+            <div className="flex items-center gap-2 p-2 bg-primary/5 border border-primary/20 rounded-lg">
+              <Gift className="w-4 h-4 text-primary flex-shrink-0" />
+              <p className="text-xs text-primary">
+                Vous êtes automatiquement inscrit au tirage de 500$ (15 février 2026).
               </p>
             </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRemovePromo}
-            disabled={disabled}
-            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
-          >
-            <X className="w-4 h-4" />
-          </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

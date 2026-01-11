@@ -113,8 +113,15 @@ const Contest = () => {
                       <li className="flex items-start gap-3">
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">2</span>
                         <div>
+                          <p className="font-medium">Appliquez le code <span className="font-mono font-bold text-primary">BIENVENUE</span></p>
+                          <p className="text-sm text-muted-foreground">Lors de votre commande, entrez le code promo pour être inscrit automatiquement</p>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">3</span>
+                        <div>
                           <p className="font-medium">Complétez votre première commande</p>
-                          <p className="text-sm text-muted-foreground">Une fois votre service activé, vous êtes automatiquement inscrit</p>
+                          <p className="text-sm text-muted-foreground">Une fois votre service activé, vous êtes inscrit au tirage</p>
                         </div>
                       </li>
                       <li className="flex items-start gap-3">
@@ -235,6 +242,11 @@ const Contest = () => {
                     Rabais applicable uniquement sur les forfaits mensuels, 1er mois seulement; 
                     exclut taxes et frais uniques (activation, installation, livraison, équipement).
                   </p>
+                  <div className="mt-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                      ✨ Aucune inscription requise! En appliquant le code <span className="font-mono font-bold">BIENVENUE</span> lors de votre commande, vous êtes automatiquement inscrit au tirage.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
