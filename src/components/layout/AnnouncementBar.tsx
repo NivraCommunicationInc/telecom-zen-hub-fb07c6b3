@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -55,6 +55,7 @@ const dismissBar = () => {
  */
 const AnnouncementBar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
@@ -87,6 +88,28 @@ const AnnouncementBar = () => {
   const handleDismiss = () => {
     dismissBar();
     setIsVisible(false);
+  };
+
+  const handlePlansClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // If already on homepage, just scroll
+    if (location.pathname === "/") {
+      const servicesSection = document.getElementById("services");
+      if (servicesSection) {
+        servicesSection.scrollIntoView({ behavior: "smooth" });
+      }
+    } else {
+      // Navigate to homepage with hash, then scroll
+      navigate("/#services");
+      // After navigation, scroll to section
+      setTimeout(() => {
+        const servicesSection = document.getElementById("services");
+        if (servicesSection) {
+          servicesSection.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
+    }
   };
 
   // Don't render if hidden or on excluded route
@@ -144,9 +167,9 @@ const AnnouncementBar = () => {
             variant="ghost"
             size="sm"
             className="hidden sm:inline-flex h-7 px-2.5 text-xs font-medium bg-white/25 hover:bg-white/35 text-accent-foreground border-0"
-            asChild
+            onClick={handlePlansClick}
           >
-            <Link to="/contact">S'abonner</Link>
+            Plans
           </Button>
 
           {/* Close button */}
