@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Users, Mail, Lock, User, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
-import { PARTNER_CONTACT } from "@/config/partnerContact";
+// Partner contact is handled by PartnerHelpFooter
 
 const InfluencerRegister = () => {
   const navigate = useNavigate();

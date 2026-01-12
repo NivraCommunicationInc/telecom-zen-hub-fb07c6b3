@@ -92,6 +92,7 @@ import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import InfluencerLogin from "@/pages/influencer/InfluencerLogin";
 import InfluencerOnboarding from "@/pages/influencer/InfluencerOnboarding";
 import InfluencerRegister from "@/pages/influencer/InfluencerRegister";
+import InfluencerResetPassword from "@/pages/influencer/InfluencerResetPassword";
 import InfluencerDashboard from "@/pages/influencer/InfluencerDashboard";
 import InfluencerReferrals from "@/pages/influencer/InfluencerReferrals";
 import InfluencerEarnings from "@/pages/influencer/InfluencerEarnings";
@@ -234,6 +235,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       <Route path="/influencer/login" element={<InfluencerLogin />} />
       <Route path="/influencer/register" element={<InfluencerRegister />} />
+      <Route path="/influencer/reset-password" element={<InfluencerResetPassword />} />
       <Route path="/influencer/onboarding" element={<InfluencerOnboarding />} />
       <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerDashboard /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerReferrals /></InfluencerProtectedRoute></InfluencerAuthProvider>} />

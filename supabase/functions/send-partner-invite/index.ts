@@ -155,9 +155,6 @@ serve(async (req: Request): Promise<Response> => {
         <p style="margin: 0;">
           <a href="mailto:Support@NivraTelecom.ca" style="color: #0891b2; text-decoration: none;">Support@NivraTelecom.ca</a>
         </p>
-        <p style="margin: 8px 0 0 0;">
-          Programme partenaires: <a href="mailto:partenaires@nivratelecom.ca" style="color: #0891b2; text-decoration: none;">partenaires@nivratelecom.ca</a>
-        </p>
       </div>
       
     </div>

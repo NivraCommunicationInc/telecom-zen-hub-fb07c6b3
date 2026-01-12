@@ -16,7 +16,7 @@ import {
 import { Loader2, Users, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
-import { PARTNER_CONTACT, getPartnerMailtoLink } from "@/config/partnerContact";
+import { PARTNER_SUPPORT_EMAIL, getPartnerMailtoLink } from "@/config/partnerContact";
 
 interface InviteData {
   influencer_id: string;
@@ -223,8 +223,8 @@ const InfluencerOnboarding = () => {
                 className="w-full mb-4"
                 asChild
               >
-                <a href={getPartnerMailtoLink("support")}>
-                  Contacter le support
+                <a href={getPartnerMailtoLink()}>
+                  Contacter {PARTNER_SUPPORT_EMAIL}
                 </a>
               </Button>
             )}
