@@ -140,6 +140,15 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.info("CONTACT_FORM_VERSION", "2026-01-12_v1");
+
+    const backendUrl = import.meta.env.VITE_SUPABASE_URL;
+    const backendKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    console.info("CONTACT_BACKEND_CONFIG", {
+      urlPresent: !!backendUrl,
+      keyLen: backendKey?.length ?? 0,
+      urlTail: backendUrl ? backendUrl.slice(-12) : null,
+    });
+
     setErrors({});
 
     // Hard block (no network call) when consent is not accepted
@@ -193,11 +202,35 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         source: "website_contact",
       };
 
+      console.info("CONTACT_SUBMIT_PAYLOAD", {
+        status: payload.status,
+        consent_given: payload.consent_given,
+        page_url: payload.page_url,
+        subject: payload.subject,
+        preferred_contact: payload.preferred_contact,
+        source: payload.source,
+        notesLen: payload.notes?.length ?? 0,
+        emailDomain: payload.email?.split("@")[1] ?? null,
+      });
+
       const { data, error } = await supabase
         .from("contact_requests")
         .insert(payload)
         .select("request_number")
         .single();
+
+      console.info("CONTACT_SUBMIT_RESPONSE", {
+        status: (error as any)?.status ?? (error ? undefined : 201),
+        data,
+        error: error
+          ? {
+              message: (error as any)?.message,
+              code: (error as any)?.code,
+              details: (error as any)?.details,
+              hint: (error as any)?.hint,
+            }
+          : null,
+      });
 
       if (error) throw error;
 
