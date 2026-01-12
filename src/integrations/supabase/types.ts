@@ -7714,7 +7714,7 @@ export type Database = {
         | "resolved_rejected"
       fraud_flag_level: "none" | "low" | "medium" | "high"
       fulfillment_type: "ship" | "technician" | "pickup"
-      influencer_status: "invited" | "active" | "suspended"
+      influencer_status: "invited" | "active" | "suspended" | "pending"
       internal_order_status:
         | "draft"
         | "quoted"
@@ -7989,7 +7989,7 @@ export const Constants = {
       ],
       fraud_flag_level: ["none", "low", "medium", "high"],
       fulfillment_type: ["ship", "technician", "pickup"],
-      influencer_status: ["invited", "active", "suspended"],
+      influencer_status: ["invited", "active", "suspended", "pending"],
       internal_order_status: [
         "draft",
         "quoted",

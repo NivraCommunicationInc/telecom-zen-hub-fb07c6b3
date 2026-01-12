@@ -91,6 +91,7 @@ import ProtectedRoute from "@/components/admin/ProtectedRoute";
 // Influencer Portal
 import InfluencerLogin from "@/pages/influencer/InfluencerLogin";
 import InfluencerOnboarding from "@/pages/influencer/InfluencerOnboarding";
+import InfluencerRegister from "@/pages/influencer/InfluencerRegister";
 import InfluencerDashboard from "@/pages/influencer/InfluencerDashboard";
 import InfluencerReferrals from "@/pages/influencer/InfluencerReferrals";
 import InfluencerEarnings from "@/pages/influencer/InfluencerEarnings";
