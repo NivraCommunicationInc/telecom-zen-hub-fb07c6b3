@@ -186,6 +186,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     // Upsert influencer record (using service role - bypasses RLS)
+    // Use email for conflict since it's unique; user_id now also has unique constraint
     const { data: influencer, error: influencerError } = await supabaseAdmin
       .from("influencers")
       .upsert({
@@ -198,7 +199,7 @@ Deno.serve(async (req) => {
         payout_email: normalizedEmail,
         commission_plan_id: defaultPlan?.id || null,
       }, {
-        onConflict: "user_id",
+        onConflict: "email",
       })
       .select("id, status")
       .single();
