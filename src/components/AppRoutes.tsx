@@ -80,6 +80,7 @@ import AdminMaintenance from "@/pages/admin/AdminMaintenance";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
 import AdminContests from "@/pages/admin/AdminContests";
 import AdminWebForms from "@/pages/admin/AdminWebForms";
+import AdminTelephony from "@/pages/admin/AdminTelephony";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Client portal pages
@@ -202,6 +203,7 @@ const AppRoutes = () => {
       <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/concours" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContests /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/formulaire-web" element={<AuthProvider><ProtectedRoute requireAdmin><AdminWebForms /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/telephony" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTelephony /></ProtectedRoute></AuthProvider>} />
 
       {/* DEV-ONLY routes */}
       {import.meta.env.DEV && (

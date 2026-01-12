@@ -6038,6 +6038,57 @@ export type Database = {
         }
         Relationships: []
       }
+      telephony_logs: {
+        Row: {
+          action: string
+          agent_email: string | null
+          agent_name: string | null
+          agent_user_id: string | null
+          client_id: string
+          created_at: string
+          direction: string
+          duration_seconds: number | null
+          id: string
+          notes: string | null
+          openphone_call_id: string | null
+          openphone_message_id: string | null
+          phone_number: string | null
+          raw_payload: Json | null
+        }
+        Insert: {
+          action: string
+          agent_email?: string | null
+          agent_name?: string | null
+          agent_user_id?: string | null
+          client_id: string
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          id?: string
+          notes?: string | null
+          openphone_call_id?: string | null
+          openphone_message_id?: string | null
+          phone_number?: string | null
+          raw_payload?: Json | null
+        }
+        Update: {
+          action?: string
+          agent_email?: string | null
+          agent_name?: string | null
+          agent_user_id?: string | null
+          client_id?: string
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          id?: string
+          notes?: string | null
+          openphone_call_id?: string | null
+          openphone_message_id?: string | null
+          phone_number?: string | null
+          raw_payload?: Json | null
+        }
+        Relationships: []
+      }
       ticket_replies: {
         Row: {
           content: string
