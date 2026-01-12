@@ -15,6 +15,18 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Users, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
+import { PARTNER_CONTACT, getPartnerMailtoLink } from "@/config/partnerContact";
+
+interface InviteData {
+  influencer_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: string;
+  invite_id: string;
+  expires_at: string;
+}
 
 const InfluencerOnboarding = () => {
   const navigate = useNavigate();
@@ -23,8 +35,8 @@ const InfluencerOnboarding = () => {
 
   const [isValidating, setIsValidating] = useState(true);
   const [isValid, setIsValid] = useState(false);
-  const [influencer, setInfluencer] = useState<any>(null);
-  const [inviteId, setInviteId] = useState<string | null>(null);
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
+  const [errorReason, setErrorReason] = useState<string | null>(null);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,58 +47,46 @@ const InfluencerOnboarding = () => {
 
   useEffect(() => {
     const validateToken = async () => {
+      console.log("[Onboarding] Token received:", token?.substring(0, 8) + "...");
+      
       if (!token) {
+        console.log("[Onboarding] No token provided");
         setIsValidating(false);
         return;
       }
 
       try {
-        // Validate the invite token
-        const { data: invite, error } = await supabase
-          .from("influencer_invites")
-          .select("id, influencer_id, expires_at, used_at")
-          .eq("token", token)
-          .maybeSingle();
+        // Call server-side validation endpoint
+        const { data, error } = await supabase.functions.invoke("validate-partner-invite", {
+          body: { token },
+        });
 
-        if (error || !invite) {
+        console.log("[Onboarding] Validation response:", { valid: data?.valid, reason: data?.reason });
+
+        if (error) {
+          console.error("[Onboarding] Server error:", error);
+          setErrorReason("server_error");
           setIsValid(false);
           setIsValidating(false);
           return;
         }
 
-        // Check if already used
-        if (invite.used_at) {
+        if (!data?.valid) {
+          console.log("[Onboarding] Invalid token, reason:", data?.reason);
+          setErrorReason(data?.reason || "unknown");
           setIsValid(false);
           setIsValidating(false);
           return;
         }
 
-        // Check expiration
-        if (new Date(invite.expires_at) < new Date()) {
-          setIsValid(false);
-          setIsValidating(false);
-          return;
-        }
-
-        // Get influencer details
-        const { data: influencerData, error: influencerError } = await supabase
-          .from("influencers")
-          .select("id, first_name, last_name, email, status")
-          .eq("id", invite.influencer_id)
-          .single();
-
-        if (influencerError || !influencerData) {
-          setIsValid(false);
-          setIsValidating(false);
-          return;
-        }
-
-        setInfluencer(influencerData);
-        setInviteId(invite.id);
-        setPayoutEmail(influencerData.email);
+        // Token is valid
+        console.log("[Onboarding] Token valid for:", data.data?.email);
+        setInviteData(data.data);
+        setPayoutEmail(data.data?.email || "");
         setIsValid(true);
       } catch (error) {
-        console.error("Token validation error:", error);
+        console.error("[Onboarding] Unexpected error:", error);
+        setErrorReason("unexpected_error");
         setIsValid(false);
       } finally {
         setIsValidating(false);
@@ -114,12 +114,17 @@ const InfluencerOnboarding = () => {
       return;
     }
 
+    if (!inviteData) {
+      toast.error("Données d'invitation invalides");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: influencer.email,
+        email: inviteData.email,
         password,
         options: {
           emailRedirectTo: window.location.origin + "/influencer/dashboard",
@@ -141,7 +146,7 @@ const InfluencerOnboarding = () => {
           payout_method: payoutMethod,
           payout_email: payoutEmail,
         })
-        .eq("id", influencer.id);
+        .eq("id", inviteData.influencer_id);
 
       if (updateError) throw updateError;
 
@@ -149,7 +154,7 @@ const InfluencerOnboarding = () => {
       await supabase
         .from("influencer_invites")
         .update({ used_at: new Date().toISOString() })
-        .eq("id", inviteId);
+        .eq("id", inviteData.invite_id);
 
       // Add role to user_roles table
       await supabase.from("user_roles").insert({
@@ -160,9 +165,29 @@ const InfluencerOnboarding = () => {
       toast.success("Compte créé avec succès! Vous pouvez maintenant vous connecter.");
       navigate("/influencer/login");
     } catch (error: any) {
+      console.error("[Onboarding] Submit error:", error);
       toast.error(error.message || "Erreur lors de la création du compte");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const getErrorMessage = (reason: string | null): string => {
+    switch (reason) {
+      case "missing_token":
+        return "Aucun token fourni dans le lien.";
+      case "not_found":
+        return "Ce lien d'invitation n'existe pas.";
+      case "already_used":
+        return "Ce lien d'invitation a déjà été utilisé.";
+      case "expired":
+        return "Ce lien d'invitation a expiré.";
+      case "influencer_not_found":
+        return "Le compte partenaire associé n'existe plus.";
+      case "already_activated":
+        return "Votre compte est déjà activé. Connectez-vous directement.";
+      default:
+        return "Ce lien d'invitation est invalide ou a expiré.";
     }
   };
 
@@ -180,16 +205,35 @@ const InfluencerOnboarding = () => {
   if (!token || !isValid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="max-w-md w-full border-red-500/30">
+        <Card className="max-w-md w-full border-destructive/30">
           <CardContent className="pt-6 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold text-foreground mb-2">Lien invalide</h2>
             <p className="text-muted-foreground mb-6">
-              Ce lien d'invitation est invalide, a expiré, ou a déjà été utilisé.
+              {getErrorMessage(errorReason)}
             </p>
-            <Link to="/">
-              <Button variant="outline">Retour au site</Button>
+            
+            {errorReason === "already_activated" ? (
+              <Link to="/influencer/login">
+                <Button className="w-full mb-4">Se connecter</Button>
+              </Link>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="w-full mb-4"
+                asChild
+              >
+                <a href={getPartnerMailtoLink("support")}>
+                  Contacter le support
+                </a>
+              </Button>
+            )}
+            
+            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+              ← Retour au site
             </Link>
+            
+            <PartnerHelpFooter className="mt-6" />
           </CardContent>
         </Card>
       </div>
@@ -224,11 +268,11 @@ const InfluencerOnboarding = () => {
               <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Nom:</span>
-                  <span className="font-medium">{influencer?.first_name} {influencer?.last_name}</span>
+                  <span className="font-medium">{inviteData?.first_name} {inviteData?.last_name}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Email:</span>
-                  <span className="font-medium">{influencer?.email}</span>
+                  <span className="font-medium">{inviteData?.email}</span>
                 </div>
               </div>
 
@@ -308,6 +352,8 @@ const InfluencerOnboarding = () => {
                 Créer mon compte
               </Button>
             </form>
+            
+            <PartnerHelpFooter />
           </CardContent>
         </Card>
       </div>

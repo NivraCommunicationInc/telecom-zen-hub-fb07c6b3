@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
+import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
+import { PARTNER_CONTACT } from "@/config/partnerContact";
 
 const InfluencerLogin = () => {
   const navigate = useNavigate();
@@ -47,9 +49,12 @@ const InfluencerLogin = () => {
         return;
       }
 
-      if (influencer.status === "invited") {
-        toast.info("Veuillez compléter votre inscription via le lien d'invitation.");
+      if (influencer.status === "invited" || influencer.status === "pending") {
         await supabase.auth.signOut();
+        const message = influencer.status === "pending" 
+          ? "Votre demande est en cours de traitement. Vous recevrez un email une fois activé."
+          : "Veuillez compléter votre inscription via le lien d'invitation.";
+        toast.info(message);
         setIsLoading(false);
         return;
       }
@@ -122,15 +127,14 @@ const InfluencerLogin = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>Besoin d'aide?</p>
-              <a 
-                href="mailto:partenaires@nivratelecom.ca" 
-                className="text-primary hover:underline"
-              >
-                partenaires@nivratelecom.ca
-              </a>
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              <p>Pas encore inscrit?</p>
+              <Link to="/influencer/register" className="text-primary hover:underline">
+                Devenir partenaire
+              </Link>
             </div>
+
+            <PartnerHelpFooter />
           </CardContent>
         </Card>
 
