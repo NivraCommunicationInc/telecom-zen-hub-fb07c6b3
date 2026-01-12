@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.client-web-form-reply]
 verify_jwt = true
+
+[functions.log-telephony-action]
+verify_jwt = true
