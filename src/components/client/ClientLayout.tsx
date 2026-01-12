@@ -80,6 +80,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     { path: "/portal/contracts", label: "Contrats", icon: FileText },
     
     { path: "/portal/tickets", label: "Support", icon: MessageSquare },
+    { path: "/portal/web-forms", label: "Formulaire Web", icon: MessageSquare },
     { path: "/portal/profile", label: "Mon profil", icon: User },
     { path: "/portal/payments", label: "Paiements", icon: CreditCard },
   ];

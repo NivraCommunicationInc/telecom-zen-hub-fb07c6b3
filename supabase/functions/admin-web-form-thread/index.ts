@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
 };
 
 serve(async (req) => {
@@ -12,7 +12,7 @@ serve(async (req) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  if (req.method !== "GET" && req.method !== "PATCH") {
+  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PATCH") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -72,9 +72,25 @@ serve(async (req) => {
     const staffName = employee?.full_name || user.email || "Admin";
     const staffEmail = employee?.email || user.email;
 
-    // Get thread ID from URL
-    const url = new URL(req.url);
-    const threadId = url.searchParams.get("thread_id");
+    // Get thread ID from body (functions.invoke) or URL params
+    let threadId: string | null = null;
+    let bodyData: Record<string, unknown> = {};
+    
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      try {
+        bodyData = await req.json();
+        threadId = (bodyData.thread_id as string) || null;
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    
+    // Fallback to URL params
+    if (!threadId) {
+      const url = new URL(req.url);
+      threadId = url.searchParams.get("thread_id");
+    }
 
     if (!threadId) {
       return new Response(JSON.stringify({ error: "thread_id required" }), {
@@ -83,7 +99,8 @@ serve(async (req) => {
       });
     }
 
-    if (req.method === "GET") {
+    // Handle GET (or POST without updates = fetch)
+    if (req.method === "GET" || (req.method === "POST" && !bodyData.status && !bodyData.admin_assignee_user_id && !bodyData.admin_tags)) {
       // Fetch thread and messages
       const { data: thread, error: threadError } = await supabase
         .from("web_form_threads")
@@ -118,14 +135,13 @@ serve(async (req) => {
       );
     }
 
-    if (req.method === "PATCH") {
-      // Update thread (status, assignee, tags)
-      const body = await req.json();
+    // Handle PATCH/POST with updates
+    if (req.method === "PATCH" || (req.method === "POST" && (bodyData.status || bodyData.admin_assignee_user_id !== undefined || bodyData.admin_tags !== undefined))) {
       const updates: Record<string, unknown> = {};
 
-      if (body.status) updates.status = body.status;
-      if (body.admin_assignee_user_id !== undefined) updates.admin_assignee_user_id = body.admin_assignee_user_id;
-      if (body.admin_tags !== undefined) updates.admin_tags = body.admin_tags;
+      if (bodyData.status) updates.status = bodyData.status;
+      if (bodyData.admin_assignee_user_id !== undefined) updates.admin_assignee_user_id = bodyData.admin_assignee_user_id;
+      if (bodyData.admin_tags !== undefined) updates.admin_tags = bodyData.admin_tags;
 
       if (Object.keys(updates).length === 0) {
         return new Response(JSON.stringify({ error: "No updates provided" }), {
@@ -148,14 +164,13 @@ serve(async (req) => {
         throw new Error("Failed to update thread");
       }
 
-      // Log the update as a system message if status changed
-      if (body.status) {
+      if (bodyData.status) {
         await supabase.from("web_form_messages").insert({
           thread_id: threadId,
           sender_type: "system",
           sender_name: staffName,
           sender_email: staffEmail,
-          body_text: `Statut changé à "${body.status}" par ${staffName}`,
+          body_text: `Statut changé à "${bodyData.status}" par ${staffName}`,
           direction: "outbound",
           is_internal_note: true,
         });
