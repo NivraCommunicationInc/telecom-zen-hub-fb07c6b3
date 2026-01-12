@@ -46,6 +46,14 @@ async function findUserByEmail(supabaseAdmin: any, email: string): Promise<any |
   return null;
 }
 
+// Helper to always return JSON (status 200) for consistent client handling
+function jsonResponse(body: Record<string, unknown>) {
+  return new Response(
+    JSON.stringify(body),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -53,31 +61,44 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Check for required secrets first
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("[partner-self-signup] Missing required secrets");
+      return jsonResponse({
+        ok: false,
+        code: "MISCONFIGURED",
+        message: "Service configuration error. Please contact support."
+      });
+    }
+
     const { first_name, last_name, email, password } = await req.json() as SignupRequest;
 
     // Validate input
     if (!first_name || !last_name || !email || !password) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields", code: "MISSING_FIELDS" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        ok: false,
+        code: "MISSING_FIELDS",
+        message: "Tous les champs sont requis."
+      });
     }
 
     if (password.length < 8) {
-      return new Response(
-        JSON.stringify({ error: "Password must be at least 8 characters", code: "PASSWORD_TOO_SHORT" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        ok: false,
+        code: "PASSWORD_TOO_SHORT",
+        message: "Le mot de passe doit contenir au moins 8 caractères."
+      });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
 
     // Create admin client with service role
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
     console.log(`[partner-self-signup] Processing signup for: ${normalizedEmail}`);
 
@@ -100,14 +121,12 @@ Deno.serve(async (req) => {
       if (existingInfluencer) {
         // Account fully exists
         console.log(`[partner-self-signup] Influencer row exists with status: ${existingInfluencer.status}`);
-        return new Response(
-          JSON.stringify({ 
-            error: "Un compte existe déjà avec cet email. Utilisez 'Mot de passe oublié' pour récupérer l'accès.",
-            code: "USER_EXISTS",
-            status: existingInfluencer.status
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ 
+          ok: false,
+          code: "USER_EXISTS",
+          message: "Un compte existe déjà avec cet email. Utilisez 'Mot de passe oublié' pour récupérer l'accès.",
+          status: existingInfluencer.status
+        });
       }
 
       // Also check by email in case user_id wasn't linked
@@ -127,14 +146,12 @@ Deno.serve(async (req) => {
           console.log(`[partner-self-signup] Linked existing influencer to auth user`);
         }
         
-        return new Response(
-          JSON.stringify({ 
-            error: "Un compte existe déjà avec cet email. Utilisez 'Mot de passe oublié' pour récupérer l'accès.",
-            code: "USER_EXISTS",
-            status: influencerByEmail.status
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ 
+          ok: false,
+          code: "USER_EXISTS",
+          message: "Un compte existe déjà avec cet email. Utilisez 'Mot de passe oublié' pour récupérer l'accès.",
+          status: influencerByEmail.status
+        });
       }
 
       // Auth user exists but no influencer row - repair it
@@ -150,7 +167,11 @@ Deno.serve(async (req) => {
 
       if (createError) {
         console.error("[partner-self-signup] Error creating auth user:", createError);
-        throw createError;
+        return jsonResponse({
+          ok: false,
+          code: "AUTH_ERROR",
+          message: createError.message || "Erreur lors de la création du compte."
+        });
       }
 
       authUserId = newUser.user.id;
@@ -164,7 +185,7 @@ Deno.serve(async (req) => {
       .eq("is_default", true)
       .maybeSingle();
 
-    // Upsert influencer record
+    // Upsert influencer record (using service role - bypasses RLS)
     const { data: influencer, error: influencerError } = await supabaseAdmin
       .from("influencers")
       .upsert({
@@ -184,7 +205,11 @@ Deno.serve(async (req) => {
 
     if (influencerError) {
       console.error("[partner-self-signup] Error upserting influencer:", influencerError);
-      throw influencerError;
+      return jsonResponse({
+        ok: false,
+        code: "DB_ERROR",
+        message: influencerError.message || "Erreur lors de la création du profil partenaire."
+      });
     }
 
     console.log(`[partner-self-signup] Influencer record created/updated: ${influencer.id}`);
@@ -205,25 +230,21 @@ Deno.serve(async (req) => {
       // Non-fatal - continue
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        influencer_id: influencer.id,
-        status: influencer.status,
-        message: "Inscription réussie. Votre compte est en attente d'activation.",
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      ok: true,
+      success: true,
+      influencer_id: influencer.id,
+      status: influencer.status,
+      message: "Inscription réussie. Votre compte est en attente d'activation.",
+    });
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
     console.error("[partner-self-signup] Unexpected error:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: errorMessage,
-        code: "SERVER_ERROR"
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ 
+      ok: false,
+      code: "SERVER_ERROR",
+      message: errorMessage
+    });
   }
 });
