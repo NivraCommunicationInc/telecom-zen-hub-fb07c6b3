@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Phone, MessageSquare, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { toE164, getOpenPhoneDeepLink, formatPhoneDisplay } from "@/lib/phoneUtils";
 
@@ -25,7 +24,6 @@ export const ClientPhoneActions = ({
   variant = "default" 
 }: ClientPhoneActionsProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [isLoggingCall, setIsLoggingCall] = useState(false);
   const [isLoggingSms, setIsLoggingSms] = useState(false);
 
@@ -33,12 +31,11 @@ export const ClientPhoneActions = ({
 
   /**
    * Log telephony action via Edge Function (server-side with service role)
-   * Returns true if logged successfully, false otherwise
+   * Throws on error (caller decides whether to still proceed).
    */
-  const logTelephonyAction = async (action: "call" | "sms"): Promise<boolean> => {
-    if (!user?.id || !clientId || !phoneE164) {
-      console.error("TELEPHONY_LOG_ERROR", { error: "Missing required fields", user: user?.id, clientId, phoneE164 });
-      return false;
+  const logTelephonyAction = async (action: "call" | "sms"): Promise<{ ok: true; id: string }> => {
+    if (!clientId || !phoneE164) {
+      throw new Error("Missing required fields (clientId/phone)");
     }
 
     const payload = {
@@ -46,49 +43,58 @@ export const ClientPhoneActions = ({
       action,
       direction: "outbound",
       phone_number: phoneE164,
+      raw_payload: {},
     };
 
     console.info("TELEPHONY_LOG_PAYLOAD", payload);
 
-    try {
-      const { data, error } = await supabase.functions.invoke("log-telephony-action", {
-        body: payload,
-      });
+    const { data: { session } } = await supabase.auth.getSession();
+    const jwt = session?.access_token;
 
-      console.info("TELEPHONY_LOG_RESPONSE", { data, error });
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/log-telephony-action`;
+    const apikey = (import.meta.env as any).VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      if (error) {
-        console.error("TELEPHONY_LOG_ERROR", { error: error.message });
-        toast({
-          title: "Erreur de journalisation",
-          description: error.message || "Impossible de journaliser l'action.",
-          variant: "destructive",
-        });
-        return false;
-      }
+    console.info("TELEPHONY_FETCH_URL", url);
+    console.info("TELEPHONY_JWT_PRESENT", Boolean(jwt), "len", jwt?.length);
 
-      if (!data?.ok) {
-        const errorMsg = data?.error || "Réponse inattendue du serveur";
-        console.error("TELEPHONY_LOG_ERROR", { error: errorMsg, data });
-        toast({
-          title: "Erreur de journalisation",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("TELEPHONY_LOG_ERROR", { error: errorMsg, err });
-      toast({
-        title: "Erreur de journalisation",
-        description: errorMsg,
-        variant: "destructive",
-      });
-      return false;
+    if (!jwt) {
+      throw new Error("No session JWT available (not logged in?)");
     }
+    if (!apikey) {
+      throw new Error("Missing publishable API key (VITE_SUPABASE_PUBLISHABLE_KEY)");
+    }
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+        apikey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+    console.info("TELEPHONY_FETCH_STATUS", res.status);
+    console.info("TELEPHONY_FETCH_BODY", text);
+
+    if (!res.ok) {
+      throw new Error(`log-telephony-action failed ${res.status}: ${text}`);
+    }
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // ignore
+    }
+
+    if (!parsed?.ok || !parsed?.id) {
+      throw new Error(`log-telephony-action unexpected response: ${text}`);
+    }
+
+    console.info("TELEPHONY_LOG_RESPONSE", parsed);
+    return parsed as { ok: true; id: string };
   };
 
   const handleCall = async () => {
@@ -107,23 +113,19 @@ export const ClientPhoneActions = ({
     setIsLoggingCall(true);
     try {
       // IMPORTANT: Log BEFORE opening the window to ensure the request completes
-      const logged = await logTelephonyAction("call");
-      
-      if (!logged) {
-        // Still open OpenPhone but warn user
+      try {
+        await logTelephonyAction("call");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("TELEPHONY_LOG_ERROR", msg);
         toast({
-          title: "Action ouverte",
-          description: "OpenPhone s'ouvre, mais la journalisation a échoué.",
+          title: "Erreur de journalisation",
+          description: msg,
           variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Appel initié",
-          description: `Ouverture d'OpenPhone pour appeler ${clientName || formatPhoneDisplay(phoneE164)}`,
         });
       }
 
-      // Open OpenPhone in new tab AFTER logging
+      // Open OpenPhone in new tab AFTER logging attempt
       const url = getOpenPhoneDeepLink(phoneE164, "call");
       window.open(url, "_blank", "noopener,noreferrer");
     } finally {
@@ -147,23 +149,19 @@ export const ClientPhoneActions = ({
     setIsLoggingSms(true);
     try {
       // IMPORTANT: Log BEFORE opening the window to ensure the request completes
-      const logged = await logTelephonyAction("sms");
-      
-      if (!logged) {
-        // Still open OpenPhone but warn user
+      try {
+        await logTelephonyAction("sms");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("TELEPHONY_LOG_ERROR", msg);
         toast({
-          title: "Action ouverte",
-          description: "OpenPhone s'ouvre, mais la journalisation a échoué.",
+          title: "Erreur de journalisation",
+          description: msg,
           variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "SMS",
-          description: `Ouverture d'OpenPhone pour envoyer un SMS à ${clientName || formatPhoneDisplay(phoneE164)}`,
         });
       }
 
-      // Open OpenPhone SMS in new tab AFTER logging
+      // Open OpenPhone SMS in new tab AFTER logging attempt
       const url = getOpenPhoneDeepLink(phoneE164, "sms");
       window.open(url, "_blank", "noopener,noreferrer");
     } finally {
