@@ -49,15 +49,36 @@ import {
   Eye,
   Loader2,
   CheckCircle,
+  Stethoscope,
+  Wrench,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+interface DiagnoseResult {
+  email: string;
+  auth_user_exists: boolean;
+  auth_user_id: string | null;
+  influencer_row_exists: boolean;
+  influencer_id: string | null;
+  influencer_user_id: string | null;
+  influencer_status: string | null;
+  issues: string[];
+  repaired: boolean;
+  repair_actions: string[];
+}
 
 const AdminReferralInfluencers = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [diagnoseDialogOpen, setDiagnoseDialogOpen] = useState(false);
+  const [diagnoseEmail, setDiagnoseEmail] = useState("");
+  const [diagnoseResult, setDiagnoseResult] = useState<DiagnoseResult | null>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
   const [newInfluencer, setNewInfluencer] = useState({
     first_name: "",
     last_name: "",
@@ -289,6 +310,50 @@ const AdminReferralInfluencers = () => {
     },
   });
 
+  // Diagnose account
+  const handleDiagnose = async () => {
+    if (!diagnoseEmail) {
+      toast.error("Veuillez entrer un email");
+      return;
+    }
+    setIsDiagnosing(true);
+    setDiagnoseResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("partner-account-diagnose", {
+        body: { email: diagnoseEmail, repair: false },
+      });
+      if (error) throw error;
+      setDiagnoseResult(data);
+    } catch (error: any) {
+      console.error("Diagnose error:", error);
+      toast.error(`Erreur: ${error.message}`);
+    } finally {
+      setIsDiagnosing(false);
+    }
+  };
+
+  // Repair account
+  const handleRepair = async () => {
+    if (!diagnoseEmail) return;
+    setIsRepairing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("partner-account-diagnose", {
+        body: { email: diagnoseEmail, repair: true },
+      });
+      if (error) throw error;
+      setDiagnoseResult(data);
+      if (data.repaired) {
+        toast.success("Compte réparé avec succès!");
+        queryClient.invalidateQueries({ queryKey: ["influencers"] });
+      }
+    } catch (error: any) {
+      console.error("Repair error:", error);
+      toast.error(`Erreur: ${error.message}`);
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -336,10 +401,20 @@ const AdminReferralInfluencers = () => {
               Gérez vos partenaires et leurs codes
             </p>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvel Influenceur
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              setDiagnoseDialogOpen(true);
+              setDiagnoseEmail("");
+              setDiagnoseResult(null);
+            }}>
+              <Stethoscope className="w-4 h-4 mr-2" />
+              Diagnostiquer
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nouvel Influenceur
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -613,6 +688,109 @@ const AdminReferralInfluencers = () => {
               )}
               Créer et inviter
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diagnose Dialog */}
+      <Dialog open={diagnoseDialogOpen} onOpenChange={setDiagnoseDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Diagnostiquer / Réparer un compte</DialogTitle>
+            <DialogDescription>
+              Vérifiez si un compte partenaire existe et réparez les problèmes éventuels.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="Email du partenaire..."
+                value={diagnoseEmail}
+                onChange={(e) => setDiagnoseEmail(e.target.value)}
+              />
+              <Button onClick={handleDiagnose} disabled={isDiagnosing || !diagnoseEmail}>
+                {isDiagnosing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Analyser
+              </Button>
+            </div>
+
+            {diagnoseResult && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="font-medium">Auth User:</div>
+                  <div>
+                    {diagnoseResult.auth_user_exists ? (
+                      <Badge className="bg-green-500/20 text-green-400">Existe</Badge>
+                    ) : (
+                      <Badge className="bg-red-500/20 text-red-400">Non trouvé</Badge>
+                    )}
+                    {diagnoseResult.auth_user_id && (
+                      <span className="ml-2 text-xs text-muted-foreground">{diagnoseResult.auth_user_id.slice(0, 8)}...</span>
+                    )}
+                  </div>
+
+                  <div className="font-medium">Influencer Row:</div>
+                  <div>
+                    {diagnoseResult.influencer_row_exists ? (
+                      <Badge className="bg-green-500/20 text-green-400">Existe</Badge>
+                    ) : (
+                      <Badge className="bg-red-500/20 text-red-400">Non trouvé</Badge>
+                    )}
+                    {diagnoseResult.influencer_status && (
+                      <span className="ml-2">{getStatusBadge(diagnoseResult.influencer_status)}</span>
+                    )}
+                  </div>
+                </div>
+
+                {diagnoseResult.issues.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Problèmes détectés</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc list-inside text-sm mt-1">
+                        {diagnoseResult.issues.map((issue, i) => (
+                          <li key={i}>{issue}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {diagnoseResult.issues.length === 0 && (
+                  <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>Aucun problème</AlertTitle>
+                    <AlertDescription>Le compte est correctement configuré.</AlertDescription>
+                  </Alert>
+                )}
+
+                {diagnoseResult.repair_actions.length > 0 && (
+                  <Alert className="border-green-500/30">
+                    <Wrench className="h-4 w-4" />
+                    <AlertTitle>Actions de réparation</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc list-inside text-sm mt-1">
+                        {diagnoseResult.repair_actions.map((action, i) => (
+                          <li key={i}>{action}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDiagnoseDialogOpen(false)}>
+              Fermer
+            </Button>
+            {diagnoseResult && diagnoseResult.issues.length > 0 && !diagnoseResult.repaired && (
+              <Button onClick={handleRepair} disabled={isRepairing}>
+                {isRepairing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Wrench className="w-4 h-4 mr-2" />
+                Réparer
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
