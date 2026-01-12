@@ -59,7 +59,6 @@ const InfluencerRegister = () => {
       }
 
       // Create influencer record with pending status
-      // Using 'invited' as fallback until 'pending' enum is added
       const { error: influencerError } = await supabase
         .from("influencers")
         .insert({
@@ -67,7 +66,7 @@ const InfluencerRegister = () => {
           first_name: firstName,
           last_name: lastName,
           email: email,
-          status: "invited" as any, // Will be 'pending' after migration
+          status: "pending" as any,
           payout_method: "etransfer",
           payout_email: email,
         });

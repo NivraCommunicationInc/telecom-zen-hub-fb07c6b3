@@ -34,6 +34,7 @@ import { DollarSign, Wallet, Loader2, CheckCircle, Clock, XCircle, AlertCircle }
 import { supabase } from "@/integrations/supabase/client";
 import { useInfluencerAuth } from "@/hooks/useInfluencerAuth";
 import { toast } from "sonner";
+import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 
 const InfluencerCashouts = () => {
   const { influencer } = useInfluencerAuth();
@@ -237,6 +238,9 @@ const InfluencerCashouts = () => {
             </Table>
           </CardContent>
         </Card>
+        
+        {/* Help Footer */}
+        <PartnerHelpFooter />
       </div>
 
       {/* Request Dialog */}
