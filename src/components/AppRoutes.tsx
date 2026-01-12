@@ -232,6 +232,7 @@ const AppRoutes = () => {
       <Route path="/admin/referrals/influencers/:id" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencerDetail /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/codes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCodes /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/attributions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralAttributions /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/parrainages" element={<Navigate to="/admin/referrals/attributions" replace />} />
       <Route path="/admin/referrals/commissions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCommissions /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/cashouts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCashouts /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralSettings /></ProtectedRoute></AuthProvider>} />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,19 +13,23 @@ import {
   TrendingUp, 
   Clock, 
   CheckCircle,
-  AlertCircle,
   Plus,
   Search,
   Settings,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const AdminReferrals = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch overview stats
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["referral-stats"],
     queryFn: async () => {
       const [influencers, codes, attributions, pendingCashouts] = await Promise.all([
@@ -51,7 +55,7 @@ const AdminReferrals = () => {
   });
 
   // Fetch recent influencers
-  const { data: recentInfluencers } = useQuery({
+  const { data: recentInfluencers, isLoading: influencersLoading, error: influencersError, refetch: refetchInfluencers } = useQuery({
     queryKey: ["recent-influencers", searchTerm],
     queryFn: async () => {
       let query = supabase
@@ -75,7 +79,7 @@ const AdminReferrals = () => {
   });
 
   // Fetch pending cashouts
-  const { data: pendingCashouts } = useQuery({
+  const { data: pendingCashouts, isLoading: cashoutsLoading } = useQuery({
     queryKey: ["pending-cashouts"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -122,11 +126,9 @@ const AdminReferrals = () => {
                 Paramètres
               </Link>
             </Button>
-            <Button asChild>
-              <Link to="/admin/referrals/influencers/new">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvel Influenceur
-              </Link>
+            <Button onClick={() => navigate("/admin/referrals/influencers")}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nouvel Influenceur
             </Button>
           </div>
         </div>
@@ -226,12 +228,26 @@ const AdminReferrals = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentInfluencers?.length === 0 ? (
+              {influencersLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : influencersError ? (
+                <Alert variant="destructive" className="m-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Erreur de chargement</span>
+                    <Button variant="outline" size="sm" onClick={() => refetchInfluencers()}>
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : !recentInfluencers || recentInfluencers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   Aucun influenceur trouvé
                 </p>
               ) : (
-                recentInfluencers?.map((influencer) => (
+                recentInfluencers.map((influencer) => (
                   <Link
                     key={influencer.id}
                     to={`/admin/referrals/influencers/${influencer.id}`}
@@ -240,14 +256,14 @@ const AdminReferrals = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                         <span className="text-sm font-semibold text-primary">
-                          {influencer.first_name[0]}{influencer.last_name[0]}
+                          {(influencer.first_name || "?")[0]}{(influencer.last_name || "?")[0]}
                         </span>
                       </div>
                       <div>
                         <p className="font-medium text-foreground">
-                          {influencer.first_name} {influencer.last_name}
+                          {influencer.first_name || "—"} {influencer.last_name || ""}
                         </p>
-                        <p className="text-xs text-muted-foreground">{influencer.email}</p>
+                        <p className="text-xs text-muted-foreground">{influencer.email || "—"}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -279,7 +295,11 @@ const AdminReferrals = () => {
               <CardDescription>Retraits à traiter</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pendingCashouts?.length === 0 ? (
+              {cashoutsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : !pendingCashouts || pendingCashouts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <CheckCircle className="w-12 h-12 text-green-500 mb-3" />
                   <p className="text-sm text-muted-foreground">
@@ -287,25 +307,25 @@ const AdminReferrals = () => {
                   </p>
                 </div>
               ) : (
-                pendingCashouts?.map((cashout) => (
+                pendingCashouts.map((cashout) => (
                   <div
                     key={cashout.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-orange-500/10 border border-orange-500/20"
                   >
                     <div>
                       <p className="font-medium text-foreground">
-                        {cashout.influencers?.first_name} {cashout.influencers?.last_name}
+                        {cashout.influencers?.first_name || "—"} {cashout.influencers?.last_name || ""}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {cashout.request_number} • {cashout.method}
+                        {cashout.request_number || "—"} • {cashout.method || "—"}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-orange-500">
-                        ${Number(cashout.amount).toFixed(2)}
+                        ${Number(cashout.amount || 0).toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(cashout.created_at).toLocaleDateString("fr-CA")}
+                        {cashout.created_at ? new Date(cashout.created_at).toLocaleDateString("fr-CA") : "—"}
                       </p>
                     </div>
                   </div>

@@ -484,16 +484,16 @@ const AdminReferralInfluencers = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                             <span className="text-sm font-semibold text-primary">
-                              {influencer.first_name[0]}
-                              {influencer.last_name[0]}
+                              {(influencer.first_name || "?")[0]}
+                              {(influencer.last_name || "?")[0]}
                             </span>
                           </div>
                           <div>
                             <p className="font-medium">
-                              {influencer.first_name} {influencer.last_name}
+                              {influencer.first_name || "—"} {influencer.last_name || ""}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {influencer.email}
+                              {influencer.email || "—"}
                             </p>
                           </div>
                         </div>
