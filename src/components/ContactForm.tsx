@@ -317,7 +317,18 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   }
 
   return (
-    <form ref={ref} onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm">
+    <form
+      ref={ref}
+      onSubmit={handleSubmit}
+      onSubmitCapture={(e) => {
+        // Defensive: guarantee no HTML form navigation ever happens.
+        e.preventDefault();
+        console.info("CONTACT_FORM_SUBMIT_CAPTURE", "2026-01-12_v1");
+      }}
+      data-testid="contact-form"
+      data-contact-form-version="2026-01-12_v1"
+      className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm"
+    >
       <h3 className="text-xl font-semibold text-foreground mb-6 text-center">
         {isFrench ? "Contact" : "Contact"}
       </h3>
