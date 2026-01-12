@@ -186,13 +186,14 @@ const AdminReferrals = () => {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
             { label: "Influenceurs", href: "/admin/referrals/influencers", icon: Users },
             { label: "Codes", href: "/admin/referrals/codes", icon: QrCode },
             { label: "Parrainages", href: "/admin/referrals/attributions", icon: TrendingUp },
             { label: "Commissions", href: "/admin/referrals/commissions", icon: DollarSign },
             { label: "Retraits", href: "/admin/referrals/cashouts", icon: CheckCircle },
+            { label: "Paramètres", href: "/admin/referrals/settings", icon: Settings },
           ].map((link) => (
             <Link key={link.href} to={link.href}>
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
