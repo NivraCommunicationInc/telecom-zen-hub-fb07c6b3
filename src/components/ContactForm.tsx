@@ -176,6 +176,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
     console.info("CONTACT_FORM_VERSION", "2026-01-12_v2");
 
@@ -472,10 +473,11 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
       onSubmitCapture={(e) => {
         // Defensive: guarantee no HTML form navigation ever happens.
         e.preventDefault();
-        console.info("CONTACT_FORM_SUBMIT_CAPTURE", "2026-01-12_v1");
+        e.stopPropagation();
+        console.info("CONTACT_FORM_SUBMIT_CAPTURE", "2026-01-12_v2");
       }}
       data-testid="contact-form"
-      data-contact-form-version="2026-01-12_v1"
+      data-contact-form-version="2026-01-12_v2"
       className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm"
     >
       <h3 className="text-xl font-semibold text-foreground mb-6 text-center">
@@ -788,6 +790,19 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             </>
           )}
         </Button>
+
+        {/* Debug block visible only on prod domain within 10min TTL */}
+        {debugEnabled && debugInfo && (
+          <div className="mt-4 p-3 rounded-lg bg-yellow-50 border border-yellow-300 text-xs font-mono text-yellow-900 space-y-1">
+            <p className="font-bold text-yellow-700">🔍 Contact Debug (10 min TTL)</p>
+            <p>backendUrlTail: <span className="font-semibold">{debugInfo.backendUrlTail ?? "null"}</span></p>
+            <p>keyLen: <span className="font-semibold">{debugInfo.keyLen}</span></p>
+            <p>dryRunStatus: <span className="font-semibold">{debugInfo.dryRunStatus ?? "—"}</span></p>
+            <p>submitStatus: <span className="font-semibold">{debugInfo.submitStatus ?? "—"}</span></p>
+            {debugInfo.errorCode && <p>errorCode: <span className="font-semibold text-red-600">{debugInfo.errorCode}</span></p>}
+            {debugInfo.errorMessage && <p>errorMessage: <span className="font-semibold text-red-600">{debugInfo.errorMessage}</span></p>}
+          </div>
+        )}
 
         <p className="text-xs text-center text-muted-foreground">
           {isFrench 
