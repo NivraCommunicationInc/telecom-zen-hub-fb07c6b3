@@ -45,6 +45,8 @@ const InfluencerRegister = () => {
 
     try {
       // Call Edge Function for reliable signup
+      console.log("[InfluencerRegister] Calling partner-self-signup...");
+      
       const { data, error } = await supabase.functions.invoke("partner-self-signup", {
         body: {
           first_name: firstName,
@@ -54,26 +56,36 @@ const InfluencerRegister = () => {
         },
       });
 
+      console.log("[InfluencerRegister] Response:", { data, error });
+
+      // Edge function now always returns 200, check data.ok
       if (error) {
-        console.error("Signup edge function error:", error);
-        throw new Error(error.message || "Erreur lors de l'inscription");
+        // Network or CORS error
+        console.error("[InfluencerRegister] Network/invoke error:", error);
+        toast.error("Erreur de connexion. Veuillez réessayer.");
+        return;
       }
 
-      // Check response for user exists error
+      // Check for USER_EXISTS
       if (data?.code === "USER_EXISTS") {
         setUserExistsError(true);
         return;
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || "Erreur lors de l'inscription");
+      // Check for other errors
+      if (data?.ok === false) {
+        const errorMsg = data?.message || "Erreur lors de l'inscription";
+        console.error("[InfluencerRegister] API error:", data);
+        toast.error(errorMsg);
+        return;
       }
 
-      console.log("Signup successful:", data);
+      // Success
+      console.log("[InfluencerRegister] Signup successful:", data);
       setIsSuccess(true);
     } catch (error: any) {
-      console.error("Registration error:", error);
-      toast.error(error.message || "Erreur lors de l'inscription");
+      console.error("[InfluencerRegister] Unexpected error:", error);
+      toast.error(error.message || "Erreur inattendue lors de l'inscription");
     } finally {
       setIsLoading(false);
     }
