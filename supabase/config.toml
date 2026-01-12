@@ -86,3 +86,21 @@ verify_jwt = false
 
 [functions.submit-contact-form]
 verify_jwt = false
+
+[functions.submit-web-form]
+verify_jwt = false
+
+[functions.admin-web-form-list]
+verify_jwt = true
+
+[functions.admin-web-form-thread]
+verify_jwt = true
+
+[functions.admin-web-form-reply]
+verify_jwt = true
+
+[functions.ingest-web-form-email]
+verify_jwt = false
+
+[functions.client-web-form-reply]
+verify_jwt = true

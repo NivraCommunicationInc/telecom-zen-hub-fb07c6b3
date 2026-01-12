@@ -194,7 +194,7 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
         addressPostalCode: formData.addressPostalCode || null,
       };
 
-      const response = await fetch(`${backendUrl}/functions/v1/submit-contact-form`, {
+      const response = await fetch(`${backendUrl}/functions/v1/submit-web-form`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
