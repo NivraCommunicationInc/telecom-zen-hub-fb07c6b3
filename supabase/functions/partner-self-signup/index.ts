@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
 
     // Upsert influencer record (using service role - bypasses RLS)
     // Use email for conflict since it's unique; user_id now also has unique constraint
-    const { data: influencer, error: influencerError } = await supabaseAdmin
+    const { error: influencerError } = await supabaseAdmin
       .from("influencers")
       .upsert({
         user_id: authUserId,
@@ -200,9 +200,7 @@ Deno.serve(async (req) => {
         commission_plan_id: defaultPlan?.id || null,
       }, {
         onConflict: "email",
-      })
-      .select("id, status")
-      .single();
+      });
 
     if (influencerError) {
       console.error("[partner-self-signup] Error upserting influencer:", influencerError);
@@ -213,7 +211,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[partner-self-signup] Influencer record created/updated: ${influencer.id}`);
+    // Verify the row was actually created by re-reading it
+    const { data: verifiedInfluencer, error: verifyError } = await supabaseAdmin
+      .from("influencers")
+      .select("id, email, status, created_at")
+      .eq("email", normalizedEmail)
+      .limit(1)
+      .single();
+
+    if (verifyError || !verifiedInfluencer) {
+      console.error("[partner-self-signup] Verification failed - row not found:", verifyError);
+      return jsonResponse({
+        ok: false,
+        code: "DB_WRITE_FAILED",
+        message: "Influencer row not created. Please try again."
+      });
+    }
+
+    console.log(`[partner-self-signup] Influencer record verified: ${verifiedInfluencer.id}`);
 
     // Upsert user_roles
     const { error: roleError } = await supabaseAdmin
@@ -234,8 +249,9 @@ Deno.serve(async (req) => {
     return jsonResponse({
       ok: true,
       success: true,
-      influencer_id: influencer.id,
-      status: influencer.status,
+      influencer_id: verifiedInfluencer.id,
+      influencer: verifiedInfluencer,
+      status: verifiedInfluencer.status,
       message: "Inscription réussie. Votre compte est en attente d'activation.",
     });
 

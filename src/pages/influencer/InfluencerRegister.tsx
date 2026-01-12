@@ -72,6 +72,13 @@ const InfluencerRegister = () => {
         return;
       }
 
+      // Check for DB_WRITE_FAILED - row not created
+      if (data?.code === "DB_WRITE_FAILED") {
+        console.error("[InfluencerRegister] DB write failed:", data);
+        toast.error("Erreur technique. Veuillez réessayer.");
+        return;
+      }
+
       // Check for other errors
       if (data?.ok === false) {
         const errorMsg = data?.message || "Erreur lors de l'inscription";
@@ -80,9 +87,15 @@ const InfluencerRegister = () => {
         return;
       }
 
-      // Success
-      console.log("[InfluencerRegister] Signup successful:", data);
-      setIsSuccess(true);
+      // Success - only show "Demande reçue" if ok:true
+      if (data?.ok === true) {
+        console.log("[InfluencerRegister] Signup successful:", data);
+        setIsSuccess(true);
+      } else {
+        // Unexpected response format
+        console.error("[InfluencerRegister] Unexpected response:", data);
+        toast.error("Réponse inattendue du serveur");
+      }
     } catch (error: any) {
       console.error("[InfluencerRegister] Unexpected error:", error);
       toast.error(error.message || "Erreur inattendue lors de l'inscription");
