@@ -10,6 +10,40 @@ interface DiagnoseRequest {
   repair?: boolean;
 }
 
+async function findUserByEmail(supabaseAdmin: any, email: string): Promise<any | null> {
+  // Paginate through all users to find by email
+  let page = 1;
+  const perPage = 1000;
+  
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+    
+    if (error) {
+      console.error("[partner-account-diagnose] Error listing users page", page, error);
+      throw error;
+    }
+    
+    const users = data?.users || [];
+    const found = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (found) {
+      return found;
+    }
+    
+    // No more pages
+    if (users.length < perPage) {
+      break;
+    }
+    
+    page++;
+  }
+  
+  return null;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -76,11 +110,8 @@ Deno.serve(async (req) => {
 
     console.log(`[partner-account-diagnose] Diagnosing: ${normalizedEmail}, repair=${repair}`);
 
-    // Check auth user
-    const { data: allUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-    if (listError) throw listError;
-
-    const authUser = allUsers?.users?.find(u => u.email?.toLowerCase() === normalizedEmail);
+    // Check auth user with pagination
+    const authUser = await findUserByEmail(supabaseAdmin, normalizedEmail);
     
     // Check influencer row
     const { data: influencer } = await supabaseAdmin
