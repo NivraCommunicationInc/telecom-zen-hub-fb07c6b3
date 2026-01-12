@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Users, Mail, Lock, User, CheckCircle } from "lucide-react";
+import { Loader2, Users, Mail, Lock, User, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
-// Partner contact is handled by PartnerHelpFooter
+import { PARTNER_SUPPORT_EMAIL } from "@/config/partnerContact";
 
 const InfluencerRegister = () => {
-  const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -21,9 +20,11 @@ const InfluencerRegister = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [userExistsError, setUserExistsError] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUserExistsError(false);
     
     if (password !== confirmPassword) {
       toast.error("Les mots de passe ne correspondent pas");
@@ -43,45 +44,32 @@ const InfluencerRegister = () => {
     setIsLoading(true);
 
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin + "/influencer/login",
-        },
-      });
-
-      if (authError) throw authError;
-
-      if (!authData.user) {
-        throw new Error("Échec de la création du compte");
-      }
-
-      // Create influencer record with pending status
-      const { error: influencerError } = await supabase
-        .from("influencers")
-        .insert({
-          user_id: authData.user.id,
+      // Call Edge Function for reliable signup
+      const { data, error } = await supabase.functions.invoke("partner-self-signup", {
+        body: {
           first_name: firstName,
           last_name: lastName,
           email: email,
-          status: "pending" as any,
-          payout_method: "etransfer",
-          payout_email: email,
-        });
-
-      if (influencerError) throw influencerError;
-
-      // Add role to user_roles table
-      await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role: "influencer",
+          password: password,
+        },
       });
 
-      // Sign out the user (they need to wait for activation)
-      await supabase.auth.signOut();
+      if (error) {
+        console.error("Signup edge function error:", error);
+        throw new Error(error.message || "Erreur lors de l'inscription");
+      }
 
+      // Check response for user exists error
+      if (data?.code === "USER_EXISTS") {
+        setUserExistsError(true);
+        return;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || "Erreur lors de l'inscription");
+      }
+
+      console.log("Signup successful:", data);
       setIsSuccess(true);
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -90,6 +78,40 @@ const InfluencerRegister = () => {
       setIsLoading(false);
     }
   };
+
+  // User already exists - show recovery options
+  if (userExistsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="border-yellow-500/30">
+            <CardContent className="pt-6 text-center">
+              <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-foreground mb-2">Compte existant</h2>
+              <p className="text-muted-foreground mb-6">
+                Un compte existe déjà avec cet email. 
+                Utilisez «&nbsp;Mot de passe oublié&nbsp;» pour récupérer l'accès à votre compte.
+              </p>
+              <div className="space-y-3">
+                <Link to="/influencer/login">
+                  <Button className="w-full">
+                    Se connecter
+                  </Button>
+                </Link>
+                <Link to="/influencer/reset-password">
+                  <Button variant="outline" className="w-full">
+                    Mot de passe oublié
+                  </Button>
+                </Link>
+              </div>
+              
+              <PartnerHelpFooter className="mt-6" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (
