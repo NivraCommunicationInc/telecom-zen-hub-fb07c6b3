@@ -92,6 +92,9 @@ export const ClientPhoneActions = ({
   };
 
   const handleCall = async () => {
+    // TEMPORARY DEBUG LOG - proves handler is wired correctly
+    console.info("CALL_CLICK_HANDLER_HIT", { clientId, clientPhone, phoneE164 });
+    
     if (!phoneE164) {
       toast({
         title: "Numéro invalide",
@@ -129,6 +132,9 @@ export const ClientPhoneActions = ({
   };
 
   const handleSms = async () => {
+    // TEMPORARY DEBUG LOG - proves handler is wired correctly
+    console.info("SMS_CLICK_HANDLER_HIT", { clientId, clientPhone, phoneE164 });
+    
     if (!phoneE164) {
       toast({
         title: "Numéro invalide",
