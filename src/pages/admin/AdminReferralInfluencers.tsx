@@ -130,65 +130,43 @@ const AdminReferralInfluencers = () => {
     },
   });
 
-  // Create influencer mutation
+  // Create influencer mutation - uses Edge Function to bypass RLS
   const createInfluencer = useMutation({
     mutationFn: async (data: typeof newInfluencer) => {
-      // Get default commission plan
-      const defaultPlan = commissionPlans?.find((p) => p.is_default);
-
-      // Create influencer
-      const { data: influencer, error: influencerError } = await supabase
-        .from("influencers")
-        .insert({
+      console.log("[createInfluencer] Calling admin-create-partner with:", data);
+      
+      const { data: result, error } = await supabase.functions.invoke("admin-create-partner", {
+        body: {
           first_name: data.first_name,
           last_name: data.last_name,
           email: data.email,
-          phone: data.phone || null,
-          notes: data.notes || null,
-          commission_plan_id: defaultPlan?.id,
-          status: "invited",
-        })
-        .select()
-        .single();
-
-      if (influencerError) throw influencerError;
-
-      // Generate referral code
-      const code = `${data.first_name.toUpperCase().slice(0, 3)}${Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase()}`;
-
-      const { error: codeError } = await supabase.from("referral_codes").insert({
-        influencer_id: influencer.id,
-        code,
+          phone: data.phone || undefined,
+          notes: data.notes || undefined,
+        },
       });
 
-      if (codeError) throw codeError;
+      console.log("[createInfluencer] Response:", result, error);
 
-      // Create invite token
-      const token = crypto.randomUUID();
-      const { error: inviteError } = await supabase
-        .from("influencer_invites")
-        .insert({
-          influencer_id: influencer.id,
-          token,
-        });
+      if (error) {
+        console.error("[createInfluencer] Function error:", error);
+        throw new Error(error.message || "Erreur lors de la création");
+      }
 
-      if (inviteError) throw inviteError;
+      if (!result?.ok) {
+        throw new Error(result?.message || "Erreur inconnue");
+      }
 
-      // Send invitation email via edge function
+      // Send invitation email
       const { error: emailError } = await supabase.functions.invoke("send-partner-invite", {
-        body: { influencer_id: influencer.id },
+        body: { influencer_id: result.influencer_id },
       });
 
       if (emailError) {
-        console.error("Email send error:", emailError);
-        // Don't throw - influencer was created, just email failed
-        toast.warning("Influenceur créé, mais l'email n'a pas pu être envoyé.");
+        console.error("[createInfluencer] Email send error:", emailError);
+        toast.warning("Partenaire créé, mais l'email n'a pas pu être envoyé.");
       }
 
-      return { influencer, code, token };
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["influencers"] });
@@ -200,9 +178,10 @@ const AdminReferralInfluencers = () => {
         phone: "",
         notes: "",
       });
-      toast.success("Influenceur créé avec succès. Email d'invitation envoyé.");
+      toast.success("Partenaire créé avec succès. Email d'invitation envoyé.");
     },
     onError: (error: Error) => {
+      console.error("[createInfluencer] Error:", error);
       toast.error(`Erreur: ${error.message}`);
     },
   });
