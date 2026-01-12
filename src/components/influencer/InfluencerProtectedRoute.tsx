@@ -5,7 +5,7 @@ import { Loader2, Clock, XCircle, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PartnerHelpFooter from "./PartnerHelpFooter";
-import { PARTNER_CONTACT, getPartnerMailtoLink } from "@/config/partnerContact";
+import { PARTNER_SUPPORT_EMAIL, getPartnerMailtoLink } from "@/config/partnerContact";
 
 interface InfluencerProtectedRouteProps {
   children: ReactNode;
@@ -60,11 +60,11 @@ const InfluencerProtectedRoute = ({ children }: InfluencerProtectedRouteProps) =
               Votre compte partenaire a été suspendu. Contactez le support pour plus d'informations.
             </p>
             <Button variant="outline" asChild className="w-full">
-              <a href={getPartnerMailtoLink("support")}>
-                Contacter le support
+              <a href={getPartnerMailtoLink()}>
+                Contacter {PARTNER_SUPPORT_EMAIL}
               </a>
             </Button>
-            <PartnerHelpFooter showPartnersEmail={false} className="mt-6" />
+            <PartnerHelpFooter className="mt-6" />
           </CardContent>
         </Card>
       </div>

@@ -8,13 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Users, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
-import { PARTNER_CONTACT } from "@/config/partnerContact";
+import { PARTNER_APP_URL } from "@/config/partnerContact";
 
 const InfluencerLogin = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +71,36 @@ const InfluencerLogin = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!forgotEmail) {
+      toast.error("Veuillez entrer votre adresse email");
+      return;
+    }
+
+    setIsSendingReset(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${PARTNER_APP_URL}/influencer/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.");
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      // Don't reveal if email exists or not
+      toast.success("Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.");
+      setShowForgotPassword(false);
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -82,57 +115,108 @@ const InfluencerLogin = () => {
 
         <Card className="border-primary/20">
           <CardHeader>
-            <CardTitle>Connexion</CardTitle>
+            <CardTitle>{showForgotPassword ? "Mot de passe oublié" : "Connexion"}</CardTitle>
             <CardDescription>
-              Accédez à votre tableau de bord partenaire
+              {showForgotPassword 
+                ? "Entrez votre email pour recevoir un lien de réinitialisation"
+                : "Accédez à votre tableau de bord partenaire"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="votre@email.com"
-                    className="pl-10"
-                    required
-                  />
+            {showForgotPassword ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="forgotEmail">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="forgotEmail"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="votre@email.com"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Nous vous enverrons un lien sécurisé pour réinitialiser votre mot de passe.
+                  </p>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pl-10"
-                    required
-                  />
+                <Button type="submit" className="w-full" disabled={isSendingReset}>
+                  {isSendingReset && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Envoyer le lien
+                </Button>
+
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full"
+                  onClick={() => setShowForgotPassword(false)}
+                >
+                  Retour à la connexion
+                </Button>
+              </form>
+            ) : (
+              <>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="votre@email.com"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Mot de passe</Label>
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Mot de passe oublié?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Se connecter
+                  </Button>
+                </form>
+
+                <div className="mt-4 text-center text-sm text-muted-foreground">
+                  <p>Pas encore inscrit?</p>
+                  <Link to="/influencer/register" className="text-primary hover:underline">
+                    Devenir partenaire
+                  </Link>
                 </div>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Se connecter
-              </Button>
-            </form>
-
-            <div className="mt-4 text-center text-sm text-muted-foreground">
-              <p>Pas encore inscrit?</p>
-              <Link to="/influencer/register" className="text-primary hover:underline">
-                Devenir partenaire
-              </Link>
-            </div>
+              </>
+            )}
 
             <PartnerHelpFooter />
           </CardContent>
