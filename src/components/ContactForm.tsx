@@ -52,7 +52,7 @@ const formatPostalCode = (value: string): string => {
   return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
 };
 
-const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
+const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const { language } = useLanguage();
   const isFrench = language === 'fr';
@@ -136,10 +136,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleSubmitClick = async () => {
+    // This is a button click handler - NO form submission, NO navigation
     setErrors({});
 
     // Hard block when consent is not accepted
@@ -173,7 +171,12 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
     try {
       const backendUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
       
+      if (!backendUrl || !anonKey) {
+        throw new Error("Configuration backend manquante");
+      }
+
       const payload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -195,6 +198,8 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
         },
         body: JSON.stringify(payload),
       });
@@ -202,7 +207,12 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
       const resData = await response.json();
 
       if (!response.ok || resData.ok === false) {
-        throw new Error(resData.error || "Submission failed");
+        console.error("[ContactForm] Submission failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: resData,
+        });
+        throw new Error(resData.error || `Erreur ${response.status}: ${response.statusText}`);
       }
 
       // Success
@@ -229,11 +239,12 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
       toast({
         title: isFrench ? "Message envoyé!" : "Message sent!",
         description: isFrench
-          ? "Notre équipe te contactera sous peu."
-          : "Our team will contact you soon.",
+          ? "Un ticket a été créé. Notre équipe te contactera sous peu."
+          : "A ticket has been created. Our team will contact you soon.",
       });
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : String(e);
+      console.error("[ContactForm] Error:", errorMessage);
       toast({
         title: isFrench ? "Erreur" : "Error",
         description: errorMessage || (isFrench
@@ -312,10 +323,10 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     );
   }
 
+  // Use <div> instead of <form> to prevent ANY native form submission/navigation
   return (
-    <form
+    <div
       ref={ref}
-      onSubmit={handleSubmit}
       data-testid="contact-form"
       className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm"
     >
@@ -610,12 +621,14 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
           </CardContent>
         </Card>
 
+        {/* Submit button - type="button" to prevent any form submission */}
         <Button 
-          type="submit" 
+          type="button"
           variant="accent" 
           size="lg" 
           className="w-full group focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-70"
           disabled={isLoading}
+          onClick={handleSubmitClick}
         >
           {isLoading ? (
             <>
@@ -636,7 +649,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             : "We will respond within 1 business day."}
         </p>
       </div>
-    </form>
+    </div>
   );
 });
 
