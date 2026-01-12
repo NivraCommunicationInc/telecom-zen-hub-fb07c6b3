@@ -139,6 +139,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.info("CONTACT_FORM_VERSION", "2026-01-12_v1");
     setErrors({});
 
     // Hard block (no network call) when consent is not accepted
