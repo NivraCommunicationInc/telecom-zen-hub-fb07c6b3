@@ -824,6 +824,59 @@ export type Database = {
           },
         ]
       }
+      cashout_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          destination: string
+          id: string
+          influencer_id: string
+          method: string
+          request_number: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["cashout_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          destination: string
+          id?: string
+          influencer_id: string
+          method?: string
+          request_number?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["cashout_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          destination?: string
+          id?: string
+          influencer_id?: string
+          method?: string
+          request_number?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["cashout_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_requests_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_activity_logs: {
         Row: {
           action: string
@@ -1366,6 +1419,102 @@ export type Database = {
           },
         ]
       }
+      commission_ledger_entries: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          attribution_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          influencer_id: string
+          invoice_id: string | null
+          notes: string | null
+          status: string
+          type: Database["public"]["Enums"]["commission_ledger_type"]
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          attribution_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          influencer_id: string
+          invoice_id?: string | null
+          notes?: string | null
+          status?: string
+          type: Database["public"]["Enums"]["commission_ledger_type"]
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          attribution_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          influencer_id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          status?: string
+          type?: Database["public"]["Enums"]["commission_ledger_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_ledger_entries_attribution_id_fkey"
+            columns: ["attribution_id"]
+            isOneToOne: false
+            referencedRelation: "referral_attributions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_ledger_entries_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          model: Database["public"]["Enums"]["commission_model_type"]
+          name: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          model?: Database["public"]["Enums"]["commission_model_type"]
+          name: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          model?: Database["public"]["Enums"]["commission_model_type"]
+          name?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
       contact_requests: {
         Row: {
           address_apartment: string | null
@@ -1713,6 +1862,38 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_referral_usage: {
+        Row: {
+          attribution_id: string
+          customer_email: string
+          customer_id: string
+          id: string
+          used_at: string
+        }
+        Insert: {
+          attribution_id: string
+          customer_email: string
+          customer_id: string
+          id?: string
+          used_at?: string
+        }
+        Update: {
+          attribution_id?: string
+          customer_email?: string
+          customer_id?: string
+          id?: string
+          used_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_referral_usage_attribution_id_fkey"
+            columns: ["attribution_id"]
+            isOneToOne: false
+            referencedRelation: "referral_attributions"
             referencedColumns: ["id"]
           },
         ]
@@ -2347,6 +2528,207 @@ export type Database = {
             columns: ["technician_id"]
             isOneToOne: false
             referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencer_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          influencer_id: string | null
+          new_value: Json | null
+          old_value: Json | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          influencer_id?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          influencer_id?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_audit_log_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencer_invites: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          influencer_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          influencer_id: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          influencer_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_invites_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencer_payouts: {
+        Row: {
+          amount: number
+          cashout_request_id: string | null
+          created_at: string
+          id: string
+          influencer_id: string
+          method: string
+          notes: string | null
+          paid_at: string
+          paid_by: string | null
+          reference_id: string | null
+        }
+        Insert: {
+          amount: number
+          cashout_request_id?: string | null
+          created_at?: string
+          id?: string
+          influencer_id: string
+          method: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          reference_id?: string | null
+        }
+        Update: {
+          amount?: number
+          cashout_request_id?: string | null
+          created_at?: string
+          id?: string
+          influencer_id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_payouts_cashout_request_id_fkey"
+            columns: ["cashout_request_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "influencer_payouts_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencers: {
+        Row: {
+          commission_plan_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          payout_email: string | null
+          payout_method: string | null
+          phone: string | null
+          status: Database["public"]["Enums"]["influencer_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          commission_plan_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          payout_email?: string | null
+          payout_method?: string | null
+          phone?: string | null
+          status?: Database["public"]["Enums"]["influencer_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          commission_plan_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          payout_email?: string | null
+          payout_method?: string | null
+          phone?: string | null
+          status?: Database["public"]["Enums"]["influencer_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencers_commission_plan_id_fkey"
+            columns: ["commission_plan_id"]
+            isOneToOne: false
+            referencedRelation: "commission_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -4249,6 +4631,158 @@ export type Database = {
           identifier?: string
           request_count?: number
           window_start?: string
+        }
+        Relationships: []
+      }
+      referral_attributions: {
+        Row: {
+          applied_at: string
+          created_at: string
+          customer_discount_amount: number
+          customer_email: string | null
+          customer_id: string
+          discount_type: string
+          fraud_flag_level: Database["public"]["Enums"]["fraud_flag_level"]
+          fraud_notes: string | null
+          id: string
+          influencer_id: string
+          invoice_id: string | null
+          order_id: string | null
+          referral_code_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string
+          created_at?: string
+          customer_discount_amount?: number
+          customer_email?: string | null
+          customer_id: string
+          discount_type?: string
+          fraud_flag_level?: Database["public"]["Enums"]["fraud_flag_level"]
+          fraud_notes?: string | null
+          id?: string
+          influencer_id: string
+          invoice_id?: string | null
+          order_id?: string | null
+          referral_code_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string
+          created_at?: string
+          customer_discount_amount?: number
+          customer_email?: string | null
+          customer_id?: string
+          discount_type?: string
+          fraud_flag_level?: Database["public"]["Enums"]["fraud_flag_level"]
+          fraud_notes?: string | null
+          id?: string
+          influencer_id?: string
+          invoice_id?: string | null
+          order_id?: string | null
+          referral_code_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_attributions_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_attributions_referral_code_id_fkey"
+            columns: ["referral_code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          influencer_id: string
+          status: string
+          updated_at: string
+          usage_count: number
+          usage_limit_monthly: number | null
+          usage_limit_total: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          influencer_id: string
+          status?: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit_monthly?: number | null
+          usage_limit_total?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          influencer_id?: string
+          status?: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit_monthly?: number | null
+          usage_limit_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_codes_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_program_settings: {
+        Row: {
+          allow_self_referrals: boolean
+          commission_model_default: Database["public"]["Enums"]["commission_model_type"]
+          commission_value_default: number
+          cooldown_days: number
+          created_at: string
+          discount_percent_first_invoice_monthly: number
+          discount_stacks: boolean
+          id: string
+          min_cashout_amount: number
+          updated_at: string
+        }
+        Insert: {
+          allow_self_referrals?: boolean
+          commission_model_default?: Database["public"]["Enums"]["commission_model_type"]
+          commission_value_default?: number
+          cooldown_days?: number
+          created_at?: string
+          discount_percent_first_invoice_monthly?: number
+          discount_stacks?: boolean
+          id?: string
+          min_cashout_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          allow_self_referrals?: boolean
+          commission_model_default?: Database["public"]["Enums"]["commission_model_type"]
+          commission_value_default?: number
+          cooldown_days?: number
+          created_at?: string
+          discount_percent_first_invoice_monthly?: number
+          discount_stacks?: boolean
+          id?: string
+          min_cashout_amount?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -7016,6 +7550,7 @@ export type Database = {
         Args: { p_entry_id: string }
         Returns: number
       }
+      get_influencer_id: { Args: { _user_id: string }; Returns: string }
       get_invoice_payment_history: {
         Args: { p_invoice_entry_id: string }
         Returns: {
@@ -7058,6 +7593,7 @@ export type Database = {
         Args: { p_order_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_influencer: { Args: { _user_id: string }; Returns: boolean }
       is_new_customer: {
         Args: { p_current_order_id: string; p_user_id: string }
         Returns: boolean
@@ -7124,7 +7660,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "client" | "technician" | "employee"
+      app_role: "admin" | "client" | "technician" | "employee" | "influencer"
       cancellation_reason_code:
         | "price"
         | "moving"
@@ -7147,6 +7683,22 @@ export type Database = {
         | "scheduled"
         | "completed"
         | "declined"
+      cashout_status:
+        | "requested"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "paid"
+      commission_ledger_type:
+        | "pending_credit"
+        | "approved_credit"
+        | "reversal"
+        | "payout_debit"
+        | "manual_adjustment"
+      commission_model_type:
+        | "activation_fee"
+        | "fixed_bounty"
+        | "percent_first_invoice"
       dispute_reason_code:
         | "duplicate_charge"
         | "incorrect_amount"
@@ -7160,7 +7712,9 @@ export type Database = {
         | "awaiting_client"
         | "resolved_approved"
         | "resolved_rejected"
+      fraud_flag_level: "none" | "low" | "medium" | "high"
       fulfillment_type: "ship" | "technician" | "pickup"
+      influencer_status: "invited" | "active" | "suspended"
       internal_order_status:
         | "draft"
         | "quoted"
@@ -7373,7 +7927,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "client", "technician", "employee"],
+      app_role: ["admin", "client", "technician", "employee", "influencer"],
       cancellation_reason_code: [
         "price",
         "moving",
@@ -7399,6 +7953,25 @@ export const Constants = {
         "completed",
         "declined",
       ],
+      cashout_status: [
+        "requested",
+        "under_review",
+        "approved",
+        "rejected",
+        "paid",
+      ],
+      commission_ledger_type: [
+        "pending_credit",
+        "approved_credit",
+        "reversal",
+        "payout_debit",
+        "manual_adjustment",
+      ],
+      commission_model_type: [
+        "activation_fee",
+        "fixed_bounty",
+        "percent_first_invoice",
+      ],
       dispute_reason_code: [
         "duplicate_charge",
         "incorrect_amount",
@@ -7414,7 +7987,9 @@ export const Constants = {
         "resolved_approved",
         "resolved_rejected",
       ],
+      fraud_flag_level: ["none", "low", "medium", "high"],
       fulfillment_type: ["ship", "technician", "pickup"],
+      influencer_status: ["invited", "active", "suspended"],
       internal_order_status: [
         "draft",
         "quoted",

@@ -53,6 +53,7 @@ const navItems = [
   { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
   { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
   { icon: Trophy, label: "Concours", href: "/admin/concours" },
+  { icon: Users, label: "Programme Parrainage", href: "/admin/referrals" },
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: Ticket, label: "Tickets clients", href: "/admin/tickets" },
   { icon: MessageSquare, label: "Tickets internes", href: "/admin/internal-tickets" },
