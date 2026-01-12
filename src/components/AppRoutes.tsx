@@ -79,6 +79,7 @@ import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
 import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
 import AdminContests from "@/pages/admin/AdminContests";
+import AdminWebForms from "@/pages/admin/AdminWebForms";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Client portal pages
@@ -102,6 +103,7 @@ import ClientEquipmentReplacement from "@/pages/client/ClientEquipmentReplacemen
 import ClientCancellations from "@/pages/client/ClientCancellations";
 import ClientAccessBlocked from "@/pages/client/ClientAccessBlocked";
 import ClientMonthlyInvoices from "@/pages/client/ClientMonthlyInvoices";
+import ClientWebForms from "@/pages/client/ClientWebForms";
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 
@@ -199,6 +201,7 @@ const AppRoutes = () => {
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/concours" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContests /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/formulaire-web" element={<AuthProvider><ProtectedRoute requireAdmin><AdminWebForms /></ProtectedRoute></AuthProvider>} />
 
       {/* DEV-ONLY routes */}
       {import.meta.env.DEV && (
@@ -235,6 +238,7 @@ const AppRoutes = () => {
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* ============================================ */}
       {/* CLIENT-TO-PORTAL REDIRECTS (SPA fallback) */}

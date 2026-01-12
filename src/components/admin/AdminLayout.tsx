@@ -55,6 +55,7 @@ const navItems = [
   { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
   { icon: Ticket, label: "Tickets clients", href: "/admin/tickets" },
   { icon: MessageSquare, label: "Tickets internes", href: "/admin/internal-tickets" },
+  { icon: Mail, label: "Formulaire Web", href: "/admin/formulaire-web" },
   
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },

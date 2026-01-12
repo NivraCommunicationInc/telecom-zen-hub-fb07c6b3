@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
 serve(async (req) => {
@@ -12,7 +12,7 @@ serve(async (req) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -69,12 +69,32 @@ serve(async (req) => {
       });
     }
 
-    // Parse query params
-    const url = new URL(req.url);
-    const status = url.searchParams.get("status");
-    const search = url.searchParams.get("search");
-    const limit = parseInt(url.searchParams.get("limit") || "50");
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    // Parse query params from body (since we're using functions.invoke)
+    let status: string | null = null;
+    let search: string | null = null;
+    let limit = 50;
+    let offset = 0;
+
+    // Try to get params from body (functions.invoke sends JSON body)
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      try {
+        const body = await req.json();
+        status = body.status || null;
+        search = body.search || null;
+        limit = parseInt(body.limit) || 50;
+        offset = parseInt(body.offset) || 0;
+      } catch {
+        // Ignore parse errors
+      }
+    } else {
+      // Fallback to URL params for GET requests
+      const url = new URL(req.url);
+      status = url.searchParams.get("status");
+      search = url.searchParams.get("search");
+      limit = parseInt(url.searchParams.get("limit") || "50");
+      offset = parseInt(url.searchParams.get("offset") || "0");
+    }
 
     // Build query
     let query = supabase
