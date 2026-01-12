@@ -139,14 +139,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.info("CONTACT_FORM_VERSION", "2026-01-12_v1");
+    console.info("CONTACT_FORM_VERSION", "2026-01-12_v2");
 
-    const backendUrl = import.meta.env.VITE_SUPABASE_URL;
-    const backendKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const backendUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const backendKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
     console.info("CONTACT_BACKEND_CONFIG", {
-      urlPresent: !!backendUrl,
+      urlTail: backendUrl ? backendUrl.slice(-20) : null,
       keyLen: backendKey?.length ?? 0,
-      urlTail: backendUrl ? backendUrl.slice(-12) : null,
     });
 
     setErrors({});
