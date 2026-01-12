@@ -84,6 +84,9 @@ import AdminTelephony from "@/pages/admin/AdminTelephony";
 import AdminReferrals from "@/pages/admin/AdminReferrals";
 import AdminReferralInfluencers from "@/pages/admin/AdminReferralInfluencers";
 import AdminReferralInfluencerDetail from "@/pages/admin/AdminReferralInfluencerDetail";
+import AdminReferralCodes from "@/pages/admin/AdminReferralCodes";
+import AdminReferralAttributions from "@/pages/admin/AdminReferralAttributions";
+import AdminReferralCommissions from "@/pages/admin/AdminReferralCommissions";
 import AdminReferralCashouts from "@/pages/admin/AdminReferralCashouts";
 import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
@@ -227,6 +230,9 @@ const AppRoutes = () => {
       <Route path="/admin/referrals" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferrals /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/influencers" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencers /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/influencers/:id" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencerDetail /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/codes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCodes /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/attributions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralAttributions /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/commissions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCommissions /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/cashouts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCashouts /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralSettings /></ProtectedRoute></AuthProvider>} />
 
