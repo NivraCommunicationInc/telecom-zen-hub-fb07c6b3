@@ -32,11 +32,13 @@ const AdminReferrals = () => {
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["referral-stats"],
     queryFn: async () => {
-      const [influencers, codes, attributions, pendingCashouts] = await Promise.all([
+      const [influencers, codes, attributions, pendingCashouts, pendingInfluencers] = await Promise.all([
         supabase.from("influencers").select("id, status", { count: "exact" }),
         supabase.from("referral_codes").select("id", { count: "exact" }),
         supabase.from("referral_attributions").select("id, customer_discount_amount", { count: "exact" }),
         supabase.from("cashout_requests").select("id, amount").eq("status", "requested"),
+        // Count pending influencers separately
+        supabase.from("influencers").select("id", { count: "exact" }).eq("status", "pending"),
       ]);
 
       const totalDiscounts = attributions.data?.reduce((sum, a) => sum + (Number(a.customer_discount_amount) || 0), 0) || 0;
@@ -45,6 +47,7 @@ const AdminReferrals = () => {
       return {
         totalInfluencers: influencers.count || 0,
         activeInfluencers: influencers.data?.filter(i => i.status === "active").length || 0,
+        pendingInfluencers: pendingInfluencers.count || 0,
         totalCodes: codes.count || 0,
         totalReferrals: attributions.count || 0,
         totalDiscounts,
@@ -103,6 +106,8 @@ const AdminReferrals = () => {
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Actif</Badge>;
       case "invited":
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Invité</Badge>;
+      case "pending":
+        return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">En attente</Badge>;
       case "suspended":
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Suspendu</Badge>;
       default:
@@ -177,11 +182,11 @@ const AdminReferrals = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Demandes en attente</p>
-                  <p className="text-3xl font-bold text-foreground">{stats?.pendingCashouts || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">${stats?.pendingPayouts?.toFixed(2) || "0.00"}</p>
+                  <p className="text-sm text-muted-foreground">Demandes partenaires</p>
+                  <p className="text-3xl font-bold text-foreground">{stats?.pendingInfluencers || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">en attente d'approbation</p>
                 </div>
-                <DollarSign className="w-10 h-10 text-orange-500" />
+                <Clock className="w-10 h-10 text-orange-500" />
               </div>
             </CardContent>
           </Card>
