@@ -6205,6 +6205,148 @@ export type Database = {
         }
         Relationships: []
       }
+      web_form_email_map: {
+        Row: {
+          created_at: string
+          id: string
+          reply_token: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reply_token: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reply_token?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_form_email_map_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "web_form_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_form_messages: {
+        Row: {
+          body_html: string | null
+          body_text: string
+          created_at: string
+          direction: string
+          email_in_reply_to: string | null
+          email_message_id: string | null
+          id: string
+          is_internal_note: boolean
+          raw_email_payload: Json | null
+          sender_email: string | null
+          sender_name: string | null
+          sender_type: string
+          thread_id: string
+        }
+        Insert: {
+          body_html?: string | null
+          body_text: string
+          created_at?: string
+          direction: string
+          email_in_reply_to?: string | null
+          email_message_id?: string | null
+          id?: string
+          is_internal_note?: boolean
+          raw_email_payload?: Json | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sender_type: string
+          thread_id: string
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string
+          created_at?: string
+          direction?: string
+          email_in_reply_to?: string | null
+          email_message_id?: string | null
+          id?: string
+          is_internal_note?: boolean
+          raw_email_payload?: Json | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sender_type?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_form_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "web_form_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_form_threads: {
+        Row: {
+          admin_assignee_user_id: string | null
+          admin_tags: string[] | null
+          contact_email: string
+          contact_full_name: string
+          contact_phone: string | null
+          created_at: string
+          id: string
+          is_linked_client: boolean
+          last_message_at: string
+          last_sender_type: string | null
+          linked_user_id: string | null
+          page_url: string | null
+          status: string
+          subject: string
+          thread_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_assignee_user_id?: string | null
+          admin_tags?: string[] | null
+          contact_email: string
+          contact_full_name: string
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_linked_client?: boolean
+          last_message_at?: string
+          last_sender_type?: string | null
+          linked_user_id?: string | null
+          page_url?: string | null
+          status?: string
+          subject?: string
+          thread_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_assignee_user_id?: string | null
+          admin_tags?: string[] | null
+          contact_email?: string
+          contact_full_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_linked_client?: boolean
+          last_message_at?: string
+          last_sender_type?: string | null
+          linked_user_id?: string | null
+          page_url?: string | null
+          status?: string
+          subject?: string
+          thread_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       work_order_files: {
         Row: {
           created_at: string
