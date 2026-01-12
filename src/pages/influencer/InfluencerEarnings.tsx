@@ -13,6 +13,7 @@ import {
 import { DollarSign, TrendingUp, TrendingDown, Clock, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useInfluencerAuth } from "@/hooks/useInfluencerAuth";
+import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 
 const InfluencerEarnings = () => {
   const { influencer } = useInfluencerAuth();
@@ -178,6 +179,9 @@ const InfluencerEarnings = () => {
             </Table>
           </CardContent>
         </Card>
+        
+        {/* Help Footer */}
+        <PartnerHelpFooter />
       </div>
     </InfluencerLayout>
   );

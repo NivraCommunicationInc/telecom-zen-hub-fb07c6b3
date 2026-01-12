@@ -233,6 +233,7 @@ const AppRoutes = () => {
       {/* INFLUENCER PORTAL */}
       {/* ============================================ */}
       <Route path="/influencer/login" element={<InfluencerLogin />} />
+      <Route path="/influencer/register" element={<InfluencerRegister />} />
       <Route path="/influencer/onboarding" element={<InfluencerOnboarding />} />
       <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerDashboard /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerReferrals /></InfluencerProtectedRoute></InfluencerAuthProvider>} />

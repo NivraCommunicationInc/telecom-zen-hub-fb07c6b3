@@ -22,6 +22,7 @@ import {
 import { Search, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useInfluencerAuth } from "@/hooks/useInfluencerAuth";
+import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 
 const InfluencerReferrals = () => {
   const { influencer } = useInfluencerAuth();
@@ -179,6 +180,9 @@ const InfluencerReferrals = () => {
             </Table>
           </CardContent>
         </Card>
+        
+        {/* Help Footer */}
+        <PartnerHelpFooter />
       </div>
     </InfluencerLayout>
   );

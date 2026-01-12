@@ -48,6 +48,7 @@ import {
   UserCheck,
   Eye,
   Loader2,
+  CheckCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -86,7 +87,7 @@ const AdminReferralInfluencers = () => {
       }
 
       if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter as "active" | "invited" | "suspended");
+        query = query.eq("status", statusFilter as "active" | "invited" | "suspended" | "pending");
       }
 
       const { data, error } = await query;
@@ -155,6 +156,17 @@ const AdminReferralInfluencers = () => {
 
       if (inviteError) throw inviteError;
 
+      // Send invitation email via edge function
+      const { error: emailError } = await supabase.functions.invoke("send-partner-invite", {
+        body: { influencer_id: influencer.id },
+      });
+
+      if (emailError) {
+        console.error("Email send error:", emailError);
+        // Don't throw - influencer was created, just email failed
+        toast.warning("Influenceur créé, mais l'email n'a pas pu être envoyé.");
+      }
+
       return { influencer, code, token };
     },
     onSuccess: () => {
@@ -168,6 +180,76 @@ const AdminReferralInfluencers = () => {
         notes: "",
       });
       toast.success("Influenceur créé avec succès. Email d'invitation envoyé.");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Send invite mutation
+  const sendInvite = useMutation({
+    mutationFn: async (influencerId: string) => {
+      const { data, error } = await supabase.functions.invoke("send-partner-invite", {
+        body: { influencer_id: influencerId },
+      });
+
+      if (error) {
+        console.error("Full error response:", error);
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Email d'invitation envoyé!");
+    },
+    onError: (error: Error) => {
+      console.error("Send invite error:", error);
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Activate pending influencer mutation
+  const activateInfluencer = useMutation({
+    mutationFn: async (influencerId: string) => {
+      // Update status to active
+      const { error: updateError } = await supabase
+        .from("influencers")
+        .update({ status: "active" })
+        .eq("id", influencerId);
+
+      if (updateError) throw updateError;
+
+      // Check if they have an active code, if not generate one
+      const { data: existingCodes } = await supabase
+        .from("referral_codes")
+        .select("id")
+        .eq("influencer_id", influencerId)
+        .eq("status", "active")
+        .limit(1);
+
+      if (!existingCodes || existingCodes.length === 0) {
+        // Get influencer info for code generation
+        const { data: influencer } = await supabase
+          .from("influencers")
+          .select("first_name")
+          .eq("id", influencerId)
+          .single();
+
+        const code = `${(influencer?.first_name || "REF").toUpperCase().slice(0, 3)}${Math.random()
+          .toString(36)
+          .substring(2, 6)
+          .toUpperCase()}`;
+
+        await supabase.from("referral_codes").insert({
+          influencer_id: influencerId,
+          code,
+          status: "active",
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["influencers"] });
+      toast.success("Partenaire activé avec succès!");
     },
     onError: (error: Error) => {
       toast.error(`Erreur: ${error.message}`);
@@ -219,6 +301,12 @@ const AdminReferralInfluencers = () => {
         return (
           <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
             Invité
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+            En attente
           </Badge>
         );
       case "suspended":
@@ -275,6 +363,7 @@ const AdminReferralInfluencers = () => {
                   <SelectItem value="all">Tous les statuts</SelectItem>
                   <SelectItem value="active">Actifs</SelectItem>
                   <SelectItem value="invited">Invités</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="suspended">Suspendus</SelectItem>
                 </SelectContent>
               </Select>
@@ -368,9 +457,22 @@ const AdminReferralInfluencers = () => {
                               </Link>
                             </DropdownMenuItem>
                             {influencer.status === "invited" && (
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => sendInvite.mutate(influencer.id)}
+                                disabled={sendInvite.isPending}
+                              >
                                 <Mail className="w-4 h-4 mr-2" />
-                                Renvoyer invitation
+                                {sendInvite.isPending ? "Envoi..." : "Renvoyer invitation"}
+                              </DropdownMenuItem>
+                            )}
+                            {influencer.status === "pending" && (
+                              <DropdownMenuItem
+                                className="text-green-500"
+                                onClick={() => activateInfluencer.mutate(influencer.id)}
+                                disabled={activateInfluencer.isPending}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                {activateInfluencer.isPending ? "Activation..." : "Activer"}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />

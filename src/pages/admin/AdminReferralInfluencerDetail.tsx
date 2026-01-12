@@ -193,6 +193,70 @@ const AdminReferralInfluencerDetail = () => {
     },
   });
 
+  // Send invite mutation
+  const sendInvite = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("send-partner-invite", {
+        body: { influencer_id: id },
+      });
+
+      if (error) {
+        console.error("Full error response:", error);
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Email d'invitation envoyé!");
+    },
+    onError: (error: Error) => {
+      console.error("Send invite error:", error);
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Activate pending influencer mutation
+  const activateInfluencer = useMutation({
+    mutationFn: async () => {
+      // Update status to active
+      const { error: updateError } = await supabase
+        .from("influencers")
+        .update({ status: "active" })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Check if they have an active code, if not generate one
+      const { data: existingCodes } = await supabase
+        .from("referral_codes")
+        .select("id")
+        .eq("influencer_id", id)
+        .eq("status", "active")
+        .limit(1);
+
+      if (!existingCodes || existingCodes.length === 0) {
+        const code = `${(influencer?.first_name || "REF").toUpperCase().slice(0, 3)}${Math.random()
+          .toString(36)
+          .substring(2, 6)
+          .toUpperCase()}`;
+
+        await supabase.from("referral_codes").insert({
+          influencer_id: id,
+          code,
+          status: "active",
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["influencer", id] });
+      queryClient.invalidateQueries({ queryKey: ["influencer-codes", id] });
+      toast.success("Partenaire activé avec succès!");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copié!");
@@ -204,6 +268,8 @@ const AdminReferralInfluencerDetail = () => {
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Actif</Badge>;
       case "invited":
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Invité</Badge>;
+      case "pending":
+        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">En attente</Badge>;
       case "suspended":
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Suspendu</Badge>;
       case "disabled":
@@ -279,11 +345,33 @@ const AdminReferralInfluencerDetail = () => {
               {getStatusBadge(influencer.status)}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {influencer.status === "invited" && (
-              <Button variant="outline">
-                <Mail className="w-4 h-4 mr-2" />
+              <Button 
+                variant="outline"
+                onClick={() => sendInvite.mutate()}
+                disabled={sendInvite.isPending}
+              >
+                {sendInvite.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4 mr-2" />
+                )}
                 Renvoyer invitation
+              </Button>
+            )}
+            {influencer.status === "pending" && (
+              <Button
+                variant="default"
+                onClick={() => activateInfluencer.mutate()}
+                disabled={activateInfluencer.isPending}
+              >
+                {activateInfluencer.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                Activer
               </Button>
             )}
             {influencer.status !== "suspended" ? (

@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useInfluencerAuth } from "@/hooks/useInfluencerAuth";
 import { toast } from "sonner";
+import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 
 const InfluencerDashboard = () => {
   const { influencer } = useInfluencerAuth();
@@ -324,6 +325,9 @@ const InfluencerDashboard = () => {
             </Card>
           </Link>
         </div>
+        
+        {/* Help Footer */}
+        <PartnerHelpFooter />
       </div>
     </InfluencerLayout>
   );
