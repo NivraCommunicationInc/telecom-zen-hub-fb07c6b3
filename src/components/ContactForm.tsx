@@ -228,7 +228,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
           : "We will respond as soon as possible.",
       });
     } catch (e: any) {
-      console.error("CONTACT_SUBMIT_ERROR", e);
+      console.error("CONTACT_SUBMIT_ERROR", {
+        message: e?.message,
+        code: e?.code,
+        details: e?.details,
+        hint: e?.hint,
+        full: e,
+      });
       toast({
         title: isFrench ? "Erreur" : "Error",
         description:
