@@ -81,7 +81,23 @@ import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
 import AdminContests from "@/pages/admin/AdminContests";
 import AdminWebForms from "@/pages/admin/AdminWebForms";
 import AdminTelephony from "@/pages/admin/AdminTelephony";
+import AdminReferrals from "@/pages/admin/AdminReferrals";
+import AdminReferralInfluencers from "@/pages/admin/AdminReferralInfluencers";
+import AdminReferralInfluencerDetail from "@/pages/admin/AdminReferralInfluencerDetail";
+import AdminReferralCashouts from "@/pages/admin/AdminReferralCashouts";
+import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
+
+// Influencer Portal
+import InfluencerLogin from "@/pages/influencer/InfluencerLogin";
+import InfluencerOnboarding from "@/pages/influencer/InfluencerOnboarding";
+import InfluencerDashboard from "@/pages/influencer/InfluencerDashboard";
+import InfluencerReferrals from "@/pages/influencer/InfluencerReferrals";
+import InfluencerEarnings from "@/pages/influencer/InfluencerEarnings";
+import InfluencerCashouts from "@/pages/influencer/InfluencerCashouts";
+import InfluencerSettings from "@/pages/influencer/InfluencerSettings";
+import { InfluencerAuthProvider } from "@/hooks/useInfluencerAuth";
+import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
 
 // Client portal pages
 import ClientAuth from "@/pages/client/ClientAuth";
@@ -204,6 +220,25 @@ const AppRoutes = () => {
       <Route path="/admin/concours" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContests /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/formulaire-web" element={<AuthProvider><ProtectedRoute requireAdmin><AdminWebForms /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/telephony" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTelephony /></ProtectedRoute></AuthProvider>} />
+      
+      {/* Admin Referral Program */}
+      <Route path="/admin/referrals" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferrals /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/influencers" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencers /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/influencers/:id" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencerDetail /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/cashouts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCashouts /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralSettings /></ProtectedRoute></AuthProvider>} />
+
+      {/* ============================================ */}
+      {/* INFLUENCER PORTAL */}
+      {/* ============================================ */}
+      <Route path="/influencer/login" element={<InfluencerLogin />} />
+      <Route path="/influencer/onboarding" element={<InfluencerOnboarding />} />
+      <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerDashboard /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerReferrals /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/earnings" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerEarnings /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/cashouts" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerCashouts /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/settings" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerSettings /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer" element={<Navigate to="/influencer/dashboard" replace />} />
 
       {/* DEV-ONLY routes */}
       {import.meta.env.DEV && (
