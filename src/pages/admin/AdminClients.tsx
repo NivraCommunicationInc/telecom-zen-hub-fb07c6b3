@@ -52,6 +52,8 @@ import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 import { CreateClientDialog } from "@/components/admin/CreateClientDialog";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import ClientPhoneActions from "@/components/admin/ClientPhoneActions";
+import ClientCommunicationsPanel from "@/components/admin/ClientCommunicationsPanel";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1035,6 +1037,15 @@ const AdminClients = () => {
                         </span>
                       )}
                     </div>
+                    {/* Phone Actions - Call/SMS buttons */}
+                    {selectedClient?.phone && (
+                      <ClientPhoneActions
+                        clientId={selectedClient.user_id}
+                        clientPhone={selectedClient.phone}
+                        clientName={selectedClient.full_name}
+                        variant="compact"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -1302,6 +1313,12 @@ const AdminClients = () => {
                       clientId={selectedClient.user_id}
                       clientName={selectedClient.full_name}
                       isEmployee={false}
+                    />
+
+                    {/* Recent Communications Panel */}
+                    <ClientCommunicationsPanel
+                      clientId={selectedClient.user_id}
+                      clientPhone={selectedClient.phone}
                     />
 
                     <Card className="bg-card border-border">
