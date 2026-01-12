@@ -448,6 +448,77 @@ const AdminReferralInfluencers = () => {
           </CardContent>
         </Card>
 
+        {/* Debug info (admin only) */}
+        <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded border">
+          DEBUG: Total influencers: {influencers?.length ?? 0} | Pending: {pendingCount}
+        </div>
+
+        {/* Pending Approvals Section */}
+        {pendingCount > 0 && (
+          <Card className="border-orange-500/30 bg-orange-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="w-5 h-5 text-orange-500" />
+                Demandes en attente ({pendingCount})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {influencers
+                ?.filter((i) => i.status === "pending")
+                .map((influencer) => (
+                  <div
+                    key={influencer.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-background border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-orange-500">
+                          {(influencer.first_name || "?")[0]}
+                          {(influencer.last_name || "?")[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {influencer.first_name || "—"} {influencer.last_name || ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {influencer.email} • Inscrit le{" "}
+                          {new Date(influencer.created_at).toLocaleDateString("fr-CA")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => activateInfluencer.mutate(influencer.id)}
+                        disabled={activateInfluencer.isPending}
+                      >
+                        {activateInfluencer.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approuver
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                      >
+                        <Link to={`/admin/referrals/influencers/${influencer.id}`}>
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Table */}
         <Card>
           <CardContent className="p-0">
