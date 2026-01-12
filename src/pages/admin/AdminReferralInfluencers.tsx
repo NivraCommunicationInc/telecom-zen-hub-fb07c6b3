@@ -51,6 +51,7 @@ import {
   CheckCircle,
   Stethoscope,
   Wrench,
+  Clock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -116,6 +117,9 @@ const AdminReferralInfluencers = () => {
       return data;
     },
   });
+
+  // Count pending approvals for badge
+  const pendingCount = influencers?.filter(i => i.status === "pending").length ?? 0;
 
   // Fetch commission plans for dropdown
   const { data: commissionPlans } = useQuery({
@@ -375,7 +379,15 @@ const AdminReferralInfluencers = () => {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground">Influenceurs</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-foreground">Influenceurs</h1>
+              {pendingCount > 0 && (
+                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 animate-pulse">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {pendingCount} en attente
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground">
               Gérez vos partenaires et leurs codes
             </p>
@@ -409,6 +421,17 @@ const AdminReferralInfluencers = () => {
                   className="pl-9"
                 />
               </div>
+              {/* Quick filter button for pending */}
+              {pendingCount > 0 && statusFilter !== "pending" && (
+                <Button
+                  variant="outline"
+                  className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+                  onClick={() => setStatusFilter("pending")}
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  En attente ({pendingCount})
+                </Button>
+              )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filtrer par statut" />
