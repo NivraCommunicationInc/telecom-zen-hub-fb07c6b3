@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.staff-otp-verify]
 verify_jwt = false
+
+[functions.submit-contact-form]
+verify_jwt = false

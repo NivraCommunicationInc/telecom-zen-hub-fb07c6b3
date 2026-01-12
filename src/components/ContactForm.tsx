@@ -22,7 +22,6 @@ import {
   Copy
 } from "lucide-react";
 import { z } from "zod";
-import { backendClient as supabase } from "@/integrations/backend";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
@@ -53,31 +52,6 @@ const formatPostalCode = (value: string): string => {
   return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
 };
 
-const CONTACT_DEBUG_HOSTS = new Set(["nivratelecom.ca", "www.nivratelecom.ca"]);
-const CONTACT_DEBUG_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const CONTACT_DEBUG_STORAGE_KEY = "nivra_contact_debug_since";
-
-function isContactDebugWindowActive(): boolean {
-  try {
-    if (typeof window === "undefined") return false;
-
-    const host = window.location?.hostname;
-    if (!host || !CONTACT_DEBUG_HOSTS.has(host)) return false;
-
-    const now = Date.now();
-    const sinceRaw = window.localStorage?.getItem(CONTACT_DEBUG_STORAGE_KEY);
-    const since = sinceRaw ? Number(sinceRaw) : now;
-
-    if (!sinceRaw) {
-      window.localStorage?.setItem(CONTACT_DEBUG_STORAGE_KEY, String(now));
-    }
-
-    return Number.isFinite(since) && now - since < CONTACT_DEBUG_TTL_MS;
-  } catch {
-    return false;
-  }
-}
-
 const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
   const { toast } = useToast();
   const { language } = useLanguage();
@@ -104,18 +78,6 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     addressPostalCode: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  type ContactSubmitDebugInfo = {
-    backendUrlTail: string | null;
-    keyLen: number;
-    dryRunStatus: number | null;
-    submitStatus: number | null;
-    errorMessage: string | null;
-    errorCode: string | null;
-  };
-
-  const [debugInfo, setDebugInfo] = useState<ContactSubmitDebugInfo | null>(null);
-  const debugEnabled = isContactDebugWindowActive();
 
   const contactSchema = z.object({
     firstName: z.string().trim().min(1, isFrench ? "Prénom requis" : "First name required").max(50),
@@ -178,45 +140,13 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     e.preventDefault();
     e.stopPropagation();
 
-    console.info("CONTACT_FORM_VERSION", "2026-01-12_v2");
-
-    const backendUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    const backendKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-    const supabaseUrlTail = backendUrl ? backendUrl.slice(-20) : null;
-
-    console.info("CONTACT_BACKEND_CONFIG", {
-      url: supabaseUrlTail,
-      keyLen: backendKey?.length ?? 0,
-    });
-
-    setDebugInfo({
-      backendUrlTail: supabaseUrlTail,
-      keyLen: backendKey?.length ?? 0,
-      dryRunStatus: null,
-      submitStatus: null,
-      errorMessage: null,
-      errorCode: null,
-    });
-
     setErrors({});
 
-    // Hard block (no network call) when consent is not accepted
+    // Hard block when consent is not accepted
     if (formData.consentGiven !== true) {
       const msg = isFrench
         ? "Veuillez accepter le consentement pour envoyer le message."
         : "Please accept the consent to send the message.";
-
-      setDebugInfo((prev) =>
-        prev
-          ? {
-              ...prev,
-              submitStatus: 0,
-              errorMessage: msg,
-              errorCode: "CONSENT_REQUIRED",
-            }
-          : prev
-      );
-
       setErrors({ consentGiven: msg });
       toast({
         title: isFrench ? "Consentement requis" : "Consent required",
@@ -235,20 +165,6 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
           fieldErrors[err.path[0] as string] = err.message;
         }
       });
-
-      setDebugInfo((prev) =>
-        prev
-          ? {
-              ...prev,
-              submitStatus: 0,
-              errorMessage: isFrench
-                ? "Validation échouée (voir champs)."
-                : "Validation failed (see fields).",
-              errorCode: "VALIDATION_FAILED",
-            }
-          : prev
-      );
-
       setErrors(fieldErrors);
       return;
     }
@@ -256,94 +172,44 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     setIsLoading(true);
 
     try {
+      const backendUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      
       const payload = {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email.toLowerCase().trim(),
         phone: formData.phone,
         subject: formData.subject,
-        notes: formData.message,
-        preferred_contact: formData.preferredContact,
-        status: "new",
-        consent_given: true,
-        page_url: typeof window !== "undefined" ? window.location.href : null,
-        address_street: formData.addressStreet || null,
-        address_apartment: formData.addressApartment || null,
-        address_city: formData.addressCity || null,
-        address_province: formData.addressProvince || null,
-        address_postal_code: formData.addressPostalCode || null,
-        source: "website_contact",
+        message: formData.message,
+        preferredContact: formData.preferredContact,
+        consentGiven: true,
+        pageUrl: typeof window !== "undefined" ? window.location.href : null,
+        addressStreet: formData.addressStreet || null,
+        addressApartment: formData.addressApartment || null,
+        addressCity: formData.addressCity || null,
+        addressProvince: formData.addressProvince || null,
+        addressPostalCode: formData.addressPostalCode || null,
       };
 
-      console.info("CONTACT_SUBMIT_PAYLOAD", payload);
+      const response = await fetch(`${backendUrl}/functions/v1/submit-contact-form`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-      // Dry-run request (no insert) to prove backend URL + key are valid and reachable
-      let dryRunStatus: number | null = null;
-      try {
-        if (!backendUrl || !backendKey) {
-          throw new Error("Missing backend URL or publishable key");
-        }
+      const resData = await response.json();
 
-        const dryRunRes = await fetch(
-          `${backendUrl}/rest/v1/contact_requests?select=id&limit=1`,
-          {
-            method: "GET",
-            headers: {
-              apikey: backendKey,
-              Authorization: `Bearer ${backendKey}`,
-              Accept: "application/json",
-            },
-          }
-        );
-
-        dryRunStatus = dryRunRes.status;
-      } catch (dryRunErr: any) {
-        console.error("CONTACT_DRYRUN_ERROR", {
-          message: dryRunErr?.message ?? String(dryRunErr),
-        });
+      if (!response.ok || resData.ok === false) {
+        throw new Error(resData.error || "Submission failed");
       }
 
-      console.info("CONTACT_DRYRUN_RESPONSE", { status: dryRunStatus });
-      setDebugInfo((prev) => (prev ? { ...prev, dryRunStatus } : prev));
-
-      const res = await supabase
-        .from("contact_requests")
-        .insert(payload)
-        .select("request_number")
-        .single();
-
-      console.info("CONTACT_SUBMIT_RESPONSE", {
-        status: (res as any)?.status,
-        data: res.data,
-        error: res.error,
-      });
-
-      console.error("CONTACT_SUBMIT_ERROR_DETAIL", {
-        message: (res.error as any)?.message,
-        code: (res.error as any)?.code,
-        details: (res.error as any)?.details,
-        hint: (res.error as any)?.hint,
-      });
-
-      setDebugInfo((prev) =>
-        prev
-          ? {
-              ...prev,
-              submitStatus: (res as any)?.status ?? null,
-              errorMessage: (res.error as any)?.message ?? null,
-              errorCode: (res.error as any)?.code ?? null,
-            }
-          : prev
-      );
-
-      if (res.error) throw res.error;
-
       // Success
-      setRequestNumber(res.data?.request_number || null);
+      setRequestNumber(resData.request_number || resData.ticket_number || null);
       setIsSubmitted(true);
 
-      // Reset form state for next submission
+      // Reset form state
       setFormData({
         firstName: "",
         lastName: "",
@@ -361,38 +227,18 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
       });
 
       toast({
-        title: isFrench ? "Demande envoyée!" : "Request sent!",
+        title: isFrench ? "Message envoyé!" : "Message sent!",
         description: isFrench
-          ? "Nous vous répondrons dans les plus brefs délais."
-          : "We will respond as soon as possible.",
+          ? "Notre équipe te contactera sous peu."
+          : "Our team will contact you soon.",
       });
-    } catch (e: any) {
-      console.error("CONTACT_SUBMIT_ERROR", {
-        message: e?.message,
-        code: e?.code,
-        details: e?.details,
-        hint: e?.hint,
-        full: e,
-      });
-
-      setDebugInfo((prev) =>
-        prev
-          ? {
-              ...prev,
-              submitStatus: prev.submitStatus ?? (e?.status ?? null),
-              errorMessage: e?.message ?? prev.errorMessage,
-              errorCode: e?.code ?? prev.errorCode,
-            }
-          : prev
-      );
-
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
       toast({
         title: isFrench ? "Erreur" : "Error",
-        description:
-          e?.message ??
-          (isFrench
-            ? "Impossible d'envoyer votre demande. Veuillez réessayer."
-            : "Unable to send your request. Please try again."),
+        description: errorMessage || (isFrench
+          ? "Impossible d'envoyer votre demande. Veuillez réessayer."
+          : "Unable to send your request. Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -470,14 +316,7 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
     <form
       ref={ref}
       onSubmit={handleSubmit}
-      onSubmitCapture={(e) => {
-        // Defensive: guarantee no HTML form navigation ever happens.
-        e.preventDefault();
-        e.stopPropagation();
-        console.info("CONTACT_FORM_SUBMIT_CAPTURE", "2026-01-12_v2");
-      }}
       data-testid="contact-form"
-      data-contact-form-version="2026-01-12_v2"
       className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-sm"
     >
       <h3 className="text-xl font-semibold text-foreground mb-6 text-center">
@@ -790,19 +629,6 @@ const ContactForm = forwardRef<HTMLFormElement>((_, ref) => {
             </>
           )}
         </Button>
-
-        {/* Debug block visible only on prod domain within 10min TTL */}
-        {debugEnabled && debugInfo && (
-          <div className="mt-4 p-3 rounded-lg bg-yellow-50 border border-yellow-300 text-xs font-mono text-yellow-900 space-y-1">
-            <p className="font-bold text-yellow-700">🔍 Contact Debug (10 min TTL)</p>
-            <p>backendUrlTail: <span className="font-semibold">{debugInfo.backendUrlTail ?? "null"}</span></p>
-            <p>keyLen: <span className="font-semibold">{debugInfo.keyLen}</span></p>
-            <p>dryRunStatus: <span className="font-semibold">{debugInfo.dryRunStatus ?? "—"}</span></p>
-            <p>submitStatus: <span className="font-semibold">{debugInfo.submitStatus ?? "—"}</span></p>
-            {debugInfo.errorCode && <p>errorCode: <span className="font-semibold text-red-600">{debugInfo.errorCode}</span></p>}
-            {debugInfo.errorMessage && <p>errorMessage: <span className="font-semibold text-red-600">{debugInfo.errorMessage}</span></p>}
-          </div>
-        )}
 
         <p className="text-xs text-center text-muted-foreground">
           {isFrench 
