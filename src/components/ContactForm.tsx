@@ -215,8 +215,8 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
         throw new Error(resData.error || `Erreur ${response.status}: ${response.statusText}`);
       }
 
-      // Success
-      setRequestNumber(resData.request_number || resData.ticket_number || null);
+      // Success - use thread_number from web_form_threads
+      setRequestNumber(resData.thread_number || null);
       setIsSubmitted(true);
 
       // Reset form state
@@ -239,8 +239,8 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
       toast({
         title: isFrench ? "Message envoyé!" : "Message sent!",
         description: isFrench
-          ? "Un ticket a été créé. Notre équipe te contactera sous peu."
-          : "A ticket has been created. Our team will contact you soon.",
+          ? "Votre demande a été reçue. Notre équipe vous contactera sous peu."
+          : "Your request has been received. Our team will contact you soon.",
       });
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : String(e);
