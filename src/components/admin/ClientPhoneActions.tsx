@@ -15,7 +15,7 @@ interface ClientPhoneActionsProps {
 
 /**
  * Call and SMS buttons that:
- * 1. Log the action to telephony_logs (audit trail)
+ * 1. Log the action to telephony_logs via Edge Function (audit trail)
  * 2. Open OpenPhone with the client's number prefilled
  */
 export const ClientPhoneActions = ({ 
@@ -31,45 +31,63 @@ export const ClientPhoneActions = ({
 
   const phoneE164 = clientPhone ? toE164(clientPhone) : null;
 
-  const logTelephonyAction = async (action: "call" | "sms") => {
-    if (!user?.id || !clientId) return;
+  /**
+   * Log telephony action via Edge Function (server-side with service role)
+   * Returns true if logged successfully, false otherwise
+   */
+  const logTelephonyAction = async (action: "call" | "sms"): Promise<boolean> => {
+    if (!user?.id || !clientId || !phoneE164) {
+      console.error("TELEPHONY_LOG_ERROR", { error: "Missing required fields", user: user?.id, clientId, phoneE164 });
+      return false;
+    }
+
+    const payload = {
+      client_id: clientId,
+      action,
+      direction: "outbound",
+      phone_number: phoneE164,
+    };
+
+    console.info("TELEPHONY_LOG_PAYLOAD", payload);
 
     try {
-      // Get agent profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      // Insert audit log via edge function (server-side)
-      const { error } = await supabase.functions.invoke("log-telephony-action", {
-        body: {
-          clientId,
-          action,
-          agentUserId: user.id,
-          agentName: profile?.full_name || user.email?.split("@")[0] || "Agent",
-          agentEmail: profile?.email || user.email,
-          phoneNumber: phoneE164,
-        },
+      const { data, error } = await supabase.functions.invoke("log-telephony-action", {
+        body: payload,
       });
 
+      console.info("TELEPHONY_LOG_RESPONSE", { data, error });
+
       if (error) {
-        // If edge function doesn't exist, log directly (fallback)
-        console.warn("Edge function not available, using direct insert:", error.message);
-        await supabase.from("telephony_logs").insert({
-          client_id: clientId,
-          action,
-          direction: "outbound",
-          agent_user_id: user.id,
-          agent_name: profile?.full_name || user.email?.split("@")[0] || "Agent",
-          agent_email: profile?.email || user.email,
-          phone_number: phoneE164,
+        console.error("TELEPHONY_LOG_ERROR", { error: error.message });
+        toast({
+          title: "Erreur de journalisation",
+          description: error.message || "Impossible de journaliser l'action.",
+          variant: "destructive",
         });
+        return false;
       }
+
+      if (!data?.ok) {
+        const errorMsg = data?.error || "Réponse inattendue du serveur";
+        console.error("TELEPHONY_LOG_ERROR", { error: errorMsg, data });
+        toast({
+          title: "Erreur de journalisation",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      return true;
     } catch (err) {
-      console.error("Failed to log telephony action:", err);
-      // Don't block the action - just log the error
+      const errorMsg = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("TELEPHONY_LOG_ERROR", { error: errorMsg, err });
+      toast({
+        title: "Erreur de journalisation",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -77,7 +95,7 @@ export const ClientPhoneActions = ({
     if (!phoneE164) {
       toast({
         title: "Numéro invalide",
-        description: "Le numéro de téléphone du client n'est pas valide.",
+        description: "Le numéro de téléphone du client n'est pas valide ou est manquant.",
         variant: "destructive",
       });
       return;
@@ -85,16 +103,26 @@ export const ClientPhoneActions = ({
 
     setIsLoggingCall(true);
     try {
-      await logTelephonyAction("call");
+      // IMPORTANT: Log BEFORE opening the window to ensure the request completes
+      const logged = await logTelephonyAction("call");
       
-      // Open OpenPhone in new tab
+      if (!logged) {
+        // Still open OpenPhone but warn user
+        toast({
+          title: "Action ouverte",
+          description: "OpenPhone s'ouvre, mais la journalisation a échoué.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Appel initié",
+          description: `Ouverture d'OpenPhone pour appeler ${clientName || formatPhoneDisplay(phoneE164)}`,
+        });
+      }
+
+      // Open OpenPhone in new tab AFTER logging
       const url = getOpenPhoneDeepLink(phoneE164, "call");
       window.open(url, "_blank", "noopener,noreferrer");
-      
-      toast({
-        title: "Appel initié",
-        description: `Ouverture d'OpenPhone pour appeler ${clientName || formatPhoneDisplay(phoneE164)}`,
-      });
     } finally {
       setIsLoggingCall(false);
     }
@@ -104,7 +132,7 @@ export const ClientPhoneActions = ({
     if (!phoneE164) {
       toast({
         title: "Numéro invalide",
-        description: "Le numéro de téléphone du client n'est pas valide.",
+        description: "Le numéro de téléphone du client n'est pas valide ou est manquant.",
         variant: "destructive",
       });
       return;
@@ -112,23 +140,45 @@ export const ClientPhoneActions = ({
 
     setIsLoggingSms(true);
     try {
-      await logTelephonyAction("sms");
+      // IMPORTANT: Log BEFORE opening the window to ensure the request completes
+      const logged = await logTelephonyAction("sms");
       
-      // Open OpenPhone SMS in new tab
+      if (!logged) {
+        // Still open OpenPhone but warn user
+        toast({
+          title: "Action ouverte",
+          description: "OpenPhone s'ouvre, mais la journalisation a échoué.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "SMS",
+          description: `Ouverture d'OpenPhone pour envoyer un SMS à ${clientName || formatPhoneDisplay(phoneE164)}`,
+        });
+      }
+
+      // Open OpenPhone SMS in new tab AFTER logging
       const url = getOpenPhoneDeepLink(phoneE164, "sms");
       window.open(url, "_blank", "noopener,noreferrer");
-      
-      toast({
-        title: "SMS",
-        description: `Ouverture d'OpenPhone pour envoyer un SMS à ${clientName || formatPhoneDisplay(phoneE164)}`,
-      });
     } finally {
       setIsLoggingSms(false);
     }
   };
 
   if (!clientPhone) {
-    return null;
+    return (
+      <div className="text-sm text-muted-foreground italic">
+        Numéro manquant
+      </div>
+    );
+  }
+
+  if (!phoneE164) {
+    return (
+      <div className="text-sm text-destructive italic">
+        Numéro invalide
+      </div>
+    );
   }
 
   if (variant === "compact") {
@@ -139,7 +189,7 @@ export const ClientPhoneActions = ({
           variant="ghost"
           className="h-8 w-8"
           onClick={handleCall}
-          disabled={isLoggingCall || !phoneE164}
+          disabled={isLoggingCall}
           title="Appeler"
         >
           {isLoggingCall ? (
@@ -153,7 +203,7 @@ export const ClientPhoneActions = ({
           variant="ghost"
           className="h-8 w-8"
           onClick={handleSms}
-          disabled={isLoggingSms || !phoneE164}
+          disabled={isLoggingSms}
           title="SMS"
         >
           {isLoggingSms ? (
@@ -172,7 +222,7 @@ export const ClientPhoneActions = ({
         size="sm"
         variant="outline"
         onClick={handleCall}
-        disabled={isLoggingCall || !phoneE164}
+        disabled={isLoggingCall}
         className="gap-2"
       >
         {isLoggingCall ? (
@@ -186,7 +236,7 @@ export const ClientPhoneActions = ({
         size="sm"
         variant="outline"
         onClick={handleSms}
-        disabled={isLoggingSms || !phoneE164}
+        disabled={isLoggingSms}
         className="gap-2"
       >
         {isLoggingSms ? (

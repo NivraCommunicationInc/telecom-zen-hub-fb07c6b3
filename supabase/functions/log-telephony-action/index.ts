@@ -1,9 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Production CORS - restricted origins
+const ALLOWED_ORIGINS = [
+  "https://nivratelecom.ca",
+  "https://www.nivratelecom.ca",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 /**
  * E.164 phone number normalization (server-side)
@@ -32,16 +45,36 @@ function toE164(phone: string): string | null {
   return null;
 }
 
+/**
+ * Validate UUID format
+ */
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // Only allow POST
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {
     // Verify JWT - staff only
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("LOG_TELEPHONY_ERROR", { error: "Missing authorization header" });
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -57,21 +90,31 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
+      console.error("LOG_TELEPHONY_ERROR", { error: "Invalid or expired token", authError });
       return new Response(
         JSON.stringify({ error: "Invalid or expired token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if user is staff (admin or employee)
-    const { data: role } = await supabase
+    // Check if user is staff (admin or employee) via user_roles table
+    const { data: role, error: roleError } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .in("role", ["admin", "employee"])
       .maybeSingle();
 
+    if (roleError) {
+      console.error("LOG_TELEPHONY_ERROR", { error: "Failed to check role", roleError });
+      return new Response(
+        JSON.stringify({ error: "Failed to verify staff role" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!role) {
+      console.error("LOG_TELEPHONY_ERROR", { error: "Unauthorized: not staff", userId: user.id });
       return new Response(
         JSON.stringify({ error: "Unauthorized: staff only" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -79,23 +122,60 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const {
-      clientId,
+      client_id,
+      clientId, // Support both formats
       action,
-      phoneNumber,
+      phone_number,
+      phoneNumber, // Support both formats
+      direction = "outbound",
       notes,
+      agent_user_id,
       agentUserId,
+      agent_name,
       agentName,
+      agent_email,
       agentEmail,
       openphone_call_id,
       openphone_message_id,
+      raw_payload,
     } = body;
 
+    // Normalize field names (support both snake_case and camelCase)
+    const finalClientId = client_id || clientId;
+    const finalPhoneNumber = phone_number || phoneNumber;
+    const finalAgentUserId = agent_user_id || agentUserId || user.id;
+    const finalAgentName = agent_name || agentName || user.email?.split("@")[0] || "Agent";
+    const finalAgentEmail = agent_email || agentEmail || user.email;
+
     // Validate required fields
-    if (!clientId || !action) {
+    if (!finalClientId) {
       return new Response(
-        JSON.stringify({ error: "clientId and action are required" }),
+        JSON.stringify({ error: "client_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!isValidUUID(finalClientId)) {
+      return new Response(
+        JSON.stringify({ error: "client_id must be a valid UUID" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!action) {
+      return new Response(
+        JSON.stringify({ error: "action is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -107,13 +187,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!["inbound", "outbound"].includes(direction)) {
+      return new Response(
+        JSON.stringify({ error: "direction must be 'inbound' or 'outbound'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Normalize phone number to E.164
     let normalizedPhone: string | null = null;
-    if (phoneNumber) {
-      normalizedPhone = toE164(phoneNumber);
+    if (finalPhoneNumber) {
+      normalizedPhone = toE164(finalPhoneNumber);
       if (!normalizedPhone) {
         return new Response(
-          JSON.stringify({ error: "Invalid phone number format" }),
+          JSON.stringify({ error: "Invalid phone number format. Expected E.164 (e.g. +15145551234)" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -123,34 +210,54 @@ Deno.serve(async (req) => {
     const { data: logEntry, error: insertError } = await supabase
       .from("telephony_logs")
       .insert({
-        client_id: clientId,
+        client_id: finalClientId,
         action,
-        direction: "outbound",
+        direction,
         phone_number: normalizedPhone,
         notes: notes || null,
-        agent_user_id: agentUserId || user.id,
-        agent_name: agentName || user.email?.split("@")[0] || "Agent",
-        agent_email: agentEmail || user.email,
+        agent_user_id: finalAgentUserId,
+        agent_name: finalAgentName,
+        agent_email: finalAgentEmail,
         openphone_call_id: openphone_call_id || null,
         openphone_message_id: openphone_message_id || null,
+        raw_payload: raw_payload || null,
       })
       .select("id")
       .single();
 
     if (insertError) {
-      console.error("Failed to insert telephony log:", insertError);
+      console.error("LOG_TELEPHONY_ERROR", { 
+        error: "Failed to insert telephony log", 
+        insertError,
+        client_id: finalClientId,
+        action 
+      });
       return new Response(
         JSON.stringify({ error: "Failed to log action", details: insertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Success log
+    console.log("LOG_TELEPHONY", { 
+      ok: true, 
+      staff: role.role,
+      userId: user.id, 
+      action, 
+      client_id: finalClientId,
+      logId: logEntry.id
+    });
+
     return new Response(
       JSON.stringify({ ok: true, id: logEntry.id }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("LOG_TELEPHONY_ERROR", { 
+      error: "Unexpected error", 
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
