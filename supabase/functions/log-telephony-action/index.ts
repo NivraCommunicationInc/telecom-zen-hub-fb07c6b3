@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const ALLOWED_ORIGINS = [
   "https://nivratelecom.ca",
   "https://www.nivratelecom.ca",
-  // Dev/preview (explicit allowlist; remove if you want production-only)
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -11,7 +10,7 @@ const ALLOWED_ORIGINS = [
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  // Allow Lovable preview domains explicitly (still strict allowlist by pattern)
+  // Allow Lovable preview domains
   try {
     const u = new URL(origin);
     return u.hostname.endsWith(".lovableproject.com");
@@ -24,14 +23,14 @@ function corsHeaders(origin: string | null): Record<string, string> {
   const allowed = isAllowedOrigin(origin);
   return {
     "Access-Control-Allow-Origin": allowed && origin ? origin : "https://nivratelecom.ca",
-    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
     Vary: "Origin",
   };
 }
 
-function json(origin: string | null, status: number, body: Record<string, unknown>) {
+function jsonResponse(origin: string | null, status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -47,59 +46,63 @@ function isValidUUID(str: string): boolean {
 
 function toE164(phone: string): string | null {
   const digits = phone.replace(/\D/g, "");
-
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-
   if (digits.length === 10) {
     if (digits[0] === "0" || digits[0] === "1") return null;
     return `+1${digits}`;
   }
-
   if (phone.startsWith("+") && digits.length >= 10 && digits.length <= 15) return `+${digits}`;
-
   return null;
 }
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
 
-  // Strict CORS: reject unknown origins (preflight included)
-  if (!isAllowedOrigin(origin)) {
-    return json(origin, 403, {
-      ok: false,
-      code: "CORS_FORBIDDEN",
-      error: "Origin not allowed",
-    });
-  }
-
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return json(origin, 200, { ok: true });
+    return jsonResponse(origin, 200, { ok: true });
   }
 
+  // Only allow POST
   if (req.method !== "POST") {
-    return json(origin, 405, { ok: false, code: "METHOD_NOT_ALLOWED", error: "Method not allowed" });
+    return jsonResponse(origin, 405, { ok: false, code: "METHOD_NOT_ALLOWED", error: "Method not allowed" });
+  }
+
+  // Reject unknown origins
+  if (!isAllowedOrigin(origin)) {
+    console.error("LOG_TELEPHONY_ERROR", { error: "CORS forbidden", origin });
+    return jsonResponse(origin, 403, { ok: false, code: "CORS_FORBIDDEN", error: "Origin not allowed" });
   }
 
   try {
+    // 1. Read Authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.error("LOG_TELEPHONY_ERROR", { error: "Missing authorization header" });
-      return json(origin, 401, { ok: false, code: "AUTH_MISSING", error: "Missing authorization header" });
+      return jsonResponse(origin, 401, { ok: false, code: "AUTH_MISSING", error: "Missing authorization header" });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // 2. Validate user via auth.getUser with anon client
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
 
     if (authError || !user) {
-      console.error("LOG_TELEPHONY_ERROR", { error: "Invalid or expired token", authError });
-      return json(origin, 401, { ok: false, code: "AUTH_INVALID", error: "Invalid or expired token" });
+      console.error("LOG_TELEPHONY_ERROR", { error: "Invalid or expired token", authError: authError?.message });
+      return jsonResponse(origin, 401, { ok: false, code: "AUTH_INVALID", error: "Invalid or expired token" });
     }
 
-    const { data: roleRow, error: roleError } = await supabase
+    // 3. Check if user is admin|employee using SERVICE ROLE (bypasses RLS)
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: roleRow, error: roleError } = await serviceClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
@@ -107,61 +110,66 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (roleError) {
-      console.error("LOG_TELEPHONY_ERROR", { error: "Role check failed", roleError });
-      return json(origin, 500, { ok: false, code: "ROLE_CHECK_FAILED", error: "Failed to verify staff role" });
+      console.error("LOG_TELEPHONY_ERROR", { error: "Role check failed", roleError: roleError.message });
+      return jsonResponse(origin, 500, { ok: false, code: "ROLE_CHECK_FAILED", error: "Failed to verify staff role" });
     }
 
     if (!roleRow) {
       console.log("LOG_TELEPHONY", { ok: false, staff: false, userId: user.id });
-      return json(origin, 403, { ok: false, code: "NOT_STAFF", error: "Unauthorized: staff only" });
+      return jsonResponse(origin, 403, { ok: false, code: "NOT_STAFF", error: "Unauthorized: staff only" });
     }
 
-    let body: any;
+    // 4. Parse and validate input
+    let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch {
-      return json(origin, 400, { ok: false, code: "BAD_JSON", error: "Invalid JSON body" });
+      return jsonResponse(origin, 400, { ok: false, code: "BAD_JSON", error: "Invalid JSON body" });
     }
 
-    const client_id = body?.client_id;
-    const action = body?.action;
-    const phone_number = body?.phone_number;
-    const direction = body?.direction ?? "outbound";
-    const notes = body?.notes ?? null;
-    const openphone_call_id = body?.openphone_call_id ?? null;
-    const openphone_message_id = body?.openphone_message_id ?? null;
-    const raw_payload = body?.raw_payload ?? null;
+    const client_id = body?.client_id as string | undefined;
+    const action = body?.action as string | undefined;
+    const phone_number = body?.phone_number as string | undefined;
+    const direction = (body?.direction as string) ?? "outbound";
+    const notes = (body?.notes as string) ?? null;
+    const openphone_call_id = (body?.openphone_call_id as string) ?? null;
+    const openphone_message_id = (body?.openphone_message_id as string) ?? null;
+    const raw_payload = (body?.raw_payload as Record<string, unknown>) ?? null;
 
-    if (!client_id) return json(origin, 400, { ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id is required" });
-    if (!isValidUUID(client_id)) return json(origin, 400, { ok: false, code: "CLIENT_ID_INVALID", error: "client_id must be a valid UUID" });
-
-    if (!action) return json(origin, 400, { ok: false, code: "ACTION_REQUIRED", error: "action is required" });
+    if (!client_id) {
+      return jsonResponse(origin, 400, { ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id is required" });
+    }
+    if (!isValidUUID(client_id)) {
+      return jsonResponse(origin, 400, { ok: false, code: "CLIENT_ID_INVALID", error: "client_id must be a valid UUID" });
+    }
+    if (!action) {
+      return jsonResponse(origin, 400, { ok: false, code: "ACTION_REQUIRED", error: "action is required" });
+    }
     if (!["call", "sms"].includes(action)) {
-      return json(origin, 400, { ok: false, code: "ACTION_INVALID", error: "action must be 'call' or 'sms'" });
+      return jsonResponse(origin, 400, { ok: false, code: "ACTION_INVALID", error: "action must be 'call' or 'sms'" });
     }
-
     if (direction !== "outbound" && direction !== "inbound") {
-      return json(origin, 400, { ok: false, code: "DIRECTION_INVALID", error: "direction must be 'inbound' or 'outbound'" });
+      return jsonResponse(origin, 400, { ok: false, code: "DIRECTION_INVALID", error: "direction must be 'inbound' or 'outbound'" });
     }
-
     if (!phone_number) {
-      return json(origin, 400, { ok: false, code: "PHONE_REQUIRED", error: "phone_number is required (E.164)" });
+      return jsonResponse(origin, 400, { ok: false, code: "PHONE_REQUIRED", error: "phone_number is required (E.164)" });
     }
 
     const normalized = toE164(String(phone_number));
     if (!normalized) {
-      return json(origin, 400, {
+      return jsonResponse(origin, 400, {
         ok: false,
         code: "PHONE_INVALID",
         error: "phone_number invalid. Expected E.164 (e.g. +15145551234)",
       });
     }
 
+    // 5. Insert into telephony_logs using SERVICE ROLE (bypasses RLS)
     const agent_user_id = user.id;
     const agent_email = user.email ?? null;
     const agent_name = user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Agent";
 
-    const { data: logEntry, error: insertError } = await supabase
+    const { data: logEntry, error: insertError } = await serviceClient
       .from("telephony_logs")
       .insert({
         client_id,
@@ -180,17 +188,18 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error("LOG_TELEPHONY_ERROR", { message: insertError.message, stack: insertError.details });
-      return json(origin, 500, { ok: false, code: "DB_INSERT_FAILED", error: insertError.message });
+      console.error("LOG_TELEPHONY_ERROR", { message: insertError.message, details: insertError.details });
+      return jsonResponse(origin, 500, { ok: false, code: "DB_INSERT_FAILED", error: insertError.message });
     }
 
-    console.log("LOG_TELEPHONY", { ok: true, staff: true, userId: user.id, action, client_id });
-    return json(origin, 201, { ok: true, id: logEntry.id });
+    console.log("LOG_TELEPHONY", { ok: true, staff: true, userId: user.id, action, client_id, logId: logEntry.id });
+    return jsonResponse(origin, 201, { ok: true, id: logEntry.id });
+
   } catch (e) {
     console.error("LOG_TELEPHONY_ERROR", {
       message: e instanceof Error ? e.message : String(e),
       stack: e instanceof Error ? e.stack : undefined,
     });
-    return json(origin, 500, { ok: false, code: "UNEXPECTED", error: "Internal server error" });
+    return jsonResponse(origin, 500, { ok: false, code: "UNEXPECTED", error: "Internal server error" });
   }
 });
