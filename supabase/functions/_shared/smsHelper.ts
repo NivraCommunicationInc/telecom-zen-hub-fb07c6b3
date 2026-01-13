@@ -177,41 +177,241 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
   }
 }
 
-// SMS message templates
-export const SMS_TEMPLATES = {
-  // Order confirmations
-  orderConfirmation: (params: { orderNumber: string; clientName: string; monthlyTotal: string }) =>
-    `Nivra: Bonjour ${params.clientName}! Votre commande #${params.orderNumber} est confirmée. Total mensuel: ${params.monthlyTotal}. Nous vous contactons bientôt! Questions? 438-544-2233`,
+// =============================================
+// PROFESSIONAL SMS TEMPLATES
+// Format: Clean, structured, bilingual-friendly
+// =============================================
 
-  // Installation status
+const COMPANY_LINE = "— Nivra Télécom";
+const SUPPORT_PHONE = "438-544-2233";
+const PORTAL_URL = "nivratelecom.ca/portal";
+
+export const SMS_TEMPLATES = {
+  // ═══════════════════════════════════════════
+  // COMMANDES / ORDERS
+  // ═══════════════════════════════════════════
+  orderConfirmation: (params: { orderNumber: string; clientName: string; monthlyTotal: string }) =>
+`Bonjour ${params.clientName},
+
+Votre commande ${params.orderNumber} a été reçue et est en cours de traitement.
+
+💰 Total mensuel: ${params.monthlyTotal}
+
+Prochaine étape: Notre équipe vous contactera sous 24h pour confirmer les détails.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  // ═══════════════════════════════════════════
+  // INSTALLATIONS
+  // ═══════════════════════════════════════════
   installationScheduled: (params: { orderNumber: string; clientName: string; dateTime?: string }) =>
-    `Nivra: ${params.clientName}, votre installation #${params.orderNumber} est planifiée${params.dateTime ? ` pour le ${params.dateTime}` : ''}. Un technicien vous sera assigné. 438-544-2233`,
+`Bonjour ${params.clientName},
+
+Votre rendez-vous d'installation est confirmé.
+
+📅 ${params.dateTime ? `Date: ${params.dateTime}` : 'Un technicien vous sera assigné sous peu.'}
+📋 Référence: ${params.orderNumber}
+
+Merci de vous assurer qu'un adulte soit présent.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
 
   technicianEnRoute: (params: { clientName: string; technicianName?: string }) =>
-    `Nivra: ${params.clientName}, notre technicien${params.technicianName ? ` ${params.technicianName}` : ''} est en route! Merci de rester disponible. 438-544-2233`,
+`Bonjour ${params.clientName},
+
+Notre technicien${params.technicianName ? ` ${params.technicianName}` : ''} est en route vers votre domicile.
+
+⏱️ Arrivée estimée: 15-30 minutes
+
+Merci de rester disponible pour son arrivée.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
 
   installationCompleted: (params: { clientName: string }) =>
-    `Nivra: ${params.clientName}, installation terminée! Profitez de vos services. Accédez à votre portail: nivratelecom.ca/portal. Questions? 438-544-2233`,
+`Bonjour ${params.clientName},
 
-  // Payments
+✅ Votre installation est terminée avec succès!
+
+Vos services sont maintenant actifs. Accédez à votre espace client pour gérer votre compte:
+🔗 ${PORTAL_URL}
+
+Merci de votre confiance.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  // ═══════════════════════════════════════════
+  // PAIEMENTS
+  // ═══════════════════════════════════════════
   paymentReceived: (params: { clientName: string; amount: string; invoiceNumber?: string }) =>
-    `Nivra: ${params.clientName}, paiement de ${params.amount} reçu${params.invoiceNumber ? ` pour facture #${params.invoiceNumber}` : ''}. Merci! 438-544-2233`,
+`Bonjour ${params.clientName},
+
+✅ Paiement reçu
+
+💰 Montant: ${params.amount}${params.invoiceNumber ? `\n📋 Facture: ${params.invoiceNumber}` : ''}
+
+Merci pour votre paiement. Votre reçu sera disponible dans votre espace client.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
 
   paymentOverdue: (params: { clientName: string; amount: string; dueDate?: string }) =>
-    `Nivra: ${params.clientName}, rappel - facture de ${params.amount} en retard${params.dueDate ? ` depuis le ${params.dueDate}` : ''}. Réglez via nivratelecom.ca/portal ou 438-544-2233`,
+`Bonjour ${params.clientName},
 
-  // Service status
+⚠️ Rappel de paiement
+
+Un solde de ${params.amount} est dû sur votre compte${params.dueDate ? ` depuis le ${params.dueDate}` : ''}.
+
+Pour éviter une interruption de service, veuillez régulariser votre situation:
+🔗 ${PORTAL_URL}
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  // ═══════════════════════════════════════════
+  // SERVICES
+  // ═══════════════════════════════════════════
   serviceActivated: (params: { clientName: string; serviceName: string }) =>
-    `Nivra: ${params.clientName}, votre service ${params.serviceName} est maintenant actif! Profitez-en. Questions? 438-544-2233`,
+`Bonjour ${params.clientName},
+
+✅ Service activé
+
+Votre service ${params.serviceName} est maintenant actif et prêt à utiliser.
+
+Gérez votre compte:
+🔗 ${PORTAL_URL}
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
 
   serviceSuspended: (params: { clientName: string; serviceName: string }) =>
-    `Nivra: ${params.clientName}, votre service ${params.serviceName} a été suspendu. Contactez-nous au 438-544-2233 pour plus d'informations.`,
+`Bonjour ${params.clientName},
 
-  // Streaming activation
+⚠️ Service suspendu
+
+Votre service ${params.serviceName} a été temporairement suspendu.
+
+Pour rétablir votre service, contactez notre équipe:
+📞 ${SUPPORT_PHONE}
+
+${COMPANY_LINE}`,
+
+  // ═══════════════════════════════════════════
+  // STREAMING
+  // ═══════════════════════════════════════════
   streamingActivated: (params: { clientName: string; serviceName: string }) =>
-    `Nivra: ${params.clientName}, votre abonnement ${params.serviceName} est activé! Vos identifiants vous seront envoyés par email. 438-544-2233`,
+`Bonjour ${params.clientName},
 
-  // Mobile activation
+✅ Abonnement streaming activé
+
+Votre abonnement ${params.serviceName} est maintenant actif!
+
+📧 Vos identifiants de connexion vous seront envoyés par email.
+
+Bon visionnement!
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  // ═══════════════════════════════════════════
+  // MOBILE
+  // ═══════════════════════════════════════════
   mobileActivated: (params: { clientName: string; phoneNumber?: string }) =>
-    `Nivra: ${params.clientName}, votre ligne mobile${params.phoneNumber ? ` ${params.phoneNumber}` : ''} est activée! Insérez votre SIM et redémarrez. 438-544-2233`,
+`Bonjour ${params.clientName},
+
+✅ Ligne mobile activée${params.phoneNumber ? `\n📱 Numéro: ${params.phoneNumber}` : ''}
+
+Insérez votre carte SIM et redémarrez votre appareil pour commencer à utiliser votre ligne.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  // ═══════════════════════════════════════════
+  // TICKETS DE SUPPORT
+  // ═══════════════════════════════════════════
+  ticketCreated: (params: { clientName: string; ticketNumber: string; subject: string }) =>
+`Bonjour ${params.clientName},
+
+📋 Demande de support reçue
+
+Numéro de ticket: ${params.ticketNumber}
+Sujet: ${params.subject}
+
+Notre équipe traitera votre demande dans les plus brefs délais. Vous recevrez une mise à jour par email.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  ticketStatusUpdate: (params: { clientName: string; ticketNumber: string; newStatus: string; statusLabel: string }) =>
+`Bonjour ${params.clientName},
+
+📋 Mise à jour de votre ticket ${params.ticketNumber}
+
+Nouveau statut: ${params.statusLabel}
+
+Consultez les détails dans votre espace client:
+🔗 ${PORTAL_URL}
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  ticketResolved: (params: { clientName: string; ticketNumber: string }) =>
+`Bonjour ${params.clientName},
+
+✅ Ticket résolu
+
+Votre demande ${params.ticketNumber} a été traitée et résolue.
+
+Si vous avez d'autres questions, n'hésitez pas à nous contacter.
+
+Merci de votre confiance.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  // ═══════════════════════════════════════════
+  // TRANSFERT DE NUMÉRO
+  // ═══════════════════════════════════════════
+  portingInitiated: (params: { clientName: string; phoneNumber: string; estimatedDate?: string }) =>
+`Bonjour ${params.clientName},
+
+📱 Transfert de numéro initié
+
+Numéro: ${params.phoneNumber}${params.estimatedDate ? `\n📅 Date estimée: ${params.estimatedDate}` : ''}
+
+Votre demande de transfert est en cours de traitement. Nous vous notifierons dès que le transfert sera complété.
+
+⚠️ Important: Ne résiliez pas votre ancien service avant confirmation.
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  portingCompleted: (params: { clientName: string; phoneNumber: string }) =>
+`Bonjour ${params.clientName},
+
+✅ Transfert de numéro complété
+
+Votre numéro ${params.phoneNumber} est maintenant actif chez Nivra!
+
+Redémarrez votre appareil pour finaliser l'activation.
+
+Bienvenue chez Nivra Télécom!
+
+${COMPANY_LINE}
+📞 ${SUPPORT_PHONE}`,
+
+  portingFailed: (params: { clientName: string; phoneNumber: string; reason?: string }) =>
+`Bonjour ${params.clientName},
+
+⚠️ Transfert de numéro en attente
+
+Le transfert de ${params.phoneNumber} nécessite votre attention.${params.reason ? `\n\nRaison: ${params.reason}` : ''}
+
+Contactez-nous pour résoudre cette situation:
+📞 ${SUPPORT_PHONE}
+
+${COMPANY_LINE}`,
 };

@@ -279,12 +279,52 @@ const AdminTickets = () => {
       const { ticketId, ...updateData } = updates;
       updateData.updated_at = new Date().toISOString();
 
+      // Get the current ticket data for comparison
+      const { data: currentTicket } = await supabase
+        .from("support_tickets")
+        .select("status, ticket_number, subject, client_email, user_id")
+        .eq("id", ticketId)
+        .single();
+
+      const oldStatus = currentTicket?.status;
+      const newStatus = updateData.status;
+
       const { error } = await supabase
         .from("support_tickets")
         .update(updateData)
         .eq("id", ticketId);
 
       if (error) throw error;
+
+      // Send SMS notification for status changes (non-blocking)
+      if (newStatus && newStatus !== oldStatus && currentTicket) {
+        // Fetch client profile for phone and name
+        const { data: clientProfile } = await supabase
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", currentTicket.user_id)
+          .maybeSingle();
+
+        const eventType = ["resolved", "closed"].includes(newStatus) 
+          ? "ticket_resolved" 
+          : "ticket_status_update";
+
+        supabase.functions.invoke("send-ticket-notification", {
+          body: {
+            event_type: eventType,
+            ticket_id: ticketId,
+            ticket_number: currentTicket.ticket_number,
+            subject: currentTicket.subject,
+            client_email: currentTicket.client_email,
+            client_name: clientProfile?.full_name || "Client",
+            client_phone: clientProfile?.phone,
+            client_id: currentTicket.user_id,
+            new_status: newStatus,
+            old_status: oldStatus,
+          },
+        }).catch((err) => console.error("[SMS] Ticket notification failed:", err));
+      }
+
       return { ticketId, ...updateData };
     },
     onSuccess: (data) => {
