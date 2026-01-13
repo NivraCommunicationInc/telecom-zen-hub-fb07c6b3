@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Phone,
   MessageSquare,
@@ -35,8 +34,6 @@ import {
   RefreshCw,
   Plus,
   Copy,
-  Maximize2,
-  X,
   Headphones,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -49,6 +46,7 @@ import SMSThreadsList from "@/components/admin/SMSThreadsList";
 import { ClientSearchAutocomplete } from "@/components/admin/ClientSearchAutocomplete";
 import SMSConversationView from "@/components/admin/SMSConversationView";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+import { OpenPhoneCallPanel } from "@/components/admin/OpenPhoneCallPanel";
 const AdminTelephony = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("conversations");
@@ -65,6 +63,10 @@ const AdminTelephony = () => {
   const [openPhonePanelOpen, setOpenPhonePanelOpen] = useState(false);
   const [activeCallNumber, setActiveCallNumber] = useState<string>("");
   const [activeCallClientName, setActiveCallClientName] = useState<string>("");
+
+  // Keep a reference to an OpenPhone popup window (opening a popup in an async callback can be blocked).
+  const openPhonePopupRef = useRef<Window | null>(null);
+
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -324,12 +326,54 @@ const AdminTelephony = () => {
     smsMutation.mutate({ to: phoneNumber, text: smsMessage });
   };
 
+  const openOpenPhonePopup = () => {
+    // Open immediately on user gesture when possible; browsers may block popups opened from async callbacks.
+    const preferredWidth = 520;
+    const preferredHeight = Math.min(window.screen?.height ? window.screen.height - 120 : 900, 900);
+
+    const left = (window.screenX ?? 0) + (window.outerWidth ?? preferredWidth) - (preferredWidth + 24);
+    const top = (window.screenY ?? 0) + 48;
+
+    const features = [
+      "popup=yes",
+      `width=${preferredWidth}`,
+      `height=${preferredHeight}`,
+      `left=${Math.max(0, left)}`,
+      `top=${Math.max(0, top)}`,
+    ].join(",");
+
+    const win = window.open("https://app.openphone.com", "openphone", features);
+    if (!win) {
+      toast.error("Pop-up bloquée", {
+        description: "Autorisez les pop-ups pour ouvrir OpenPhone et gérer les appels.",
+      });
+      return null;
+    }
+
+    openPhonePopupRef.current = win;
+    try {
+      win.focus();
+    } catch {
+      // ignore
+    }
+
+    return win;
+  };
+
   const handleCall = (phone: string, clientId?: string, clientName?: string) => {
     const e164 = toE164(phone);
     if (!e164) {
       toast.error("Numéro invalide");
       return;
     }
+
+    // Best-effort: open OpenPhone popup right away so it isn't blocked.
+    openOpenPhonePopup();
+    navigator.clipboard.writeText(e164).then(
+      () => toast.message("Numéro copié", { description: "Collez-le dans OpenPhone pour composer." }),
+      () => undefined
+    );
+
     callMutation.mutate({ to: phone, clientId, clientName });
   };
 
@@ -399,7 +443,10 @@ const AdminTelephony = () => {
             <Button 
               variant="default" 
               size="sm"
-              onClick={() => setOpenPhonePanelOpen(true)}
+              onClick={() => {
+                setOpenPhonePanelOpen(true);
+                openOpenPhonePopup();
+              }}
             >
               <Headphones className="w-4 h-4 mr-2" />
               Ouvrir OpenPhone
@@ -954,88 +1001,24 @@ const AdminTelephony = () => {
         </DialogContent>
       </Dialog>
 
-      {/* OpenPhone Embedded Panel for Call Management */}
-      <Sheet open={openPhonePanelOpen} onOpenChange={setOpenPhonePanelOpen}>
-        <SheetContent side="right" className="w-full sm:w-[600px] sm:max-w-[600px] p-0 flex flex-col">
-          <SheetHeader className="p-4 border-b bg-background flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <Headphones className="w-5 h-5 text-emerald-500" />
-                </div>
-                <div>
-                  <SheetTitle className="text-left">
-                    Gestion d'appel
-                  </SheetTitle>
-                  <SheetDescription className="text-left">
-                    {activeCallClientName ? (
-                      <span className="flex items-center gap-2">
-                        <User className="w-3 h-3" />
-                        {activeCallClientName} • {formatPhoneDisplay(activeCallNumber)}
-                      </span>
-                    ) : (
-                      formatPhoneDisplay(activeCallNumber)
-                    )}
-                  </SheetDescription>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open("https://app.openphone.com", "_blank")}
-                >
-                  <Maximize2 className="w-4 h-4 mr-2" />
-                  Plein écran
-                </Button>
-              </div>
-            </div>
-          </SheetHeader>
-          
-          {/* OpenPhone Web App Embedded */}
-          <div className="flex-1 relative bg-muted">
-            <iframe
-              src="https://app.openphone.com"
-              className="absolute inset-0 w-full h-full border-0"
-              title="OpenPhone Dashboard"
-              allow="microphone; camera; clipboard-write"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
-            />
-          </div>
-
-          {/* Quick Actions Footer */}
-          <div className="p-4 border-t bg-background flex-shrink-0">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Info className="w-4 h-4" />
-                  Utilisez OpenPhone pour gérer l'appel (hold, transfer, mute)
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => {
-                    queryClient.invalidateQueries({ queryKey: ["telephony-calls"] });
-                    toast.success("Historique actualisé");
-                  }}
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Actualiser l'historique
-                </Button>
-                <Button
-                  variant="default"
-                  className="flex-1"
-                  onClick={() => setOpenPhonePanelOpen(false)}
-                >
-                  Fermer le panneau
-                </Button>
-              </div>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <OpenPhoneCallPanel
+        open={openPhonePanelOpen}
+        onOpenChange={setOpenPhonePanelOpen}
+        activeCallNumber={activeCallNumber}
+        activeCallClientName={activeCallClientName}
+        onOpenOpenPhone={openOpenPhonePopup}
+        onCopyNumber={() => {
+          if (!activeCallNumber) return;
+          navigator.clipboard.writeText(activeCallNumber).then(
+            () => toast.message("Numéro copié"),
+            () => undefined
+          );
+        }}
+        onRefreshHistory={() => {
+          queryClient.invalidateQueries({ queryKey: ["telephony-calls"] });
+          toast.success("Historique actualisé");
+        }}
+      />
     </AdminLayout>
   );
 };
