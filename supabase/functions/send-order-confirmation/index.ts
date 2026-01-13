@@ -249,43 +249,47 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fetch order details (including phone for SMS) and do idempotency check
+    const { data: orderData, error: checkError } = await supabase
+      .from("orders")
+      .select("confirmation_email_sent_at, client_phone, user_id")
+      .eq("id", order_id)
+      .single();
+
+    if (checkError) {
+      console.error(`[${requestId}] Error checking order:`, checkError);
+      logResult("error", { error: "Order not found", order_id });
+      return new Response(JSON.stringify({ error: "Order not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Use phone from request or fallback to order data
+    const phoneForSms = client_phone || orderData?.client_phone;
+    const clientIdForSms = client_id || orderData?.user_id;
+    console.log(`[${requestId}] Phone for SMS: ${phoneForSms ? "found" : "not found"}`);
+
     // IDEMPOTENCY CHECK: Check if email was already sent for this order (skip if force=true)
-    if (!force) {
-      const { data: existingOrder, error: checkError } = await supabase
-        .from("orders")
-        .select("confirmation_email_sent_at")
-        .eq("id", order_id)
-        .single();
-
-      if (checkError) {
-        console.error(`[${requestId}] Error checking order:`, checkError);
-        logResult("error", { error: "Order not found", order_id });
-        return new Response(JSON.stringify({ error: "Order not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (existingOrder?.confirmation_email_sent_at) {
-        console.log(`[${requestId}] Email already sent at ${existingOrder.confirmation_email_sent_at}`);
-        logResult("skipped_already_sent", { 
-          order_id, 
-          order_number, 
-          to_email: maskEmail(client_email),
-          sent_at: existingOrder.confirmation_email_sent_at 
-        });
-        return new Response(JSON.stringify({ 
-          success: true, 
-          already_sent: true,
-          status: "skipped_already_sent",
-          sent_at: existingOrder.confirmation_email_sent_at,
-          message: "Email already sent for this order (use force=true to resend)"
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } else {
+    if (!force && orderData?.confirmation_email_sent_at) {
+      console.log(`[${requestId}] Email already sent at ${orderData.confirmation_email_sent_at}`);
+      logResult("skipped_already_sent", { 
+        order_id, 
+        order_number, 
+        to_email: maskEmail(client_email),
+        sent_at: orderData.confirmation_email_sent_at 
+      });
+      return new Response(JSON.stringify({ 
+        success: true, 
+        already_sent: true,
+        status: "skipped_already_sent",
+        sent_at: orderData.confirmation_email_sent_at,
+        message: "Email already sent for this order (use force=true to resend)"
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } else if (force) {
       console.log(`[${requestId}] force=true, bypassing idempotency check`);
     }
 
@@ -422,23 +426,23 @@ Deno.serve(async (req) => {
       forced: force,
     });
 
-    // Send SMS notification (non-blocking)
-    if (client_phone && toE164(client_phone)) {
-      console.log(`[${requestId}] Sending SMS notification...`);
+    // Send SMS notification (non-blocking) - use fetched phone if not provided
+    if (phoneForSms && toE164(phoneForSms)) {
+      console.log(`[${requestId}] Sending SMS notification to ${phoneForSms}...`);
       const smsResult = await sendSmsNotification({
-        to: client_phone,
+        to: phoneForSms,
         message: SMS_TEMPLATES.orderConfirmation({
           orderNumber: order_number,
           clientName: client_first_name || "Client",
           monthlyTotal: formatCurrency(monthly_total_tax_in),
         }),
-        clientId: client_id,
+        clientId: clientIdForSms,
         eventType: "order_confirmation",
         eventKey: `order_confirmation_${order_id}`,
       });
       console.log(`[${requestId}] SMS result:`, JSON.stringify(smsResult));
     } else {
-      console.log(`[${requestId}] No valid phone for SMS, skipping`);
+      console.log(`[${requestId}] No valid phone for SMS, skipping (phoneForSms=${phoneForSms})`);
     }
 
     console.log(`[${requestId}] ========================================`);
