@@ -145,17 +145,14 @@ const InfluencerRegister = () => {
           <Card className="border-green-500/30">
             <CardContent className="pt-6 text-center">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-foreground mb-2">Demande reçue!</h2>
+              <h2 className="text-xl font-bold text-foreground mb-2">Compte créé!</h2>
               <p className="text-muted-foreground mb-6">
-                Votre demande d'inscription au programme partenaires a été reçue. 
-                Notre équipe examinera votre demande et activera votre compte sous peu.
-              </p>
-              <p className="text-sm text-muted-foreground mb-6">
-                Vous recevrez un email de confirmation une fois votre compte activé.
+                Votre compte partenaire a été créé avec succès. 
+                Vous pouvez maintenant vous connecter et accéder à votre tableau de bord.
               </p>
               <Link to="/influencer/login">
-                <Button variant="outline" className="w-full">
-                  Retour à la connexion
+                <Button className="w-full">
+                  Se connecter
                 </Button>
               </Link>
               
