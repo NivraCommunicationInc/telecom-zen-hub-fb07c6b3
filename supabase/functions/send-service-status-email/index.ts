@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -178,6 +179,7 @@ interface ServiceStatusEmailRequest {
   client_id: string;
   client_email: string;
   client_first_name?: string;
+  client_phone?: string; // For SMS
   service_instance_id: string;
   service_name: string;
   service_type: string;
@@ -215,6 +217,7 @@ Deno.serve(async (req) => {
       client_id,
       client_email,
       client_first_name,
+      client_phone,
       service_instance_id,
       service_name,
       service_type,
@@ -319,6 +322,40 @@ Deno.serve(async (req) => {
       provider_message_id: emailResult.data?.id,
       template_vars: { client_id, service_instance_id, service_name, new_status, old_status },
     });
+
+    // Send SMS notification based on status (non-blocking)
+    if (client_phone && toE164(client_phone)) {
+      const clientName = client_first_name || "Client";
+      let smsMessage: string | null = null;
+
+      switch (new_status) {
+        case "active":
+        case "resumed":
+          smsMessage = SMS_TEMPLATES.serviceActivated({
+            clientName,
+            serviceName: service_name,
+          });
+          break;
+        case "paused":
+        case "cancelled":
+          smsMessage = SMS_TEMPLATES.serviceSuspended({
+            clientName,
+            serviceName: service_name,
+          });
+          break;
+      }
+
+      if (smsMessage) {
+        const smsResult = await sendSmsNotification({
+          to: client_phone,
+          message: smsMessage,
+          clientId: client_id,
+          eventType: `service_${new_status}`,
+          eventKey: `service_${service_instance_id}_${new_status}`,
+        });
+        console.log(`[${requestId}] Service SMS result:`, JSON.stringify(smsResult));
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: true,

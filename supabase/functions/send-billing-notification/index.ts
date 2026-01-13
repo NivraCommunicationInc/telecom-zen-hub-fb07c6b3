@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 
 const handler = async (req: Request): Promise<Response> => {
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -12,7 +13,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
-    const { email, name, type, invoiceNumber, amount, dueDate, paidAt, paymentMethod, notes } = await req.json();
+    const { email, name, type, invoiceNumber, amount, dueDate, paidAt, paymentMethod, notes, phone, clientId } = await req.json();
     
     const formatCurrency = (value: number) => new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(value);
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("fr-CA", { dateStyle: "long" });
@@ -44,6 +45,41 @@ const handler = async (req: Request): Promise<Response> => {
 
     const result = await emailResponse.json();
     if (!emailResponse.ok) throw new Error(result.message);
+
+    // Send SMS notification based on type (non-blocking)
+    if (phone && toE164(phone)) {
+      const clientName = name || "Client";
+      const formattedAmount = formatCurrency(amount);
+      let smsMessage: string | null = null;
+
+      switch (type) {
+        case "payment_received":
+          smsMessage = SMS_TEMPLATES.paymentReceived({
+            clientName,
+            amount: formattedAmount,
+            invoiceNumber,
+          });
+          break;
+        case "invoice_overdue":
+          smsMessage = SMS_TEMPLATES.paymentOverdue({
+            clientName,
+            amount: formattedAmount,
+            dueDate: dueDate ? formatDate(dueDate) : undefined,
+          });
+          break;
+      }
+
+      if (smsMessage) {
+        const smsResult = await sendSmsNotification({
+          to: phone,
+          message: smsMessage,
+          clientId,
+          eventType: `billing_${type}`,
+          eventKey: invoiceNumber ? `billing_${invoiceNumber}_${type}` : undefined,
+        });
+        console.log(`Billing SMS result:`, JSON.stringify(smsResult));
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, result }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (error: any) {

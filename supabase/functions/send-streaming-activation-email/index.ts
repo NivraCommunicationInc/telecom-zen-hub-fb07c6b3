@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,6 +187,7 @@ interface StreamingActivationEmailRequest {
   client_id: string;
   client_email: string;
   client_first_name?: string;
+  client_phone?: string; // For SMS
   token_id: string;
   service_name: string;
   status: string;
@@ -223,6 +225,7 @@ Deno.serve(async (req) => {
       client_id,
       client_email,
       client_first_name,
+      client_phone,
       token_id,
       service_name,
       status,
@@ -328,6 +331,22 @@ Deno.serve(async (req) => {
       provider_message_id: emailResult.data?.id,
       template_vars: { client_id, token_id, service_name, status, promo_code },
     });
+
+    // Send SMS for activated status (non-blocking)
+    if (client_phone && toE164(client_phone) && status === "activated") {
+      const clientName = client_first_name || "Client";
+      const smsResult = await sendSmsNotification({
+        to: client_phone,
+        message: SMS_TEMPLATES.streamingActivated({
+          clientName,
+          serviceName: service_name,
+        }),
+        clientId: client_id,
+        eventType: "streaming_activated",
+        eventKey: `streaming_${token_id}_activated`,
+      });
+      console.log(`[${requestId}] Streaming SMS result:`, JSON.stringify(smsResult));
+    }
 
     return new Response(JSON.stringify({ 
       success: true,

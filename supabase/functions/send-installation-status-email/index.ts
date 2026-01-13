@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -196,6 +197,8 @@ interface InstallationStatusEmailRequest {
   order_id: string;
   client_email: string;
   client_first_name?: string;
+  client_phone?: string; // For SMS
+  client_id?: string; // For SMS logging
   order_number: string;
   new_status: string;
   old_status?: string;
@@ -233,6 +236,8 @@ Deno.serve(async (req) => {
       order_id,
       client_email,
       client_first_name,
+      client_phone,
+      client_id,
       order_number,
       new_status,
       old_status,
@@ -339,6 +344,44 @@ Deno.serve(async (req) => {
       provider_message_id: emailResult.data?.id,
       template_vars: { order_id, order_number, new_status, old_status },
     });
+
+    // Send SMS notification based on status (non-blocking)
+    if (client_phone && toE164(client_phone)) {
+      console.log(`[${requestId}] Sending SMS for status: ${new_status}`);
+      let smsMessage: string | null = null;
+      const clientName = client_first_name || "Client";
+
+      switch (new_status) {
+        case "installation_scheduled":
+          smsMessage = SMS_TEMPLATES.installationScheduled({
+            orderNumber: order_number,
+            clientName,
+            dateTime: scheduled_date_time,
+          });
+          break;
+        case "technician_en_route":
+          smsMessage = SMS_TEMPLATES.technicianEnRoute({
+            clientName,
+            technicianName: technician_name,
+          });
+          break;
+        case "installation_completed":
+        case "completed":
+          smsMessage = SMS_TEMPLATES.installationCompleted({ clientName });
+          break;
+      }
+
+      if (smsMessage) {
+        const smsResult = await sendSmsNotification({
+          to: client_phone,
+          message: smsMessage,
+          clientId: client_id,
+          eventType: `installation_${new_status}`,
+          eventKey: `installation_${order_id}_${new_status}`,
+        });
+        console.log(`[${requestId}] SMS result:`, JSON.stringify(smsResult));
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: true,
