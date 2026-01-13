@@ -246,7 +246,7 @@ const AdminTelephony = () => {
     },
   });
 
-  // Call mutation - initiates call via OpenPhone API
+  // Call mutation - logs call and opens OpenPhone deep link
   const callMutation = useMutation({
     mutationFn: async ({ to, clientId, clientName }: { to: string; clientId?: string; clientName?: string }) => {
       const sessionRes = await supabase.auth.getSession();
@@ -276,10 +276,14 @@ const AdminTelephony = () => {
       return { ...payload, phone: e164, clientName };
     },
     onSuccess: (data) => {
+      // Open OpenPhone deep link to initiate call
+      if (data.deepLink) {
+        window.open(data.deepLink, "_blank");
+      }
       toast.success("Appel initié", {
         description: data.clientName 
-          ? `Appel vers ${data.clientName} en cours...` 
-          : "Votre téléphone va sonner, puis le client sera connecté",
+          ? `Ouverture d'OpenPhone pour appeler ${data.clientName}` 
+          : "Ouverture d'OpenPhone pour passer l'appel",
       });
       setNewCallOpen(false);
       setCallPhoneNumber("");

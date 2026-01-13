@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface CallRequest {
   to: string; // E.164 format phone number
-  from?: string; // Optional: specific OpenPhone number ID to call from
+  from?: string; // Optional: specific OpenPhone number to call from
   clientId?: string; // For logging purposes
   agentName?: string;
 }
@@ -18,14 +18,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const OPENPHONE_API_KEY = Deno.env.get("OPENPHONE_API_KEY");
-    if (!OPENPHONE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OpenPhone API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Verify auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -78,75 +70,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // First, get the phone numbers to find one to call from
-    const phoneNumbersRes = await fetch("https://api.openphone.com/v1/phone-numbers", {
-      headers: {
-        "Authorization": OPENPHONE_API_KEY,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!phoneNumbersRes.ok) {
-      const errText = await phoneNumbersRes.text();
-      console.error("OpenPhone phone numbers error:", errText);
-      return new Response(
-        JSON.stringify({ error: "Failed to get OpenPhone numbers", details: errText }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const phoneNumbersData = await phoneNumbersRes.json();
-    const phoneNumbers = phoneNumbersData.data || [];
-
-    if (phoneNumbers.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No OpenPhone numbers available" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Use first available phone number or specified one
-    const fromPhoneNumberId = body.from || phoneNumbers[0].id;
-
-    // Initiate the call via OpenPhone API
-    const callRes = await fetch("https://api.openphone.com/v1/calls", {
-      method: "POST",
-      headers: {
-        "Authorization": OPENPHONE_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phoneNumberId: fromPhoneNumberId,
-        to: body.to,
-      }),
-    });
-
-    if (!callRes.ok) {
-      const errText = await callRes.text();
-      console.error("OpenPhone call error:", errText);
-      
-      // Parse error for more helpful message
-      let errorMessage = "Failed to initiate call";
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson.message) {
-          errorMessage = errJson.message;
-        }
-        if (errJson.error?.message) {
-          errorMessage = errJson.error.message;
-        }
-      } catch {
-        // Use default error message
-      }
-      
-      return new Response(
-        JSON.stringify({ error: errorMessage, details: errText }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const callData = await callRes.json();
-    console.log("Call initiated:", JSON.stringify(callData, null, 2));
+    // Clean the phone number for deep link
+    const cleanNumber = body.to.replace(/\D/g, '');
 
     // Get client name if clientId provided
     let clientName: string | null = null;
@@ -159,24 +84,37 @@ Deno.serve(async (req) => {
       clientName = profile?.full_name || profile?.email || null;
     }
 
-    // Log the action
-    await supabaseAdmin.from("telephony_logs").insert({
-      client_id: body.clientId || null,
-      phone_number: body.to,
-      action: "call",
-      direction: "outbound",
-      agent_user_id: user.id,
-      agent_name: body.agentName || user.email,
-      openphone_call_id: callData.data?.id || null,
-      status: "initiated",
-      client_name: clientName,
-    });
+    // Log the call action to telephony_logs
+    const { data: logEntry, error: logError } = await supabaseAdmin
+      .from("telephony_logs")
+      .insert({
+        client_id: body.clientId || null,
+        phone_number: body.to,
+        action: "call",
+        direction: "outbound",
+        agent_user_id: user.id,
+        agent_name: body.agentName || user.email,
+        status: "initiated",
+        client_name: clientName,
+      })
+      .select("id")
+      .single();
 
+    if (logError) {
+      console.error("Failed to log call:", logError);
+    }
+
+    console.log("Call logged, returning deep link for:", body.to);
+
+    // Return success with deep link info
+    // OpenPhone API doesn't support programmatic call initiation
+    // The frontend will use the deep link to trigger the call
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Call initiated - your phone will ring shortly",
-        callId: callData.data?.id 
+        message: "Call logged - opening OpenPhone",
+        deepLink: `openphone://call?number=${cleanNumber}`,
+        logId: logEntry?.id || null
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
