@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -163,6 +164,8 @@ interface OrderConfirmationRequest {
   order_id: string;
   client_email: string;
   client_first_name?: string;
+  client_phone?: string; // For SMS notification
+  client_id?: string; // For SMS logging
   order_number: string;
   services: Array<{ name: string; price: number; period?: string }>;
   monthly_total_tax_in: number;
@@ -223,6 +226,8 @@ Deno.serve(async (req) => {
       order_id,
       client_email,
       client_first_name,
+      client_phone,
+      client_id,
       order_number,
       services,
       monthly_total_tax_in,
@@ -416,6 +421,25 @@ Deno.serve(async (req) => {
       resend_message_id: resendMessageId,
       forced: force,
     });
+
+    // Send SMS notification (non-blocking)
+    if (client_phone && toE164(client_phone)) {
+      console.log(`[${requestId}] Sending SMS notification...`);
+      const smsResult = await sendSmsNotification({
+        to: client_phone,
+        message: SMS_TEMPLATES.orderConfirmation({
+          orderNumber: order_number,
+          clientName: client_first_name || "Client",
+          monthlyTotal: formatCurrency(monthly_total_tax_in),
+        }),
+        clientId: client_id,
+        eventType: "order_confirmation",
+        eventKey: `order_confirmation_${order_id}`,
+      });
+      console.log(`[${requestId}] SMS result:`, JSON.stringify(smsResult));
+    } else {
+      console.log(`[${requestId}] No valid phone for SMS, skipping`);
+    }
 
     console.log(`[${requestId}] ========================================`);
 

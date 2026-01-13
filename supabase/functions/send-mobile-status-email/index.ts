@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -206,6 +207,7 @@ interface MobileStatusEmailRequest {
   client_id: string;
   client_email: string;
   client_first_name?: string;
+  client_phone?: string; // For SMS
   order_id: string;
   order_number: string;
   phone_number?: string;
@@ -244,6 +246,7 @@ Deno.serve(async (req) => {
       client_id,
       client_email,
       client_first_name,
+      client_phone,
       order_id,
       order_number,
       phone_number,
@@ -351,6 +354,22 @@ Deno.serve(async (req) => {
       provider_message_id: emailResult.data?.id,
       template_vars: { client_id, order_id, order_number, status, phone_number },
     });
+
+    // Send SMS for activated status (non-blocking)
+    if (client_phone && toE164(client_phone) && status === "activated") {
+      const clientName = client_first_name || "Client";
+      const smsResult = await sendSmsNotification({
+        to: client_phone,
+        message: SMS_TEMPLATES.mobileActivated({
+          clientName,
+          phoneNumber: phone_number,
+        }),
+        clientId: client_id,
+        eventType: "mobile_activated",
+        eventKey: `mobile_${order_id}_activated`,
+      });
+      console.log(`[${requestId}] Mobile SMS result:`, JSON.stringify(smsResult));
+    }
 
     return new Response(JSON.stringify({ 
       success: true,
