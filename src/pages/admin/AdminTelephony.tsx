@@ -25,7 +25,9 @@ import {
   PhoneCall,
   Loader2,
   AlertCircle,
-  Info
+  Info,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -36,10 +38,11 @@ import { useAuth } from "@/hooks/useAuth";
 
 const AdminTelephony = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("dialer");
+  const [activeTab, setActiveTab] = useState("openphone");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [smsMessage, setSmsMessage] = useState("");
   const [dialerMode, setDialerMode] = useState<"call" | "sms">("call");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -245,6 +248,28 @@ const AdminTelephony = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* Fullscreen OpenPhone Overlay */}
+        {isFullscreen && (
+          <div className="fixed inset-0 z-50 bg-background">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <Phone className="w-6 h-6 text-cyan-400" />
+                <span className="font-semibold">OpenPhone</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(false)}>
+                <Minimize2 className="w-4 h-4 mr-2" />
+                Réduire
+              </Button>
+            </div>
+            <iframe
+              src="https://app.openphone.com"
+              className="w-full h-[calc(100vh-65px)]"
+              title="OpenPhone"
+              allow="microphone; camera; clipboard-write"
+            />
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -256,12 +281,12 @@ const AdminTelephony = () => {
               Appeler et envoyer des SMS directement depuis l'admin
             </p>
           </div>
-          <Button variant="outline" asChild>
-            <a href="https://app.openphone.com" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              OpenPhone Web
-            </a>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsFullscreen(true)}>
+              <Maximize2 className="w-4 h-4 mr-2" />
+              Plein écran
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -437,12 +462,16 @@ const AdminTelephony = () => {
             </CardContent>
           </Card>
 
-          {/* Activity / Settings Tabs */}
+          {/* Main Content - Now prioritizing embedded OpenPhone */}
           <Card className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <CardHeader className="pb-0">
                 <TabsList>
-                  <TabsTrigger value="dialer" className="gap-2">
+                  <TabsTrigger value="openphone" className="gap-2">
+                    <Phone className="w-4 h-4" />
+                    OpenPhone
+                  </TabsTrigger>
+                  <TabsTrigger value="activity" className="gap-2">
                     <Activity className="w-4 h-4" />
                     Activité
                   </TabsTrigger>
@@ -454,7 +483,29 @@ const AdminTelephony = () => {
               </CardHeader>
 
               <CardContent className="pt-6">
-                <TabsContent value="dialer" className="m-0 space-y-4">
+                {/* OpenPhone Embedded Tab */}
+                <TabsContent value="openphone" className="m-0">
+                  <div className="rounded-lg border overflow-hidden bg-muted/30">
+                    <div className="flex items-center justify-between p-3 border-b bg-muted/50">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        <span>Connecté à OpenPhone - Passez vos appels et SMS directement ici</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(true)}>
+                        <Maximize2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <iframe
+                      src="https://app.openphone.com"
+                      className="w-full h-[600px]"
+                      title="OpenPhone"
+                      allow="microphone; camera; clipboard-write"
+                    />
+                  </div>
+                </TabsContent>
+
+                {/* Activity Log Tab */}
+                <TabsContent value="activity" className="m-0 space-y-4">
                   {/* Search */}
                   <div className="flex gap-2 max-w-md">
                     <div className="relative flex-1">
@@ -535,6 +586,7 @@ const AdminTelephony = () => {
                   </div>
                 </TabsContent>
 
+                {/* Settings Tab */}
                 <TabsContent value="settings" className="m-0 space-y-4">
                   <div className="p-4 rounded-lg border bg-muted/50">
                     <div className="flex items-center gap-2 mb-2">
@@ -549,8 +601,8 @@ const AdminTelephony = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {hasOpenPhoneConfig
-                        ? "SMS envoyés directement via API. Les appels ouvrent OpenPhone Web."
-                        : "Ajoutez la clé OPENPHONE_API_KEY dans les secrets du projet pour activer cette fonctionnalité."}
+                        ? "SMS envoyés directement via API. Les appels se font via OpenPhone intégré."
+                        : "Ajoutez la clé OPENPHONE_API_KEY dans les secrets du projet pour activer les fonctionnalités avancées."}
                     </p>
                   </div>
 
