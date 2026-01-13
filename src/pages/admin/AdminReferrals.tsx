@@ -21,7 +21,7 @@ import {
   RefreshCw,
   AlertCircle
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const AdminReferrals = () => {

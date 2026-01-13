@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2, Settings, DollarSign, Shield, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { toast } from "sonner";
 
 const AdminReferralSettings = () => {

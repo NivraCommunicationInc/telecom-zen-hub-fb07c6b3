@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Search, Loader2, DollarSign, RefreshCw, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const AdminReferralCommissions = () => {

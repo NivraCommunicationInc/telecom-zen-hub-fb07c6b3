@@ -196,12 +196,17 @@ const AdminReferralCashouts = () => {
             <TableRow key={cashout.id}>
               <TableCell className="font-mono text-sm">{cashout.request_number}</TableCell>
               <TableCell>
-                <div>
-                  <p className="font-medium">
-                    {cashout.influencers?.first_name} {cashout.influencers?.last_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{cashout.influencers?.email}</p>
-                </div>
+                <Link 
+                  to={`/admin/referrals/influencers/${cashout.influencer_id}`}
+                  className="hover:text-primary"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {cashout.influencers?.first_name} {cashout.influencers?.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{cashout.influencers?.email}</p>
+                  </div>
+                </Link>
               </TableCell>
               <TableCell className="font-bold text-lg">${Number(cashout.amount).toFixed(2)}</TableCell>
               <TableCell className="capitalize">{cashout.method}</TableCell>
