@@ -106,6 +106,7 @@ export const usePromoValidation = () => {
           referral_code_id: appliedPromo.referral_code_id,
           influencer_id: appliedPromo.influencer_id,
           order_id: orderId,
+          customer_id: clientId,
           customer_email: clientEmail.toLowerCase(),
           customer_discount_amount: appliedPromo.discount_amount,
           status: 'pending',

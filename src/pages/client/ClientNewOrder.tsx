@@ -1708,6 +1708,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               referral_code_id: appliedPromo.referral_code_id,
               influencer_id: appliedPromo.influencer_id,
               order_id: orderData.id,
+              customer_id: user.id,
               customer_email: (profile?.email || user.email || "").toLowerCase(),
               customer_discount_amount: appliedPromo.discount_amount,
               status: 'pending',
