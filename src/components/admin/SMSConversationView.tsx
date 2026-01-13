@@ -146,7 +146,7 @@ const SMSConversationView = ({ selectedPhone, onBack }: SMSConversationViewProps
     sendMutation.mutate(newMessage);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -291,7 +291,7 @@ const SMSConversationView = ({ selectedPhone, onBack }: SMSConversationViewProps
             placeholder="Tapez votre message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             disabled={sendMutation.isPending}
             className="flex-1"
             maxLength={1600}

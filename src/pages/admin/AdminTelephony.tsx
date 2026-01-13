@@ -173,9 +173,10 @@ const AdminTelephony = () => {
   // Send SMS mutation for new conversation
   const smsMutation = useMutation({
     mutationFn: async ({ to, text }: { to: string; text: string }) => {
-      const session = await supabase.auth.getSession();
-      const token = session.data?.session?.access_token;
-      
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data?.session?.access_token;
+      const agentEmail = sessionRes.data?.session?.user?.email ?? user?.email;
+
       if (!token) throw new Error("Non authentifié");
 
       const e164 = toE164(to);
@@ -188,13 +189,13 @@ const AdminTelephony = () => {
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             to: e164,
             text: text.trim(),
-            agentName: user?.email,
+            agentName: agentEmail,
           }),
         }
       );
@@ -224,7 +225,19 @@ const AdminTelephony = () => {
   };
 
   const handleStartNewConversation = () => {
-    if (!phoneNumber || !smsMessage) return;
+    if (!phoneNumber.trim()) {
+      toast.error("Erreur", { description: "Entrez un numéro de téléphone." });
+      return;
+    }
+    if (!isValidPhone(phoneNumber)) {
+      toast.error("Erreur", { description: "Numéro de téléphone invalide." });
+      return;
+    }
+    if (!smsMessage.trim()) {
+      toast.error("Erreur", { description: "Entrez un message." });
+      return;
+    }
+
     smsMutation.mutate({ to: phoneNumber, text: smsMessage });
   };
 
@@ -656,9 +669,10 @@ const AdminTelephony = () => {
               </p>
             </div>
             <Button
+              type="button"
               className="w-full"
               onClick={handleStartNewConversation}
-              disabled={!phoneNumber || !smsMessage || !isPhoneValid || smsMutation.isPending || !hasOpenPhoneConfig}
+              disabled={!phoneNumber || !smsMessage || !isPhoneValid || smsMutation.isPending}
             >
               {smsMutation.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
