@@ -6578,7 +6578,7 @@ export type Database = {
           agent_email: string | null
           agent_name: string | null
           agent_user_id: string | null
-          client_id: string
+          client_id: string | null
           created_at: string
           direction: string
           duration_seconds: number | null
@@ -6596,7 +6596,7 @@ export type Database = {
           agent_email?: string | null
           agent_name?: string | null
           agent_user_id?: string | null
-          client_id: string
+          client_id?: string | null
           created_at?: string
           direction?: string
           duration_seconds?: number | null
@@ -6614,7 +6614,7 @@ export type Database = {
           agent_email?: string | null
           agent_name?: string | null
           agent_user_id?: string | null
-          client_id?: string
+          client_id?: string | null
           created_at?: string
           direction?: string
           duration_seconds?: number | null
