@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Phone, 
   MessageSquare, 
@@ -26,53 +27,26 @@ import {
   Loader2,
   AlertCircle,
   Info,
-  Maximize2,
-  Minimize2
+  PhoneOutgoing,
+  PhoneIncoming,
+  PhoneMissed,
+  RefreshCw
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
-import { formatPhoneDisplay, toE164, isValidPhone, getOpenPhoneDeepLink } from "@/lib/phoneUtils";
+import { formatPhoneDisplay, toE164, isValidPhone } from "@/lib/phoneUtils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
 const AdminTelephony = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("openphone");
+  const [activeTab, setActiveTab] = useState("messages");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [smsMessage, setSmsMessage] = useState("");
-  const [dialerMode, setDialerMode] = useState<"call" | "sms">("call");
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [openPhoneUrl, setOpenPhoneUrl] = useState("https://app.openphone.com");
+  const [dialerMode, setDialerMode] = useState<"call" | "sms">("sms");
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  // Fetch recent telephony logs
-  const { data: logs, isLoading: logsLoading } = useQuery({
-    queryKey: ["telephony-logs", searchQuery],
-    queryFn: async () => {
-      let query = supabase
-        .from("telephony_logs")
-        .select(`
-          *,
-          profiles:client_id(full_name, email, phone)
-        `)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (searchQuery) {
-        query = query.or(`agent_name.ilike.%${searchQuery}%,phone_number.ilike.%${searchQuery}%`);
-      }
-
-      const { data, error } = await query;
-      
-      if (error) {
-        console.warn("telephony_logs query error:", error.message);
-        return [];
-      }
-      return data || [];
-    },
-  });
 
   // Fetch OpenPhone numbers
   const { data: openPhoneNumbers, isLoading: numbersLoading } = useQuery({
@@ -103,6 +77,66 @@ const AdminTelephony = () => {
       return data.phoneNumbers || [];
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch OpenPhone message history
+  const { data: messageHistory, isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
+    queryKey: ["openphone-messages"],
+    queryFn: async () => {
+      const session = await supabase.auth.getSession();
+      const token = session.data?.session?.access_token;
+      
+      if (!token) return [];
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openphone-conversations?maxResults=50`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.error("Failed to fetch messages");
+        return [];
+      }
+
+      const data = await res.json();
+      return data.messages || [];
+    },
+    staleTime: 30 * 1000,
+  });
+
+  // Fetch OpenPhone call history
+  const { data: callHistory, isLoading: callsLoading, refetch: refetchCalls } = useQuery({
+    queryKey: ["openphone-calls"],
+    queryFn: async () => {
+      const session = await supabase.auth.getSession();
+      const token = session.data?.session?.access_token;
+      
+      if (!token) return [];
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openphone-call-history?maxResults=50`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.error("Failed to fetch calls");
+        return [];
+      }
+
+      const data = await res.json();
+      return data.calls || [];
+    },
+    staleTime: 30 * 1000,
   });
 
   // Send SMS mutation
@@ -144,77 +178,22 @@ const AdminTelephony = () => {
       });
       setPhoneNumber("");
       setSmsMessage("");
-      queryClient.invalidateQueries({ queryKey: ["telephony-logs"] });
+      refetchMessages();
     },
     onError: (err: Error) => {
       toast.error("Erreur", { description: err.message });
     },
   });
 
-  // Log call action (for tracking only - actual call is via deep link)
-  const logCallAction = async () => {
-    const e164 = toE164(phoneNumber);
-    if (!e164) return;
-
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data?.session?.access_token;
-      
-      if (token) {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/log-telephony-action`,
-          {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              phone_number: e164,
-              action: "call",
-              direction: "outbound",
-            }),
-          }
-        );
-      }
-    } catch (err) {
-      console.warn("Failed to log call action:", err);
-    }
-  };
-
-  // Aggregate stats
+  // Aggregate stats from OpenPhone data
   const stats = {
-    totalCalls: logs?.filter((l: any) => l.action === "call").length || 0,
-    totalSms: logs?.filter((l: any) => l.action === "sms").length || 0,
-    totalToday: logs?.filter((l: any) => {
+    totalCalls: callHistory?.length || 0,
+    totalSms: messageHistory?.length || 0,
+    totalToday: [...(callHistory || []), ...(messageHistory || [])].filter((item: any) => {
       const today = new Date();
-      const logDate = new Date(l.created_at);
-      return logDate.toDateString() === today.toDateString();
-    }).length || 0,
-  };
-
-  const getActionIcon = (action: string) => {
-    if (action === "call") {
-      return <Phone className="w-4 h-4 text-cyan-500" />;
-    }
-    return <MessageSquare className="w-4 h-4 text-emerald-500" />;
-  };
-
-  const getDirectionBadge = (direction: string) => {
-    if (direction === "outbound") {
-      return (
-        <Badge variant="outline" className="text-xs gap-1">
-          <ArrowUpRight className="w-3 h-3" />
-          Sortant
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="text-xs gap-1 text-emerald-500 border-emerald-500/30">
-        <ArrowDownLeft className="w-3 h-3" />
-        Entrant
-      </Badge>
-    );
+      const itemDate = new Date(item.createdAt);
+      return itemDate.toDateString() === today.toDateString();
+    }).length,
   };
 
   const handleCall = () => {
@@ -224,24 +203,37 @@ const AdminTelephony = () => {
       return;
     }
 
-    // Log the action for tracking
-    logCallAction();
-
-    // Show OpenPhone inside the admin portal (no new tab)
-    const deepLink = getOpenPhoneDeepLink(e164, "call");
-    setOpenPhoneUrl(deepLink);
-    setActiveTab("openphone");
-
-    toast.success("OpenPhone affiché", {
-      description: "Passez l'appel dans le panneau OpenPhone ci-dessous.",
+    // Open OpenPhone in new tab for call (iframe doesn't work due to security)
+    window.open(`https://app.openphone.com/dialer?number=${encodeURIComponent(e164)}`, "_blank");
+    
+    toast.success("OpenPhone ouvert", {
+      description: "L'appel va démarrer dans OpenPhone (nouvel onglet)",
     });
-
-    queryClient.invalidateQueries({ queryKey: ["telephony-logs"] });
   };
 
   const handleSendSms = () => {
     if (!phoneNumber || !smsMessage) return;
     smsMutation.mutate({ to: phoneNumber, text: smsMessage });
+  };
+
+  const getCallStatusIcon = (call: any) => {
+    if (call.status === "missed") {
+      return <PhoneMissed className="w-4 h-4 text-destructive" />;
+    }
+    if (call.direction === "outgoing") {
+      return <PhoneOutgoing className="w-4 h-4 text-cyan-500" />;
+    }
+    return <PhoneIncoming className="w-4 h-4 text-emerald-500" />;
+  };
+
+  const getCallStatusBadge = (call: any) => {
+    if (call.status === "missed") {
+      return <Badge variant="destructive" className="text-xs">Manqué</Badge>;
+    }
+    if (call.status === "completed") {
+      return <Badge variant="outline" className="text-xs text-emerald-500 border-emerald-500/30">Complété</Badge>;
+    }
+    return <Badge variant="outline" className="text-xs">{call.status}</Badge>;
   };
 
   const isPhoneValid = phoneNumber ? isValidPhone(phoneNumber) : true;
@@ -250,28 +242,6 @@ const AdminTelephony = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Fullscreen OpenPhone Overlay */}
-        {isFullscreen && (
-          <div className="fixed inset-0 z-50 bg-background">
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center gap-2">
-                <Phone className="w-6 h-6 text-cyan-400" />
-                <span className="font-semibold">OpenPhone</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(false)}>
-                <Minimize2 className="w-4 h-4 mr-2" />
-                Réduire
-              </Button>
-            </div>
-            <iframe
-              src={openPhoneUrl}
-              className="w-full h-[calc(100vh-65px)]"
-              title="OpenPhone"
-              allow="microphone; camera; clipboard-write"
-            />
-          </div>
-        )}
-
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -284,9 +254,23 @@ const AdminTelephony = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsFullscreen(true)}>
-              <Maximize2 className="w-4 h-4 mr-2" />
-              Plein écran
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                refetchMessages();
+                refetchCalls();
+                toast.success("Données actualisées");
+              }}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Actualiser
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://app.openphone.com" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Ouvrir OpenPhone
+              </a>
             </Button>
           </div>
         </div>
@@ -300,7 +284,7 @@ const AdminTelephony = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalCalls}</p>
-                <p className="text-sm text-muted-foreground">Appels</p>
+                <p className="text-sm text-muted-foreground">Appels récents</p>
               </div>
             </CardContent>
           </Card>
@@ -311,7 +295,7 @@ const AdminTelephony = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalSms}</p>
-                <p className="text-sm text-muted-foreground">SMS</p>
+                <p className="text-sm text-muted-foreground">SMS récents</p>
               </div>
             </CardContent>
           </Card>
@@ -349,7 +333,7 @@ const AdminTelephony = () => {
                     <div>
                       <p className="font-medium text-amber-500">Configuration requise</p>
                       <p className="text-muted-foreground mt-1">
-                        Vérifiez que la clé API OpenPhone est configurée dans les secrets.
+                        Vérifiez que la clé API OpenPhone est configurée.
                       </p>
                     </div>
                   </div>
@@ -429,7 +413,7 @@ const AdminTelephony = () => {
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
                     <p className="text-muted-foreground">
-                      L'appel se fera dans le panneau OpenPhone intégré (sans quitter l'admin).
+                      L'appel s'ouvrira dans OpenPhone (nouvel onglet). Utilisez l'app OpenPhone pour les contrôles d'appel.
                     </p>
                   </div>
                 </div>
@@ -464,18 +448,18 @@ const AdminTelephony = () => {
             </CardContent>
           </Card>
 
-          {/* Main Content - Now prioritizing embedded OpenPhone */}
+          {/* History Panels */}
           <Card className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <CardHeader className="pb-0">
                 <TabsList>
-                  <TabsTrigger value="openphone" className="gap-2">
-                    <Phone className="w-4 h-4" />
-                    OpenPhone
+                  <TabsTrigger value="messages" className="gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Messages ({messageHistory?.length || 0})
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="gap-2">
-                    <Activity className="w-4 h-4" />
-                    Activité
+                  <TabsTrigger value="calls" className="gap-2">
+                    <Phone className="w-4 h-4" />
+                    Appels ({callHistory?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger value="settings" className="gap-2">
                     <Settings className="w-4 h-4" />
@@ -485,107 +469,129 @@ const AdminTelephony = () => {
               </CardHeader>
 
               <CardContent className="pt-6">
-                {/* OpenPhone Embedded Tab */}
-                <TabsContent value="openphone" className="m-0">
-                  <div className="rounded-lg border overflow-hidden bg-muted/30">
-                    <div className="flex items-center justify-between p-3 border-b bg-muted/50">
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                        <span>Connecté à OpenPhone - Passez vos appels et SMS directement ici</span>
+                {/* Messages Tab */}
+                <TabsContent value="messages" className="m-0">
+                  <ScrollArea className="h-[500px]">
+                    {messagesLoading ? (
+                      <div className="space-y-3 p-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+                        ))}
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(true)}>
-                        <Maximize2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <iframe
-                      src={openPhoneUrl}
-                      className="w-full h-[600px]"
-                      title="OpenPhone"
-                      allow="microphone; camera; clipboard-write"
-                    />
-                  </div>
+                    ) : messageHistory && messageHistory.length > 0 ? (
+                      <div className="divide-y">
+                        {messageHistory.map((msg: any) => (
+                          <div
+                            key={msg.id}
+                            className="flex items-start gap-4 p-4 hover:bg-accent/50 transition-colors"
+                          >
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              msg.direction === "outgoing" ? "bg-cyan-500/10" : "bg-emerald-500/10"
+                            }`}>
+                              {msg.direction === "outgoing" ? (
+                                <ArrowUpRight className="w-5 h-5 text-cyan-500" />
+                              ) : (
+                                <ArrowDownLeft className="w-5 h-5 text-emerald-500" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium">
+                                  {msg.direction === "outgoing" ? "Envoyé à" : "Reçu de"}
+                                </span>
+                                <span className="font-mono text-sm">
+                                  {formatPhoneDisplay(msg.to?.[0] || msg.from || "N/A")}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {msg.direction === "outgoing" ? "Sortant" : "Entrant"}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {msg.content || msg.body || "(Pas de contenu)"}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {msg.createdAt ? formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true, locale: fr }) : ""}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                        <p className="text-muted-foreground">Aucun message récent</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Les SMS envoyés et reçus apparaîtront ici
+                        </p>
+                      </div>
+                    )}
+                  </ScrollArea>
                 </TabsContent>
 
-                {/* Activity Log Tab */}
-                <TabsContent value="activity" className="m-0 space-y-4">
-                  {/* Search */}
-                  <div className="flex gap-2 max-w-md">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Rechercher par agent ou numéro..."
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Activity Log */}
-                  <div className="border rounded-lg">
-                    <div className="p-4 border-b bg-muted/30">
-                      <h3 className="font-medium flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-cyan-400" />
-                        Journal des communications
-                      </h3>
-                    </div>
-                    <div className="max-h-[400px] overflow-y-auto">
-                      {logsLoading ? (
-                        <div className="p-4 space-y-3">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-                          ))}
-                        </div>
-                      ) : logs && logs.length > 0 ? (
-                        <div className="divide-y">
-                          {logs.map((log: any) => (
-                            <div
-                              key={log.id}
-                              className="flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                                  {getActionIcon(log.action)}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">
-                                      {log.action === "call" ? "Appel" : "SMS"}
-                                    </span>
-                                    {getDirectionBadge(log.direction)}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <User className="w-3 h-3" />
-                                    <span>{log.agent_name || "Agent"}</span>
-                                    <span>→</span>
-                                    <span className="font-mono">
-                                      {log.phone_number ? formatPhoneDisplay(log.phone_number) : "N/A"}
-                                    </span>
-                                  </div>
-                                </div>
+                {/* Calls Tab */}
+                <TabsContent value="calls" className="m-0">
+                  <ScrollArea className="h-[500px]">
+                    {callsLoading ? (
+                      <div className="space-y-3 p-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                        ))}
+                      </div>
+                    ) : callHistory && callHistory.length > 0 ? (
+                      <div className="divide-y">
+                        {callHistory.map((call: any) => (
+                          <div
+                            key={call.id}
+                            className="flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                call.status === "missed" ? "bg-destructive/10" :
+                                call.direction === "outgoing" ? "bg-cyan-500/10" : "bg-emerald-500/10"
+                              }`}>
+                                {getCallStatusIcon(call)}
                               </div>
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground">
-                                  {format(new Date(log.created_at), "d MMM yyyy", { locale: fr })}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(log.created_at), "HH:mm", { locale: fr })}
-                                </p>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {call.direction === "outgoing" ? "Appel vers" : "Appel de"}
+                                  </span>
+                                  <span className="font-mono text-sm">
+                                    {formatPhoneDisplay(call.to || call.from || "N/A")}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  {getCallStatusBadge(call)}
+                                  {call.duration && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {Math.floor(call.duration / 60)}:{String(call.duration % 60).padStart(2, '0')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Phone className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                          <p className="text-muted-foreground">Aucune communication enregistrée</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Les appels et SMS apparaîtront ici
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">
+                                {call.createdAt ? format(new Date(call.createdAt), "d MMM yyyy", { locale: fr }) : ""}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {call.createdAt ? format(new Date(call.createdAt), "HH:mm", { locale: fr }) : ""}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Phone className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                        <p className="text-muted-foreground">Aucun appel récent</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          L'historique des appels apparaîtra ici
+                        </p>
+                      </div>
+                    )}
+                  </ScrollArea>
                 </TabsContent>
 
                 {/* Settings Tab */}
@@ -603,8 +609,8 @@ const AdminTelephony = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {hasOpenPhoneConfig
-                        ? "SMS envoyés directement via API. Les appels se font via OpenPhone intégré."
-                        : "Ajoutez la clé OPENPHONE_API_KEY dans les secrets du projet pour activer les fonctionnalités avancées."}
+                        ? "SMS envoyés via API. Les appels s'ouvrent dans OpenPhone."
+                        : "Ajoutez la clé OPENPHONE_API_KEY dans les secrets du projet."}
                     </p>
                   </div>
 
@@ -626,18 +632,21 @@ const AdminTelephony = () => {
                   )}
 
                   <div className="p-4 rounded-lg border">
-                    <h4 className="font-medium mb-2">Réglages OpenPhone</h4>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        setOpenPhoneUrl("https://app.openphone.com/settings/api");
-                        setActiveTab("openphone");
-                      }}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Ouvrir les réglages OpenPhone (dans l’admin)
-                    </Button>
+                    <h4 className="font-medium mb-2">Accès OpenPhone</h4>
+                    <div className="space-y-2">
+                      <Button variant="outline" className="w-full" asChild>
+                        <a href="https://app.openphone.com" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Ouvrir l'application OpenPhone
+                        </a>
+                      </Button>
+                      <Button variant="outline" className="w-full" asChild>
+                        <a href="https://app.openphone.com/settings/api" target="_blank" rel="noopener noreferrer">
+                          <Settings className="w-4 h-4 mr-2" />
+                          Gérer les clés API OpenPhone
+                        </a>
+                      </Button>
+                    </div>
                   </div>
                 </TabsContent>
               </CardContent>
