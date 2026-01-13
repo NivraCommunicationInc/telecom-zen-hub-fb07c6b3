@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Phone,
   MessageSquare,
@@ -34,6 +35,9 @@ import {
   RefreshCw,
   Plus,
   Copy,
+  Maximize2,
+  X,
+  Headphones,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -58,6 +62,9 @@ const AdminTelephony = () => {
   const [callPhoneNumber, setCallPhoneNumber] = useState("");
   const [callClientId, setCallClientId] = useState<string | undefined>(undefined);
   const [callClientName, setCallClientName] = useState<string>("");
+  const [openPhonePanelOpen, setOpenPhonePanelOpen] = useState(false);
+  const [activeCallNumber, setActiveCallNumber] = useState<string>("");
+  const [activeCallClientName, setActiveCallClientName] = useState<string>("");
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -276,14 +283,14 @@ const AdminTelephony = () => {
       return { ...payload, phone: e164, clientName };
     },
     onSuccess: (data) => {
-      // Open OpenPhone deep link to initiate call
-      if (data.deepLink) {
-        window.open(data.deepLink, "_blank");
-      }
+      // Log call and open embedded OpenPhone panel
+      setActiveCallNumber(data.phone);
+      setActiveCallClientName(data.clientName || "");
+      setOpenPhonePanelOpen(true);
       toast.success("Appel initié", {
         description: data.clientName 
-          ? `Ouverture d'OpenPhone pour appeler ${data.clientName}` 
-          : "Ouverture d'OpenPhone pour passer l'appel",
+          ? `Panneau OpenPhone ouvert pour ${data.clientName}` 
+          : "Panneau OpenPhone ouvert - gérez l'appel directement",
       });
       setNewCallOpen(false);
       setCallPhoneNumber("");
@@ -389,11 +396,13 @@ const AdminTelephony = () => {
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
             </Button>
-            <Button variant="outline" size="sm" asChild>
-              <a href="https://app.openphone.com" target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                OpenPhone
-              </a>
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={() => setOpenPhonePanelOpen(true)}
+            >
+              <Headphones className="w-4 h-4 mr-2" />
+              Ouvrir OpenPhone
             </Button>
           </div>
         </div>
@@ -939,11 +948,94 @@ const AdminTelephony = () => {
             </Button>
             
             <p className="text-xs text-muted-foreground text-center">
-              Votre téléphone OpenPhone sonnera, puis le client sera connecté
+              Le panneau OpenPhone s'ouvrira pour gérer l'appel
             </p>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* OpenPhone Embedded Panel for Call Management */}
+      <Sheet open={openPhonePanelOpen} onOpenChange={setOpenPhonePanelOpen}>
+        <SheetContent side="right" className="w-full sm:w-[600px] sm:max-w-[600px] p-0 flex flex-col">
+          <SheetHeader className="p-4 border-b bg-background flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <Headphones className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div>
+                  <SheetTitle className="text-left">
+                    Gestion d'appel
+                  </SheetTitle>
+                  <SheetDescription className="text-left">
+                    {activeCallClientName ? (
+                      <span className="flex items-center gap-2">
+                        <User className="w-3 h-3" />
+                        {activeCallClientName} • {formatPhoneDisplay(activeCallNumber)}
+                      </span>
+                    ) : (
+                      formatPhoneDisplay(activeCallNumber)
+                    )}
+                  </SheetDescription>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open("https://app.openphone.com", "_blank")}
+                >
+                  <Maximize2 className="w-4 h-4 mr-2" />
+                  Plein écran
+                </Button>
+              </div>
+            </div>
+          </SheetHeader>
+          
+          {/* OpenPhone Web App Embedded */}
+          <div className="flex-1 relative bg-muted">
+            <iframe
+              src="https://app.openphone.com"
+              className="absolute inset-0 w-full h-full border-0"
+              title="OpenPhone Dashboard"
+              allow="microphone; camera; clipboard-write"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
+            />
+          </div>
+
+          {/* Quick Actions Footer */}
+          <div className="p-4 border-t bg-background flex-shrink-0">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  Utilisez OpenPhone pour gérer l'appel (hold, transfer, mute)
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ["telephony-calls"] });
+                    toast.success("Historique actualisé");
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Actualiser l'historique
+                </Button>
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={() => setOpenPhonePanelOpen(false)}
+                >
+                  Fermer le panneau
+                </Button>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </AdminLayout>
   );
 };
