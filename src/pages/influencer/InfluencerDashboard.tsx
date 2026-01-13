@@ -27,15 +27,20 @@ const InfluencerDashboard = () => {
   const { data: primaryCode } = useQuery({
     queryKey: ["influencer-primary-code", influencer?.id],
     queryFn: async () => {
+      if (!influencer?.id) return null;
+      
       const { data, error } = await supabase
         .from("referral_codes")
         .select("*")
-        .eq("influencer_id", influencer?.id)
+        .eq("influencer_id", influencer.id)
         .eq("status", "active")
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching code:", error);
+        return null;
+      }
       return data;
     },
     enabled: !!influencer?.id,
@@ -45,12 +50,17 @@ const InfluencerDashboard = () => {
   const { data: stats } = useQuery({
     queryKey: ["influencer-stats", influencer?.id],
     queryFn: async () => {
+      if (!influencer?.id) return { total: 0, pending: 0, approved: 0 };
+      
       const { data: attributions, error } = await supabase
         .from("referral_attributions")
         .select("id, status")
-        .eq("influencer_id", influencer?.id);
+        .eq("influencer_id", influencer.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching stats:", error);
+        return { total: 0, pending: 0, approved: 0 };
+      }
 
       return {
         total: attributions?.length || 0,
@@ -65,12 +75,17 @@ const InfluencerDashboard = () => {
   const { data: balance } = useQuery({
     queryKey: ["influencer-balance", influencer?.id],
     queryFn: async () => {
+      if (!influencer?.id) return { pending: 0, approved: 0, available: 0, paid: 0 };
+      
       const { data: ledger, error } = await supabase
         .from("commission_ledger_entries")
         .select("type, amount, status")
-        .eq("influencer_id", influencer?.id);
+        .eq("influencer_id", influencer.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching balance:", error);
+        return { pending: 0, approved: 0, available: 0, paid: 0 };
+      }
 
       let pending = 0;
       let approved = 0;
@@ -106,8 +121,11 @@ const InfluencerDashboard = () => {
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching settings:", error);
+        return { min_cashout_amount: 50 };
+      }
+      return data || { min_cashout_amount: 50 };
     },
   });
 

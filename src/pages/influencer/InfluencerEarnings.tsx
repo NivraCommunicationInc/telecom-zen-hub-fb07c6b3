@@ -22,14 +22,19 @@ const InfluencerEarnings = () => {
   const { data: ledgerEntries, isLoading } = useQuery({
     queryKey: ["influencer-ledger-full", influencer?.id],
     queryFn: async () => {
+      if (!influencer?.id) return [];
+      
       const { data, error } = await supabase
         .from("commission_ledger_entries")
         .select("*")
-        .eq("influencer_id", influencer?.id)
+        .eq("influencer_id", influencer.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching ledger:", error);
+        return [];
+      }
+      return data || [];
     },
     enabled: !!influencer?.id,
   });
