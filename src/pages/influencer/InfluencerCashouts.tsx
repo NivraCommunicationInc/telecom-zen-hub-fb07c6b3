@@ -46,7 +46,7 @@ const InfluencerCashouts = () => {
   const [confirmDetails, setConfirmDetails] = useState(false);
 
   // Fetch settings for minimum cashout
-  const { data: settings } = useQuery({
+  const { data: settings, isError: settingsError } = useQuery({
     queryKey: ["referral-program-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -55,8 +55,12 @@ const InfluencerCashouts = () => {
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching settings:", error);
+        // Return default if error
+        return { min_cashout_amount: 50 };
+      }
+      return data || { min_cashout_amount: 50 };
     },
   });
 
@@ -64,12 +68,17 @@ const InfluencerCashouts = () => {
   const { data: balance } = useQuery({
     queryKey: ["influencer-balance", influencer?.id],
     queryFn: async () => {
+      if (!influencer?.id) return 0;
+      
       const { data: ledger, error } = await supabase
         .from("commission_ledger_entries")
         .select("type, amount, status")
-        .eq("influencer_id", influencer?.id);
+        .eq("influencer_id", influencer.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching ledger:", error);
+        return 0;
+      }
 
       let approved = 0;
       let paid = 0;
@@ -94,14 +103,19 @@ const InfluencerCashouts = () => {
   const { data: cashouts, isLoading } = useQuery({
     queryKey: ["influencer-cashouts", influencer?.id],
     queryFn: async () => {
+      if (!influencer?.id) return [];
+      
       const { data, error } = await supabase
         .from("cashout_requests")
         .select("*")
-        .eq("influencer_id", influencer?.id)
+        .eq("influencer_id", influencer.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching cashouts:", error);
+        return [];
+      }
+      return data || [];
     },
     enabled: !!influencer?.id,
   });
