@@ -65,6 +65,12 @@ const InfluencerReferrals = () => {
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">En attente</Badge>;
       case "approved":
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Approuvé</Badge>;
+      case "hold":
+        return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">En révision</Badge>;
+      case "disputed":
+        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Contesté</Badge>;
+      case "rejected":
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Refusé</Badge>;
       case "reversed":
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Annulé</Badge>;
       case "cancelled":
@@ -124,7 +130,9 @@ const InfluencerReferrals = () => {
                   <SelectItem value="all">Tous les statuts</SelectItem>
                   <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="approved">Approuvés</SelectItem>
-                  <SelectItem value="reversed">Annulés</SelectItem>
+                  <SelectItem value="hold">En révision</SelectItem>
+                  <SelectItem value="disputed">Contestés</SelectItem>
+                  <SelectItem value="rejected">Refusés</SelectItem>
                 </SelectContent>
               </Select>
             </div>
