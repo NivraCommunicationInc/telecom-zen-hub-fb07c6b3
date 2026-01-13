@@ -56,14 +56,21 @@ Deno.serve(async (req) => {
 
     // Check admin/employee role
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: roleData } = await supabaseAdmin
+    const { data: roles, error: rolesError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["admin", "employee"])
-      .maybeSingle();
+      .in("role", ["admin", "employee"]);
 
-    if (!roleData) {
+    if (rolesError) {
+      console.error("Role check error:", rolesError);
+      return new Response(
+        JSON.stringify({ error: "Role verification failed" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!roles || roles.length === 0) {
       return new Response(
         JSON.stringify({ error: "Forbidden - admin/employee only" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
