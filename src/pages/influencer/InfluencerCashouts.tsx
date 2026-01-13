@@ -118,6 +118,9 @@ const InfluencerCashouts = () => {
       return data || [];
     },
     enabled: !!influencer?.id,
+    // Keep status fresh when an admin approves/rejects a request
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 
   // Create cashout request mutation
