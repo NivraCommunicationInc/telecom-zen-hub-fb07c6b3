@@ -107,3 +107,18 @@ verify_jwt = true
 
 [functions.log-telephony-action]
 verify_jwt = true
+
+[functions.openphone-webhook]
+verify_jwt = false
+
+[functions.openphone-conversations]
+verify_jwt = true
+
+[functions.openphone-call-history]
+verify_jwt = true
+
+[functions.openphone-sms]
+verify_jwt = true
+
+[functions.openphone-phone-numbers]
+verify_jwt = true
