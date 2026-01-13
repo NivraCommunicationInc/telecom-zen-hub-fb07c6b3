@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -21,13 +22,80 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Search, Loader2, TrendingUp, RefreshCw, AlertCircle, AlertTriangle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  ArrowLeft, 
+  Search, 
+  Loader2, 
+  TrendingUp, 
+  RefreshCw, 
+  AlertCircle, 
+  AlertTriangle,
+  MoreHorizontal,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Ban,
+  DollarSign
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { Label } from "@/components/ui/label";
+
+type AttributionStatus = "pending" | "approved" | "rejected" | "hold" | "disputed";
+
+interface Attribution {
+  id: string;
+  applied_at: string;
+  customer_email: string | null;
+  customer_discount_amount: number;
+  status: string;
+  fraud_flag_level: string | null;
+  fraud_notes: string | null;
+  influencer_id: string;
+  referral_code_id: string;
+  order_id: string | null;
+  referral_codes: {
+    code: string;
+    influencers: {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string;
+    } | null;
+  } | null;
+}
 
 const AdminReferralAttributions = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Action dialog state
+  const [actionDialog, setActionDialog] = useState<{
+    open: boolean;
+    action: AttributionStatus | null;
+    attribution: Attribution | null;
+  }>({ open: false, action: null, attribution: null });
+  const [actionNote, setActionNote] = useState("");
+  const [commissionAmount, setCommissionAmount] = useState("");
 
   const { data: attributions, isLoading, error, refetch } = useQuery({
     queryKey: ["referral-attributions", searchTerm, statusFilter],
@@ -50,9 +118,140 @@ const AdminReferralAttributions = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []) as Attribution[];
     },
   });
+
+  // Get referral program settings for commission calculation
+  const { data: settings } = useQuery({
+    queryKey: ["referral-program-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("referral_program_settings")
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Mutation to update attribution status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ 
+      attributionId, 
+      newStatus, 
+      note,
+      commission
+    }: { 
+      attributionId: string; 
+      newStatus: AttributionStatus; 
+      note: string;
+      commission?: number;
+    }) => {
+      // Update attribution status
+      const { error: updateError } = await supabase
+        .from("referral_attributions")
+        .update({ 
+          status: newStatus,
+          fraud_notes: note || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", attributionId);
+
+      if (updateError) throw updateError;
+
+      // If approved, create commission ledger entry
+      if (newStatus === "approved" && commission && commission > 0) {
+        const attr = actionDialog.attribution;
+        if (!attr) throw new Error("Attribution not found");
+
+        const { error: ledgerError } = await supabase
+          .from("commission_ledger_entries")
+          .insert({
+            influencer_id: attr.influencer_id,
+            attribution_id: attributionId,
+            type: "approved_credit",
+            amount: commission,
+            currency: "CAD",
+            status: "approved",
+            notes: note || `Commission approuvée pour parrainage ${attr.referral_codes?.code || ""}`,
+            approved_at: new Date().toISOString(),
+            created_by: user?.id || null,
+          });
+
+        if (ledgerError) throw ledgerError;
+      }
+
+      // If rejected or disputed, optionally create a reversal if there was a previous credit
+      if (newStatus === "rejected" || newStatus === "disputed") {
+        // Check if there's an existing approved credit for this attribution
+        const { data: existingCredits } = await supabase
+          .from("commission_ledger_entries")
+          .select("id, amount")
+          .eq("attribution_id", attributionId)
+          .eq("type", "approved_credit")
+          .eq("status", "approved");
+
+        if (existingCredits && existingCredits.length > 0) {
+          // Create reversal entries for each credit
+          for (const credit of existingCredits) {
+            await supabase
+              .from("commission_ledger_entries")
+              .insert({
+                influencer_id: actionDialog.attribution?.influencer_id,
+                attribution_id: attributionId,
+                type: "reversal",
+                amount: -credit.amount,
+                currency: "CAD",
+                status: "approved",
+                notes: note || `Annulation: ${newStatus === "rejected" ? "Rejeté" : "Contesté"}`,
+                approved_at: new Date().toISOString(),
+                created_by: user?.id || null,
+              });
+          }
+        }
+      }
+
+      return { attributionId, newStatus };
+    },
+    onSuccess: (_, variables) => {
+      const statusLabels: Record<AttributionStatus, string> = {
+        approved: "approuvé",
+        rejected: "rejeté",
+        hold: "mis en attente",
+        disputed: "contesté",
+        pending: "en attente",
+      };
+      toast.success(`Parrainage ${statusLabels[variables.newStatus]}`);
+      queryClient.invalidateQueries({ queryKey: ["referral-attributions"] });
+      queryClient.invalidateQueries({ queryKey: ["commission-ledger"] });
+      setActionDialog({ open: false, action: null, attribution: null });
+      setActionNote("");
+      setCommissionAmount("");
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  const openActionDialog = (action: AttributionStatus, attribution: Attribution) => {
+    // Default commission is 50% of customer discount (matching influencer gets 50% of first bill)
+    const defaultCommission = Number(attribution.customer_discount_amount) || 0;
+    setCommissionAmount(defaultCommission.toFixed(2));
+    setActionNote("");
+    setActionDialog({ open: true, action, attribution });
+  };
+
+  const handleConfirmAction = () => {
+    if (!actionDialog.action || !actionDialog.attribution) return;
+
+    updateStatusMutation.mutate({
+      attributionId: actionDialog.attribution.id,
+      newStatus: actionDialog.action,
+      note: actionNote,
+      commission: actionDialog.action === "approved" ? parseFloat(commissionAmount) || 0 : undefined,
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -62,6 +261,10 @@ const AdminReferralAttributions = () => {
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Approuvé</Badge>;
       case "rejected":
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Rejeté</Badge>;
+      case "hold":
+        return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">En attente</Badge>;
+      case "disputed":
+        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Contesté</Badge>;
       case "paid":
         return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Payé</Badge>;
       default:
@@ -69,15 +272,142 @@ const AdminReferralAttributions = () => {
     }
   };
 
-  const getFraudBadge = (level: number | null) => {
-    if (!level || level === 0) return null;
-    if (level <= 2) {
+  const getFraudBadge = (level: string | null) => {
+    if (!level || level === "none") return null;
+    if (level === "low") {
       return <Badge variant="outline" className="text-yellow-500 border-yellow-500/30">Risque faible</Badge>;
     }
-    if (level <= 4) {
+    if (level === "medium") {
       return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">Risque moyen</Badge>;
     }
     return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Risque élevé</Badge>;
+  };
+
+  const getActionDialogContent = () => {
+    const { action, attribution } = actionDialog;
+    if (!action || !attribution) return null;
+
+    const configs: Record<AttributionStatus, { title: string; description: string; color: string; showCommission: boolean }> = {
+      approved: {
+        title: "Approuver ce parrainage",
+        description: "La commission sera créditée au compte de l'influenceur et disponible pour retrait.",
+        color: "text-green-500",
+        showCommission: true,
+      },
+      rejected: {
+        title: "Rejeter ce parrainage",
+        description: "Aucune commission ne sera accordée. Si une commission avait déjà été créditée, elle sera annulée.",
+        color: "text-red-500",
+        showCommission: false,
+      },
+      hold: {
+        title: "Mettre en attente",
+        description: "Le parrainage sera mis en attente pour révision ultérieure.",
+        color: "text-orange-500",
+        showCommission: false,
+      },
+      disputed: {
+        title: "Marquer comme contesté",
+        description: "Le parrainage sera marqué comme contesté. Toute commission précédente sera annulée.",
+        color: "text-purple-500",
+        showCommission: false,
+      },
+      pending: {
+        title: "Remettre en attente",
+        description: "Le parrainage sera remis en statut en attente.",
+        color: "text-yellow-500",
+        showCommission: false,
+      },
+    };
+
+    const config = configs[action];
+
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle className={config.color}>{config.title}</DialogTitle>
+          <DialogDescription>{config.description}</DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Client:</span>
+              <p className="font-medium">{attribution.customer_email || "—"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Code:</span>
+              <p className="font-mono font-medium">{attribution.referral_codes?.code || "—"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Influenceur:</span>
+              <p className="font-medium">
+                {attribution.referral_codes?.influencers 
+                  ? `${attribution.referral_codes.influencers.first_name || ""} ${attribution.referral_codes.influencers.last_name || ""}`.trim() || attribution.referral_codes.influencers.email
+                  : "—"}
+              </p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Rabais client:</span>
+              <p className="font-medium">${Number(attribution.customer_discount_amount || 0).toFixed(2)}</p>
+            </div>
+          </div>
+
+          {config.showCommission && (
+            <div className="space-y-2">
+              <Label htmlFor="commission">Montant de la commission (CAD)</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="commission"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={commissionAmount}
+                  onChange={(e) => setCommissionAmount(e.target.value)}
+                  className="pl-9"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Montant par défaut: 50% du rabais client = ${(Number(attribution.customer_discount_amount || 0)).toFixed(2)}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="note">Note (optionnelle)</Label>
+            <Textarea
+              id="note"
+              value={actionNote}
+              onChange={(e) => setActionNote(e.target.value)}
+              placeholder="Ajouter une note..."
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => setActionDialog({ open: false, action: null, attribution: null })}
+          >
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleConfirmAction}
+            disabled={updateStatusMutation.isPending}
+            className={action === "approved" ? "bg-green-600 hover:bg-green-700" : 
+                       action === "rejected" ? "bg-red-600 hover:bg-red-700" :
+                       action === "disputed" ? "bg-purple-600 hover:bg-purple-700" :
+                       ""}
+          >
+            {updateStatusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Confirmer
+          </Button>
+        </DialogFooter>
+      </>
+    );
   };
 
   if (error) {
@@ -122,10 +452,56 @@ const AdminReferralAttributions = () => {
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">Parrainages</h1>
             <p className="text-muted-foreground">
-              Liste des attributions de parrainage
+              Gérer les attributions de parrainage et commissions
             </p>
           </div>
         </div>
+
+        {/* Stats Cards */}
+        {attributions && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card className="bg-yellow-500/10 border-yellow-500/30">
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-yellow-500">
+                  {attributions.filter(a => a.status === "pending").length}
+                </p>
+                <p className="text-xs text-muted-foreground">En attente</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-500/10 border-green-500/30">
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-green-500">
+                  {attributions.filter(a => a.status === "approved").length}
+                </p>
+                <p className="text-xs text-muted-foreground">Approuvés</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-red-500/10 border-red-500/30">
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-red-500">
+                  {attributions.filter(a => a.status === "rejected").length}
+                </p>
+                <p className="text-xs text-muted-foreground">Rejetés</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-orange-500/10 border-orange-500/30">
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-orange-500">
+                  {attributions.filter(a => a.status === "hold").length}
+                </p>
+                <p className="text-xs text-muted-foreground">En révision</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-purple-500/10 border-purple-500/30">
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-purple-500">
+                  {attributions.filter(a => a.status === "disputed").length}
+                </p>
+                <p className="text-xs text-muted-foreground">Contestés</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Filters */}
         <Card>
@@ -149,9 +525,13 @@ const AdminReferralAttributions = () => {
                   <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="approved">Approuvés</SelectItem>
                   <SelectItem value="rejected">Rejetés</SelectItem>
-                  <SelectItem value="paid">Payés</SelectItem>
+                  <SelectItem value="hold">En révision</SelectItem>
+                  <SelectItem value="disputed">Contestés</SelectItem>
                 </SelectContent>
               </Select>
+              <Button variant="outline" size="icon" onClick={() => refetch()}>
+                <RefreshCw className="w-4 h-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -169,18 +549,19 @@ const AdminReferralAttributions = () => {
                   <TableHead className="text-right">Rabais</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Fraude</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : !attributions || attributions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <TrendingUp className="w-10 h-10 opacity-50" />
                         <p>Aucun parrainage trouvé</p>
@@ -222,7 +603,7 @@ const AdminReferralAttributions = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(attr.status)}</TableCell>
                         <TableCell>
-                          {attr.fraud_flag_level && typeof attr.fraud_flag_level === 'number' ? (
+                          {attr.fraud_flag_level && attr.fraud_flag_level !== "none" ? (
                             <div className="flex items-center gap-1">
                               <AlertTriangle className="w-4 h-4 text-orange-500" />
                               {getFraudBadge(attr.fraud_flag_level)}
@@ -230,6 +611,65 @@ const AdminReferralAttributions = () => {
                           ) : (
                             <span className="text-muted-foreground text-xs">Aucun</span>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {attr.status !== "approved" && (
+                                <DropdownMenuItem 
+                                  onClick={() => openActionDialog("approved", attr)}
+                                  className="text-green-600"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Approuver
+                                </DropdownMenuItem>
+                              )}
+                              {attr.status !== "rejected" && (
+                                <DropdownMenuItem 
+                                  onClick={() => openActionDialog("rejected", attr)}
+                                  className="text-red-600"
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Rejeter
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              {attr.status !== "hold" && (
+                                <DropdownMenuItem 
+                                  onClick={() => openActionDialog("hold", attr)}
+                                  className="text-orange-600"
+                                >
+                                  <Clock className="w-4 h-4 mr-2" />
+                                  Mettre en attente
+                                </DropdownMenuItem>
+                              )}
+                              {attr.status !== "disputed" && (
+                                <DropdownMenuItem 
+                                  onClick={() => openActionDialog("disputed", attr)}
+                                  className="text-purple-600"
+                                >
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  Contester
+                                </DropdownMenuItem>
+                              )}
+                              {attr.status !== "pending" && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => openActionDialog("pending", attr)}
+                                  >
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Remettre en attente
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     );
@@ -240,6 +680,16 @@ const AdminReferralAttributions = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Action Dialog */}
+      <Dialog 
+        open={actionDialog.open} 
+        onOpenChange={(open) => !open && setActionDialog({ open: false, action: null, attribution: null })}
+      >
+        <DialogContent>
+          {getActionDialogContent()}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };
