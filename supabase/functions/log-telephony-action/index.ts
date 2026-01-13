@@ -102,19 +102,18 @@ Deno.serve(async (req) => {
     // 3. Check if user is admin|employee using SERVICE ROLE (bypasses RLS)
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: roleRow, error: roleError } = await serviceClient
+    const { data: roles, error: roleError } = await serviceClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["admin", "employee"])
-      .maybeSingle();
+      .in("role", ["admin", "employee"]);
 
     if (roleError) {
       console.error("LOG_TELEPHONY_ERROR", { error: "Role check failed", roleError: roleError.message });
       return jsonResponse(origin, 500, { ok: false, code: "ROLE_CHECK_FAILED", error: "Failed to verify staff role" });
     }
 
-    if (!roleRow) {
+    if (!roles || roles.length === 0) {
       console.log("LOG_TELEPHONY", { ok: false, staff: false, userId: user.id });
       return jsonResponse(origin, 403, { ok: false, code: "NOT_STAFF", error: "Unauthorized: staff only" });
     }
