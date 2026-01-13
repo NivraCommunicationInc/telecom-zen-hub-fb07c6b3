@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -64,8 +64,6 @@ const AdminTelephony = () => {
   const [activeCallNumber, setActiveCallNumber] = useState<string>("");
   const [activeCallClientName, setActiveCallClientName] = useState<string>("");
 
-  // Keep a reference to an OpenPhone popup window (opening a popup in an async callback can be blocked).
-  const openPhonePopupRef = useRef<Window | null>(null);
 
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -325,38 +323,26 @@ const AdminTelephony = () => {
 
   const OPENPHONE_WEB_URL = "https://my.openphone.com";
 
-  const openOpenPhonePopup = () => {
-    // Open immediately on user gesture when possible; browsers may block popups opened from async callbacks.
-    const preferredWidth = 520;
-    const preferredHeight = Math.min(window.screen?.height ? window.screen.height - 120 : 900, 900);
+  /**
+   * Trigger a call directly using OpenPhone desktop app deep link.
+   * This opens the OpenPhone app and initiates the call immediately.
+   */
+  const initiateOpenPhoneCall = (phoneE164: string) => {
+    const deepLink = `openphone://call?number=${encodeURIComponent(phoneE164)}`;
+    
+    // Try to open the deep link - this will launch OpenPhone desktop app and start the call
+    const link = document.createElement("a");
+    link.href = deepLink;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    return true;
+  };
 
-    const left = (window.screenX ?? 0) + (window.outerWidth ?? preferredWidth) - (preferredWidth + 24);
-    const top = (window.screenY ?? 0) + 48;
-
-    const features = [
-      "popup=yes",
-      `width=${preferredWidth}`,
-      `height=${preferredHeight}`,
-      `left=${Math.max(0, left)}`,
-      `top=${Math.max(0, top)}`,
-    ].join(",");
-
-    const win = window.open(OPENPHONE_WEB_URL, "openphone", features);
-    if (!win) {
-      toast.error("Pop-up bloquée", {
-        description: "Autorisez les pop-ups pour ouvrir OpenPhone et gérer les appels.",
-      });
-      return null;
-    }
-
-    openPhonePopupRef.current = win;
-    try {
-      win.focus();
-    } catch {
-      // ignore
-    }
-
-    return win;
+  const openOpenPhoneWeb = () => {
+    window.open(OPENPHONE_WEB_URL, "_blank");
   };
 
   const handleCall = (phone: string, clientId?: string, clientName?: string) => {
@@ -366,13 +352,16 @@ const AdminTelephony = () => {
       return;
     }
 
-    // Best-effort: open OpenPhone popup right away so it isn't blocked.
-    openOpenPhonePopup();
-    navigator.clipboard.writeText(e164).then(
-      () => toast.message("Numéro copié", { description: "Collez-le dans OpenPhone pour composer." }),
-      () => undefined
-    );
+    // Initiate call via OpenPhone deep link (opens desktop app and calls directly)
+    initiateOpenPhoneCall(e164);
+    
+    toast.success("Appel lancé", {
+      description: clientName 
+        ? `Appel vers ${clientName} en cours via OpenPhone...` 
+        : `Appel vers ${e164} en cours via OpenPhone...`,
+    });
 
+    // Log the call in the database
     callMutation.mutate({ to: phone, clientId, clientName });
   };
 
@@ -444,7 +433,7 @@ const AdminTelephony = () => {
               size="sm"
               onClick={() => {
                 setOpenPhonePanelOpen(true);
-                openOpenPhonePopup();
+                openOpenPhoneWeb();
               }}
             >
               <Headphones className="w-4 h-4 mr-2" />
@@ -1005,7 +994,7 @@ const AdminTelephony = () => {
         onOpenChange={setOpenPhonePanelOpen}
         activeCallNumber={activeCallNumber}
         activeCallClientName={activeCallClientName}
-        onOpenOpenPhone={openOpenPhonePopup}
+        onOpenOpenPhone={openOpenPhoneWeb}
         onCopyNumber={() => {
           if (!activeCallNumber) return;
           navigator.clipboard.writeText(activeCallNumber).then(
