@@ -71,31 +71,8 @@ const InfluencerProtectedRoute = ({ children }: InfluencerProtectedRouteProps) =
     );
   }
 
-  // Influencer is pending (self-signup waiting for activation)
-  if (influencer.status === "pending") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="max-w-md w-full border-yellow-500/30">
-          <CardContent className="pt-6 text-center">
-            <Clock className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-foreground mb-2">Demande en cours</h2>
-            <p className="text-muted-foreground mb-4">
-              Votre demande d'inscription au programme partenaires est en cours d'examen.
-            </p>
-            <p className="text-sm text-muted-foreground mb-6">
-              Notre équipe activera votre compte sous peu. Vous recevrez un email de confirmation.
-            </p>
-            <Link to="/">
-              <Button variant="outline" className="w-full">
-                Retour au site
-              </Button>
-            </Link>
-            <PartnerHelpFooter className="mt-6" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // NOTE: Pending status now auto-activates on signup, but keep this as fallback
+  // for any legacy pending accounts - they can still access the dashboard
 
   // Influencer is still invited (should complete onboarding)
   if (influencer.status === "invited") {

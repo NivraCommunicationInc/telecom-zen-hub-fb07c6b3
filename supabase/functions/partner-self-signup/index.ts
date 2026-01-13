@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     // Upsert influencer record (using service role - bypasses RLS)
-    // Use email for conflict since it's unique; user_id now also has unique constraint
+    // Auto-activate: no admin approval needed
     const { error: influencerError } = await supabaseAdmin
       .from("influencers")
       .upsert({
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
         email: normalizedEmail,
         first_name: first_name.trim(),
         last_name: last_name.trim(),
-        status: "pending",
+        status: "active", // Auto-activate - no admin approval needed
         payout_method: "etransfer",
         payout_email: normalizedEmail,
         commission_plan_id: defaultPlan?.id || null,
@@ -230,6 +230,24 @@ Deno.serve(async (req) => {
 
     console.log(`[partner-self-signup] Influencer record verified: ${verifiedInfluencer.id}`);
 
+    // Auto-create referral code for the new partner
+    const generatedCode = `${first_name.trim().toUpperCase().slice(0, 4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    
+    const { error: codeError } = await supabaseAdmin
+      .from("referral_codes")
+      .insert({
+        influencer_id: verifiedInfluencer.id,
+        code: generatedCode,
+        is_active: true,
+      });
+
+    if (codeError) {
+      console.error("[partner-self-signup] Error creating referral code (non-fatal):", codeError);
+      // Non-fatal - partner can create code manually later
+    } else {
+      console.log(`[partner-self-signup] Created referral code: ${generatedCode}`);
+    }
+
     // Upsert user_roles
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
@@ -252,7 +270,8 @@ Deno.serve(async (req) => {
       influencer_id: verifiedInfluencer.id,
       influencer: verifiedInfluencer,
       status: verifiedInfluencer.status,
-      message: "Inscription réussie. Votre compte est en attente d'activation.",
+      referral_code: generatedCode,
+      message: "Inscription réussie! Vous pouvez maintenant accéder à votre tableau de bord.",
     });
 
   } catch (error: unknown) {
