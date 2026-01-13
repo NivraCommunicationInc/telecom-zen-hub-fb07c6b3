@@ -42,6 +42,7 @@ import { formatPhoneDisplay, toE164, isValidPhone } from "@/lib/phoneUtils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import SMSThreadsList from "@/components/admin/SMSThreadsList";
+import { ClientSearchAutocomplete } from "@/components/admin/ClientSearchAutocomplete";
 import SMSConversationView from "@/components/admin/SMSConversationView";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 const AdminTelephony = () => {
@@ -51,6 +52,8 @@ const AdminTelephony = () => {
   const [smsMessage, setSmsMessage] = useState("");
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
+  const [selectedClientName, setSelectedClientName] = useState<string>("");
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -620,12 +623,63 @@ const AdminTelephony = () => {
       </div>
 
       {/* New Conversation Dialog */}
-      <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
-        <DialogContent>
+      <Dialog open={newConversationOpen} onOpenChange={(open) => {
+        setNewConversationOpen(open);
+        if (!open) {
+          // Reset form on close
+          setSelectedClientId(undefined);
+          setSelectedClientName("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nouvelle conversation SMS</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
+            {/* Client Selection */}
+            <div className="space-y-2">
+              <ClientSearchAutocomplete
+                label="Sélectionner un client (optionnel)"
+                placeholder="Rechercher par nom, email, téléphone..."
+                selectedClientId={selectedClientId}
+                onSelect={(client) => {
+                  setSelectedClientId(client.user_id);
+                  setSelectedClientName(client.full_name || client.email || "");
+                  // Auto-fill phone number if client has one
+                  if (client.phone) {
+                    setPhoneNumber(client.phone);
+                  }
+                }}
+              />
+              {selectedClientId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => {
+                    setSelectedClientId(undefined);
+                    setSelectedClientName("");
+                  }}
+                >
+                  Effacer la sélection
+                </Button>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {selectedClientId ? "ou modifier le numéro" : "ou entrer manuellement"}
+                </span>
+              </div>
+            </div>
+
+            {/* Phone Number Input */}
             <div className="space-y-2">
               <Label htmlFor="new-phone">Numéro de téléphone</Label>
               <Input
@@ -633,13 +687,22 @@ const AdminTelephony = () => {
                 type="tel"
                 placeholder="(514) 555-1234"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value);
+                  // Clear client selection if manually typing different number
+                  if (selectedClientId) {
+                    setSelectedClientId(undefined);
+                    setSelectedClientName("");
+                  }
+                }}
                 className={!isPhoneValid ? "border-destructive" : ""}
               />
-              {!isPhoneValid && (
+              {!isPhoneValid && phoneNumber.length > 0 && (
                 <p className="text-xs text-destructive">Format invalide</p>
               )}
             </div>
+
+            {/* Message Input */}
             <div className="space-y-2">
               <Label htmlFor="new-message">Message</Label>
               <Textarea
@@ -654,6 +717,8 @@ const AdminTelephony = () => {
                 {smsMessage.length}/1600
               </p>
             </div>
+
+            {/* Send Button */}
             <Button
               type="button"
               className="w-full"
