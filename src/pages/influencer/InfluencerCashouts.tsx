@@ -123,11 +123,25 @@ const InfluencerCashouts = () => {
   // Create cashout request mutation
   const createCashout = useMutation({
     mutationFn: async () => {
+      if (!influencer?.id) {
+        throw new Error("Session partenaire invalide. Veuillez vous reconnecter.");
+      }
+
+      const amt = Number(amount);
+      if (!Number.isFinite(amt) || amt <= 0) {
+        throw new Error("Montant invalide.");
+      }
+
+      const destinationClean = destination.trim();
+      if (!destinationClean) {
+        throw new Error("Destination de paiement invalide.");
+      }
+
       const { error } = await supabase.from("cashout_requests").insert({
-        influencer_id: influencer?.id,
-        amount: parseFloat(amount),
+        influencer_id: influencer.id,
+        amount: amt,
         method,
-        destination,
+        destination: destinationClean,
       });
 
       if (error) throw error;
@@ -144,8 +158,14 @@ const InfluencerCashouts = () => {
     },
   });
 
-  const minCashout = settings?.min_cashout_amount || 50;
-  const available = balance || 0;
+  const minCashoutRaw = settings?.min_cashout_amount;
+  const minCashoutParsed = typeof minCashoutRaw === "number" ? minCashoutRaw : Number(minCashoutRaw);
+  const minCashout = Number.isFinite(minCashoutParsed) ? minCashoutParsed : 50;
+
+  const availableRaw = balance ?? 0;
+  const availableParsed = typeof availableRaw === "number" ? availableRaw : Number(availableRaw);
+  const available = Number.isFinite(availableParsed) ? availableParsed : 0;
+
   const canRequest = available >= minCashout;
 
   const getStatusBadge = (status: string) => {
