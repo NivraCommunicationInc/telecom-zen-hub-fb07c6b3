@@ -50,7 +50,10 @@ export function OpenPhoneCallPanel({
               </div>
             </div>
 
-            <Button variant="outline" size="sm" onClick={() => window.open("https://app.openphone.com", "_blank")}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("https://my.openphone.com", "_blank")}
             >
               <Maximize2 className="w-4 h-4 mr-2" />
               Plein écran
