@@ -10,12 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { 
-  Phone, 
-  MessageSquare, 
-  Search, 
-  ExternalLink, 
-  ArrowUpRight, 
+import {
+  Phone,
+  MessageSquare,
+  Search,
+  ExternalLink,
+  ArrowUpRight,
   ArrowDownLeft,
   Clock,
   User,
@@ -33,7 +33,7 @@ import {
   PhoneMissed,
   RefreshCw,
   Plus,
-  Copy
+  Copy,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -43,7 +43,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import SMSThreadsList from "@/components/admin/SMSThreadsList";
 import SMSConversationView from "@/components/admin/SMSConversationView";
-
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 const AdminTelephony = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("conversations");
@@ -179,8 +179,8 @@ const AdminTelephony = () => {
       });
 
       if (error) {
-        // Supabase returns non-2xx responses here with a structured error
-        throw new Error(error.message || "Échec de l'envoi SMS");
+        const msg = await getInvokeErrorMessage(error);
+        throw new Error(msg);
       }
 
       const payload = data as any;

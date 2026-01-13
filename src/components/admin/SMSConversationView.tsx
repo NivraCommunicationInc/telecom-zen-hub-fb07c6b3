@@ -5,15 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  MessageSquare, 
-  Send, 
-  Loader2, 
-  ArrowLeft, 
+import {
+  MessageSquare,
+  Send,
+  Loader2,
+  ArrowLeft,
   Phone,
   User,
   Clock,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -22,7 +22,7 @@ import { formatPhoneDisplay, toE164 } from "@/lib/phoneUtils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 interface SMSConversationViewProps {
   selectedPhone: string | null;
   onBack: () => void;
@@ -118,7 +118,10 @@ const SMSConversationView = ({ selectedPhone, onBack }: SMSConversationViewProps
         },
       });
 
-      if (error) throw new Error(error.message || "Échec de l'envoi");
+      if (error) {
+        const msg = await getInvokeErrorMessage(error);
+        throw new Error(msg);
+      }
 
       const payload = data as any;
       if (!payload?.success) {
