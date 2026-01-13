@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
+import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -324,7 +324,21 @@ Deno.serve(async (req) => {
     });
 
     // Send SMS notification based on status (non-blocking)
-    if (client_phone && toE164(client_phone)) {
+    // Fetch phone if not provided
+    let phoneForSms = client_phone;
+    let clientIdForSms = client_id;
+
+    if (!phoneForSms) {
+      console.log(`[${requestId}] No phone provided, fetching from profiles...`);
+      const phoneResult = await fetchClientPhone(supabaseUrl, supabaseServiceKey, client_email, client_id);
+      phoneForSms = phoneResult.phone || undefined;
+      clientIdForSms = phoneResult.clientId || client_id;
+      if (phoneForSms) {
+        console.log(`[${requestId}] Found phone from profiles`);
+      }
+    }
+
+    if (phoneForSms && toE164(phoneForSms)) {
       const clientName = client_first_name || "Client";
       let smsMessage: string | null = null;
 
@@ -347,14 +361,16 @@ Deno.serve(async (req) => {
 
       if (smsMessage) {
         const smsResult = await sendSmsNotification({
-          to: client_phone,
+          to: phoneForSms,
           message: smsMessage,
-          clientId: client_id,
+          clientId: clientIdForSms,
           eventType: `service_${new_status}`,
           eventKey: `service_${service_instance_id}_${new_status}`,
         });
         console.log(`[${requestId}] Service SMS result:`, JSON.stringify(smsResult));
       }
+    } else {
+      console.log(`[${requestId}] No valid phone for SMS`);
     }
 
     return new Response(JSON.stringify({ 
