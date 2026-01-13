@@ -23,7 +23,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   Copy,
@@ -36,8 +44,12 @@ import {
   Clock,
   CheckCircle,
   Loader2,
-  QrCode,
   Edit,
+  Ban,
+  Play,
+  Wallet,
+  Settings,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -46,7 +58,26 @@ const AdminReferralInfluencerDetail = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [addCodeDialogOpen, setAddCodeDialogOpen] = useState(false);
+  const [editCodeDialogOpen, setEditCodeDialogOpen] = useState(false);
+  const [editProfileDialogOpen, setEditProfileDialogOpen] = useState(false);
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false);
   const [newCode, setNewCode] = useState("");
+  const [newCodeLimit, setNewCodeLimit] = useState<string>("");
+  const [selectedCode, setSelectedCode] = useState<any>(null);
+  const [editCodeData, setEditCodeData] = useState({
+    usage_limit_total: "",
+    usage_limit_monthly: "",
+  });
+  const [holdReason, setHoldReason] = useState("");
+  const [profileData, setProfileData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    payout_email: "",
+    payout_method: "etransfer",
+    notes: "",
+  });
 
   // Fetch influencer with all related data
   const { data: influencer, isLoading } = useQuery({
@@ -56,7 +87,7 @@ const AdminReferralInfluencerDetail = () => {
         .from("influencers")
         .select(`
           *,
-          commission_plans(name, model, value)
+          commission_plans(id, name, model, value)
         `)
         .eq("id", id)
         .single();
@@ -65,6 +96,19 @@ const AdminReferralInfluencerDetail = () => {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch commission plans for dropdown
+  const { data: commissionPlans } = useQuery({
+    queryKey: ["commission-plans-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_plans")
+        .select("*")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
   });
 
   // Fetch codes
@@ -115,6 +159,41 @@ const AdminReferralInfluencerDetail = () => {
     enabled: !!id,
   });
 
+  // Fetch payouts
+  const { data: payouts } = useQuery({
+    queryKey: ["influencer-payouts", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("influencer_payouts")
+        .select(`
+          *,
+          cashout_requests(request_number, status, admin_note)
+        `)
+        .eq("influencer_id", id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch cashout requests for this influencer
+  const { data: cashoutRequests } = useQuery({
+    queryKey: ["influencer-cashouts", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cashout_requests")
+        .select("*")
+        .eq("influencer_id", id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   // Calculate balances from ledger
   const balances = ledgerEntries?.reduce(
     (acc, entry) => {
@@ -137,10 +216,11 @@ const AdminReferralInfluencerDetail = () => {
 
   // Add code mutation
   const addCode = useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async ({ code, usageLimit }: { code: string; usageLimit?: number }) => {
       const { error } = await supabase.from("referral_codes").insert({
         influencer_id: id,
         code: code.toUpperCase(),
+        usage_limit_total: usageLimit || null,
       });
       if (error) throw error;
     },
@@ -148,7 +228,34 @@ const AdminReferralInfluencerDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["influencer-codes", id] });
       setAddCodeDialogOpen(false);
       setNewCode("");
+      setNewCodeLimit("");
       toast.success("Code ajouté");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Update code mutation
+  const updateCode = useMutation({
+    mutationFn: async ({
+      codeId,
+      updates,
+    }: {
+      codeId: string;
+      updates: { status?: string; usage_limit_total?: number | null; usage_limit_monthly?: number | null };
+    }) => {
+      const { error } = await supabase
+        .from("referral_codes")
+        .update(updates)
+        .eq("id", codeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["influencer-codes", id] });
+      setEditCodeDialogOpen(false);
+      setSelectedCode(null);
+      toast.success("Code mis à jour");
     },
     onError: (error: Error) => {
       toast.error(`Erreur: ${error.message}`);
@@ -170,25 +277,67 @@ const AdminReferralInfluencerDetail = () => {
     },
   });
 
-  // Update influencer status
-  const updateStatus = useMutation({
-    mutationFn: async (status: "active" | "suspended") => {
+  // Update influencer profile mutation
+  const updateProfile = useMutation({
+    mutationFn: async (data: Partial<typeof profileData> & { commission_plan_id?: string }) => {
       const { error } = await supabase
         .from("influencers")
-        .update({ status })
+        .update({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          email: data.email,
+          phone: data.phone || null,
+          payout_email: data.payout_email,
+          payout_method: data.payout_method,
+          notes: data.notes || null,
+          commission_plan_id: data.commission_plan_id,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["influencer", id] });
+      setEditProfileDialogOpen(false);
+      toast.success("Profil mis à jour");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Update influencer status
+  const updateStatus = useMutation({
+    mutationFn: async ({ status, reason }: { status: "active" | "suspended"; reason?: string }) => {
+      const updates: any = { status };
+      if (reason) {
+        updates.notes = `${influencer?.notes ? influencer.notes + "\n" : ""}[${new Date().toISOString()}] ${status === "suspended" ? "Suspension" : "Réactivation"}: ${reason}`;
+      }
+
+      const { error } = await supabase
+        .from("influencers")
+        .update(updates)
         .eq("id", id);
       if (error) throw error;
 
+      // If suspending, disable all codes
       if (status === "suspended") {
         await supabase
           .from("referral_codes")
           .update({ status: "disabled" })
+          .eq("influencer_id", id);
+      } else if (status === "active") {
+        // Reactivate codes when reactivating
+        await supabase
+          .from("referral_codes")
+          .update({ status: "active" })
           .eq("influencer_id", id);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["influencer", id] });
       queryClient.invalidateQueries({ queryKey: ["influencer-codes", id] });
+      setHoldDialogOpen(false);
+      setHoldReason("");
       toast.success("Statut mis à jour");
     },
   });
@@ -262,6 +411,30 @@ const AdminReferralInfluencerDetail = () => {
     toast.success("Copié!");
   };
 
+  const openEditProfile = () => {
+    if (influencer) {
+      setProfileData({
+        first_name: influencer.first_name || "",
+        last_name: influencer.last_name || "",
+        email: influencer.email || "",
+        phone: influencer.phone || "",
+        payout_email: influencer.payout_email || influencer.email || "",
+        payout_method: influencer.payout_method || "etransfer",
+        notes: influencer.notes || "",
+      });
+      setEditProfileDialogOpen(true);
+    }
+  };
+
+  const openEditCode = (code: any) => {
+    setSelectedCode(code);
+    setEditCodeData({
+      usage_limit_total: code.usage_limit_total?.toString() || "",
+      usage_limit_monthly: code.usage_limit_monthly?.toString() || "",
+    });
+    setEditCodeDialogOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -274,6 +447,21 @@ const AdminReferralInfluencerDetail = () => {
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Suspendu</Badge>;
       case "disabled":
         return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Désactivé</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getCashoutStatusBadge = (status: string) => {
+    switch (status) {
+      case "requested":
+        return <Badge className="bg-yellow-500/20 text-yellow-400">En attente</Badge>;
+      case "approved":
+        return <Badge className="bg-green-500/20 text-green-400">Approuvé</Badge>;
+      case "rejected":
+        return <Badge className="bg-red-500/20 text-red-400">Rejeté</Badge>;
+      case "paid":
+        return <Badge className="bg-purple-500/20 text-purple-400">Payé</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -333,7 +521,7 @@ const AdminReferralInfluencerDetail = () => {
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                 <span className="text-lg font-semibold text-primary">
-                  {influencer.first_name[0]}{influencer.last_name[0]}
+                  {influencer.first_name?.[0] || "?"}{influencer.last_name?.[0] || "?"}
                 </span>
               </div>
               <div>
@@ -346,9 +534,14 @@ const AdminReferralInfluencerDetail = () => {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={openEditProfile}>
+              <Edit className="w-4 h-4 mr-2" />
+              Modifier
+            </Button>
             {influencer.status === "invited" && (
               <Button 
                 variant="outline"
+                size="sm"
                 onClick={() => sendInvite.mutate()}
                 disabled={sendInvite.isPending}
               >
@@ -362,7 +555,7 @@ const AdminReferralInfluencerDetail = () => {
             )}
             {influencer.status === "pending" && (
               <Button
-                variant="default"
+                size="sm"
                 onClick={() => activateInfluencer.mutate()}
                 disabled={activateInfluencer.isPending}
               >
@@ -374,18 +567,20 @@ const AdminReferralInfluencerDetail = () => {
                 Activer
               </Button>
             )}
-            {influencer.status !== "suspended" ? (
+            {influencer.status === "active" && (
               <Button
                 variant="destructive"
-                onClick={() => updateStatus.mutate("suspended")}
+                size="sm"
+                onClick={() => setHoldDialogOpen(true)}
               >
                 <UserX className="w-4 h-4 mr-2" />
                 Suspendre
               </Button>
-            ) : (
+            )}
+            {influencer.status === "suspended" && (
               <Button
-                variant="default"
-                onClick={() => updateStatus.mutate("active")}
+                size="sm"
+                onClick={() => updateStatus.mutate({ status: "active" })}
               >
                 <UserCheck className="w-4 h-4 mr-2" />
                 Réactiver
@@ -394,8 +589,21 @@ const AdminReferralInfluencerDetail = () => {
           </div>
         </div>
 
+        {/* Warning for suspended status */}
+        {influencer.status === "suspended" && (
+          <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-red-500">Compte suspendu</p>
+              <p className="text-sm text-muted-foreground">
+                Les codes de cet influenceur sont désactivés. Les commissions en attente sont conservées.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -440,6 +648,17 @@ const AdminReferralInfluencerDetail = () => {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Wallet className="w-8 h-8 text-pink-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Demandes retrait</p>
+                  <p className="text-xl font-bold">{cashoutRequests?.length || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
@@ -449,13 +668,17 @@ const AdminReferralInfluencerDetail = () => {
             <TabsTrigger value="codes">Codes ({codes?.length || 0})</TabsTrigger>
             <TabsTrigger value="referrals">Parrainages ({attributions?.length || 0})</TabsTrigger>
             <TabsTrigger value="earnings">Gains</TabsTrigger>
+            <TabsTrigger value="payouts">Paiements ({payouts?.length || 0})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg">Informations</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={openEditProfile}>
+                    <Settings className="w-4 h-4" />
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -478,6 +701,14 @@ const AdminReferralInfluencerDetail = () => {
                       {new Date(influencer.created_at).toLocaleDateString("fr-CA")}
                     </p>
                   </div>
+                  {influencer.notes && (
+                    <div>
+                      <Label className="text-muted-foreground">Notes internes</Label>
+                      <p className="text-sm whitespace-pre-wrap bg-muted/50 p-2 rounded mt-1">
+                        {influencer.notes}
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -493,6 +724,23 @@ const AdminReferralInfluencerDetail = () => {
                   <div>
                     <Label className="text-muted-foreground">Email de paiement</Label>
                     <p className="font-medium">{influencer.payout_email || influencer.email}</p>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <Label className="text-muted-foreground">Résumé financier</Label>
+                    <div className="mt-2 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Commissions gagnées</span>
+                        <span className="font-medium">${(balances.approved + balances.pending).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-green-500">
+                        <span>Disponible pour retrait</span>
+                        <span className="font-medium">${available.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-purple-500">
+                        <span>Déjà versé</span>
+                        <span className="font-medium">${balances.paid.toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -518,7 +766,8 @@ const AdminReferralInfluencerDetail = () => {
                       <TableHead>Code</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-center">Utilisations</TableHead>
-                      <TableHead>Limite</TableHead>
+                      <TableHead>Limite totale</TableHead>
+                      <TableHead>Limite mensuelle</TableHead>
                       <TableHead>Créé le</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
@@ -526,7 +775,7 @@ const AdminReferralInfluencerDetail = () => {
                   <TableBody>
                     {codes?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Aucun code
                         </TableCell>
                       </TableRow>
@@ -553,22 +802,34 @@ const AdminReferralInfluencerDetail = () => {
                           <TableCell>
                             {code.usage_limit_total ? `${code.usage_limit_total} max` : "Illimité"}
                           </TableCell>
+                          <TableCell>
+                            {code.usage_limit_monthly ? `${code.usage_limit_monthly}/mois` : "—"}
+                          </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(code.created_at).toLocaleDateString("fr-CA")}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                toggleCodeStatus.mutate({
-                                  codeId: code.id,
-                                  newStatus: code.status === "active" ? "disabled" : "active",
-                                })
-                              }
-                            >
-                              {code.status === "active" ? "Désactiver" : "Activer"}
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditCode(code)}
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  toggleCodeStatus.mutate({
+                                    codeId: code.id,
+                                    newStatus: code.status === "active" ? "disabled" : "active",
+                                  })
+                                }
+                              >
+                                {code.status === "active" ? "Désactiver" : "Activer"}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -590,6 +851,7 @@ const AdminReferralInfluencerDetail = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Client</TableHead>
+                      <TableHead>Code utilisé</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead>Rabais appliqué</TableHead>
                       <TableHead>Fraude</TableHead>
@@ -599,7 +861,7 @@ const AdminReferralInfluencerDetail = () => {
                   <TableBody>
                     {attributions?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           Aucun parrainage
                         </TableCell>
                       </TableRow>
@@ -611,6 +873,11 @@ const AdminReferralInfluencerDetail = () => {
                               <p className="font-medium">{attr.customer_email}</p>
                               <p className="text-xs text-muted-foreground">ID: {attr.customer_id}</p>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <code className="px-2 py-0.5 bg-muted rounded text-xs">
+                              {attr.referral_code_id ? attr.referral_code_id.slice(0, 8) : "—"}
+                            </code>
                           </TableCell>
                           <TableCell>{getStatusBadge(attr.status)}</TableCell>
                           <TableCell>${Number(attr.customer_discount_amount).toFixed(2)}</TableCell>
@@ -683,6 +950,104 @@ const AdminReferralInfluencerDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="payouts">
+            <div className="space-y-6">
+              {/* Cashout Requests */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Demandes de retrait</CardTitle>
+                  <CardDescription>Historique des demandes de paiement</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Numéro</TableHead>
+                        <TableHead>Montant</TableHead>
+                        <TableHead>Méthode</TableHead>
+                        <TableHead>Destination</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Note admin</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cashoutRequests?.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            Aucune demande de retrait
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        cashoutRequests?.map((req) => (
+                          <TableRow key={req.id}>
+                            <TableCell className="font-mono text-sm">{req.request_number}</TableCell>
+                            <TableCell className="font-bold">${Number(req.amount).toFixed(2)}</TableCell>
+                            <TableCell className="capitalize">{req.method}</TableCell>
+                            <TableCell className="text-sm max-w-[150px] truncate">{req.destination}</TableCell>
+                            <TableCell>{getCashoutStatusBadge(req.status)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                              {req.admin_note || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(req.created_at).toLocaleDateString("fr-CA")}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Actual Payouts */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Paiements effectués</CardTitle>
+                  <CardDescription>Versements confirmés</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Demande liée</TableHead>
+                        <TableHead>Montant</TableHead>
+                        <TableHead>Méthode</TableHead>
+                        <TableHead>Référence</TableHead>
+                        <TableHead>Date de paiement</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payouts?.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            Aucun paiement effectué
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        payouts?.map((payout) => (
+                          <TableRow key={payout.id}>
+                            <TableCell className="font-mono text-sm">
+                              {payout.cashout_requests?.request_number || "—"}
+                            </TableCell>
+                            <TableCell className="font-bold text-green-400">
+                              ${Number(payout.amount).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="capitalize">{payout.method}</TableCell>
+                            <TableCell className="text-sm">{payout.reference_id || "—"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(payout.paid_at).toLocaleDateString("fr-CA")}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -697,7 +1062,7 @@ const AdminReferralInfluencerDetail = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Code</Label>
+              <Label>Code *</Label>
               <Input
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value.toUpperCase())}
@@ -708,17 +1073,244 @@ const AdminReferralInfluencerDetail = () => {
                 Le code sera automatiquement converti en majuscules.
               </p>
             </div>
+            <div className="space-y-2">
+              <Label>Limite d'utilisation (optionnel)</Label>
+              <Input
+                type="number"
+                value={newCodeLimit}
+                onChange={(e) => setNewCodeLimit(e.target.value)}
+                placeholder="Illimité"
+                min="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                Nombre maximum d'utilisations. Laissez vide pour illimité.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddCodeDialogOpen(false)}>
               Annuler
             </Button>
             <Button
-              onClick={() => addCode.mutate(newCode)}
+              onClick={() => addCode.mutate({ 
+                code: newCode, 
+                usageLimit: newCodeLimit ? parseInt(newCodeLimit) : undefined 
+              })}
               disabled={!newCode || addCode.isPending}
             >
               {addCode.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Code Dialog */}
+      <Dialog open={editCodeDialogOpen} onOpenChange={setEditCodeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le code</DialogTitle>
+            <DialogDescription>
+              Modifiez les limites d'utilisation pour le code: {selectedCode?.code}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Limite totale d'utilisation</Label>
+              <Input
+                type="number"
+                value={editCodeData.usage_limit_total}
+                onChange={(e) => setEditCodeData(prev => ({ ...prev, usage_limit_total: e.target.value }))}
+                placeholder="Illimité"
+                min="1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Limite mensuelle</Label>
+              <Input
+                type="number"
+                value={editCodeData.usage_limit_monthly}
+                onChange={(e) => setEditCodeData(prev => ({ ...prev, usage_limit_monthly: e.target.value }))}
+                placeholder="Pas de limite"
+                min="1"
+              />
+            </div>
+            <div className="p-3 bg-muted/50 rounded text-sm">
+              <p>Utilisations actuelles: {selectedCode?.usage_count || 0}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCodeDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => updateCode.mutate({
+                codeId: selectedCode.id,
+                updates: {
+                  usage_limit_total: editCodeData.usage_limit_total ? parseInt(editCodeData.usage_limit_total) : null,
+                  usage_limit_monthly: editCodeData.usage_limit_monthly ? parseInt(editCodeData.usage_limit_monthly) : null,
+                },
+              })}
+              disabled={updateCode.isPending}
+            >
+              {updateCode.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Sauvegarder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={editProfileDialogOpen} onOpenChange={setEditProfileDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Modifier le profil</DialogTitle>
+            <DialogDescription>
+              Mettez à jour les informations de l'influenceur.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Prénom</Label>
+                <Input
+                  value={profileData.first_name}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, first_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nom</Label>
+                <Input
+                  value={profileData.last_name}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, last_name: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={profileData.email}
+                onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Téléphone</Label>
+              <Input
+                value={profileData.phone}
+                onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Optionnel"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Plan de commission</Label>
+              <Select
+                value={influencer.commission_plan_id || ""}
+                onValueChange={(value) => {
+                  // Store plan ID for update
+                  (profileData as any).commission_plan_id = value;
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {commissionPlans?.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name} (${plan.value})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-3">Informations de paiement</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Méthode de paiement</Label>
+                  <Select
+                    value={profileData.payout_method}
+                    onValueChange={(value) => setProfileData(prev => ({ ...prev, payout_method: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="etransfer">Interac e-Transfer</SelectItem>
+                      <SelectItem value="cheque">Chèque</SelectItem>
+                      <SelectItem value="direct_deposit">Dépôt direct</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Email de paiement</Label>
+                  <Input
+                    type="email"
+                    value={profileData.payout_email}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, payout_email: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes internes</Label>
+              <Textarea
+                value={profileData.notes}
+                onChange={(e) => setProfileData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Notes visibles uniquement par les admins..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProfileDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => updateProfile.mutate({
+                ...profileData,
+                commission_plan_id: (profileData as any).commission_plan_id,
+              })}
+              disabled={updateProfile.isPending}
+            >
+              {updateProfile.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Sauvegarder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend Account Dialog */}
+      <Dialog open={holdDialogOpen} onOpenChange={setHoldDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Suspendre le compte</DialogTitle>
+            <DialogDescription>
+              Les codes seront désactivés. Les commissions en attente seront conservées.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Raison de suspension (optionnel)</Label>
+              <Textarea
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                placeholder="Raison de la suspension..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHoldDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => updateStatus.mutate({ status: "suspended", reason: holdReason })}
+              disabled={updateStatus.isPending}
+            >
+              {updateStatus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Suspendre
             </Button>
           </DialogFooter>
         </DialogContent>
