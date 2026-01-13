@@ -52,7 +52,7 @@ import {
   Ban,
   DollarSign
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient } from "@/integrations/supabase/adminClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -100,7 +100,7 @@ const AdminReferralAttributions = () => {
   const { data: attributions, isLoading, error, refetch } = useQuery({
     queryKey: ["referral-attributions", searchTerm, statusFilter],
     queryFn: async () => {
-      let query = supabase
+      let query = adminClient
         .from("referral_attributions")
         .select(`
           *,
@@ -126,7 +126,7 @@ const AdminReferralAttributions = () => {
   const { data: settings } = useQuery({
     queryKey: ["referral-program-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await adminClient
         .from("referral_program_settings")
         .select("*")
         .single();
@@ -149,7 +149,7 @@ const AdminReferralAttributions = () => {
       commission?: number;
     }) => {
       // Update attribution status
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminClient
         .from("referral_attributions")
         .update({ 
           status: newStatus,
@@ -165,7 +165,7 @@ const AdminReferralAttributions = () => {
         const attr = actionDialog.attribution;
         if (!attr) throw new Error("Attribution not found");
 
-        const { error: ledgerError } = await supabase
+        const { error: ledgerError } = await adminClient
           .from("commission_ledger_entries")
           .insert({
             influencer_id: attr.influencer_id,
@@ -185,7 +185,7 @@ const AdminReferralAttributions = () => {
       // If rejected or disputed, optionally create a reversal if there was a previous credit
       if (newStatus === "rejected" || newStatus === "disputed") {
         // Check if there's an existing approved credit for this attribution
-        const { data: existingCredits } = await supabase
+        const { data: existingCredits } = await adminClient
           .from("commission_ledger_entries")
           .select("id, amount")
           .eq("attribution_id", attributionId)
@@ -195,7 +195,7 @@ const AdminReferralAttributions = () => {
         if (existingCredits && existingCredits.length > 0) {
           // Create reversal entries for each credit
           for (const credit of existingCredits) {
-            await supabase
+            await adminClient
               .from("commission_ledger_entries")
               .insert({
                 influencer_id: actionDialog.attribution?.influencer_id,
@@ -235,8 +235,11 @@ const AdminReferralAttributions = () => {
   });
 
   const openActionDialog = (action: AttributionStatus, attribution: Attribution) => {
-    // Default commission is 50% of customer discount (matching influencer gets 50% of first bill)
-    const defaultCommission = Number(attribution.customer_discount_amount) || 0;
+    // Commission formula: Influencer gets 50% of what client paid after discount
+    // Since discount = 50% of services, client paid = discount amount
+    // So influencer commission = 50% of client paid = 50% of discount amount
+    const customerDiscount = Number(attribution.customer_discount_amount) || 0;
+    const defaultCommission = customerDiscount / 2; // 50% of what client paid
     setCommissionAmount(defaultCommission.toFixed(2));
     setActionNote("");
     setActionDialog({ open: true, action, attribution });
@@ -370,7 +373,8 @@ const AdminReferralAttributions = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Montant par défaut: 50% du rabais client = ${(Number(attribution.customer_discount_amount || 0)).toFixed(2)}
+                Rabais client: ${(Number(attribution.customer_discount_amount || 0)).toFixed(2)} → 
+                Commission (50% du montant payé): ${(Number(attribution.customer_discount_amount || 0) / 2).toFixed(2)}
               </p>
             </div>
           )}
