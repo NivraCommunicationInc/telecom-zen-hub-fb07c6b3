@@ -28,6 +28,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     support: [
       { label: isFr ? "Nous joindre" : "Contact Us", href: "/#contact" },
       { label: "FAQ", href: "/aide" },
+      { label: isFr ? "Suivi de commande" : "Track Order", href: "/track-order" },
       { label: isFr ? "Portail client" : "Client Portal", href: "/portal/auth" },
       { label: isFr ? "Portail partenaires" : "Partner Portal", href: "/influencer/login" },
     ],
