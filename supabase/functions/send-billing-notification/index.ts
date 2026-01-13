@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
+import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
 
 const handler = async (req: Request): Promise<Response> => {
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -47,7 +48,25 @@ const handler = async (req: Request): Promise<Response> => {
     if (!emailResponse.ok) throw new Error(result.message);
 
     // Send SMS notification based on type (non-blocking)
-    if (phone && toE164(phone)) {
+    // Fetch phone if not provided
+    let phoneForSms = phone;
+    let clientIdForSms = clientId;
+
+    if (!phoneForSms && email) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && supabaseServiceKey) {
+        console.log(`No phone provided, fetching from profiles...`);
+        const phoneResult = await fetchClientPhone(supabaseUrl, supabaseServiceKey, email, clientId);
+        phoneForSms = phoneResult.phone;
+        clientIdForSms = phoneResult.clientId || clientId;
+        if (phoneForSms) {
+          console.log(`Found phone from profiles`);
+        }
+      }
+    }
+
+    if (phoneForSms && toE164(phoneForSms)) {
       const clientName = name || "Client";
       const formattedAmount = formatCurrency(amount);
       let smsMessage: string | null = null;
@@ -71,14 +90,16 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (smsMessage) {
         const smsResult = await sendSmsNotification({
-          to: phone,
+          to: phoneForSms,
           message: smsMessage,
-          clientId,
+          clientId: clientIdForSms,
           eventType: `billing_${type}`,
           eventKey: invoiceNumber ? `billing_${invoiceNumber}_${type}` : undefined,
         });
         console.log(`Billing SMS result:`, JSON.stringify(smsResult));
       }
+    } else {
+      console.log(`No valid phone for billing SMS`);
     }
 
     return new Response(JSON.stringify({ success: true, result }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });

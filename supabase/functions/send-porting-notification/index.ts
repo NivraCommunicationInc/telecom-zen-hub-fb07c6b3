@@ -7,7 +7,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
+import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,17 +65,12 @@ Deno.serve(async (req) => {
     let phoneForSms = client_phone;
     let clientIdForSms = client_id;
 
-    if (!phoneForSms && client_email) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, phone")
-        .eq("email", client_email)
-        .maybeSingle();
-
-      if (profile?.phone) {
-        phoneForSms = profile.phone;
-        clientIdForSms = profile.id;
+    if (!phoneForSms) {
+      console.log(`[${requestId}] No phone provided, fetching from profiles...`);
+      const phoneResult = await fetchClientPhone(supabaseUrl, supabaseServiceKey, client_email, client_id);
+      phoneForSms = phoneResult.phone || undefined;
+      clientIdForSms = phoneResult.clientId || client_id;
+      if (phoneForSms) {
         console.log(`[${requestId}] Found phone from profile`);
       }
     }

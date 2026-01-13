@@ -179,239 +179,257 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
 
 // =============================================
 // PROFESSIONAL SMS TEMPLATES
-// Format: Clean, structured, bilingual-friendly
+// Format exact demandé par le client
 // =============================================
 
-const COMPANY_LINE = "— Nivra Télécom";
-const SUPPORT_PHONE = "438-544-2233";
-const PORTAL_URL = "nivratelecom.ca/portal";
+const SMS_FOOTER = `
+Nivra Telecom
+Laval, QC, Canada
+Support@nivratelecom.ca | 438-544-2233
+Vous recevez ce texto suite à une action sur votre compte Nivra Telecom.
+You are receiving this text because of an action on your Nivra Telecom account.`;
 
 export const SMS_TEMPLATES = {
   // ═══════════════════════════════════════════
   // COMMANDES / ORDERS
   // ═══════════════════════════════════════════
   orderConfirmation: (params: { orderNumber: string; clientName: string; monthlyTotal: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-Votre commande ${params.orderNumber} a été reçue et est en cours de traitement.
+Bonjour ${params.clientName},
 
-💰 Total mensuel: ${params.monthlyTotal}
+Votre commande ${params.orderNumber} est confirmée.
+Total mensuel: ${params.monthlyTotal}
 
-Prochaine étape: Notre équipe vous contactera sous 24h pour confirmer les détails.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Vous pouvez suivre l'état de votre commande directement dans votre compte.
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // INSTALLATIONS
   // ═══════════════════════════════════════════
   installationScheduled: (params: { orderNumber: string; clientName: string; dateTime?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-Votre rendez-vous d'installation est confirmé.
+Bonjour ${params.clientName},
 
-📅 ${params.dateTime ? `Date: ${params.dateTime}` : 'Un technicien vous sera assigné sous peu.'}
-📋 Référence: ${params.orderNumber}
+Votre installation est planifiée.
+Commande: ${params.orderNumber}${params.dateTime ? `
+Date: ${params.dateTime}` : ''}
 
-Merci de vous assurer qu'un adulte soit présent.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Un technicien se présentera à votre adresse. Assurez-vous qu'un adulte soit présent.
+${SMS_FOOTER}`,
 
   technicianEnRoute: (params: { clientName: string; technicianName?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
+
+Bonjour ${params.clientName},
 
 Notre technicien${params.technicianName ? ` ${params.technicianName}` : ''} est en route vers votre domicile.
+Arrivée estimée: 15-30 minutes
 
-⏱️ Arrivée estimée: 15-30 minutes
-
-Merci de rester disponible pour son arrivée.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Merci de rester disponible.
+${SMS_FOOTER}`,
 
   installationCompleted: (params: { clientName: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Votre installation est terminée avec succès!
+Bonjour ${params.clientName},
 
-Vos services sont maintenant actifs. Accédez à votre espace client pour gérer votre compte:
-🔗 ${PORTAL_URL}
+Votre installation est terminée avec succès.
+Vos services sont maintenant actifs.
 
-Merci de votre confiance.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Accédez à votre espace client: nivratelecom.ca/portal
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // PAIEMENTS
   // ═══════════════════════════════════════════
   paymentReceived: (params: { clientName: string; amount: string; invoiceNumber?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Paiement reçu
+Bonjour ${params.clientName},
 
-💰 Montant: ${params.amount}${params.invoiceNumber ? `\n📋 Facture: ${params.invoiceNumber}` : ''}
+Paiement reçu: ${params.amount}${params.invoiceNumber ? `
+Facture: ${params.invoiceNumber}` : ''}
 
-Merci pour votre paiement. Votre reçu sera disponible dans votre espace client.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Merci pour votre paiement. Votre reçu est disponible dans votre espace client.
+${SMS_FOOTER}`,
 
   paymentOverdue: (params: { clientName: string; amount: string; dueDate?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-⚠️ Rappel de paiement
+Bonjour ${params.clientName},
 
-Un solde de ${params.amount} est dû sur votre compte${params.dueDate ? ` depuis le ${params.dueDate}` : ''}.
+Rappel: Un solde de ${params.amount} est dû sur votre compte${params.dueDate ? ` depuis le ${params.dueDate}` : ''}.
 
-Pour éviter une interruption de service, veuillez régulariser votre situation:
-🔗 ${PORTAL_URL}
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Pour éviter une interruption de service, veuillez effectuer votre paiement: nivratelecom.ca/portal
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // SERVICES
   // ═══════════════════════════════════════════
   serviceActivated: (params: { clientName: string; serviceName: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Service activé
+Bonjour ${params.clientName},
 
-Votre service ${params.serviceName} est maintenant actif et prêt à utiliser.
+Votre service ${params.serviceName} est maintenant actif.
 
-Gérez votre compte:
-🔗 ${PORTAL_URL}
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Gérez votre compte: nivratelecom.ca/portal
+${SMS_FOOTER}`,
 
   serviceSuspended: (params: { clientName: string; serviceName: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-⚠️ Service suspendu
+Bonjour ${params.clientName},
 
 Votre service ${params.serviceName} a été temporairement suspendu.
 
-Pour rétablir votre service, contactez notre équipe:
-📞 ${SUPPORT_PHONE}
-
-${COMPANY_LINE}`,
+Contactez-nous pour rétablir votre service: 438-544-2233
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // STREAMING
   // ═══════════════════════════════════════════
   streamingActivated: (params: { clientName: string; serviceName: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Abonnement streaming activé
+Bonjour ${params.clientName},
 
-Votre abonnement ${params.serviceName} est maintenant actif!
-
-📧 Vos identifiants de connexion vous seront envoyés par email.
+Votre abonnement ${params.serviceName} est maintenant actif.
+Vos identifiants de connexion vous seront envoyés par email.
 
 Bon visionnement!
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // MOBILE
   // ═══════════════════════════════════════════
   mobileActivated: (params: { clientName: string; phoneNumber?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Ligne mobile activée${params.phoneNumber ? `\n📱 Numéro: ${params.phoneNumber}` : ''}
+Bonjour ${params.clientName},
 
-Insérez votre carte SIM et redémarrez votre appareil pour commencer à utiliser votre ligne.
+Votre ligne mobile est activée${params.phoneNumber ? `: ${params.phoneNumber}` : ''}.
 
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Insérez votre carte SIM et redémarrez votre appareil pour commencer.
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // TICKETS DE SUPPORT
   // ═══════════════════════════════════════════
   ticketCreated: (params: { clientName: string; ticketNumber: string; subject: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-📋 Demande de support reçue
+Bonjour ${params.clientName},
 
-Numéro de ticket: ${params.ticketNumber}
+Votre demande de support a été reçue.
+Ticket: ${params.ticketNumber}
 Sujet: ${params.subject}
 
-Notre équipe traitera votre demande dans les plus brefs délais. Vous recevrez une mise à jour par email.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Notre équipe traitera votre demande dans les plus brefs délais.
+${SMS_FOOTER}`,
 
   ticketStatusUpdate: (params: { clientName: string; ticketNumber: string; newStatus: string; statusLabel: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-📋 Mise à jour de votre ticket ${params.ticketNumber}
+Bonjour ${params.clientName},
 
+Mise à jour de votre ticket ${params.ticketNumber}.
 Nouveau statut: ${params.statusLabel}
 
-Consultez les détails dans votre espace client:
-🔗 ${PORTAL_URL}
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Consultez les détails: nivratelecom.ca/portal
+${SMS_FOOTER}`,
 
   ticketResolved: (params: { clientName: string; ticketNumber: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Ticket résolu
+Bonjour ${params.clientName},
 
 Votre demande ${params.ticketNumber} a été traitée et résolue.
 
 Si vous avez d'autres questions, n'hésitez pas à nous contacter.
-
-Merci de votre confiance.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
   // TRANSFERT DE NUMÉRO
   // ═══════════════════════════════════════════
   portingInitiated: (params: { clientName: string; phoneNumber: string; estimatedDate?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-📱 Transfert de numéro initié
+Bonjour ${params.clientName},
 
-Numéro: ${params.phoneNumber}${params.estimatedDate ? `\n📅 Date estimée: ${params.estimatedDate}` : ''}
+Transfert de numéro initié: ${params.phoneNumber}${params.estimatedDate ? `
+Date estimée: ${params.estimatedDate}` : ''}
 
-Votre demande de transfert est en cours de traitement. Nous vous notifierons dès que le transfert sera complété.
-
-⚠️ Important: Ne résiliez pas votre ancien service avant confirmation.
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+Important: Ne résiliez pas votre ancien service avant confirmation.
+${SMS_FOOTER}`,
 
   portingCompleted: (params: { clientName: string; phoneNumber: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-✅ Transfert de numéro complété
+Bonjour ${params.clientName},
 
-Votre numéro ${params.phoneNumber} est maintenant actif chez Nivra!
+Transfert complété: Votre numéro ${params.phoneNumber} est maintenant actif chez Nivra.
 
 Redémarrez votre appareil pour finaliser l'activation.
-
-Bienvenue chez Nivra Télécom!
-
-${COMPANY_LINE}
-📞 ${SUPPORT_PHONE}`,
+${SMS_FOOTER}`,
 
   portingFailed: (params: { clientName: string; phoneNumber: string; reason?: string }) =>
-`Bonjour ${params.clientName},
+`Nivra Telecom
 
-⚠️ Transfert de numéro en attente
+Bonjour ${params.clientName},
 
-Le transfert de ${params.phoneNumber} nécessite votre attention.${params.reason ? `\n\nRaison: ${params.reason}` : ''}
+Le transfert de ${params.phoneNumber} nécessite votre attention.${params.reason ? `
+Raison: ${params.reason}` : ''}
 
-Contactez-nous pour résoudre cette situation:
-📞 ${SUPPORT_PHONE}
-
-${COMPANY_LINE}`,
+Contactez-nous: 438-544-2233
+${SMS_FOOTER}`,
 };
+
+/**
+ * Fetch client phone from profiles table if not provided
+ */
+export async function fetchClientPhone(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  clientEmail?: string,
+  clientId?: string
+): Promise<{ phone: string | null; clientId: string | null }> {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return { phone: null, clientId: null };
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (clientId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("id", clientId)
+        .maybeSingle();
+
+      if (profile?.phone) {
+        return { phone: profile.phone, clientId };
+      }
+    }
+
+    if (clientEmail) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, phone")
+        .eq("email", clientEmail)
+        .maybeSingle();
+
+      if (profile?.phone) {
+        return { phone: profile.phone, clientId: profile.id };
+      }
+    }
+
+    return { phone: null, clientId: null };
+  } catch (error) {
+    console.error("Error fetching client phone:", error);
+    return { phone: null, clientId: null };
+  }
+}

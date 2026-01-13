@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
+import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -356,19 +356,35 @@ Deno.serve(async (req) => {
     });
 
     // Send SMS for activated status (non-blocking)
-    if (client_phone && toE164(client_phone) && status === "activated") {
+    // Fetch phone if not provided
+    let phoneForSms = client_phone;
+    let clientIdForSms = client_id;
+
+    if (!phoneForSms) {
+      console.log(`[${requestId}] No phone provided, fetching from profiles...`);
+      const phoneResult = await fetchClientPhone(supabaseUrl, supabaseServiceKey, client_email, client_id);
+      phoneForSms = phoneResult.phone || undefined;
+      clientIdForSms = phoneResult.clientId || client_id;
+      if (phoneForSms) {
+        console.log(`[${requestId}] Found phone from profiles`);
+      }
+    }
+
+    if (phoneForSms && toE164(phoneForSms) && status === "activated") {
       const clientName = client_first_name || "Client";
       const smsResult = await sendSmsNotification({
-        to: client_phone,
+        to: phoneForSms,
         message: SMS_TEMPLATES.mobileActivated({
           clientName,
           phoneNumber: phone_number,
         }),
-        clientId: client_id,
+        clientId: clientIdForSms,
         eventType: "mobile_activated",
         eventKey: `mobile_${order_id}_activated`,
       });
       console.log(`[${requestId}] Mobile SMS result:`, JSON.stringify(smsResult));
+    } else if (!phoneForSms) {
+      console.log(`[${requestId}] No valid phone for SMS`);
     }
 
     return new Response(JSON.stringify({ 
