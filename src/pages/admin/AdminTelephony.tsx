@@ -43,6 +43,7 @@ const AdminTelephony = () => {
   const [smsMessage, setSmsMessage] = useState("");
   const [dialerMode, setDialerMode] = useState<"call" | "sms">("call");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [openPhoneUrl, setOpenPhoneUrl] = useState("https://app.openphone.com");
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -222,18 +223,19 @@ const AdminTelephony = () => {
       toast.error("Numéro invalide");
       return;
     }
-    
+
     // Log the action for tracking
     logCallAction();
-    
-    // Open OpenPhone with the number pre-filled
+
+    // Show OpenPhone inside the admin portal (no new tab)
     const deepLink = getOpenPhoneDeepLink(e164, "call");
-    window.open(deepLink, "_blank");
-    
-    toast.success("OpenPhone ouvert", {
-      description: "L'appel va démarrer dans OpenPhone",
+    setOpenPhoneUrl(deepLink);
+    setActiveTab("openphone");
+
+    toast.success("OpenPhone affiché", {
+      description: "Passez l'appel dans le panneau OpenPhone ci-dessous.",
     });
-    
+
     queryClient.invalidateQueries({ queryKey: ["telephony-logs"] });
   };
 
@@ -262,7 +264,7 @@ const AdminTelephony = () => {
               </Button>
             </div>
             <iframe
-              src="https://app.openphone.com"
+              src={openPhoneUrl}
               className="w-full h-[calc(100vh-65px)]"
               title="OpenPhone"
               allow="microphone; camera; clipboard-write"
@@ -427,7 +429,7 @@ const AdminTelephony = () => {
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
                     <p className="text-muted-foreground">
-                      L'appel s'ouvrira dans OpenPhone Web. Assurez-vous d'être connecté à votre compte.
+                      L'appel se fera dans le panneau OpenPhone intégré (sans quitter l'admin).
                     </p>
                   </div>
                 </div>
@@ -496,7 +498,7 @@ const AdminTelephony = () => {
                       </Button>
                     </div>
                     <iframe
-                      src="https://app.openphone.com"
+                      src={openPhoneUrl}
                       className="w-full h-[600px]"
                       title="OpenPhone"
                       allow="microphone; camera; clipboard-write"
@@ -624,12 +626,17 @@ const AdminTelephony = () => {
                   )}
 
                   <div className="p-4 rounded-lg border">
-                    <h4 className="font-medium mb-2">Accès direct OpenPhone</h4>
-                    <Button variant="outline" asChild className="w-full">
-                      <a href="https://app.openphone.com/settings/api" target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Gérer les clés API OpenPhone
-                      </a>
+                    <h4 className="font-medium mb-2">Réglages OpenPhone</h4>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setOpenPhoneUrl("https://app.openphone.com/settings/api");
+                        setActiveTab("openphone");
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Ouvrir les réglages OpenPhone (dans l’admin)
                     </Button>
                   </div>
                 </TabsContent>
