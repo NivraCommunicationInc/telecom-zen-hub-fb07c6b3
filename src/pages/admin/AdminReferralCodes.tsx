@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -21,13 +22,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Search, Loader2, QrCode, RefreshCw, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  ArrowLeft, 
+  Search, 
+  Loader2, 
+  QrCode, 
+  RefreshCw, 
+  AlertCircle,
+  MoreHorizontal,
+  Edit,
+  Ban,
+  CheckCircle,
+  Eye
+} from "lucide-react";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 const AdminReferralCodes = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedCode, setSelectedCode] = useState<any>(null);
+  const [editData, setEditData] = useState({
+    usage_limit_total: "",
+    usage_limit_monthly: "",
+  });
 
   const { data: codes, isLoading, error, refetch } = useQuery({
     queryKey: ["referral-codes", searchTerm, statusFilter],
@@ -53,6 +89,64 @@ const AdminReferralCodes = () => {
       return data || [];
     },
   });
+
+  // Toggle code status mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ codeId, newStatus }: { codeId: string; newStatus: string }) => {
+      const { error } = await supabase
+        .from("referral_codes")
+        .update({ status: newStatus })
+        .eq("id", codeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["referral-codes"] });
+      toast.success("Statut du code mis à jour");
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Update code mutation
+  const updateCodeMutation = useMutation({
+    mutationFn: async ({ codeId, updates }: { codeId: string; updates: any }) => {
+      const { error } = await supabase
+        .from("referral_codes")
+        .update(updates)
+        .eq("id", codeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["referral-codes"] });
+      setEditDialogOpen(false);
+      setSelectedCode(null);
+      toast.success("Code mis à jour");
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  const openEditDialog = (code: any) => {
+    setSelectedCode(code);
+    setEditData({
+      usage_limit_total: code.usage_limit_total?.toString() || "",
+      usage_limit_monthly: code.usage_limit_monthly?.toString() || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedCode) return;
+    updateCodeMutation.mutate({
+      codeId: selectedCode.id,
+      updates: {
+        usage_limit_total: editData.usage_limit_total ? parseInt(editData.usage_limit_total) : null,
+        usage_limit_monthly: editData.usage_limit_monthly ? parseInt(editData.usage_limit_monthly) : null,
+      },
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -109,7 +203,7 @@ const AdminReferralCodes = () => {
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">Codes de Parrainage</h1>
             <p className="text-muted-foreground">
-              Tous les codes de parrainage actifs
+              Gérez tous les codes de parrainage
             </p>
           </div>
         </div>
@@ -152,19 +246,21 @@ const AdminReferralCodes = () => {
                   <TableHead>Statut</TableHead>
                   <TableHead>Influenceur</TableHead>
                   <TableHead className="text-center">Utilisations</TableHead>
+                  <TableHead>Limites</TableHead>
                   <TableHead>Créé le</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : !codes || codes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <QrCode className="w-10 h-10 opacity-50" />
                         <p>Aucun code trouvé</p>
@@ -202,10 +298,65 @@ const AdminReferralCodes = () => {
                       <TableCell className="text-center">
                         <Badge variant="outline">{code.usage_count ?? 0}</Badge>
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {code.usage_limit_total || code.usage_limit_monthly ? (
+                          <div className="space-y-1">
+                            {code.usage_limit_total && (
+                              <p>Total: {code.usage_limit_total}</p>
+                            )}
+                            {code.usage_limit_monthly && (
+                              <p>Mensuel: {code.usage_limit_monthly}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span>Illimité</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {code.created_at
                           ? new Date(code.created_at).toLocaleDateString("fr-CA")
                           : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {code.influencers && (
+                              <DropdownMenuItem asChild>
+                                <Link to={`/admin/referrals/influencers/${code.influencers.id}`}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Voir l'influenceur
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => openEditDialog(code)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Modifier les limites
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {code.status === "active" ? (
+                              <DropdownMenuItem
+                                onClick={() => toggleStatusMutation.mutate({ codeId: code.id, newStatus: "disabled" })}
+                                className="text-red-500"
+                              >
+                                <Ban className="w-4 h-4 mr-2" />
+                                Désactiver
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => toggleStatusMutation.mutate({ codeId: code.id, newStatus: "active" })}
+                                className="text-green-500"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Activer
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -215,6 +366,61 @@ const AdminReferralCodes = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le code</DialogTitle>
+            <DialogDescription>
+              Modifiez les limites d'utilisation du code{" "}
+              <code className="bg-muted px-1 rounded">{selectedCode?.code}</code>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="usage_limit_total">Limite totale d'utilisations</Label>
+              <Input
+                id="usage_limit_total"
+                type="number"
+                min="0"
+                placeholder="Illimité"
+                value={editData.usage_limit_total}
+                onChange={(e) => setEditData({ ...editData, usage_limit_total: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Laissez vide pour illimité
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="usage_limit_monthly">Limite mensuelle</Label>
+              <Input
+                id="usage_limit_monthly"
+                type="number"
+                min="0"
+                placeholder="Illimité"
+                value={editData.usage_limit_monthly}
+                onChange={(e) => setEditData({ ...editData, usage_limit_monthly: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Nombre maximum d'utilisations par mois
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateCodeMutation.isPending}>
+              {updateCodeMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

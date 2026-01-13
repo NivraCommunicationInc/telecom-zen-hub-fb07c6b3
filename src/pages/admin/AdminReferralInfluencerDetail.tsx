@@ -51,7 +51,7 @@ import {
   Settings,
   AlertTriangle,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { toast } from "sonner";
 
 const AdminReferralInfluencerDetail = () => {

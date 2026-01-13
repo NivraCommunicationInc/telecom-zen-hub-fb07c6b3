@@ -52,7 +52,7 @@ import {
   Ban,
   DollarSign
 } from "lucide-react";
-import { adminClient } from "@/integrations/supabase/adminClient";
+import { adminClient } from "@/integrations/backend/adminClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";

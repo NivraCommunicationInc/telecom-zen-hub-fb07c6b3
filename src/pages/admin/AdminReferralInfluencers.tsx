@@ -53,7 +53,7 @@ import {
   Wrench,
   Clock,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
