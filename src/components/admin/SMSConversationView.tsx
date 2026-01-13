@@ -104,33 +104,28 @@ const SMSConversationView = ({ selectedPhone, onBack }: SMSConversationViewProps
   const sendMutation = useMutation({
     mutationFn: async (text: string) => {
       const session = await supabase.auth.getSession();
-      const token = session.data?.session?.access_token;
-      
-      if (!token) throw new Error("Non authentifié");
 
       const e164 = toE164(selectedPhone!);
       if (!e164) throw new Error("Numéro de téléphone invalide");
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openphone-sms`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: e164,
-            text: text.trim(),
-            agentName: user?.email,
-          }),
-        }
-      );
+      if (!text.trim()) throw new Error("Le message ne peut pas être vide");
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de l'envoi");
-      return data;
+      const { data, error } = await supabase.functions.invoke("openphone-sms", {
+        body: {
+          to: e164,
+          text: text.trim(),
+          agentName: session.data?.session?.user?.email ?? user?.email,
+        },
+      });
+
+      if (error) throw new Error(error.message || "Échec de l'envoi");
+
+      const payload = data as any;
+      if (!payload?.success) {
+        throw new Error(payload?.error || payload?.message || "Échec de l'envoi");
+      }
+
+      return payload;
     },
     onSuccess: () => {
       setNewMessage("");

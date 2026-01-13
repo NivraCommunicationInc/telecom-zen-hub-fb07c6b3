@@ -58,28 +58,17 @@ const AdminTelephony = () => {
   const { data: openPhoneNumbers, isLoading: numbersLoading } = useQuery({
     queryKey: ["openphone-numbers"],
     queryFn: async () => {
-      const session = await supabase.auth.getSession();
-      const token = session.data?.session?.access_token;
-      
-      if (!token) return [];
+      // Use the backend client invoke to ensure required headers (apikey + auth) are always present.
+      const { data, error } = await supabase.functions.invoke("openphone-phone-numbers", {
+        method: "GET",
+      });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openphone-phone-numbers`,
-        {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!res.ok) {
-        console.error("Failed to fetch OpenPhone numbers");
+      if (error) {
+        console.error("Failed to fetch OpenPhone numbers:", error);
         return [];
       }
 
-      const data = await res.json();
-      return data.phoneNumbers || [];
+      return ((data as any)?.phoneNumbers ?? []) as any[];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -174,36 +163,32 @@ const AdminTelephony = () => {
   const smsMutation = useMutation({
     mutationFn: async ({ to, text }: { to: string; text: string }) => {
       const sessionRes = await supabase.auth.getSession();
-      const token = sessionRes.data?.session?.access_token;
       const agentEmail = sessionRes.data?.session?.user?.email ?? user?.email;
-
-      if (!token) throw new Error("Non authentifié");
 
       const e164 = toE164(to);
       if (!e164) throw new Error("Numéro de téléphone invalide");
 
       if (!text.trim()) throw new Error("Le message ne peut pas être vide");
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openphone-sms`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: e164,
-            text: text.trim(),
-            agentName: agentEmail,
-          }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("openphone-sms", {
+        body: {
+          to: e164,
+          text: text.trim(),
+          agentName: agentEmail,
+        },
+      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.details || "Échec de l'envoi SMS");
-      return { ...data, phone: e164 };
+      if (error) {
+        // Supabase returns non-2xx responses here with a structured error
+        throw new Error(error.message || "Échec de l'envoi SMS");
+      }
+
+      const payload = data as any;
+      if (!payload?.success) {
+        throw new Error(payload?.error || payload?.message || "Échec de l'envoi SMS");
+      }
+
+      return { ...payload, phone: e164 };
     },
     onSuccess: (data) => {
       toast.success("SMS envoyé", {
