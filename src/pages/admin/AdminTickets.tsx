@@ -372,6 +372,7 @@ const AdminTickets = () => {
         .from("support_tickets")
         .insert({
           user_id: profile.user_id,
+          owner_user_id: profile.user_id, // REQUIRED: Client's auth.uid() for RLS
           client_email: profile.email,
           subject: ticketData.subject,
           description: ticketData.description,
