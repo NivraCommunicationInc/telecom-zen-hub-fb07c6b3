@@ -68,7 +68,7 @@ const TrackOrder = () => {
   const isFr = language === "fr";
   
   const [orderNumber, setOrderNumber] = useState("");
-  const [postalCode, setPostalCode] = useState("");
+  const [lastName, setLastName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
@@ -80,23 +80,23 @@ const TrackOrder = () => {
     setOrderData(null);
     setSearched(true);
 
-    if (!orderNumber.trim() || !postalCode.trim()) {
+    if (!orderNumber.trim() || !lastName.trim()) {
       setError(isFr 
-        ? "Veuillez entrer le numéro de commande et le code postal." 
-        : "Please enter both order number and postal code.");
+        ? "Veuillez entrer le numéro de commande et votre nom de famille." 
+        : "Please enter both order number and your last name.");
       return;
     }
 
-    // Normalize postal code - remove spaces and uppercase
-    const normalizedPostal = postalCode.replace(/\s/g, "").toUpperCase();
+    // Normalize last name - trim and lowercase for comparison
+    const normalizedLastName = lastName.trim().toLowerCase();
 
     setIsLoading(true);
 
     try {
-      // Query order by order_number and verify postal code matches
+      // Query order by order_number and verify last name matches
       const { data, error: queryError } = await supabase
         .from("orders")
-        .select("id, order_number, status, created_at, updated_at, service_type, shipping_address, shipping_city, total_amount, shipping_postal_code")
+        .select("id, order_number, status, created_at, updated_at, service_type, shipping_address, shipping_city, total_amount, client_last_name")
         .eq("order_number", orderNumber.trim().toUpperCase())
         .single();
 
@@ -108,12 +108,12 @@ const TrackOrder = () => {
         return;
       }
 
-      // Verify postal code matches
-      const orderPostal = (data.shipping_postal_code || "").replace(/\s/g, "").toUpperCase();
-      if (orderPostal !== normalizedPostal) {
+      // Verify last name matches (case-insensitive)
+      const orderLastName = (data.client_last_name || "").trim().toLowerCase();
+      if (orderLastName !== normalizedLastName) {
         setError(isFr 
-          ? "Le code postal ne correspond pas à cette commande." 
-          : "The postal code does not match this order.");
+          ? "Le nom de famille ne correspond pas à cette commande." 
+          : "The last name does not match this order.");
         setIsLoading(false);
         return;
       }
@@ -163,8 +163,8 @@ const TrackOrder = () => {
             </h1>
             <p className="text-muted-foreground">
               {isFr 
-                ? "Entrez votre numéro de commande et code postal pour voir l'état de votre commande." 
-                : "Enter your order number and postal code to check your order status."}
+                ? "Entrez votre numéro de commande et nom de famille pour voir l'état de votre commande." 
+                : "Enter your order number and last name to check your order status."}
             </p>
           </div>
 
@@ -189,22 +189,21 @@ const TrackOrder = () => {
                     </Label>
                     <Input
                       id="orderNumber"
-                      placeholder={isFr ? "Ex: ORD-123456" : "e.g., ORD-123456"}
+                      placeholder={isFr ? "Ex: ORD-2026-1234" : "e.g., ORD-2026-1234"}
                       value={orderNumber}
                       onChange={(e) => setOrderNumber(e.target.value)}
                       className="uppercase"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="postalCode">
-                      {isFr ? "Code postal" : "Postal Code"}
+                    <Label htmlFor="lastName">
+                      {isFr ? "Nom de famille" : "Last Name"}
                     </Label>
                     <Input
-                      id="postalCode"
-                      placeholder={isFr ? "Ex: H7T 2X5" : "e.g., H7T 2X5"}
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      className="uppercase"
+                      id="lastName"
+                      placeholder={isFr ? "Ex: Tremblay" : "e.g., Smith"}
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
                     />
                   </div>
                 </div>
