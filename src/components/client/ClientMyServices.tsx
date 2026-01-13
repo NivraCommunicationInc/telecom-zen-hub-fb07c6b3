@@ -279,10 +279,14 @@ const ClientMyServices = () => {
       relatedServiceId?: string;
       relatedEquipmentId?: string;
     }) => {
+      if (!user?.id) {
+        throw new Error("Utilisateur non authentifié");
+      }
       const { data, error } = await portalSupabase
         .from("support_tickets")
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
+          owner_user_id: user.id, // REQUIRED: Must match auth.uid() for RLS
           subject: ticketData.subject,
           description: ticketData.description,
           priority: ticketData.priority || "normal",
@@ -324,10 +328,14 @@ const ClientMyServices = () => {
   // Request plan change/upgrade
   const requestPlanChangeMutation = useMutation({
     mutationFn: async (data: { currentPlan: string; newPlan: string; subscriptionId: string }) => {
+      if (!user?.id) {
+        throw new Error("Utilisateur non authentifié");
+      }
       const { error } = await portalSupabase
         .from("support_tickets")
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
+          owner_user_id: user.id, // REQUIRED: Must match auth.uid() for RLS
           subject: `Demande de changement de forfait`,
           description: `Changement demandé:\n- Forfait actuel: ${data.currentPlan}\n- Nouveau forfait: ${data.newPlan}\n- ID abonnement: ${data.subscriptionId}`,
           priority: "normal",
