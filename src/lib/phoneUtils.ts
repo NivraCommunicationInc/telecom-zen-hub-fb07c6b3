@@ -90,12 +90,10 @@ export const getOpenPhoneSmsUrl = (phoneE164: string): string => {
  * These are optional and fallback to standard protocols
  */
 export const getOpenPhoneDeepLink = (phoneE164: string, action: 'call' | 'sms'): string => {
-  // OpenPhone web interface URL format
-  // Fallback to standard protocols
-  if (action === 'call') {
-    return `https://app.openphone.com/dialer?number=${encodeURIComponent(phoneE164)}`;
-  }
-  return `https://app.openphone.com/messages?number=${encodeURIComponent(phoneE164)}`;
+  // OpenPhone web app entry point (domain changed; routes may vary by account).
+  // We keep this as a safe landing page and let the UI copy/paste the number.
+  void action; // kept for API compatibility
+  return `https://my.openphone.com/?number=${encodeURIComponent(phoneE164)}`;
 };
 
 /**

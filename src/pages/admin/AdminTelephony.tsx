@@ -255,7 +255,7 @@ const AdminTelephony = () => {
     },
   });
 
-  // Call mutation - logs call and opens OpenPhone deep link
+  // Call mutation - logs the call attempt for traceability
   const callMutation = useMutation({
     mutationFn: async ({ to, clientId, clientName }: { to: string; clientId?: string; clientName?: string }) => {
       const sessionRes = await supabase.auth.getSession();
@@ -279,20 +279,17 @@ const AdminTelephony = () => {
 
       const payload = data as any;
       if (!payload?.success) {
-        throw new Error(payload?.error || payload?.message || "Échec de l'initiation de l'appel");
+        throw new Error(payload?.error || payload?.message || "Échec de la préparation de l'appel");
       }
 
       return { ...payload, phone: e164, clientName };
     },
     onSuccess: (data) => {
-      // Log call and open embedded OpenPhone panel
       setActiveCallNumber(data.phone);
       setActiveCallClientName(data.clientName || "");
       setOpenPhonePanelOpen(true);
-      toast.success("Appel initié", {
-        description: data.clientName 
-          ? `Panneau OpenPhone ouvert pour ${data.clientName}` 
-          : "Panneau OpenPhone ouvert - gérez l'appel directement",
+      toast.success("OpenPhone prêt", {
+        description: "Numéro copié — collez-le dans OpenPhone pour appeler.",
       });
       setNewCallOpen(false);
       setCallPhoneNumber("");
@@ -326,6 +323,8 @@ const AdminTelephony = () => {
     smsMutation.mutate({ to: phoneNumber, text: smsMessage });
   };
 
+  const OPENPHONE_WEB_URL = "https://my.openphone.com";
+
   const openOpenPhonePopup = () => {
     // Open immediately on user gesture when possible; browsers may block popups opened from async callbacks.
     const preferredWidth = 520;
@@ -342,7 +341,7 @@ const AdminTelephony = () => {
       `top=${Math.max(0, top)}`,
     ].join(",");
 
-    const win = window.open("https://app.openphone.com", "openphone", features);
+    const win = window.open(OPENPHONE_WEB_URL, "openphone", features);
     if (!win) {
       toast.error("Pop-up bloquée", {
         description: "Autorisez les pop-ups pour ouvrir OpenPhone et gérer les appels.",
@@ -759,13 +758,13 @@ const AdminTelephony = () => {
 
                   <div className="pt-4 space-y-2">
                     <Button variant="outline" className="w-full" asChild>
-                      <a href="https://app.openphone.com/settings/webhooks" target="_blank" rel="noopener noreferrer">
+                      <a href="https://my.openphone.com/settings/webhooks" target="_blank" rel="noopener noreferrer">
                         <Settings className="w-4 h-4 mr-2" />
                         Configurer les Webhooks OpenPhone
                       </a>
                     </Button>
                     <Button variant="outline" className="w-full" asChild>
-                      <a href="https://app.openphone.com/settings/api" target="_blank" rel="noopener noreferrer">
+                      <a href="https://my.openphone.com/settings/api" target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Gérer les clés API
                       </a>
