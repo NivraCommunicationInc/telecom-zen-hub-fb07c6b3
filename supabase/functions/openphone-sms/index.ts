@@ -113,8 +113,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use first available phone number or specified one
-    const fromPhoneNumber = body.from || phoneNumbers[0].phoneNumber;
+    // Use first available phone number ID or specified one (OpenPhone expects a PN... id)
+    const fromPhoneNumberId = body.from || phoneNumbers[0].id;
 
     // Send the SMS via OpenPhone API
     const smsRes = await fetch("https://api.openphone.com/v1/messages", {
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: fromPhoneNumber,
+        from: fromPhoneNumberId,
         to: [body.to],
         content: body.text,
       }),
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       console.error("OpenPhone SMS error:", errText);
       return new Response(
         JSON.stringify({ error: "Failed to send SMS", details: errText }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: smsRes.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
