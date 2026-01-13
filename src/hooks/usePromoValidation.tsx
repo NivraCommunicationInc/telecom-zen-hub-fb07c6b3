@@ -18,6 +18,10 @@ interface AppliedPromo {
   stackable: boolean;
   new_customers_only?: boolean;
   duration?: string;
+  // Referral code specific fields
+  is_referral_code?: boolean;
+  referral_code_id?: string;
+  influencer_id?: string;
 }
 
 interface PromoValidationResult {
@@ -65,6 +69,10 @@ export const usePromoValidation = () => {
           stackable: data.promo.stackable,
           new_customers_only: data.promo.new_customers_only,
           duration: data.promo.duration,
+          // Referral code specific fields
+          is_referral_code: data.is_referral_code || false,
+          referral_code_id: data.referral_code_id,
+          influencer_id: data.influencer_id,
         };
         setAppliedPromo(promo);
         return { valid: true, promo, discount_amount: data.discount_amount, eligible_subtotal: data.eligible_subtotal };
@@ -92,16 +100,34 @@ export const usePromoValidation = () => {
     if (!appliedPromo) return;
 
     try {
-      await backendClient.from("promotion_redemptions").insert({
-        promotion_id: appliedPromo.id,
-        order_id: orderId,
-        order_number: orderNumber,
-        client_id: clientId || null,
-        client_email: clientEmail.toLowerCase(),
-        discount_amount: appliedPromo.discount_amount,
-      });
+      // If it's a referral code, record in referral_attributions
+      if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
+        await backendClient.from("referral_attributions").insert({
+          referral_code_id: appliedPromo.referral_code_id,
+          influencer_id: appliedPromo.influencer_id,
+          order_id: orderId,
+          customer_email: clientEmail.toLowerCase(),
+          customer_discount_amount: appliedPromo.discount_amount,
+          status: 'pending',
+        });
+
+        // Also increment usage_count on referral_codes
+        await backendClient.rpc('increment_referral_usage', { 
+          code_id: appliedPromo.referral_code_id 
+        });
+      } else {
+        // Regular promo code - record in promotion_redemptions
+        await backendClient.from("promotion_redemptions").insert({
+          promotion_id: appliedPromo.id,
+          order_id: orderId,
+          order_number: orderNumber,
+          client_id: clientId || null,
+          client_email: clientEmail.toLowerCase(),
+          discount_amount: appliedPromo.discount_amount,
+        });
+      }
     } catch (err) {
-      console.error("Error recording promo redemption:", err);
+      console.error("Error recording promo/referral redemption:", err);
     }
   }, [appliedPromo]);
 

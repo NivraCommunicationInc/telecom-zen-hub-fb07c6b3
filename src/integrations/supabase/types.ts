@@ -7584,6 +7584,10 @@ export type Database = {
         Returns: boolean
       }
       hash_pin: { Args: { pin: string }; Returns: string }
+      increment_referral_usage: {
+        Args: { code_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       is_assigned_technician: {
         Args: { _work_order_id: string }

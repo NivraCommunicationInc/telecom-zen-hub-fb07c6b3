@@ -29,7 +29,87 @@ serve(async (req) => {
     // Normalize: trim, uppercase, remove trailing punctuation (accepts "Bienvenue." etc.)
     const normalizedCode = code.trim().toUpperCase().replace(/[.,;:!?]+$/, '');
 
-    // Fetch promotion by code
+    // First check referral_codes table (influencer codes)
+    const { data: referralCode, error: referralError } = await supabase
+      .from('referral_codes')
+      .select('*, influencers(*)')
+      .ilike('code', normalizedCode)
+      .eq('status', 'active')
+      .single();
+
+    if (referralCode && !referralError) {
+      console.log(`[validate-promo] Found referral code: ${normalizedCode} for influencer: ${referralCode.influencer_id}`);
+      
+      // Check if customer has already used ANY referral code (lifetime limit)
+      if (client_email) {
+        const { count: usedCount } = await supabase
+          .from('referral_attributions')
+          .select('id', { count: 'exact', head: true })
+          .eq('customer_email', client_email.toLowerCase());
+
+        if (usedCount !== null && usedCount > 0) {
+          return new Response(
+            JSON.stringify({ valid: false, error: "Vous avez déjà utilisé un code de référence" }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Calculate eligible subtotal - SERVICES ONLY for referral codes
+      let servicesSubtotal = 0;
+      for (const item of cart_items || []) {
+        if (item.type === 'service') {
+          servicesSubtotal += item.amount;
+        }
+      }
+
+      if (servicesSubtotal <= 0) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Aucun service éligible pour ce code de référence" }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 50% off services only
+      const discountAmount = Math.round(servicesSubtotal * 0.50 * 100) / 100;
+
+      console.log(`[validate-promo] Valid referral code ${normalizedCode}: 50% off services = ${discountAmount} CAD`);
+
+      const result = {
+        valid: true,
+        is_referral_code: true,
+        referral_code_id: referralCode.id,
+        influencer_id: referralCode.influencer_id,
+        promo: {
+          id: `referral_${referralCode.id}`,
+          code: referralCode.code.toUpperCase(),
+          name: "Rabais parrainage 50%",
+          discount_type: 'percent',
+          discount_value: 50,
+          applies_to: { services: true, one_time_fees: false, equipment: false, delivery: false, installation: false },
+          stackable: false,
+          new_customers_only: true,
+          duration: 'first_cycle_only',
+          discount_label: "Rabais parrainage 50% (1er mois seulement)",
+        },
+        discount_amount: discountAmount,
+        eligible_subtotal: servicesSubtotal,
+        breakdown: {
+          services: servicesSubtotal,
+          one_time_fees: 0,
+          equipment: 0,
+          delivery: 0,
+          installation: 0,
+        },
+      };
+
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If not a referral code, check promotions table
     const { data: promo, error: promoError } = await supabase
       .from('promotions')
       .select('*')
