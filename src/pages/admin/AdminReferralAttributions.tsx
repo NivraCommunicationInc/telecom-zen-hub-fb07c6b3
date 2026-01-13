@@ -262,7 +262,7 @@ const AdminReferralAttributions = () => {
       case "rejected":
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Rejeté</Badge>;
       case "hold":
-        return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">En attente</Badge>;
+        return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">En révision</Badge>;
       case "disputed":
         return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Contesté</Badge>;
       case "paid":
@@ -452,7 +452,7 @@ const AdminReferralAttributions = () => {
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">Parrainages</h1>
             <p className="text-muted-foreground">
-              Gérer les attributions de parrainage et commissions
+              Liste des attributions de parrainage - Cliquez sur le menu ⋯ pour approuver, rejeter, mettre en attente ou contester
             </p>
           </div>
         </div>
@@ -538,8 +538,8 @@ const AdminReferralAttributions = () => {
 
         {/* Table */}
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
@@ -549,7 +549,7 @@ const AdminReferralAttributions = () => {
                   <TableHead className="text-right">Rabais</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Fraude</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
