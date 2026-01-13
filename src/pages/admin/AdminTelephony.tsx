@@ -52,8 +52,12 @@ const AdminTelephony = () => {
   const [smsMessage, setSmsMessage] = useState("");
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
+  const [newCallOpen, setNewCallOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [selectedClientName, setSelectedClientName] = useState<string>("");
+  const [callPhoneNumber, setCallPhoneNumber] = useState("");
+  const [callClientId, setCallClientId] = useState<string | undefined>(undefined);
+  const [callClientName, setCallClientName] = useState<string>("");
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -76,7 +80,7 @@ const AdminTelephony = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch call history from database
+  // Fetch call history from database with client info
   const { data: callHistory, isLoading: callsLoading, refetch: refetchCalls } = useQuery({
     queryKey: ["telephony-calls"],
     queryFn: async () => {
@@ -90,6 +94,39 @@ const AdminTelephony = () => {
       if (error) {
         console.error("Error fetching calls:", error);
         return [];
+      }
+
+      // Get unique phone numbers to match with clients
+      const phoneNumbers = [...new Set((data || []).map(c => c.phone_number).filter(Boolean))];
+      
+      if (phoneNumbers.length > 0) {
+        // Fetch client profiles that match these phone numbers
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, email, phone")
+          .in("phone", phoneNumbers);
+        
+        // Create a phone -> client map
+        const phoneToClient = new Map<string, { name: string; id: string }>();
+        profiles?.forEach(p => {
+          if (p.phone) {
+            const normalized = toE164(p.phone);
+            if (normalized) {
+              phoneToClient.set(normalized, { name: p.full_name || p.email || "", id: p.user_id });
+            }
+          }
+        });
+
+        // Enrich calls with client info
+        return (data || []).map(call => {
+          const normalized = call.phone_number ? toE164(call.phone_number) : null;
+          const client = normalized ? phoneToClient.get(normalized) : undefined;
+          return {
+            ...call,
+            client_name: call.client_id ? call.client_name : client?.name,
+            matched_client_id: client?.id,
+          };
+        });
       }
 
       return data || [];
@@ -426,14 +463,20 @@ const AdminTelephony = () => {
           {/* Calls Tab */}
           <TabsContent value="calls" className="m-0">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="w-5 h-5" />
-                  Historique des appels
-                </CardTitle>
-                <CardDescription>
-                  Les appels sont initiés via OpenPhone. L'historique est synchronisé via webhook.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="w-5 h-5" />
+                    Historique des appels
+                  </CardTitle>
+                  <CardDescription>
+                    Les appels sont initiés via OpenPhone. L'historique est synchronisé via webhook.
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setNewCallOpen(true)} className="gap-2">
+                  <PhoneCall className="w-4 h-4" />
+                  Nouvel appel
+                </Button>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[500px]">
@@ -462,7 +505,12 @@ const AdminTelephony = () => {
                                 <span className="font-medium">
                                   {call.direction === "outbound" ? "Appel vers" : "Appel de"}
                                 </span>
-                                <span className="font-mono text-sm">
+                                {call.client_name ? (
+                                  <span className="font-medium text-primary">
+                                    {call.client_name}
+                                  </span>
+                                ) : null}
+                                <span className="font-mono text-sm text-muted-foreground">
                                   {formatPhoneDisplay(call.phone_number || "N/A")}
                                 </span>
                                 {call.agent_name && (
@@ -732,6 +780,115 @@ const AdminTelephony = () => {
               )}
               {smsMutation.isPending ? "Envoi..." : "Envoyer et démarrer"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Call Dialog */}
+      <Dialog open={newCallOpen} onOpenChange={(open) => {
+        setNewCallOpen(open);
+        if (!open) {
+          setCallPhoneNumber("");
+          setCallClientId(undefined);
+          setCallClientName("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneCall className="w-5 h-5" />
+              Nouvel appel
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            {/* Client Selection */}
+            <div className="space-y-2">
+              <ClientSearchAutocomplete
+                label="Sélectionner un client (optionnel)"
+                placeholder="Rechercher par nom, email, téléphone..."
+                selectedClientId={callClientId}
+                onSelect={(client) => {
+                  setCallClientId(client.user_id);
+                  setCallClientName(client.full_name || client.email || "");
+                  if (client.phone) {
+                    setCallPhoneNumber(client.phone);
+                  }
+                }}
+              />
+              {callClientId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => {
+                    setCallClientId(undefined);
+                    setCallClientName("");
+                  }}
+                >
+                  Effacer la sélection
+                </Button>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {callClientId ? "ou modifier le numéro" : "ou entrer manuellement"}
+                </span>
+              </div>
+            </div>
+
+            {/* Phone Number Input */}
+            <div className="space-y-2">
+              <Label htmlFor="call-phone">Numéro de téléphone</Label>
+              <Input
+                id="call-phone"
+                type="tel"
+                placeholder="(514) 555-1234"
+                value={callPhoneNumber}
+                onChange={(e) => {
+                  setCallPhoneNumber(e.target.value);
+                  if (callClientId) {
+                    setCallClientId(undefined);
+                    setCallClientName("");
+                  }
+                }}
+                className={callPhoneNumber && !isValidPhone(callPhoneNumber) ? "border-destructive" : ""}
+              />
+              {callPhoneNumber && !isValidPhone(callPhoneNumber) && (
+                <p className="text-xs text-destructive">Format invalide</p>
+              )}
+            </div>
+
+            {/* Call Button */}
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                if (!callPhoneNumber.trim() || !isValidPhone(callPhoneNumber)) {
+                  toast.error("Erreur", { description: "Entrez un numéro de téléphone valide." });
+                  return;
+                }
+                handleCall(callPhoneNumber);
+                setNewCallOpen(false);
+                setCallPhoneNumber("");
+                setCallClientId(undefined);
+                setCallClientName("");
+              }}
+              disabled={!callPhoneNumber || !isValidPhone(callPhoneNumber)}
+            >
+              <PhoneOutgoing className="w-4 h-4 mr-2" />
+              Appeler via OpenPhone
+            </Button>
+            
+            <p className="text-xs text-muted-foreground text-center">
+              L'appel sera initié dans l'application OpenPhone
+            </p>
           </div>
         </DialogContent>
       </Dialog>
