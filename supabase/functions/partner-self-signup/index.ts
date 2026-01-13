@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
       .insert({
         influencer_id: verifiedInfluencer.id,
         code: generatedCode,
-        is_active: true,
+        status: "active", // Use 'status' column, not 'is_active'
       });
 
     if (codeError) {
