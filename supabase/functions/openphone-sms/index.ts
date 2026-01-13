@@ -117,6 +117,7 @@ Deno.serve(async (req) => {
     const fromPhoneNumberId = body.from || phoneNumbers[0].id;
 
     // Send the SMS via OpenPhone API
+    console.log("[openphone-sms] Sending to:", body.to, "from phoneNumberId:", fromPhoneNumberId);
     const smsRes = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {
@@ -129,6 +130,7 @@ Deno.serve(async (req) => {
         content: body.text,
       }),
     });
+    console.log("[openphone-sms] OpenPhone response status:", smsRes.status);
 
     if (!smsRes.ok) {
       const errText = await smsRes.text();
