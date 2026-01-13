@@ -33,7 +33,7 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -75,64 +75,59 @@ const AdminReferralCashouts = () => {
       const cashout = cashouts?.find((c) => c.id === cashoutId);
       if (!cashout) throw new Error("Cashout not found");
 
+      const adminUserId = user?.id;
+      if (!adminUserId) {
+        throw new Error("Session admin manquante. Veuillez vous reconnecter.");
+      }
+
+      const updateCashoutStatus = async (nextStatus: "approved" | "rejected" | "paid") => {
+        const { data, error } = await supabase
+          .from("cashout_requests")
+          .update({
+            status: nextStatus,
+            admin_note: nextStatus === "rejected" ? note : note || null,
+            reviewed_by: adminUserId,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", cashoutId)
+          .select("id,status")
+          .single();
+
+        if (error) throw error;
+
+        // RLS can result in "0 rows updated" with no error unless we force .single()
+        if (!data || data.status !== nextStatus) {
+          throw new Error("La mise à jour n'a pas été enregistrée (permissions/session).");
+        }
+      };
+
       if (action === "approve") {
-        const { error } = await supabase
-          .from("cashout_requests")
-          .update({
-            status: "approved",
-            admin_note: note || null,
-            reviewed_by: user?.id,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", cashoutId);
-        if (error) throw error;
+        await updateCashoutStatus("approved");
       } else if (action === "reject") {
-        const { error } = await supabase
-          .from("cashout_requests")
-          .update({
-            status: "rejected",
-            admin_note: note,
-            reviewed_by: user?.id,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", cashoutId);
-        if (error) throw error;
+        await updateCashoutStatus("rejected");
       } else if (action === "pay") {
         // Update cashout status
-        const { error: cashoutError } = await supabase
-          .from("cashout_requests")
-          .update({
-            status: "paid",
-            admin_note: note || null,
-            reviewed_by: user?.id,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", cashoutId);
-        if (cashoutError) throw cashoutError;
+        await updateCashoutStatus("paid");
 
         // Create payout record
-        const { error: payoutError } = await supabase
-          .from("influencer_payouts")
-          .insert({
-            influencer_id: cashout.influencer_id,
-            cashout_request_id: cashoutId,
-            amount: cashout.amount,
-            method: cashout.method,
-            paid_by: user?.id,
-          });
+        const { error: payoutError } = await supabase.from("influencer_payouts").insert({
+          influencer_id: cashout.influencer_id,
+          cashout_request_id: cashoutId,
+          amount: cashout.amount,
+          method: cashout.method,
+          paid_by: adminUserId,
+        });
         if (payoutError) throw payoutError;
 
         // Create ledger debit entry
-        const { error: ledgerError } = await supabase
-          .from("commission_ledger_entries")
-          .insert({
-            influencer_id: cashout.influencer_id,
-            type: "payout_debit",
-            amount: -Math.abs(Number(cashout.amount)),
-            status: "paid",
-            notes: `Paiement ${cashout.request_number}`,
-            created_by: user?.id,
-          });
+        const { error: ledgerError } = await supabase.from("commission_ledger_entries").insert({
+          influencer_id: cashout.influencer_id,
+          type: "payout_debit",
+          amount: -Math.abs(Number(cashout.amount)),
+          status: "paid",
+          notes: `Paiement ${cashout.request_number}`,
+          created_by: adminUserId,
+        });
         if (ledgerError) throw ledgerError;
       }
     },
