@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     }
 
     // Use first available phone number or specified one
-    const fromPhoneNumberId = body.from || phoneNumbers[0].id;
+    const fromPhoneNumber = body.from || phoneNumbers[0].phoneNumber;
 
     // Send the SMS via OpenPhone API
     const smsRes = await fetch("https://api.openphone.com/v1/messages", {
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        phoneNumberId: fromPhoneNumberId,
+        from: fromPhoneNumber,
         to: [body.to],
         content: body.text,
       }),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,12 +24,13 @@ import {
   Send,
   PhoneCall,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Info
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
-import { formatPhoneDisplay, toE164, isValidPhone } from "@/lib/phoneUtils";
+import { formatPhoneDisplay, toE164, isValidPhone, getOpenPhoneDeepLink } from "@/lib/phoneUtils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -97,49 +98,7 @@ const AdminTelephony = () => {
       const data = await res.json();
       return data.phoneNumbers || [];
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  // Initiate call mutation
-  const callMutation = useMutation({
-    mutationFn: async (to: string) => {
-      const session = await supabase.auth.getSession();
-      const token = session.data?.session?.access_token;
-      
-      if (!token) throw new Error("Non authentifié");
-
-      const e164 = toE164(to);
-      if (!e164) throw new Error("Numéro de téléphone invalide");
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openphone-call`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: e164,
-            agentName: user?.email,
-          }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de l'appel");
-      return data;
-    },
-    onSuccess: () => {
-      toast.success("Appel initié", {
-        description: "Votre téléphone va sonner dans quelques secondes",
-      });
-      setPhoneNumber("");
-      queryClient.invalidateQueries({ queryKey: ["telephony-logs"] });
-    },
-    onError: (err: Error) => {
-      toast.error("Erreur", { description: err.message });
-    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Send SMS mutation
@@ -172,7 +131,7 @@ const AdminTelephony = () => {
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de l'envoi SMS");
+      if (!res.ok) throw new Error(data.error || data.details || "Échec de l'envoi SMS");
       return data;
     },
     onSuccess: () => {
@@ -187,6 +146,37 @@ const AdminTelephony = () => {
       toast.error("Erreur", { description: err.message });
     },
   });
+
+  // Log call action (for tracking only - actual call is via deep link)
+  const logCallAction = async () => {
+    const e164 = toE164(phoneNumber);
+    if (!e164) return;
+
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data?.session?.access_token;
+      
+      if (token) {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/log-telephony-action`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              phone_number: e164,
+              action: "call",
+              direction: "outbound",
+            }),
+          }
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to log call action:", err);
+    }
+  };
 
   // Aggregate stats
   const stats = {
@@ -224,8 +214,24 @@ const AdminTelephony = () => {
   };
 
   const handleCall = () => {
-    if (!phoneNumber) return;
-    callMutation.mutate(phoneNumber);
+    const e164 = toE164(phoneNumber);
+    if (!e164) {
+      toast.error("Numéro invalide");
+      return;
+    }
+    
+    // Log the action for tracking
+    logCallAction();
+    
+    // Open OpenPhone with the number pre-filled
+    const deepLink = getOpenPhoneDeepLink(e164, "call");
+    window.open(deepLink, "_blank");
+    
+    toast.success("OpenPhone ouvert", {
+      description: "L'appel va démarrer dans OpenPhone",
+    });
+    
+    queryClient.invalidateQueries({ queryKey: ["telephony-logs"] });
   };
 
   const handleSendSms = () => {
@@ -390,20 +396,28 @@ const AdminTelephony = () => {
                 </div>
               )}
 
+              {/* Info for calls */}
+              {dialerMode === "call" && (
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-muted-foreground">
+                      L'appel s'ouvrira dans OpenPhone Web. Assurez-vous d'être connecté à votre compte.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Action Button */}
               {dialerMode === "call" ? (
                 <Button
                   className="w-full"
                   size="lg"
                   onClick={handleCall}
-                  disabled={!phoneNumber || !isPhoneValid || callMutation.isPending || !hasOpenPhoneConfig}
+                  disabled={!phoneNumber || !isPhoneValid}
                 >
-                  {callMutation.isPending ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  ) : (
-                    <Phone className="w-5 h-5 mr-2" />
-                  )}
-                  {callMutation.isPending ? "Appel en cours..." : "Appeler"}
+                  <Phone className="w-5 h-5 mr-2" />
+                  Appeler via OpenPhone
                 </Button>
               ) : (
                 <Button
@@ -535,7 +549,7 @@ const AdminTelephony = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {hasOpenPhoneConfig
-                        ? "Vous pouvez passer des appels et envoyer des SMS directement depuis cette page."
+                        ? "SMS envoyés directement via API. Les appels ouvrent OpenPhone Web."
                         : "Ajoutez la clé OPENPHONE_API_KEY dans les secrets du projet pour activer cette fonctionnalité."}
                     </p>
                   </div>
