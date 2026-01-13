@@ -953,7 +953,7 @@ const ClientNewOrder = () => {
     return false;
   };
 
-  // Promo state for database-validated promos
+  // Promo state for database-validated promos (including referral codes)
   const [appliedPromo, setAppliedPromo] = useState<{
     id: string;
     code: string;
@@ -961,6 +961,10 @@ const ClientNewOrder = () => {
     discount_type: string;
     discount_value: number;
     discount_amount: number;
+    // Referral code specific fields
+    is_referral_code?: boolean;
+    referral_code_id?: string;
+    influencer_id?: string;
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
@@ -1071,7 +1075,7 @@ const ClientNewOrder = () => {
         return;
       }
 
-      // Apply the promo
+      // Apply the promo (capture referral code fields if present)
       setAppliedPromo({
         id: data.promo.id,
         code: data.promo.code,
@@ -1079,6 +1083,10 @@ const ClientNewOrder = () => {
         discount_type: data.promo.discount_type,
         discount_value: data.promo.discount_value,
         discount_amount: data.discount_amount,
+        // Referral code specific fields
+        is_referral_code: data.is_referral_code || false,
+        referral_code_id: data.referral_code_id,
+        influencer_id: data.influencer_id,
       });
 
       // If it applies to installation, set installation credit
@@ -1690,20 +1698,41 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Navigate to dedicated confirmation page with order ID
       const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
       
-      // Record promo redemption if promo was applied
+      // Record promo/referral redemption if promo was applied
       if (appliedPromo && user?.id) {
         try {
-          await supabase.from("promotion_redemptions").insert({
-            promotion_id: appliedPromo.id,
-            order_id: orderData.id,
-            order_number: orderData.order_number,
-            client_id: user.id,
-            client_email: (profile?.email || user.email || "").toLowerCase(),
-            discount_amount: appliedPromo.discount_amount,
-          });
-          console.log("[Promo] Redemption recorded for order:", orderData.order_number);
+          // Check if this is a referral code (influencer code)
+          if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
+            // Record in referral_attributions for influencer tracking
+            await supabase.from("referral_attributions").insert({
+              referral_code_id: appliedPromo.referral_code_id,
+              influencer_id: appliedPromo.influencer_id,
+              order_id: orderData.id,
+              customer_email: (profile?.email || user.email || "").toLowerCase(),
+              customer_discount_amount: appliedPromo.discount_amount,
+              status: 'pending',
+            });
+            console.log("[Referral] Attribution recorded for order:", orderData.order_number, "influencer:", appliedPromo.influencer_id);
+            
+            // Also increment usage_count on referral_codes
+            await supabase.rpc('increment_referral_usage', { 
+              code_id: appliedPromo.referral_code_id 
+            });
+            console.log("[Referral] Usage count incremented for code:", appliedPromo.referral_code_id);
+          } else {
+            // Regular promo code - record in promotion_redemptions
+            await supabase.from("promotion_redemptions").insert({
+              promotion_id: appliedPromo.id,
+              order_id: orderData.id,
+              order_number: orderData.order_number,
+              client_id: user.id,
+              client_email: (profile?.email || user.email || "").toLowerCase(),
+              discount_amount: appliedPromo.discount_amount,
+            });
+            console.log("[Promo] Redemption recorded for order:", orderData.order_number);
+          }
           
-          // Create audit note for promo applied
+          // Create audit note for promo/referral applied
           const { AuditNotes } = await import("@/lib/clientAuditNotes");
           AuditNotes.promoApplied(
             user.id,
@@ -1712,7 +1741,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             appliedPromo.discount_amount
           );
         } catch (promoErr) {
-          console.error("[Promo] Failed to record redemption (non-blocking):", promoErr);
+          console.error("[Promo/Referral] Failed to record redemption (non-blocking):", promoErr);
         }
       }
       

@@ -24,6 +24,10 @@ interface AppliedPromo {
   stackable: boolean;
   new_customers_only?: boolean;
   duration?: string;
+  // Referral code specific fields
+  is_referral_code?: boolean;
+  referral_code_id?: string;
+  influencer_id?: string;
 }
 
 interface PromoCodeInputProps {
@@ -96,6 +100,10 @@ export const PromoCodeInput = ({
         stackable: data.promo.stackable,
         new_customers_only: data.promo.new_customers_only,
         duration: data.promo.duration,
+        // Referral code specific fields
+        is_referral_code: data.is_referral_code || false,
+        referral_code_id: data.referral_code_id,
+        influencer_id: data.influencer_id,
       };
 
       onPromoApplied(newPromo);
