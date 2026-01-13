@@ -6583,11 +6583,13 @@ export type Database = {
           direction: string
           duration_seconds: number | null
           id: string
+          message_preview: string | null
           notes: string | null
           openphone_call_id: string | null
           openphone_message_id: string | null
           phone_number: string | null
           raw_payload: Json | null
+          status: string | null
         }
         Insert: {
           action: string
@@ -6599,11 +6601,13 @@ export type Database = {
           direction?: string
           duration_seconds?: number | null
           id?: string
+          message_preview?: string | null
           notes?: string | null
           openphone_call_id?: string | null
           openphone_message_id?: string | null
           phone_number?: string | null
           raw_payload?: Json | null
+          status?: string | null
         }
         Update: {
           action?: string
@@ -6615,11 +6619,13 @@ export type Database = {
           direction?: string
           duration_seconds?: number | null
           id?: string
+          message_preview?: string | null
           notes?: string | null
           openphone_call_id?: string | null
           openphone_message_id?: string | null
           phone_number?: string | null
           raw_payload?: Json | null
+          status?: string | null
         }
         Relationships: []
       }
