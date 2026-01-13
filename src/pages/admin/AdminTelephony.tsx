@@ -246,6 +246,52 @@ const AdminTelephony = () => {
     },
   });
 
+  // Call mutation - initiates call via OpenPhone API
+  const callMutation = useMutation({
+    mutationFn: async ({ to, clientId, clientName }: { to: string; clientId?: string; clientName?: string }) => {
+      const sessionRes = await supabase.auth.getSession();
+      const agentEmail = sessionRes.data?.session?.user?.email ?? user?.email;
+
+      const e164 = toE164(to);
+      if (!e164) throw new Error("Numéro de téléphone invalide");
+
+      const { data, error } = await supabase.functions.invoke("openphone-call", {
+        body: {
+          to: e164,
+          clientId,
+          agentName: agentEmail,
+        },
+      });
+
+      if (error) {
+        const msg = await getInvokeErrorMessage(error);
+        throw new Error(msg);
+      }
+
+      const payload = data as any;
+      if (!payload?.success) {
+        throw new Error(payload?.error || payload?.message || "Échec de l'initiation de l'appel");
+      }
+
+      return { ...payload, phone: e164, clientName };
+    },
+    onSuccess: (data) => {
+      toast.success("Appel initié", {
+        description: data.clientName 
+          ? `Appel vers ${data.clientName} en cours...` 
+          : "Votre téléphone va sonner, puis le client sera connecté",
+      });
+      setNewCallOpen(false);
+      setCallPhoneNumber("");
+      setCallClientId(undefined);
+      setCallClientName("");
+      queryClient.invalidateQueries({ queryKey: ["telephony-calls"] });
+    },
+    onError: (err: Error) => {
+      toast.error("Erreur d'appel", { description: err.message });
+    },
+  });
+
   const handleNewConversation = () => {
     setNewConversationOpen(true);
   };
@@ -267,16 +313,13 @@ const AdminTelephony = () => {
     smsMutation.mutate({ to: phoneNumber, text: smsMessage });
   };
 
-  const handleCall = (phone: string) => {
+  const handleCall = (phone: string, clientId?: string, clientName?: string) => {
     const e164 = toE164(phone);
     if (!e164) {
       toast.error("Numéro invalide");
       return;
     }
-    window.open(`https://app.openphone.com/dialer?number=${encodeURIComponent(e164)}`, "_blank");
-    toast.success("OpenPhone ouvert", {
-      description: "L'appel va démarrer dans OpenPhone",
-    });
+    callMutation.mutate({ to: phone, clientId, clientName });
   };
 
   const getCallStatusIcon = (call: any) => {
@@ -543,9 +586,14 @@ const AdminTelephony = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleCall(call.phone_number)}
+                              onClick={() => handleCall(call.phone_number, call.matched_client_id || call.client_id, call.client_name)}
+                              disabled={callMutation.isPending}
                             >
-                              <Phone className="w-4 h-4" />
+                              {callMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Phone className="w-4 h-4" />
+                              )}
                             </Button>
                           </div>
                         </div>
@@ -874,20 +922,20 @@ const AdminTelephony = () => {
                   toast.error("Erreur", { description: "Entrez un numéro de téléphone valide." });
                   return;
                 }
-                handleCall(callPhoneNumber);
-                setNewCallOpen(false);
-                setCallPhoneNumber("");
-                setCallClientId(undefined);
-                setCallClientName("");
+                handleCall(callPhoneNumber, callClientId, callClientName);
               }}
-              disabled={!callPhoneNumber || !isValidPhone(callPhoneNumber)}
+              disabled={!callPhoneNumber || !isValidPhone(callPhoneNumber) || callMutation.isPending}
             >
-              <PhoneOutgoing className="w-4 h-4 mr-2" />
-              Appeler via OpenPhone
+              {callMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <PhoneOutgoing className="w-4 h-4 mr-2" />
+              )}
+              {callMutation.isPending ? "Appel en cours..." : "Appeler"}
             </Button>
             
             <p className="text-xs text-muted-foreground text-center">
-              L'appel sera initié dans l'application OpenPhone
+              Votre téléphone OpenPhone sonnera, puis le client sera connecté
             </p>
           </div>
         </DialogContent>

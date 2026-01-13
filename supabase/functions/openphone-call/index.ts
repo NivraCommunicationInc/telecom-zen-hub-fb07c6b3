@@ -124,13 +124,40 @@ Deno.serve(async (req) => {
     if (!callRes.ok) {
       const errText = await callRes.text();
       console.error("OpenPhone call error:", errText);
+      
+      // Parse error for more helpful message
+      let errorMessage = "Failed to initiate call";
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.message) {
+          errorMessage = errJson.message;
+        }
+        if (errJson.error?.message) {
+          errorMessage = errJson.error.message;
+        }
+      } catch {
+        // Use default error message
+      }
+      
       return new Response(
-        JSON.stringify({ error: "Failed to initiate call", details: errText }),
+        JSON.stringify({ error: errorMessage, details: errText }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const callData = await callRes.json();
+    console.log("Call initiated:", JSON.stringify(callData, null, 2));
+
+    // Get client name if clientId provided
+    let clientName: string | null = null;
+    if (body.clientId) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", body.clientId)
+        .maybeSingle();
+      clientName = profile?.full_name || profile?.email || null;
+    }
 
     // Log the action
     await supabaseAdmin.from("telephony_logs").insert({
@@ -142,6 +169,7 @@ Deno.serve(async (req) => {
       agent_name: body.agentName || user.email,
       openphone_call_id: callData.data?.id || null,
       status: "initiated",
+      client_name: clientName,
     });
 
     return new Response(
