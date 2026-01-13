@@ -106,19 +106,19 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.log-telephony-action]
-verify_jwt = true
+verify_jwt = false
 
 [functions.openphone-webhook]
 verify_jwt = false
 
 [functions.openphone-conversations]
-verify_jwt = true
+verify_jwt = false
 
 [functions.openphone-call-history]
-verify_jwt = true
+verify_jwt = false
 
 [functions.openphone-sms]
-verify_jwt = true
+verify_jwt = false
 
 [functions.openphone-phone-numbers]
-verify_jwt = true
+verify_jwt = false
