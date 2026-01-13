@@ -495,19 +495,30 @@ const AdminTelephony = () => {
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <span className="font-medium">
                                   {msg.direction === "outgoing" ? "Envoyé à" : "Reçu de"}
                                 </span>
                                 <span className="font-mono text-sm">
-                                  {formatPhoneDisplay(msg.to?.[0] || msg.from || "N/A")}
+                                  {formatPhoneDisplay(msg.direction === "outgoing" ? (msg.to?.[0] || "N/A") : (msg.from || "N/A"))}
                                 </span>
                                 <Badge variant="outline" className="text-xs">
                                   {msg.direction === "outgoing" ? "Sortant" : "Entrant"}
                                 </Badge>
+                                {msg.agentName && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <User className="w-3 h-3 mr-1" />
+                                    {msg.agentName}
+                                  </Badge>
+                                )}
+                                {msg.source === "openphone" && (
+                                  <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/30">
+                                    OpenPhone
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground line-clamp-2">
-                                {msg.content || msg.body || "(Pas de contenu)"}
+                                {msg.text || msg.content || msg.body || "(Pas de contenu)"}
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 {msg.createdAt ? formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true, locale: fr }) : ""}
@@ -552,17 +563,28 @@ const AdminTelephony = () => {
                                 {getCallStatusIcon(call)}
                               </div>
                               <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium">
                                     {call.direction === "outgoing" ? "Appel vers" : "Appel de"}
                                   </span>
                                   <span className="font-mono text-sm">
-                                    {formatPhoneDisplay(call.to || call.from || "N/A")}
+                                    {formatPhoneDisplay(call.participants?.[0] || call.to || call.from || "N/A")}
                                   </span>
+                                  {call.agentName && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <User className="w-3 h-3 mr-1" />
+                                      {call.agentName}
+                                    </Badge>
+                                  )}
+                                  {call.source === "openphone" && (
+                                    <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/30">
+                                      OpenPhone
+                                    </Badge>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                   {getCallStatusBadge(call)}
-                                  {call.duration && (
+                                  {call.duration > 0 && (
                                     <span className="flex items-center gap-1">
                                       <Clock className="w-3 h-3" />
                                       {Math.floor(call.duration / 60)}:{String(call.duration % 60).padStart(2, '0')}

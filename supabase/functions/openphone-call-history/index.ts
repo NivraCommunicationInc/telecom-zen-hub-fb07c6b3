@@ -62,45 +62,111 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse query params
-    const url = new URL(req.url);
-    const phoneNumberId = url.searchParams.get("phoneNumberId");
-    const participantNumber = url.searchParams.get("participant");
-    const maxResults = url.searchParams.get("maxResults") || "50";
+    // First, get all phone numbers
+    const phoneNumbersRes = await fetch("https://api.openphone.com/v1/phone-numbers", {
+      headers: {
+        "Authorization": OPENPHONE_API_KEY,
+        "Content-Type": "application/json",
+      },
+    });
 
-    // Build query params for OpenPhone API
-    const queryParams = new URLSearchParams();
-    queryParams.set("maxResults", maxResults);
-    if (phoneNumberId) queryParams.set("phoneNumberId", phoneNumberId);
-    if (participantNumber) queryParams.set("participants", participantNumber);
-
-    // Fetch calls from OpenPhone
-    const callsRes = await fetch(
-      `https://api.openphone.com/v1/calls?${queryParams.toString()}`,
-      {
-        headers: {
-          "Authorization": OPENPHONE_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!callsRes.ok) {
-      const errText = await callsRes.text();
-      console.error("OpenPhone calls error:", errText);
+    if (!phoneNumbersRes.ok) {
+      const errText = await phoneNumbersRes.text();
+      console.error("OpenPhone phone numbers error:", errText);
       return new Response(
-        JSON.stringify({ error: "Failed to fetch calls", details: errText }),
-        { status: callsRes.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Failed to get phone numbers", details: errText }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const callsData = await callsRes.json();
+    const phoneNumbersData = await phoneNumbersRes.json();
+    const phoneNumbers = phoneNumbersData.data || [];
+
+    if (phoneNumbers.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, calls: [], source: "no_phone_numbers" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get calls from local telephony_logs 
+    const { data: localLogs, error: logsError } = await supabaseAdmin
+      .from("telephony_logs")
+      .select("*")
+      .eq("action", "call")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (logsError) {
+      console.error("Failed to fetch local logs:", logsError);
+    }
+
+    // Transform local logs to call format
+    const localCalls = (localLogs || []).map((log: any) => ({
+      id: log.id,
+      direction: log.direction || "outgoing",
+      participants: [log.phone_number],
+      status: log.status || "completed",
+      createdAt: log.created_at,
+      duration: log.call_duration || 0,
+      source: "local",
+      agentName: log.agent_name,
+    }));
+
+    // Try to fetch recent calls from OpenPhone for each phone number
+    const allCalls: any[] = [...localCalls];
+    const seenIds = new Set(localCalls.map((c: any) => c.id));
+
+    // Get unique participant numbers from our local logs
+    const uniqueParticipants = [...new Set((localLogs || []).map((l: any) => l.phone_number).filter(Boolean))];
+
+    // For each phone number + participant combo, try to fetch calls
+    for (const phoneNum of phoneNumbers.slice(0, 2)) { // Limit to avoid rate limits
+      for (const participant of uniqueParticipants.slice(0, 10)) {
+        if (!participant) continue;
+        
+        try {
+          const queryParams = new URLSearchParams();
+          queryParams.set("phoneNumberId", phoneNum.id);
+          queryParams.set("participants[]", participant);
+          queryParams.set("maxResults", "20");
+
+          const callsRes = await fetch(
+            `https://api.openphone.com/v1/calls?${queryParams.toString()}`,
+            {
+              headers: {
+                "Authorization": OPENPHONE_API_KEY,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (callsRes.ok) {
+            const callsData = await callsRes.json();
+            for (const call of (callsData.data || [])) {
+              if (!seenIds.has(call.id)) {
+                seenIds.add(call.id);
+                allCalls.push({
+                  ...call,
+                  source: "openphone",
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching calls:", e);
+        }
+      }
+    }
+
+    // Sort by date descending
+    allCalls.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        calls: callsData.data || [],
-        nextPageToken: callsData.nextPageToken || null
+        calls: allCalls.slice(0, 50),
+        phoneNumbers: phoneNumbers.map((p: any) => ({ id: p.id, number: p.phoneNumber })),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
