@@ -101,31 +101,52 @@ export async function sendTemplateEmail(params: {
   const toAddresses = Array.isArray(to) ? to : [to];
   
   console.log(`[sendTemplateEmail] Sending template "${templateSlug}" to ${toAddresses.length} recipient(s)`);
+  console.log(`[sendTemplateEmail] Variables:`, JSON.stringify(variables));
   
   try {
+    // Clean variables - remove undefined values and ensure proper types
+    const cleanVariables: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(variables)) {
+      if (value !== undefined && value !== null) {
+        cleanVariables[key] = value;
+      }
+    }
+    
+    // Build request payload - Resend API 2025 format
+    // template must be an object with id (slug/UUID) and variables
+    const payload: Record<string, unknown> = {
+      from: EMAIL_SENDER.from,
+      reply_to: EMAIL_SENDER.replyTo,
+      to: toAddresses,
+      template: {
+        id: templateSlug,
+        variables: cleanVariables,
+      },
+    };
+    
+    // Only add subject if explicitly provided (otherwise Resend uses template subject)
+    if (subject) {
+      payload.subject = subject;
+    }
+    
+    console.log(`[sendTemplateEmail] Request payload:`, JSON.stringify(payload));
+    
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${resendApiKey}`,
       },
-      body: JSON.stringify({
-        from: EMAIL_SENDER.from,
-        reply_to: EMAIL_SENDER.replyTo,
-        to: toAddresses,
-        subject: subject, // If undefined, Resend uses template subject
-        template: templateSlug,
-        data: variables,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
 
     if (!response.ok) {
-      console.error(`[sendTemplateEmail] Resend API error:`, result);
+      console.error(`[sendTemplateEmail] Resend API error:`, JSON.stringify(result));
       return { 
         success: false, 
-        error: result.message || result.error || "Unknown Resend error" 
+        error: result.message || result.error || JSON.stringify(result) 
       };
     }
 
