@@ -29,7 +29,8 @@ import {
   Shield,
   Trophy,
   Headphones,
-  Megaphone
+  Megaphone,
+  Send
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const navItems = [
   { icon: Mail, label: "Formulaire Web", href: "/admin/formulaire-web" },
   { icon: Headphones, label: "Téléphonie (OpenPhone)", href: "/admin/telephony" },
   { icon: Megaphone, label: "Marketing Email", href: "/admin/marketing" },
+  { icon: Send, label: "Communication Email", href: "/admin/communication-email" },
   
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },

@@ -1937,6 +1937,92 @@ export type Database = {
           },
         ]
       }
+      direct_email_recipients: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          direct_email_id: string
+          email: string
+          error_message: string | null
+          id: string
+          name: string | null
+          resend_id: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          direct_email_id: string
+          email: string
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          direct_email_id?: string
+          email?: string
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_email_recipients_direct_email_id_fkey"
+            columns: ["direct_email_id"]
+            isOneToOne: false
+            referencedRelation: "direct_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_emails: {
+        Row: {
+          created_at: string
+          failed_count: number
+          id: string
+          message: string
+          recipients_count: number
+          sent_at: string | null
+          sent_by_email: string | null
+          sent_count: number
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message: string
+          recipients_count?: number
+          sent_at?: string | null
+          sent_by_email?: string | null
+          sent_count?: number
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message?: string
+          recipients_count?: number
+          sent_at?: string | null
+          sent_by_email?: string | null
+          sent_count?: number
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       dob_validation_debug: {
         Row: {
           calculated_age: number | null
