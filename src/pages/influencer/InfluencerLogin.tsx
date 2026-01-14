@@ -9,6 +9,7 @@ import { Loader2, Users, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 import { PARTNER_APP_URL } from "@/config/partnerContact";
+import TimeBasedBackground from "@/components/influencer/TimeBasedBackground";
 
 const InfluencerLogin = () => {
   const navigate = useNavigate();
@@ -102,8 +103,9 @@ const InfluencerLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <TimeBasedBackground />
+      <div className="w-full max-w-md relative z-10">
         {/* Logo/Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-4">
