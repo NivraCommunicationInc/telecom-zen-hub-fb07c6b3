@@ -1,47 +1,20 @@
 import { useState } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { CreditCard, Plus, Trash2, Check, AlertTriangle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+
+// E-Transfer configuration
+const ETRANSFER_EMAIL = "paiement@nivra.ca";
 
 const ClientPayments = () => {
   const { user } = useClientAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [cardToDelete, setCardToDelete] = useState<{ id: string; lastFour: string; cardType: string } | null>(null);
-  const [newCard, setNewCard] = useState({
-    cardNumber: "",
-    cardName: "",
-    expiry: "",
-    cvv: "",
-  });
+  const [copied, setCopied] = useState(false);
 
   // Fetch only active cards (deleted_at IS NULL)
   const { data: paymentMethods, isLoading } = useQuery({
@@ -59,384 +32,175 @@ const ClientPayments = () => {
     enabled: !!user?.id,
   });
 
-  const addCardMutation = useMutation({
-    mutationFn: async (card: typeof newCard) => {
-      const cardNum = card.cardNumber.replace(/\s/g, "");
-      const lastFour = cardNum.slice(-4);
-      const cardType = cardNum.startsWith("4") ? "Visa" : cardNum.startsWith("5") ? "Mastercard" : "Card";
-      const [month, year] = card.expiry.split("/");
-      const expiryMonth = parseInt(month);
-      const expiryYear = 2000 + parseInt(year);
-      
-      // Generate deterministic fingerprint for deduplication
-      // Format: network-last4-MM-YYYY (no cardholder name to avoid variations)
-      const paymentFingerprint = `${cardType}-${lastFour}-${expiryMonth}-${expiryYear}`;
-      
-      // Use UPSERT to prevent duplicate cards
-      const { data, error } = await portalSupabase
-        .from("payment_methods")
-        .upsert({
-          user_id: user?.id,
-          card_type: cardType,
-          last_four: lastFour,
-          expiry_month: expiryMonth,
-          expiry_year: expiryYear,
-          payment_fingerprint: paymentFingerprint,
-          is_default: paymentMethods?.length === 0,
-          cardholder_name: card.cardName || null,
-          deleted_at: null, // Ensure we're reactivating if it was soft-deleted
-        }, {
-          onConflict: 'user_id,payment_fingerprint',
-          ignoreDuplicates: false,
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        // If it's a duplicate key error, find and return existing card
-        if (error.code === '23505') {
-          const { data: existingCard } = await portalSupabase
-            .from("payment_methods")
-            .select("*")
-            .eq("user_id", user?.id)
-            .eq("payment_fingerprint", paymentFingerprint)
-            .single();
-          
-          if (existingCard) {
-            return { ...existingCard, _isDuplicate: true };
-          }
-        }
-        throw error;
-      }
-      return data;
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["client-payment-methods", user?.id] });
-      if (data?._isDuplicate) {
-        toast({ title: "Cette carte est déjà enregistrée", description: "Nous l'avons sélectionnée pour vous." });
-      } else {
-        toast({ title: "Carte ajoutée avec succès" });
-      }
-      setDialogOpen(false);
-      setNewCard({ cardNumber: "", cardName: "", expiry: "", cvv: "" });
-    },
-    onError: () => {
-      toast({ title: "Erreur lors de l'ajout de la carte", variant: "destructive" });
-    },
-  });
-
-  // Soft delete mutation
-  const deleteCardMutation = useMutation({
-    mutationFn: async (cardId: string) => {
-      if (!user?.id) throw new Error("Missing user");
-
-      // (Optionnel) Was default? basé sur le state (OK mais peut être stale)
-      const cardBeingDeleted = paymentMethods?.find((c) => c.id === cardId);
-      const wasDefault = cardBeingDeleted?.is_default === true;
-
-      // Soft delete: set deleted_at and remove default status
-      const { error } = await portalSupabase
-        .from("payment_methods")
-        .update({
-          deleted_at: new Date().toISOString(),
-          is_default: false,
-        })
-        .eq("id", cardId)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      // Vérifier s'il existe une carte default active après suppression
-      const { data: activeDefault, error: defErr } = await portalSupabase
-        .from("payment_methods")
-        .select("id")
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .eq("is_default", true)
-        .limit(1);
-
-      if (defErr) throw defErr;
-
-      const hasDefault = (activeDefault?.length ?? 0) > 0;
-
-      // Réassigner si nécessaire (carte supprimée était default OU aucune default active)
-      if (wasDefault || !hasDefault) {
-        const { data: remainingCards, error: remErr } = await portalSupabase
-          .from("payment_methods")
-          .select("id")
-          .eq("user_id", user.id)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (remErr) throw remErr;
-
-        if (remainingCards && remainingCards.length > 0) {
-          const { error: setErr } = await portalSupabase
-            .from("payment_methods")
-            .update({ is_default: true })
-            .eq("id", remainingCards[0].id)
-            .eq("user_id", user.id);
-
-          if (setErr) throw setErr;
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-payment-methods", user?.id] });
-      toast({ title: "Carte supprimée", description: "La carte a été retirée de votre compte." });
-      setDeleteDialogOpen(false);
-      setCardToDelete(null);
-    },
-    onError: (err: any) => {
-      console.error("[ClientPayments] deleteCardMutation error:", err);
-      toast({
-        title: "Erreur lors de la suppression",
-        description: err?.message || err?.hint || "Impossible de supprimer cette carte.",
-        variant: "destructive",
-      });
-      setDeleteDialogOpen(false);
-      setCardToDelete(null);
-    },
-  });
-
-  const setDefaultMutation = useMutation({
-    mutationFn: async (cardId: string) => {
-      // First, unset all defaults
-      await portalSupabase
-        .from("payment_methods")
-        .update({ is_default: false })
-        .eq("user_id", user?.id)
-        .is("deleted_at", null);
-      
-      // Then set the new default
-      const { error } = await portalSupabase
-        .from("payment_methods")
-        .update({ is_default: true })
-        .eq("id", cardId)
-        .eq("user_id", user?.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-payment-methods", user?.id] });
-      toast({ title: "Carte par défaut mise à jour" });
-    },
-    onError: () => {
-      toast({ title: "Erreur", variant: "destructive" });
-    },
-  });
-
-  const handleAddCard = () => {
-    if (!newCard.cardNumber || !newCard.cardName || !newCard.expiry || !newCard.cvv) {
-      toast({ title: "Veuillez remplir tous les champs", variant: "destructive" });
-      return;
-    }
-    addCardMutation.mutate(newCard);
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(ETRANSFER_EMAIL);
+    setCopied(true);
+    toast.success("Courriel copié!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDeleteClick = (card: any) => {
-    setCardToDelete({ id: card.id, lastFour: card.last_four, cardType: card.card_type });
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (cardToDelete) {
-      deleteCardMutation.mutate(cardToDelete.id);
-    }
-  };
+  // Credit card is in maintenance mode
+  const isCreditCardMaintenance = true;
 
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Moyens de paiement</h1>
-            <p className="text-muted-foreground mt-1">Gérez vos cartes de paiement</p>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="hero">
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter une carte
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Ajouter une carte de paiement</DialogTitle>
-                <DialogDescription>
-                  Entrez les informations de votre carte. Les données sensibles ne sont jamais stockées en clair.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label>Numéro de carte</Label>
-                  <Input
-                    placeholder="1234 5678 9012 3456"
-                    value={newCard.cardNumber}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "").slice(0, 16);
-                      const formatted = value.replace(/(\d{4})(?=\d)/g, "$1 ");
-                      setNewCard({ ...newCard, cardNumber: formatted });
-                    }}
-                    maxLength={19}
-                  />
-                </div>
-                <div>
-                  <Label>Nom sur la carte</Label>
-                  <Input
-                    placeholder="NOM COMPLET"
-                    value={newCard.cardName}
-                    onChange={(e) => setNewCard({ ...newCard, cardName: e.target.value.toUpperCase() })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Expiration</Label>
-                    <Input
-                      placeholder="MM/AA"
-                      value={newCard.expiry}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(/\D/g, "").slice(0, 4);
-                        if (value.length >= 2) {
-                          value = value.slice(0, 2) + "/" + value.slice(2);
-                        }
-                        setNewCard({ ...newCard, expiry: value });
-                      }}
-                      maxLength={5}
-                    />
-                  </div>
-                  <div>
-                    <Label>CVV</Label>
-                    <Input
-                      type="password"
-                      placeholder="***"
-                      value={newCard.cvv}
-                      onChange={(e) => setNewCard({ ...newCard, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) })}
-                      maxLength={4}
-                    />
-                  </div>
-                </div>
-                <Button
-                  className="w-full"
-                  variant="hero"
-                  onClick={handleAddCard}
-                  disabled={addCardMutation.isPending}
-                >
-                  Ajouter la carte
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div>
+          <h1 className="font-display text-3xl font-bold text-foreground">Moyens de paiement</h1>
+          <p className="text-muted-foreground mt-1">Gérez vos options de paiement</p>
         </div>
 
-        <Card className="bg-card border-border">
+        {/* Interac E-Transfer - Primary Method */}
+        <Card className="bg-card border-emerald-500/30 border-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-cyan-400" />
-              Cartes enregistrées
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-emerald-500" />
+                Virement Interac
+              </CardTitle>
+              <Badge className="bg-emerald-500/20 text-emerald-500 border-0">
+                Actif
+              </Badge>
+            </div>
+            <CardDescription>
+              Méthode de paiement principale pour vos factures et recharges.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <p className="text-sm font-medium text-foreground mb-3">
+                Envoyez vos paiements à :
+              </p>
+              <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
+                <Mail className="w-5 h-5 text-emerald-500" />
+                <span className="font-mono text-lg flex-1">{ETRANSFER_EMAIL}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyEmail}
+                  className="gap-2"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      Copié!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copier
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Question de sécurité</p>
+                <p className="text-sm font-medium">Aucune requise (dépôt automatique)</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Message à inclure</p>
+                <p className="text-sm font-medium">Votre numéro de téléphone ou # de facture</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Les paiements sont traités automatiquement dès réception. Un courriel de confirmation vous sera envoyé.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Credit Card Section - Maintenance Mode */}
+        <Card className="bg-card border-border opacity-75">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-muted-foreground">
+                <CreditCard className="w-5 h-5" />
+                Cartes de crédit
+              </CardTitle>
+              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10">
+                <Wrench className="w-3 h-3" />
+                Maintenance
+              </Badge>
+            </div>
+            <CardDescription>
+              Le paiement par carte est temporairement indisponible.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
-                ))}
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Wrench className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Nous travaillons à améliorer notre système de paiement par carte.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    En attendant, veuillez utiliser le virement Interac pour effectuer vos paiements. Nous vous remercions de votre compréhension.
+                  </p>
+                </div>
               </div>
-            ) : paymentMethods && paymentMethods.length > 0 ? (
-              <div className="space-y-4">
+            </div>
+
+            {/* Show saved cards but disabled */}
+            {!isLoading && paymentMethods && paymentMethods.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-muted-foreground">Cartes enregistrées (inactives):</p>
                 {paymentMethods.map((card: any) => (
                   <div
                     key={card.id}
-                    className="flex items-center justify-between p-4 bg-accent/50 rounded-lg border border-border"
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border opacity-60"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-8 bg-gradient-to-br from-cyan-500 to-cyan-400 rounded flex items-center justify-center">
-                        <CreditCard className="w-5 h-5 text-navy-900" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-6 bg-gradient-to-br from-gray-400 to-gray-500 rounded flex items-center justify-center">
+                        <CreditCard className="w-4 h-4 text-white" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-foreground">
-                            {card.card_type} •••• {card.last_four}
-                          </p>
-                          {card.is_default && (
-                            <span className="text-xs bg-cyan-500/20 text-cyan-500 px-2 py-0.5 rounded">
-                              Par défaut
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="font-medium text-muted-foreground">
+                          {card.card_type} •••• {card.last_four}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
                           Expire {card.expiry_month.toString().padStart(2, "0")}/{card.expiry_year}
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      {!card.is_default && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setDefaultMutation.mutate(card.id)}
-                          disabled={setDefaultMutation.isPending}
-                          title="Définir comme carte par défaut"
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                        onClick={() => handleDeleteClick(card)}
-                        disabled={deleteCardMutation.isPending}
-                        title="Supprimer cette carte"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    {card.is_default && (
+                      <Badge variant="outline" className="text-xs opacity-50">
+                        Par défaut
+                      </Badge>
+                    )}
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-4">Aucune carte enregistrée</p>
-                <Button variant="hero" onClick={() => setDialogOpen(true)}>
-                  Ajouter une carte
-                </Button>
               </div>
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-              Supprimer cette carte?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer la carte <strong>{cardToDelete?.cardType} •••• {cardToDelete?.lastFour}</strong>?
-              <br /><br />
-              Cette action retirera la carte de votre compte. Si vous avez des paiements préautorisés actifs, assurez-vous d'avoir une autre carte enregistrée.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteCardMutation.isPending}>
-              Annuler
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleteCardMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteCardMutation.isPending ? "Suppression..." : "Supprimer"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Help Section */}
+        <Card className="bg-card border-border">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <h3 className="font-medium text-foreground">Besoin d'aide avec un paiement?</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Notre équipe est disponible pour vous assister.
+                </p>
+              </div>
+              <Button variant="outline" className="gap-2" asChild>
+                <a href="/contact">
+                  Nous contacter
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </ClientLayout>
   );
 };
