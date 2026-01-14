@@ -93,56 +93,59 @@ const TrackOrder = () => {
     setIsLoading(true);
 
     try {
-      // Query order by order_number and verify email matches
-      const { data, error: queryError } = await supabase
-        .from("orders")
-        .select("id, order_number, status, created_at, updated_at, service_type, shipping_address, shipping_city, total_amount, client_email")
-        .eq("order_number", orderNumber.trim().toUpperCase())
-        .maybeSingle();
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        "order-tracking-lookup",
+        {
+          body: {
+            orderNumber: orderNumber.trim(),
+            email: normalizedEmail,
+            language: isFr ? "fr" : "en",
+          },
+        }
+      );
 
-      if (queryError) {
-        console.error("Query error:", queryError);
-        setError(isFr 
-          ? "Une erreur est survenue. Veuillez réessayer." 
-          : "An error occurred. Please try again.");
+      if (invokeError) {
+        console.error("Invoke error:", invokeError);
+
+        // Try to extract JSON body message from the function response (when available)
+        let message = isFr
+          ? "Une erreur est survenue. Veuillez réessayer."
+          : "An error occurred. Please try again.";
+
+        const ctx = (invokeError as any)?.context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.json();
+            if (body?.message && typeof body.message === "string") message = body.message;
+          } catch {
+            // ignore
+          }
+        }
+
+        setError(message);
         setIsLoading(false);
         return;
       }
 
-      if (!data) {
-        setError(isFr 
-          ? "Aucune commande trouvée avec ce numéro." 
-          : "No order found with this number.");
+      const order = (data as any)?.order as OrderData | undefined;
+      if (!order) {
+        setError(
+          isFr
+            ? "Aucune commande trouvée avec ce numéro."
+            : "No order found with this number."
+        );
         setIsLoading(false);
         return;
       }
 
-      // Verify email matches (case-insensitive)
-      const orderEmail = (data.client_email || "").trim().toLowerCase();
-      if (orderEmail !== normalizedEmail) {
-        setError(isFr 
-          ? "Le courriel ne correspond pas à cette commande." 
-          : "The email does not match this order.");
-        setIsLoading(false);
-        return;
-      }
-
-      setOrderData({
-        id: data.id,
-        order_number: data.order_number || "",
-        status: data.status,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        service_type: data.service_type,
-        shipping_address: data.shipping_address,
-        shipping_city: data.shipping_city,
-        total_amount: data.total_amount,
-      });
+      setOrderData(order);
     } catch (err) {
       console.error("Error fetching order:", err);
-      setError(isFr 
-        ? "Une erreur est survenue. Veuillez réessayer." 
-        : "An error occurred. Please try again.");
+      setError(
+        isFr
+          ? "Une erreur est survenue. Veuillez réessayer."
+          : "An error occurred. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
