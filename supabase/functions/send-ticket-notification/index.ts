@@ -1,14 +1,12 @@
 /**
  * send-ticket-notification
- * Sends email + SMS notifications for ticket events:
- * - ticket_created: New ticket created
- * - ticket_status_update: Status changed
- * - ticket_resolved: Ticket resolved/closed
+ * Sends email + SMS notifications for ticket events using Resend templates
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
+import { sendTemplateEmail, hasTemplate, type ResendTemplateKey } from "../_shared/resendTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +20,11 @@ const STATUS_LABELS: Record<string, string> = {
   resolved: "Résolu",
   closed: "Fermé",
   cancelled: "Annulé",
+};
+
+// Map ticket events to Resend template keys
+const TICKET_TEMPLATE_MAP: Record<string, ResendTemplateKey> = {
+  ticket_created: "ticket_created",
 };
 
 interface TicketNotificationRequest {
@@ -72,6 +75,37 @@ Deno.serve(async (req) => {
     } = body;
 
     console.log(`[${requestId}] Event: ${event_type}, Ticket: ${ticket_number}`);
+
+    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+    const portalUrl = `${siteBaseUrl}/portal`;
+
+    // Send email using Resend template if available
+    if (resendApiKey && event_type === "ticket_created") {
+      const templateKey = TICKET_TEMPLATE_MAP[event_type];
+      
+      if (templateKey && hasTemplate(templateKey)) {
+        const firstName = client_name?.split(" ")[0] || "Client";
+        
+        const result = await sendTemplateEmail({
+          resendApiKey,
+          templateKey,
+          to: client_email,
+          variables: {
+            CLIENT_FIRST_NAME: firstName,
+            CLIENT_NAME: client_name || "Client",
+            TICKET_NUMBER: ticket_number,
+            SUBJECT: subject || "Demande de support",
+            PORTAL_LINK: portalUrl,
+          },
+        });
+
+        if (result.success) {
+          console.log(`[${requestId}] Email sent via Resend template: ${templateKey}`);
+        } else {
+          console.warn(`[${requestId}] Template email failed, will not retry: ${result.error}`);
+        }
+      }
+    }
 
     // Fetch phone from profiles if not provided
     let phoneForSms = client_phone;
@@ -136,8 +170,6 @@ Deno.serve(async (req) => {
     } else {
       console.log(`[${requestId}] No valid phone for SMS`);
     }
-
-    // TODO: Add email sending here if needed (similar to order confirmation)
 
     return new Response(JSON.stringify({ 
       success: true,

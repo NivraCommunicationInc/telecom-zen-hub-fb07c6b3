@@ -1,11 +1,22 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { 
+  sendTemplateEmail, 
+  formatDateForTemplate,
+  formatDateTimeForTemplate 
+} from "../_shared/resendTemplates.ts";
 
 interface NotificationRequest {
   email: string;
   name: string;
   appointmentTitle: string;
   appointmentDate: string;
+  appointmentTime?: string;
+  appointmentType?: string;
+  orderNumber?: string;
+  serviceAddress?: string;
+  serviceAddressLine2?: string;
+  instructions?: string;
   status: "confirmed" | "updated" | "cancelled" | "completed";
   notes?: string;
 }
@@ -16,13 +27,74 @@ const handler = async (req: Request): Promise<Response> => {
   
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  const requestId = crypto.randomUUID().slice(0, 8);
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
 
-    const { email, name, appointmentTitle, appointmentDate, status, notes }: NotificationRequest = await req.json();
+    const body: NotificationRequest = await req.json();
+    const { 
+      email, 
+      name, 
+      appointmentTitle, 
+      appointmentDate, 
+      appointmentTime,
+      appointmentType,
+      orderNumber,
+      serviceAddress,
+      serviceAddressLine2,
+      instructions,
+      status, 
+      notes 
+    } = body;
 
+    console.log(`[${requestId}] Sending appointment notification: status=${status}, to=${email?.substring(0, 3)}***`);
+
+    // Only send for confirmed status using Resend template
+    // Other statuses still use hardcoded HTML for now
+    if (status === "confirmed") {
+      const parsedDate = new Date(appointmentDate);
+      const dateStr = formatDateForTemplate(parsedDate);
+      const timeStr = appointmentTime || parsedDate.toLocaleTimeString("fr-CA", { timeStyle: "short" });
+      
+      const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+      const portalUrl = `${siteBaseUrl}/portal`;
+      
+      const result = await sendTemplateEmail({
+        resendApiKey,
+        templateKey: "appointment_scheduled",
+        to: email,
+        variables: {
+          CLIENT_FIRST_NAME: name?.split(" ")[0] || "Client",
+          APPOINTMENT_DATE: dateStr,
+          APPOINTMENT_TIME: timeStr,
+          APPOINTMENT_TYPE: appointmentType || appointmentTitle || "Installation",
+          ORDER_NUMBER: orderNumber || "",
+          APPOINTMENT_ADDRESS_LINE1: serviceAddress || "",
+          APPOINTMENT_ADDRESS_LINE2: serviceAddressLine2 || "",
+          APPOINTMENT_INSTRUCTIONS: instructions || notes || "",
+          PORTAL_LINK: portalUrl,
+          RESCHEDULE_LINK: `${portalUrl}/appointments`,
+        },
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send email");
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        result: { id: result.id },
+        method: "resend_template",
+        template: "appointment_scheduled_fr"
+      }), { 
+        status: 200, 
+        headers: { "Content-Type": "application/json", ...corsHeaders } 
+      });
+    }
+
+    // Fallback to hardcoded HTML for other statuses
     const statusMessages = {
       confirmed: { subject: "Confirmation de votre rendez-vous - Nivra", heading: "Votre rendez-vous est confirmé!", message: "Nous avons bien confirmé votre rendez-vous.", color: "#10b981" },
       updated: { subject: "Mise à jour de votre rendez-vous - Nivra", heading: "Votre rendez-vous a été modifié", message: "Les détails de votre rendez-vous ont été mis à jour.", color: "#f59e0b" },
@@ -48,10 +120,20 @@ const handler = async (req: Request): Promise<Response> => {
     const result = await emailResponse.json();
     if (!emailResponse.ok) throw new Error(result.message || "Failed to send email");
 
-    return new Response(JSON.stringify({ success: true, result }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ 
+      success: true, 
+      result,
+      method: "hardcoded_html"
+    }), { 
+      status: 200, 
+      headers: { "Content-Type": "application/json", ...corsHeaders } 
+    });
   } catch (error: any) {
-    console.error("Error in send-appointment-notification:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } });
+    console.error(`[${requestId}] Error in send-appointment-notification:`, error);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 
+    });
   }
 };
 
