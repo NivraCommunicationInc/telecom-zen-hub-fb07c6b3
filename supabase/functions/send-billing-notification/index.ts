@@ -2,6 +2,21 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
+import { 
+  sendTemplateEmail, 
+  formatCurrencyForTemplate,
+  formatDateForTemplate,
+  hasTemplate,
+  type ResendTemplateKey
+} from "../_shared/resendTemplates.ts";
+
+// Map billing event types to Resend template keys
+const BILLING_TEMPLATE_MAP: Record<string, ResendTemplateKey> = {
+  invoice_created: "invoice_created",
+  payment_received: "payment_receipt",
+  payment_failed: "payment_failed",
+  invoice_overdue: "invoice_overdue",
+};
 
 const handler = async (req: Request): Promise<Response> => {
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -9,6 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
   
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  const requestId = crypto.randomUUID().slice(0, 8);
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -16,9 +32,66 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, name, type, invoiceNumber, amount, dueDate, paidAt, paymentMethod, notes, phone, clientId } = await req.json();
     
-    const formatCurrency = (value: number) => new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(value);
-    const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("fr-CA", { dateStyle: "long" });
+    console.log(`[${requestId}] Billing notification: type=${type}, to=${email?.substring(0, 3)}***`);
 
+    const formatCurrency = (value: number) => formatCurrencyForTemplate(value);
+    const formatDate = (dateStr: string) => formatDateForTemplate(dateStr);
+
+    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+    const portalUrl = `${siteBaseUrl}/portal`;
+
+    // Check if we have a Resend template for this type
+    const templateKey = BILLING_TEMPLATE_MAP[type];
+    
+    if (templateKey && hasTemplate(templateKey)) {
+      // Use Resend template
+      const variables: Record<string, string | number | undefined> = {
+        CLIENT_FIRST_NAME: name?.split(" ")[0] || "Client",
+        CLIENT_NAME: name || "Client",
+        INVOICE_NUMBER: invoiceNumber || "",
+        AMOUNT: formatCurrency(amount),
+        DUE_DATE: dueDate ? formatDate(dueDate) : "",
+        PAYMENT_DATE: paidAt ? formatDate(paidAt) : "",
+        PAYMENT_METHOD: paymentMethod || "",
+        PORTAL_LINK: portalUrl,
+      };
+
+      // Add type-specific variables
+      if (type === "invoice_overdue" && dueDate) {
+        const daysDiff = Math.floor((Date.now() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24));
+        variables.DAYS_OVERDUE = daysDiff > 0 ? String(daysDiff) : "0";
+      }
+
+      const result = await sendTemplateEmail({
+        resendApiKey,
+        templateKey,
+        to: email,
+        variables,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send email");
+      }
+
+      console.log(`[${requestId}] Email sent via Resend template: ${templateKey}`);
+
+      // Send SMS notification (non-blocking)
+      await sendBillingSms(type, phone, email, clientId, name, formatCurrency(amount), invoiceNumber, dueDate ? formatDate(dueDate) : undefined);
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        result: { id: result.id },
+        method: "resend_template",
+        template: templateKey
+      }), { 
+        status: 200, 
+        headers: { "Content-Type": "application/json", ...corsHeaders } 
+      });
+    }
+
+    // Fallback to hardcoded HTML for unmapped types
+    console.log(`[${requestId}] No template for type=${type}, using hardcoded HTML`);
+    
     const typeConfigs: Record<string, any> = {
       invoice_created: { subject: `Nouvelle facture ${invoiceNumber || ""} - Nivra`, heading: "Nouvelle facture créée", message: "Une nouvelle facture a été créée pour votre compte.", color: "#0891b2", icon: "📄" },
       payment_received: { subject: "Confirmation de paiement - Nivra", heading: "Paiement reçu avec succès!", message: "Nous avons bien reçu votre paiement. Merci!", color: "#10b981", icon: "✅" },
@@ -26,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
       invoice_overdue: { subject: "Facture en retard - Nivra", heading: "Rappel de paiement", message: "Votre facture est maintenant en retard.", color: "#f59e0b", icon: "⚠️" },
     };
 
-    const config = typeConfigs[type];
+    const config = typeConfigs[type] || typeConfigs.invoice_created;
     let detailsHtml = invoiceNumber ? `<p><strong>Facture:</strong> ${invoiceNumber}</p>` : "";
     detailsHtml += `<p><strong>Montant:</strong> ${formatCurrency(amount)}</p>`;
     if (dueDate) detailsHtml += `<p><strong>Échéance:</strong> ${formatDate(dueDate)}</p>`;
@@ -47,65 +120,83 @@ const handler = async (req: Request): Promise<Response> => {
     const result = await emailResponse.json();
     if (!emailResponse.ok) throw new Error(result.message);
 
-    // Send SMS notification based on type (non-blocking)
-    // Fetch phone if not provided
-    let phoneForSms = phone;
-    let clientIdForSms = clientId;
+    // Send SMS notification (non-blocking)
+    await sendBillingSms(type, phone, email, clientId, name, formatCurrency(amount), invoiceNumber, dueDate ? formatDate(dueDate) : undefined);
 
-    if (!phoneForSms && email) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (supabaseUrl && supabaseServiceKey) {
-        console.log(`No phone provided, fetching from profiles...`);
-        const phoneResult = await fetchClientPhone(supabaseUrl, supabaseServiceKey, email, clientId);
-        phoneForSms = phoneResult.phone;
-        clientIdForSms = phoneResult.clientId || clientId;
-        if (phoneForSms) {
-          console.log(`Found phone from profiles`);
-        }
-      }
-    }
-
-    if (phoneForSms && toE164(phoneForSms)) {
-      const clientName = name || "Client";
-      const formattedAmount = formatCurrency(amount);
-      let smsMessage: string | null = null;
-
-      switch (type) {
-        case "payment_received":
-          smsMessage = SMS_TEMPLATES.paymentReceived({
-            clientName,
-            amount: formattedAmount,
-            invoiceNumber,
-          });
-          break;
-        case "invoice_overdue":
-          smsMessage = SMS_TEMPLATES.paymentOverdue({
-            clientName,
-            amount: formattedAmount,
-            dueDate: dueDate ? formatDate(dueDate) : undefined,
-          });
-          break;
-      }
-
-      if (smsMessage) {
-        const smsResult = await sendSmsNotification({
-          to: phoneForSms,
-          message: smsMessage,
-          clientId: clientIdForSms,
-          eventType: `billing_${type}`,
-          eventKey: invoiceNumber ? `billing_${invoiceNumber}_${type}` : undefined,
-        });
-        console.log(`Billing SMS result:`, JSON.stringify(smsResult));
-      }
-    } else {
-      console.log(`No valid phone for billing SMS`);
-    }
-
-    return new Response(JSON.stringify({ success: true, result }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    return new Response(JSON.stringify({ 
+      success: true, 
+      result,
+      method: "hardcoded_html"
+    }), { 
+      status: 200, 
+      headers: { "Content-Type": "application/json", ...corsHeaders } 
+    });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } });
+    console.error(`[${requestId}] Error:`, error);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 
+    });
   }
 };
+
+// Helper function to send billing SMS
+async function sendBillingSms(
+  type: string, 
+  phone: string | undefined, 
+  email: string, 
+  clientId: string | undefined,
+  name: string,
+  formattedAmount: string,
+  invoiceNumber?: string,
+  formattedDueDate?: string
+) {
+  let phoneForSms = phone;
+  let clientIdForSms = clientId;
+
+  if (!phoneForSms && email) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (supabaseUrl && supabaseServiceKey) {
+      console.log(`No phone provided, fetching from profiles...`);
+      const phoneResult = await fetchClientPhone(supabaseUrl, supabaseServiceKey, email, clientId);
+      phoneForSms = phoneResult.phone || undefined;
+      clientIdForSms = phoneResult.clientId || clientId;
+    }
+  }
+
+  if (phoneForSms && toE164(phoneForSms)) {
+    const clientName = name || "Client";
+    let smsMessage: string | null = null;
+
+    switch (type) {
+      case "payment_received":
+        smsMessage = SMS_TEMPLATES.paymentReceived({
+          clientName,
+          amount: formattedAmount,
+          invoiceNumber,
+        });
+        break;
+      case "invoice_overdue":
+        smsMessage = SMS_TEMPLATES.paymentOverdue({
+          clientName,
+          amount: formattedAmount,
+          dueDate: formattedDueDate,
+        });
+        break;
+    }
+
+    if (smsMessage) {
+      const smsResult = await sendSmsNotification({
+        to: phoneForSms,
+        message: smsMessage,
+        clientId: clientIdForSms,
+        eventType: `billing_${type}`,
+        eventKey: invoiceNumber ? `billing_${invoiceNumber}_${type}` : undefined,
+      });
+      console.log(`Billing SMS result:`, JSON.stringify(smsResult));
+    }
+  }
+}
 
 serve(handler);
