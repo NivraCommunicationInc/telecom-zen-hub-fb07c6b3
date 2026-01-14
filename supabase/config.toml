@@ -122,3 +122,7 @@ verify_jwt = false
 
 [functions.openphone-phone-numbers]
 verify_jwt = false
+
+[functions.order-tracking-lookup]
+verify_jwt = false
+
