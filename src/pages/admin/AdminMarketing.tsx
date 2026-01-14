@@ -21,7 +21,7 @@ import {
   Eye
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import MarketingTemplates from "@/components/marketing/MarketingTemplates";
