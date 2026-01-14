@@ -9,6 +9,7 @@ import { Loader2, Users, Lock, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 import { PARTNER_SUPPORT_EMAIL, getPartnerMailtoLink } from "@/config/partnerContact";
+import WeatherBackground from "@/components/influencer/WeatherBackground";
 
 const InfluencerResetPassword = () => {
   const navigate = useNavigate();
@@ -87,7 +88,8 @@ const InfluencerResetPassword = () => {
   // Loading state
   if (isValidSession === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center relative">
+        <WeatherBackground />
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Vérification de votre session...</p>
@@ -99,7 +101,8 @@ const InfluencerResetPassword = () => {
   // Invalid/expired session
   if (!isValidSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <WeatherBackground />
         <Card className="max-w-md w-full border-destructive/30">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
@@ -131,7 +134,8 @@ const InfluencerResetPassword = () => {
   // Success state
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <WeatherBackground />
         <Card className="max-w-md w-full border-green-500/30">
           <CardContent className="pt-6 text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -152,7 +156,8 @@ const InfluencerResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <WeatherBackground />
       <div className="w-full max-w-md">
         {/* Logo/Branding */}
         <div className="text-center mb-8">

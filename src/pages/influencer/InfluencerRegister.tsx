@@ -7,6 +7,7 @@ import { Users, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 import { PartnerSignupForm, PartnerSignupFormData } from "@/components/influencer/PartnerSignupForm";
+import WeatherBackground from "@/components/influencer/WeatherBackground";
 
 const InfluencerRegister = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +83,8 @@ const InfluencerRegister = () => {
   // User already exists - show recovery options
   if (userExistsError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <WeatherBackground />
         <div className="w-full max-w-md">
           <Card className="border-yellow-500/30">
             <CardContent className="pt-6 text-center">
@@ -115,7 +117,8 @@ const InfluencerRegister = () => {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <WeatherBackground />
         <div className="w-full max-w-md">
           <Card className="border-green-500/30">
             <CardContent className="pt-6 text-center">
@@ -140,7 +143,8 @@ const InfluencerRegister = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <WeatherBackground />
       <div className="w-full max-w-md">
         {/* Logo/Branding */}
         <div className="text-center mb-8">
