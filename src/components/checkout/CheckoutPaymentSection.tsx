@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Shield, Lock, AlertCircle, Info } from "lucide-react";
+import { CreditCard, Shield, Lock, AlertCircle, Info, Banknote, Wrench, Mail, Copy, Check as CheckIcon } from "lucide-react";
+import { toast } from "sonner";
 
 interface SavedCard {
   id: string;
@@ -21,8 +21,8 @@ interface SavedCard {
 interface CheckoutPaymentSectionProps {
   isFrench: boolean;
   savedCards: SavedCard[];
-  selectedPaymentMethod: "saved" | "new";
-  onPaymentMethodChange: (method: "saved" | "new") => void;
+  selectedPaymentMethod: "saved" | "new" | "etransfer";
+  onPaymentMethodChange: (method: "saved" | "new" | "etransfer") => void;
   selectedCardId: string;
   onSelectedCardChange: (cardId: string) => void;
   cvv: string;
@@ -40,6 +40,9 @@ interface CheckoutPaymentSectionProps {
   cvvError?: string;
 }
 
+// E-Transfer configuration
+const ETRANSFER_EMAIL = "paiement@nivra.ca";
+
 export const CheckoutPaymentSection = ({
   isFrench,
   savedCards,
@@ -56,249 +59,177 @@ export const CheckoutPaymentSection = ({
   totalAmount,
   cvvError,
 }: CheckoutPaymentSectionProps) => {
+  const [copied, setCopied] = useState(false);
   const hasSavedCards = savedCards && savedCards.length > 0;
-  const selectedCard = savedCards?.find(c => c.id === selectedCardId);
 
-  const formatCardNumber = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 16);
-    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(ETRANSFER_EMAIL);
+    setCopied(true);
+    toast.success(isFrench ? "Courriel copié!" : "Email copied!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatExpiry = (value: string) => {
-    let digits = value.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 2) {
-      digits = digits.slice(0, 2) + "/" + digits.slice(2);
-    }
-    return digits;
-  };
+  // Credit card is in maintenance mode
+  const isCreditCardMaintenance = true;
 
   return (
     <Card className="bg-card border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-cyan-500" />
+          <Banknote className="w-5 h-5 text-cyan-500" />
           {isFrench ? "Mode de paiement" : "Payment Method"}
         </CardTitle>
         <CardDescription>
           {isFrench 
-            ? "Sélectionnez votre méthode de paiement pour le dépôt préautorisé."
-            : "Select your payment method for the pre-authorized deposit."}
+            ? "Sélectionnez votre méthode de paiement."
+            : "Select your payment method."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Pre-authorization notice */}
-        <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-          <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {isFrench 
-                ? "Montant préautorisé (dépôt) — remboursable si la commande est annulée."
-                : "Pre-authorized amount (deposit) — refundable if the order is cancelled."}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isFrench 
-                ? `Le montant de ${totalAmount.toFixed(2)}$ sera préautorisé sur votre carte. Aucun prélèvement final avant la confirmation du service.`
-                : `The amount of $${totalAmount.toFixed(2)} will be pre-authorized on your card. No final charge until service confirmation.`}
-            </p>
-          </div>
-        </div>
-
         <RadioGroup 
           value={selectedPaymentMethod} 
-          onValueChange={(v) => onPaymentMethodChange(v as "saved" | "new")}
+          onValueChange={(v) => {
+            // Only allow etransfer when credit card is in maintenance
+            if (isCreditCardMaintenance && (v === "saved" || v === "new")) {
+              return;
+            }
+            onPaymentMethodChange(v as "saved" | "new" | "etransfer");
+          }}
         >
-          {/* Saved Card Option */}
-          {hasSavedCards && (
-            <div 
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                selectedPaymentMethod === "saved" 
-                  ? "border-cyan-500 bg-cyan-500/5" 
-                  : "border-border hover:border-cyan-500/50"
-              }`}
-              onClick={() => onPaymentMethodChange("saved")}
-            >
-              <div className="flex items-start gap-3">
-                <RadioGroupItem value="saved" id="payment-saved" className="mt-1" />
-                <div className="flex-1 space-y-4">
-                  <Label htmlFor="payment-saved" className="text-base font-medium cursor-pointer">
-                    {isFrench ? "Carte enregistrée" : "Saved Card"}
-                  </Label>
-
-                  {selectedPaymentMethod === "saved" && (
-                    <div className="space-y-4">
-                      {/* Card selection */}
-                      <div className="space-y-2">
-                        {savedCards.map((card) => (
-                          <div 
-                            key={card.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                              selectedCardId === card.id 
-                                ? "border-cyan-500 bg-cyan-500/10" 
-                                : "border-border hover:border-cyan-500/50"
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectedCardChange(card.id);
-                            }}
-                          >
-                            <div className="w-10 h-6 bg-gradient-to-br from-cyan-500 to-cyan-400 rounded flex items-center justify-center">
-                              <CreditCard className="w-4 h-4 text-navy-900" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium text-foreground">
-                                {card.card_type} •••• {card.last_four}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {isFrench ? "Expire" : "Expires"} {card.expiry_month.toString().padStart(2, "0")}/{card.expiry_year}
-                              </p>
-                            </div>
-                            {card.is_default && (
-                              <Badge variant="outline" className="text-xs">
-                                {isFrench ? "Par défaut" : "Default"}
-                              </Badge>
-                            )}
-                            {card.is_preauthorized && (
-                              <Badge className="bg-emerald-500/20 text-emerald-500 border-0 text-xs">
-                                {isFrench ? "Pré-autorisé" : "Pre-authorized"}
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* CVV Input for saved card */}
-                      {selectedCardId && (
-                        <div className="space-y-2 max-w-[120px]">
-                          <Label htmlFor="saved-cvv" className="text-sm">
-                            CVV <span className="text-destructive">*</span>
-                          </Label>
-                          <Input
-                            id="saved-cvv"
-                            type="password"
-                            placeholder="•••"
-                            value={cvv}
-                            onChange={(e) => onCvvChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                            maxLength={4}
-                            className={cvvError ? "border-destructive" : ""}
-                          />
-                          {cvvError && (
-                            <p className="text-xs text-destructive">{cvvError}</p>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            {isFrench 
-                              ? "Code de sécurité au dos de la carte"
-                              : "Security code on back of card"}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* New Card Option */}
+          {/* Interac E-Transfer Option - PRIMARY */}
           <div 
             className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-              selectedPaymentMethod === "new" 
+              selectedPaymentMethod === "etransfer" 
                 ? "border-cyan-500 bg-cyan-500/5" 
                 : "border-border hover:border-cyan-500/50"
             }`}
-            onClick={() => onPaymentMethodChange("new")}
+            onClick={() => onPaymentMethodChange("etransfer")}
           >
             <div className="flex items-start gap-3">
-              <RadioGroupItem value="new" id="payment-new" className="mt-1" />
+              <RadioGroupItem value="etransfer" id="payment-etransfer" className="mt-1" />
               <div className="flex-1 space-y-4">
-                <Label htmlFor="payment-new" className="text-base font-medium cursor-pointer">
-                  {isFrench ? "Utiliser une nouvelle carte" : "Use a new card"}
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="payment-etransfer" className="text-base font-medium cursor-pointer flex items-center gap-2">
+                    <Banknote className="w-5 h-5 text-emerald-500" />
+                    {isFrench ? "Virement Interac" : "Interac E-Transfer"}
+                  </Label>
+                  <Badge className="bg-emerald-500/20 text-emerald-500 border-0">
+                    {isFrench ? "Recommandé" : "Recommended"}
+                  </Badge>
+                </div>
 
-                {selectedPaymentMethod === "new" && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="card-number">
-                        {isFrench ? "Numéro de carte" : "Card Number"} <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="card-number"
-                        placeholder="1234 5678 9012 3456"
-                        value={newCardData.cardNumber}
-                        onChange={(e) => onNewCardChange({
-                          ...newCardData,
-                          cardNumber: formatCardNumber(e.target.value)
-                        })}
-                        maxLength={19}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="card-name">
-                        {isFrench ? "Nom sur la carte" : "Name on Card"} <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="card-name"
-                        placeholder="NOM COMPLET"
-                        value={newCardData.cardName}
-                        onChange={(e) => onNewCardChange({
-                          ...newCardData,
-                          cardName: e.target.value.toUpperCase()
-                        })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="card-expiry">
-                          {isFrench ? "Expiration" : "Expiry"} <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="card-expiry"
-                          placeholder="MM/AA"
-                          value={newCardData.expiry}
-                          onChange={(e) => onNewCardChange({
-                            ...newCardData,
-                            expiry: formatExpiry(e.target.value)
-                          })}
-                          maxLength={5}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="card-cvv">
-                          CVV <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="card-cvv"
-                          type="password"
-                          placeholder="•••"
-                          value={newCardData.cvv}
-                          onChange={(e) => onNewCardChange({
-                            ...newCardData,
-                            cvv: e.target.value.replace(/\D/g, "").slice(0, 4)
-                          })}
-                          maxLength={4}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Save card option */}
-                    <div className="flex items-center gap-3 pt-2">
-                      <Checkbox
-                        id="save-card"
-                        checked={saveNewCard}
-                        onCheckedChange={(checked) => onSaveNewCardChange(checked as boolean)}
-                      />
-                      <Label htmlFor="save-card" className="text-sm text-muted-foreground cursor-pointer">
+                {selectedPaymentMethod === "etransfer" && (
+                  <div className="space-y-4 pt-2">
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                      <p className="text-sm font-medium text-foreground mb-3">
                         {isFrench 
-                          ? "Sauvegarder cette carte pour mes prochains achats"
-                          : "Save this card for future purchases"}
-                      </Label>
+                          ? "Envoyez le virement Interac à :"
+                          : "Send Interac E-Transfer to:"}
+                      </p>
+                      <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
+                        <Mail className="w-5 h-5 text-emerald-500" />
+                        <span className="font-mono text-lg flex-1">{ETRANSFER_EMAIL}</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyEmail}
+                          className="gap-2"
+                        >
+                          {copied ? (
+                            <>
+                              <CheckIcon className="w-4 h-4 text-emerald-500" />
+                              {isFrench ? "Copié!" : "Copied!"}
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              {isFrench ? "Copier" : "Copy"}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        <strong>{isFrench ? "Montant à envoyer:" : "Amount to send:"}</strong>{" "}
+                        <span className="text-foreground font-semibold">{totalAmount.toFixed(2)}$</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>{isFrench ? "Message/Référence:" : "Message/Reference:"}</strong>{" "}
+                        <span className="text-foreground">{isFrench ? "Votre numéro de téléphone" : "Your phone number"}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        {isFrench 
+                          ? "Votre commande sera traitée dès réception du paiement. Un courriel de confirmation vous sera envoyé."
+                          : "Your order will be processed upon payment receipt. A confirmation email will be sent."}
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Credit Card Option - MAINTENANCE MODE */}
+          <div 
+            className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60"
+          >
+            <div className="flex items-start gap-3">
+              <RadioGroupItem value="new" id="payment-new" className="mt-1" disabled />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="payment-new" className="text-base font-medium cursor-not-allowed flex items-center gap-2 text-muted-foreground">
+                    <CreditCard className="w-5 h-5" />
+                    {isFrench ? "Carte de crédit" : "Credit Card"}
+                  </Label>
+                  <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10">
+                    <Wrench className="w-3 h-3" />
+                    {isFrench ? "Maintenance" : "Maintenance"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {isFrench 
+                    ? "Le paiement par carte est temporairement indisponible. Veuillez utiliser le virement Interac."
+                    : "Card payment is temporarily unavailable. Please use Interac E-Transfer."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Saved Card Option - Also in maintenance */}
+          {hasSavedCards && (
+            <div 
+              className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60"
+            >
+              <div className="flex items-start gap-3">
+                <RadioGroupItem value="saved" id="payment-saved" className="mt-1" disabled />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="payment-saved" className="text-base font-medium cursor-not-allowed flex items-center gap-2 text-muted-foreground">
+                      <CreditCard className="w-5 h-5" />
+                      {isFrench ? "Carte enregistrée" : "Saved Card"}
+                      <span className="text-xs">({savedCards.length})</span>
+                    </Label>
+                    <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10">
+                      <Wrench className="w-3 h-3" />
+                      {isFrench ? "Maintenance" : "Maintenance"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {isFrench 
+                      ? "Les paiements par carte enregistrée sont temporairement indisponibles."
+                      : "Saved card payments are temporarily unavailable."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </RadioGroup>
 
         {/* Security notice */}
@@ -306,8 +237,8 @@ export const CheckoutPaymentSection = ({
           <Lock className="w-4 h-4" />
           <span>
             {isFrench 
-              ? "Paiement sécurisé. Vos informations sont chiffrées et protégées."
-              : "Secure payment. Your information is encrypted and protected."}
+              ? "Paiement sécurisé. Vos informations sont protégées."
+              : "Secure payment. Your information is protected."}
           </span>
         </div>
       </CardContent>

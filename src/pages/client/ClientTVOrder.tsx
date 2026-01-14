@@ -344,7 +344,7 @@ const ClientTVOrder = () => {
   const [phoneError, setPhoneError] = useState("");
 
   // Payment method state
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new">("new");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new" | "etransfer">("etransfer");
   const [selectedCardId, setSelectedCardId] = useState("");
   const [savedCardCvv, setSavedCardCvv] = useState("");
   const [cvvError, setCvvError] = useState("");
