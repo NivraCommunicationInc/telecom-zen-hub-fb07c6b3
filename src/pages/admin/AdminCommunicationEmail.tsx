@@ -79,16 +79,21 @@ const AdminCommunicationEmail = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isConfirmSendOpen, setIsConfirmSendOpen] = useState(false);
 
-  // Fetch all clients
+  // Fetch all clients from profiles table
   const { data: clients = [], isLoading: isLoadingClients } = useQuery({
     queryKey: ["clients-for-email"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("clients" as any)
-        .select("id, email, first_name, last_name, phone, status")
+        .from("profiles")
+        .select("id, email, first_name, last_name, phone")
+        .not("email", "is", null)
         .order("first_name");
-      if (error) throw error;
-      return (data || []) as unknown as Client[];
+      if (error) {
+        console.error("[AdminCommunicationEmail] Error fetching clients:", error);
+        throw error;
+      }
+      console.log("[AdminCommunicationEmail] Loaded clients:", data?.length);
+      return (data || []).map(p => ({ ...p, status: "active" })) as Client[];
     },
   });
 
