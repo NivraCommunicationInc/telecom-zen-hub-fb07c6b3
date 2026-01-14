@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Edit2, Trash2, Eye, Copy, Search, Code } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, Search } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import type { Json } from "@/integrations/supabase/types";
 
 interface EmailTemplate {
   id: string;
@@ -22,9 +23,9 @@ interface EmailTemplate {
   subject: string;
   html_content: string;
   preview_text: string | null;
-  category: string;
-  variables: string[];
-  is_active: boolean;
+  category: string | null;
+  variables: Json;
+  is_active: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -90,8 +91,14 @@ const MarketingTemplates = () => {
       const variables = [...new Set(variableMatches.map(v => v.replace(/\{\{|\}\}/g, "").trim()))];
 
       const payload = {
-        ...data,
-        variables: variables
+        name: data.name,
+        slug: data.slug,
+        subject: data.subject,
+        html_content: data.html_content,
+        preview_text: data.preview_text || null,
+        category: data.category,
+        is_active: data.is_active,
+        variables: variables as unknown as Json
       };
 
       if (data.id) {
@@ -109,12 +116,15 @@ const MarketingTemplates = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["email-templates-list"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       setIsDialogOpen(false);
       resetForm();
-      toast.success(selectedTemplate ? "Template modifié" : "Template créé");
+      toast.success(selectedTemplate ? "Template modifié avec succès" : "Template créé avec succès");
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      console.error("Error saving template:", error);
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -129,10 +139,12 @@ const MarketingTemplates = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["email-templates-list"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       toast.success("Template supprimé");
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -157,14 +169,33 @@ const MarketingTemplates = () => {
       subject: template.subject,
       html_content: template.html_content,
       preview_text: template.preview_text || "",
-      category: template.category,
-      is_active: template.is_active
+      category: template.category || "general",
+      is_active: template.is_active ?? true
     });
     setIsDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name.trim()) {
+      toast.error("Le nom du template est requis");
+      return;
+    }
+    if (!formData.slug.trim()) {
+      toast.error("Le slug est requis");
+      return;
+    }
+    if (!formData.subject.trim()) {
+      toast.error("Le sujet de l'email est requis");
+      return;
+    }
+    if (!formData.html_content.trim()) {
+      toast.error("Le contenu HTML est requis");
+      return;
+    }
+
     saveMutation.mutate({
       ...formData,
       id: selectedTemplate?.id
@@ -189,6 +220,13 @@ const MarketingTemplates = () => {
       ...prev,
       html_content: prev.html_content + `{{${variable}}}`
     }));
+  };
+
+  const getVariablesArray = (variables: Json): string[] => {
+    if (Array.isArray(variables)) {
+      return variables.filter((v): v is string => typeof v === "string");
+    }
+    return [];
   };
 
   const filteredTemplates = templates?.filter(t => 
@@ -244,7 +282,7 @@ const MarketingTemplates = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nom du template</Label>
+                  <Label htmlFor="name">Nom du template *</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -255,15 +293,17 @@ const MarketingTemplates = () => {
                         slug: selectedTemplate ? prev.slug : generateSlug(e.target.value)
                       }));
                     }}
+                    placeholder="Ex: Bienvenue nouveau client"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="slug">Slug (identifiant unique)</Label>
+                  <Label htmlFor="slug">Slug (identifiant unique) *</Label>
                   <Input
                     id="slug"
                     value={formData.slug}
                     onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                    placeholder="Ex: bienvenue-nouveau-client"
                     required
                     disabled={!!selectedTemplate}
                   />
@@ -272,7 +312,7 @@ const MarketingTemplates = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="subject">Sujet de l'email</Label>
+                  <Label htmlFor="subject">Sujet de l'email *</Label>
                   <Input
                     id="subject"
                     value={formData.subject}
@@ -311,7 +351,7 @@ const MarketingTemplates = () => {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="html_content">Contenu HTML</Label>
+                  <Label htmlFor="html_content">Contenu HTML *</Label>
                   <div className="flex gap-1 flex-wrap">
                     {AVAILABLE_VARIABLES.slice(0, 6).map(v => (
                       <Button
@@ -331,10 +371,13 @@ const MarketingTemplates = () => {
                   id="html_content"
                   value={formData.html_content}
                   onChange={(e) => setFormData(prev => ({ ...prev, html_content: e.target.value }))}
-                  placeholder="<!DOCTYPE html><html>..."
+                  placeholder="<!DOCTYPE html><html><body><h1>Bonjour {{client_name}}</h1>...</body></html>"
                   className="font-mono text-sm min-h-[300px]"
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Utilisez les variables comme {"{{client_name}}"} pour personnaliser vos emails
+                </p>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -346,7 +389,7 @@ const MarketingTemplates = () => {
                 <Label htmlFor="is_active">Template actif</Label>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
@@ -375,71 +418,80 @@ const MarketingTemplates = () => {
           ))
         ) : filteredTemplates?.length === 0 ? (
           <div className="col-span-full text-center py-12 text-muted-foreground">
-            Aucun template trouvé
+            <p>Aucun template trouvé</p>
+            <p className="text-sm mt-2">Créez votre premier template en cliquant sur "Nouveau Template"</p>
           </div>
         ) : (
-          filteredTemplates?.map((template) => (
-            <Card key={template.id} className="relative group">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{template.name}</CardTitle>
-                    <CardDescription className="line-clamp-1">
-                      {template.subject}
-                    </CardDescription>
-                  </div>
-                  <Badge variant={template.is_active ? "default" : "secondary"}>
-                    {template.is_active ? "Actif" : "Inactif"}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant="outline">
-                    {CATEGORIES.find(c => c.value === template.category)?.label || template.category}
-                  </Badge>
-                  {(template.variables as unknown as string[])?.slice(0, 3).map((v: string) => (
-                    <Badge key={v} variant="secondary" className="text-xs">
-                      {`{{${v}}}`}
+          filteredTemplates?.map((template) => {
+            const variables = getVariablesArray(template.variables);
+            return (
+              <Card key={template.id} className="relative group">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate">{template.name}</CardTitle>
+                      <CardDescription className="line-clamp-1">
+                        {template.subject}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={template.is_active ? "default" : "secondary"}>
+                      {template.is_active ? "Actif" : "Inactif"}
                     </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Modifié le {format(new Date(template.updated_at), "d MMM yyyy", { locale: fr })}
-                </p>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTemplate(template);
-                      setPreviewDialogOpen(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(template)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm("Supprimer ce template?")) {
-                        deleteMutation.mutate(template.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2 flex-wrap">
+                    <Badge variant="outline">
+                      {CATEGORIES.find(c => c.value === template.category)?.label || template.category || "Général"}
+                    </Badge>
+                    {variables.slice(0, 3).map((v) => (
+                      <Badge key={v} variant="secondary" className="text-xs">
+                        {`{{${v}}}`}
+                      </Badge>
+                    ))}
+                    {variables.length > 3 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{variables.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Modifié le {format(new Date(template.updated_at), "d MMM yyyy", { locale: fr })}
+                  </p>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTemplate(template);
+                        setPreviewDialogOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(template)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm("Supprimer ce template?")) {
+                          deleteMutation.mutate(template.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
 

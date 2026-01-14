@@ -11,24 +11,20 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Zap, Play, Pause, Settings, Trash2, Clock, Mail } from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { Plus, Zap, Settings, Trash2, Clock } from "lucide-react";
 
 interface AutomationRule {
   id: string;
   name: string;
   description: string | null;
   trigger_type: string;
-  trigger_config: Record<string, unknown>;
-  delay_minutes: number;
+  delay_minutes: number | null;
   template_id: string | null;
   subject_override: string | null;
-  segment_filters: Record<string, unknown>;
-  is_active: boolean;
-  priority: number;
-  total_triggered: number;
-  total_sent: number;
+  is_active: boolean | null;
+  priority: number | null;
+  total_triggered: number | null;
+  total_sent: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +101,10 @@ const MarketingAutomations = () => {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
+      if (!data.name.trim()) {
+        throw new Error("Le nom de l'automatisation est requis");
+      }
+
       const payload = {
         name: data.name,
         description: data.description || null,
@@ -130,12 +130,14 @@ const MarketingAutomations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-automation-rules"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       setIsDialogOpen(false);
       resetForm();
-      toast.success(selectedRule ? "Automatisation modifiée" : "Automatisation créée");
+      toast.success(selectedRule ? "Automatisation modifiée avec succès" : "Automatisation créée avec succès");
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      console.error("Error saving automation:", error);
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -150,7 +152,11 @@ const MarketingAutomations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-automation-rules"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       toast.success("Statut mis à jour");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -165,7 +171,11 @@ const MarketingAutomations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-automation-rules"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       toast.success("Automatisation supprimée");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -188,16 +198,21 @@ const MarketingAutomations = () => {
       name: rule.name,
       description: rule.description || "",
       trigger_type: rule.trigger_type,
-      delay_minutes: rule.delay_minutes,
+      delay_minutes: rule.delay_minutes ?? 0,
       template_id: rule.template_id || "",
       subject_override: rule.subject_override || "",
-      is_active: rule.is_active
+      is_active: rule.is_active ?? true
     });
     setIsDialogOpen(true);
   };
 
-  const formatDelay = (minutes: number) => {
-    if (minutes === 0) return "Immédiat";
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveMutation.mutate({ ...formData, id: selectedRule?.id });
+  };
+
+  const formatDelay = (minutes: number | null) => {
+    if (!minutes || minutes === 0) return "Immédiat";
     if (minutes < 60) return `${minutes} min`;
     if (minutes < 1440) return `${Math.round(minutes / 60)} heure(s)`;
     return `${Math.round(minutes / 1440)} jour(s)`;
@@ -220,7 +235,7 @@ const MarketingAutomations = () => {
               Nouvelle Automatisation
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {selectedRule ? "Modifier l'automatisation" : "Nouvelle automatisation"}
@@ -229,12 +244,9 @@ const MarketingAutomations = () => {
                 Configurez un email automatique basé sur un événement
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={(e) => { 
-              e.preventDefault(); 
-              saveMutation.mutate({ ...formData, id: selectedRule?.id }); 
-            }} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nom de l'automatisation</Label>
+                <Label htmlFor="name">Nom de l'automatisation *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -257,7 +269,7 @@ const MarketingAutomations = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Déclencheur</Label>
+                  <Label>Déclencheur *</Label>
                   <Select 
                     value={formData.trigger_type} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, trigger_type: value }))}
@@ -307,11 +319,22 @@ const MarketingAutomations = () => {
                     <SelectValue placeholder="Choisir un template" />
                   </SelectTrigger>
                   <SelectContent>
-                    {templates?.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
+                    {templates?.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        Aucun template actif
+                      </div>
+                    ) : (
+                      templates?.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {templates?.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Créez d'abord un template dans l'onglet Templates
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -333,7 +356,7 @@ const MarketingAutomations = () => {
                 <Label htmlFor="is_active">Automatisation active</Label>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
@@ -361,13 +384,14 @@ const MarketingAutomations = () => {
           ))
         ) : rules?.length === 0 ? (
           <div className="col-span-full text-center py-12 text-muted-foreground">
-            Aucune automatisation configurée
+            <p>Aucune automatisation configurée</p>
+            <p className="text-sm mt-2">Créez votre première automatisation en cliquant sur "Nouvelle Automatisation"</p>
           </div>
         ) : (
           rules?.map((rule) => {
             const triggerInfo = TRIGGER_TYPES.find(t => t.value === rule.trigger_type);
             return (
-              <Card key={rule.id} className={!rule.is_active ? "opacity-60" : ""}>
+              <Card key={rule.id} className={!(rule.is_active ?? true) ? "opacity-60" : ""}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
@@ -380,10 +404,11 @@ const MarketingAutomations = () => {
                       </CardDescription>
                     </div>
                     <Switch
-                      checked={rule.is_active}
+                      checked={rule.is_active ?? true}
                       onCheckedChange={(checked) => 
                         toggleActiveMutation.mutate({ id: rule.id, is_active: checked })
                       }
+                      disabled={toggleActiveMutation.isPending}
                     />
                   </div>
                 </CardHeader>
@@ -401,8 +426,8 @@ const MarketingAutomations = () => {
 
                   <div className="flex justify-between items-center text-sm">
                     <div className="flex gap-4 text-muted-foreground">
-                      <span>Déclenchés: <strong>{rule.total_triggered}</strong></span>
-                      <span>Envoyés: <strong>{rule.total_sent}</strong></span>
+                      <span>Déclenchés: <strong>{rule.total_triggered ?? 0}</strong></span>
+                      <span>Envoyés: <strong>{rule.total_sent ?? 0}</strong></span>
                     </div>
                     <div className="flex gap-1">
                       <Button
@@ -420,6 +445,7 @@ const MarketingAutomations = () => {
                             deleteMutation.mutate(rule.id);
                           }
                         }}
+                        disabled={deleteMutation.isPending}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
