@@ -2,45 +2,19 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Users, Mail, Lock, User, CheckCircle, AlertCircle } from "lucide-react";
+import { Users, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
-import { PARTNER_SUPPORT_EMAIL } from "@/config/partnerContact";
+import { PartnerSignupForm, PartnerSignupFormData } from "@/components/influencer/PartnerSignupForm";
 
 const InfluencerRegister = () => {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [userExistsError, setUserExistsError] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (formData: PartnerSignupFormData) => {
     setUserExistsError(false);
-    
-    if (password !== confirmPassword) {
-      toast.error("Les mots de passe ne correspondent pas");
-      return;
-    }
-
-    if (password.length < 8) {
-      toast.error("Le mot de passe doit contenir au moins 8 caractères");
-      return;
-    }
-
-    if (!acceptTerms) {
-      toast.error("Veuillez accepter les conditions d'utilisation");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -49,10 +23,11 @@ const InfluencerRegister = () => {
       
       const { data, error } = await supabase.functions.invoke("partner-self-signup", {
         body: {
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          password: password,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
         },
       });
 
@@ -184,108 +159,7 @@ const InfluencerRegister = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Prénom</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="firstName"
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Jean"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Nom</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Dupont"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="votre@email.com"
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 8 caractères"
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirmez votre mot de passe"
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={acceptTerms}
-                  onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
-                />
-                <Label htmlFor="terms" className="text-sm leading-tight">
-                  J'accepte les{" "}
-                  <a href="/terms" target="_blank" className="text-primary hover:underline">
-                    conditions d'utilisation
-                  </a>{" "}
-                  et la{" "}
-                  <a href="/privacy" target="_blank" className="text-primary hover:underline">
-                    politique de confidentialité
-                  </a>
-                </Label>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading || !acceptTerms}>
-                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                S'inscrire
-              </Button>
-            </form>
+            <PartnerSignupForm onSubmit={handleRegister} isLoading={isLoading} />
 
             <div className="mt-4 text-center text-sm text-muted-foreground">
               <p>Déjà inscrit?</p>
