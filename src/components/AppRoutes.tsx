@@ -83,6 +83,7 @@ import AdminContests from "@/pages/admin/AdminContests";
 import AdminWebForms from "@/pages/admin/AdminWebForms";
 import AdminTelephony from "@/pages/admin/AdminTelephony";
 import AdminMarketing from "@/pages/admin/AdminMarketing";
+import AdminCommunicationEmail from "@/pages/admin/AdminCommunicationEmail";
 import AdminReferrals from "@/pages/admin/AdminReferrals";
 import AdminReferralInfluencers from "@/pages/admin/AdminReferralInfluencers";
 import AdminReferralInfluencerDetail from "@/pages/admin/AdminReferralInfluencerDetail";
@@ -229,6 +230,7 @@ const AppRoutes = () => {
       <Route path="/admin/formulaire-web" element={<AuthProvider><ProtectedRoute requireAdmin><AdminWebForms /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/telephony" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTelephony /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/marketing" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMarketing /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/communication-email" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCommunicationEmail /></ProtectedRoute></AuthProvider>} />
       
       {/* Admin Referral Program */}
       <Route path="/admin/referrals" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferrals /></ProtectedRoute></AuthProvider>} />
