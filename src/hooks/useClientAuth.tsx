@@ -4,6 +4,15 @@ import { portalClient as portalSupabase } from "@/integrations/backend/portalCli
 
 type AppRole = "admin" | "client";
 
+export interface SignupData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  pin: string;
+}
+
 interface ClientAuthContextType {
   user: User | null;
   session: Session | null;
@@ -11,7 +20,7 @@ interface ClientAuthContextType {
   isLoading: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signUp: (data: SignupData) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
@@ -140,18 +149,40 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (data: SignupData) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await portalSupabase.auth.signUp({
-      email,
-      password,
+    const { data: authData, error } = await portalSupabase.auth.signUp({
+      email: data.email,
+      password: data.password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          full_name: fullName,
+          full_name: `${data.firstName} ${data.lastName}`,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone: data.phone,
+          client_pin: data.pin,
         },
       },
     });
+    
+    // If signup successful, update the profile with additional data
+    if (!error && authData?.user) {
+      try {
+        await portalSupabase.from("profiles").upsert({
+          user_id: authData.user.id,
+          full_name: `${data.firstName} ${data.lastName}`,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone: data.phone,
+          client_pin: data.pin,
+          email: data.email,
+        }, { onConflict: "user_id" });
+      } catch (profileError) {
+        console.error("Error updating profile:", profileError);
+      }
+    }
+    
     return { error };
   };
 
