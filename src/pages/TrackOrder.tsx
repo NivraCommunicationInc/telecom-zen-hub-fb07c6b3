@@ -68,7 +68,7 @@ const TrackOrder = () => {
   const isFr = language === "fr";
   
   const [orderNumber, setOrderNumber] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
@@ -80,27 +80,36 @@ const TrackOrder = () => {
     setOrderData(null);
     setSearched(true);
 
-    if (!orderNumber.trim() || !lastName.trim()) {
+    if (!orderNumber.trim() || !email.trim()) {
       setError(isFr 
-        ? "Veuillez entrer le numéro de commande et votre nom de famille." 
-        : "Please enter both order number and your last name.");
+        ? "Veuillez entrer le numéro de commande et votre courriel." 
+        : "Please enter both order number and your email.");
       return;
     }
 
-    // Normalize last name - trim and lowercase for comparison
-    const normalizedLastName = lastName.trim().toLowerCase();
+    // Normalize email - trim and lowercase for comparison
+    const normalizedEmail = email.trim().toLowerCase();
 
     setIsLoading(true);
 
     try {
-      // Query order by order_number and verify last name matches
+      // Query order by order_number and verify email matches
       const { data, error: queryError } = await supabase
         .from("orders")
-        .select("id, order_number, status, created_at, updated_at, service_type, shipping_address, shipping_city, total_amount, client_last_name")
+        .select("id, order_number, status, created_at, updated_at, service_type, shipping_address, shipping_city, total_amount, client_email")
         .eq("order_number", orderNumber.trim().toUpperCase())
-        .single();
+        .maybeSingle();
 
-      if (queryError || !data) {
+      if (queryError) {
+        console.error("Query error:", queryError);
+        setError(isFr 
+          ? "Une erreur est survenue. Veuillez réessayer." 
+          : "An error occurred. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data) {
         setError(isFr 
           ? "Aucune commande trouvée avec ce numéro." 
           : "No order found with this number.");
@@ -108,12 +117,12 @@ const TrackOrder = () => {
         return;
       }
 
-      // Verify last name matches (case-insensitive)
-      const orderLastName = (data.client_last_name || "").trim().toLowerCase();
-      if (orderLastName !== normalizedLastName) {
+      // Verify email matches (case-insensitive)
+      const orderEmail = (data.client_email || "").trim().toLowerCase();
+      if (orderEmail !== normalizedEmail) {
         setError(isFr 
-          ? "Le nom de famille ne correspond pas à cette commande." 
-          : "The last name does not match this order.");
+          ? "Le courriel ne correspond pas à cette commande." 
+          : "The email does not match this order.");
         setIsLoading(false);
         return;
       }
@@ -163,8 +172,8 @@ const TrackOrder = () => {
             </h1>
             <p className="text-muted-foreground">
               {isFr 
-                ? "Entrez votre numéro de commande et nom de famille pour voir l'état de votre commande." 
-                : "Enter your order number and last name to check your order status."}
+                ? "Entrez votre numéro de commande et courriel pour voir l'état de votre commande." 
+                : "Enter your order number and email to check your order status."}
             </p>
           </div>
 
@@ -176,7 +185,7 @@ const TrackOrder = () => {
               </CardTitle>
               <CardDescription>
                 {isFr 
-                  ? "Le numéro de commande se trouve dans votre email de confirmation." 
+                  ? "Le numéro de commande se trouve dans votre courriel de confirmation." 
                   : "The order number can be found in your confirmation email."}
               </CardDescription>
             </CardHeader>
@@ -196,14 +205,15 @@ const TrackOrder = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">
-                      {isFr ? "Nom de famille" : "Last Name"}
+                    <Label htmlFor="email">
+                      {isFr ? "Courriel" : "Email"}
                     </Label>
                     <Input
-                      id="lastName"
-                      placeholder={isFr ? "Ex: Tremblay" : "e.g., Smith"}
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      id="email"
+                      type="email"
+                      placeholder={isFr ? "Ex: votre@courriel.com" : "e.g., your@email.com"}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                 </div>
@@ -353,7 +363,7 @@ const TrackOrder = () => {
                     <a href="tel:438-544-2233" className="text-accent hover:underline font-medium">
                       438-544-2233
                     </a>
-                    {isFr ? " ou par email à " : " or email "}
+                    {isFr ? " ou par courriel à " : " or email "}
                     <a href="mailto:support@nivratelecom.ca" className="text-accent hover:underline font-medium">
                       support@nivratelecom.ca
                     </a>
