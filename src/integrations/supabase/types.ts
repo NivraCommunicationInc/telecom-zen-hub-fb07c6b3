@@ -7949,6 +7949,14 @@ export type Database = {
         Returns: boolean
       }
       hash_pin: { Args: { pin: string }; Returns: string }
+      increment_automation_stats: {
+        Args: { rule_id: string; sent_count?: number; triggered_count?: number }
+        Returns: undefined
+      }
+      increment_campaign_stat: {
+        Args: { p_campaign_id: string; p_field: string; p_increment?: number }
+        Returns: undefined
+      }
       increment_referral_usage: {
         Args: { code_id: string }
         Returns: undefined
