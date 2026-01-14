@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck } from "lucide-react";
 import { backendClient as supabase } from "@/integrations/backend/client";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
+import { ClientSignupForm } from "@/components/client/ClientSignupForm";
 
 type AuthStep = "credentials" | "pin";
 
@@ -20,7 +21,6 @@ const ClientAuth = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
-  const [signupData, setSignupData] = useState({ email: "", password: "", confirmPassword: "", fullName: "" });
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
@@ -310,22 +310,23 @@ const ClientAuth = () => {
     navigate("/portal");
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!signupData.email || !signupData.password || !signupData.fullName) {
-      toast({ title: "Veuillez remplir tous les champs", variant: "destructive" });
-      return;
-    }
-    if (signupData.password !== signupData.confirmPassword) {
-      toast({ title: "Les mots de passe ne correspondent pas", variant: "destructive" });
-      return;
-    }
-    if (signupData.password.length < 6) {
-      toast({ title: "Le mot de passe doit contenir au moins 6 caractères", variant: "destructive" });
-      return;
-    }
+  const handleSignup = async (formData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    password: string;
+    pin: string;
+  }) => {
     setIsLoading(true);
-    const { error } = await signUp(signupData.email, signupData.password, signupData.fullName);
+    const { error } = await signUp({
+      email: formData.email,
+      password: formData.password,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phone: formData.phone,
+      pin: formData.pin,
+    });
     setIsLoading(false);
     if (error) {
       if (error.message.includes("already registered")) {
@@ -657,52 +658,7 @@ const ClientAuth = () => {
               </TabsContent>
               
               <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div>
-                    <Label htmlFor="signup-name">Nom complet</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Jean Dupont"
-                      value={signupData.fullName}
-                      onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="votre@email.com"
-                      value={signupData.email}
-                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-password">Mot de passe</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signupData.password}
-                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-confirm">Confirmer le mot de passe</Label>
-                    <Input
-                      id="signup-confirm"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signupData.confirmPassword}
-                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Créer un compte
-                  </Button>
-                </form>
+                <ClientSignupForm onSubmit={handleSignup} isLoading={isLoading} />
               </TabsContent>
             </Tabs>
           </CardContent>
