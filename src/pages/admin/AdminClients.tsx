@@ -51,6 +51,7 @@ import ClientBalanceBreakdown from "@/components/admin/ClientBalanceBreakdown";
 import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
 import AdminAuthorizedContacts from "@/components/admin/AdminAuthorizedContacts";
 import { CreateClientDialog } from "@/components/admin/CreateClientDialog";
+import { BulkImportClientsDialog } from "@/components/admin/BulkImportClientsDialog";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import ClientPhoneActions from "@/components/admin/ClientPhoneActions";
 import ClientCommunicationsPanel from "@/components/admin/ClientCommunicationsPanel";
@@ -95,6 +96,7 @@ const AdminClients = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -870,16 +872,26 @@ const AdminClients = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Clients</h1>
             <p className="text-muted-foreground mt-1">Gérer tous les profils clients</p>
           </div>
-          <Button variant="hero" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nouveau client
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import en lot
+            </Button>
+            <Button variant="hero" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nouveau client
+            </Button>
+          </div>
           <CreateClientDialog
             open={createDialogOpen}
             onOpenChange={setCreateDialogOpen}
             onSuccess={() => {
               refetchClients();
             }}
+          />
+          <BulkImportClientsDialog
+            open={bulkImportOpen}
+            onOpenChange={setBulkImportOpen}
           />
         </div>
 
