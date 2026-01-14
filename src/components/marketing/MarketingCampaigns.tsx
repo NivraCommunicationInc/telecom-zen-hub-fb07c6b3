@@ -10,26 +10,27 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Send, Clock, Users, Play, Pause, Eye, Trash2, Calendar } from "lucide-react";
+import { Plus, Play, Pause, Trash2, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import type { Json } from "@/integrations/supabase/types";
 
 interface Campaign {
   id: string;
   name: string;
-  campaign_number: string;
+  campaign_number: string | null;
   template_id: string | null;
   subject_override: string | null;
   type: string;
   status: string;
-  segment_filters: Record<string, unknown>;
+  segment_filters: Json;
   scheduled_at: string | null;
   started_at: string | null;
   completed_at: string | null;
-  total_recipients: number;
-  total_sent: number;
-  total_opened: number;
-  total_clicked: number;
+  total_recipients: number | null;
+  total_sent: number | null;
+  total_opened: number | null;
+  total_clicked: number | null;
   created_at: string;
 }
 
@@ -60,6 +61,13 @@ const CLIENT_STATUS = [
   { value: "inactive", label: "Inactif" },
   { value: "suspended", label: "Suspendu" }
 ];
+
+interface SegmentFilters {
+  services: string[];
+  status: string[];
+  created_after: string;
+  created_before: string;
+}
 
 const MarketingCampaigns = () => {
   const queryClient = useQueryClient();
@@ -114,27 +122,35 @@ const MarketingCampaigns = () => {
   // Create campaign mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      if (!data.name.trim()) {
+        throw new Error("Le nom de la campagne est requis");
+      }
+
+      const payload = {
+        name: data.name,
+        template_id: data.template_id || null,
+        subject_override: data.subject_override || null,
+        type: data.type,
+        scheduled_at: data.scheduled_at || null,
+        segment_filters: data.segment_filters as unknown as Json,
+        status: data.scheduled_at ? "scheduled" : "draft"
+      };
+
       const { error } = await supabase
         .from("email_campaigns")
-        .insert({
-          name: data.name,
-          template_id: data.template_id || null,
-          subject_override: data.subject_override || null,
-          type: data.type,
-          scheduled_at: data.scheduled_at || null,
-          segment_filters: data.segment_filters,
-          status: data.scheduled_at ? "scheduled" : "draft"
-        });
+        .insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       setIsDialogOpen(false);
       resetForm();
-      toast.success("Campagne créée");
+      toast.success("Campagne créée avec succès");
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      console.error("Error creating campaign:", error);
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -156,7 +172,11 @@ const MarketingCampaigns = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       toast.success("Statut mis à jour");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -171,7 +191,11 @@ const MarketingCampaigns = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-stats"] });
       toast.success("Campagne supprimée");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
     }
   });
 
@@ -215,6 +239,11 @@ const MarketingCampaigns = () => {
     }));
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate(formData);
+  };
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -241,16 +270,16 @@ const MarketingCampaigns = () => {
               Nouvelle Campagne
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nouvelle campagne</DialogTitle>
               <DialogDescription>
                 Créez une campagne email et définissez votre audience
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(formData); }} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nom de la campagne</Label>
+                <Label htmlFor="name">Nom de la campagne *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -271,11 +300,22 @@ const MarketingCampaigns = () => {
                       <SelectValue placeholder="Choisir un template" />
                     </SelectTrigger>
                     <SelectContent>
-                      {templates?.map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
+                      {templates?.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          Aucun template actif
+                        </div>
+                      ) : (
+                        templates?.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  {templates?.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Créez d'abord un template dans l'onglet Templates
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -367,7 +407,7 @@ const MarketingCampaigns = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
@@ -396,7 +436,8 @@ const MarketingCampaigns = () => {
         ) : campaigns?.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12 text-muted-foreground">
-              Aucune campagne trouvée
+              <p>Aucune campagne trouvée</p>
+              <p className="text-sm mt-2">Créez votre première campagne en cliquant sur "Nouvelle Campagne"</p>
             </CardContent>
           </Card>
         ) : (
@@ -412,7 +453,8 @@ const MarketingCampaigns = () => {
                       </Badge>
                     </div>
                     <CardDescription>
-                      {campaign.campaign_number} • Créée le {format(new Date(campaign.created_at), "d MMM yyyy", { locale: fr })}
+                      {campaign.campaign_number && `${campaign.campaign_number} • `}
+                      Créée le {format(new Date(campaign.created_at), "d MMM yyyy", { locale: fr })}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
@@ -420,6 +462,7 @@ const MarketingCampaigns = () => {
                       <Button
                         size="sm"
                         onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "sending" })}
+                        disabled={updateStatusMutation.isPending}
                       >
                         <Play className="h-4 w-4 mr-1" />
                         Lancer
@@ -430,6 +473,7 @@ const MarketingCampaigns = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "paused" })}
+                        disabled={updateStatusMutation.isPending}
                       >
                         <Pause className="h-4 w-4 mr-1" />
                         Pause
@@ -439,6 +483,7 @@ const MarketingCampaigns = () => {
                       <Button
                         size="sm"
                         onClick={() => updateStatusMutation.mutate({ id: campaign.id, status: "sending" })}
+                        disabled={updateStatusMutation.isPending}
                       >
                         <Play className="h-4 w-4 mr-1" />
                         Reprendre
@@ -453,6 +498,7 @@ const MarketingCampaigns = () => {
                             deleteMutation.mutate(campaign.id);
                           }
                         }}
+                        disabled={deleteMutation.isPending}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -464,19 +510,19 @@ const MarketingCampaigns = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Destinataires</span>
-                    <p className="font-medium">{campaign.total_recipients}</p>
+                    <p className="font-medium">{campaign.total_recipients ?? 0}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Envoyés</span>
-                    <p className="font-medium">{campaign.total_sent}</p>
+                    <p className="font-medium">{campaign.total_sent ?? 0}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Ouverts</span>
                     <p className="font-medium">
-                      {campaign.total_opened} 
-                      {campaign.total_sent > 0 && (
+                      {campaign.total_opened ?? 0} 
+                      {(campaign.total_sent ?? 0) > 0 && (
                         <span className="text-muted-foreground ml-1">
-                          ({Math.round((campaign.total_opened / campaign.total_sent) * 100)}%)
+                          ({Math.round(((campaign.total_opened ?? 0) / (campaign.total_sent ?? 1)) * 100)}%)
                         </span>
                       )}
                     </p>
@@ -484,10 +530,10 @@ const MarketingCampaigns = () => {
                   <div>
                     <span className="text-muted-foreground">Clics</span>
                     <p className="font-medium">
-                      {campaign.total_clicked}
-                      {campaign.total_sent > 0 && (
+                      {campaign.total_clicked ?? 0}
+                      {(campaign.total_sent ?? 0) > 0 && (
                         <span className="text-muted-foreground ml-1">
-                          ({Math.round((campaign.total_clicked / campaign.total_sent) * 100)}%)
+                          ({Math.round(((campaign.total_clicked ?? 0) / (campaign.total_sent ?? 1)) * 100)}%)
                         </span>
                       )}
                     </p>
