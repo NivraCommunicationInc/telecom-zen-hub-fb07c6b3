@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,23 +79,72 @@ const AdminCommunicationEmail = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isConfirmSendOpen, setIsConfirmSendOpen] = useState(false);
 
-  // Fetch all clients from profiles table
+  // Fetch all clients from admin portal (profiles + user_roles)
   const { data: clients = [], isLoading: isLoadingClients } = useQuery({
     queryKey: ["clients-for-email"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, phone")
+        .select("id, user_id, email, first_name, last_name, phone")
         .not("email", "is", null)
+        .neq("email", "")
         .order("first_name");
-      if (error) {
-        console.error("[AdminCommunicationEmail] Error fetching clients:", error);
-        throw error;
+
+      if (profilesError) {
+        console.error("[AdminCommunicationEmail] Error fetching clients:", profilesError);
+        throw profilesError;
       }
-      console.log("[AdminCommunicationEmail] Loaded clients:", data?.length);
-      return (data || []).map(p => ({ ...p, status: "active" })) as Client[];
+
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) {
+        console.error("[AdminCommunicationEmail] Error fetching user roles:", rolesError);
+        throw rolesError;
+      }
+
+      const rolesMap = new Map((rolesData || []).map((r: any) => [r.user_id, r.role]));
+
+      // Only show "client" users (default to client when role missing)
+      const rows = (profilesData || [])
+        .map((p: any) => ({
+          id: p.id,
+          email: p.email,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          phone: p.phone,
+          status: rolesMap.get(p.user_id) || "client",
+        }))
+        .filter((p: any) => (p.status || "client") === "client");
+
+      console.log("[AdminCommunicationEmail] Loaded clients:", rows.length);
+      return rows as Client[];
     },
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
+
+  // Auto-update when new clients are created/imported
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-communication-email-clients")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => queryClient.invalidateQueries({ queryKey: ["clients-for-email"] })
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_roles" },
+        () => queryClient.invalidateQueries({ queryKey: ["clients-for-email"] })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Fetch email history
   const { data: emailHistory = [], isLoading: isLoadingHistory, refetch: refetchHistory } = useQuery({
@@ -320,7 +369,7 @@ const AdminCommunicationEmail = () => {
                       <Label htmlFor="message">Message *</Label>
                       <Textarea
                         id="message"
-                        placeholder="Bonjour,&#10;&#10;Écrivez votre message ici...&#10;&#10;Cordialement,&#10;L'équipe Nivra"
+                        placeholder="Nivra Télécom&#10;1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5&#10;Lun–Ven : 9 h – 22 h · Sam–Dim : 9 h – 20 h&#10;Support : Support@nivratelecom.ca — 514-544-2233&#10;© 2026 Nivra Télécom&#10;Confidentialité  •  Conditions"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         rows={12}
