@@ -333,50 +333,6 @@ const MarketingCampaigns = () => {
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      template_id: "",
-      subject_override: "",
-      type: "manual",
-      scheduled_at: "",
-      segment_filters: {
-        services: [],
-        status: [],
-        created_after: "",
-        created_before: ""
-      }
-    });
-  };
-
-  const handleServiceToggle = (service: string) => {
-    setFormData(prev => ({
-      ...prev,
-      segment_filters: {
-        ...prev.segment_filters,
-        services: prev.segment_filters.services.includes(service)
-          ? prev.segment_filters.services.filter(s => s !== service)
-          : [...prev.segment_filters.services, service]
-      }
-    }));
-  };
-
-  const handleStatusToggle = (status: string) => {
-    setFormData(prev => ({
-      ...prev,
-      segment_filters: {
-        ...prev.segment_filters,
-        status: prev.segment_filters.status.includes(status)
-          ? prev.segment_filters.status.filter(s => s !== status)
-          : [...prev.segment_filters.status, status]
-      }
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createMutation.mutate(formData);
-  };
 
   return (
     <div className="space-y-4">
