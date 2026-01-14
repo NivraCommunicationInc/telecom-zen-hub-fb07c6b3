@@ -33,8 +33,10 @@ import {
   Wifi,
   Tv,
   Monitor,
-  HelpCircle
+  HelpCircle,
+  ArrowLeft
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr, enCA } from "date-fns/locale";
@@ -103,6 +105,7 @@ const getServiceIcon = (serviceType: string | null) => {
 
 const TrackOrder = () => {
   const { language } = useLanguage();
+  const navigate = useNavigate();
   const isFr = language === "fr";
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -231,6 +234,18 @@ const TrackOrder = () => {
       <div className="min-h-[85vh] bg-gradient-to-b from-muted/30 via-background to-background py-8 md:py-16 px-4">
         <div className="container mx-auto max-w-4xl">
           
+          {/* Back Button */}
+          <div className="mb-6 print:hidden">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {isFr ? "Retour" : "Back"}
+            </Button>
+          </div>
+
           {/* Hero Header */}
           <div className="text-center mb-10 animate-fade-in">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-accent to-accent/70 shadow-lg shadow-accent/25 mb-6">
