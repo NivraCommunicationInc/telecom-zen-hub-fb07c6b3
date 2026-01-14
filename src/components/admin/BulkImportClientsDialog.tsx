@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Upload, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -645,7 +645,16 @@ export function BulkImportClientsDialog({ open, onOpenChange }: BulkImportClient
             description: error.message,
             variant: "destructive",
           });
-          break;
+          return; // stop immediately so we don't show a misleading "Import terminé"
+        }
+
+        if ((data as any)?.error) {
+          toast({
+            title: "Erreur d'import",
+            description: (data as any).error,
+            variant: "destructive",
+          });
+          return;
         }
 
         if (data?.results) {
@@ -657,8 +666,8 @@ export function BulkImportClientsDialog({ open, onOpenChange }: BulkImportClient
       }
 
       setImportComplete(true);
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
 
       toast({
         title: "Import terminé",
