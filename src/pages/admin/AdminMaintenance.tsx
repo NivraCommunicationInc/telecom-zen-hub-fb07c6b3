@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,12 @@ interface AllowedRoutes {
 const AdminMaintenance = () => {
   const queryClient = useQueryClient();
   const [newRoute, setNewRoute] = useState("");
+  
+  // Local state for form fields
+  const [localEta, setLocalEta] = useState("");
+  const [localMessageFr, setLocalMessageFr] = useState("");
+  const [localMessageEn, setLocalMessageEn] = useState("");
+  const [hasConfigChanges, setHasConfigChanges] = useState(false);
 
   const { data: maintenanceConfig, isLoading: loadingConfig } = useQuery({
     queryKey: ["admin-maintenance-config"],
@@ -61,6 +67,27 @@ const AdminMaintenance = () => {
     },
   });
 
+  // Sync local state with fetched data
+  useEffect(() => {
+    if (maintenanceConfig?.config) {
+      setLocalEta(maintenanceConfig.config.eta || "");
+      setLocalMessageFr(maintenanceConfig.config.message_fr || "");
+      setLocalMessageEn(maintenanceConfig.config.message_en || "");
+      setHasConfigChanges(false);
+    }
+  }, [maintenanceConfig]);
+
+  // Track changes
+  useEffect(() => {
+    if (!maintenanceConfig?.config) return;
+    const config = maintenanceConfig.config;
+    const changed = 
+      localEta !== (config.eta || "") ||
+      localMessageFr !== (config.message_fr || "") ||
+      localMessageEn !== (config.message_en || "");
+    setHasConfigChanges(changed);
+  }, [localEta, localMessageFr, localMessageEn, maintenanceConfig]);
+
   const updateConfigMutation = useMutation({
     mutationFn: async (config: MaintenanceConfig) => {
       const { error } = await supabase
@@ -73,10 +100,11 @@ const AdminMaintenance = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-maintenance-config"] });
       queryClient.invalidateQueries({ queryKey: ["maintenance-mode"] });
-      toast.success("Configuration mise à jour");
+      toast.success("Configuration sauvegardée");
+      setHasConfigChanges(false);
     },
     onError: () => {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error("Erreur lors de la sauvegarde");
     },
   });
 
@@ -107,11 +135,13 @@ const AdminMaintenance = () => {
     });
   };
 
-  const handleUpdateConfig = (field: keyof MaintenanceConfig, value: string | null) => {
+  const handleSaveConfig = () => {
     if (!maintenanceConfig) return;
     updateConfigMutation.mutate({
       ...maintenanceConfig.config,
-      [field]: value,
+      eta: localEta || null,
+      message_fr: localMessageFr,
+      message_en: localMessageEn,
     });
   };
 
@@ -177,6 +207,7 @@ const AdminMaintenance = () => {
               <Switch
                 checked={config?.enabled}
                 onCheckedChange={handleToggleMaintenance}
+                disabled={updateConfigMutation.isPending}
               />
             </div>
           </CardHeader>
@@ -185,18 +216,29 @@ const AdminMaintenance = () => {
         {/* Configuration Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Configuration</CardTitle>
-            <CardDescription>
-              Messages et ETA affichés pendant la maintenance
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Configuration</CardTitle>
+                <CardDescription>
+                  Messages et ETA affichés pendant la maintenance
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={handleSaveConfig}
+                disabled={!hasConfigChanges || updateConfigMutation.isPending}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {updateConfigMutation.isPending ? "Sauvegarde..." : "Enregistrer"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>ETA (optionnel)</Label>
               <Input
                 placeholder="ex: 15h00, 2 heures..."
-                value={config?.eta || ""}
-                onChange={(e) => handleUpdateConfig("eta", e.target.value || null)}
+                value={localEta}
+                onChange={(e) => setLocalEta(e.target.value)}
               />
             </div>
 
@@ -204,8 +246,8 @@ const AdminMaintenance = () => {
               <Label>Message (Français)</Label>
               <Textarea
                 placeholder="Message affiché aux visiteurs francophones"
-                value={config?.message_fr || ""}
-                onChange={(e) => handleUpdateConfig("message_fr", e.target.value)}
+                value={localMessageFr}
+                onChange={(e) => setLocalMessageFr(e.target.value)}
               />
             </div>
 
@@ -213,10 +255,17 @@ const AdminMaintenance = () => {
               <Label>Message (English)</Label>
               <Textarea
                 placeholder="Message shown to English visitors"
-                value={config?.message_en || ""}
-                onChange={(e) => handleUpdateConfig("message_en", e.target.value)}
+                value={localMessageEn}
+                onChange={(e) => setLocalMessageEn(e.target.value)}
               />
             </div>
+
+            {hasConfigChanges && (
+              <p className="text-sm text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="w-4 h-4" />
+                Vous avez des modifications non sauvegardées
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -237,7 +286,7 @@ const AdminMaintenance = () => {
                 onChange={(e) => setNewRoute(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddRoute()}
               />
-              <Button onClick={handleAddRoute}>
+              <Button onClick={handleAddRoute} disabled={updateRoutesMutation.isPending}>
                 <Plus className="w-4 h-4 mr-1" />
                 Ajouter
               </Button>
@@ -254,6 +303,7 @@ const AdminMaintenance = () => {
                   <button
                     onClick={() => handleRemoveRoute(route)}
                     className="ml-1 hover:text-destructive"
+                    disabled={updateRoutesMutation.isPending}
                   >
                     <X className="w-3 h-3" />
                   </button>
