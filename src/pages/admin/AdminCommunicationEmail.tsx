@@ -204,7 +204,12 @@ const AdminCommunicationEmail = () => {
   // Add manual email
   const handleAddManualEmail = () => {
     const email = newManualEmail.trim().toLowerCase();
-    if (!email) return;
+    console.log("[handleAddManualEmail] Adding email:", email);
+    
+    if (!email) {
+      toast.error("Veuillez entrer un email");
+      return;
+    }
     
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -219,14 +224,19 @@ const AdminCommunicationEmail = () => {
     }
 
     // Check if already in selected clients
-    if (selectedClients.some(c => c.email.toLowerCase() === email)) {
+    if (selectedClients.some(c => c.email?.toLowerCase() === email)) {
       toast.error("Ce client est déjà sélectionné");
       return;
     }
 
-    setManualEmails(prev => [...prev, email]);
+    console.log("[handleAddManualEmail] Adding to manualEmails:", [...manualEmails, email]);
+    setManualEmails(prev => {
+      const newList = [...prev, email];
+      console.log("[handleAddManualEmail] Updated list:", newList);
+      return newList;
+    });
     setNewManualEmail("");
-    toast.success("Email ajouté");
+    toast.success(`Email "${email}" ajouté aux destinataires`);
   };
 
   // Remove manual email
