@@ -28,7 +28,8 @@ import {
   AlertTriangle,
   Shield,
   Trophy,
-  Headphones
+  Headphones,
+  Megaphone
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ const navItems = [
   { icon: MessageSquare, label: "Tickets internes", href: "/admin/internal-tickets" },
   { icon: Mail, label: "Formulaire Web", href: "/admin/formulaire-web" },
   { icon: Headphones, label: "Téléphonie (OpenPhone)", href: "/admin/telephony" },
+  { icon: Megaphone, label: "Marketing Email", href: "/admin/marketing" },
   
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
