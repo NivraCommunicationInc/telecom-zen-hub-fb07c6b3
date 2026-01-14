@@ -77,6 +77,11 @@ interface OrderData {
   promo_discount_amount?: number;
   preauth_discount?: number;
   account_id?: string;
+  // Address fields from order
+  shipping_address?: string;
+  shipping_city?: string;
+  shipping_province?: string;
+  shipping_postal_code?: string;
 }
 
 interface AccountData {
@@ -270,19 +275,38 @@ END:VCALENDAR`;
     return equipment;
   };
 
-  // Calculate billing dates
+  // Calculate billing dates based on order creation date (activation date)
+  // For prepaid services, billing cycle = day the service was activated
   const getBillingInfo = () => {
-    const billCycleDay = account?.billing_cycle_day || 1;
+    // Use order creation date as the billing cycle day for prepaid services
+    const orderCreatedDate = new Date(order?.created_at || new Date());
+    const activationDay = orderCreatedDate.getDate();
+    
+    // If account has a billing_cycle_day set, use it; otherwise use order creation day
+    const billCycleDay = account?.billing_cycle_day || activationDay;
+    
     const today = new Date();
     let nextBillingDate = new Date(today.getFullYear(), today.getMonth(), billCycleDay);
     
+    // Handle months with fewer days (e.g., billing day 31 in February)
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    if (billCycleDay > lastDayOfMonth) {
+      nextBillingDate = new Date(today.getFullYear(), today.getMonth(), lastDayOfMonth);
+    }
+    
     if (nextBillingDate <= today) {
-      nextBillingDate = addMonths(nextBillingDate, 1);
+      const nextMonth = today.getMonth() + 1;
+      const nextYear = nextMonth > 11 ? today.getFullYear() + 1 : today.getFullYear();
+      const adjustedMonth = nextMonth > 11 ? 0 : nextMonth;
+      const lastDayNextMonth = new Date(nextYear, adjustedMonth + 1, 0).getDate();
+      const adjustedDay = Math.min(billCycleDay, lastDayNextMonth);
+      nextBillingDate = new Date(nextYear, adjustedMonth, adjustedDay);
     }
     
     return {
       cycleDay: billCycleDay,
-      nextBillingDate
+      nextBillingDate,
+      activationDay // Store the actual activation day
     };
   };
 
@@ -314,7 +338,15 @@ END:VCALENDAR`;
   const portInDetails = parsePortInDetails(order.notes);
   const equipment = parseEquipment(order);
   const billingInfo = getBillingInfo();
-  const hasPinConfigured = profile?.client_pin_hash !== null;
+  const hasPinConfigured = profile?.client_pin_hash !== null && profile?.client_pin_hash !== undefined;
+  const pinIsDefault = profile?.pin_is_default === true;
+  
+  // Get address - prefer order shipping address, fallback to profile
+  const serviceAddress = order.shipping_address || profile?.service_address || "";
+  const serviceCity = order.shipping_city || profile?.service_city || "";
+  const serviceProvince = order.shipping_province || profile?.service_province || "QC";
+  const servicePostalCode = order.shipping_postal_code || profile?.service_postal_code || "";
+  const hasValidAddress = serviceAddress && serviceCity;
   
   // Calculate fees
   const deliveryFee = order.delivery_fee || 0;
@@ -411,7 +443,7 @@ END:VCALENDAR`;
               <MapPin className="w-5 h-5 text-cyan-500 mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">Adresse de service</p>
               <p className="text-sm font-medium text-foreground line-clamp-2 mt-1">
-                {profile?.service_address || "Non spécifiée"}
+                {hasValidAddress ? `${serviceAddress}, ${serviceCity}` : "Non spécifiée"}
               </p>
             </CardContent>
           </Card>
@@ -609,7 +641,7 @@ END:VCALENDAR`;
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span>{profile?.service_address}, {profile?.service_city}, {profile?.service_province} {profile?.service_postal_code}</span>
+                        <span>{serviceAddress}, {serviceCity}, {serviceProvince} {servicePostalCode}</span>
                       </div>
                       {order.appointment_notes && (
                         <p className="text-sm text-muted-foreground">
@@ -638,7 +670,7 @@ END:VCALENDAR`;
                     <div className="bg-muted/50 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span>{profile?.service_address}, {profile?.service_city}, {profile?.service_province} {profile?.service_postal_code}</span>
+                        <span>{serviceAddress}, {serviceCity}, {serviceProvince} {servicePostalCode}</span>
                       </div>
                     </div>
                   </div>
@@ -654,7 +686,7 @@ END:VCALENDAR`;
                       </p>
                       <p className="text-sm text-muted-foreground mt-2">
                         <MapPin className="w-4 h-4 inline mr-1" />
-                        {profile?.service_address}, {profile?.service_city}
+                        {serviceAddress}, {serviceCity}
                       </p>
                     </div>
                   </div>
@@ -765,7 +797,9 @@ END:VCALENDAR`;
                   </div>
                   <div>
                     <p className="text-sm font-medium">
-                      PIN configuré: {hasPinConfigured ? "Oui" : "Non"}
+                      {hasPinConfigured 
+                        ? (pinIsDefault ? "PIN temporaire configuré" : "PIN configuré") 
+                        : "PIN non configuré"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Méthode: PIN à 4 chiffres
@@ -773,9 +807,21 @@ END:VCALENDAR`;
                   </div>
                 </div>
                 
-                {hasPinConfigured && (
+                {hasPinConfigured && !pinIsDefault && (
                   <p className="text-xs text-muted-foreground bg-emerald-500/10 rounded p-2">
-                    Votre PIN a été enregistré dans votre profil.
+                    Votre PIN personnel a été enregistré dans votre profil.
+                  </p>
+                )}
+                
+                {hasPinConfigured && pinIsDefault && (
+                  <p className="text-xs text-amber-600 bg-amber-500/10 rounded p-2">
+                    Nous vous recommandons de modifier votre PIN temporaire.
+                  </p>
+                )}
+                
+                {!hasPinConfigured && (
+                  <p className="text-xs text-amber-600 bg-amber-500/10 rounded p-2">
+                    Veuillez configurer un PIN pour sécuriser votre compte.
                   </p>
                 )}
                 
@@ -786,7 +832,7 @@ END:VCALENDAR`;
                   onClick={() => navigate("/portal/profile")}
                 >
                   <KeyRound className="w-4 h-4" />
-                  Gérer mon PIN
+                  {hasPinConfigured ? "Modifier mon PIN" : "Configurer mon PIN"}
                 </Button>
               </CardContent>
             </Card>
