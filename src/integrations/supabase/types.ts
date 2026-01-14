@@ -2299,6 +2299,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_trigger_queue: {
+        Row: {
+          client_email: string
+          client_id: string
+          client_name: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          processed_at: string | null
+          status: string | null
+          trigger_type: string
+        }
+        Insert: {
+          client_email: string
+          client_id: string
+          client_name?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          processed_at?: string | null
+          status?: string | null
+          trigger_type: string
+        }
+        Update: {
+          client_email?: string
+          client_id?: string
+          client_name?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          processed_at?: string | null
+          status?: string | null
+          trigger_type?: string
+        }
+        Relationships: []
+      }
       email_unsubscribes: {
         Row: {
           client_id: string
