@@ -8,9 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-
-// E-Transfer configuration
-const ETRANSFER_EMAIL = "paiement@nivra.ca";
+import { ETRANSFER_CONFIG } from "@/config/company";
 
 const ClientPayments = () => {
   const { user } = useClientAuth();
@@ -33,7 +31,7 @@ const ClientPayments = () => {
   });
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText(ETRANSFER_EMAIL);
+    navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
     setCopied(true);
     toast.success("Courriel copié!");
     setTimeout(() => setCopied(false), 2000);
@@ -73,7 +71,7 @@ const ClientPayments = () => {
               </p>
               <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
                 <Mail className="w-5 h-5 text-emerald-500" />
-                <span className="font-mono text-lg flex-1">{ETRANSFER_EMAIL}</span>
+                <span className="font-mono text-lg flex-1">{ETRANSFER_CONFIG.emailDisplay}</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -98,11 +96,11 @@ const ClientPayments = () => {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Question de sécurité</p>
-                <p className="text-sm font-medium">Aucune requise (dépôt automatique)</p>
+                <p className="text-sm font-medium">{ETRANSFER_CONFIG.securityQuestion}</p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Message à inclure</p>
-                <p className="text-sm font-medium">Votre numéro de téléphone ou # de facture</p>
+                <p className="text-xs text-muted-foreground mb-1">Réponse</p>
+                <p className="text-sm font-medium">{ETRANSFER_CONFIG.securityAnswer}</p>
               </div>
             </div>
 

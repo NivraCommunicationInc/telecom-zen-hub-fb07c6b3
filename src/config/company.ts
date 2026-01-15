@@ -55,6 +55,6 @@ export const getTelLink = (phone: string = COMPANY_CONTACT.supportPhoneTel) =>
 export const ETRANSFER_CONFIG = {
   email: COMPANY_CONTACT.paymentEmail,
   emailDisplay: COMPANY_CONTACT.paymentEmailDisplay,
-  securityQuestion: "What is my Nivra?",
-  securityAnswer: "Telecom",
+  securityQuestion: "Le numero de la facture",
+  securityAnswer: "( vous mettez le numero de la facture dont vous voulez payer )",
 } as const;

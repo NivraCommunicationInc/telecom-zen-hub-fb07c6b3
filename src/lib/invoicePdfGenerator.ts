@@ -1010,7 +1010,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...darkColor);
-    doc.text("Question/Réponse sécurité : Votre nom complet (tel qu'inscrit)", margin + 6, currentY + 19);
+    doc.text(`Question/Réponse sécurité : ${ETRANSFER_CONFIG.securityQuestion} / ${data.invoiceNumber}`, margin + 6, currentY + 19);
 
     currentY += 28;
   }

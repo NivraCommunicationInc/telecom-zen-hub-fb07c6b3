@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, Shield, Lock, AlertCircle, Info, Banknote, Wrench, Mail, Copy, Check as CheckIcon } from "lucide-react";
 import { toast } from "sonner";
+import { ETRANSFER_CONFIG } from "@/config/company";
 
 interface SavedCard {
   id: string;
@@ -40,9 +41,6 @@ interface CheckoutPaymentSectionProps {
   cvvError?: string;
 }
 
-// E-Transfer configuration
-const ETRANSFER_EMAIL = "paiement@nivra.ca";
-
 export const CheckoutPaymentSection = ({
   isFrench,
   savedCards,
@@ -63,7 +61,7 @@ export const CheckoutPaymentSection = ({
   const hasSavedCards = savedCards && savedCards.length > 0;
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText(ETRANSFER_EMAIL);
+    navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
     setCopied(true);
     toast.success(isFrench ? "Courriel copié!" : "Email copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -128,7 +126,7 @@ export const CheckoutPaymentSection = ({
                       </p>
                       <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
                         <Mail className="w-5 h-5 text-emerald-500" />
-                        <span className="font-mono text-lg flex-1">{ETRANSFER_EMAIL}</span>
+                        <span className="font-mono text-lg flex-1">{ETRANSFER_CONFIG.emailDisplay}</span>
                         <Button
                           type="button"
                           variant="outline"
@@ -158,7 +156,7 @@ export const CheckoutPaymentSection = ({
                       </p>
                       <p className="text-sm text-muted-foreground">
                         <strong>{isFrench ? "Message/Référence:" : "Message/Reference:"}</strong>{" "}
-                        <span className="text-foreground">{isFrench ? "Votre numéro de téléphone" : "Your phone number"}</span>
+                        <span className="text-foreground">{isFrench ? "Numéro de facture" : "Invoice number"}</span>
                       </p>
                     </div>
 
