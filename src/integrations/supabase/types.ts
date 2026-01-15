@@ -8156,6 +8156,15 @@ export type Database = {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
       }
+      mark_billing_as_paid: {
+        Args: {
+          p_admin_note?: string
+          p_billing_id: string
+          p_payment_method?: string
+          p_payment_reference?: string
+        }
+        Returns: boolean
+      }
       mark_payment_error_captured: {
         Args: {
           p_admin_user_id?: string
@@ -8173,6 +8182,10 @@ export type Database = {
           p_to_email: string
         }
         Returns: string
+      }
+      recalculate_client_balance: {
+        Args: { p_user_id: string }
+        Returns: number
       }
       recompute_invoice_balance: {
         Args: { p_invoice_id: string }
