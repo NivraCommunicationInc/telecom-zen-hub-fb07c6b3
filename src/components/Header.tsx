@@ -8,6 +8,7 @@ import LanguageSelector from "./LanguageSelector";
 import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } from "@/config/navigation";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
+import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -90,11 +91,14 @@ const Header = () => {
   };
 
   return (
-    <header className={`sticky top-0 z-50 transition-all duration-200 ${
-      isScrolled 
-        ? 'bg-white/98 backdrop-blur-sm border-b border-border shadow-sm' 
-        : 'bg-white/95 backdrop-blur-sm border-b border-border/50'
-    }`}>
+    <>
+      {/* System status alerts shown above header */}
+      <PublicSystemStatusBanner />
+      <header className={`sticky top-0 z-50 transition-all duration-200 ${
+        isScrolled 
+          ? 'bg-white/98 backdrop-blur-sm border-b border-border shadow-sm' 
+          : 'bg-white/95 backdrop-blur-sm border-b border-border/50'
+      }`}>
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="relative flex items-center justify-between h-16 lg:h-18">
           {/* Left spacer - matches hamburger width on mobile for centering */}
@@ -233,6 +237,7 @@ const Header = () => {
         )}
       </div>
     </header>
+    </>
   );
 };
 

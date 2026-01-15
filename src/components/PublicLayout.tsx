@@ -8,6 +8,7 @@ interface PublicLayoutProps {
 export const PublicLayout = ({ children }: PublicLayoutProps) => {
   return (
     <>
+      {/* Promotional announcement bar */}
       <AnnouncementBar />
       {children}
     </>
