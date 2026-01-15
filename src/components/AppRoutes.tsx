@@ -84,6 +84,7 @@ import AdminWebForms from "@/pages/admin/AdminWebForms";
 import AdminTelephony from "@/pages/admin/AdminTelephony";
 import AdminMarketing from "@/pages/admin/AdminMarketing";
 import AdminCommunicationEmail from "@/pages/admin/AdminCommunicationEmail";
+import AdminCommunicationSMS from "@/pages/admin/AdminCommunicationSMS";
 import AdminReferrals from "@/pages/admin/AdminReferrals";
 import AdminReferralInfluencers from "@/pages/admin/AdminReferralInfluencers";
 import AdminReferralInfluencerDetail from "@/pages/admin/AdminReferralInfluencerDetail";
@@ -233,7 +234,7 @@ const AppRoutes = () => {
       <Route path="/admin/telephony" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTelephony /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/marketing" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMarketing /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/communication-email" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCommunicationEmail /></ProtectedRoute></AuthProvider>} />
-      
+      <Route path="/admin/communication-sms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCommunicationSMS /></ProtectedRoute></AuthProvider>} />
       {/* Admin Referral Program */}
       <Route path="/admin/referrals" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferrals /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/influencers" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencers /></ProtectedRoute></AuthProvider>} />

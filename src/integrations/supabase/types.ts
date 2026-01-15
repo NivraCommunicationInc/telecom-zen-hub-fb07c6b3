@@ -6530,6 +6530,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_campaigns: {
+        Row: {
+          created_at: string
+          failed_count: number
+          id: string
+          message: string
+          recipients_count: number
+          sent_by_email: string | null
+          sent_count: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message: string
+          recipients_count?: number
+          sent_by_email?: string | null
+          sent_count?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message?: string
+          recipients_count?: number
+          sent_by_email?: string | null
+          sent_count?: number
+          status?: string
+        }
+        Relationships: []
+      }
       staff_email_allowlist: {
         Row: {
           allowed_role: string
