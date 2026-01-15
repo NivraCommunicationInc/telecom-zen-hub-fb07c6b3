@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Smartphone, Check, Shield, Zap, ArrowRight, Phone, MessageSquare, Globe, Wifi, CreditCard } from "lucide-react";
+import { Smartphone, Check, Shield, Zap, ArrowRight, Phone, MessageSquare, Globe, Wifi, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,61 +7,21 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MobileInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { useMobilePlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
   const { user } = useOptionalAuth();
   const navigate = useNavigate();
   const isFrench = language === 'fr';
-
-  const plans = [
-    {
-      id: "mobile-50",
-      name: isFrench ? "Forfait Mobile 50$/30 jours" : "Mobile Plan $50/30 days",
-      price: 50,
-      badge: isFrench ? "ÉCONOMIQUE" : "VALUE",
-      badgeColor: "bg-blue-500",
-      dataAutoTopUp: "50 GB 4G",
-      dataNoAutoTopUp: "55 GB 4G",
-      description: isFrench 
-        ? "Parfait pour une utilisation quotidienne avec beaucoup de données." 
-        : "Perfect for daily use with plenty of data.",
-      features: [
-        isFrench ? "Appels Canada illimités" : "Unlimited Canada calls",
-        isFrench ? "Textos/MMS internationaux illimités" : "Unlimited international texts/MMS",
-        isFrench ? "Messagerie vocale" : "Voicemail",
-        isFrench ? "Afficheur" : "Caller ID",
-        isFrench ? "Mise en attente" : "Call waiting",
-        isFrench ? "Renvoi d'appel" : "Call forwarding",
-        isFrench ? "Conférence" : "Conference calling",
-      ],
-    },
-    {
-      id: "mobile-60",
-      name: isFrench ? "Forfait Mobile 60$/30 jours" : "Mobile Plan $60/30 days",
-      price: 60,
-      badge: isFrench ? "POPULAIRE" : "POPULAR",
-      badgeColor: "bg-cyan-500",
-      featured: true,
-      dataAutoTopUp: "80 GB 4G",
-      dataNoAutoTopUp: "75 GB 4G",
-      description: isFrench 
-        ? "Plus de données pour les utilisateurs intensifs." 
-        : "More data for heavy users.",
-      features: [
-        isFrench ? "Appels Canada illimités" : "Unlimited Canada calls",
-        isFrench ? "Textos/MMS internationaux illimités" : "Unlimited international texts/MMS",
-        isFrench ? "Messagerie vocale" : "Voicemail",
-        isFrench ? "Afficheur" : "Caller ID",
-        isFrench ? "Mise en attente" : "Call waiting",
-        isFrench ? "Renvoi d'appel" : "Call forwarding",
-        isFrench ? "Conférence" : "Conference calling",
-      ],
-    },
-  ];
+  
+  // Fetch plans from database
+  const { plans, isLoading: isLoadingPlans } = useMobilePlans(isFrench);
+  const { simPrice, esimPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
+  
+  const isLoading = isLoadingPlans || isLoadingEquipment;
 
   const handleGetStarted = (planId: string) => {
     if (user) {
@@ -115,7 +74,7 @@ const MobilePlans = () => {
               </Badge>
               <Badge variant="outline" className="px-4 py-2 text-sm border-blue-500/30 text-blue-500">
                 <CreditCard className="w-4 h-4 mr-2" />
-                {isFrench ? "25$ frais SIM unique" : "$25 one-time SIM fee"}
+                {isFrench ? `${simPrice}$ frais SIM unique` : `$${simPrice} one-time SIM fee`}
               </Badge>
               <Badge variant="outline" className="px-4 py-2 text-sm border-purple-500/30 text-purple-500">
                 <Phone className="w-4 h-4 mr-2" />
@@ -125,12 +84,23 @@ const MobilePlans = () => {
           </div>
         </section>
 
-        {/* Plans Grid */}
+        {/* Loading State */}
+        {isLoading && (
+          <section className="container mx-auto px-4 mb-16 relative">
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">
+                {isFrench ? "Chargement des forfaits..." : "Loading plans..."}
+              </span>
+            </div>
+          </section>
+        )}
+        {!isLoading && (
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {plans.map((plan, index) => (
               <Card 
-                key={index}
+                key={plan.id}
                 className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
                   plan.featured 
                     ? "border-2 border-cyan-500 shadow-lg shadow-cyan-500/10" 
@@ -210,6 +180,7 @@ const MobilePlans = () => {
             ))}
           </div>
         </section>
+        )}
 
         {/* SIM Fee Notice */}
         <section className="container mx-auto px-4 mb-16 relative">
@@ -221,12 +192,12 @@ const MobilePlans = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">
-                    {isFrench ? "Frais de carte SIM - 25$" : "SIM Card Fee - $25"}
+                    {isFrench ? `Frais de carte SIM - ${simPrice}$` : `SIM Card Fee - $${simPrice}`}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {isFrench 
-                      ? "Un frais unique de 25$ est appliqué pour chaque nouveau numéro ou transfert de numéro. Ce frais inclut votre carte SIM ou eSIM et l'activation de votre ligne."
-                      : "A one-time fee of $25 is applied for each new number or number transfer. This fee includes your SIM or eSIM card and line activation."}
+                      ? `Un frais unique de ${simPrice}$ est appliqué pour chaque nouveau numéro ou transfert de numéro. Ce frais inclut votre carte SIM ou eSIM et l'activation de votre ligne.`
+                      : `A one-time fee of $${simPrice} is applied for each new number or number transfer. This fee includes your SIM or eSIM card and line activation.`}
                   </p>
                 </div>
               </div>

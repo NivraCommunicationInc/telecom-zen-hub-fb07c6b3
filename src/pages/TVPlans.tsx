@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tv, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Monitor, Wifi, Package } from "lucide-react";
+import { Tv, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Monitor, Wifi, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { TVInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { useTVPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 
 
 const TVPlans = () => {
@@ -25,214 +26,15 @@ const TVPlans = () => {
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
 
-  const plans = [
-    {
-      id: "tv-basic",
-      name: isFrench ? "Internet 100 + TV Basic" : "Internet 100 + TV Basic",
-      internetSpeed: "100 Mbps",
-      price: 75,
-      badge: isFrench ? "ÉCONOMIQUE" : "VALUE",
-      badgeColor: "bg-blue-500",
-      channels: 26,
-      channelType: isFrench ? "chaînes générales" : "general channels",
-      description: isFrench 
-        ? "L'essentiel pour regarder vos émissions préférées." 
-        : "The essentials for watching your favorite shows.",
-      features: [
-        isFrench ? "Internet 100 Mbps inclus" : "Internet 100 Mbps included",
-        isFrench ? "26 chaînes générales" : "26 general channels",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Tableau de bord streaming (navigateur)" : "Browser-based streaming dashboard",
-      ],
-    },
-    {
-      id: "tv-5choices",
-      name: isFrench ? "Internet 500 + TV 5 choix" : "Internet 500 + TV 5 choices",
-      internetSpeed: "500 Mbps",
-      price: 80,
-      badge: isFrench ? "POPULAIRE" : "POPULAR",
-      badgeColor: "bg-cyan-500",
-      channels: 32,
-      channelType: isFrench ? "chaînes populaires" : "popular channels",
-      description: isFrench 
-        ? "Internet rapide avec une sélection de chaînes populaires." 
-        : "Fast internet with a selection of popular channels.",
-      features: [
-        isFrench ? "Internet 500 Mbps inclus" : "Internet 500 Mbps included",
-        isFrench ? "32 chaînes populaires" : "32 popular channels",
-        isFrench ? "5 chaînes au choix" : "5 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-      ],
-    },
-    {
-      id: "tv-10choices",
-      name: isFrench ? "Internet 500 + TV 10 choix" : "Internet 500 + TV 10 choices",
-      internetSpeed: "500 Mbps",
-      price: 90,
-      previousPrice: 109,
-      badge: isFrench ? "MEILLEUR VENDEUR" : "BEST SELLER",
-      badgeColor: "bg-accent",
-      featured: true,
-      channels: 37,
-      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
-      description: isFrench 
-        ? "Parfait pour les familles et amateurs de sport." 
-        : "Perfect for families and sports fans.",
-      features: [
-        isFrench ? "Internet 500 Mbps inclus" : "Internet 500 Mbps included",
-        isFrench ? "37 chaînes populaires + sports" : "37 popular + sports channels",
-        isFrench ? "10 chaînes au choix" : "10 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Télécommande vocale" : "Voice control remote",
-      ],
-    },
-    {
-      id: "tv-15choices",
-      name: isFrench ? "Internet 500 + TV 15 choix" : "Internet 500 + TV 15 choices",
-      internetSpeed: "500 Mbps",
-      price: 95,
-      previousPrice: 129,
-      badge: isFrench ? "ÉCONOMIE 26%" : "SAVE 26%",
-      badgeColor: "bg-emerald-500",
-      channels: 42,
-      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
-      description: isFrench 
-        ? "Plus de choix pour toute la famille." 
-        : "More choice for the whole family.",
-      features: [
-        isFrench ? "Internet 500 Mbps inclus" : "Internet 500 Mbps included",
-        isFrench ? "42 chaînes populaires + sports" : "42 popular + sports channels",
-        isFrench ? "15 chaînes au choix" : "15 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Télécommande vocale" : "Voice control remote",
-      ],
-    },
-    {
-      id: "tv-25choices",
-      name: isFrench ? "Internet 500 + TV 25 choix" : "Internet 500 + TV 25 choices",
-      internetSpeed: "500 Mbps",
-      price: 110,
-      previousPrice: 135,
-      badge: isFrench ? "PREMIUM" : "PREMIUM",
-      badgeColor: "bg-purple-500",
-      channels: 52,
-      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
-      description: isFrench 
-        ? "L'expérience TV ultime avec le maximum de choix." 
-        : "The ultimate TV experience with maximum choice.",
-      features: [
-        isFrench ? "Internet 500 Mbps inclus" : "Internet 500 Mbps included",
-        isFrench ? "52 chaînes populaires + sports" : "52 popular + sports channels",
-        isFrench ? "25 chaînes au choix" : "25 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Télécommande vocale" : "Voice control remote",
-        isFrench ? "Support prioritaire VIP" : "VIP priority support",
-      ],
-    },
-  ];
-
-  const gigaPlans = [
-    {
-      id: "giga-tv-basic",
-      name: isFrench ? "GIGA + TV Basic" : "GIGA + TV Basic",
-      internetSpeed: "1 Gbps",
-      price: 85,
-      badge: isFrench ? "GIGA" : "GIGA",
-      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
-      channels: 26,
-      channelType: isFrench ? "chaînes générales" : "general channels",
-      description: isFrench 
-        ? "Internet ultra-rapide avec les chaînes essentielles." 
-        : "Ultra-fast internet with essential channels.",
-      features: [
-        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
-        isFrench ? "26 chaînes générales" : "26 general channels",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Tableau de bord streaming (navigateur)" : "Browser-based streaming dashboard",
-      ],
-    },
-    {
-      id: "giga-tv-5choices",
-      name: isFrench ? "GIGA + TV 5 choix" : "GIGA + TV 5 choices",
-      internetSpeed: "1 Gbps",
-      price: 95,
-      badge: isFrench ? "GIGA POPULAIRE" : "GIGA POPULAR",
-      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
-      channels: 32,
-      channelType: isFrench ? "chaînes populaires" : "popular channels",
-      description: isFrench 
-        ? "Vitesse GIGA avec une sélection de chaînes populaires." 
-        : "GIGA speed with a selection of popular channels.",
-      features: [
-        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
-        isFrench ? "32 chaînes populaires" : "32 popular channels",
-        isFrench ? "5 chaînes au choix" : "5 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-      ],
-    },
-    {
-      id: "giga-tv-10choices",
-      name: isFrench ? "GIGA + TV 10 choix" : "GIGA + TV 10 choices",
-      internetSpeed: "1 Gbps",
-      price: 105,
-      badge: isFrench ? "GIGA VEDETTE" : "GIGA STAR",
-      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
-      featured: true,
-      channels: 37,
-      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
-      description: isFrench 
-        ? "La combinaison parfaite: vitesse GIGA et divertissement complet." 
-        : "The perfect combination: GIGA speed and complete entertainment.",
-      features: [
-        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
-        isFrench ? "37 chaînes populaires + sports" : "37 popular + sports channels",
-        isFrench ? "10 chaînes au choix" : "10 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Télécommande vocale" : "Voice control remote",
-      ],
-    },
-    {
-      id: "giga-tv-15choices",
-      name: isFrench ? "GIGA + TV 15 choix" : "GIGA + TV 15 choices",
-      internetSpeed: "1 Gbps",
-      price: 110,
-      badge: isFrench ? "GIGA FAMILLE" : "GIGA FAMILY",
-      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
-      channels: 42,
-      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
-      description: isFrench 
-        ? "Parfait pour les grandes familles connectées." 
-        : "Perfect for large connected families.",
-      features: [
-        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
-        isFrench ? "42 chaînes populaires + sports" : "42 popular + sports channels",
-        isFrench ? "15 chaînes au choix" : "15 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Télécommande vocale" : "Voice control remote",
-      ],
-    },
-    {
-      id: "giga-tv-25choices",
-      name: isFrench ? "GIGA + TV 25 choix" : "GIGA + TV 25 choices",
-      internetSpeed: "1 Gbps",
-      price: 120,
-      badge: isFrench ? "GIGA ULTIME" : "GIGA ULTIMATE",
-      badgeColor: "bg-gradient-to-r from-orange-500 to-red-500",
-      channels: 52,
-      channelType: isFrench ? "chaînes populaires + sports" : "popular + sports channels",
-      description: isFrench 
-        ? "L'expérience ultime: vitesse maximale et divertissement premium." 
-        : "The ultimate experience: maximum speed and premium entertainment.",
-      features: [
-        isFrench ? "Internet GIGA 1 Gbps inclus" : "GIGA 1 Gbps Internet included",
-        isFrench ? "52 chaînes populaires + sports" : "52 popular + sports channels",
-        isFrench ? "25 chaînes au choix" : "25 channels of your choice",
-        isFrench ? "Nivra 4K Smart Terminal" : "Nivra 4K Smart Terminal",
-        isFrench ? "Télécommande vocale" : "Voice control remote",
-        isFrench ? "Support prioritaire VIP" : "VIP priority support",
-      ],
-    },
-  ];
+  // Fetch plans from database
+  const { standardPlans, gigaPlans, isLoading: isLoadingPlans } = useTVPlans(isFrench);
+  const { terminalPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
+  
+  const isLoading = isLoadingPlans || isLoadingEquipment;
+  
+  // Use fetched plans from hook
+  const plans = standardPlans;
+  const gigaTVPlans = gigaPlans;
 
   const handleAddressSelect = (details: AddressValue) => {
     setAddressDetails(details);
@@ -315,6 +117,18 @@ const TVPlans = () => {
             </Alert>
           </div>
         </section>
+
+        {/* Loading State */}
+        {isLoading && (
+          <section className="container mx-auto px-4 mb-16 relative">
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">
+                {isFrench ? "Chargement des forfaits..." : "Loading plans..."}
+              </span>
+            </div>
+          </section>
+        )}
 
         {/* Address Validation Section */}
         <section className="container mx-auto px-4 mb-16 relative">
