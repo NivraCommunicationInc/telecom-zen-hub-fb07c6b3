@@ -11,6 +11,7 @@ import Footer from "@/components/Footer";
 import { FeaturedOffers } from "@/components/FeaturedOffers";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
+import HomeStatusBanner from "@/components/HomeStatusBanner";
 
 const Index = () => {
   return (
@@ -18,6 +19,7 @@ const Index = () => {
       <SEOHead {...SEO_DATA.home} />
       <LocalBusinessSchema />
       <Header />
+      <HomeStatusBanner />
       <main>
         <Hero />
         <CoverageSetupBand />
