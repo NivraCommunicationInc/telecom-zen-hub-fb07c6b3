@@ -1871,21 +1871,23 @@ const AdminBilling = () => {
                 <div className="space-y-2">
                   <Label>Nouveau statut</Label>
                   <Select 
-                    value={selectedPaymentForStatus.newStatus ?? selectedPaymentForStatus.status}
+                    value={selectedPaymentForStatus.newStatus || ""}
                     onValueChange={(v) => setSelectedPaymentForStatus({ ...selectedPaymentForStatus, newStatus: v })}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Sélectionner un statut" />
                     </SelectTrigger>
                     <SelectContent>
-                      {etransferStatusOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${etransferStatusConfig[opt.value]?.color.replace("text-", "bg-").split(" ")[0]}`} />
-                            {opt.label}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {etransferStatusOptions
+                        .filter((opt) => opt.value !== selectedPaymentForStatus.status)
+                        .map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${etransferStatusConfig[opt.value]?.color.replace("text-", "bg-").split(" ")[0]}`} />
+                              {opt.label}
+                            </div>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
