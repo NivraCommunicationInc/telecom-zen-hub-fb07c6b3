@@ -578,93 +578,67 @@ const AdminBilling = () => {
       payment: any;
     }) => {
       const currentUser = (await supabase.auth.getUser()).data.user;
+      if (!currentUser?.id) {
+        throw new Error("Unauthorized: not authenticated");
+      }
       const oldStatus = payment.status;
-      
+
       // Get user role for logging
       const { data: userRole } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", currentUser?.id)
+        .eq("user_id", currentUser.id)
         .maybeSingle();
-      
+
       const actorRole = userRole?.role || "admin";
-      
+
       // Only admin and employee can update (check role)
       if (actorRole !== "admin" && actorRole !== "employee") {
         throw new Error("Unauthorized: Only Admin and Employee can update payment status");
       }
-      
-      // Update payment status
+
+      // Build audit fields (required by backend for finalized statuses)
+      const finalizedStatuses = new Set(["captured", "completed", "processed"]);
+      const allowedAuditRoles = new Set(["admin", "manager", "support", "billing", "system", "client"]);
+
+      const { data: actorProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      const actorNameCandidate =
+        actorProfile?.full_name ||
+        (currentUser.user_metadata as any)?.full_name ||
+        currentUser.email ||
+        "Admin";
+      const actorName = String(actorNameCandidate).trim() || "Admin";
+
+      const auditRole = (() => {
+        const r = String(actorRole || "").toLowerCase().trim();
+        if (r === "employee") return "support";
+        if (allowedAuditRoles.has(r)) return r;
+        return "admin";
+      })();
+
+      const updatePayload: any = {
+        status: newStatus,
+        notes: `${payment.notes || ""}\n[PaymentStatus: ${oldStatus} → ${newStatus}] ${reason ? `Reason: ${reason}` : ""} (${format(new Date(), "d MMM yyyy HH:mm", { locale: fr })})`.trim(),
+      };
+
+      if (finalizedStatuses.has(newStatus)) {
+        updatePayload.created_by_id = payment.created_by_id || currentUser.id;
+        updatePayload.created_by_name = payment.created_by_name || actorName;
+        updatePayload.created_by_role = payment.created_by_role || auditRole;
+        updatePayload.source = payment.source || "admin";
+      }
+
       const { error: paymentError } = await supabase
         .from("payments")
-        .update({
-          status: newStatus,
-          notes: `${payment.notes || ""}\n[PaymentStatus: ${oldStatus} → ${newStatus}] ${reason ? `Reason: ${reason}` : ""} (${format(new Date(), "d MMM yyyy HH:mm", { locale: fr })})`.trim(),
-        })
+        .update(updatePayload)
         .eq("id", paymentId);
 
       if (paymentError) throw paymentError;
-
-      // Handle balance update only if status is "processed"
-      if (newStatus === "processed" && oldStatus !== "processed") {
-        // Get client profile
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("balance")
-          .eq("user_id", payment.user_id)
-          .maybeSingle();
-
-        const currentBalance = Number(profile?.balance || 0);
-        const paymentAmount = Number(payment.amount || 0);
-        
-        // Reduce balance when payment is processed
-        const newBalance = Math.max(0, currentBalance - paymentAmount);
-        
-        await supabase
-          .from("profiles")
-          .update({ balance: newBalance })
-          .eq("user_id", payment.user_id);
-
-        // Update linked billing if exists
-        if (payment.billing_id) {
-          await supabase
-            .from("billing")
-            .update({
-              status: "paid",
-              paid_at: new Date().toISOString(),
-            })
-            .eq("id", payment.billing_id);
-        }
-      }
-
-      // If status changed FROM processed to something else, reverse the balance
-      if (oldStatus === "processed" && newStatus !== "processed") {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("balance")
-          .eq("user_id", payment.user_id)
-          .maybeSingle();
-
-        const currentBalance = Number(profile?.balance || 0);
-        const paymentAmount = Number(payment.amount || 0);
-        
-        // Add back to balance
-        await supabase
-          .from("profiles")
-          .update({ balance: currentBalance + paymentAmount })
-          .eq("user_id", payment.user_id);
-
-        // Revert billing status if exists
-        if (payment.billing_id) {
-          await supabase
-            .from("billing")
-            .update({
-              status: "pending",
-              paid_at: null,
-            })
-            .eq("id", payment.billing_id);
-        }
-      }
 
       // Log activity with exact field="PaymentStatus" and action="Updated"
       await supabase.from("activity_logs").insert({
@@ -1897,7 +1871,7 @@ const AdminBilling = () => {
                 <div className="space-y-2">
                   <Label>Nouveau statut</Label>
                   <Select 
-                    value={selectedPaymentForStatus.status} 
+                    value={selectedPaymentForStatus.newStatus ?? selectedPaymentForStatus.status}
                     onValueChange={(v) => setSelectedPaymentForStatus({ ...selectedPaymentForStatus, newStatus: v })}
                   >
                     <SelectTrigger>
