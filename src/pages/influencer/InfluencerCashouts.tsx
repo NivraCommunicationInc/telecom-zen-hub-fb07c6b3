@@ -68,8 +68,8 @@ const InfluencerCashouts = () => {
   const { data: balance } = useQuery({
     queryKey: ["influencer-balance", influencer?.id],
     queryFn: async () => {
-      if (!influencer?.id) return 0;
-      
+      if (!influencer?.id) return { pending: 0, approved: 0, available: 0, paid: 0 };
+
       const { data: ledger, error } = await supabase
         .from("commission_ledger_entries")
         .select("type, amount, status")
@@ -77,24 +77,28 @@ const InfluencerCashouts = () => {
 
       if (error) {
         console.error("Error fetching ledger:", error);
-        return 0;
+        return { pending: 0, approved: 0, available: 0, paid: 0 };
       }
 
+      let pending = 0;
       let approved = 0;
       let paid = 0;
 
       ledger?.forEach((entry) => {
-        const amt = Number(entry.amount);
-        if (entry.type === "approved_credit" || (entry.type === "pending_credit" && entry.status === "approved")) {
-          approved += amt;
+        const amount = Number(entry.amount);
+        if (entry.type === "pending_credit" && entry.status === "pending") {
+          pending += amount;
+        } else if (entry.type === "approved_credit" || (entry.type === "pending_credit" && entry.status === "approved")) {
+          approved += amount;
         } else if (entry.type === "reversal") {
-          approved += amt;
+          approved += amount; // negative
         } else if (entry.type === "payout_debit") {
-          paid += Math.abs(amt);
+          paid += Math.abs(amount);
         }
       });
 
-      return approved - paid;
+      const available = approved - paid;
+      return { pending, approved, available, paid };
     },
     enabled: !!influencer?.id,
   });
@@ -165,9 +169,7 @@ const InfluencerCashouts = () => {
   const minCashoutParsed = typeof minCashoutRaw === "number" ? minCashoutRaw : Number(minCashoutRaw);
   const minCashout = Number.isFinite(minCashoutParsed) ? minCashoutParsed : 50;
 
-  const availableRaw = balance ?? 0;
-  const availableParsed = typeof availableRaw === "number" ? availableRaw : Number(availableRaw);
-  const available = Number.isFinite(availableParsed) ? availableParsed : 0;
+  const available = Number(balance?.available ?? 0);
 
   const canRequest = available >= minCashout;
 
