@@ -17,19 +17,19 @@ export interface DobConfig {
 }
 
 /**
- * Default configuration - minimum age is 13 (legal requirement for telecommunications)
+ * Default configuration - minimum age is 16 (Nivra business requirement)
  */
 const DEFAULT_CONFIG: Required<DobConfig> = {
-  minAge: 13,
+  minAge: 16,
   maxAge: 120,
   required: true
 };
 
 /**
- * CRITICAL VALIDATION: Enforces minimum age of 13 years
- * This is a legal requirement for telecommunications services in Quebec
+ * CRITICAL VALIDATION: Enforces minimum age of 16 years
+ * This is a Nivra business requirement for telecommunications services
  */
-export const MIN_AGE_TELECOM = 13;
+export const MIN_AGE_TELECOM = 16;
 
 /**
  * Calculate age from date of birth
