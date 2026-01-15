@@ -75,10 +75,61 @@ const AdminRecouvrement = () => {
   const [numberLostReason, setNumberLostReason] = useState("");
   const [isSendingReminder, setIsSendingReminder] = useState(false);
 
-  // Fetch suspended/overdue accounts
+  // Fetch accounts with overdue invoices - primary source: invoices with status overdue
   const { data: recoveryAccounts, isLoading, refetch } = useQuery({
     queryKey: ["recovery-accounts", statusFilter],
     queryFn: async () => {
+      // 1. First fetch all overdue invoices from monthly_invoices
+      const { data: overdueMonthlyInvoices, error: monthlyError } = await supabase
+        .from("monthly_invoices")
+        .select("id, invoice_number, total, due_date, client_id, status")
+        .eq("status", "overdue")
+        .order("due_date", { ascending: true });
+
+      if (monthlyError) throw monthlyError;
+
+      // 2. Fetch all overdue invoices from billing table
+      const { data: overdueBillingInvoices, error: billingError } = await supabase
+        .from("billing")
+        .select("id, invoice_number, amount, due_date, user_id, status, payment_reference")
+        .eq("status", "overdue")
+        .order("due_date", { ascending: true });
+
+      if (billingError) throw billingError;
+
+      // 3. Also get invoices that are past due date but not marked as overdue yet
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data: pastDueMonthly } = await supabase
+        .from("monthly_invoices")
+        .select("id, invoice_number, total, due_date, client_id, status")
+        .in("status", ["issued", "pending", "partial"])
+        .lt("due_date", today)
+        .order("due_date", { ascending: true });
+
+      const { data: pastDueBilling } = await supabase
+        .from("billing")
+        .select("id, invoice_number, amount, due_date, user_id, status, payment_reference")
+        .in("status", ["pending", "partial", "issued"])
+        .lt("due_date", today)
+        .order("due_date", { ascending: true });
+
+      // 4. Combine all client IDs that have overdue/past due invoices
+      const clientIdsFromMonthly = [
+        ...(overdueMonthlyInvoices?.map(i => i.client_id) || []),
+        ...(pastDueMonthly?.map(i => i.client_id) || [])
+      ];
+      const clientIdsFromBilling = [
+        ...(overdueBillingInvoices?.map(i => i.user_id) || []),
+        ...(pastDueBilling?.map(i => i.user_id) || [])
+      ];
+      const allClientIds = [...new Set([...clientIdsFromMonthly, ...clientIdsFromBilling])];
+
+      if (allClientIds.length === 0) {
+        return [];
+      }
+
+      // 5. Fetch accounts for these clients
       const { data: accounts, error: accountsError } = await supabase
         .from("accounts")
         .select(`
@@ -93,34 +144,66 @@ const AdminRecouvrement = () => {
           number_lost_reason,
           recouvrement_reminder_sent_at
         `)
-        .or("status.eq.suspended,status.eq.overdue,status.eq.expired");
+        .in("client_id", allClientIds);
 
       if (accountsError) throw accountsError;
 
-      const clientIds = [...new Set(accounts?.map(a => a.client_id) || [])];
+      // 6. Also fetch accounts that are already marked as suspended/overdue/expired
+      const { data: statusBasedAccounts, error: statusError } = await supabase
+        .from("accounts")
+        .select(`
+          id,
+          client_id,
+          account_number,
+          account_name,
+          billing_cycle_day,
+          status,
+          created_at,
+          number_lost_at,
+          number_lost_reason,
+          recouvrement_reminder_sent_at
+        `)
+        .or("status.eq.suspended,status.eq.overdue,status.eq.expired,status.eq.number_lost");
+
+      if (statusError) throw statusError;
+
+      // Combine and dedupe accounts
+      const allAccounts = [...(accounts || []), ...(statusBasedAccounts || [])];
+      const uniqueAccounts = allAccounts.filter((account, index, self) =>
+        index === self.findIndex(a => a.id === account.id)
+      );
+
+      // 7. Get all unique client IDs from combined accounts
+      const finalClientIds = [...new Set(uniqueAccounts.map(a => a.client_id))];
+      
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, email")
-        .in("user_id", clientIds);
+        .in("user_id", finalClientIds);
 
-      const { data: invoices } = await supabase
-        .from("monthly_invoices")
-        .select("id, invoice_number, total, due_date, client_id, status")
-        .in("client_id", clientIds)
-        .in("status", ["issued", "overdue", "partial"])
-        .order("due_date", { ascending: false });
+      // Combine all invoices for lookup
+      const allMonthlyInvoices = [...(overdueMonthlyInvoices || []), ...(pastDueMonthly || [])];
+      const allBillingInvoices = [...(overdueBillingInvoices || []), ...(pastDueBilling || [])];
 
-      const { data: billingInvoices } = await supabase
-        .from("billing")
-        .select("id, invoice_number, amount, due_date, user_id, status, payment_reference")
-        .in("user_id", clientIds)
-        .in("status", ["pending", "overdue", "partial"])
-        .order("due_date", { ascending: false });
-
-      const enrichedAccounts: RecoveryAccount[] = (accounts || []).map(account => {
+      const enrichedAccounts: RecoveryAccount[] = uniqueAccounts.map(account => {
         const profile = profiles?.find(p => p.user_id === account.client_id);
-        const latestInvoice = invoices?.find(i => i.client_id === account.client_id) ||
-          billingInvoices?.find(i => i.user_id === account.client_id);
+        
+        // Find the oldest unpaid invoice for this client
+        const clientMonthlyInvoices = allMonthlyInvoices.filter(i => i.client_id === account.client_id);
+        const clientBillingInvoices = allBillingInvoices.filter(i => i.user_id === account.client_id);
+        
+        // Get the oldest invoice (earliest due date)
+        const oldestMonthly = clientMonthlyInvoices[0];
+        const oldestBilling = clientBillingInvoices[0];
+        
+        let latestInvoice: any = null;
+        if (oldestMonthly && oldestBilling) {
+          latestInvoice = new Date(oldestMonthly.due_date) < new Date(oldestBilling.due_date) 
+            ? oldestMonthly 
+            : oldestBilling;
+        } else {
+          latestInvoice = oldestMonthly || oldestBilling;
+        }
         
         let daysSince = 0;
         if (latestInvoice?.due_date) {
@@ -133,14 +216,21 @@ const AdminRecouvrement = () => {
           client_email: profile?.email,
           latest_invoice_id: latestInvoice?.id,
           latest_invoice_number: latestInvoice?.invoice_number,
-          latest_invoice_amount: (latestInvoice as any)?.total || (latestInvoice as any)?.amount || 0,
+          latest_invoice_amount: latestInvoice?.total || latestInvoice?.amount || 0,
           latest_invoice_due_date: latestInvoice?.due_date,
-          payment_method: (latestInvoice as any)?.payment_reference?.includes("etransfer") ? "etransfer" : "credit_card",
+          payment_method: latestInvoice?.payment_reference?.includes("etransfer") ? "etransfer" : "credit_card",
           days_since_suspension: daysSince,
         };
       });
 
-      return enrichedAccounts;
+      // Only return accounts that have overdue invoices or are in a problem status
+      return enrichedAccounts.filter(a => 
+        a.latest_invoice_id || 
+        a.status === 'suspended' || 
+        a.status === 'overdue' || 
+        a.status === 'expired' ||
+        a.status === 'number_lost'
+      );
     },
   });
 
