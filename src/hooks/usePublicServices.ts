@@ -106,8 +106,9 @@ export function usePublicServices() {
 
       return (data || []) as PublicService[];
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    staleTime: 10 * 1000, // 10 seconds - quick refresh for admin edits
     refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 }
 
