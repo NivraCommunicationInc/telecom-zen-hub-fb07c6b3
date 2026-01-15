@@ -15,6 +15,7 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
+import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { 
   ShoppingCart, 
   Smartphone, 
@@ -120,26 +121,8 @@ const TERMINAL_CONFIG = {
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
 };
 
-// Router configuration for Internet orders
-const ROUTER_CONFIG = {
-  name: "Nivra Born Wifi Router",
-  price: 60,
-  warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
-};
-
-// SIM configuration for Mobile orders
-const SIM_CONFIG = {
-  esim: {
-    name: "Nivra eSIM",
-    price: 25,
-  },
-  physical: {
-    name: "Nivra Physical SIM",
-    price: 25,
-  },
-  warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
-  notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
-};
+// Note: Router and SIM configs are now dynamically loaded from database via useEquipmentPrices()
+// See ROUTER_CONFIG_DYNAMIC and SIM_CONFIG_DYNAMIC inside the component
 
 // Quebec phone prefixes (area codes)
 const QUEBEC_PREFIXES = ["514", "450", "418", "438", "819", "367", "263", "579", "354", "873", "468"];
@@ -717,6 +700,29 @@ const ClientNewOrder = () => {
     console.log("[OrderWizard] Draft cleared");
   };
 
+  // Fetch dynamic equipment prices from database
+  const { routerPrice, simPrice, esimPrice, terminalPrice } = useEquipmentPrices();
+
+  // Dynamic configs using database prices
+  const ROUTER_CONFIG_DYNAMIC = {
+    name: "Nivra Born Wifi Router",
+    price: routerPrice,
+    warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
+  };
+
+  const SIM_CONFIG_DYNAMIC = {
+    esim: {
+      name: "Nivra eSIM",
+      price: esimPrice,
+    },
+    physical: {
+      name: "Nivra Physical SIM",
+      price: simPrice,
+    },
+    warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
+    notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
+  };
+
   // Fetch available services
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
@@ -1008,15 +1014,15 @@ const ClientNewOrder = () => {
     if (hasInternetService || hasTVService) {
       cartItems.push({
         type: 'equipment',
-        amount: ROUTER_CONFIG.price,
-        name: ROUTER_CONFIG.name,
+        amount: ROUTER_CONFIG_DYNAMIC.price,
+        name: ROUTER_CONFIG_DYNAMIC.name,
       });
     }
     if (hasMobileService) {
       cartItems.push({
         type: 'equipment',
-        amount: SIM_CONFIG.physical.price * totalMobileLineQuantity,
-        name: `${SIM_CONFIG.physical.name} x${totalMobileLineQuantity}`,
+        amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity,
+        name: `${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLineQuantity}`,
       });
     }
 
@@ -1162,7 +1168,7 @@ const ClientNewOrder = () => {
 
       // Prepare equipment info for notes
       const routerInfo = (hasInternetService || hasTVService)
-        ? `\n\n**Routeur:**\n${ROUTER_CONFIG.name} = ${ROUTER_CONFIG.price.toFixed(2)}$ (frais unique)\n${ROUTER_CONFIG.warranty}`
+        ? `\n\n**Routeur:**\n${ROUTER_CONFIG_DYNAMIC.name} = ${ROUTER_CONFIG_DYNAMIC.price.toFixed(2)}$ (frais unique)\n${ROUTER_CONFIG_DYNAMIC.warranty}`
         : '';
       
       const equipmentInfo = hasTVService 
@@ -1171,7 +1177,7 @@ const ClientNewOrder = () => {
       
       // Prepare SIM info for notes (always physical SIM, quantity matches mobile lines)
       const simInfo = hasMobileService
-        ? `\n\n**Cartes SIM physiques:**\n${SIM_CONFIG.physical.name} x${totalMobileLineQuantity} = ${(SIM_CONFIG.physical.price * totalMobileLineQuantity).toFixed(2)}$ (frais unique)\n${SIM_CONFIG.warranty}\n${SIM_CONFIG.notes}`
+        ? `\n\n**Cartes SIM physiques:**\n${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLineQuantity} = ${(SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity).toFixed(2)}$ (frais unique)\n${SIM_CONFIG_DYNAMIC.warranty}\n${SIM_CONFIG_DYNAMIC.notes}`
         : '';
 
       // Prepare delivery info for notes
@@ -1186,8 +1192,8 @@ const ClientNewOrder = () => {
 
       const equipmentSubtotal = 
         (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
-        ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-        (hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0);
+        ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0) + 
+        (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
 
       // Calculate delivery fee based on order type
       const orderDeliveryFee = isDeliveryOnlyOrder 
@@ -1369,9 +1375,9 @@ const ClientNewOrder = () => {
       
       // Build equipment array
       const equipmentForLineItems = [
-        ...((hasInternetService || hasTVService) ? [{ name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: ROUTER_CONFIG.price }] : []),
+        ...((hasInternetService || hasTVService) ? [{ name: "Routeur Nivra Born WiFi", quantity: 1, unitPrice: ROUTER_CONFIG_DYNAMIC.price }] : []),
         ...(hasTVService ? [{ name: "Terminal Nivra 4K Smart", quantity: terminalQuantity, unitPrice: TERMINAL_CONFIG.price }] : []),
-        ...(hasMobileService ? [{ name: "Carte SIM physique", quantity: totalMobileLineQuantity, unitPrice: SIM_CONFIG.physical.price }] : []),
+        ...(hasMobileService ? [{ name: "Carte SIM physique", quantity: totalMobileLineQuantity, unitPrice: SIM_CONFIG_DYNAMIC.physical.price }] : []),
       ];
       
       // Build fees array
@@ -1383,7 +1389,7 @@ const ClientNewOrder = () => {
       
       // Build discounts array (promo + preauth + SIM credits for mobile orders)
       // Auto-credit SIM fee and SIM delivery fee for orders with mobile services
-      const simCreditAmount = hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0;
+      const simCreditAmount = hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0;
       const simDeliveryCreditAmount = hasMobileService ? orderDeliveryFee : 0;
       
       const discountsForLineItems = [
@@ -1524,8 +1530,8 @@ const ClientNewOrder = () => {
         // Create billing/invoice record for client portal
         const invoiceEquipmentSubtotal = 
           (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
-          ((hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0) + 
-          (hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0);
+          ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0) + 
+          (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
         const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
         
         // Calculate invoice delivery fee based on order type
@@ -1645,7 +1651,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           
           const equipmentDetails = [];
           if (hasInternetService || hasTVService) {
-            equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG.price });
+            equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG_DYNAMIC.price });
           }
           if (hasTVService) {
             equipmentDetails.push({ type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalQuantity, fee: terminalQuantity * TERMINAL_CONFIG.price });
@@ -1975,9 +1981,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // Streaming+ add-ons monthly total
   const streamingAddonsTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
-  const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG.price : 0;
+  const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0;
   // SIM: Always physical, quantity matches total mobile lines
-  const simFee = hasMobileService ? SIM_CONFIG.physical.price * totalMobileLineQuantity : 0;
+  const simFee = hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0;
   
   // Fee logic based on installation choice OR delivery choice for delivery-only orders
   const calculateDeliveryFee = (): number => {
@@ -2342,13 +2348,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             // Calculate one-time fees for this specific service
                             let serviceOneTimeFee = 0;
                             if (service.category === "Mobile" && isServiceSelected) {
-                              serviceOneTimeFee = SIM_CONFIG.physical.price * qty;
+                              serviceOneTimeFee = SIM_CONFIG_DYNAMIC.physical.price * qty;
                             }
                             if (service.category === "TV" && isServiceSelected) {
-                              serviceOneTimeFee = TERMINAL_CONFIG.price + ROUTER_CONFIG.price;
+                              serviceOneTimeFee = TERMINAL_CONFIG.price + ROUTER_CONFIG_DYNAMIC.price;
                             }
                             if (service.category === "Internet" && isServiceSelected && !hasTVService) {
-                              serviceOneTimeFee = ROUTER_CONFIG.price;
+                              serviceOneTimeFee = ROUTER_CONFIG_DYNAMIC.price;
                             }
                             
                             return (
@@ -2955,8 +2961,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span>{TERMINAL_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between text-cyan-500">
-                      <span>{ROUTER_CONFIG.name} (inclus)</span>
-                      <span>{ROUTER_CONFIG.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{ROUTER_CONFIG_DYNAMIC.name} (inclus)</span>
+                      <span>{ROUTER_CONFIG_DYNAMIC.price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
@@ -3187,15 +3193,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </p>
 
                   <div className="flex justify-between text-sm">
-                    <span className="text-blue-500">{SIM_CONFIG.physical.name} (×{totalMobileLineQuantity})</span>
+                    <span className="text-blue-500">{SIM_CONFIG_DYNAMIC.physical.name} (×{totalMobileLineQuantity})</span>
                     <span className="text-blue-500">
-                      {(SIM_CONFIG.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      {(SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                     </span>
                   </div>
 
                   <div className="text-sm text-muted-foreground space-y-1 pt-2">
-                    <p>• {SIM_CONFIG.warranty}</p>
-                    <p>• {SIM_CONFIG.notes}</p>
+                    <p>• {SIM_CONFIG_DYNAMIC.warranty}</p>
+                    <p>• {SIM_CONFIG_DYNAMIC.notes}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -3231,9 +3237,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-blue-500">{SIM_CONFIG.physical.name} (×{totalMobileLineQuantity})</span>
+                      <span className="text-blue-500">{SIM_CONFIG_DYNAMIC.physical.name} (×{totalMobileLineQuantity})</span>
                       <span className="text-blue-500">
-                        {(SIM_CONFIG.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {(SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
                   </div>
@@ -4088,7 +4094,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     {(hasInternetService || hasTVService) && routerFee > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-cyan-500">{ROUTER_CONFIG.name}</span>
+                        <span className="text-cyan-500">{ROUTER_CONFIG_DYNAMIC.name}</span>
                         <span className="text-cyan-500">{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
@@ -4100,7 +4106,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
+                        <span className="text-blue-500">{SIM_CONFIG_DYNAMIC[simType].name}</span>
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
@@ -4299,17 +4305,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           <Smartphone className="w-5 h-5 text-blue-500" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{SIM_CONFIG[simType].name}</p>
+                          <p className="font-medium text-foreground">{SIM_CONFIG_DYNAMIC[simType].name}</p>
                           <p className="text-sm text-muted-foreground">Frais unique (payé à la commande)</p>
                         </div>
                       </div>
                       <p className="font-bold text-blue-500">
-                        {SIM_CONFIG[simType].price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {SIM_CONFIG_DYNAMIC[simType].price.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </p>
                     </div>
                     <div className="space-y-1 text-xs text-muted-foreground">
-                      <p>• {SIM_CONFIG.warranty}</p>
-                      <p>• {SIM_CONFIG.notes}</p>
+                      <p>• {SIM_CONFIG_DYNAMIC.warranty}</p>
+                      <p>• {SIM_CONFIG_DYNAMIC.notes}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -4855,7 +4861,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-blue-500">{SIM_CONFIG[simType].name}</span>
+                        <span className="text-blue-500">{SIM_CONFIG_DYNAMIC[simType].name}</span>
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
