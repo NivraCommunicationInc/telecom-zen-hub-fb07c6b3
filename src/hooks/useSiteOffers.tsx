@@ -51,8 +51,11 @@ export function useSiteOffers(options?: { category?: string; featured?: boolean 
         return [];
       }
 
+
       return (data || []) as SiteOffer[];
     },
-    staleTime: 5 * 60 * 1000,
+    // Keep this fresh so price edits show up quickly on the website
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
