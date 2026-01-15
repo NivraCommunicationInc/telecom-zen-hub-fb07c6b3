@@ -92,6 +92,7 @@ import AdminReferralAttributions from "@/pages/admin/AdminReferralAttributions";
 import AdminReferralCommissions from "@/pages/admin/AdminReferralCommissions";
 import AdminReferralCashouts from "@/pages/admin/AdminReferralCashouts";
 import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
+import LiveActivityPage from "@/pages/admin/LiveActivityPage";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Influencer Portal

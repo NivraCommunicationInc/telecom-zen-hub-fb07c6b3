@@ -3586,6 +3586,51 @@ export type Database = {
           },
         ]
       }
+      live_activity_logs: {
+        Row: {
+          activity_label: string | null
+          activity_type: string
+          city: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          metadata: Json | null
+          postal_code: string | null
+          province: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_label?: string | null
+          activity_type: string
+          city?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata?: Json | null
+          postal_code?: string | null
+          province?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_label?: string | null
+          activity_type?: string
+          city?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata?: Json | null
+          postal_code?: string | null
+          province?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -7956,6 +8001,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
+      cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       create_activity_log: {
         Args: {
