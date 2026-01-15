@@ -1,6 +1,5 @@
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import InfluencerLayout from "@/components/influencer/InfluencerLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ import PartnerHelpFooter from "@/components/influencer/PartnerHelpFooter";
 
 const InfluencerDashboard = () => {
   const { influencer } = useInfluencerAuth();
-
+  const navigate = useNavigate();
   // Fetch primary referral code
   const { data: primaryCode } = useQuery({
     queryKey: ["influencer-primary-code", influencer?.id],
@@ -290,19 +289,10 @@ const InfluencerDashboard = () => {
               <Button
                 className="w-full"
                 disabled={!canRequestCashout}
-                asChild={canRequestCashout}
+                onClick={() => navigate("/influencer/cashouts")}
               >
-                {canRequestCashout ? (
-                  <Link to="/influencer/cashouts">
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Demander un retrait
-                  </Link>
-                ) : (
-                  <>
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Seuil non atteint
-                  </>
-                )}
+                <DollarSign className="w-4 h-4 mr-2" />
+                {canRequestCashout ? "Demander un retrait" : "Seuil non atteint"}
               </Button>
 
               {!canRequestCashout && (
