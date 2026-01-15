@@ -91,6 +91,8 @@ export const SystemStatusBannerBase = ({ userType, supabaseClient }: SystemStatu
     if (dismissedIds.includes(status.id)) return false;
     
     switch (userType) {
+      case "public":
+        return status.show_to_clients; // Public visitors see same alerts as clients
       case "client":
         return status.show_to_clients;
       case "employee":
