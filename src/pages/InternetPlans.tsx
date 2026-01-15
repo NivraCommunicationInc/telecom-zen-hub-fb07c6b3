@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wifi, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router } from "lucide-react";
+import { Wifi, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { InternetInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 
 
 const InternetPlans = () => {
@@ -25,60 +26,11 @@ const InternetPlans = () => {
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
 
-  const plans = [
-    {
-      id: "internet-100",
-      speed: "100 Mbps",
-      price: 55,
-      badge: isFrench ? "OFFRE POPULAIRE" : "POPULAR OFFER",
-      badgeColor: "bg-blue-500",
-      description: isFrench 
-        ? "Idéal pour la navigation, le streaming et le travail à domicile." 
-        : "Ideal for browsing, streaming and working from home.",
-      features: [
-        isFrench ? "Téléchargement jusqu'à 100 Mbps" : "Download up to 100 Mbps",
-        isFrench ? "Données illimitées" : "Unlimited data",
-        isFrench ? "Routeur Nivra Born Wifi inclus" : "Nivra Born Wifi router included",
-        isFrench ? "Support technique 7j/7" : "24/7 technical support",
-      ],
-    },
-    {
-      id: "internet-500",
-      speed: "500 Mbps",
-      price: 60,
-      badge: isFrench ? "MEILLEUR VENDEUR" : "BEST SELLER",
-      badgeColor: "bg-accent",
-      featured: true,
-      description: isFrench 
-        ? "Parfait pour les familles avec plusieurs appareils connectés." 
-        : "Perfect for families with multiple connected devices.",
-      features: [
-        isFrench ? "Téléchargement jusqu'à 500 Mbps" : "Download up to 500 Mbps",
-        isFrench ? "Données illimitées" : "Unlimited data",
-        isFrench ? "Routeur Nivra Born Wifi inclus" : "Nivra Born Wifi router included",
-        isFrench ? "Support technique prioritaire" : "Priority technical support",
-        isFrench ? "Streaming 4K sans interruption" : "Uninterrupted 4K streaming",
-      ],
-    },
-    {
-      id: "internet-940",
-      speed: "940 Mbps",
-      price: 70,
-      badge: isFrench ? "VITESSE GIGA" : "GIGA SPEED",
-      badgeColor: "bg-purple-500",
-      description: isFrench 
-        ? "Performance maximale pour les utilisateurs exigeants et les gamers." 
-        : "Maximum performance for demanding users and gamers.",
-      features: [
-        isFrench ? "Téléchargement jusqu'à 940 Mbps" : "Download up to 940 Mbps",
-        isFrench ? "Données illimitées" : "Unlimited data",
-        isFrench ? "Routeur Nivra Born Wifi inclus" : "Nivra Born Wifi router included",
-        isFrench ? "Support technique VIP" : "VIP technical support",
-        isFrench ? "Latence ultra-faible" : "Ultra-low latency",
-        isFrench ? "Idéal pour le gaming en ligne" : "Ideal for online gaming",
-      ],
-    },
-  ];
+  // Fetch plans from database
+  const { plans, isLoading: isLoadingPlans } = useInternetPlans(isFrench);
+  const { routerPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
+  
+  const isLoading = isLoadingPlans || isLoadingEquipment;
 
   const handleAddressSelect = (details: AddressValue) => {
     setAddressDetails(details);
@@ -209,7 +161,20 @@ const InternetPlans = () => {
           </Card>
         </section>
 
+        {/* Loading State */}
+        {isLoading && (
+          <section className="container mx-auto px-4 mb-16 relative">
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">
+                {isFrench ? "Chargement des forfaits..." : "Loading plans..."}
+              </span>
+            </div>
+          </section>
+        )}
+
         {/* Plans Grid */}
+        {!isLoading && (
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="text-center mb-12">
             <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4">
@@ -223,9 +188,9 @@ const InternetPlans = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-            {plans.map((plan, index) => (
+            {plans.map((plan) => (
               <Card 
-                key={index}
+                key={plan.id}
                 className={`relative bg-card/80 backdrop-blur-sm border-border transition-all duration-300 hover:shadow-xl ${
                   plan.featured ? 'ring-2 ring-accent shadow-lg scale-105' : ''
                 }`}
@@ -282,6 +247,7 @@ const InternetPlans = () => {
             </p>
           )}
         </section>
+        )}
 
         {/* Equipment Section */}
         <section className="container mx-auto px-4 mb-16 relative">
@@ -297,8 +263,8 @@ const InternetPlans = () => {
                   </h3>
                   <p className="text-muted-foreground mb-4">
                     {isFrench 
-                      ? "Routeur haute performance inclus avec tous les forfaits. Frais uniques de 60$ payables avant l'installation."
-                      : "High-performance router included with all plans. One-time $60 fee payable before installation."}
+                      ? `Routeur haute performance inclus avec tous les forfaits. Frais uniques de ${routerPrice}$ payables avant l'installation.`
+                      : `High-performance router included with all plans. One-time $${routerPrice} fee payable before installation.`}
                   </p>
                   <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                     <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
@@ -312,7 +278,7 @@ const InternetPlans = () => {
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-foreground">$60</div>
+                  <div className="text-3xl font-bold text-foreground">${routerPrice}</div>
                   <div className="text-sm text-muted-foreground">
                     {isFrench ? "Frais uniques" : "One-time fee"}
                   </div>
