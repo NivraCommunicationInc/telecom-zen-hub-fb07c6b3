@@ -13,6 +13,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import PendingTVOrdersNotification from "@/components/admin/PendingTVOrdersNotification";
+import { LiveActivityWidget } from "@/components/admin/live-activity/LiveActivityWidget";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -180,6 +181,9 @@ const AdminDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Live Activity Widget */}
+        <LiveActivityWidget />
 
         {/* Activity Overview */}
         <Card className="bg-card border-border">

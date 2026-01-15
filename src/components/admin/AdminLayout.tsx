@@ -69,6 +69,7 @@ const navItems = [
   { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
   { icon: UserPlus, label: "Candidatures", href: "/admin/applications" },
   { icon: Activity, label: "Activité", href: "/admin/activity" },
+  { icon: Radio, label: "🔴 Activité en direct", href: "/admin/live-activity" },
   { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
   { icon: Wrench, label: "Maintenance", href: "/admin/maintenance" },
   { icon: Mail, label: "Emails", href: "/admin/email-activity" },
