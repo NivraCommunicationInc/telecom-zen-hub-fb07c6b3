@@ -99,77 +99,79 @@ export default function AdminCommunicationSMS() {
   const [conversationPhone, setConversationPhone] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState("");
 
-  // Fetch clients with phone numbers - same approach as AdminClients
-  const { data: clients = [], isLoading: clientsLoading, refetch: refetchClients } = useQuery({
+  // Fetch clients with phone numbers (same source as Communication Email)
+  const { data: clients = [], isLoading: clientsLoading } = useQuery({
     queryKey: ["sms-clients"],
     queryFn: async () => {
-      // Fetch ALL profiles first (same as AdminClients)
-      const { data: profiles, error } = await supabase
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("id, user_id, full_name, email, phone")
+        .not("phone", "is", null)
+        .neq("phone", "")
+        .order("full_name");
 
-      if (error) {
-        console.error("Error fetching profiles:", error);
-        throw error;
+      if (profilesError) {
+        console.error("[AdminCommunicationSMS] Error fetching profiles:", profilesError);
+        throw profilesError;
       }
 
-      // Get user roles to filter out admin/employee
-      const { data: roles } = await supabase
+      const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
-      const adminIds = new Set(
-        (roles || [])
-          .filter(r => r.role === "admin" || r.role === "employee")
-          .map(r => r.user_id)
-      );
+      if (rolesError) {
+        console.error("[AdminCommunicationSMS] Error fetching roles:", rolesError);
+        throw rolesError;
+      }
 
-      // Filter: only clients (not admin/employee) with valid phone
-      return (profiles || [])
-        .filter(p => !adminIds.has(p.id || p.user_id))
-        .filter(p => p.phone && p.phone.trim() !== "")
-        .map(p => ({
-          id: p.id || p.user_id,
+      const rolesMap = new Map((rolesData || []).map((r: any) => [r.user_id, r.role]));
+
+      // Only show client users (default role = client)
+      const rows = (profilesData || [])
+        .map((p: any) => ({
+          id: p.id,
           phone: p.phone,
           full_name: p.full_name,
           email: p.email,
-        })) as Client[];
+          status: rolesMap.get(p.user_id) || "client",
+        }))
+        .filter((p: any) => (p.status || "client") === "client");
+
+      return rows as Client[];
     },
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
-  // Real-time subscription for new clients
+  // Auto-update when new clients are created/imported
   useEffect(() => {
     const channel = supabase
-      .channel('sms-clients-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => refetchClients())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, () => refetchClients())
+      .channel("admin-communication-sms-clients")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["sms-clients"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["sms-clients"] });
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [refetchClients]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Fetch SMS campaigns history
   const { data: campaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery({
     queryKey: ["sms-campaigns"],
     queryFn: async () => {
-      // Use raw query to bypass type checking since table was just created
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/sms_campaigns?select=*&order=created_at.desc&limit=50`,
-        {
-          headers: {
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          },
-        }
-      );
-      
-      if (!response.ok) {
-        console.log("SMS campaigns fetch failed");
-        return [];
-      }
-      
-      return (await response.json()) as SMSCampaign[];
+      const { data, error } = await supabase
+        .from("sms_campaigns" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      return (data || []) as SMSCampaign[];
     },
   });
 
@@ -178,12 +180,14 @@ export default function AdminCommunicationSMS() {
     queryKey: ["sms-conversation", conversationPhone],
     queryFn: async () => {
       if (!conversationPhone) return [];
-      
+
+      const normalizedPhone = toE164(conversationPhone) || conversationPhone;
+
       const { data, error } = await supabase
         .from("telephony_logs")
         .select("id, direction, message_preview, created_at, agent_name, status")
         .eq("action", "sms")
-        .eq("phone_number", conversationPhone)
+        .eq("phone_number", normalizedPhone)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -193,22 +197,26 @@ export default function AdminCommunicationSMS() {
     refetchInterval: conversationPhone ? 5000 : false,
   });
 
-  // Realtime subscription for conversation
+  // Realtime subscription for conversation (no filter to avoid phone encoding issues)
   useEffect(() => {
     if (!conversationPhone) return;
 
+    const normalizedPhone = toE164(conversationPhone) || conversationPhone;
+
     const channel = supabase
-      .channel(`sms-conv-${conversationPhone}`)
+      .channel(`sms-conv-${normalizedPhone}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "telephony_logs",
-          filter: `phone_number=eq.${conversationPhone}`,
         },
-        () => {
-          refetchConversation();
+        (payload) => {
+          const row: any = (payload as any).new;
+          if (row?.action === "sms" && row?.phone_number === normalizedPhone) {
+            refetchConversation();
+          }
         }
       )
       .subscribe();
@@ -584,27 +592,30 @@ export default function AdminCommunicationSMS() {
                 <CardContent>
                   <ScrollArea className="h-[500px]">
                     <div className="space-y-2">
-                      {clients.slice(0, 50).map((client) => (
-                        <button
-                          key={client.id}
-                          onClick={() => setConversationPhone(client.phone)}
-                          className={`w-full p-3 rounded-lg text-left transition-colors ${
-                            conversationPhone === client.phone
-                              ? "bg-primary/10 border-primary border"
-                              : "bg-muted/50 hover:bg-muted"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-                              <User className="h-5 w-5 text-primary" />
+                      {clients.slice(0, 50).map((client) => {
+                        const convPhone = toE164(client.phone) || client.phone;
+                        return (
+                          <button
+                            key={client.id}
+                            onClick={() => setConversationPhone(convPhone)}
+                            className={`w-full p-3 rounded-lg text-left transition-colors ${
+                              conversationPhone === convPhone
+                                ? "bg-primary/10 border-primary border"
+                                : "bg-muted/50 hover:bg-muted"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{client.full_name || "Sans nom"}</p>
+                                <p className="text-xs text-muted-foreground">{formatPhoneDisplay(client.phone)}</p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{client.full_name || "Sans nom"}</p>
-                              <p className="text-xs text-muted-foreground">{formatPhoneDisplay(client.phone)}</p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </CardContent>
@@ -628,7 +639,7 @@ export default function AdminCommunicationSMS() {
                       </div>
                       <div>
                         <CardTitle className="text-base">
-                          {clients.find(c => c.phone === conversationPhone)?.full_name || "Contact"}
+                          {clients.find(c => (toE164(c.phone) || c.phone) === (toE164(conversationPhone) || conversationPhone))?.full_name || "Contact"}
                         </CardTitle>
                         <CardDescription>{formatPhoneDisplay(conversationPhone)}</CardDescription>
                       </div>
