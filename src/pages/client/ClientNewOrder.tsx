@@ -1690,6 +1690,70 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
+      // Record promo/referral redemption if promo was applied (moved from onSuccess for reliability)
+      if (appliedPromo && user?.id) {
+        try {
+          // Check if this is a referral code (influencer code)
+          if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
+            // Record in referral_attributions for influencer tracking
+            const { error: attrError } = await supabase.from("referral_attributions").insert({
+              referral_code_id: appliedPromo.referral_code_id,
+              influencer_id: appliedPromo.influencer_id,
+              order_id: data.id,
+              customer_id: user.id,
+              customer_email: (profile?.email || user.email || "").toLowerCase(),
+              customer_discount_amount: appliedPromo.discount_amount,
+              status: 'pending',
+            });
+            
+            if (attrError) {
+              console.error("[Referral] Attribution insert failed:", attrError);
+              postStepErrors.push("referral_attribution");
+            } else {
+              console.log("[Referral] Attribution recorded for order:", data.order_number, "influencer:", appliedPromo.influencer_id);
+            }
+            
+            // Also increment usage_count on referral_codes
+            const { error: rpcError } = await supabase.rpc('increment_referral_usage', { 
+              code_id: appliedPromo.referral_code_id 
+            });
+            if (rpcError) {
+              console.error("[Referral] Usage count increment failed:", rpcError);
+            } else {
+              console.log("[Referral] Usage count incremented for code:", appliedPromo.referral_code_id);
+            }
+          } else {
+            // Regular promo code - record in promotion_redemptions
+            const { error: promoError } = await supabase.from("promotion_redemptions").insert({
+              promotion_id: appliedPromo.id,
+              order_id: data.id,
+              order_number: data.order_number,
+              client_id: user.id,
+              client_email: (profile?.email || user.email || "").toLowerCase(),
+              discount_amount: appliedPromo.discount_amount,
+            });
+            if (promoError) {
+              console.error("[Promo] Redemption insert failed:", promoError);
+              postStepErrors.push("promo_redemption");
+            } else {
+              console.log("[Promo] Redemption recorded for order:", data.order_number);
+            }
+          }
+          
+          // Create audit note for promo/referral applied
+          const { AuditNotes } = await import("@/lib/clientAuditNotes");
+          AuditNotes.promoApplied(
+            user.id,
+            data.id,
+            appliedPromo.code,
+            appliedPromo.discount_amount
+          );
+        } catch (promoErr) {
+          console.error("[Promo/Referral] Failed to record redemption (non-blocking):", promoErr);
+          postStepErrors.push("promo_general");
+        }
+      }
+
       // Log any post-step errors but don't block order success
       if (postStepErrors.length > 0) {
         console.warn("Order created but some post-steps failed:", postStepErrors);
@@ -1704,53 +1768,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Navigate to dedicated confirmation page with order ID
       const orderData = result as CreatedOrder & { nivraPaymentRef?: string };
       
-      // Record promo/referral redemption if promo was applied
-      if (appliedPromo && user?.id) {
-        try {
-          // Check if this is a referral code (influencer code)
-          if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
-            // Record in referral_attributions for influencer tracking
-            await supabase.from("referral_attributions").insert({
-              referral_code_id: appliedPromo.referral_code_id,
-              influencer_id: appliedPromo.influencer_id,
-              order_id: orderData.id,
-              customer_id: user.id,
-              customer_email: (profile?.email || user.email || "").toLowerCase(),
-              customer_discount_amount: appliedPromo.discount_amount,
-              status: 'pending',
-            });
-            console.log("[Referral] Attribution recorded for order:", orderData.order_number, "influencer:", appliedPromo.influencer_id);
-            
-            // Also increment usage_count on referral_codes
-            await supabase.rpc('increment_referral_usage', { 
-              code_id: appliedPromo.referral_code_id 
-            });
-            console.log("[Referral] Usage count incremented for code:", appliedPromo.referral_code_id);
-          } else {
-            // Regular promo code - record in promotion_redemptions
-            await supabase.from("promotion_redemptions").insert({
-              promotion_id: appliedPromo.id,
-              order_id: orderData.id,
-              order_number: orderData.order_number,
-              client_id: user.id,
-              client_email: (profile?.email || user.email || "").toLowerCase(),
-              discount_amount: appliedPromo.discount_amount,
-            });
-            console.log("[Promo] Redemption recorded for order:", orderData.order_number);
-          }
-          
-          // Create audit note for promo/referral applied
-          const { AuditNotes } = await import("@/lib/clientAuditNotes");
-          AuditNotes.promoApplied(
-            user.id,
-            orderData.id,
-            appliedPromo.code,
-            appliedPromo.discount_amount
-          );
-        } catch (promoErr) {
-          console.error("[Promo/Referral] Failed to record redemption (non-blocking):", promoErr);
-        }
-      }
+      // Note: Promo/referral redemption is now recorded in the mutation function
+      // for better reliability (before returning from mutation)
       
       // Invalidate queries so orders/invoices/appointments appear in admin & client views
       queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
