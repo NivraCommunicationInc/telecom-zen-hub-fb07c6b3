@@ -99,18 +99,20 @@ export default function AdminCommunicationSMS() {
   const [conversationPhone, setConversationPhone] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState("");
 
-  // Fetch clients with phone numbers
-  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+  // Fetch clients with phone numbers - same approach as AdminClients
+  const { data: clients = [], isLoading: clientsLoading, refetch: refetchClients } = useQuery({
     queryKey: ["sms-clients"],
     queryFn: async () => {
+      // Fetch ALL profiles first (same as AdminClients)
       const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("id, phone, full_name, email")
-        .not("phone", "is", null)
-        .neq("phone", "")
-        .order("full_name", { ascending: true });
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching profiles:", error);
+        throw error;
+      }
 
       // Get user roles to filter out admin/employee
       const { data: roles } = await supabase
@@ -123,9 +125,29 @@ export default function AdminCommunicationSMS() {
           .map(r => r.user_id)
       );
 
-      return (profiles || []).filter(p => !adminIds.has(p.id)) as Client[];
+      // Filter: only clients (not admin/employee) with valid phone
+      return (profiles || [])
+        .filter(p => !adminIds.has(p.id || p.user_id))
+        .filter(p => p.phone && p.phone.trim() !== "")
+        .map(p => ({
+          id: p.id || p.user_id,
+          phone: p.phone,
+          full_name: p.full_name,
+          email: p.email,
+        })) as Client[];
     },
   });
+
+  // Real-time subscription for new clients
+  useEffect(() => {
+    const channel = supabase
+      .channel('sms-clients-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => refetchClients())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, () => refetchClients())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [refetchClients]);
 
   // Fetch SMS campaigns history
   const { data: campaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery({
