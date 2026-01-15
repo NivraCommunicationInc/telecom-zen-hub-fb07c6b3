@@ -63,7 +63,7 @@ const navItems = [
   { icon: Headphones, label: "Téléphonie (OpenPhone)", href: "/admin/telephony" },
   { icon: Megaphone, label: "Marketing Email", href: "/admin/marketing" },
   { icon: Send, label: "Communication Email", href: "/admin/communication-email" },
-  
+  { icon: MessageSquare, label: "Communication SMS", href: "/admin/communication-sms" },
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
   { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
