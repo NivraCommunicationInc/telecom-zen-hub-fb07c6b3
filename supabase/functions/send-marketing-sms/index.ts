@@ -17,6 +17,34 @@ interface SendRequest {
   recipients: Recipient[];
 }
 
+// Normalize phone number to E.164 format (+1XXXXXXXXXX for North America)
+function normalizePhoneToE164(phone: string): string | null {
+  if (!phone) return null;
+  
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, "");
+  
+  // Skip invalid numbers
+  if (digits.length < 10) return null;
+  
+  // If already has country code (11 digits starting with 1)
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+${digits}`;
+  }
+  
+  // If 10 digits, assume North American number
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  
+  // If more than 11 digits, might already include + or country code
+  if (digits.length > 11) {
+    return `+${digits}`;
+  }
+  
+  return null;
+}
+
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -132,7 +160,17 @@ serve(async (req: Request): Promise<Response> => {
 
     for (const recipient of recipients) {
       try {
-        console.log(`[SMS-MARKETING-${requestId}] Sending to ${recipient.phone}`);
+        // Normalize phone number to E.164 format
+        const normalizedPhone = normalizePhoneToE164(recipient.phone);
+        
+        if (!normalizedPhone) {
+          console.error(`[SMS-MARKETING-${requestId}] Invalid phone format: ${recipient.phone}`);
+          failedCount++;
+          results.push({ phone: recipient.phone, success: false, error: "Format de numéro invalide" });
+          continue;
+        }
+
+        console.log(`[SMS-MARKETING-${requestId}] Sending to ${normalizedPhone} (original: ${recipient.phone})`);
 
         const smsRes = await fetch("https://api.openphone.com/v1/messages", {
           method: "POST",
@@ -142,24 +180,24 @@ serve(async (req: Request): Promise<Response> => {
           },
           body: JSON.stringify({
             from: fromPhoneNumberId,
-            to: [recipient.phone],
+            to: [normalizedPhone],
             content: message.trim(),
           }),
         });
 
         if (!smsRes.ok) {
           const errText = await smsRes.text();
-          console.error(`[SMS-MARKETING-${requestId}] Failed to send to ${recipient.phone}:`, errText);
+          console.error(`[SMS-MARKETING-${requestId}] Failed to send to ${normalizedPhone}:`, errText);
           failedCount++;
           results.push({ phone: recipient.phone, success: false, error: errText });
         } else {
           const smsData = await smsRes.json();
           const messageId = smsData.data?.id;
 
-          // Log to telephony_logs
+          // Log to telephony_logs with normalized phone
           await supabase.from("telephony_logs").insert({
             client_id: recipient.client_id || null,
-            phone_number: recipient.phone,
+            phone_number: normalizedPhone,
             action: "sms",
             direction: "outbound",
             agent_user_id: null,
