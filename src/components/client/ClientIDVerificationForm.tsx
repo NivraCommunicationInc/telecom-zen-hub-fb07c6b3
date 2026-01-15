@@ -204,7 +204,7 @@ export const ClientIDVerificationForm = ({
               className="w-full md:w-1/2"
             />
             <p className="text-xs text-muted-foreground">
-              {isFrench ? "Vous devez avoir au moins 13 ans" : "You must be at least 13 years old"}
+              {isFrench ? "Vous devez avoir au moins 16 ans" : "You must be at least 16 years old"}
             </p>
           </div>
         </CardContent>
@@ -347,8 +347,8 @@ export const validateIDData = (data: ClientIDData, requireAddress: boolean = tru
   if (!data.idExpiration) errors.push("ID expiration date is required");
   if (!data.idProvince) errors.push("ID province is required");
 
-  // CRITICAL: Validate DOB using centralized validation (13+ - legal requirement for telecom in Quebec)
-  // DOB is REQUIRED for orders - this catches empty/invalid/future/<13/>120
+  // CRITICAL: Validate DOB using centralized validation (16+ - Nivra business requirement)
+  // DOB is REQUIRED for orders - this catches empty/invalid/future/<16/>120
   const dobResult = validateDob(data.dateOfBirth, { minAge: MIN_AGE_TELECOM, required: true });
   if (!dobResult.isValid && dobResult.error) {
     errors.push(dobResult.error.en);

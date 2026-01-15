@@ -540,7 +540,7 @@ const ClientNewOrder = () => {
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
-  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>("etransfer"); // Default to Interac (credit card in maintenance)
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   
@@ -4547,38 +4547,34 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Payment method selection */}
+                  {/* Payment method selection - Credit card in maintenance */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Credit Card - MAINTENANCE MODE */}
                     <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        paymentMethod === "credit_card"
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : "border-border hover:border-emerald-500/50"
-                      }`}
-                      onClick={() => {
-                        setPaymentMethod("credit_card");
-                        setPaymentComplete(false);
-                        setPaymentConfirmationNumber("");
-                      }}
+                      className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60 relative"
                     >
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="outline" className="bg-amber-500/20 text-amber-600 border-amber-500/50 text-xs">
+                          Maintenance
+                        </Badge>
+                      </div>
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          paymentMethod === "credit_card" ? "bg-emerald-500" : "bg-muted"
-                        }`}>
-                          <CreditCard className={`w-5 h-5 ${paymentMethod === "credit_card" ? "text-white" : "text-muted-foreground"}`} />
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
+                          <CreditCard className="w-5 h-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">Carte de crédit</p>
-                          <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex</p>
+                          <p className="font-medium text-muted-foreground">Carte de crédit</p>
+                          <p className="text-xs text-muted-foreground">Temporairement indisponible</p>
                         </div>
                       </div>
                     </div>
 
+                    {/* Interac E-Transfer - ACTIVE & RECOMMENDED */}
                     <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
                         paymentMethod === "etransfer"
-                          ? "border-amber-500 bg-amber-500/10"
-                          : "border-border hover:border-amber-500/50"
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-border hover:border-emerald-500/50"
                       }`}
                       onClick={() => {
                         setPaymentMethod("etransfer");
@@ -4586,9 +4582,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setPaymentConfirmationNumber("");
                       }}
                     >
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-emerald-500 text-white text-xs">
+                          Recommandé
+                        </Badge>
+                      </div>
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          paymentMethod === "etransfer" ? "bg-amber-500" : "bg-muted"
+                          paymentMethod === "etransfer" ? "bg-emerald-500" : "bg-muted"
                         }`}>
                           <Mail className={`w-5 h-5 ${paymentMethod === "etransfer" ? "text-white" : "text-muted-foreground"}`} />
                         </div>
@@ -4600,122 +4601,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  {/* Credit Card Form */}
-                  {paymentMethod === "credit_card" && !paymentComplete && (
-                    <div className="space-y-4 p-4 bg-accent/30 rounded-lg">
-                      <div className="space-y-2">
-                        <Label htmlFor="card-name">Nom sur la carte *</Label>
-                        <Input
-                          id="card-name"
-                          placeholder="Jean Tremblay"
-                          value={cardName}
-                          onChange={(e) => setCardName(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="card-number">Numéro de carte *</Label>
-                        <Input
-                          id="card-number"
-                          placeholder="4242 4242 4242 4242"
-                          value={cardNumber}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '').slice(0, 16);
-                            const formatted = value.replace(/(\d{4})/g, '$1 ').trim();
-                            setCardNumber(formatted);
-                          }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="card-expiry">Expiration *</Label>
-                          <Input
-                            id="card-expiry"
-                            placeholder="MM/AA"
-                            value={cardExpiry}
-                            onChange={(e) => {
-                              let value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                              if (value.length >= 2) {
-                                value = value.slice(0, 2) + '/' + value.slice(2);
-                              }
-                              setCardExpiry(value);
-                            }}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="card-cvv">CVV *</Label>
-                          <Input
-                            id="card-cvv"
-                            placeholder="123"
-                            type="password"
-                            value={cardCvv}
-                            onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          />
+                  {/* Credit Card Maintenance Notice */}
+                  {paymentMethod === "credit_card" && (
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-amber-700 dark:text-amber-400">
+                            Paiement par carte temporairement indisponible
+                          </p>
+                          <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
+                            Nous travaillons à rétablir ce service. Veuillez utiliser le virement Interac en attendant.
+                          </p>
                         </div>
                       </div>
-                      
-                      {/* Pre-authorized Payment - Show different UI based on existing opt-in */}
-                      {hasExistingPreauthOptIn ? (
-                        /* Already opted-in: show badge, no checkbox */
-                        <div className="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-                              <Check className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-emerald-700 dark:text-emerald-300">
-                                Paiement préautorisé déjà activé
-                              </p>
-                              <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                                Votre rabais de 5$/mois est automatiquement appliqué sur toutes vos factures.
-                              </p>
-                            </div>
-                            <Badge className="bg-emerald-500 text-white">
-                              <Star className="w-3 h-3 mr-1" />
-                              -5$/mois
-                            </Badge>
-                          </div>
-                        </div>
-                      ) : (
-                        /* First time: show checkbox to opt-in */
-                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg space-y-3">
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              id="preauth-accept"
-                              checked={acceptPreauthorized}
-                              onCheckedChange={(checked) => setAcceptPreauthorized(checked === true)}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1">
-                              <Label htmlFor="preauth-accept" className="text-sm font-medium cursor-pointer leading-relaxed">
-                                J'autorise Nivra à débiter automatiquement cette carte pour mes paiements mensuels futurs
-                              </Label>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
-                                  <Star className="w-3 h-3 mr-1" />
-                                  Économisez 5$/mois
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">Rabais automatique appliqué</span>
-                              </div>
-                            </div>
-                          </div>
-                          {acceptPreauthorized && (
-                            <div className="text-xs text-emerald-600 bg-emerald-500/20 p-2 rounded">
-                              ✓ Votre carte sera enregistrée de façon sécurisée pour les paiements automatiques.
-                              Un rabais de 5$/mois sera appliqué sur toutes vos factures mensuelles.
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <Button
-                        variant="hero"
-                        className="w-full"
-                        onClick={processCardPayment}
-                        disabled={!isCardValid}
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Payer {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </Button>
                     </div>
                   )}
 
