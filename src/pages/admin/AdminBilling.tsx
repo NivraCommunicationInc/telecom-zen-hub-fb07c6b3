@@ -30,6 +30,7 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { AccountingExportDialog } from "@/components/admin/AccountingExportDialog";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-500/20 text-amber-500",
@@ -137,6 +138,7 @@ const AdminBilling = () => {
   const [selectedPaymentForStatus, setSelectedPaymentForStatus] = useState<any>(null);
   const [etransferStatusUpdateReason, setEtransferStatusUpdateReason] = useState("");
   const [recordPaymentDialogOpen, setRecordPaymentDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [newPayment, setNewPayment] = useState({
     user_id: "",
     amount: "",

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -18,7 +18,6 @@ import {
   Ticket,
   Tv,
   Wrench,
-  UserCog,
   ExternalLink,
   Building2,
   Film,
@@ -35,9 +34,9 @@ import {
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/notification-bell";
+import { GlobalSearchTrigger } from "@/components/admin/GlobalSearch";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -110,7 +109,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <NotificationBell />
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        {/* Global Search */}
+        <div className="px-4 pt-4">
+          <GlobalSearchTrigger />
+        </div>
+        
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <Link
               key={item.href}

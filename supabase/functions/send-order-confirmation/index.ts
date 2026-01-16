@@ -1,11 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 import { sendTemplateEmail, formatCurrencyForTemplate, EMAIL_SENDER } from "../_shared/resendTemplates.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const formatCurrency = (amount: number): string => {
   const formatted = (amount || 0).toFixed(2);
@@ -40,9 +36,12 @@ Deno.serve(async (req) => {
   console.log(`[${requestId}] ========================================`);
   console.log(`[${requestId}] send-order-confirmation invoked (RESEND TEMPLATE)`);
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Get CORS headers based on request origin (secure)
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
 
   const logResult = (status: "sent" | "skipped_already_sent" | "error", extra: Record<string, unknown> = {}) => {
     console.log(`[${requestId}] RESULT:`, JSON.stringify({ 
