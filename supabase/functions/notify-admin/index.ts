@@ -7,11 +7,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { EMAIL_SENDER, formatCurrencyForTemplate, formatDateTimeForTemplate } from "../_shared/resendTemplates.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Admin notification email address
 const ADMIN_NOTIFICATION_EMAIL = "support@nivratelecom.ca";
@@ -206,9 +202,12 @@ Deno.serve(async (req) => {
   const requestId = crypto.randomUUID();
   console.log(`[${requestId}] notify-admin invoked`);
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Get CORS headers based on request origin (secure)
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
+  // Handle CORS preflight
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
 
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
