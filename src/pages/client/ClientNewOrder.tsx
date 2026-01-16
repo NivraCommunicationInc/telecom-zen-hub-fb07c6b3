@@ -1805,6 +1805,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         console.error("[OrderConfirmation] Email sending failed (non-blocking):", emailErr);
       }
       
+      // Send admin notification for new order (fire-and-forget)
+      try {
+        const { notifyAdmin, getAdminPortalLink } = await import("@/hooks/useAdminNotification");
+        const servicesDesc = selectedServices.map(s => s.name).join(", ");
+        notifyAdmin({
+          event_type: "new_order",
+          event_id: orderData.id,
+          event_number: orderData.order_number,
+          client_name: profile?.full_name || user?.email,
+          client_email: profile?.email || user?.email,
+          client_phone: profile?.phone,
+          summary: `Nouvelle commande: ${servicesDesc}`,
+          details: {
+            "Services": servicesDesc,
+            "Total": `$${totalAmount.toFixed(2)}`,
+            "Méthode paiement": paymentMethod === "credit_card" ? "Carte de crédit" : "Virement Interac",
+          },
+          priority: "normal",
+          admin_portal_link: getAdminPortalLink(`/admin/orders?order=${orderData.order_number}`),
+        });
+      } catch (notifyErr) {
+        console.error("[AdminNotification] Failed (non-blocking):", notifyErr);
+      }
+      
       // Navigate to confirmation page with order ID
       navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
     },

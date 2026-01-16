@@ -35,6 +35,7 @@ import { fr } from "date-fns/locale";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
+import { notifyAdmin, getAdminPortalLink } from "@/hooks/useAdminNotification";
 
 interface Channel {
   id: string;
@@ -321,8 +322,27 @@ Cette demande est en attente de confirmation par un administrateur.
 
       return { selection, ticket };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Sélection de chaînes soumise avec succès!");
+      
+      // Send admin notification (fire-and-forget)
+      notifyAdmin({
+        event_type: "channel_change_request",
+        event_id: data.selection.id,
+        event_number: data.ticket.ticket_number,
+        client_name: profile?.full_name || user?.email,
+        client_email: user?.email,
+        client_phone: profile?.phone,
+        summary: `Demande de changement de chaînes - ${selectedChannels.length} chaînes, ${selectedPackages.length} forfaits`,
+        details: {
+          "Chaînes sélectionnées": selectedChannels.length,
+          "Forfaits sélectionnés": selectedPackages.length,
+          "Total mensuel": `$${totalPrice.toFixed(2)}/mois`,
+        },
+        priority: "normal",
+        admin_portal_link: getAdminPortalLink(`/admin/channels?selection=${data.selection.id}`),
+      });
+      
       setSelectedChannels([]);
       setSelectedPackages([]);
       setActiveTab("history");

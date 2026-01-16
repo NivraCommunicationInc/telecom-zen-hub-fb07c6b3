@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { notifyAdmin, getAdminPortalLink } from "@/hooks/useAdminNotification";
 
 const EQUIPMENT_CATEGORIES = ['equipment_issue', 'sim_issue', 'lost_stolen'];
 
@@ -81,6 +82,22 @@ const ClientTickets = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch client profile for notification details
+  const { data: profile } = useQuery({
+    queryKey: ["client-profile-tickets", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await portalSupabase
+        .from("profiles")
+        .select("full_name, phone, email")
+        .eq("user_id", user.id)
+        .single();
+      if (error) return null;
+      return data;
     },
     enabled: !!user?.id,
   });
@@ -146,10 +163,29 @@ const ClientTickets = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-tickets-all"] });
       toast({ title: "Ticket créé avec succès" });
       setCreateDialogOpen(false);
+      
+      // Send admin notification (fire-and-forget)
+      notifyAdmin({
+        event_type: "new_ticket",
+        event_id: data.id,
+        event_number: data.ticket_number,
+        client_name: profile?.full_name || user?.email,
+        client_email: user?.email,
+        client_phone: profile?.phone,
+        summary: newTicket.subject,
+        details: {
+          "Sujet": newTicket.subject,
+          "Catégorie": categoryConfig[newTicket.category]?.label || newTicket.category,
+          "Priorité": newTicket.priority === "high" ? "Haute" : newTicket.priority === "urgent" ? "Urgente" : "Normale",
+        },
+        priority: newTicket.priority as "normal" | "high" | "urgent",
+        admin_portal_link: getAdminPortalLink(`/admin/tickets?ticket=${data.ticket_number}`),
+      });
+      
       setNewTicket({ subject: "", description: "", priority: "normal", category: "general", issue_type: "", related_order_id: "" });
     },
     onError: () => {

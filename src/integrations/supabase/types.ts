@@ -292,6 +292,45 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_notification_logs: {
+        Row: {
+          client_email: string | null
+          client_name: string | null
+          created_at: string
+          email_id: string | null
+          event_id: string | null
+          event_number: string | null
+          event_type: string
+          id: string
+          priority: string | null
+          sent_to: string | null
+        }
+        Insert: {
+          client_email?: string | null
+          client_name?: string | null
+          created_at?: string
+          email_id?: string | null
+          event_id?: string | null
+          event_number?: string | null
+          event_type: string
+          id?: string
+          priority?: string | null
+          sent_to?: string | null
+        }
+        Update: {
+          client_email?: string | null
+          client_name?: string | null
+          created_at?: string
+          email_id?: string | null
+          event_id?: string | null
+          event_number?: string | null
+          event_type?: string
+          id?: string
+          priority?: string | null
+          sent_to?: string | null
+        }
+        Relationships: []
+      }
       admin_otp_codes: {
         Row: {
           admin_user_id: string
