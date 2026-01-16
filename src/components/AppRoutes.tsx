@@ -27,6 +27,7 @@ import DynamicPage from "@/pages/DynamicPage";
 import Contest from "@/pages/Contest";
 import TrackOrder from "@/pages/TrackOrder";
 import StatusPage from "@/pages/StatusPage";
+import Install from "@/pages/Install";
 
 // Legal pages
 import ConditionsDeService from "@/pages/legal/ConditionsDeService";
@@ -184,6 +185,7 @@ const AppRoutes = () => {
       <Route path="/concours" element={<MaintenanceGuard><PublicLayout><Contest /></PublicLayout></MaintenanceGuard>} />
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
+      <Route path="/install" element={<Install />} />
       
       {/* Dynamic pages from site_pages */}
       <Route path="/page/:slug" element={<MaintenanceGuard><PublicLayout><DynamicPage /></PublicLayout></MaintenanceGuard>} />
