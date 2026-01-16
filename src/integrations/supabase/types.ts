@@ -5266,6 +5266,13 @@ export type Database = {
             referencedRelation: "referral_codes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "referral_attributions_referral_code_id_fkey"
+            columns: ["referral_code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       referral_codes: {
@@ -7888,15 +7895,35 @@ export type Database = {
           },
         ]
       }
+      referral_codes_public: {
+        Row: {
+          code: string | null
+          id: string | null
+          status: string | null
+        }
+        Insert: {
+          code?: string | null
+          id?: string | null
+          status?: string | null
+        }
+        Update: {
+          code?: string | null
+          id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       site_offers_public: {
         Row: {
           category: string | null
+          created_at: string | null
           description_en: string | null
           description_fr: string | null
           discount_amount: number | null
           discount_percent: number | null
           features_json: Json | null
           id: string | null
+          is_active: boolean | null
           is_featured: boolean | null
           name_en: string | null
           name_fr: string | null
@@ -7910,12 +7937,14 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          created_at?: string | null
           description_en?: string | null
           description_fr?: string | null
           discount_amount?: number | null
           discount_percent?: number | null
           features_json?: Json | null
           id?: string | null
+          is_active?: boolean | null
           is_featured?: boolean | null
           name_en?: string | null
           name_fr?: string | null
@@ -7929,12 +7958,14 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          created_at?: string | null
           description_en?: string | null
           description_fr?: string | null
           discount_amount?: number | null
           discount_percent?: number | null
           features_json?: Json | null
           id?: string | null
+          is_active?: boolean | null
           is_featured?: boolean | null
           name_en?: string | null
           name_fr?: string | null
