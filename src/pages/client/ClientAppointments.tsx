@@ -38,6 +38,7 @@ import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "d
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { AppointmentHistoryTimeline } from "@/components/appointments/AppointmentHistoryTimeline";
+import { notifyAdmin, getAdminPortalLink } from "@/hooks/useAdminNotification";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
@@ -184,6 +185,24 @@ const ClientAppointments = () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       toast.success("Rendez-vous annulé avec succès");
+      
+      // Send admin notification (fire-and-forget)
+      notifyAdmin({
+        event_type: "new_appointment",
+        event_id: selectedAppointment?.id,
+        event_number: selectedAppointment?.appointment_number,
+        client_name: profile?.full_name || user?.email,
+        client_email: user?.email,
+        client_phone: profile?.phone,
+        summary: `Rendez-vous annulé: ${selectedAppointment?.title}`,
+        details: {
+          "Date originale": selectedAppointment?.scheduled_at ? format(new Date(selectedAppointment.scheduled_at), "d MMMM yyyy 'à' HH:mm", { locale: fr }) : "N/A",
+          "Action": "Annulation par le client",
+        },
+        priority: "high",
+        admin_portal_link: getAdminPortalLink(`/admin/appointments?appt=${selectedAppointment?.appointment_number}`),
+      });
+      
       setCancelDialogOpen(false);
       setDetailsOpen(false);
       setSelectedAppointment(null);
@@ -234,6 +253,24 @@ const ClientAppointments = () => {
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       toast.success("Rendez-vous reprogrammé avec succès");
+      
+      // Send admin notification (fire-and-forget)
+      notifyAdmin({
+        event_type: "new_appointment",
+        event_id: selectedAppointment?.id,
+        event_number: selectedAppointment?.appointment_number,
+        client_name: profile?.full_name || user?.email,
+        client_email: user?.email,
+        client_phone: profile?.phone,
+        summary: `Rendez-vous reprogrammé: ${selectedAppointment?.title}`,
+        details: {
+          "Nouvelle date": `${newDate} à ${newTime}`,
+          "Action": "Reprogrammation par le client",
+        },
+        priority: "normal",
+        admin_portal_link: getAdminPortalLink(`/admin/appointments?appt=${selectedAppointment?.appointment_number}`),
+      });
+      
       setRescheduleDialogOpen(false);
       setDetailsOpen(false);
       setSelectedAppointment(null);
