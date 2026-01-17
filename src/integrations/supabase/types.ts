@@ -4403,6 +4403,42 @@ export type Database = {
           },
         ]
       }
+      partner_program_terms: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          published_at: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          version: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          published_at?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          version: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          published_at?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       payment_disputes: {
         Row: {
           client_message: string | null

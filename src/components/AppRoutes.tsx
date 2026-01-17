@@ -95,6 +95,7 @@ import AdminReferralAttributions from "@/pages/admin/AdminReferralAttributions";
 import AdminReferralCommissions from "@/pages/admin/AdminReferralCommissions";
 import AdminReferralCashouts from "@/pages/admin/AdminReferralCashouts";
 import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
+import AdminPartnerTerms from "@/pages/admin/AdminPartnerTerms";
 import LiveActivityPage from "@/pages/admin/LiveActivityPage";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
@@ -257,6 +258,7 @@ const AppRoutes = () => {
       <Route path="/admin/referrals/commissions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCommissions /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/cashouts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCashouts /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralSettings /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/referrals/terms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPartnerTerms /></ProtectedRoute></AuthProvider>} />
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
