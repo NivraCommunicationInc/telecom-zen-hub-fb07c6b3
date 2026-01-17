@@ -197,7 +197,7 @@ const InfluencerTerms = () => {
                 Période de validation
               </h4>
               <p className="text-sm text-muted-foreground">
-                Les commissions passent par une période de validation de <strong>30 jours</strong> après l'activation du client.
+                Les commissions passent par une période de validation de <strong>7 jours</strong> après l'activation du service.
                 Durant cette période, si le client annule ou désactive son service, la commission sera annulée et un ajustement sera effectué.
               </p>
             </div>
