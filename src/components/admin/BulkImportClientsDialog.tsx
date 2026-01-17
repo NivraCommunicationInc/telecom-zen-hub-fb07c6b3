@@ -15,12 +15,7 @@ import { Loader2, Upload, CheckCircle, XCircle, AlertTriangle } from "lucide-rea
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-
-interface ClientToImport {
-  name: string;
-  email: string | null;
-  phone: string;
-}
+import { deduplicatedClients, type ClientToImport } from "@/data/squareClientsToImport";
 
 interface ImportResult {
   success: boolean;
@@ -36,9 +31,10 @@ interface BulkImportClientsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Pre-parsed client data from the Excel file
-const clientsToImport: ClientToImport[] = [
-  { name: "Casseus", email: "alexis.casseus81@gmail.com", phone: "5145858148" },
+// Use deduplicated clients from Square CSV export
+const clientsToImport: ClientToImport[] = deduplicatedClients.slice(0, 600); // Limit to 600 for safety
+// First entry for reference:
+// { name: "ABDEL AZIZ OURA", email: null, phone: "4388722490" },
   { name: "JOSEPH", email: null, phone: "4389511371" },
   { name: "FAHE MAE CLAUDE", email: "email@telus.com", phone: "4388671822" },
   { name: "LIMA FEUSANNE", email: "limafeusanne@gmail.com", phone: "4383575067" },
