@@ -55,6 +55,8 @@ import { BulkImportClientsDialog } from "@/components/admin/BulkImportClientsDia
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import ClientPhoneActions from "@/components/admin/ClientPhoneActions";
 import ClientCommunicationsPanel from "@/components/admin/ClientCommunicationsPanel";
+import { ClientsTable } from "@/components/admin/ClientsTable";
+import { ClientSearchBar, type SearchFilter } from "@/components/admin/ClientSearchBar";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -91,7 +93,7 @@ const AdminClients = () => {
   const { user } = useAuth();
   const { logClientActivity } = useClientActivityLog();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchFilter, setSearchFilter] = useState<"all" | "name" | "email" | "phone" | "tag">("all");
+  const [searchFilter, setSearchFilter] = useState<SearchFilter>("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
@@ -896,114 +898,19 @@ const AdminClients = () => {
         </div>
 
         {/* Enhanced Search bar */}
-        <div className="flex gap-2 max-w-xl">
-          <Select value={searchFilter} onValueChange={(v: any) => setSearchFilter(v)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Filtrer par" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous</SelectItem>
-              <SelectItem value="name">Nom</SelectItem>
-              <SelectItem value="email">Courriel</SelectItem>
-              <SelectItem value="phone">Téléphone</SelectItem>
-              <SelectItem value="tag">Tag service</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={
-                searchFilter === "name" ? "Rechercher par nom..." :
-                searchFilter === "email" ? "Rechercher par courriel..." :
-                searchFilter === "phone" ? "Rechercher par téléphone..." :
-                searchFilter === "tag" ? "Rechercher par tag..." :
-                "Rechercher par nom, courriel, téléphone, numéro client..."
-              }
-              className="pl-10"
-            />
-          </div>
-        </div>
+        <ClientSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchFilter={searchFilter}
+          onFilterChange={setSearchFilter}
+        />
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-cyan-400" />
-              Liste des clients ({filteredClients?.length || 0})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-                ))}
-              </div>
-            ) : filteredClients && filteredClients.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nom</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Courriel</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédit</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Inscrit le</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredClients.map((client: any) => (
-                      <tr key={client.id} className="border-b border-border/50 hover:bg-accent/50">
-                        <td className="py-3 px-4 text-sm text-foreground font-medium">{client.full_name || "—"}</td>
-                        <td className="py-3 px-4 text-sm text-foreground">{client.email || "—"}</td>
-                        <td className="py-3 px-4 text-sm">
-                          <span className={Number(client.balance || 0) > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}>
-                            {Number(client.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          <span className={Number(client.store_credit || 0) > 0 ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
-                            {Number(client.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className={
-                            client.account_status === 'active' ? "bg-emerald-500/20 text-emerald-400" :
-                            client.account_status === 'frozen' ? "bg-blue-500/20 text-blue-400" :
-                            client.account_status === 'hold' ? "bg-amber-500/20 text-amber-400" :
-                            client.account_status === 'deactivated' ? "bg-red-500/20 text-red-400" :
-                            "bg-emerald-500/20 text-emerald-400"
-                          }>
-                            {client.account_status === 'active' || !client.account_status ? 'Actif' :
-                             client.account_status === 'frozen' ? 'Gelé' :
-                             client.account_status === 'hold' ? 'Attente' : 'Désactivé'}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button size="sm" variant="outline" onClick={() => handleViewDetails(client)}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            Gérer
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">{searchQuery ? "Aucun client trouvé" : "Aucun client pour le moment"}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ClientsTable
+          clients={filteredClients}
+          isLoading={isLoading}
+          searchQuery={searchQuery}
+          onViewDetails={handleViewDetails}
+        />
 
         {/* Client Management Dialog */}
         <Dialog 

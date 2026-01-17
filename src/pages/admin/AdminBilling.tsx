@@ -1131,7 +1131,14 @@ const AdminBilling = () => {
             <h1 className="font-display text-3xl font-bold text-foreground">Facturation</h1>
             <p className="text-muted-foreground mt-1">Gérer les factures et paiements</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button 
+              variant="outline" 
+              onClick={() => setExportDialogOpen(true)}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Export
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => setEtransferPaymentsDialogOpen(true)}
@@ -2053,6 +2060,13 @@ const AdminBilling = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Accounting Export Dialog */}
+        <AccountingExportDialog 
+          open={exportDialogOpen} 
+          onOpenChange={setExportDialogOpen}
+          billingData={billing || []}
+        />
       </div>
     </AdminLayout>
   );
