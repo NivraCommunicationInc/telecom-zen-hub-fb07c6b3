@@ -28,11 +28,13 @@ export function AppModeGate() {
   useEffect(() => {
     const path = location.pathname;
 
+    // Any path starting with /staff is staff mode
     if (path.startsWith("/staff")) {
       localStorage.setItem(STORAGE_KEY, "staff");
       return;
     }
 
+    // Client portal paths
     if (path.startsWith("/portal")) {
       localStorage.setItem(STORAGE_KEY, "client");
     }
