@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 const STORAGE_KEY = "nivra_app_mode";
 
@@ -13,16 +14,43 @@ const isStandalonePwa = () => {
   return Boolean(standaloneMatchMedia || standaloneIOS);
 };
 
+interface AppModeGateProps {
+  children?: ReactNode;
+}
+
 /**
  * AppModeGate
  * 
  * Problem: the PWA manifest start_url is "/", so installing from /staff still launches at /.
  * Fix: remember which area the user installed/used (staff vs client) and, when running as an
  * installed app (standalone), force the user back to the correct area.
+ * 
+ * IMPORTANT: This component now BLOCKS rendering until the redirect is complete for staff PWA mode.
  */
-export function AppModeGate() {
+export function AppModeGate({ children }: AppModeGateProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isReady, setIsReady] = useState(false);
+
+  // On mount, check if we need to redirect BEFORE anything else renders
+  useEffect(() => {
+    const isPwa = isStandalonePwa();
+    const mode = localStorage.getItem(STORAGE_KEY) as AppMode | null;
+    const currentPath = location.pathname;
+
+    console.log("[AppModeGate] Checking mode:", { isPwa, mode, currentPath });
+
+    // If we're in PWA mode as staff but NOT on a /staff path, redirect immediately
+    if (isPwa && mode === "staff" && !currentPath.startsWith("/staff")) {
+      console.log("[AppModeGate] Redirecting to /staff");
+      navigate("/staff", { replace: true });
+      // Set ready after navigation is initiated
+      setTimeout(() => setIsReady(true), 50);
+    } else {
+      // No redirect needed, ready immediately
+      setIsReady(true);
+    }
+  }, []); // Only on mount
 
   // Persist last "mode" based on navigation.
   useEffect(() => {
@@ -51,5 +79,18 @@ export function AppModeGate() {
     }
   }, [location.pathname, navigate]);
 
-  return null;
+  // Show loading screen while determining correct mode
+  if (!isReady) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+          <p className="text-slate-400 text-sm">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render children if provided, otherwise return null
+  return children ? <>{children}</> : null;
 }
