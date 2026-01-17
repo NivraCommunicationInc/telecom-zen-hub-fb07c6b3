@@ -48,6 +48,7 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
     if (!isLoading && !termsLoading && influencer && activeTerms && !isExemptPath) {
       // Check if terms have been accepted AND if version matches
       if (!influencer.accepted_partner_terms_at) {
+        // Never accepted - first time
         setShowPrompt(true);
         setIsNewVersion(false);
       } else if (influencer.partner_terms_version !== activeTerms.version) {
@@ -55,8 +56,13 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
         setShowPrompt(true);
         setIsNewVersion(true);
       } else {
+        // Terms accepted and version matches - allow access
         setShowPrompt(false);
+        setIsNewVersion(false);
       }
+    } else if (!isLoading && !termsLoading && !isExemptPath) {
+      // No influencer or no active terms - don't show prompt
+      setShowPrompt(false);
     }
   }, [influencer, isLoading, termsLoading, activeTerms, isExemptPath]);
 
@@ -96,7 +102,7 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
             <div className="space-y-3">
               <p className="text-center text-muted-foreground">
                 Les conditions du programme partenaires ont été mises à jour 
-                (v{influencer?.partner_terms_version} → v{activeTerms?.version}).
+                (v{influencer?.partner_terms_version || "?"} → v{activeTerms?.version}).
               </p>
               <p className="text-center text-sm text-orange-600 dark:text-orange-400">
                 Veuillez lire et accepter les nouvelles conditions pour continuer 
