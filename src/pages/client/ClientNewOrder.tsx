@@ -1387,11 +1387,7 @@ const ClientNewOrder = () => {
         ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
       ];
       
-      // Build discounts array (promo + preauth + SIM credits for mobile orders)
-      // Auto-credit SIM fee and SIM delivery fee for orders with mobile services
-      const simCreditAmount = hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0;
-      const simDeliveryCreditAmount = hasMobileService ? orderDeliveryFee : 0;
-      
+      // Build discounts array (promo + preauth only - no auto SIM credits)
       const discountsForLineItems = [
         ...(appliedPromo && appliedPromo.discount_amount > 0 ? [{
           name: `Rabais promotionnel (${appliedPromo.code})`,
@@ -1402,18 +1398,6 @@ const ClientNewOrder = () => {
           name: "Rabais paiement préautorisé",
           amount: PREAUTH_MONTHLY_DISCOUNT,
           description: "5$/mois",
-        }] : []),
-        // Auto-credit SIM fee for mobile orders (per SIM quantity)
-        ...(simCreditAmount > 0 ? [{
-          name: "Crédit — Carte SIM offerte",
-          amount: simCreditAmount,
-          description: totalMobileLineQuantity > 1 ? `${totalMobileLineQuantity} cartes SIM` : "Carte SIM",
-        }] : []),
-        // Auto-credit SIM delivery fee for mobile orders
-        ...(simDeliveryCreditAmount > 0 ? [{
-          name: "Crédit — Livraison SIM offerte",
-          amount: simDeliveryCreditAmount,
-          description: "Livraison gratuite",
         }] : []),
       ];
       
@@ -2050,13 +2034,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const oneTimeFeesGross = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
   const monthlyRecurring = subtotal + paidChannelTotal + streamingAddonsTotal;
   
-  // Auto-credits for mobile orders (SIM fee + SIM delivery credited)
-  const simCreditAmount = hasMobileService ? simFee : 0; // Credit all SIM fees
-  const simDeliveryCreditAmount = hasMobileService ? deliveryFee : 0; // Credit delivery fee for mobile
-  const autoCredits = simCreditAmount + simDeliveryCreditAmount;
+  // No auto-credits for SIM cards - clients pay full price
+  const simCreditAmount = 0;
+  const simDeliveryCreditAmount = 0;
   
-  // Net one-time fees after credits
-  const oneTimeFees = Math.max(0, oneTimeFeesGross - autoCredits);
+  // One-time fees (no auto-credits applied)
+  const oneTimeFees = oneTimeFeesGross;
   
   // Apply promo discount to base amount
   const promoDiscount = appliedPromo?.discount_amount || 0;
