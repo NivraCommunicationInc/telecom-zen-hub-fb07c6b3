@@ -78,7 +78,7 @@ const MIN_CHARS = 3;
 const DEBOUNCE_MS = 300;
 const MAX_RESULTS = 8;
 const BINDING_CHECK_DELAY_MS = 300;
-const DEV_MODE = import.meta.env.DEV;
+const DEV_MODE = false; // Disabled - was: import.meta.env.DEV
 
 // --------------------------------------------------------------------------
 // Helpers
