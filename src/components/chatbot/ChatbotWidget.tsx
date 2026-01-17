@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { MessageCircle, X, Send, Loader2, Bot, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,11 +21,12 @@ const ChatbotWidget = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { language } = useLanguage();
 
   const welcomeMessage = language === "fr"
-    ? "Bonjour! Je suis l'assistant virtuel Nivra. Comment puis-je vous aider aujourd'hui?"
-    : "Hello! I'm your Nivra virtual assistant. How can I help you today?";
+    ? "Bonjour! Je suis Nivra, votre assistant virtuel. Je peux vous aider à:\n\n• 📦 Suivre vos commandes\n• 📅 Gérer vos rendez-vous\n• 🧾 Consulter vos factures\n• 🎫 Créer des tickets support\n• ℹ️ Répondre à vos questions\n\nComment puis-je vous aider?"
+    : "Hello! I'm Nivra, your virtual assistant. I can help you with:\n\n• 📦 Track your orders\n• 📅 Manage your appointments\n• 🧾 View your invoices\n• 🎫 Create support tickets\n• ℹ️ Answer your questions\n\nHow can I help you?";
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -42,9 +43,28 @@ const ChatbotWidget = () => {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Build conversation history for context
+  const getConversationHistory = useCallback(() => {
+    return messages
+      .filter(m => m.content !== welcomeMessage) // Exclude welcome message
+      .map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+  }, [messages, welcomeMessage]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -61,13 +81,12 @@ const ChatbotWidget = () => {
     setIsLoading(true);
 
     try {
-      // Note: Authentication is verified server-side from the Authorization header
-      // The edge function ignores any isAuthenticated/userId sent in the body
       const response = await supabase.functions.invoke("chatbot-jonathan", {
         body: {
           message: userMessage.content,
           sessionId,
           language,
+          conversationHistory: getConversationHistory(),
         },
       });
 
@@ -101,6 +120,31 @@ const ChatbotWidget = () => {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Quick action suggestions
+  const quickActions = language === "fr" 
+    ? [
+        { label: "Mes commandes", message: "Je veux voir mes commandes" },
+        { label: "Mes factures", message: "Affiche mes factures" },
+        { label: "Rendez-vous", message: "Quels sont mes prochains rendez-vous?" },
+      ]
+    : [
+        { label: "My orders", message: "I want to see my orders" },
+        { label: "My invoices", message: "Show my invoices" },
+        { label: "Appointments", message: "What are my upcoming appointments?" },
+      ];
+
+  const handleQuickAction = (message: string) => {
+    setInput(message);
+    setTimeout(() => sendMessage(), 100);
+  };
+
   return (
     <>
       {/* Floating Button */}
@@ -108,9 +152,10 @@ const ChatbotWidget = () => {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg",
-          "bg-accent text-white flex items-center justify-center",
-          "hover:scale-105 transition-transform duration-200",
-          "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+          "bg-gradient-to-br from-accent to-accent/80 text-white flex items-center justify-center",
+          "hover:scale-105 hover:shadow-xl transition-all duration-300",
+          "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+          isOpen && "rotate-90"
         )}
         aria-label={isOpen ? "Close chat" : "Open chat"}
       >
@@ -121,24 +166,33 @@ const ChatbotWidget = () => {
       {isOpen && (
         <div
           className={cn(
-            "fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)]",
-            "bg-background border rounded-2xl shadow-2xl",
+            "fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)]",
+            "bg-background border border-border rounded-2xl shadow-2xl",
             "flex flex-col overflow-hidden",
-            "animate-in slide-in-from-bottom-4 duration-300"
+            "animate-in slide-in-from-bottom-4 fade-in duration-300"
           )}
-          style={{ height: "500px" }}
+          style={{ height: "550px" }}
         >
           {/* Header */}
-          <div className="bg-accent text-white px-4 py-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-lg font-bold">N</span>
+          <div className="bg-gradient-to-r from-accent to-accent/90 text-white px-4 py-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <Bot className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-semibold">Nivra</h3>
+            <div className="flex-1">
+              <h3 className="font-semibold flex items-center gap-2">
+                Nivra
+                <Sparkles className="w-4 h-4 text-yellow-300" />
+              </h3>
               <p className="text-xs text-white/80">
-                {language === "fr" ? "Assistant virtuel" : "Virtual Assistant"}
+                {language === "fr" ? "Assistant intelligent" : "Smart Assistant"}
               </p>
             </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Messages */}
@@ -148,13 +202,18 @@ const ChatbotWidget = () => {
                 <div
                   key={message.id}
                   className={cn(
-                    "flex",
+                    "flex gap-2",
                     message.role === "user" ? "justify-end" : "justify-start"
                   )}
                 >
+                  {message.role === "assistant" && (
+                    <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Bot className="w-4 h-4 text-accent" />
+                    </div>
+                  )}
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
                       message.role === "user"
                         ? "bg-accent text-white rounded-br-md"
                         : "bg-muted text-foreground rounded-bl-md"
@@ -162,20 +221,49 @@ const ChatbotWidget = () => {
                   >
                     {message.content}
                   </div>
+                  {message.role === "user" && (
+                    <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <User className="w-4 h-4 text-accent" />
+                    </div>
+                  )}
                 </div>
               ))}
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                <div className="flex gap-2 justify-start">
+                  <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4 text-accent" />
+                  </div>
+                  <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-accent/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-accent/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-accent/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </ScrollArea>
 
+          {/* Quick Actions - show only when few messages */}
+          {messages.length <= 2 && !isLoading && (
+            <div className="px-4 pb-2">
+              <div className="flex flex-wrap gap-2">
+                {quickActions.map((action, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleQuickAction(action.message)}
+                    className="text-xs px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-full transition-colors"
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Input */}
-          <div className="border-t p-4">
+          <div className="border-t p-4 bg-background/50 backdrop-blur-sm">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -184,16 +272,27 @@ const ChatbotWidget = () => {
               className="flex gap-2"
             >
               <Input
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder={
                   language === "fr" ? "Écrivez votre message..." : "Type your message..."
                 }
                 disabled={isLoading}
-                className="flex-1"
+                className="flex-1 bg-muted/50 border-0 focus-visible:ring-accent"
               />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-                <Send className="w-4 h-4" />
+              <Button 
+                type="submit" 
+                size="icon" 
+                disabled={isLoading || !input.trim()}
+                className="bg-accent hover:bg-accent/90"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
               </Button>
             </form>
           </div>
