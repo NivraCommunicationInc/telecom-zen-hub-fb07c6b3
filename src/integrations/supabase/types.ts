@@ -3196,6 +3196,7 @@ export type Database = {
       }
       influencers: {
         Row: {
+          accepted_partner_terms_at: string | null
           commission_plan_id: string | null
           created_at: string
           created_by: string | null
@@ -3204,6 +3205,7 @@ export type Database = {
           id: string
           last_name: string
           notes: string | null
+          partner_terms_version: string | null
           payout_email: string | null
           payout_method: string | null
           phone: string | null
@@ -3212,6 +3214,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          accepted_partner_terms_at?: string | null
           commission_plan_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3220,6 +3223,7 @@ export type Database = {
           id?: string
           last_name: string
           notes?: string | null
+          partner_terms_version?: string | null
           payout_email?: string | null
           payout_method?: string | null
           phone?: string | null
@@ -3228,6 +3232,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          accepted_partner_terms_at?: string | null
           commission_plan_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3236,6 +3241,7 @@ export type Database = {
           id?: string
           last_name?: string
           notes?: string | null
+          partner_terms_version?: string | null
           payout_email?: string | null
           payout_method?: string | null
           phone?: string | null

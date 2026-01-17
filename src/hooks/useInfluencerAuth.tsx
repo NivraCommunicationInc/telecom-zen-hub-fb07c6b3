@@ -12,6 +12,8 @@ interface Influencer {
   payout_method?: string;
   payout_email?: string;
   commission_plan_id?: string;
+  accepted_partner_terms_at?: string | null;
+  partner_terms_version?: string | null;
 }
 
 interface InfluencerAuthContextType {
@@ -22,7 +24,10 @@ interface InfluencerAuthContextType {
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   refreshInfluencer: () => Promise<void>;
+  refetch: () => Promise<void>;
 }
+
+export type { Influencer };
 
 const InfluencerAuthContext = createContext<InfluencerAuthContextType | undefined>(undefined);
 
@@ -109,6 +114,7 @@ export const InfluencerAuthProvider = ({ children }: { children: ReactNode }) =>
     isAuthenticated: !!user && !!influencer && influencer.status === "active",
     signOut,
     refreshInfluencer,
+    refetch: refreshInfluencer,
   };
 
   return (

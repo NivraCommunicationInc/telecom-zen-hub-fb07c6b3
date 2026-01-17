@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Users,
+  FileText,
 } from "lucide-react";
 import { useInfluencerAuth } from "@/hooks/useInfluencerAuth";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ const navigation = [
   { label: "Parrainages", href: "/influencer/referrals", icon: TrendingUp },
   { label: "Gains", href: "/influencer/earnings", icon: DollarSign },
   { label: "Retraits", href: "/influencer/cashouts", icon: Wallet },
+  { label: "Conditions", href: "/influencer/terms", icon: FileText },
   { label: "Paramètres", href: "/influencer/settings", icon: Settings },
 ];
 

@@ -108,8 +108,10 @@ import InfluencerReferrals from "@/pages/influencer/InfluencerReferrals";
 import InfluencerEarnings from "@/pages/influencer/InfluencerEarnings";
 import InfluencerCashouts from "@/pages/influencer/InfluencerCashouts";
 import InfluencerSettings from "@/pages/influencer/InfluencerSettings";
+import InfluencerTerms from "@/pages/influencer/InfluencerTerms";
 import { InfluencerAuthProvider } from "@/hooks/useInfluencerAuth";
 import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
+import PartnerTermsAcceptanceGuard from "@/components/influencer/PartnerTermsAcceptanceGuard";
 
 // Client portal pages
 import ClientAuth from "@/pages/client/ClientAuth";
@@ -263,10 +265,11 @@ const AppRoutes = () => {
       <Route path="/influencer/register" element={<InfluencerRegister />} />
       <Route path="/influencer/reset-password" element={<InfluencerResetPassword />} />
       <Route path="/influencer/onboarding" element={<InfluencerOnboarding />} />
-      <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerDashboard /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
-      <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerReferrals /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
-      <Route path="/influencer/earnings" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerEarnings /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
-      <Route path="/influencer/cashouts" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerCashouts /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/terms" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerTerms /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/dashboard" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerDashboard /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/referrals" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerReferrals /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/earnings" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerEarnings /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
+      <Route path="/influencer/cashouts" element={<InfluencerAuthProvider><InfluencerProtectedRoute><PartnerTermsAcceptanceGuard><InfluencerCashouts /></PartnerTermsAcceptanceGuard></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer/settings" element={<InfluencerAuthProvider><InfluencerProtectedRoute><InfluencerSettings /></InfluencerProtectedRoute></InfluencerAuthProvider>} />
       <Route path="/influencer" element={<Navigate to="/influencer/dashboard" replace />} />
 
