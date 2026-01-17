@@ -11,10 +11,16 @@ interface PartnerTermsAcceptanceGuardProps {
   children: React.ReactNode;
 }
 
+const normalizeVersion = (v?: string | null) => (v ?? "").toString().trim().replace(/^v/i, "");
+const formatVersion = (v?: string | null) => {
+  const n = normalizeVersion(v);
+  return n ? `v${n}` : "";
+};
+
 /**
  * Guard component that checks if the influencer has accepted partner terms.
- * Now also checks if the accepted version matches the current active version.
- * If not, redirects to the terms page.
+ * Also checks if the accepted version matches the current active version.
+ * If not, shows a prompt that redirects to the terms page.
  * Allows access to the terms page itself without redirect loop.
  */
 const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardProps) => {
@@ -37,34 +43,48 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
       if (error) throw error;
       return data;
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
   // Pages that don't require terms acceptance
   const exemptPaths = ["/influencer/terms", "/influencer/settings"];
-  const isExemptPath = exemptPaths.some(path => location.pathname.startsWith(path));
+  const isExemptPath = exemptPaths.some((path) => location.pathname.startsWith(path));
 
   useEffect(() => {
-    if (!isLoading && !termsLoading && influencer && activeTerms && !isExemptPath) {
-      // Check if terms have been accepted AND if version matches
-      if (!influencer.accepted_partner_terms_at) {
-        // Never accepted - first time
-        setShowPrompt(true);
-        setIsNewVersion(false);
-      } else if (influencer.partner_terms_version !== activeTerms.version) {
-        // User accepted old version, new version available
-        setShowPrompt(true);
-        setIsNewVersion(true);
-      } else {
-        // Terms accepted and version matches - allow access
-        setShowPrompt(false);
-        setIsNewVersion(false);
-      }
-    } else if (!isLoading && !termsLoading && !isExemptPath) {
-      // No influencer or no active terms - don't show prompt
+    if (isLoading || termsLoading || isExemptPath) return;
+
+    if (!influencer || !activeTerms) {
       setShowPrompt(false);
+      setIsNewVersion(false);
+      return;
     }
-  }, [influencer, isLoading, termsLoading, activeTerms, isExemptPath]);
+
+    // Never accepted -> must accept
+    if (!influencer.accepted_partner_terms_at) {
+      setShowPrompt(true);
+      setIsNewVersion(false);
+      return;
+    }
+
+    // Accepted, but maybe older version
+    const acceptedVersion = normalizeVersion(influencer.partner_terms_version);
+    const currentVersion = normalizeVersion(activeTerms.version);
+
+    if (!acceptedVersion || acceptedVersion !== currentVersion) {
+      setShowPrompt(true);
+      setIsNewVersion(true);
+      return;
+    }
+
+    setShowPrompt(false);
+    setIsNewVersion(false);
+  }, [
+    influencer,
+    isLoading,
+    termsLoading,
+    activeTerms,
+    isExemptPath,
+  ]);
 
   if (isLoading || termsLoading) {
     return (
@@ -74,12 +94,10 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
     );
   }
 
-  // If on exempt path or terms are accepted with current version, render children
   if (isExemptPath || !showPrompt) {
     return <>{children}</>;
   }
 
-  // Show terms acceptance prompt
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
       <Card className="max-w-lg w-full border-primary/30 shadow-xl">
@@ -92,27 +110,23 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
             )}
           </div>
           <CardTitle className="text-2xl">
-            {isNewVersion 
-              ? "Mise à jour des conditions" 
-              : "Bienvenue au Programme Partenaires!"}
+            {isNewVersion ? "Mise à jour des conditions" : "Bienvenue au Programme Partenaires!"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {isNewVersion ? (
             <div className="space-y-3">
               <p className="text-center text-muted-foreground">
-                Les conditions du programme partenaires ont été mises à jour 
-                (v{influencer?.partner_terms_version || "?"} → v{activeTerms?.version}).
+                Les conditions du programme partenaires ont été mises à jour (
+                {formatVersion(influencer?.partner_terms_version) || "v?"} → {formatVersion(activeTerms?.version)}).
               </p>
               <p className="text-center text-sm text-orange-600 dark:text-orange-400">
-                Veuillez lire et accepter les nouvelles conditions pour continuer 
-                à accéder à votre tableau de bord.
+                Veuillez lire et accepter les nouvelles conditions pour continuer à accéder à votre tableau de bord.
               </p>
             </div>
           ) : (
             <p className="text-center text-muted-foreground">
-              Avant d'accéder à votre tableau de bord, veuillez lire et accepter les conditions
-              du programme, la structure de commissions et les politiques de référence.
+              Avant d'accéder à votre tableau de bord, veuillez lire et accepter les conditions du programme, la structure de commissions et les politiques de référence.
             </p>
           )}
 
@@ -121,36 +135,26 @@ const PartnerTermsAcceptanceGuard = ({ children }: PartnerTermsAcceptanceGuardPr
               <span className="text-lg">💰</span>
               <div>
                 <p className="font-medium">Structure de commissions</p>
-                <p className="text-muted-foreground text-xs">
-                  Découvrez combien vous gagnez par référence
-                </p>
+                <p className="text-muted-foreground text-xs">Découvrez combien vous gagnez par référence</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
               <span className="text-lg">📋</span>
               <div>
                 <p className="font-medium">Politique de traitement</p>
-                <p className="text-muted-foreground text-xs">
-                  Comment vos références sont validées et payées
-                </p>
+                <p className="text-muted-foreground text-xs">Comment vos références sont validées et payées</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
               <span className="text-lg">📜</span>
               <div>
                 <p className="font-medium">Conditions générales</p>
-                <p className="text-muted-foreground text-xs">
-                  Les règles du programme partenaires
-                </p>
+                <p className="text-muted-foreground text-xs">Les règles du programme partenaires</p>
               </div>
             </div>
           </div>
 
-          <Button 
-            onClick={() => navigate("/influencer/terms")}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={() => navigate("/influencer/terms")} className="w-full" size="lg">
             {isNewVersion ? "Voir les nouvelles conditions" : "Lire et Accepter les Conditions"}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

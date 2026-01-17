@@ -46,8 +46,10 @@ const InfluencerTerms = () => {
     },
   });
 
-  const hasAcceptedCurrentVersion = influencer?.accepted_partner_terms_at && 
-    influencer?.partner_terms_version === activeTerms?.version;
+  const hasAcceptedCurrentVersion =
+    !!influencer?.accepted_partner_terms_at &&
+    normalizeVersion(influencer?.partner_terms_version) ===
+      normalizeVersion(activeTerms?.version);
 
   const handleAcceptTerms = async () => {
     if (!influencer?.id || !activeTerms) return;
@@ -416,7 +418,7 @@ const InfluencerTerms = () => {
                   Conditions acceptées le {new Date(influencer.accepted_partner_terms_at!).toLocaleDateString("fr-CA")}
                 </span>
                 <Badge variant="outline" className="ml-2">
-                  v{influencer.partner_terms_version}
+                  v{normalizeVersion(influencer.partner_terms_version)}
                 </Badge>
               </div>
             </CardContent>
