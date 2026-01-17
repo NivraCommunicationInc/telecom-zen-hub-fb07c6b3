@@ -29,13 +29,14 @@ import {
 } from "@/lib/accountingExport";
 
 interface AccountingExportDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  billingData?: any[]; // Optional pre-loaded data
 }
 
 type DatePreset = "this_month" | "last_month" | "last_3_months" | "custom";
 
-export function AccountingExportDialog({ isOpen, onClose }: AccountingExportDialogProps) {
+export function AccountingExportDialog({ open, onOpenChange, billingData }: AccountingExportDialogProps) {
   const { toast } = useToast();
   const [datePreset, setDatePreset] = useState<DatePreset>("this_month");
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
@@ -87,7 +88,7 @@ export function AccountingExportDialog({ isOpen, onClose }: AccountingExportDial
       if (error) throw error;
       return data as ExportableInvoice[];
     },
-    enabled: isOpen,
+    enabled: open,
   });
 
   const summary = invoices ? generateAccountingSummary(invoices) : null;
@@ -111,7 +112,7 @@ export function AccountingExportDialog({ isOpen, onClose }: AccountingExportDial
         title: "Export réussi",
         description: `${invoices.length} factures exportées vers ${filename}`,
       });
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       toast({
         title: "Erreur d'export",
@@ -132,7 +133,7 @@ export function AccountingExportDialog({ isOpen, onClose }: AccountingExportDial
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -254,7 +255,7 @@ export function AccountingExportDialog({ isOpen, onClose }: AccountingExportDial
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
           <Button 
