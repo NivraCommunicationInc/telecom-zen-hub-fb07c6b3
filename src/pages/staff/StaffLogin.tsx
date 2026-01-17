@@ -60,7 +60,12 @@ export default function StaffLogin() {
         if (roles && roles.length > 0) {
           // Redirect to role selection if multiple roles, or directly to dashboard
           if (roles.length === 1) {
-            navigate(`/staff/${roles[0]}`);
+            // Admin portal uses the dedicated /admin flow (secret code, tighter security)
+            if (roles[0] === "admin") {
+              navigate("/admin/login", { replace: true });
+            } else {
+              navigate(`/staff/${roles[0]}`);
+            }
           } else {
             setChecking(false);
           }
@@ -92,6 +97,14 @@ export default function StaffLogin() {
 
     if (!selectedRole) {
       toast.error("Veuillez sélectionner un rôle");
+      return;
+    }
+
+    // IMPORTANT: Admin portal uses the dedicated /admin login + secret code flow.
+    // Staff app should not try to render admin UI under /staff/admin (it causes a blank page
+    // because the admin UI expects the admin auth provider + secret code session).
+    if (selectedRole === "admin") {
+      navigate("/admin/login", { replace: true });
       return;
     }
 
