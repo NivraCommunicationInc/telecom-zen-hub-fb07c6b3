@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export function NotificationPrompt() {
-  const { permission, isSupported, subscribe, isLoading } = usePushNotifications();
+  const { permission, isSupported, requestPermission, isLoading } = usePushNotifications();
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -25,7 +25,7 @@ export function NotificationPrompt() {
   }, [isSupported, permission]);
 
   const handleEnable = async () => {
-    await subscribe();
+    await requestPermission();
     setShowPrompt(false);
   };
 
