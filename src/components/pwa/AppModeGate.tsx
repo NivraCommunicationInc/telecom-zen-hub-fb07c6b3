@@ -14,17 +14,20 @@ const isStandalonePwa = () => {
   return Boolean(standaloneMatchMedia || standaloneIOS);
 };
 
+// Staff PWA is allowed to access both /staff/* and /admin/*
+const isStaffAreaPath = (path: string) => path.startsWith("/staff") || path.startsWith("/admin");
+
 interface AppModeGateProps {
   children?: ReactNode;
 }
 
 /**
  * AppModeGate
- * 
+ *
  * Problem: the PWA manifest start_url is "/", so installing from /staff still launches at /.
  * Fix: remember which area the user installed/used (staff vs client) and, when running as an
  * installed app (standalone), force the user back to the correct area.
- * 
+ *
  * IMPORTANT: This component now BLOCKS rendering until the redirect is complete for staff PWA mode.
  */
 export function AppModeGate({ children }: AppModeGateProps) {
@@ -40,8 +43,8 @@ export function AppModeGate({ children }: AppModeGateProps) {
 
     console.log("[AppModeGate] Checking mode:", { isPwa, mode, currentPath });
 
-    // If we're in PWA mode as staff but NOT on a /staff path, redirect immediately
-    if (isPwa && mode === "staff" && !currentPath.startsWith("/staff")) {
+    // If we're in PWA mode as staff but NOT on a staff area path, redirect immediately
+    if (isPwa && mode === "staff" && !isStaffAreaPath(currentPath)) {
       console.log("[AppModeGate] Redirecting to /staff");
       navigate("/staff", { replace: true });
       // Set ready after navigation is initiated
@@ -50,14 +53,15 @@ export function AppModeGate({ children }: AppModeGateProps) {
       // No redirect needed, ready immediately
       setIsReady(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only on mount
 
   // Persist last "mode" based on navigation.
   useEffect(() => {
     const path = location.pathname;
 
-    // Any path starting with /staff is staff mode
-    if (path.startsWith("/staff")) {
+    // Any path starting with /staff OR /admin is staff mode
+    if (isStaffAreaPath(path)) {
       localStorage.setItem(STORAGE_KEY, "staff");
       return;
     }
@@ -74,7 +78,7 @@ export function AppModeGate({ children }: AppModeGateProps) {
 
     const mode = localStorage.getItem(STORAGE_KEY) as AppMode | null;
 
-    if (mode === "staff" && !location.pathname.startsWith("/staff")) {
+    if (mode === "staff" && !isStaffAreaPath(location.pathname)) {
       navigate("/staff", { replace: true });
     }
   }, [location.pathname, navigate]);
