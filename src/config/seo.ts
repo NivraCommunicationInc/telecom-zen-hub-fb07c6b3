@@ -1,41 +1,75 @@
 /**
  * SEO Configuration - Single source of truth for SEO settings
- * Google Site Verification and other SEO-related settings
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * GOOGLE SEARCH CONSOLE VERIFICATION
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * To verify your site with Google Search Console:
+ * 
+ * 1. Go to: https://search.google.com/search-console
+ * 2. Click "Add property" → Select "URL prefix"
+ * 3. Enter: https://nivratelecom.ca
+ * 4. Choose "HTML tag" verification method
+ * 5. Copy the content value from the meta tag Google provides:
+ *    <meta name="google-site-verification" content="COPY_THIS_CODE" />
+ * 6. Paste ONLY the code (not the full tag) below in googleSiteVerification
+ * 7. Publish the site
+ * 8. Click "Verify" in Google Search Console
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 export const SEO_CONFIG = {
-  // Google Search Console verification code
-  // Set this to your verification code from Google Search Console
-  // Format: Just the code, not the full meta tag (e.g., "abc123xyz...")
+  /**
+   * Google Search Console verification code
+   * Example: "abc123xyz456..." (just the code, not the full meta tag)
+   * 
+   * 🔴 REQUIRED: Add your verification code here to enable Google Search Console
+   */
   googleSiteVerification: "",
   
-  // Base URL for canonical URLs and sitemaps
+  /**
+   * Base URL for canonical URLs and sitemaps
+   * Must match the production domain exactly
+   */
   baseUrl: "https://nivratelecom.ca",
   
-  // Default OG image
+  /**
+   * Default Open Graph image (1200x630 recommended)
+   * Used when no specific image is provided for a page
+   */
   defaultOgImage: "/og-image.png",
   
-  // Company name for OG tags
+  /**
+   * Company/Site name for OG tags
+   */
   siteName: "Nivra Telecom",
+  
+  /**
+   * Default locale for the site
+   */
+  locale: "fr_CA",
+  
+  /**
+   * Twitter handle (without @)
+   */
+  twitterHandle: "NivraQC",
 } as const;
 
 /**
- * Instructions for Google Search Console verification:
- * 
- * METHOD 1: Meta tag verification (recommended)
- * 1. Go to Google Search Console: https://search.google.com/search-console
- * 2. Add property → URL prefix → Enter https://nivratelecom.ca
- * 3. Choose "HTML tag" verification method
- * 4. Copy the content value from: <meta name="google-site-verification" content="YOUR_CODE" />
- * 5. Paste the code (just "YOUR_CODE") in googleSiteVerification above
- * 6. Publish the site and verify in Search Console
+ * Alternative verification methods (if meta tag doesn't work):
  * 
  * METHOD 2: HTML file verification
- * 1. Go to Google Search Console
- * 2. Choose "HTML file" verification method  
- * 3. Download the HTML file (e.g., googleXXXXXXXXXXXX.html)
- * 4. Place the file in the public/ folder
- * 5. Publish the site and verify in Search Console
+ * 1. Download the HTML file from Google Search Console
+ *    (e.g., googleXXXXXXXXXXXX.html)
+ * 2. Place the file in the public/ folder
+ * 3. Publish the site
+ * 4. Click "Verify" in Google Search Console
  * 
- * Note: The HTML file will be served correctly thanks to the _redirects configuration.
+ * METHOD 3: DNS TXT record (for domain registrar)
+ * 1. Choose DNS verification in Search Console
+ * 2. Add the TXT record to your domain's DNS settings
+ * 3. Wait for DNS propagation (up to 72 hours)
+ * 4. Click "Verify" in Google Search Console
  */
