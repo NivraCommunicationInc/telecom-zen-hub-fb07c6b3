@@ -6711,6 +6711,42 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_roles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          role: Database["public"]["Enums"]["staff_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          role: Database["public"]["Enums"]["staff_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          role?: Database["public"]["Enums"]["staff_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       streaming_activation_tokens: {
         Row: {
           activated_at: string | null
@@ -8254,9 +8290,20 @@ export type Database = {
           other_reference_number: string
         }[]
       }
+      get_user_staff_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["staff_role"][]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_staff_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["staff_role"]
           _user_id: string
         }
         Returns: boolean
@@ -8293,6 +8340,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: never; Returns: boolean }
+      is_staff_member: { Args: { _user_id: string }; Returns: boolean }
       is_staff_user: { Args: { _user_id: string }; Returns: boolean }
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
@@ -8492,6 +8540,7 @@ export type Database = {
         | "fulfillment_in_progress"
         | "completed"
         | "cancelled"
+      staff_role: "admin" | "employee" | "technician"
       work_order_status:
         | "assigned"
         | "scheduled"
@@ -8775,6 +8824,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      staff_role: ["admin", "employee", "technician"],
       work_order_status: [
         "assigned",
         "scheduled",
