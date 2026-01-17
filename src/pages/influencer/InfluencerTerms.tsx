@@ -23,6 +23,9 @@ import { useInfluencerAuth } from "@/hooks/useInfluencerAuth";
 import { toast } from "sonner";
 import InfluencerLayout from "@/components/influencer/InfluencerLayout";
 
+// Normalize version string for comparison (remove 'v' prefix)
+const normalizeVersion = (v?: string | null) => (v ?? "").toString().trim().replace(/^v/i, "");
+
 const InfluencerTerms = () => {
   const navigate = useNavigate();
   const { influencer, refetch } = useInfluencerAuth();
