@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import AppRoutes from "@/components/AppRoutes";
 import ChatbotWidget from "@/components/chatbot/ChatbotWidget";
 import { DevOverflowDetector } from "@/components/DevOverflowDetector";
-import { InstallPrompt, NotificationPrompt } from "@/components/pwa";
+import { AppModeGate, InstallPrompt, NotificationPrompt } from "@/components/pwa";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +31,7 @@ const App = () => (
         <BrowserRouter>
           {/* DEV-ONLY: Overflow detector - only active in development */}
           {import.meta.env.DEV && <DevOverflowDetector />}
+          <AppModeGate />
           <AppRoutes />
           <ChatbotWidget />
           <InstallPrompt />
