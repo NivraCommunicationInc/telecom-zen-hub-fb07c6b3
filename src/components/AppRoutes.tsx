@@ -144,6 +144,7 @@ import StaffLogin from "@/pages/staff/StaffLogin";
 import StaffAdminDashboard from "@/pages/staff/StaffAdminDashboard";
 import StaffEmployeeDashboard from "@/pages/staff/StaffEmployeeDashboard";
 import StaffTechnicianDashboard from "@/pages/staff/StaffTechnicianDashboard";
+import StaffLayout from "@/components/staff/StaffLayout";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
@@ -342,9 +343,21 @@ const AppRoutes = () => {
       {/* STAFF PORTAL ROUTES - NO MaintenanceGuard (always accessible) */}
       {/* ============================================ */}
       <Route path="/staff" element={<StaffLogin />} />
-      <Route path="/staff/admin" element={<StaffAdminDashboard />} />
-      <Route path="/staff/employee" element={<StaffEmployeeDashboard />} />
-      <Route path="/staff/technician" element={<StaffTechnicianDashboard />} />
+      <Route path="/staff/admin" element={
+        <StaffLayout requiredRole="admin">
+          <StaffAdminDashboard />
+        </StaffLayout>
+      } />
+      <Route path="/staff/employee" element={
+        <StaffLayout requiredRole="employee">
+          <StaffEmployeeDashboard />
+        </StaffLayout>
+      } />
+      <Route path="/staff/technician" element={
+        <StaffLayout requiredRole="technician">
+          <StaffTechnicianDashboard />
+        </StaffLayout>
+      } />
       
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />

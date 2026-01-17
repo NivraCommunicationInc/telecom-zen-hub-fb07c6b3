@@ -35,30 +35,13 @@ export default function StaffTechnicianDashboard() {
   const [selectedDate, setSelectedDate] = useState<"today" | "tomorrow" | "all">("today");
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        navigate("/staff");
-        return;
-      }
-
-      const { data: hasRole } = await supabase.rpc("has_staff_role", {
-        _user_id: session.user.id,
-        _role: "technician",
-      });
-
-      if (!hasRole) {
-        toast.error("Accès non autorisé");
-        navigate("/staff");
-        return;
-      }
-
+    // StaffLayout already handles auth, just fetch data
+    const loadData = async () => {
       await fetchAppointments();
       setLoading(false);
     };
-
-    checkAuth();
-  }, [navigate]);
+    loadData();
+  }, []);
 
   const fetchAppointments = async () => {
     try {

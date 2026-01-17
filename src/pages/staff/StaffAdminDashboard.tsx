@@ -32,31 +32,13 @@ export default function StaffAdminDashboard() {
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        navigate("/staff");
-        return;
-      }
-
-      const { data: hasRole } = await supabase.rpc("has_staff_role", {
-        _user_id: session.user.id,
-        _role: "admin",
-      });
-
-      if (!hasRole) {
-        toast.error("Accès non autorisé");
-        navigate("/staff");
-        return;
-      }
-
-      // Fetch dashboard stats
+    // StaffLayout already handles auth, just fetch data
+    const loadData = async () => {
       await fetchStats();
       setLoading(false);
     };
-
-    checkAuth();
-  }, [navigate]);
+    loadData();
+  }, []);
 
   const fetchStats = async () => {
     try {
