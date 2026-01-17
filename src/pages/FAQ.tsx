@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import {
@@ -11,6 +12,7 @@ import { Link } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { FAQSchema, BreadcrumbSchema } from "@/components/seo";
 
 const FAQ = () => {
   const { t } = useLanguage();
@@ -52,9 +54,19 @@ const FAQ = () => {
     },
   ];
 
+  // Flatten FAQs for schema
+  const allFaqs = useMemo(() => 
+    categories.flatMap((cat) => 
+      cat.questions.map((q) => ({ question: q.q, answer: q.a }))
+    ), 
+    [categories]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.faq} />
+      <FAQSchema faqs={allFaqs} pageUrl="https://nivratelecom.ca/faq" />
+      <BreadcrumbSchema />
       <Header />
       
       {/* Hero */}

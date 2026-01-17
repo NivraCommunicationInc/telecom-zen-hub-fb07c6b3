@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Smartphone, Check, Shield, Zap, ArrowRight, Phone, MessageSquare, Globe, Wifi, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import Footer from "@/components/Footer";
 import { MobileInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useMobilePlans, useEquipmentPrices } from "@/hooks/usePublicServices";
+import { ProductSchema, BreadcrumbSchema, type ProductSchemaItem } from "@/components/seo";
 
 const MobilePlans = () => {
   const { language } = useLanguage();
@@ -23,6 +25,22 @@ const MobilePlans = () => {
   
   const isLoading = isLoadingPlans || isLoadingEquipment;
 
+  // Generate product schema from plans
+  const productSchemaItems: ProductSchemaItem[] = useMemo(() => 
+    plans.map((plan) => ({
+      name: plan.name,
+      description: `${plan.description} - ${plan.dataAutoTopUp} avec Auto Top-Up, ${plan.dataNoAutoTopUp} sans Auto Top-Up. Inclut: ${plan.features.join(", ")}`,
+      price: plan.price,
+      priceCurrency: "CAD",
+      sku: `mobile-${plan.price}`,
+      category: "Mobile Prepaid Plans",
+      features: plan.features,
+      url: "https://nivratelecom.ca/mobile-plans",
+      availability: "InStock",
+    })),
+    [plans]
+  );
+
   const handleGetStarted = (planId: string) => {
     if (user) {
       navigate('/portal/new-order');
@@ -34,6 +52,12 @@ const MobilePlans = () => {
   return (
     <div className="min-h-screen bg-background" data-testid="mobile-plans-page">
       <SEOHead {...SEO_DATA.mobile} />
+      <ProductSchema products={productSchemaItems} isService={true} />
+      <BreadcrumbSchema items={[
+        { name: "Accueil", url: "https://nivratelecom.ca/" },
+        { name: "Services", url: "https://nivratelecom.ca/services" },
+        { name: "Forfaits Mobile" }
+      ]} />
       <Header />
       
       <main className="pt-24 pb-20 relative">
