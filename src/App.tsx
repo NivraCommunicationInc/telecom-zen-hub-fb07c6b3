@@ -31,9 +31,11 @@ const App = () => (
         <BrowserRouter>
           {/* DEV-ONLY: Overflow detector - only active in development */}
           {import.meta.env.DEV && <DevOverflowDetector />}
-          <AppModeGate />
-          <AppRoutes />
-          <ChatbotWidget />
+          {/* AppModeGate wraps routes to block rendering until PWA mode is determined */}
+          <AppModeGate>
+            <AppRoutes />
+            <ChatbotWidget />
+          </AppModeGate>
           <InstallPrompt />
           <NotificationPrompt />
         </BrowserRouter>
