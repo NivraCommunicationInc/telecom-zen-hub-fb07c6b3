@@ -340,64 +340,29 @@ const AppRoutes = () => {
       <Route path="/client/access-blocked" element={<Navigate to="/portal/access-blocked" replace />} />
       <Route path="/client/*" element={<Navigate to="/portal" replace />} />
       
-{/* ============================================ */}
+      {/* ============================================ */}
       {/* STAFF PORTAL ROUTES - NO MaintenanceGuard (always accessible) */}
       {/* ============================================ */}
       <Route path="/staff" element={<StaffLogin />} />
-      
-      {/* Staff Admin - Full admin panel with sidebar */}
-      <Route path="/staff/admin" element={<StaffAdminLayout><AdminDashboard /></StaffAdminLayout>} />
-      <Route path="/staff/admin/orders" element={<StaffAdminLayout><AdminOrders /></StaffAdminLayout>} />
-      <Route path="/staff/admin/clients" element={<StaffAdminLayout><AdminClients /></StaffAdminLayout>} />
-      <Route path="/staff/admin/accounts" element={<StaffAdminLayout><AdminAccounts /></StaffAdminLayout>} />
-      <Route path="/staff/admin/services" element={<StaffAdminLayout><AdminServices /></StaffAdminLayout>} />
-      <Route path="/staff/admin/channels" element={<StaffAdminLayout><AdminChannels /></StaffAdminLayout>} />
-      <Route path="/staff/admin/streaming" element={<StaffAdminLayout><AdminStreaming /></StaffAdminLayout>} />
-      <Route path="/staff/admin/streaming-catalog" element={<StaffAdminLayout><AdminStreamingCatalog /></StaffAdminLayout>} />
-      <Route path="/staff/admin/billing" element={<StaffAdminLayout><AdminBilling /></StaffAdminLayout>} />
-      <Route path="/staff/admin/recouvrement" element={<StaffAdminLayout><AdminRecouvrement /></StaffAdminLayout>} />
-      <Route path="/staff/admin/promotions" element={<StaffAdminLayout><AdminPromotions /></StaffAdminLayout>} />
-      <Route path="/staff/admin/concours" element={<StaffAdminLayout><AdminContests /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals" element={<StaffAdminLayout><AdminReferrals /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/influencers" element={<StaffAdminLayout><AdminReferralInfluencers /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/influencers/:id" element={<StaffAdminLayout><AdminReferralInfluencerDetail /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/codes" element={<StaffAdminLayout><AdminReferralCodes /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/attributions" element={<StaffAdminLayout><AdminReferralAttributions /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/commissions" element={<StaffAdminLayout><AdminReferralCommissions /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/cashouts" element={<StaffAdminLayout><AdminReferralCashouts /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/settings" element={<StaffAdminLayout><AdminReferralSettings /></StaffAdminLayout>} />
-      <Route path="/staff/admin/referrals/terms" element={<StaffAdminLayout><AdminPartnerTerms /></StaffAdminLayout>} />
-      <Route path="/staff/admin/requests" element={<StaffAdminLayout><AdminRequests /></StaffAdminLayout>} />
-      <Route path="/staff/admin/tickets" element={<StaffAdminLayout><AdminTickets /></StaffAdminLayout>} />
-      <Route path="/staff/admin/internal-tickets" element={<StaffAdminLayout><AdminInternalTickets /></StaffAdminLayout>} />
-      <Route path="/staff/admin/formulaire-web" element={<StaffAdminLayout><AdminWebForms /></StaffAdminLayout>} />
-      <Route path="/staff/admin/telephony" element={<StaffAdminLayout><AdminTelephony /></StaffAdminLayout>} />
-      <Route path="/staff/admin/marketing" element={<StaffAdminLayout><AdminMarketing /></StaffAdminLayout>} />
-      <Route path="/staff/admin/communication-email" element={<StaffAdminLayout><AdminCommunicationEmail /></StaffAdminLayout>} />
-      <Route path="/staff/admin/communication-sms" element={<StaffAdminLayout><AdminCommunicationSMS /></StaffAdminLayout>} />
-      <Route path="/staff/admin/contracts" element={<StaffAdminLayout><AdminContracts /></StaffAdminLayout>} />
-      <Route path="/staff/admin/appointments" element={<StaffAdminLayout><AdminAppointments /></StaffAdminLayout>} />
-      <Route path="/staff/admin/careers" element={<StaffAdminLayout><AdminCareers /></StaffAdminLayout>} />
-      <Route path="/staff/admin/applications" element={<StaffAdminLayout><AdminApplications /></StaffAdminLayout>} />
-      <Route path="/staff/admin/activity" element={<StaffAdminLayout><AdminActivityLogs /></StaffAdminLayout>} />
-      <Route path="/staff/admin/live-activity" element={<StaffAdminLayout><LiveActivityPage /></StaffAdminLayout>} />
-      <Route path="/staff/admin/system-status" element={<StaffAdminLayout><AdminSystemStatus /></StaffAdminLayout>} />
-      <Route path="/staff/admin/maintenance" element={<StaffAdminLayout><AdminMaintenance /></StaffAdminLayout>} />
-      <Route path="/staff/admin/email-activity" element={<StaffAdminLayout><AdminEmailActivity /></StaffAdminLayout>} />
-      <Route path="/staff/admin/site" element={<StaffAdminLayout><AdminSite /></StaffAdminLayout>} />
-      <Route path="/staff/admin/account" element={<StaffAdminLayout><AdminAccount /></StaffAdminLayout>} />
-      <Route path="/staff/admin/users" element={<StaffAdminLayout><AdminUsers /></StaffAdminLayout>} />
-      <Route path="/staff/admin/users-access" element={<StaffAdminLayout><AdminUsersAccess /></StaffAdminLayout>} />
-      <Route path="/staff/admin/audit-log" element={<StaffAdminLayout><AdminAuditLog /></StaffAdminLayout>} />
-      <Route path="/staff/admin/security-events" element={<StaffAdminLayout><AdminSecurityEvents /></StaffAdminLayout>} />
-      <Route path="/staff/admin/security-guardian" element={<StaffAdminLayout><AdminSecurityGuardian /></StaffAdminLayout>} />
-      <Route path="/staff/admin/employees" element={<StaffAdminLayout><AdminEmployees /></StaffAdminLayout>} />
-      <Route path="/staff/admin/technicians" element={<StaffAdminLayout><AdminTechnicians /></StaffAdminLayout>} />
-      <Route path="/staff/admin/replacements" element={<StaffAdminLayout><AdminReplacements /></StaffAdminLayout>} />
-      <Route path="/staff/admin/cancellations" element={<StaffAdminLayout><AdminCancellations /></StaffAdminLayout>} />
-      <Route path="/staff/admin/payment-disputes" element={<StaffAdminLayout><AdminPaymentDisputes /></StaffAdminLayout>} />
-      <Route path="/staff/admin/qa" element={<StaffAdminLayout><AdminQA /></StaffAdminLayout>} />
-      
+
+      {/* Staff Admin: use the dedicated /admin portal (secret code + full features) */}
+      <Route path="/staff/admin" element={<Navigate to="/admin" replace />} />
+      <Route path="/staff/admin/*" element={<Navigate to="/admin" replace />} />
+
+      {/* Staff Employee */}
+      <Route path="/staff/employee" element={
+        <StaffLayout requiredRole="employee">
+          <StaffEmployeeDashboard />
+        </StaffLayout>
+      } />
+
+      {/* Staff Technician */}
+      <Route path="/staff/technician" element={
+        <StaffLayout requiredRole="technician">
+          <StaffTechnicianDashboard />
+        </StaffLayout>
+      } />
+
       {/* Staff Employee */}
       <Route path="/staff/employee" element={
         <StaffLayout requiredRole="employee">
