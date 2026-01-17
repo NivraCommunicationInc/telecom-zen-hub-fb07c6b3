@@ -136,6 +136,12 @@ import ClientWebForms from "@/pages/client/ClientWebForms";
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 
+// Staff portal pages
+import StaffLogin from "@/pages/staff/StaffLogin";
+import StaffAdminDashboard from "@/pages/staff/StaffAdminDashboard";
+import StaffEmployeeDashboard from "@/pages/staff/StaffEmployeeDashboard";
+import StaffTechnicianDashboard from "@/pages/staff/StaffTechnicianDashboard";
+
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
 
@@ -326,6 +332,14 @@ const AppRoutes = () => {
       <Route path="/client/suspended" element={<Navigate to="/portal/suspended" replace />} />
       <Route path="/client/access-blocked" element={<Navigate to="/portal/access-blocked" replace />} />
       <Route path="/client/*" element={<Navigate to="/portal" replace />} />
+      
+      {/* ============================================ */}
+      {/* STAFF PORTAL ROUTES - NO MaintenanceGuard (always accessible) */}
+      {/* ============================================ */}
+      <Route path="/staff" element={<StaffLogin />} />
+      <Route path="/staff/admin" element={<StaffAdminDashboard />} />
+      <Route path="/staff/employee" element={<StaffEmployeeDashboard />} />
+      <Route path="/staff/technician" element={<StaffTechnicianDashboard />} />
       
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
