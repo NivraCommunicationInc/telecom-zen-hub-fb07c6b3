@@ -21,6 +21,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const links = {
     services: [
       { label: isFr ? "Mobile" : "Mobile", href: "/mobile" },
+      { label: isFr ? "Couverture Mobile" : "Mobile Coverage", href: "/mobile-coverage" },
       { label: isFr ? "Internet" : "Internet", href: "/internet" },
       { label: isFr ? "Télévision" : "Television", href: "/tv" },
       { label: isFr ? "Sécurité" : "Security", href: "/services" },
