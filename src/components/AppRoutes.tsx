@@ -18,6 +18,7 @@ import ServicesDetail from "@/pages/ServicesDetail";
 import InternetPlans from "@/pages/InternetPlans";
 import TVPlans from "@/pages/TVPlans";
 import MobilePlans from "@/pages/MobilePlans";
+import MobileCoverage from "@/pages/MobileCoverage";
 import StreamingPlans from "@/pages/StreamingPlans";
 import NotFound from "@/pages/NotFound";
 import NotAuthorized from "@/pages/NotAuthorized";
@@ -170,6 +171,7 @@ const AppRoutes = () => {
       <Route path="/internet" element={<MaintenanceGuard><PublicLayout><InternetPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/tv" element={<MaintenanceGuard><PublicLayout><TVPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/mobile" element={<MaintenanceGuard><PublicLayout><MobilePlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/mobile-coverage" element={<MaintenanceGuard><PublicLayout><MobileCoverage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/streaming" element={<MaintenanceGuard><PublicLayout><StreamingPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/careers" element={<MaintenanceGuard><PublicLayout><Careers /></PublicLayout></MaintenanceGuard>} />
       <Route path="/apply" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
