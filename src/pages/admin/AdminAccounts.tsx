@@ -1126,7 +1126,7 @@ const AdminAccounts = () => {
                 </div>
               </div>
               <div>
-                <Label>Jour du cycle de facturation</Label>
+                <Label>Jour du cycle de facturation (1-31)</Label>
                 <Select 
                   value={editedAccount.billing_cycle_day?.toString()} 
                   onValueChange={(v) => setEditedAccount({ ...editedAccount, billing_cycle_day: parseInt(v) })}
@@ -1135,13 +1135,16 @@ const AdminAccounts = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                       <SelectItem key={day} value={day.toString()}>
-                        {day}
+                        {day}{day > 28 ? " *" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  * Les jours 29-31 seront ajustés automatiquement pour les mois plus courts
+                </p>
               </div>
             </div>
           )}
