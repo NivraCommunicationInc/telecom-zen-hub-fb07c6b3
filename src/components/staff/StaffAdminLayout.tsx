@@ -41,6 +41,7 @@ import { GlobalSearchTrigger } from "@/components/admin/GlobalSearch";
 import { OnlineUsersIndicator } from "@/components/admin/OnlineUsersIndicator";
 import { usePresence } from "@/hooks/usePresence";
 import { toast } from "sonner";
+import StaffBackground from "@/components/staff/StaffBackground";
 
 interface StaffAdminLayoutProps {
   children: ReactNode;
@@ -169,8 +170,9 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center relative">
+        <StaffBackground />
+        <Loader2 className="h-8 w-8 animate-spin text-teal-400" />
       </div>
     );
   }
@@ -180,20 +182,22 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      <StaffBackground />
+      
       {/* System Status Banner */}
       <SystemStatusBanner userType="admin" />
       
-      <div className="flex-1 flex">
+      <div className="flex-1 flex relative z-10">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col w-64 bg-card border-r border-border">
-          <div className="p-6 border-b border-border">
+        <aside className="hidden lg:flex flex-col w-64 bg-slate-900/70 backdrop-blur-xl border-r border-slate-700/50">
+          <div className="p-6 border-b border-slate-700/50">
             <div className="flex items-center justify-between">
-              <Link to="/staff/admin" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                  <span className="text-navy-900 font-bold text-sm">N</span>
+              <Link to="/staff/admin" className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-teal-500/25">
+                  <span className="text-slate-900 font-bold text-lg">N</span>
                 </div>
-                <span className="font-display font-bold text-lg text-foreground">Nivra Staff</span>
+                <span className="font-bold text-xl text-white">Nivra Staff</span>
               </Link>
               <div className="flex items-center gap-2">
                 <OnlineUsersIndicator />
@@ -213,10 +217,10 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
                   location.pathname === item.href
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border border-teal-500/30"
+                    : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
                 )}
               >
                 <item.icon className="w-5 h-5" />
@@ -225,17 +229,17 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
             ))}
           </nav>
 
-          <div className="p-4 border-t border-border space-y-3">
+          <div className="p-4 border-t border-slate-700/50 space-y-3">
             <div className="px-4 mb-2">
               <SystemStatusIndicator />
             </div>
-            <div className="px-4">
-              <p className="text-xs text-muted-foreground">Connecté en tant que</p>
-              <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
+            <div className="px-4 py-3 rounded-xl bg-slate-800/50">
+              <p className="text-xs text-slate-500">Connecté en tant que</p>
+              <p className="text-sm font-medium text-white truncate">{user?.email}</p>
             </div>
             <Button
               variant="ghost"
-              className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+              className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-xl"
               onClick={handleSignOut}
             >
               <LogOut className="w-5 h-5" />
@@ -245,18 +249,19 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
         </aside>
 
         {/* Mobile Header */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-slate-700/50">
           <div className="flex items-center justify-between p-4">
-            <Link to="/staff/admin" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                <span className="text-navy-900 font-bold text-sm">N</span>
+            <Link to="/staff/admin" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-teal-500/25">
+                <span className="text-slate-900 font-bold text-lg">N</span>
               </div>
-              <span className="font-display font-bold text-lg text-foreground">Nivra Staff</span>
+              <span className="font-bold text-xl text-white">Nivra Staff</span>
             </Link>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-white hover:bg-slate-800/50"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -264,17 +269,17 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="absolute top-full left-0 right-0 bg-card border-b border-border p-4 space-y-1 max-h-[70vh] overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 p-4 space-y-1 max-h-[70vh] overflow-y-auto">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   to={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
                     location.pathname === item.href
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      ? "bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border border-teal-500/30"
+                      : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
                   )}
                 >
                   <item.icon className="w-5 h-5" />
@@ -283,7 +288,7 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
               ))}
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground mt-4"
+                className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50 mt-4 rounded-xl"
                 onClick={handleSignOut}
               >
                 <LogOut className="w-5 h-5" />
@@ -295,7 +300,9 @@ const StaffAdminLayout = ({ children }: StaffAdminLayoutProps) => {
 
         {/* Main Content */}
         <main className="flex-1 lg:p-8 p-4 pt-20 lg:pt-8 overflow-auto">
-          {children}
+          <div className="bg-slate-900/40 backdrop-blur-sm rounded-2xl border border-slate-700/30 p-6 min-h-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>
