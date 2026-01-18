@@ -4,6 +4,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Staff Portal Animations */
+@keyframes staff-orb-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-30px, 20px) scale(1.1); }
+  50% { transform: translate(20px, -30px) scale(0.95); }
+  75% { transform: translate(-20px, -20px) scale(1.05); }
+}
+
+@keyframes staff-orb-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -20px) scale(1.05); }
+  50% { transform: translate(-20px, 30px) scale(0.9); }
+  75% { transform: translate(20px, 10px) scale(1.1); }
+}
+
+@keyframes staff-orb-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, 30px) scale(1.15); }
+  66% { transform: translate(30px, -40px) scale(0.85); }
+}
+
+@keyframes staff-float {
+  0%, 100% { 
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% { 
+    transform: translateY(-30px) translateX(10px);
+    opacity: 0.6;
+  }
+}
+
+.animate-staff-orb-1 {
+  animation: staff-orb-1 20s ease-in-out infinite;
+}
+
+.animate-staff-orb-2 {
+  animation: staff-orb-2 25s ease-in-out infinite;
+}
+
+.animate-staff-orb-3 {
+  animation: staff-orb-3 18s ease-in-out infinite;
+}
+
+.animate-staff-float {
+  animation: staff-float 8s ease-in-out infinite;
+}
+
 /* Nivra Design System - Premium Telecom Corporate */
 /* Inspired by TELUS + Rogers: Clean, Trustworthy, Professional */
 

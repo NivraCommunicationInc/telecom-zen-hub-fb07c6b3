@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Shield, Users, Wrench, Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import StaffBackground from "@/components/staff/StaffBackground";
 
 type StaffRole = "admin" | "employee" | "technician";
 
@@ -156,23 +157,29 @@ export default function StaffLogin() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen flex items-center justify-center relative">
+        <StaffBackground />
+        <Loader2 className="h-8 w-8 animate-spin text-teal-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <StaffBackground />
+      
+      <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Logo and Title */}
         <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg shadow-teal-500/25 mb-4">
+            <span className="text-slate-900 font-bold text-2xl">N</span>
+          </div>
           <h1 className="text-3xl font-bold text-white">Nivra Telecom</h1>
           <p className="text-slate-400">Portail du personnel</p>
         </div>
 
         {/* Role Selection */}
-        <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
+        <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">Sélectionnez votre rôle</CardTitle>
             <CardDescription className="text-slate-400">
@@ -190,21 +197,24 @@ export default function StaffLogin() {
                   key={role}
                   type="button"
                   onClick={() => setSelectedRole(role)}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-4 ${
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-300 flex items-center gap-4 ${
                     isSelected
-                      ? `border-white bg-gradient-to-r ${config.color} text-white`
-                      : "border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500 hover:bg-slate-700"
+                      ? `border-teal-400/50 bg-gradient-to-r ${config.color} text-white shadow-lg`
+                      : "border-slate-700/50 bg-slate-800/50 text-slate-300 hover:border-slate-600 hover:bg-slate-800"
                   }`}
                 >
-                  <div className={`p-2 rounded-lg ${isSelected ? "bg-white/20" : "bg-slate-600"}`}>
+                  <div className={`p-3 rounded-xl ${isSelected ? "bg-white/20" : "bg-slate-700/50"}`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-medium">{config.label}</div>
-                    <div className={`text-sm ${isSelected ? "text-white/80" : "text-slate-400"}`}>
+                    <div className="font-semibold">{config.label}</div>
+                    <div className={`text-sm ${isSelected ? "text-white/80" : "text-slate-500"}`}>
                       {config.description}
                     </div>
                   </div>
+                  {isSelected && (
+                    <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  )}
                 </button>
               );
             })}
@@ -212,7 +222,7 @@ export default function StaffLogin() {
         </Card>
 
         {/* Login Form */}
-        <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
+        <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">Connexion</CardTitle>
           </CardHeader>
@@ -228,7 +238,7 @@ export default function StaffLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom@nivra.ca"
-                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-teal-400/50 focus:ring-teal-400/20"
                   disabled={loading}
                 />
                 {errors.email && (
@@ -250,13 +260,13 @@ export default function StaffLogin() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 pr-10"
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
                     disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-400 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -271,7 +281,7 @@ export default function StaffLogin() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-900 font-semibold shadow-lg shadow-teal-500/25 transition-all duration-300"
                 disabled={loading || !selectedRole}
               >
                 {loading ? (
