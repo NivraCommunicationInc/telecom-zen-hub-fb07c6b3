@@ -5347,13 +5347,6 @@ export type Database = {
             referencedRelation: "referral_codes"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "referral_attributions_referral_code_id_fkey"
-            columns: ["referral_code_id"]
-            isOneToOne: false
-            referencedRelation: "referral_codes_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       referral_codes: {
@@ -8015,24 +8008,6 @@ export type Database = {
           },
         ]
       }
-      referral_codes_public: {
-        Row: {
-          code: string | null
-          id: string | null
-          status: string | null
-        }
-        Insert: {
-          code?: string | null
-          id?: string | null
-          status?: string | null
-        }
-        Update: {
-          code?: string | null
-          id?: string | null
-          status?: string | null
-        }
-        Relationships: []
-      }
       site_offers_public: {
         Row: {
           category: string | null
@@ -8448,6 +8423,14 @@ export type Database = {
         Returns: {
           first_name: string
           last_name: string
+        }[]
+      }
+      validate_referral_code: {
+        Args: { p_code: string }
+        Returns: {
+          code_id: string
+          discount_percent: number
+          is_valid: boolean
         }[]
       }
       verify_pin: {
