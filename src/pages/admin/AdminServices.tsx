@@ -414,6 +414,7 @@ const AdminServices = () => {
     description: "",
     category: "",
     price: "",
+    billing_type: "monthly" as string,
     is_active: true,
   });
 
@@ -482,6 +483,7 @@ const AdminServices = () => {
         description: data.description,
         category: data.category,
         price: data.price ? parseFloat(data.price) : null,
+        billing_type: data.billing_type,
         is_active: data.is_active,
       }).select().single();
       if (error) throw error;
@@ -507,6 +509,7 @@ const AdminServices = () => {
           description: data.description,
           category: data.category,
           price: data.price ? parseFloat(data.price) : null,
+          billing_type: data.billing_type,
           is_active: data.is_active,
         })
         .eq("id", id);
@@ -555,7 +558,7 @@ const AdminServices = () => {
   });
 
   const resetForm = () => {
-    setFormData({ name: "", description: "", category: "", price: "", is_active: true });
+    setFormData({ name: "", description: "", category: "", price: "", billing_type: "monthly", is_active: true });
     setEditingService(null);
     setIsDialogOpen(false);
   };
@@ -567,6 +570,7 @@ const AdminServices = () => {
       description: service.description || "",
       category: service.category,
       price: service.price?.toString() || "",
+      billing_type: service.billing_type || "monthly",
       is_active: service.is_active,
     });
     setIsDialogOpen(true);
@@ -623,19 +627,26 @@ const AdminServices = () => {
     );
   };
 
-  const formatPrice = (price: number | null, category: string) => {
+  const formatPrice = (price: number | null, billingType?: string) => {
     if (!price) return "—";
-    const isEquipment = category === "Équipement";
-    const isMobile = category === "Mobile";
     
     const formatted = Number(price).toLocaleString("fr-CA", {
       style: "currency",
       currency: "CAD",
     });
     
-    if (isEquipment) return `${formatted} (frais uniques)`;
-    if (isMobile) return `${formatted}/30 jours`;
-    return `${formatted}/mois`;
+    switch (billingType) {
+      case "30_days":
+        return `${formatted}/30 jours`;
+      case "monthly":
+        return `${formatted}/mois`;
+      case "yearly":
+        return `${formatted}/an`;
+      case "one_time":
+        return `${formatted} (frais uniques)`;
+      default:
+        return `${formatted}/mois`;
+    }
   };
 
   const renderPlanDetailsContent = (planDetails: any, category: string) => {
@@ -918,16 +929,35 @@ const AdminServices = () => {
                       rows={3}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Prix (CAD)</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      placeholder="0.00"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Prix (CAD)</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="billing_type">Période de facturation</Label>
+                      <Select
+                        value={formData.billing_type}
+                        onValueChange={(v) => setFormData({ ...formData, billing_type: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30_days">30 jours</SelectItem>
+                          <SelectItem value="monthly">1 mois (mensuel)</SelectItem>
+                          <SelectItem value="yearly">1 an (annuel)</SelectItem>
+                          <SelectItem value="one_time">Frais uniques</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="is_active">Service actif (visible sur le site)</Label>
@@ -1154,7 +1184,7 @@ const AdminServices = () => {
                                       </td>
                                       <td className="py-3 px-4">
                                         <span className="text-sm font-semibold text-foreground">
-                                          {formatPrice(service.price, service.category)}
+                                          {formatPrice(service.price, service.billing_type)}
                                         </span>
                                       </td>
                                       <td className="py-3 px-4">

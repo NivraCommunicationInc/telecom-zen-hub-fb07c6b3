@@ -2846,13 +2846,17 @@ const AdminOrders = () => {
                               >
                                 <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="purolator">Purolator</SelectItem>
-                                  <SelectItem value="postes_canada">Postes Canada</SelectItem>
+                                  <SelectItem value="nivra_telecom">Nivra Telecom</SelectItem>
+                                  <SelectItem value="nivra_direct">Livraison Nivra</SelectItem>
+                                  <SelectItem value="uber">Uber</SelectItem>
                                   <SelectItem value="fedex">FedEx</SelectItem>
                                   <SelectItem value="ups">UPS</SelectItem>
+                                  <SelectItem value="postes_canada">Postes Canada</SelectItem>
+                                  <SelectItem value="purolator">Purolator</SelectItem>
+                                  <SelectItem value="obibox">OBIBOX</SelectItem>
                                   <SelectItem value="canpar">Canpar</SelectItem>
                                   <SelectItem value="intelcom">Intelcom</SelectItem>
-                                  <SelectItem value="nivra_direct">Livraison Nivra</SelectItem>
+                                  <SelectItem value="autre">Autre</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
