@@ -6440,6 +6440,7 @@ export type Database = {
       }
       services: {
         Row: {
+          billing_type: string | null
           category: string
           created_at: string
           description: string | null
@@ -6450,6 +6451,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_type?: string | null
           category: string
           created_at?: string
           description?: string | null
@@ -6460,6 +6462,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_type?: string | null
           category?: string
           created_at?: string
           description?: string | null
