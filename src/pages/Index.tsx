@@ -1,11 +1,8 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import CoverageSetupBand from "@/components/CoverageSetupBand";
-import Services from "@/components/Services";
-import HowItWorks from "@/components/HowItWorks";
-import ServiceStandards from "@/components/ServiceStandards";
-import Benefits from "@/components/Benefits";
-import Testimonials from "@/components/Testimonials";
+import TelecomStatsBar from "@/components/TelecomStatsBar";
+import ServiceShowcase from "@/components/ServiceShowcase";
+import NetworkTrust from "@/components/NetworkTrust";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 import { FeaturedOffers } from "@/components/FeaturedOffers";
@@ -22,13 +19,10 @@ const Index = () => {
       <HomeStatusBanner />
       <main>
         <Hero />
-        <CoverageSetupBand />
+        <TelecomStatsBar />
         <FeaturedOffers />
-        <Services />
-        <HowItWorks />
-        <ServiceStandards />
-        <Benefits />
-        <Testimonials />
+        <ServiceShowcase />
+        <NetworkTrust />
         <CTA />
       </main>
       <Footer />
