@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Phone, User } from "lucide-react";
+import { Menu, X, MessageSquare, User } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,9 +19,7 @@ const Header = () => {
   const { t, language } = useLanguage();
   const { data: siteSettings } = useSiteSettings();
 
-  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
-  const supportPhoneTel = supportPhone.replace(/[^+\d]/g, '');
+  // Phone removed - support via chat/tickets only
 
   const portalLink = user ? "/portal" : "/portal/auth";
 

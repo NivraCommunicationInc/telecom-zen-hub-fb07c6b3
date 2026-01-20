@@ -27,7 +27,7 @@ export const LocalBusinessSchema = () => {
       image: "https://nivratelecom.ca/og-image.png",
       description:
         "Nivra Telecom est une entreprise de télécommunications prépayées au Québec. Services mobiles, Internet, télévision et solutions connectées. Sans engagement, sans vérification de crédit. Meilleur prix garanti.",
-      telephone: COMPANY_CONTACT.supportPhoneTel,
+      // Phone removed - support via chat/tickets only
       email: COMPANY_CONTACT.supportEmail,
       address: {
         "@type": "PostalAddress",
@@ -66,10 +66,11 @@ export const LocalBusinessSchema = () => {
       contactPoint: [
         {
           "@type": "ContactPoint",
-          telephone: COMPANY_CONTACT.supportPhoneTel,
+          // Phone removed - support via chat/tickets
           contactType: "customer service",
           availableLanguage: ["French", "English"],
           areaServed: "CA",
+          url: "https://nivratelecom.ca/portal/auth",
         },
       ],
       sameAs: [

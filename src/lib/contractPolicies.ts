@@ -9,7 +9,7 @@ export const BUSINESS_INFO = {
   legalName: COMPANY_CONTACT.legalName,
   brandName: COMPANY_CONTACT.companyName,
   address: COMPANY_CONTACT.fullAddress,
-  phone: COMPANY_CONTACT.supportPhoneDisplay,
+  phone: "", // Phone removed - support via chat/tickets
   email: COMPANY_CONTACT.supportEmailDisplay,
   paymentEmail: COMPANY_CONTACT.paymentEmail,
   website: COMPANY_CONTACT.website,

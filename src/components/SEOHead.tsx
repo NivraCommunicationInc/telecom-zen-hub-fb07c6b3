@@ -115,7 +115,7 @@ export const SEO_DATA = {
   contact: {
     title: "Contactez Nivra Telecom | Support client au Québec",
     description:
-      "Contactez notre équipe de support : 438-544-2233, support@nivratelecom.ca. Service en français, réponse rapide, lun-ven 9h-22h.",
+      "Contactez notre équipe de support via chat ou tickets. Service en français, réponse entre 1h et 24h, lun-ven 9h-22h.",
   },
   services: {
     title: "Nos services télécom | Nivra Telecom Québec",
