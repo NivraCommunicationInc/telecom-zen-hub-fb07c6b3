@@ -373,46 +373,82 @@ const AdminContracts = () => {
   });
 
   // Regenerate contracts for active services
+  // Import contract engine for PDF generation
   const regenerateContractsMutation = useMutation({
     mutationFn: async (serviceIds: string[]) => {
-      const results: { success: string[]; failed: string[] } = { success: [], failed: [] };
+      const results: { 
+        success: string[]; 
+        failed: string[]; 
+        incompleteData: string[];
+        generatedContracts: any[];
+      } = { success: [], failed: [], incompleteData: [], generatedContracts: [] };
+      
+      // Dynamically import the contract engine
+      const { ensureOrderContractUpToDate } = await import("@/lib/contractEngine");
       
       for (const serviceId of serviceIds) {
         const service = activeServices?.find(s => s.id === serviceId);
         if (!service) continue;
         
         try {
-          const contractNumber = `CTR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
           const profile = service.profile;
           
-          // Build contract name with service details
-          const contractName = `Contrat ${service.category} - ${service.serviceName}`;
+          // VALIDATION: Check for complete client coordinates (Nivra standard)
+          const requiredFields = ['full_name', 'service_address', 'phone', 'email'];
+          const missingFields = requiredFields.filter(field => !profile?.[field]);
           
-          // Create contract
-          const { data: newContract, error } = await supabase
-            .from("contracts")
-            .insert({
-              user_id: service.userId,
-              contract_name: contractName,
-              contract_url: contractNumber,
-              contract_number: contractNumber,
-              is_signed: false,
-            })
-            .select()
-            .single();
-          
-          if (error) throw error;
-          
-          // If it's an order, link the contract
-          if (service.type === 'order') {
-            const orderId = serviceId.replace('ord-', '');
-            await supabase
-              .from("orders")
-              .update({ related_contract_id: newContract.id })
-              .eq("id", orderId);
+          if (missingFields.length > 0) {
+            console.warn(`[RegenerateContract] Missing client data for ${service.serviceName}:`, missingFields);
+            results.incompleteData.push(`${service.serviceName} (manque: ${missingFields.join(', ')})`);
+            continue;
           }
           
-          results.success.push(service.serviceName);
+          if (service.type === 'order') {
+            // For orders, use the full contract engine which generates and persists PDF
+            const orderId = serviceId.replace('ord-', '');
+            
+            const contractResult = await ensureOrderContractUpToDate({
+              orderId,
+              trigger: 'admin_regenerate',
+              force: true, // Force regeneration
+            });
+            
+            if (contractResult.regenerated) {
+              results.success.push(service.serviceName);
+              results.generatedContracts.push({
+                contractId: contractResult.contractId,
+                serviceName: service.serviceName,
+                pdfHash: contractResult.pdfHash,
+              });
+            } else {
+              results.success.push(service.serviceName);
+            }
+          } else {
+            // For subscriptions without orders, create a basic contract record
+            const contractNumber = `CTR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+            const contractName = `Contrat ${service.category} - ${service.serviceName}`;
+            
+            const { data: newContract, error } = await supabase
+              .from("contracts")
+              .insert({
+                user_id: service.userId,
+                owner_user_id: service.userId,
+                contract_name: contractName,
+                contract_url: contractNumber,
+                contract_number: contractNumber,
+                is_signed: false,
+              })
+              .select()
+              .single();
+            
+            if (error) throw error;
+            
+            results.success.push(service.serviceName);
+            results.generatedContracts.push({
+              contractId: newContract.id,
+              serviceName: service.serviceName,
+            });
+          }
         } catch (err) {
           console.error(`Failed to generate contract for ${service.serviceName}:`, err);
           results.failed.push(service.serviceName);
@@ -422,20 +458,33 @@ const AdminContracts = () => {
       return results;
     },
     onSuccess: (results) => {
+      // Show specific feedback based on results
+      if (results.incompleteData.length > 0) {
+        toast.error(
+          `Coordonnées client incomplètes — impossible de générer ${results.incompleteData.length} contrat(s):\n${results.incompleteData.join('\n')}`,
+          { duration: 8000 }
+        );
+      }
       if (results.success.length > 0) {
-        toast.success(`${results.success.length} contrat(s) généré(s) avec succès`);
+        toast.success(`${results.success.length} contrat(s) régénéré(s) avec succès`, { duration: 5000 });
       }
       if (results.failed.length > 0) {
-        toast.error(`${results.failed.length} contrat(s) ont échoué`);
+        toast.error(`${results.failed.length} contrat(s) ont échoué: ${results.failed.join(', ')}`);
       }
+      
+      // Invalidate all relevant queries to refresh the UI immediately
       queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["active-services-for-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["orders-needing-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-documents"] });
+      
       setIsRegenerateDialogOpen(false);
       setSelectedServices([]);
     },
-    onError: () => {
-      toast.error("Erreur lors de la régénération des contrats");
+    onError: (error) => {
+      console.error("[RegenerateContracts] Critical error:", error);
+      toast.error("Erreur critique lors de la régénération des contrats");
     },
   });
 
