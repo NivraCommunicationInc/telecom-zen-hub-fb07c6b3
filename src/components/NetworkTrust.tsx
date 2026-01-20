@@ -5,17 +5,17 @@ const NetworkTrust = () => {
     {
       icon: MapPin,
       title: "Couverture provinciale",
-      description: "Service disponible partout au Québec, des grandes villes aux régions éloignées."
+      description: "Service disponible partout au Québec, des grandes villes aux régions."
     },
     {
       icon: Zap,
       title: "Activation rapide",
-      description: "Mobile activé en moins de 24h. Internet installé dans les 3 à 5 jours ouvrables."
+      description: "Mobile activé en moins de 24h. Internet installé dans les 3-5 jours."
     },
     {
       icon: Headphones,
       title: "Support local",
-      description: "Équipe de support basée au Québec, disponible 7 jours sur 7 en français."
+      description: "Équipe basée au Québec, disponible 7 jours sur 7 en français."
     },
     {
       icon: Shield,
@@ -46,93 +46,91 @@ const NetworkTrust = () => {
   ];
 
   return (
-    <section className="py-20 bg-primary text-white overflow-hidden">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <section className="py-20 bg-muted/50">
+      <div className="container mx-auto px-4 max-w-6xl">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/20 text-accent text-sm font-semibold mb-4">
+        <div className="text-center max-w-2xl mx-auto mb-14">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-semibold mb-4">
             Pourquoi Nivra
           </span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-5">
-            Un fournisseur qui vous 
-            <span className="text-accent"> simplifie la vie</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            Un fournisseur qui vous simplifie la vie
           </h2>
-          <p className="text-lg text-white/70">
-            Pas de contrat à long terme, pas de frais cachés, juste des services télécoms fiables 
-            avec un support humain qui répond vraiment.
+          <p className="text-muted-foreground text-lg">
+            Pas de contrat à long terme, pas de frais cachés, juste des services fiables avec un support humain.
           </p>
         </div>
 
         {/* Trust Points Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
           {trustPoints.map((point, index) => (
             <div 
               key={point.title}
-              className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-accent/30 transition-all duration-300 animate-fade-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="bg-card rounded-xl p-6 border border-border hover:border-accent/30 hover:shadow-md transition-all duration-300"
             >
-              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
                 <point.icon className="w-6 h-6 text-accent" />
               </div>
-              <h3 className="font-semibold text-lg mb-2">{point.title}</h3>
-              <p className="text-sm text-white/60 leading-relaxed">{point.description}</p>
+              <h3 className="font-semibold text-foreground mb-2">{point.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{point.description}</p>
             </div>
           ))}
         </div>
 
         {/* Testimonials */}
-        <div className="relative">
-          <div className="text-center mb-10">
-            <h3 className="text-2xl font-bold mb-2">Ce que nos clients disent</h3>
-            <p className="text-white/60">Avis vérifiés de vrais clients Nivra</p>
+        <div className="mb-16">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-foreground mb-2">Ce que nos clients disent</h3>
+            <p className="text-muted-foreground">Avis vérifiés de vrais clients Nivra</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {testimonials.map((testimonial, index) => (
               <div 
                 key={testimonial.name}
-                className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 animate-fade-in"
-                style={{ animationDelay: `${index * 0.15}s` }}
+                className="bg-card rounded-xl p-6 border border-border"
               >
                 {/* Stars */}
-                <div className="flex gap-1 mb-4">
+                <div className="flex gap-0.5 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-accent text-accent" />
+                    <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
                 
                 {/* Quote */}
-                <p className="text-white/80 mb-4 italic">"{testimonial.text}"</p>
+                <p className="text-foreground mb-4">"{testimonial.text}"</p>
                 
                 {/* Author */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-sm">
                   <CheckCircle className="w-4 h-4 text-accent" />
-                  <span className="font-medium">{testimonial.name}</span>
-                  <span className="text-white/40">•</span>
-                  <span className="text-sm text-white/60">{testimonial.location}</span>
+                  <span className="font-medium text-foreground">{testimonial.name}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">{testimonial.location}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Network Stats */}
-        <div className="mt-20 grid grid-cols-2 lg:grid-cols-4 gap-8 py-10 border-t border-white/10">
-          <div className="text-center">
-            <div className="text-4xl lg:text-5xl font-bold text-accent mb-2">99.9%</div>
-            <div className="text-sm text-white/60 uppercase tracking-wide">Disponibilité réseau</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl lg:text-5xl font-bold text-white mb-2">5G/LTE</div>
-            <div className="text-sm text-white/60 uppercase tracking-wide">Réseau mobile</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl lg:text-5xl font-bold text-white mb-2">1 Gbps</div>
-            <div className="text-sm text-white/60 uppercase tracking-wide">Vitesse fibre</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl lg:text-5xl font-bold text-accent mb-2">24h</div>
-            <div className="text-sm text-white/60 uppercase tracking-wide">Activation mobile</div>
+        {/* Stats Bar */}
+        <div className="bg-primary rounded-2xl p-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl lg:text-4xl font-bold text-accent mb-1">99.9%</div>
+              <div className="text-sm text-white/70">Disponibilité réseau</div>
+            </div>
+            <div>
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-1">5G/LTE</div>
+              <div className="text-sm text-white/70">Réseau mobile</div>
+            </div>
+            <div>
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-1">1 Gbps</div>
+              <div className="text-sm text-white/70">Vitesse fibre max</div>
+            </div>
+            <div>
+              <div className="text-3xl lg:text-4xl font-bold text-accent mb-1">&lt;24h</div>
+              <div className="text-sm text-white/70">Activation mobile</div>
+            </div>
           </div>
         </div>
       </div>
