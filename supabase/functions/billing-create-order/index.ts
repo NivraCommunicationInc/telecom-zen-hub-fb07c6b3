@@ -26,7 +26,7 @@ interface ServiceItem {
 
 interface CreateOrderRequest {
   // Customer info
-  user_id: string;
+  user_id?: string; // Optional - may not exist in auth.users
   first_name: string;
   last_name: string;
   email: string;
@@ -50,9 +50,9 @@ serve(async (req) => {
 
     const body: CreateOrderRequest = await req.json();
     
-    // Validate required fields
-    if (!body.user_id || !body.email || !body.first_name || !body.last_name || !body.phone) {
-      throw new Error("Missing required customer fields");
+    // Validate required fields (user_id is optional)
+    if (!body.email || !body.first_name || !body.last_name || !body.phone) {
+      throw new Error("Missing required customer fields: email, first_name, last_name, phone");
     }
     
     if (!body.services || body.services.length === 0) {
@@ -72,50 +72,42 @@ serve(async (req) => {
     // Step 1: Get or create billing customer
     let customerId: string;
     
+    // First check by email (always available)
     const { data: existingCustomer } = await supabase
       .from("billing_customers")
       .select("id")
-      .eq("user_id", body.user_id)
+      .eq("email", body.email)
       .single();
     
     if (existingCustomer) {
       customerId = existingCustomer.id;
       console.log(`[billing-create-order] Using existing customer: ${customerId}`);
-    } else {
-      // Check by email as fallback
-      const { data: emailCustomer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("email", body.email)
-        .single();
-      
-      if (emailCustomer) {
-        customerId = emailCustomer.id;
-        // Link user_id
+      // Optionally link user_id if provided and not already linked
+      if (body.user_id) {
         await supabase
           .from("billing_customers")
           .update({ user_id: body.user_id })
-          .eq("id", customerId);
-        console.log(`[billing-create-order] Linked user to existing customer: ${customerId}`);
-      } else {
-        // Create new customer
-        const { data: newCustomer, error: customerError } = await supabase
-          .from("billing_customers")
-          .insert({
-            user_id: body.user_id,
-            first_name: body.first_name,
-            last_name: body.last_name,
-            email: body.email,
-            phone: body.phone,
-            status: 'active'
-          })
-          .select()
-          .single();
-        
-        if (customerError) throw customerError;
-        customerId = newCustomer.id;
-        console.log(`[billing-create-order] Created new customer: ${customerId}`);
+          .eq("id", customerId)
+          .is("user_id", null);
       }
+    } else {
+      // Create new customer (user_id is nullable, so we can pass null if not provided)
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("billing_customers")
+        .insert({
+          user_id: body.user_id || null, // Nullable - may not exist in auth.users
+          first_name: body.first_name,
+          last_name: body.last_name,
+          email: body.email,
+          phone: body.phone,
+          status: 'active'
+        })
+        .select()
+        .single();
+      
+      if (customerError) throw customerError;
+      customerId = newCustomer.id;
+      console.log(`[billing-create-order] Created new customer: ${customerId}`);
     }
     
     const results = {
