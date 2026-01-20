@@ -6,7 +6,7 @@ import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const { data: siteSettings } = useSiteSettings();
   const currentYear = new Date().getFullYear();
 
@@ -20,9 +20,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
   const links = {
     services: [
-      { label: isFr ? "Mobile" : "Mobile", href: "/mobile" },
+      { label: "Mobile", href: "/mobile" },
       { label: isFr ? "Couverture Mobile" : "Mobile Coverage", href: "/mobile-coverage" },
-      { label: isFr ? "Internet" : "Internet", href: "/internet" },
+      { label: "Internet", href: "/internet" },
       { label: isFr ? "Télévision" : "Television", href: "/tv" },
       { label: isFr ? "Sécurité" : "Security", href: "/services" },
     ],
@@ -46,7 +46,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-primary text-primary-foreground" data-testid="footer">
+    <footer ref={ref} className="bg-navy-900 text-white" data-testid="footer">
       {/* Tier 1: Main Content Grid */}
       <div className="container mx-auto px-4 py-12 lg:py-16 max-w-6xl">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
@@ -101,7 +101,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           {/* Column B: Services */}
           <div>
             <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white/90">
-              {isFr ? "Services" : "Services"}
+              Services
             </h4>
             <ul className="space-y-2.5">
               {links.services.map((link) => (
@@ -120,7 +120,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           {/* Column C: Support */}
           <div>
             <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white/90">
-              {isFr ? "Support" : "Support"}
+              Support
             </h4>
             <ul className="space-y-2.5">
               {links.support.map((link) => (
