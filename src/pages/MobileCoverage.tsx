@@ -125,32 +125,34 @@ const MobileCoverage = () => {
       
       <main className="pt-20">
         {/* Hero Section */}
-        <section className="bg-gradient-to-b from-slate-900 via-slate-800 to-background py-16 md:py-24">
+        <section className="bg-primary py-16 md:py-20">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center">
-              <Badge className="mb-6 bg-primary/20 text-primary border-primary/30 px-4 py-1.5">
+              <Badge className="mb-6 bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20 px-4 py-1.5">
                 <Signal className="w-3.5 h-3.5 mr-1.5" />
                 {isFrench ? "Couverture Mobile" : "Mobile Coverage"}
               </Badge>
               
-              <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
+              <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 leading-tight">
                 {isFrench 
                   ? "Couverture mobile au Québec"
                   : "Mobile Coverage in Quebec"}
               </h1>
               
-              <p className="text-lg text-slate-300 mb-10 max-w-2xl mx-auto">
+              <p className="text-lg text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
                 {isFrench 
-                  ? "Vérifiez la disponibilité du réseau mobile Nivra à votre adresse et découvrez nos zones de couverture 4G/LTE."
-                  : "Check Nivra mobile network availability at your address and discover our 4G/LTE coverage areas."}
+                  ? "Vérifiez la disponibilité du service mobile Nivra à votre adresse et consultez la carte du Québec."
+                  : "Check Nivra mobile availability at your address and view the Quebec map."}
               </p>
 
-              {/* Network Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
                 {networkStats.map((stat, index) => (
-                  <div key={index} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">{stat.value}</div>
-                    <div className="text-xs md:text-sm text-slate-400">{stat.label}</div>
+                  <div
+                    key={index}
+                    className="rounded-xl p-4 border border-primary-foreground/15 bg-primary-foreground/10"
+                  >
+                    <div className="text-2xl md:text-3xl font-bold text-accent mb-1">{stat.value}</div>
+                    <div className="text-xs md:text-sm text-primary-foreground/70">{stat.label}</div>
                   </div>
                 ))}
               </div>
