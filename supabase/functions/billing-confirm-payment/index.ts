@@ -13,8 +13,14 @@ interface ConfirmPaymentRequest {
 }
 
 /**
- * Confirm payment for an invoice (typically Interac)
- * This triggers the SQL trigger to activate the subscription
+ * Confirm Interac payment for an invoice
+ * 
+ * BUSINESS RULE (PREPAID MODEL):
+ * - Cycle starts ONLY when invoice is marked PAID
+ * - The SQL trigger (on_invoice_paid_update_subscription) automatically:
+ *   1. Sets cycle_start_date = payment confirmation date
+ *   2. Sets cycle_end_date = cycle_start_date + 30 days
+ *   3. Activates the subscription (status = 'active')
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -54,36 +60,52 @@ serve(async (req) => {
       );
     }
     
-    // Update payment record
+    // Current timestamp for payment confirmation
+    const paidAt = new Date().toISOString();
+    
+    // Update payment record to confirmed
     const { error: paymentError } = await supabase
       .from("billing_payments")
       .update({
         status: 'confirmed',
         reference: body.payment_reference || null,
         confirmed_by: body.confirmed_by || null,
-        received_at: new Date().toISOString()
+        received_at: paidAt
       })
       .eq("invoice_id", body.invoice_id)
       .eq("status", "pending");
     
     if (paymentError) {
-      console.error("Payment update error:", paymentError);
+      console.error("[billing-confirm-payment] Payment update error:", paymentError);
     }
     
-    // Update invoice status to PAID
-    // This triggers the SQL trigger to update subscription
+    // Update invoice status to PAID with exact timestamp
+    // The SQL trigger will automatically:
+    // 1. Recalculate cycle_start_date = paid_at
+    // 2. Recalculate cycle_end_date = paid_at + 30 days
+    // 3. Activate the subscription
     const { error: updateError } = await supabase
       .from("billing_invoices")
       .update({
         status: 'paid',
-        paid_at: new Date().toISOString()
+        paid_at: paidAt
       })
       .eq("id", body.invoice_id);
     
     if (updateError) throw updateError;
     
-    // Queue confirmation email
+    // Fetch updated invoice to get real cycle dates (set by trigger)
+    const { data: updatedInvoice } = await supabase
+      .from("billing_invoices")
+      .select("cycle_start_date, cycle_end_date")
+      .eq("id", body.invoice_id)
+      .single();
+    
+    // Queue confirmation email with REAL cycle dates
     if (invoice.customer) {
+      const cycleStart = updatedInvoice?.cycle_start_date || new Date().toISOString().split('T')[0];
+      const cycleEnd = updatedInvoice?.cycle_end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
       await supabase.from("email_queue").insert({
         to_email: invoice.customer.email,
         to_name: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
@@ -93,21 +115,24 @@ serve(async (req) => {
           invoiceNumber: invoice.invoice_number,
           planName: invoice.subscription?.plan_name || 'Service Nivra',
           total: invoice.total.toFixed(2),
-          paidAt: new Date().toLocaleDateString('fr-CA'),
-          cycleStart: invoice.cycle_start_date,
-          cycleEnd: invoice.cycle_end_date
+          paidAt: new Date(paidAt).toLocaleDateString('fr-CA'),
+          cycleStart: cycleStart,
+          cycleEnd: cycleEnd
         },
         priority: "high"
       });
     }
     
-    console.log(`[billing-confirm-payment] Invoice ${invoice.invoice_number} marked as paid`);
+    console.log(`[billing-confirm-payment] Invoice ${invoice.invoice_number} marked as PAID at ${paidAt}. Cycle activated via trigger.`);
     
     return new Response(
       JSON.stringify({
         success: true,
         invoice_number: invoice.invoice_number,
-        status: 'paid'
+        status: 'paid',
+        paid_at: paidAt,
+        cycle_start_date: updatedInvoice?.cycle_start_date,
+        cycle_end_date: updatedInvoice?.cycle_end_date
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
