@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { 
   MessageSquare, 
-  Phone, 
   Mail, 
   HelpCircle,
   Smartphone,
@@ -28,7 +27,6 @@ const Aide = () => {
   const { data: siteSettings } = useSiteSettings();
   
   // Use site_settings as source of truth, COMPANY_CONTACT as fallback
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
   const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
   const faqItems = [
@@ -181,24 +179,19 @@ const Aide = () => {
             <Card className="bg-card border-border text-center">
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                  <Phone className="w-6 h-6 text-accent" />
+                  <Clock className="w-6 h-6 text-accent" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-2">Téléphone</h3>
+                <h3 className="font-semibold text-foreground mb-2">Heures</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {supportPhone}
+                  {businessHours}
                 </p>
-                <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
-                  <Button variant="outline" size="sm">Appeler</Button>
-                </a>
+                <Link to="/contact">
+                  <Button variant="outline" size="sm">Nous joindre</Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
 
-          <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground">
-              <strong>Heures de support :</strong> {businessHours}
-            </p>
-          </div>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Phone, Mail, Home } from "lucide-react";
+import { Shield, Mail, Home, MessageSquare } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
@@ -12,7 +12,6 @@ const ClientAccessBlocked = () => {
   const { data: siteSettings } = useSiteSettings();
   
   // Use site_settings as source of truth, COMPANY_CONTACT as fallback
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
   const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const { user } = useClientAuth();
 
@@ -75,14 +74,14 @@ const ClientAccessBlocked = () => {
               Pour rétablir l'accès, veuillez contacter notre équipe:
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <a href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
-                <Phone className="w-4 h-4" />
-                {supportPhone}
-              </a>
               <a href={`mailto:${supportEmail.toLowerCase()}`} className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
                 <Mail className="w-4 h-4" />
                 {supportEmail}
               </a>
+              <Link to="/contact" className="inline-flex items-center justify-center gap-2 text-primary hover:underline">
+                <MessageSquare className="w-4 h-4" />
+                Chat / Tickets
+              </Link>
             </div>
           </div>
 

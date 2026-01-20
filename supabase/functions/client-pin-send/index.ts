@@ -234,7 +234,7 @@ serve(async (req) => {
             <div class="footer">
               <p>Nivra Communications Inc. © ${new Date().getFullYear()}</p>
               <p>1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5</p>
-              <p>Support: Support@nivratelecom.ca | 438-544-2233</p>
+              <p>Support: Support@nivratelecom.ca</p>
               <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
             </div>
           </div>

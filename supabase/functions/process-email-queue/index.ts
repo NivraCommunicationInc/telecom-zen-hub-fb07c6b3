@@ -63,10 +63,9 @@ const joinUrl = (baseUrl: string, path: string): string => {
 };
 
 // Professional email wrapper with header and footer
-const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string, supportPhone?: string) => {
+const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string) => {
   const email = supportEmail || "Support@nivratelecom.ca";
-  const phone = supportPhone || "438-544-2233";
-  const phoneDigits = phone.replace(/[^0-9]/g, '');
+  
   
   return `
 <!DOCTYPE html>
@@ -170,9 +169,7 @@ const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEm
                       Laval, QC, Canada
                     </p>
                     <p style="margin:0 0 12px; font-size:13px; color:${emailStyles.textSecondary};">
-                      <a href="mailto:${email}" style="color:${emailStyles.accent}; text-decoration:none;">${email}</a> 
-                      &nbsp;|&nbsp; 
-                      <a href="tel:${phoneDigits}" style="color:${emailStyles.accent}; text-decoration:none;">${phone}</a>
+                      <a href="mailto:${email}" style="color:${emailStyles.accent}; text-decoration:none;">${email}</a>
                     </p>
                     <p style="margin:0; font-size:11px; color:${emailStyles.textMuted};">
                       Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br>
@@ -258,7 +255,6 @@ const greeting = (name?: string) => `
 interface EmailConfig {
   baseUrl: string;
   supportEmail: string;
-  supportPhone: string;
 }
 
 const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<string, any>, config: EmailConfig) => string }> = {

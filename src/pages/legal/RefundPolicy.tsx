@@ -33,7 +33,7 @@ const RefundPolicy = () => {
                     <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
                       {COMPANY_CONTACT.supportEmailDisplay}
                     </a>{" "}
-                    | {COMPANY_CONTACT.supportPhoneDisplay} | {COMPANY_CONTACT.fullAddress}
+                    | {COMPANY_CONTACT.fullAddress}
                   </p>
                 </section>
 
@@ -133,7 +133,7 @@ const RefundPolicy = () => {
                     <a href={`mailto:${COMPANY_CONTACT.supportEmail}`} className="text-primary hover:underline">
                       {COMPANY_CONTACT.supportEmailDisplay}
                     </a>{" "}
-                    | {COMPANY_CONTACT.supportPhoneDisplay} | {COMPANY_CONTACT.fullAddress}
+                    | {COMPANY_CONTACT.fullAddress}
                   </p>
                 </section>
 
