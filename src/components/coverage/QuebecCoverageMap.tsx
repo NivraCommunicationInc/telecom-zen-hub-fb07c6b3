@@ -4,208 +4,193 @@ interface QuebecCoverageMapProps {
   className?: string;
 }
 
-// Coverage zones data - cities where service is available
-const coverageZones = [
-  // Greater Montreal Area - Full coverage
-  { name: "Montréal", lat: 45.5017, lng: -73.5673, coverage: "full", size: "large" },
-  { name: "Laval", lat: 45.6066, lng: -73.7124, coverage: "full", size: "medium" },
-  { name: "Longueuil", lat: 45.5312, lng: -73.5185, coverage: "full", size: "medium" },
-  { name: "Brossard", lat: 45.4656, lng: -73.4595, coverage: "full", size: "small" },
-  { name: "Terrebonne", lat: 45.7050, lng: -73.6356, coverage: "full", size: "small" },
-  
-  // Quebec City Area
-  { name: "Québec", lat: 46.8139, lng: -71.2080, coverage: "full", size: "large" },
-  { name: "Lévis", lat: 46.8032, lng: -71.1784, coverage: "full", size: "medium" },
-  
-  // Major cities
-  { name: "Gatineau", lat: 45.4765, lng: -75.7013, coverage: "full", size: "medium" },
-  { name: "Sherbrooke", lat: 45.4009, lng: -71.8929, coverage: "full", size: "medium" },
-  { name: "Trois-Rivières", lat: 46.3432, lng: -72.5410, coverage: "full", size: "medium" },
-  { name: "Saguenay", lat: 48.4169, lng: -71.0682, coverage: "full", size: "medium" },
-  { name: "Drummondville", lat: 45.8844, lng: -72.4836, coverage: "full", size: "small" },
-  { name: "Granby", lat: 45.4001, lng: -72.7328, coverage: "full", size: "small" },
-  { name: "Saint-Hyacinthe", lat: 45.6307, lng: -72.9570, coverage: "full", size: "small" },
-  { name: "Saint-Jean-sur-Richelieu", lat: 45.3073, lng: -73.2629, coverage: "full", size: "small" },
-  { name: "Saint-Jérôme", lat: 45.7801, lng: -74.0036, coverage: "full", size: "small" },
-  
-  // Extended coverage areas
-  { name: "Rimouski", lat: 48.4490, lng: -68.5220, coverage: "extended", size: "small" },
-  { name: "Rouyn-Noranda", lat: 48.2369, lng: -79.0197, coverage: "extended", size: "small" },
-  { name: "Val-d'Or", lat: 48.0974, lng: -77.7820, coverage: "extended", size: "small" },
-  { name: "Sept-Îles", lat: 50.2111, lng: -66.3770, coverage: "extended", size: "small" },
-  { name: "Baie-Comeau", lat: 49.2167, lng: -68.1500, coverage: "extended", size: "small" },
-  { name: "Rivière-du-Loup", lat: 47.8333, lng: -69.5333, coverage: "extended", size: "small" },
-  { name: "Gaspé", lat: 48.8333, lng: -64.4833, coverage: "extended", size: "small" },
+const WIDTH = 920;
+const HEIGHT = 1350;
+
+// Quebec boundaries (approximate for mapping)
+const QUEBEC_BOUNDS = {
+  minLat: 44.5,
+  maxLat: 62.5,
+  minLng: -79.5,
+  maxLng: -56.5,
+};
+
+function latLngToSvg(lat: number, lng: number) {
+  const x = ((lng - QUEBEC_BOUNDS.minLng) / (QUEBEC_BOUNDS.maxLng - QUEBEC_BOUNDS.minLng)) * WIDTH;
+  const y = ((QUEBEC_BOUNDS.maxLat - lat) / (QUEBEC_BOUNDS.maxLat - QUEBEC_BOUNDS.minLat)) * HEIGHT;
+  return { x, y };
+}
+
+const majorCities = [
+  { name: "Montréal", lat: 45.5017, lng: -73.5673 },
+  { name: "Québec", lat: 46.8139, lng: -71.2082 },
+  { name: "Gatineau", lat: 45.4765, lng: -75.7013 },
+  { name: "Sherbrooke", lat: 45.4042, lng: -71.8929 },
+  { name: "Trois-Rivières", lat: 46.3432, lng: -72.5421 },
+  { name: "Saguenay", lat: 48.4279, lng: -71.0686 },
 ];
 
-// Convert lat/lng to SVG coordinates
-const latLngToSvg = (lat: number, lng: number): { x: number; y: number } => {
-  // Quebec bounds: lat 45-52, lng -80 to -57
-  const minLat = 44.5;
-  const maxLat = 52;
-  const minLng = -80;
-  const maxLng = -57;
-  
-  const x = ((lng - minLng) / (maxLng - minLng)) * 500 + 50;
-  const y = ((maxLat - lat) / (maxLat - minLat)) * 400 + 50;
-  
-  return { x, y };
-};
+// Real Quebec province outline (same path used in the admin map)
+const QUEBEC_PATH = `M 180 485
+  L 185 480 L 195 478 L 210 475 L 225 470 L 240 468
+  L 255 465 L 265 460 L 275 455 L 285 448 L 295 440
+  L 305 432 L 312 425 L 318 418 L 322 410 L 325 400
+  L 330 388 L 338 375 L 345 362 L 352 348 L 358 335
+  L 362 320 L 365 305 L 368 290 L 372 275 L 378 260
+  L 385 248 L 392 238 L 400 228 L 410 218 L 420 210
+  L 432 202 L 445 195 L 458 188 L 472 182 L 488 178
+  L 505 175 L 522 172 L 540 170 L 558 168 L 575 165
+  L 590 160 L 602 155 L 612 148 L 620 140 L 628 130
+  L 635 118 L 642 105 L 650 92 L 660 80 L 672 70
+  L 685 62 L 700 55 L 718 50 L 738 48 L 758 50
+  L 775 55 L 790 62 L 802 72 L 812 85 L 820 100
+  L 825 118 L 828 138 L 830 158 L 832 178 L 835 198
+  L 840 218 L 848 235 L 858 250 L 870 262 L 882 272
+  L 892 280 L 900 285 L 905 288 L 908 290 L 910 292
+  L 905 295 L 898 300 L 890 308 L 882 318 L 875 330
+  L 870 342 L 868 355 L 868 368 L 870 380 L 875 392
+  L 882 402 L 890 410 L 898 415 L 905 418 L 910 420
+  L 908 425 L 902 432 L 895 442 L 888 455 L 882 470
+  L 878 488 L 875 508 L 872 528 L 868 548 L 862 565
+  L 855 580 L 845 592 L 832 602 L 818 610 L 802 618
+  L 785 625 L 768 632 L 752 640 L 738 650 L 725 662
+  L 715 675 L 708 688 L 702 702 L 698 715 L 695 728
+  L 692 740 L 688 752 L 682 762 L 675 770 L 665 778
+  L 652 785 L 638 790 L 622 795 L 605 800 L 588 805
+  L 572 812 L 558 820 L 545 830 L 535 842 L 528 855
+  L 522 868 L 518 880 L 515 892 L 512 902 L 508 910
+  L 502 918 L 495 925 L 485 932 L 472 938 L 458 942
+  L 442 945 L 425 948 L 408 952 L 392 958 L 378 965
+  L 365 975 L 355 988 L 348 1002 L 342 1018 L 338 1035
+  L 335 1052 L 330 1068 L 322 1082 L 312 1095 L 300 1105
+  L 285 1112 L 268 1118 L 250 1122 L 232 1125 L 215 1128
+  L 200 1132 L 188 1138 L 178 1148 L 172 1160 L 168 1175
+  L 165 1192 L 162 1210 L 158 1228 L 152 1245 L 145 1260
+  L 135 1272 L 122 1282 L 108 1290 L 92 1295 L 75 1298
+  L 58 1300 L 42 1298 L 28 1292 L 18 1282 L 12 1268
+  L 10 1252 L 12 1235 L 18 1218 L 28 1202 L 40 1188
+  L 55 1175 L 72 1165 L 90 1158 L 108 1152 L 125 1145
+  L 140 1135 L 152 1122 L 160 1108 L 165 1092 L 168 1075
+  L 170 1058 L 172 1040 L 175 1022 L 180 1005 L 188 990
+  L 198 978 L 210 968 L 225 960 L 242 952 L 258 945
+  L 272 935 L 282 922 L 290 908 L 295 892 L 298 875
+  L 300 858 L 302 840 L 305 822 L 310 805 L 318 790
+  L 328 778 L 342 768 L 358 760 L 375 755 L 392 752
+  L 408 748 L 422 742 L 432 732 L 440 720 L 445 705
+  L 448 690 L 450 675 L 452 660 L 455 645 L 460 632
+  L 468 620 L 478 610 L 490 602 L 502 595 L 515 590
+  L 528 585 L 540 578 L 550 568 L 558 555 L 562 540
+  L 565 525 L 568 510 L 572 495 L 578 482 L 588 472
+  L 600 465 L 615 460 L 632 455 L 648 450 L 662 442
+  L 672 432 L 678 418 L 682 402 L 685 385 L 688 368
+  L 692 352 L 698 338 L 708 328 L 720 320 L 735 315
+  L 752 312 L 768 308 L 782 302 L 792 292 L 798 278
+  L 800 262 L 798 245 L 792 230 L 782 218 L 770 210
+  L 755 205 L 738 202 L 720 200 L 702 198 L 685 195
+  L 670 190 L 658 182 L 648 172 L 642 160 L 638 145
+  L 635 130 L 630 118 L 622 108 L 610 100 L 595 95
+  L 578 92 L 560 90 L 542 88 L 525 85 L 510 80
+  L 498 72 L 488 62 L 480 50 L 472 38 L 462 28
+  L 450 20 L 435 15 L 418 12 L 400 10 L 382 10
+  L 365 12 L 350 18 L 338 28 L 328 42 L 322 58
+  L 318 75 L 315 92 L 312 110 L 308 128 L 302 145
+  L 292 160 L 280 172 L 265 182 L 248 190 L 230 198
+  L 212 208 L 198 220 L 188 235 L 182 252 L 178 270
+  L 175 288 L 172 308 L 168 328 L 162 348 L 155 365
+  L 145 380 L 132 392 L 118 402 L 102 412 L 88 422
+  L 78 435 L 72 450 L 70 468 L 72 485 L 78 500
+  L 88 512 L 102 522 L 118 530 L 135 535 L 152 538
+  L 168 540 L 182 538 L 195 532 L 205 522 L 212 510
+  L 215 495 L 215 480 L 210 468 L 200 458 L 188 452
+  L 175 450 L 162 452 L 152 458 L 145 468 L 142 480
+  L 145 492 L 152 502 L 162 508 L 175 510 L 188 505
+  L 198 495 L 202 482 L 200 468 L 192 458 L 180 455
+  L 170 458 L 165 468 L 168 480 L 178 488 L 180 485
+  Z`;
 
 export const QuebecCoverageMap: React.FC<QuebecCoverageMapProps> = ({ className }) => {
   return (
     <div className={className}>
       <svg
-        viewBox="0 0 600 500"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full h-full"
-        style={{ maxHeight: "500px" }}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Carte du Québec - disponibilité du service mobile Nivra"
       >
         <defs>
-          {/* Gradients */}
-          <linearGradient id="quebecFill" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.08" />
+          <linearGradient id="qcCoverageFill" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity="0.06" />
           </linearGradient>
-          <linearGradient id="quebecStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
-          </linearGradient>
-          
-          {/* Coverage zone gradients */}
-          <radialGradient id="fullCoverage" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.6" />
-            <stop offset="70%" stopColor="#22c55e" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="extendedCoverage" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
-            <stop offset="70%" stopColor="#3b82f6" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-          </radialGradient>
-          
-          {/* Glow filter */}
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
 
-        {/* Quebec province outline - simplified realistic shape */}
+        {/* Province */}
         <path
-          d="M 120 380 
-             C 130 370, 145 365, 160 360
-             L 180 350 L 195 338 L 210 325
-             C 225 310, 235 295, 245 280
-             L 260 260 L 275 242 L 290 228
-             C 305 215, 322 205, 340 198
-             L 365 190 L 392 185 L 420 182
-             C 445 180, 468 182, 488 188
-             L 508 195 L 525 205 L 538 218
-             C 548 230, 555 245, 558 262
-             L 560 280 L 558 298 L 552 315
-             C 545 335, 535 352, 522 368
-             L 508 382 L 492 395 L 475 408
-             C 458 420, 440 430, 420 438
-             L 398 445 L 375 450 L 352 455
-             C 328 460, 305 462, 282 460
-             L 260 455 L 240 448 L 222 438
-             C 202 425, 185 410, 172 392
-             L 165 378 L 160 365 L 155 350
-             C 152 335, 150 320, 152 305
-             L 155 290 L 160 275 L 168 262
-             C 178 248, 192 238, 208 232
-             L 225 228 L 242 225 L 260 225
-             C 275 225, 288 228, 300 235
-             L 312 242 L 322 252 L 330 265
-             C 335 278, 338 292, 335 308
-             L 330 325 L 322 340 L 310 355
-             C 298 368, 282 378, 265 385
-             L 245 390 L 225 392 L 205 390
-             C 185 388, 168 382, 152 372
-             L 140 362 L 130 350 L 122 338
-             C 115 325, 112 310, 115 295
-             Z"
-          fill="url(#quebecFill)"
-          stroke="url(#quebecStroke)"
+          d={QUEBEC_PATH}
+          fill="url(#qcCoverageFill)"
+          stroke="hsl(var(--border))"
           strokeWidth="2"
-          className="transition-all duration-300"
-        />
-        
-        {/* St. Lawrence River */}
-        <path
-          d="M 150 385 Q 200 375, 250 370 Q 300 365, 350 358 Q 400 350, 450 340 Q 480 335, 510 328"
-          fill="none"
-          stroke="hsl(var(--primary))"
-          strokeWidth="3"
-          strokeOpacity="0.3"
-          strokeLinecap="round"
         />
 
-        {/* Coverage zones */}
-        {coverageZones.map((zone, index) => {
-          const { x, y } = latLngToSvg(zone.lat, zone.lng);
-          const radius = zone.size === "large" ? 35 : zone.size === "medium" ? 25 : 18;
-          
+        {/* Saint-Laurent (stylisé, statique) */}
+        <path
+          d="M 180 540 Q 250 535, 320 520 T 450 490 T 580 460 T 700 420"
+          fill="none"
+          stroke="hsl(var(--muted-foreground))"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeOpacity="0.25"
+        />
+
+        {/* Villes principales (repères) */}
+        {majorCities.map((city) => {
+          const { x, y } = latLngToSvg(city.lat, city.lng);
           return (
-            <g key={index}>
-              {/* Coverage area glow */}
+            <g key={city.name}>
               <circle
                 cx={x}
                 cy={y}
-                r={radius}
-                fill={zone.coverage === "full" ? "url(#fullCoverage)" : "url(#extendedCoverage)"}
+                r={6}
+                fill="hsl(var(--success))"
+                stroke="hsl(var(--background))"
+                strokeWidth={2}
               />
-              {/* City marker */}
-              <circle
-                cx={x}
-                cy={y}
-                r={zone.size === "large" ? 5 : zone.size === "medium" ? 4 : 3}
-                fill={zone.coverage === "full" ? "#22c55e" : "#3b82f6"}
-                filter="url(#glow)"
-              />
-              {/* City label for large/medium cities */}
-              {(zone.size === "large" || zone.size === "medium") && (
-                <text
-                  x={x}
-                  y={y - (zone.size === "large" ? 12 : 10)}
-                  textAnchor="middle"
-                  className="fill-foreground text-[10px] font-medium"
-                  style={{ fontSize: zone.size === "large" ? "11px" : "9px" }}
-                >
-                  {zone.name}
-                </text>
-              )}
+              <text
+                x={x + 10}
+                y={y + 5}
+                fontSize={14}
+                fontWeight={600}
+                fill="hsl(var(--foreground))"
+              >
+                {city.name}
+              </text>
             </g>
           );
         })}
 
-        {/* Legend */}
-        <g transform="translate(20, 420)">
+        {/* Légende */}
+        <g transform="translate(28, 1225)">
           <rect
             x="0"
             y="0"
-            width="180"
-            height="60"
-            rx="8"
+            width="360"
+            height="92"
+            rx="12"
             fill="hsl(var(--card))"
             stroke="hsl(var(--border))"
             strokeWidth="1"
-            fillOpacity="0.95"
+            fillOpacity="0.96"
           />
-          
-          {/* Full coverage */}
-          <circle cx="20" cy="20" r="6" fill="#22c55e" />
-          <text x="35" y="24" className="fill-foreground text-[11px]">
-            Couverture complète 4G/LTE
+
+          <circle cx="22" cy="30" r="7" fill="hsl(var(--accent))" />
+          <text x="40" y="35" fontSize="14" fontWeight="600" fill="hsl(var(--foreground))">
+            Service offert au Québec
           </text>
-          
-          {/* Extended coverage */}
-          <circle cx="20" cy="44" r="6" fill="#3b82f6" />
-          <text x="35" y="48" className="fill-foreground text-[11px]">
-            Couverture étendue
+
+          <circle cx="22" cy="62" r="7" fill="hsl(var(--success))" />
+          <text x="40" y="67" fontSize="14" fill="hsl(var(--muted-foreground))">
+            Villes principales (repères)
           </text>
         </g>
       </svg>
@@ -214,3 +199,4 @@ export const QuebecCoverageMap: React.FC<QuebecCoverageMapProps> = ({ className 
 };
 
 export default QuebecCoverageMap;
+
