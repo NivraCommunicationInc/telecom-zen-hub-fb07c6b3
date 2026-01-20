@@ -1,7 +1,7 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldAlert, Mail, Phone, MessageSquare } from "lucide-react";
+import { ShieldAlert, Mail, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
@@ -10,24 +10,21 @@ const ClientSuspended = () => {
   const { data: siteSettings } = useSiteSettings();
   
   // Use site_settings as source of truth, COMPANY_CONTACT as fallback
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
   const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const { language } = useLanguage();
 
   const content = {
     fr: {
       title: "Compte temporairement suspendu",
-      message: "Votre accès en ligne a été suspendu pour vérification de sécurité. Veuillez nous contacter via le formulaire de contact du site ou par courriel/téléphone pour réactiver votre accès.",
+      message: "Votre accès en ligne a été suspendu pour vérification de sécurité. Veuillez nous contacter via le formulaire de contact du site ou par courriel pour réactiver votre accès.",
       contactForm: "Formulaire de contact",
       emailSupport: "Envoyer un courriel",
-      callSupport: "Appeler le support",
     },
     en: {
       title: "Account temporarily suspended",
-      message: "Your online access has been suspended for a security review. Please contact us through the website contact form or by email/phone to restore access.",
+      message: "Your online access has been suspended for a security review. Please contact us through the website contact form or by email to restore access.",
       contactForm: "Contact form",
       emailSupport: "Email support",
-      callSupport: "Call support",
     },
   };
 
@@ -47,7 +44,7 @@ const ClientSuspended = () => {
           
           <div className="flex flex-col gap-3">
             <Button asChild variant="default" className="w-full">
-              <Link to="/#contact">
+              <Link to="/contact">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 {t.contactForm}
               </Link>
@@ -57,13 +54,6 @@ const ClientSuspended = () => {
               <a href={`mailto:${supportEmail.toLowerCase()}`}>
                 <Mail className="w-4 h-4 mr-2" />
                 {t.emailSupport}
-              </a>
-            </Button>
-            
-            <Button asChild variant="outline" className="w-full">
-              <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
-                <Phone className="w-4 h-4 mr-2" />
-                {t.callSupport}
               </a>
             </Button>
           </div>

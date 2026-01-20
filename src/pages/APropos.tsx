@@ -6,7 +6,6 @@ import {
   Shield, 
   CheckCircle2,
   MapPin,
-  Phone,
   Mail,
   Clock,
   ChevronRight,
@@ -15,7 +14,8 @@ import {
   Smartphone,
   CreditCard,
   Users,
-  Headphones
+  Headphones,
+  MessageSquare
 } from "lucide-react";
 import { COMPANY_CONTACT } from "@/config/company";
 import Testimonials from "@/components/Testimonials";
@@ -63,7 +63,7 @@ const APropos = () => {
     {
       icon: Headphones,
       title: "Support 7/7",
-      description: "Équipe locale disponible par téléphone, courriel et portail."
+      description: "Équipe locale disponible par courriel, chat et portail."
     },
   ];
 
@@ -295,10 +295,10 @@ const APropos = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
-                  <Phone className="w-6 h-6 text-accent" />
+                  <MessageSquare className="w-6 h-6 text-accent" />
                 </div>
-                <p className="text-sm text-muted-foreground mb-1">Téléphone</p>
-                <p className="font-medium text-foreground">{COMPANY_CONTACT.supportPhoneDisplay}</p>
+                <p className="text-sm text-muted-foreground mb-1">Chat / Tickets</p>
+                <Link to="/contact" className="font-medium text-primary hover:underline">Nous joindre</Link>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">

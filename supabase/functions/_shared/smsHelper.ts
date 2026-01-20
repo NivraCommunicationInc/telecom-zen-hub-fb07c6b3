@@ -185,7 +185,7 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
 const SMS_FOOTER = `
 Nivra Telecom
 Laval, QC, Canada
-Support@nivratelecom.ca | 438-544-2233
+Support@nivratelecom.ca
 Vous recevez ce texto suite à une action sur votre compte Nivra Telecom.
 You are receiving this text because of an action on your Nivra Telecom account.`;
 
@@ -285,7 +285,7 @@ Bonjour ${params.clientName},
 
 Votre service ${params.serviceName} a été temporairement suspendu.
 
-Contactez-nous pour rétablir votre service: 438-544-2233
+Contactez-nous pour rétablir votre service: Support@nivratelecom.ca
 ${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
@@ -383,7 +383,7 @@ Bonjour ${params.clientName},
 Le transfert de ${params.phoneNumber} nécessite votre attention.${params.reason ? `
 Raison: ${params.reason}` : ''}
 
-Contactez-nous: 438-544-2233
+Contactez-nous: Support@nivratelecom.ca
 ${SMS_FOOTER}`,
 };
 

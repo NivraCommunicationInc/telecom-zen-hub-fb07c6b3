@@ -56,13 +56,13 @@ const SupportEtPlaintes = () => {
                 <Card className="bg-card border-border">
                   <CardContent className="p-5 text-center">
                     <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
-                      <Phone className="w-6 h-6 text-accent" />
+                      <Clock className="w-6 h-6 text-accent" />
                     </div>
-                    <h3 className="font-semibold text-foreground mb-1">Téléphone</h3>
-                    <p className="text-sm text-muted-foreground mb-2">{COMPANY_CONTACT.supportPhoneDisplay}</p>
-                    <a href={`tel:${COMPANY_CONTACT.supportPhoneTel}`} className="text-sm text-primary hover:underline">
-                      Appeler
-                    </a>
+                    <h3 className="font-semibold text-foreground mb-1">Heures</h3>
+                    <p className="text-sm text-muted-foreground mb-2">{COMPANY_CONTACT.supportHours}</p>
+                    <Link to="/contact" className="text-sm text-primary hover:underline">
+                      Nous joindre
+                    </Link>
                   </CardContent>
                 </Card>
               </div>
@@ -274,8 +274,8 @@ const SupportEtPlaintes = () => {
               <h2 className="text-2xl font-display font-bold text-foreground">Contact</h2>
               <ul className="list-none space-y-2">
                 <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
-                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
                 <li><strong>Adresse :</strong> {COMPANY_CONTACT.fullAddress}</li>
+                <li><strong>Chat / Tickets :</strong> <Link to="/contact" className="text-primary hover:underline">Nous joindre</Link></li>
               </ul>
             </section>
 
