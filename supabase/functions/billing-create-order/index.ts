@@ -1,21 +1,46 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * ============================================================================
+ * BILLING V2 - CREATE ORDER
+ * ============================================================================
+ * 
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  RÈGLE SYSTÈME VERROUILLÉE - MODÈLE 100% PRÉPAYÉ                       │
+ * │                                                                         │
+ * │  LE CYCLE DE FACTURATION NE COMMENCE JAMAIS À LA COMMANDE.             │
+ * │  LE CYCLE COMMENCE UNIQUEMENT QUAND LE PAIEMENT INTERAC EST CONFIRMÉ.  │
+ * │                                                                         │
+ * │  Cette règle est IMMUABLE et protégée par des triggers SQL.            │
+ * └────────────────────────────────────────────────────────────────────────┘
+ * 
+ * Cette fonction crée les enregistrements de facturation pour une nouvelle commande:
+ * - 1 billing_customer (ou réutilise existant par email)
+ * - 1 billing_subscription par service (status = 'pending')
+ * - 1 facture initiale par abonnement avec logique de frais d'activation:
+ *   - 25$ pour 1 service
+ *   - 45$ forfaitaire pour 2+ services dans la même commande
+ * 
+ * IMPORTANT:
+ * - Les abonnements sont créés avec status = 'pending' (JAMAIS 'active')
+ * - Les dates cycle_start/cycle_end sont PROVISOIRES à la création
+ * - L'activation se fait UNIQUEMENT via billing-confirm-payment quand
+ *   l'admin confirme réception du virement Interac
+ * - Le trigger SQL recalcule automatiquement les vraies dates de cycle
+ * 
+ * PAIEMENT:
+ * - Interac e-Transfer UNIQUEMENT vers Support@nivratelecom.ca
+ * - Aucune carte de crédit, aucun prélèvement automatique
+ * 
+ * @author Nivra Telecom
+ * @version 2.0.0 - Prepaid Interac-Only Model
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-/**
- * Billing V2 - Create Order
- * 
- * Creates billing records from a new order:
- * - 1 billing_customer (or gets existing)
- * - 1 billing_subscription per service
- * - 1 initial invoice per subscription with activation fee logic:
- *   - $25 for 1 service
- *   - $45 flat for 2+ services in same order
- */
 
 interface ServiceItem {
   plan_code: string;

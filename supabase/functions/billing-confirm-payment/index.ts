@@ -1,6 +1,37 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * ============================================================================
+ * BILLING V2 - CONFIRM INTERAC PAYMENT
+ * ============================================================================
+ * 
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  RÈGLE SYSTÈME VERROUILLÉE - MODÈLE 100% PRÉPAYÉ                       │
+ * │                                                                         │
+ * │  LE CYCLE DE FACTURATION NE COMMENCE JAMAIS À LA COMMANDE.             │
+ * │  LE CYCLE COMMENCE UNIQUEMENT QUAND LE PAIEMENT INTERAC EST CONFIRMÉ.  │
+ * │                                                                         │
+ * │  Cette règle est IMMUABLE et protégée par des triggers SQL.            │
+ * └────────────────────────────────────────────────────────────────────────┘
+ * 
+ * FLOW:
+ * 1. Admin appelle cette fonction avec invoice_id
+ * 2. La facture passe de 'pending' → 'paid' avec paid_at = NOW()
+ * 3. Le trigger SQL (on_invoice_paid_update_subscription) s'exécute:
+ *    - cycle_start_date = paid_at (date exacte de confirmation)
+ *    - cycle_end_date = paid_at + 30 jours
+ *    - subscription.status = 'active'
+ * 4. Email de confirmation envoyé au client avec les vraies dates
+ * 
+ * PROTECTION:
+ * - Le trigger protect_subscription_activation_trigger empêche toute
+ *   activation sans facture payée (log + alerte + revert to pending)
+ * 
+ * @author Nivra Telecom
+ * @version 2.0.0 - Prepaid Interac-Only Model
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,17 +42,6 @@ interface ConfirmPaymentRequest {
   payment_reference?: string;
   confirmed_by?: string;
 }
-
-/**
- * Confirm Interac payment for an invoice
- * 
- * BUSINESS RULE (PREPAID MODEL):
- * - Cycle starts ONLY when invoice is marked PAID
- * - The SQL trigger (on_invoice_paid_update_subscription) automatically:
- *   1. Sets cycle_start_date = payment confirmation date
- *   2. Sets cycle_end_date = cycle_start_date + 30 days
- *   3. Activates the subscription (status = 'active')
- */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
