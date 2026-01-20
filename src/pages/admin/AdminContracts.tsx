@@ -391,49 +391,67 @@ const AdminContracts = () => {
         if (!service) continue;
         
         try {
-          const profile = service.profile;
-          
-          // ================================================================================
-          // VALIDATION: Check for complete client coordinates (Nivra standard - Rule 1)
-          // Required: full_name, email, phone, service_address, billing_address (fallback OK)
-          // ================================================================================
-          const requiredFields = ['full_name', 'service_address', 'phone', 'email'];
-          const missingFields = requiredFields.filter(field => !profile?.[field] || String(profile?.[field]).trim() === '');
-          
-          // Check billing_address with fallback to service_address
-          const hasBillingAddress = profile?.billing_address || profile?.service_address;
-          if (!hasBillingAddress) {
-            missingFields.push('billing_address');
-          }
-          
-          if (missingFields.length > 0) {
-            console.warn(`[RegenerateContract] Missing client data for ${service.serviceName}:`, missingFields);
-            results.incompleteData.push(`${service.serviceName} (manque: ${missingFields.join(', ')})`);
-            continue;
-          }
-          
           if (service.type === 'order') {
-            // For orders, use the full contract engine which generates and persists PDF
+            // ================================================================================
+            // FOR ORDERS: Use ensureOrderContractUpToDate which reads from customer_snapshot
+            // The contract engine handles ALL validation internally using snapshot → profile fallback
+            // This is the CORRECT flow per Nivra Standard Rule 1 & 2
+            // ================================================================================
             const orderId = serviceId.replace('ord-', '');
             
-            const contractResult = await ensureOrderContractUpToDate({
-              orderId,
-              trigger: 'admin_regenerate',
-              force: true, // Force regeneration
-            });
-            
-            if (contractResult.regenerated) {
-              results.success.push(service.serviceName);
-              results.generatedContracts.push({
-                contractId: contractResult.contractId,
-                serviceName: service.serviceName,
-                pdfHash: contractResult.pdfHash,
+            try {
+              const contractResult = await ensureOrderContractUpToDate({
+                orderId,
+                trigger: 'admin_regenerate',
+                force: true, // Force regeneration - generates PDF and persists
               });
-            } else {
-              results.success.push(service.serviceName);
+              
+              if (contractResult.regenerated) {
+                results.success.push(service.serviceName);
+                results.generatedContracts.push({
+                  contractId: contractResult.contractId,
+                  serviceName: service.serviceName,
+                  pdfHash: contractResult.pdfHash,
+                });
+              } else {
+                // Contract already up-to-date but no error
+                results.success.push(service.serviceName);
+              }
+            } catch (contractErr: any) {
+              // Check if it's a validation error (missing client data)
+              const errorMessage = contractErr?.message || String(contractErr);
+              if (errorMessage.includes("Coordonnées client incomplètes") || 
+                  errorMessage.includes("Champs manquants")) {
+                console.warn(`[RegenerateContract] Validation failed for ${service.serviceName}:`, errorMessage);
+                results.incompleteData.push(`${service.serviceName} — ${errorMessage}`);
+              } else {
+                // Other error (DB, network, etc.)
+                console.error(`[RegenerateContract] Failed for ${service.serviceName}:`, contractErr);
+                results.failed.push(`${service.serviceName} (${errorMessage.slice(0, 100)})`);
+              }
             }
           } else {
-            // For subscriptions without orders, create a basic contract record
+            // ================================================================================
+            // FOR SUBSCRIPTIONS: Validate using profile data (no order snapshot available)
+            // ================================================================================
+            const profile = service.profile;
+            
+            const requiredFields = ['full_name', 'service_address', 'phone', 'email'];
+            const missingFields = requiredFields.filter(field => !profile?.[field] || String(profile?.[field]).trim() === '');
+            
+            // Check billing_address with fallback to service_address
+            const hasBillingAddress = profile?.billing_address || profile?.service_address;
+            if (!hasBillingAddress) {
+              missingFields.push('billing_address');
+            }
+            
+            if (missingFields.length > 0) {
+              console.warn(`[RegenerateContract] Missing client data for subscription ${service.serviceName}:`, missingFields);
+              results.incompleteData.push(`${service.serviceName} — Champs manquants: ${missingFields.join(', ')}`);
+              continue;
+            }
+            
+            // Create a basic contract record (no PDF for subscriptions without orders)
             const contractNumber = `CTR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
             const contractName = `Contrat ${service.category} - ${service.serviceName}`;
             
@@ -458,9 +476,9 @@ const AdminContracts = () => {
               serviceName: service.serviceName,
             });
           }
-        } catch (err) {
-          console.error(`Failed to generate contract for ${service.serviceName}:`, err);
-          results.failed.push(service.serviceName);
+        } catch (err: any) {
+          console.error(`[RegenerateContract] Unexpected error for ${service.serviceName}:`, err);
+          results.failed.push(`${service.serviceName} (erreur inattendue)`);
         }
       }
       
@@ -470,15 +488,15 @@ const AdminContracts = () => {
       // Show specific feedback based on results
       if (results.incompleteData.length > 0) {
         toast.error(
-          `Coordonnées client incomplètes — impossible de générer ${results.incompleteData.length} contrat(s):\n${results.incompleteData.join('\n')}`,
-          { duration: 8000 }
+          `Données client incomplètes — impossible de générer ${results.incompleteData.length} contrat(s):\n${results.incompleteData.join('\n')}`,
+          { duration: 10000 }
         );
       }
       if (results.success.length > 0) {
-        toast.success(`${results.success.length} contrat(s) régénéré(s) avec succès`, { duration: 5000 });
+        toast.success(`✓ ${results.success.length} contrat(s) régénéré(s) avec succès (PDF enregistré)`, { duration: 5000 });
       }
       if (results.failed.length > 0) {
-        toast.error(`${results.failed.length} contrat(s) ont échoué: ${results.failed.join(', ')}`);
+        toast.error(`✗ ${results.failed.length} contrat(s) ont échoué: ${results.failed.join(', ')}`);
       }
       
       // Invalidate all relevant queries to refresh the UI immediately (per Rule 10)
@@ -493,9 +511,9 @@ const AdminContracts = () => {
       setIsRegenerateDialogOpen(false);
       setSelectedServices([]);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("[RegenerateContracts] Critical error:", error);
-      toast.error("Erreur critique lors de la régénération des contrats");
+      toast.error(`Erreur critique lors de la régénération: ${error?.message || 'Erreur inconnue'}`);
     },
   });
 
