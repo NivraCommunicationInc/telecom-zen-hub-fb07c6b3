@@ -10,7 +10,6 @@ import Footer from "@/components/Footer";
 import SEOHead from "@/components/SEOHead";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import QuebecCoverageMap from "@/components/coverage/QuebecCoverageMap";
 
 const MobileCoverage = () => {
   const { language } = useLanguage();
@@ -282,37 +281,6 @@ const MobileCoverage = () => {
           </div>
         </section>
 
-        {/* Quebec Coverage Map Section */}
-        <section className="py-12 md:py-20">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-10">
-              <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-4">
-                {isFrench ? "Carte de couverture du Québec" : "Quebec Coverage Map"}
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                {isFrench 
-                  ? "Consultez les zones de couverture mobile Nivra au Québec. Notre réseau couvre les principales régions urbaines et péri-urbaines."
-                  : "View Nivra mobile coverage areas in Quebec. Our network covers major urban and suburban regions."}
-              </p>
-            </div>
-
-            <div className="max-w-4xl mx-auto">
-              <Card className="overflow-hidden border-border/50">
-                <CardContent className="p-0">
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 md:p-8">
-                    <QuebecCoverageMap className="w-full" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <p className="text-xs text-muted-foreground text-center mt-4 italic">
-                {isFrench 
-                  ? "* Les zones de couverture sont approximatives. La qualité du signal peut varier selon l'emplacement exact et les conditions environnementales."
-                  : "* Coverage areas are approximate. Signal quality may vary depending on exact location and environmental conditions."}
-              </p>
-            </div>
-          </div>
-        </section>
 
         {/* Network Features */}
         <section className="py-12 md:py-16 bg-muted/30">
