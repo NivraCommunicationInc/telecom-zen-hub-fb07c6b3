@@ -908,6 +908,146 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, "/portal/invoices"), "Contacter support / Contact support", config.supportEmail),
   },
+
+  // =============================================
+  // BILLING V2 TEMPLATES
+  // =============================================
+
+  // NEW INVOICE (Billing V2)
+  billing_new_invoice: {
+    subject: "Nivra — Nouvelle facture (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('info', '📄', 'Nouvelle facture', 'New invoice',
+        'Une nouvelle facture a été générée pour votre abonnement Nivra.',
+        'A new invoice has been generated for your Nivra subscription.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoiceNumber || 'N/A' },
+        { label: 'Forfait / Plan', value: vars.planName || 'N/A' },
+        { label: 'Sous-total', value: '$' + (vars.subtotal || '0.00') },
+        { label: 'TPS (5%)', value: '$' + (vars.tps || '0.00') },
+        { label: 'TVQ (9.975%)', value: '$' + (vars.tvq || '0.00') },
+        { label: 'Total', value: '$' + (vars.total || '0.00') },
+        { label: 'Période', value: (vars.cycleStart || '') + ' → ' + (vars.cycleEnd || '') },
+        { label: 'Échéance / Due date', value: vars.dueDate || 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        <strong>Paiement par Interac :</strong> Envoyez le montant à <strong>${config.supportEmail}</strong><br>
+        <em style="color:${emailStyles.textMuted};">Payment by Interac: Send the amount to ${config.supportEmail}</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/client/factures"), "Voir ma facture / View invoice", config.supportEmail),
+  },
+
+  // RENEWAL REMINDER J-3 (Billing V2)
+  billing_renewal_reminder: {
+    subject: "Nivra — Rappel de renouvellement dans {{daysRemaining}} jours",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('warning', '⏰', 'Rappel de renouvellement', 'Renewal reminder',
+        'Votre abonnement expire bientôt. Payez maintenant pour éviter toute interruption.',
+        'Your subscription expires soon. Pay now to avoid any interruption.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoiceNumber || 'N/A' },
+        { label: 'Forfait / Plan', value: vars.planName || 'N/A' },
+        { label: 'Montant dû / Amount due', value: '$' + (vars.total || '0.00') },
+        { label: 'Échéance / Due date', value: vars.dueDate || 'N/A' },
+        { label: 'Jours restants / Days remaining', value: (vars.daysRemaining || 3) + ' jours' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        <strong>Paiement par Interac :</strong> Envoyez le montant à <strong>${config.supportEmail}</strong><br>
+        <em style="color:${emailStyles.textMuted};">Payment by Interac: Send the amount to ${config.supportEmail}</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/client/factures"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT CONFIRMED (Billing V2)
+  billing_payment_confirmed: {
+    subject: "Nivra — Paiement reçu (#{{invoiceNumber}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('success', '✅', 'Paiement confirmé!', 'Payment confirmed!',
+        'Votre paiement a été reçu et votre service est maintenant actif.',
+        'Your payment has been received and your service is now active.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoiceNumber || 'N/A' },
+        { label: 'Forfait / Plan', value: vars.planName || 'N/A' },
+        { label: 'Montant payé / Amount paid', value: '$' + (vars.total || '0.00') },
+        { label: 'Date de paiement / Paid on', value: vars.paidAt || 'N/A' },
+        { label: 'Période active', value: (vars.cycleStart || '') + ' → ' + (vars.cycleEnd || '') },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci pour votre confiance! Votre service est renouvelé pour 30 jours.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for your trust! Your service is renewed for 30 days.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/client/dashboard"), "Accéder au portail / Access portal", config.supportEmail),
+  },
+
+  // PAYMENT OVERDUE (Billing V2)
+  billing_payment_overdue: {
+    subject: "Nivra — Paiement en retard (#{{invoiceNumber}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('warning', '⚠️', 'Paiement en retard', 'Payment overdue',
+        'Votre facture est en retard. Payez rapidement pour éviter une suspension.',
+        'Your invoice is overdue. Pay quickly to avoid suspension.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoiceNumber || 'N/A' },
+        { label: 'Montant dû / Amount due', value: '$' + (vars.amountOwed || '0.00') },
+        { label: 'Jours en retard / Days overdue', value: (vars.daysOverdue || 1) + ' jour(s)' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        <strong>⚠️ Attention:</strong> Sans paiement sous 48h, votre service sera suspendu.<br>
+        <em style="color:${emailStyles.textMuted};">Warning: Without payment within 48h, your service will be suspended.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/client/factures"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // SERVICE SUSPENDED (Billing V2)
+  billing_service_suspended: {
+    subject: "Nivra — Service suspendu pour non-paiement",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('error', '🚫', 'Service suspendu', 'Service suspended',
+        'Votre service a été suspendu en raison d\'un paiement en retard.',
+        'Your service has been suspended due to an overdue payment.'
+      )}
+      ${detailsCard([
+        { label: 'Forfait / Plan', value: vars.planName || 'N/A' },
+        { label: 'Nº facture / Invoice #', value: vars.invoiceNumber || 'N/A' },
+        { label: 'Montant dû / Amount owed', value: '$' + (vars.amountOwed || '0.00') },
+        { label: 'Jours avant annulation', value: (vars.daysUntilCancellation || 3) + ' jours' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        <strong>⚠️ Important:</strong> Payez rapidement pour réactiver votre service. Après ${vars.daysUntilCancellation || 3} jours, votre abonnement sera annulé définitivement.<br>
+        <em style="color:${emailStyles.textMuted};">Pay quickly to reactivate your service. After ${vars.daysUntilCancellation || 3} days, your subscription will be permanently cancelled.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/client/factures"), "Payer et réactiver / Pay and reactivate", config.supportEmail),
+  },
+
+  // SERVICE CANCELLED (Billing V2)
+  billing_service_cancelled: {
+    subject: "Nivra — Abonnement annulé",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('error', '❌', 'Abonnement annulé', 'Subscription cancelled',
+        'Votre abonnement a été annulé en raison d\'un non-paiement prolongé.',
+        'Your subscription has been cancelled due to prolonged non-payment.'
+      )}
+      ${detailsCard([
+        { label: 'Forfait / Plan', value: vars.planName || 'N/A' },
+        { label: 'Nº facture / Invoice #', value: vars.invoiceNumber || 'N/A' },
+        { label: 'Montant impayé / Unpaid amount', value: '$' + (vars.amountOwed || '0.00') },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Nous sommes désolés de vous voir partir. Si vous souhaitez réactiver votre compte, contactez notre support.<br>
+        <em style="color:${emailStyles.textMuted};">We're sorry to see you go. If you wish to reactivate your account, please contact our support.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/contact"), "Contacter support / Contact support", config.supportEmail),
+  },
 };
 
 // =============================================

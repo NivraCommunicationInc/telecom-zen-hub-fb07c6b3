@@ -50,6 +50,7 @@ import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminClients from "@/pages/admin/AdminClients";
 import AdminServices from "@/pages/admin/AdminServices";
 import AdminBilling from "@/pages/admin/AdminBilling";
+import AdminBillingV2 from "@/pages/admin/AdminBillingV2";
 import AdminRequests from "@/pages/admin/AdminRequests";
 import AdminContracts from "@/pages/admin/AdminContracts";
 import AdminActivityLogs from "@/pages/admin/AdminActivityLogs";
@@ -214,6 +215,7 @@ const AppRoutes = () => {
       <Route path="/admin/clients" element={<AuthProvider><ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/services" element={<AuthProvider><ProtectedRoute requireAdmin><AdminServices /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/billing" element={<AuthProvider><ProtectedRoute requireAdmin><AdminBilling /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/billing-v2" element={<AuthProvider><ProtectedRoute requireAdmin><AdminBillingV2 /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/requests" element={<AuthProvider><ProtectedRoute requireAdmin><AdminRequests /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/contracts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContracts /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/activity" element={<AuthProvider><ProtectedRoute requireAdmin><AdminActivityLogs /></ProtectedRoute></AuthProvider>} />
