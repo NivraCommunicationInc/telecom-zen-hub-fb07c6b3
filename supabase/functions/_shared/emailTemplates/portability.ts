@@ -10,7 +10,6 @@ import {
 } from './components.ts';
 
 interface BaseParams {
-  supportPhone: string;
   supportEmail: string;
 }
 
@@ -23,7 +22,7 @@ export const portingRequestReceived = (params: BaseParams & {
   estimatedCompletion?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, currentProvider, requestDate, estimatedCompletion, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, phoneNumber, currentProvider, requestDate, estimatedCompletion, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -57,9 +56,9 @@ export const portingRequestReceived = (params: BaseParams & {
         ${button('Suivre ma demande →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -77,7 +76,7 @@ export const portingInProgress = (params: BaseParams & {
   estimatedCompletion: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, currentProvider, estimatedCompletion, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, phoneNumber, currentProvider, estimatedCompletion, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -113,9 +112,9 @@ export const portingInProgress = (params: BaseParams & {
         ${button('Suivre le transfert →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -132,7 +131,7 @@ export const portingApproved = (params: BaseParams & {
   transferDate: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, transferDate, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, phoneNumber, transferDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -167,9 +166,9 @@ export const portingApproved = (params: BaseParams & {
         ${button('Voir les détails →', portalUrl, 'success')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -186,7 +185,7 @@ export const portingCompleted = (params: BaseParams & {
   completionDate: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, completionDate, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, phoneNumber, completionDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -221,9 +220,9 @@ export const portingCompleted = (params: BaseParams & {
         ${button('Accéder à mon portail →', portalUrl, 'success')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -242,7 +241,7 @@ export const portingIssue = (params: BaseParams & {
   uploadUrl?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, issueDescription, requiredDocuments = [], uploadUrl, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, phoneNumber, issueDescription, requiredDocuments = [], uploadUrl, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const docsHtml = requiredDocuments.map(doc => `
     <tr>
@@ -284,9 +283,9 @@ export const portingIssue = (params: BaseParams & {
       
       ${alertBox('warning', '⏰', 'Délai de réponse', 'Veuillez nous fournir les informations demandées dans les 5 jours ouvrables pour éviter l\'annulation de votre demande.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
