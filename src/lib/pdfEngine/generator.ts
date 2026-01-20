@@ -87,12 +87,11 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     DOC_SUBTITLES[data.docType]
   );
 
-  // Company info box - compact
-  // CRITICAL: Always use Nivra's official address, never client address
+  // Company info box - compact (ALWAYS Nivra's official address)
   const companyLines = [
     `${companyLegalName}`,
-    `${data.company.address}`, // Nivra's address from BUSINESS_INFO
-    `Courriel : ${data.company.email} | Tél : ${data.company.phone}`,
+    `${BUSINESS_INFO.address}`, // ALWAYS Nivra's official address
+    `Courriel : ${BUSINESS_INFO.email} | Tél : ${BUSINESS_INFO.phone}`,
   ];
   addInfoBox(state, companyLines, { addHeader, height: companyLines.length * 5 + 6 });
 
@@ -371,27 +370,20 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   
   state.currentY += 6;
   
-  // ========== GRAND TOTAL ==========
-  addSectionTitle(state, "Total à payer aujourd'hui", { addHeader });
+  // ========== GRAND TOTAL — TOTAL À PAYER AUJOURD'HUI ==========
+  addSectionTitle(state, "TOTAL À PAYER AUJOURD'HUI", { addHeader });
   
-  // CRITICAL: Show the SAME taxable subtotal used for tax calculation
-  addSummaryRow("Mensuel + Unique (taxable)", formatCurrency(taxableSubtotal), false, true);
+  // Show clear breakdown: Monthly (first month) + One-time fees
+  const monthlyWithTax = data.billing.subtotal + monthlyTpsEstimate + monthlyTvqEstimate;
+  const oneTimeWithTax = oneTimeSubtotal + oneTimeTps + oneTimeTvq;
   
-  // Taxes calculated on taxable subtotal
-  addSummaryRow(`TPS (5% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tps));
-  addSummaryRow(`TVQ (9.975% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tvq));
+  addSummaryRow("Mensuel (premier mois)", formatCurrency(monthlyWithTax), false, false);
+  addSummaryRow("Frais uniques", formatCurrency(oneTimeWithTax), false, false);
   
-  // CRITICAL: Show the SAME taxable subtotal used for tax calculation
-  addSummaryRow("Sous-total taxable", formatCurrency(taxableSubtotal), false, true);
-  
-  // Taxes calculated on taxable subtotal
-  addSummaryRow(`TPS (5% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tps));
-  addSummaryRow(`TVQ (9.975% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tvq));
-
   state.currentY += 4;
 
-  // Total box
-  addTotalBox(state, "TOTAL DÛ AUJOURD'HUI", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
+  // Total box with prominent display
+  addTotalBox(state, "GRAND TOTAL", `${formatCurrency(data.billing.total)} CAD`, { addHeader });
 
   // Estimated monthly (for contracts) - Shows recurring breakdown WITH TAXES INCLUDED
   if (data.docType === "contract" && data.billing.subtotal > 0) {
@@ -555,19 +547,20 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     
     state.currentY += 4;
     
-    // CRITICAL: Prepaid cycle notice (per Billing V2 requirements)
+    // CRITICAL: Prepaid cycle notice + Interac payment (per Billing V2 requirements)
     addInfoBox(
       state,
       [
-        "IMPORTANT — FACTURATION PRÉPAYÉE",
+        "IMPORTANT — FACTURATION PRÉPAYÉE (INTERAC SEULEMENT)",
         "Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac, et non à la date de commande.",
-        "Les services sont activés après réception et vérification du virement Interac à Support@nivratelecom.ca.",
+        "Paiement uniquement par virement Interac à Support@nivratelecom.ca.",
+        "Le service est activé dès réception et confirmation du paiement.",
       ],
       { 
         addHeader, 
         bgColor: "background", 
         accentColor: "accent",
-        height: 28,
+        height: 34,
       }
     );
     

@@ -78,16 +78,18 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
 
   currentY = 32;
 
-  // Contract reference
+  // Contract reference box - ALL required numbers (CTR, ORD, Account)
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 12, 1, 1, "FD");
+  doc.roundedRect(marginLeft, currentY, contentWidth, 16, 1, 1, "FD");
   doc.setFontSize(7);
   doc.setTextColor(...textDark);
-  doc.text(`Contrat #: ${data.contractNumber || data.orderNumber || data.orderId.slice(0, 8)}`, marginLeft + 3, currentY + 5);
-  doc.text(`Version: ${data.agreementVersion || 1}`, marginLeft + 80, currentY + 5);
-  doc.text(`Date: ${formatDate(data.snapshotCreatedAt)}`, marginLeft + 120, currentY + 5);
-  currentY += 18;
+  doc.text(`Contrat #: ${data.contractNumber || "CTR-" + (data.orderId.slice(0, 8))}`, marginLeft + 3, currentY + 5);
+  doc.text(`Commande #: ${data.orderNumber || "—"}`, marginLeft + 65, currentY + 5);
+  doc.text(`Version: ${data.agreementVersion || 1}`, marginLeft + 3, currentY + 12);
+  doc.text(`Compte #: ${data.accountNumber || data.client.accountId || "À confirmer"}`, marginLeft + 65, currentY + 12);
+  doc.text(`Date: ${formatDate(data.snapshotCreatedAt)}`, marginLeft + 130, currentY + 5);
+  currentY += 22;
 
   // ========== CLIENT SECTION ==========
   addSectionTitle("Client");
@@ -248,16 +250,32 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   currentY += 6;
 
   // ========== PAYMENT SECTION ==========
-  addSectionTitle("Paiement");
-  const methodLabel = data.payment.method === "card" ? "Carte" : 
-                      data.payment.method === "etransfer" ? "e-Transfer" : 
+  addSectionTitle("Paiement — Interac seulement");
+  
+  // CRITICAL: Interac-only payment notice (per Billing V2 requirements)
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...accentTeal);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(marginLeft, currentY, contentWidth, 18, 1, 1, "FD");
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryNavy);
+  doc.text("Paiement uniquement par virement Interac à Support@nivratelecom.ca", marginLeft + 3, currentY + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...textMuted);
+  doc.setFontSize(6);
+  doc.text("Le service est activé dès réception et confirmation du paiement. Aucun paiement par carte n'est accepté.", marginLeft + 3, currentY + 12);
+  currentY += 22;
+  
+  const methodLabel = data.payment.method === "card" ? "Carte (non disponible)" : 
+                      data.payment.method === "etransfer" ? "Virement Interac ✓" : 
                       `Autre: ${data.payment.method}`;
-  addLabelValue("Mode", `☐ ${methodLabel}`);
+  addLabelValue("Mode sélectionné", methodLabel);
   if (data.payment.method === "etransfer" && data.payment.etransferRule) {
     const ruleLabel = data.payment.etransferRule === "after_receipt" 
       ? "Après réception" 
       : "Après réception et vérification";
-    addLabelValue("Règle activation", `☐ ${ruleLabel}`);
+    addLabelValue("Règle activation", ruleLabel);
   }
   if (data.payment.deposit && data.payment.deposit > 0) {
     addLabelValue("Dépôt", formatCurrency(data.payment.deposit));
