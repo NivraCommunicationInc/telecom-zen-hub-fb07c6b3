@@ -42,7 +42,7 @@ const InstallationRendezvous = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">3. Frais applicables</h2>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Frais d'activation :</strong> {CONTRACT_TERMS.fees.activation}$ (frais unique)</li>
+                <li><strong>Frais d'activation :</strong> {CONTRACT_TERMS.fees.activationSingle}$ (1 service) / {CONTRACT_TERMS.fees.activationMultiple}$ (2+ services)</li>
                 <li><strong>Frais de livraison :</strong> {CONTRACT_TERMS.fees.delivery}$</li>
                 <li><strong>Livraison express :</strong> {CONTRACT_TERMS.fees.uberExpress}$</li>
               </ul>

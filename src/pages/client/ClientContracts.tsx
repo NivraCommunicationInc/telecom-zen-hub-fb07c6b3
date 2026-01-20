@@ -283,7 +283,7 @@ const ClientContracts = () => {
         // Fallback service plan only if no specific services detected
         servicePlan: hasSpecificServices ? undefined : (contract.contract_name || "Services"),
 
-        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activation),
+        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
         deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
         installationFee: Number(linkedOrder?.installation_fee ?? 0),
         terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
@@ -475,7 +475,7 @@ const ClientContracts = () => {
         // Fallback service plan only if no specific services detected
         servicePlan: hasSpecificServices ? undefined : (contract.contract_name || "Services"),
 
-        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activation),
+        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
         deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
         installationFee: Number(linkedOrder?.installation_fee ?? 0),
         terminalFee: Number(linkedOrder?.terminal_fee ?? 0),

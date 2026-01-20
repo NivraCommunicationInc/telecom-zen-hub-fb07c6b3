@@ -275,7 +275,10 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
                 <div className="flex justify-between text-muted-foreground">
                   <span className="flex items-center gap-2">
                     <Zap className="w-3 h-3" />
-                    Frais d'activation {hasMobileService && totalMobileLineQuantity > 1 ? `(${totalMobileLineQuantity} services)` : ""}
+                    Frais d'activation {(() => {
+                      const count = [hasInternetService, hasTVService, hasMobileService].filter(Boolean).length;
+                      return count >= 2 ? "(forfait groupé)" : "(1 service)";
+                    })()}
                   </span>
                   <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
