@@ -156,207 +156,443 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     supportEmail,
   } = params;
 
-  // Generate services HTML
-  const servicesHtml = services.map((service) => `
-    <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #e5e7eb;">
-      <p style="color: #111827; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">${escapeHtml(service.name)}</p>
-      ${service.details ? `<p style="color: #6b7280; font-size: 13px; margin: 0 0 8px 0;">${escapeHtml(service.details)}</p>` : ""}
-      ${service.description ? `<p style="color: #6b7280; font-size: 13px; margin: 0 0 8px 0;">${escapeHtml(service.description)}</p>` : ""}
-      <p style="color: #059669; font-size: 16px; font-weight: 700; margin: 0;">
-        ${formatCurrency(service.price)}/${service.period || "mois"}
-      </p>
-    </div>
+  // Generate services HTML - Professional telecom style
+  const servicesHtml = services.map((service, index) => `
+    <tr style="${index > 0 ? 'border-top: 1px solid #e2e8f0;' : ''}">
+      <td style="padding: 16px 0;">
+        <div style="display: flex; align-items: flex-start;">
+          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); border-radius: 10px; display: inline-block; text-align: center; line-height: 40px; margin-right: 16px; flex-shrink: 0;">
+            <span style="color: #ffffff; font-size: 18px;">📱</span>
+          </div>
+          <div style="flex: 1;">
+            <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0 0 4px 0; line-height: 1.4;">${escapeHtml(service.name)}</p>
+            ${service.details ? `<p style="color: #64748b; font-size: 13px; margin: 0 0 2px 0; line-height: 1.4;">${escapeHtml(service.details)}</p>` : ""}
+            ${service.description ? `<p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.4;">${escapeHtml(service.description)}</p>` : ""}
+          </div>
+        </div>
+      </td>
+      <td style="padding: 16px 0; text-align: right; vertical-align: top; white-space: nowrap;">
+        <span style="color: #0f172a; font-size: 18px; font-weight: 700;">${formatCurrencySimple(service.price)}</span>
+        <span style="color: #64748b; font-size: 13px; font-weight: 400;">/${service.period || "mois"}</span>
+      </td>
+    </tr>
   `).join("");
 
-  // Generate one-time fees HTML
+  // Generate one-time fees HTML - Premium style
   let oneTimeFeesHtml = "";
   if (oneTimeFees && oneTimeFees.length > 0) {
-    const feesRows = oneTimeFees.map((fee) => `
-      <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">${escapeHtml(fee.label)}</td>
-        <td style="color: #111827; font-size: 14px; text-align: right; padding: 8px 0;">${formatCurrency(fee.amount)}</td>
+    const feesRows = oneTimeFees.map((fee, index) => `
+      <tr style="${index > 0 ? 'border-top: 1px solid #e2e8f0;' : ''}">
+        <td style="color: #475569; font-size: 14px; padding: 12px 0;">${escapeHtml(fee.label)}</td>
+        <td style="color: #0f172a; font-size: 14px; font-weight: 600; text-align: right; padding: 12px 0;">${formatCurrencySimple(fee.amount)}</td>
       </tr>
     `).join("");
 
     oneTimeFeesHtml = `
-      <p style="color: #0a1628; font-size: 16px; font-weight: 600; margin: 24px 0 16px 0; padding: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-        Frais uniques
-      </p>
-      <table style="width: 100%; margin-top: 16px;">
-        <tbody>
-          ${feesRows}
-          ${oneTimeTotal !== undefined ? `
-            <tr>
-              <td style="color: #111827; font-size: 14px; font-weight: 600; padding: 8px 0;">Total frais uniques</td>
-              <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 8px 0;">${formatCurrency(oneTimeTotal)}</td>
-            </tr>
-          ` : ""}
-        </tbody>
-      </table>
+      <!-- One-Time Fees Section -->
+      <div style="margin-top: 32px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+          <tr>
+            <td style="padding-bottom: 16px;">
+              <div style="display: flex; align-items: center;">
+                <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); border-radius: 2px; margin-right: 12px;"></div>
+                <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.02em;">Frais uniques</h3>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px; padding: 20px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tbody>
+              ${feesRows}
+              ${oneTimeTotal !== undefined ? `
+                <tr style="border-top: 2px solid #f59e0b;">
+                  <td style="color: #92400e; font-size: 15px; font-weight: 700; padding: 16px 0 0 0;">Total frais uniques</td>
+                  <td style="color: #92400e; font-size: 18px; font-weight: 700; text-align: right; padding: 16px 0 0 0;">${formatCurrencySimple(oneTimeTotal)}</td>
+                </tr>
+              ` : ""}
+            </tbody>
+          </table>
+        </div>
+      </div>
     `;
   }
 
-  // Generate delivery section HTML
+  // Generate delivery section HTML - Premium card style
   let deliveryHtml = "";
   if (deliveryMethod || deliveryAddress) {
     deliveryHtml = `
-      <hr style="border-color: #e5e7eb; margin: 32px 0;" />
-      <h2 style="color: #0a1628; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; padding: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-        🚚 Livraison / Installation
-      </h2>
-      <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-        ${deliveryMethod ? `<p style="color: #374151; font-size: 15px; line-height: 24px; margin: 0 0 8px 0;"><strong>Méthode:</strong> ${escapeHtml(deliveryMethod)}</p>` : ""}
-        ${deliveryAddress ? `
-          <p style="color: #374151; font-size: 15px; line-height: 24px; margin: 0;">
-            <strong>Adresse:</strong><br />
-            ${escapeHtml(deliveryAddress.street)}<br />
-            ${escapeHtml(deliveryAddress.city)}, ${escapeHtml(deliveryAddress.province)} ${escapeHtml(deliveryAddress.postalCode)}
-          </p>
-        ` : ""}
+      <!-- Delivery Section -->
+      <div style="margin-top: 32px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+          <tr>
+            <td style="padding-bottom: 16px;">
+              <div style="display: flex; align-items: center;">
+                <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 2px; margin-right: 12px;"></div>
+                <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.02em;">Livraison & Installation</h3>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border: 1px solid #ddd6fe; border-radius: 12px; padding: 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            ${deliveryMethod ? `
+              <tr>
+                <td style="padding-bottom: 12px;">
+                  <div style="display: flex; align-items: center;">
+                    <div style="width: 36px; height: 36px; background-color: #ffffff; border-radius: 8px; display: inline-block; text-align: center; line-height: 36px; margin-right: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                      <span style="font-size: 16px;">🚚</span>
+                    </div>
+                    <div>
+                      <p style="color: #6b7280; font-size: 12px; font-weight: 500; margin: 0 0 2px 0; text-transform: uppercase; letter-spacing: 0.5px;">Méthode</p>
+                      <p style="color: #0f172a; font-size: 15px; font-weight: 600; margin: 0;">${escapeHtml(deliveryMethod)}</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ` : ""}
+            ${deliveryAddress ? `
+              <tr>
+                <td style="padding-top: ${deliveryMethod ? '12px' : '0'};">
+                  <div style="display: flex; align-items: flex-start;">
+                    <div style="width: 36px; height: 36px; background-color: #ffffff; border-radius: 8px; display: inline-block; text-align: center; line-height: 36px; margin-right: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                      <span style="font-size: 16px;">📍</span>
+                    </div>
+                    <div>
+                      <p style="color: #6b7280; font-size: 12px; font-weight: 500; margin: 0 0 2px 0; text-transform: uppercase; letter-spacing: 0.5px;">Adresse de livraison</p>
+                      <p style="color: #0f172a; font-size: 15px; font-weight: 600; margin: 0; line-height: 1.5;">
+                        ${escapeHtml(deliveryAddress.street)}<br>
+                        ${escapeHtml(deliveryAddress.city)}, ${escapeHtml(deliveryAddress.province)} ${escapeHtml(deliveryAddress.postalCode)}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ` : ""}
+          </table>
+        </div>
       </div>
     `;
   }
 
-  // Build payment info rows
-  let paymentInfoRows = `
-    <tr>
-      <td style="color: #6b7280; font-size: 14px; padding: 4px 0;">Numéro de commande</td>
-      <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 4px 0;">${escapeHtml(orderNumber)}</td>
-    </tr>
-    <tr>
-      <td style="color: #6b7280; font-size: 14px; padding: 4px 0;">Date de commande</td>
-      <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 4px 0;">${formatDate(orderDate)}</td>
-    </tr>
+  // Build payment info - Compact inline style
+  const paymentInfoHtml = `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+      <tr>
+        <td style="padding: 4px 0;">
+          <span style="color: #64748b; font-size: 13px;">Commande:</span>
+          <span style="color: #0f172a; font-size: 13px; font-weight: 600; margin-left: 8px;">#${escapeHtml(orderNumber)}</span>
+        </td>
+        <td style="padding: 4px 0; text-align: right;">
+          <span style="color: #64748b; font-size: 13px;">Date:</span>
+          <span style="color: #0f172a; font-size: 13px; font-weight: 600; margin-left: 8px;">${formatDate(orderDate)}</span>
+        </td>
+      </tr>
+      ${paymentReference || paymentMethod ? `
+        <tr>
+          ${paymentReference ? `
+            <td style="padding: 4px 0;">
+              <span style="color: #64748b; font-size: 13px;">Réf. paiement:</span>
+              <span style="color: #0f172a; font-size: 13px; font-weight: 600; margin-left: 8px;">${escapeHtml(paymentReference)}</span>
+            </td>
+          ` : '<td></td>'}
+          ${paymentMethod ? `
+            <td style="padding: 4px 0; text-align: right;">
+              <span style="color: #64748b; font-size: 13px;">Méthode:</span>
+              <span style="color: #0f172a; font-size: 13px; font-weight: 600; margin-left: 8px;">${escapeHtml(paymentMethod)}</span>
+            </td>
+          ` : '<td></td>'}
+        </tr>
+      ` : ''}
+    </table>
   `;
-  
-  if (paymentReference) {
-    paymentInfoRows += `
-      <tr>
-        <td style="color: #6b7280; font-size: 14px; padding: 4px 0;">Référence de paiement</td>
-        <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 4px 0;">${escapeHtml(paymentReference)}</td>
-      </tr>
-    `;
-  }
-  
-  if (paymentMethod) {
-    paymentInfoRows += `
-      <tr>
-        <td style="color: #6b7280; font-size: 14px; padding: 4px 0;">Mode de paiement</td>
-        <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 4px 0;">${escapeHtml(paymentMethod)}</td>
-      </tr>
-    `;
-  }
 
   return `
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmation de commande #${escapeHtml(orderNumber)}</title>
-</head>
-<body style="background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif; margin: 0; padding: 40px 20px;">
-  <div style="background-color: #ffffff; margin: 0 auto; padding: 0; max-width: 600px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, address=no, email=no, date=no">
+  <title>Confirmation de commande #${escapeHtml(orderNumber)} | Nivra</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <style>
+    table { border-collapse: collapse; }
+    td { font-family: Arial, sans-serif; }
+  </style>
+  <![endif]-->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    <!-- Header -->
-    <div style="background-color: #0a1628; padding: 32px 40px; text-align: center;">
-      <p style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -0.5px;">Nivra</p>
-      <p style="color: #10b981; font-size: 14px; font-weight: 500; margin: 4px 0 0 0; letter-spacing: 2px; text-transform: uppercase;">Télécom</p>
-    </div>
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100% !important;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    
+    table { border-collapse: collapse !important; }
+    
+    img {
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+      -ms-interpolation-mode: bicubic;
+    }
+    
+    .button:hover {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+      transform: translateY(-1px);
+    }
+    
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; padding: 0 16px !important; }
+      .header-padding { padding: 24px 20px !important; }
+      .content-padding { padding: 24px 20px !important; }
+      .mobile-full { width: 100% !important; display: block !important; }
+      .mobile-center { text-align: center !important; }
+      .mobile-hide { display: none !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
 
-    <!-- Main Content -->
-    <div style="padding: 40px;">
-      
-      <!-- Success Badge -->
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="background-color: #d1fae5; color: #047857; font-size: 14px; font-weight: 600; padding: 8px 16px; border-radius: 20px; display: inline-block;">✓ Commande confirmée</span>
-      </div>
-
-      <h1 style="color: #0a1628; font-size: 24px; font-weight: 700; margin: 0 0 8px 0; padding: 0; text-align: center;">
-        Merci pour votre commande, ${escapeHtml(clientFirstName)}!
-      </h1>
-      
-      <p style="color: #374151; font-size: 15px; line-height: 24px; margin: 0 0 24px 0; text-align: center;">
-        Votre commande a été reçue et est en cours de traitement. Vous trouverez ci-dessous tous les détails.
-      </p>
-
-      <!-- Order Info Box -->
-      <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-        <table style="width: 100%;">
-          ${paymentInfoRows}
-        </table>
-      </div>
-
-      <hr style="border-color: #e5e7eb; margin: 32px 0;" />
-
-      <!-- Services Section -->
-      <h2 style="color: #0a1628; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; padding: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-        📦 Vos services
-      </h2>
-
-      ${servicesHtml}
-
-      <hr style="border-color: #e5e7eb; margin: 32px 0;" />
-
-      <!-- Pricing Breakdown -->
-      <h2 style="color: #0a1628; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; padding: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-        💳 Récapitulatif des frais mensuels
-      </h2>
-
-      <table style="width: 100%; margin-top: 16px;">
-        <tbody>
-          <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Sous-total</td>
-            <td style="color: #111827; font-size: 14px; text-align: right; padding: 8px 0;">${formatCurrency(subtotal)}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">TPS (5%)</td>
-            <td style="color: #111827; font-size: 14px; text-align: right; padding: 8px 0;">${formatCurrency(tpsAmount)}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">TVQ (9.975%)</td>
-            <td style="color: #111827; font-size: 14px; text-align: right; padding: 8px 0;">${formatCurrency(tvqAmount)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <table style="width: 100%;">
-        <tbody>
-          <tr style="background-color: #0a1628; border-radius: 8px;">
-            <td style="color: #ffffff; font-size: 16px; font-weight: 600; padding: 16px; border-radius: 8px 0 0 8px;">Total mensuel</td>
-            <td style="color: #10b981; font-size: 20px; font-weight: 700; text-align: right; padding: 16px; border-radius: 0 8px 8px 0;">${formatCurrency(totalWithTax)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      ${oneTimeFeesHtml}
-
-      ${deliveryHtml}
-
-      <!-- CTA Button -->
-      <a href="${portalLink}" style="background-color: #10b981; border-radius: 8px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; text-align: center; display: block; padding: 16px 32px; margin-top: 32px;">
-        Voir ma commande dans le portail
-      </a>
-    </div>
-
-    <!-- Footer -->
-    <div style="background-color: #f9fafb; padding: 32px 40px; text-align: center;">
-      <p style="color: #6b7280; font-size: 13px; line-height: 20px; margin: 0 0 8px 0;">
-        Des questions? Contactez-nous!
-      </p>
-      <p style="color: #6b7280; font-size: 13px; line-height: 20px; margin: 0 0 16px 0;">
-        📞 <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="color: #10b981; text-decoration: none;">${supportPhone}</a>
-        · ✉️ <a href="mailto:${supportEmail}" style="color: #10b981; text-decoration: none;">${supportEmail}</a>
-      </p>
-      <hr style="border-color: #e5e7eb; margin: 16px 0;" />
-      <p style="color: #6b7280; font-size: 11px; line-height: 20px; margin: 0 0 4px 0;">
-        © ${new Date().getFullYear()} Nivra Télécom Inc. Tous droits réservés.
-      </p>
-      <p style="color: #6b7280; font-size: 11px; line-height: 20px; margin: 0;">
-        Cet email a été envoyé à la suite de votre commande sur nivratelecom.ca
-      </p>
-    </div>
+  <!-- Preheader Text (hidden) -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    Merci ${escapeHtml(clientFirstName)}! Votre commande #${escapeHtml(orderNumber)} est confirmée. Total mensuel: ${formatCurrencySimple(totalWithTax)} &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
   </div>
+
+  <!-- Wrapper Table -->
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #f1f5f9;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        
+        <!-- Main Container -->
+        <table role="presentation" cellpadding="0" cellspacing="0" class="container" style="max-width: 640px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header - Premium Gradient -->
+          <tr>
+            <td class="header-padding" style="background: linear-gradient(135deg, #0c1929 0%, #1e3a5f 50%, #0c4a6e 100%); padding: 40px 48px; text-align: center; position: relative;">
+              <!-- Decorative Elements -->
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);"></div>
+              
+              <!-- Logo -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="text-align: center;">
+                    <h1 style="margin: 0; font-size: 36px; font-weight: 800; letter-spacing: -0.03em;">
+                      <span style="color: #ffffff;">Nivra</span>
+                    </h1>
+                    <p style="margin: 4px 0 0 0; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #22d3ee;">Télécommunications</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Success Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 24px 48px; border-bottom: 1px solid #a7f3d0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="text-align: center;">
+                    <div style="display: inline-block; background-color: #ffffff; border-radius: 50%; width: 56px; height: 56px; line-height: 56px; text-align: center; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25); margin-bottom: 16px;">
+                      <span style="font-size: 28px;">✓</span>
+                    </div>
+                    <h2 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0 0 6px 0; letter-spacing: -0.02em;">Commande confirmée!</h2>
+                    <p style="color: #047857; font-size: 15px; margin: 0; font-weight: 500;">Merci pour votre confiance, ${escapeHtml(clientFirstName)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Order Info Bar -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 16px 48px; border-bottom: 1px solid #e2e8f0;">
+              ${paymentInfoHtml}
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td class="content-padding" style="padding: 40px 48px;">
+              
+              <!-- Services Section -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="padding-bottom: 20px;">
+                    <div style="display: flex; align-items: center;">
+                      <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%); border-radius: 2px; margin-right: 12px;"></div>
+                      <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.02em;">Vos services</h3>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                  <tbody>
+                    ${servicesHtml}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Pricing Section -->
+              <div style="margin-top: 32px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                  <tr>
+                    <td style="padding-bottom: 20px;">
+                      <div style="display: flex; align-items: center;">
+                        <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #10b981 0%, #059669 100%); border-radius: 2px; margin-right: 12px;"></div>
+                        <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.02em;">Récapitulatif mensuel</h3>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+                
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                    <tbody>
+                      <tr>
+                        <td style="color: #64748b; font-size: 14px; padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">Sous-total</td>
+                        <td style="color: #0f172a; font-size: 14px; font-weight: 600; text-align: right; padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">${formatCurrencySimple(subtotal)}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #64748b; font-size: 14px; padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">TPS (5%)</td>
+                        <td style="color: #0f172a; font-size: 14px; font-weight: 500; text-align: right; padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">${formatCurrencySimple(tpsAmount)}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #64748b; font-size: 14px; padding: 14px 20px;">TVQ (9.975%)</td>
+                        <td style="color: #0f172a; font-size: 14px; font-weight: 500; text-align: right; padding: 14px 20px;">${formatCurrencySimple(tvqAmount)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  
+                  <!-- Total Row - Premium Style -->
+                  <div style="background: linear-gradient(135deg, #0c1929 0%, #1e3a5f 100%); padding: 20px 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                      <tr>
+                        <td>
+                          <p style="color: #94a3b8; font-size: 13px; font-weight: 500; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Total mensuel</p>
+                          <p style="color: #ffffff; font-size: 11px; margin: 0;">Taxes incluses</p>
+                        </td>
+                        <td style="text-align: right; vertical-align: middle;">
+                          <span style="color: #22d3ee; font-size: 28px; font-weight: 800; letter-spacing: -0.02em;">${formatCurrencySimple(totalWithTax)}</span>
+                          <span style="color: #94a3b8; font-size: 14px; font-weight: 500;">/mois</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              ${oneTimeFeesHtml}
+
+              ${deliveryHtml}
+
+              <!-- CTA Button -->
+              <div style="margin-top: 40px; text-align: center;">
+                <a href="${portalLink}" class="button" style="display: inline-block; background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 40px; border-radius: 10px; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35); transition: all 0.2s ease;">
+                  Accéder à mon portail client →
+                </a>
+              </div>
+
+              <!-- Help Section -->
+              <div style="margin-top: 40px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; text-align: center;">
+                <p style="color: #0369a1; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">Besoin d'aide?</p>
+                <p style="color: #0284c7; font-size: 14px; margin: 0 0 16px 0;">Notre équipe est disponible pour vous assister</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                  <tr>
+                    <td style="text-align: center; padding: 8px;">
+                      <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="display: inline-block; background-color: #ffffff; color: #0284c7; font-size: 14px; font-weight: 600; text-decoration: none; padding: 10px 20px; border-radius: 8px; border: 1px solid #7dd3fc;">
+                        📞 ${supportPhone}
+                      </a>
+                    </td>
+                    <td style="text-align: center; padding: 8px;">
+                      <a href="mailto:${supportEmail}" style="display: inline-block; background-color: #ffffff; color: #0284c7; font-size: 14px; font-weight: 600; text-decoration: none; padding: 10px 20px; border-radius: 8px; border: 1px solid #7dd3fc;">
+                        ✉️ ${supportEmail}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 32px 48px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="text-align: center; padding-bottom: 24px;">
+                    <h4 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.02em;">Nivra</h4>
+                    <p style="color: #22d3ee; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin: 4px 0 0 0;">Télécommunications</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 20px;">
+                    <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">
+                      Fournisseur de services de télécommunications prépayés au Québec.<br>
+                      Simple, rapide, sans engagement.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align: center; padding-bottom: 20px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                      <tr>
+                        <td style="padding: 0 8px;">
+                          <a href="https://nivratelecom.ca" style="color: #64748b; font-size: 12px; text-decoration: none;">Site web</a>
+                        </td>
+                        <td style="color: #475569; padding: 0 8px;">|</td>
+                        <td style="padding: 0 8px;">
+                          <a href="https://nivratelecom.ca/privacy" style="color: #64748b; font-size: 12px; text-decoration: none;">Confidentialité</a>
+                        </td>
+                        <td style="color: #475569; padding: 0 8px;">|</td>
+                        <td style="padding: 0 8px;">
+                          <a href="https://nivratelecom.ca/terms" style="color: #64748b; font-size: 12px; text-decoration: none;">Conditions</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border-top: 1px solid #1e293b; padding-top: 20px; text-align: center;">
+                    <p style="color: #64748b; font-size: 11px; line-height: 1.6; margin: 0;">
+                      © ${new Date().getFullYear()} Nivra Télécom Inc. Tous droits réservés.<br>
+                      Cet email a été envoyé suite à votre commande sur nivratelecom.ca<br>
+                      <span style="color: #475569;">NEQ: 1234567890</span>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Main Container -->
+
+      </td>
+    </tr>
+  </table>
+  <!-- End Wrapper -->
+
 </body>
 </html>
   `.trim();
