@@ -1529,19 +1529,54 @@ const ClientNewOrder = () => {
         postStepErrors.push("payment");
       }
 
+      // === BILLING V2 INTEGRATION ===
+      // Create billing_customer, billing_subscriptions, and billing_invoices via edge function
       try {
-        // Create billing/invoice record for client portal
-        const invoiceEquipmentSubtotal = 
-          (hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0) + 
-          ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0) + 
-          (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
-        const invoiceSubtotal = subtotal + paidChannelTotal + invoiceEquipmentSubtotal;
-        
-        // Calculate invoice delivery fee based on order type
+        // Build services array from selectedServices for Billing V2
+        const billingServices = selectedServices.map(s => ({
+          plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
+          plan_name: s.name || 'Service Nivra',
+          plan_price: Number(s.price) || 0,
+          category: s.category || 'Other'
+        }));
+
+        if (billingServices.length > 0) {
+          const { data: billingResult, error: billingV2Error } = await supabase.functions.invoke("billing-create-order", {
+            body: {
+              user_id: user.id,
+              first_name: firstName || profile?.first_name || '',
+              last_name: lastName || profile?.last_name || '',
+              email: profile?.email || user.email,
+              phone: checkoutPhone || profile?.phone || '',
+              services: billingServices,
+              order_id: data.id,
+              order_number: data.order_number,
+            },
+          });
+
+          if (billingV2Error) {
+            console.error("[BillingV2] Edge function error:", billingV2Error);
+            postStepErrors.push("billing_v2");
+          } else {
+            console.log("[BillingV2] Created billing records:", billingResult);
+          }
+        }
+      } catch (billingV2Err) {
+        console.error("[BillingV2] Integration failed (non-blocking):", billingV2Err);
+        postStepErrors.push("billing_v2");
+      }
+
+      // Legacy billing record (kept for backward compatibility, can be removed later)
+      try {
+        const invoiceSubtotal = 
+          subtotal + 
+          paidChannelTotal + 
+          equipmentSubtotal +
+          selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
         const invoiceDeliveryFee = isDeliveryOnlyOrder 
-          ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
-             deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee :
-             DELIVERY_CONFIG.standard.fee)
+          ? (deliveryChoice === "uber" 
+              ? DELIVERY_CONFIG.uber.fee 
+              : DELIVERY_CONFIG.standard.fee)
           : (installationChoice === "auto" ? 30 : 0);
         
         // Activation fee: $25 for 1 service type, $45 for 2+ service types
@@ -1550,44 +1585,34 @@ const ClientNewOrder = () => {
         const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
         const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
         const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
-        
-        // Prepare delivery type note
-        const deliveryTypeNote = isDeliveryOnlyOrder 
-          ? `\nType de livraison: ${deliveryChoice === "uber" ? "Express Uber (10h)" : 
-             deliveryChoice === "shipHome" ? "Expédition à domicile (3-5 jours)" :
-             "Standard (24-78h)"}`
-          : '';
-        
+        const invoiceTotalWithTax = invoiceBaseAmount + invoiceTps + invoiceTvq;
+
         const { error: billingError } = await supabase.from("billing").insert({
           user_id: user.id,
           client_email: profile?.email || user.email,
           order_id: data.id,
           related_order_number: data.order_number,
-          payment_reference: nivraPaymentRef,
-          amount: totalAmount,
+          amount: invoiceTotalWithTax,
           subtotal: invoiceSubtotal,
           delivery_fee: invoiceDeliveryFee,
           activation_fee: invoiceActivationFee,
           installation_fee: invoiceInstallationFee,
-          discount_amount: appliedPromo?.discount_amount || 0,
           tps_amount: invoiceTps,
           tvq_amount: invoiceTvq,
-          equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : (hasMobileService ? `SIM-${totalMobileLineQuantity}x` : null)),
           status: "pending",
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          notes: `Numéro de commande: ${data.order_number}\nRéférence paiement: ${nivraPaymentRef}\nServices: ${serviceNames}${deliveryTypeNote}` +
-            (appliedPromo ? `\nCode promo: ${appliedPromo.code} — Rabais: ${appliedPromo.discount_amount.toFixed(2)}$` : ''),
-          preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-          preauth_discount_applied: acceptPreauthorized,
+          is_preauthorized: false,
+          payment_method_type: "etransfer", // INTERAC ONLY
+          preauth_discount: 0,
+          preauth_discount_applied: false,
         });
 
         if (billingError) {
-          console.error("Billing record error:", billingError);
-          postStepErrors.push("billing");
+          console.error("Legacy billing record error:", billingError);
+          postStepErrors.push("billing_legacy");
         }
       } catch (billingErr) {
-        console.error("Billing step failed:", billingErr);
-        postStepErrors.push("billing");
+        console.error("Legacy billing step failed:", billingErr);
+        postStepErrors.push("billing_legacy");
       }
 
       // Create support ticket for TV channel configuration if TV service is included
