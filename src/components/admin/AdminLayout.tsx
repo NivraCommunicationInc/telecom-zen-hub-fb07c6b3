@@ -53,6 +53,7 @@ const navItems = [
   { icon: Tv, label: "Chaînes TV", href: "/admin/channels" },
   { icon: Film, label: "Streaming+", href: "/admin/streaming" },
   { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
+  { icon: CreditCard, label: "Facturation V2", href: "/admin/billing-v2" },
   { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
   { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
   { icon: Trophy, label: "Concours", href: "/admin/concours" },
