@@ -69,27 +69,49 @@ export const ensureOrderContractUpToDate = async (params: {
   // VALIDATION: Block generation if required fields are missing (per Nivra standard)
   // CRITICAL RULE: Must have full_name, email, phone, service_address, billing_address
   // billing_address: fallback to service_address is ALLOWED
+  // 
+  // DATA SOURCE PRIORITY:
+  // 1. orders.customer_snapshot (immutable at time of order)
+  // 2. profiles (live data)
+  // 3. order fields (client_email, etc.)
   // ================================================================================
-  const requiredFieldsMap: Record<string, { candidates: string[]; allowFallback?: string[] }> = {
-    full_name: { candidates: ["legalName", "full_name"] },
-    email: { candidates: ["email"] },
-    phone: { candidates: ["phone"] },
-    service_address: { candidates: ["serviceAddress", "service_address"] },
+  const requiredFieldsMap: Record<string, { candidates: string[]; allowFallback?: string[]; label: string }> = {
+    full_name: { 
+      candidates: ["legalName", "full_name", "fullName"], 
+      label: "Nom complet"
+    },
+    email: { 
+      candidates: ["email", "client_email"], 
+      label: "Courriel"
+    },
+    phone: { 
+      candidates: ["phone", "telephone"], 
+      label: "Téléphone"
+    },
+    service_address: { 
+      candidates: ["serviceAddress", "service_address", "address"], 
+      label: "Adresse de service"
+    },
     billing_address: { 
       candidates: ["billingAddress", "billing_address"], 
-      allowFallback: ["serviceAddress", "service_address"] // Fallback to service_address is allowed
+      allowFallback: ["serviceAddress", "service_address", "address"], // Fallback to service_address is allowed
+      label: "Adresse de facturation"
     },
   };
   
   const missingFields: string[] = [];
+  const resolvedFields: Record<string, string> = {};
+  
   for (const [fieldName, config] of Object.entries(requiredFieldsMap)) {
     let found = false;
+    let resolvedValue = "";
     
     // Check primary candidates
     for (const candidate of config.candidates) {
       const value = resolveClientField(candidate);
       if (value && String(value).trim() !== "") {
         found = true;
+        resolvedValue = String(value).trim();
         break;
       }
     }
@@ -100,21 +122,37 @@ export const ensureOrderContractUpToDate = async (params: {
         const value = resolveClientField(candidate);
         if (value && String(value).trim() !== "") {
           found = true;
+          resolvedValue = String(value).trim();
           break;
         }
       }
     }
     
     if (!found) {
-      missingFields.push(fieldName);
+      missingFields.push(config.label);
+    } else {
+      resolvedFields[fieldName] = resolvedValue;
     }
   }
   
   if (missingFields.length > 0) {
     const errorMsg = `Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`;
-    console.error("[ContractEngine] VALIDATION BLOCKED:", errorMsg, { orderId: params.orderId });
+    console.error("[ContractEngine] VALIDATION BLOCKED:", errorMsg, { 
+      orderId: params.orderId,
+      missingFields,
+      hasSnapshot: !!orderSnapshot,
+      hasProfile: !!profile,
+      snapshotFields: Object.keys(clientSnapshot),
+    });
     throw new Error(errorMsg);
   }
+  
+  // Log successful validation for audit
+  console.log("[ContractEngine] Validation passed:", {
+    orderId: params.orderId,
+    resolvedFields: Object.keys(resolvedFields),
+    dataSource: orderSnapshot ? "snapshot" : "profile",
+  });
 
   // 1) Ensure a contract row exists + is linked
   let contractId = (order as any).related_contract_id as string | null;
