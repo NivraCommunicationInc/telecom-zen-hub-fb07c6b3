@@ -276,7 +276,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Ceci est un email de test à des fins de vérification interne.<br>
         <em style="color:${emailStyles.textMuted};">This is a test email for internal verification purposes.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/admin/email-activity"), "Voir l'activité / View activity", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/admin/email-activity"), "Voir l'activité / View activity", config.supportEmail),
   },
 
   // ACCOUNT CREATED
@@ -296,7 +296,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Accédez à votre portail pour gérer vos services, factures et plus encore.<br>
         <em style="color:${emailStyles.textMuted};">Access your portal to manage your services, invoices and more.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal"), "Accéder au portail / Access portal", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal"), "Accéder au portail / Access portal", config.supportEmail),
   },
 
   // EMAIL VERIFIED
@@ -312,7 +312,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Vous pouvez maintenant profiter de toutes les fonctionnalités de votre compte.<br>
         <em style="color:${emailStyles.textMuted};">You can now enjoy all the features of your account.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal"), "Ouvrir le portail / Open portal", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal"), "Ouvrir le portail / Open portal", config.supportEmail),
   },
 
   // PASSWORD RESET
@@ -328,7 +328,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Si vous n'avez pas fait cette demande, ignorez cet email.<br>
         <em style="color:${emailStyles.textMuted};">If you did not make this request, please ignore this email.</em>
       </p>
-    `, vars.reset_link || joinUrl(config.baseUrl, "/reset-password"), "Réinitialiser / Reset password", config.supportEmail, config.supportPhone),
+    `, vars.reset_link || joinUrl(config.baseUrl, "/reset-password"), "Réinitialiser / Reset password", config.supportEmail),
   },
 
   // ORDER SUBMITTED
@@ -350,7 +350,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Suivez votre commande dans votre portail client.<br>
         <em style="color:${emailStyles.textMuted};">Track your order in your client portal.</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View my order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View my order", config.supportEmail),
   },
 
   // ORDER PROCESSED
@@ -366,7 +366,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
         { label: 'Statut / Status', value: 'En traitement / Processing' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail),
   },
 
   // ORDER SHIPPED
@@ -383,7 +383,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº suivi / Tracking #', value: vars.tracking_number || 'N/A' },
         ...(vars.tracking_url ? [{ label: 'Lien suivi / Tracking link', value: `<a href="${vars.tracking_url}" style="color:${emailStyles.accent};">Suivre / Track</a>` }] : []),
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View order", config.supportEmail),
   },
 
   // ORDER COMPLETED
@@ -403,7 +403,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Merci de faire confiance à Nivra Telecom!<br>
         <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir mes commandes / View orders", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir mes commandes / View orders", config.supportEmail),
   },
 
   // ORDER CANCELLED
@@ -423,7 +423,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Pour toute question, contactez notre support.<br>
         <em style="color:${emailStyles.textMuted};">For any questions, contact our support.</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Contacter support / Contact support", config.supportEmail),
   },
 
   // SHIPPING CREATED
@@ -439,7 +439,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
         { label: 'Adresse / Address', value: vars.shipping_address || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail),
   },
 
   // INVOICE CREATED
@@ -456,7 +456,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
         { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir ma facture / View invoice", config.supportEmail),
   },
 
   // PAYMENT RECEIVED
@@ -477,7 +477,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Merci de faire confiance à Nivra Telecom!<br>
         <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail),
   },
 
   // PAYMENT STATUS CHANGED
@@ -493,7 +493,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
         { label: 'Nouveau statut / New status', value: vars.status || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail),
   },
 
   // INVOICE OVERDUE
@@ -510,7 +510,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Montant dû / Amount due', value: formatCurrency(vars.amount) },
         { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
   },
 
   // PAYMENT FAILED
@@ -530,7 +530,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Veuillez mettre à jour votre méthode de paiement et réessayer.<br>
         <em style="color:${emailStyles.textMuted};">Please update your payment method and try again.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Réessayer / Retry", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Réessayer / Retry", config.supportEmail),
   },
 
   // TICKET CREATED
@@ -546,7 +546,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº ticket / Ticket #', value: vars.ticket_number || 'N/A' },
         { label: 'Sujet / Subject', value: vars.subject || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir mon ticket / View ticket", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir mon ticket / View ticket", config.supportEmail),
   },
 
   // TICKET REPLY
@@ -572,7 +572,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
           </tr>
         </table>
       ` : ''}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir la réponse / View reply", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir la réponse / View reply", config.supportEmail),
   },
 
   // APPOINTMENT SCHEDULED
@@ -589,7 +589,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Date et heure / Date & time', value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : 'À confirmer / TBD' },
         ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Voir mes rendez-vous / View appointments", config.supportEmail),
   },
 
   // APPOINTMENT UPDATED
@@ -605,7 +605,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Titre / Title', value: vars.title || 'N/A' },
         { label: 'Nouvelle date / New date', value: vars.scheduled_at ? formatDate(vars.scheduled_at, true) : 'À confirmer / TBD' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Voir mes rendez-vous / View appointments", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Voir mes rendez-vous / View appointments", config.supportEmail),
   },
 
   // APPOINTMENT CANCELLED
@@ -622,10 +622,10 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         ...(vars.cancellation_reason ? [{ label: 'Raison / Reason', value: vars.cancellation_reason }] : []),
       ])}
       <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
-        Pour reprogrammer, veuillez nous contacter au ${config.supportPhone}.<br>
-        <em style="color:${emailStyles.textMuted};">To reschedule, please contact us at ${config.supportPhone}.</em>
+        Pour reprogrammer, veuillez nous contacter à ${config.supportEmail}.<br>
+        <em style="color:${emailStyles.textMuted};">To reschedule, please contact us at ${config.supportEmail}.</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Reprogrammer / Reschedule", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Reprogrammer / Reschedule", config.supportEmail),
   },
 
   // CONTRACT READY
@@ -641,7 +641,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         { label: 'Nº contrat / Contract #', value: vars.contract_number || 'N/A' },
         { label: 'Nom / Name', value: vars.contract_name || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir le contrat / View contract", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir le contrat / View contract", config.supportEmail),
   },
 
   // CONTRACT SIGNED
@@ -661,7 +661,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Merci de faire confiance à Nivra Telecom!<br>
         <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom!</em>
       </p>
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir mes contrats / View contracts", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir mes contrats / View contracts", config.supportEmail),
   },
 
   // =============================================
@@ -685,7 +685,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Notre équipe examinera votre demande dans les plus brefs délais.<br>
         <em style="color:${emailStyles.textMuted};">Our team will review your request as soon as possible.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Suivre ma demande / Track request", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Suivre ma demande / Track request", config.supportEmail),
   },
 
   // CANCELLATION SCHEDULED
@@ -717,7 +717,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Votre service restera actif jusqu'à la date effective.<br>
         <em style="color:${emailStyles.textMuted};">Your service will remain active until the effective date.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Voir les détails / View details", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Voir les détails / View details", config.supportEmail),
   },
 
   // CANCELLATION COMPLETED
@@ -749,7 +749,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Merci d'avoir été client chez Nivra. Nous serons heureux de vous accueillir à nouveau.<br>
         <em style="color:${emailStyles.textMuted};">Thank you for being a Nivra customer. We'd be happy to welcome you back.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal"), "Retour au portail / Back to portal", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal"), "Retour au portail / Back to portal", config.supportEmail),
   },
 
   // CANCELLATION DECLINED
@@ -781,7 +781,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Pour toute question, contactez notre équipe de support.<br>
         <em style="color:${emailStyles.textMuted};">For any questions, please contact our support team.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/cancellations"), "Contacter support / Contact support", config.supportEmail),
   },
 
   // =============================================
@@ -807,7 +807,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Notre équipe examinera votre contestation dans les plus brefs délais.<br>
         <em style="color:${emailStyles.textMuted};">Our team will review your dispute as soon as possible.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Suivre ma contestation / Track dispute", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Suivre ma contestation / Track dispute", config.supportEmail),
   },
 
   // DISPUTE REQUEST INFO
@@ -840,7 +840,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Veuillez répondre via votre portail client.<br>
         <em style="color:${emailStyles.textMuted};">Please respond through your client portal.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Répondre / Respond", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Répondre / Respond", config.supportEmail),
   },
 
   // DISPUTE RESOLVED APPROVED
@@ -873,7 +873,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Merci de votre patience. Un crédit sera appliqué à votre compte si applicable.<br>
         <em style="color:${emailStyles.textMuted};">Thank you for your patience. A credit will be applied to your account if applicable.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mon compte / View account", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mon compte / View account", config.supportEmail),
   },
 
   // DISPUTE RESOLVED REJECTED
@@ -906,7 +906,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
         Pour toute question, contactez notre équipe de support.<br>
         <em style="color:${emailStyles.textMuted};">For any questions, please contact our support team.</em>
       </p>
-    `, joinUrl(config.baseUrl, "/portal/invoices"), "Contacter support / Contact support", config.supportEmail, config.supportPhone),
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Contacter support / Contact support", config.supportEmail),
   },
 };
 
@@ -1001,7 +1001,6 @@ Deno.serve(async (req) => {
   const emailConfig: EmailConfig = {
     baseUrl: appBaseUrl,
     supportEmail,
-    supportPhone,
   };
 
   try {
@@ -1115,7 +1114,7 @@ Deno.serve(async (req) => {
         if (vars.dispute_number) subject = subject.replace('{{dispute_number}}', vars.dispute_number);
 
         // Generate plain text version from subject for preview
-        const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail} - ${emailConfig.supportPhone}`;
+        const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
 
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
