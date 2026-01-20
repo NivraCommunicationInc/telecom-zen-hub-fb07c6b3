@@ -23,6 +23,17 @@ const formatDate = (dateStr: string | undefined) => {
 };
 
 export async function generateContractSummaryPDF(data: ContractSummaryData): Promise<void> {
+  // ========== VALIDATION: Block if required client fields missing (per Nivra standard) ==========
+  const requiredFields = ["legalName", "email", "phone", "serviceAddress"];
+  const missingFields = requiredFields.filter(field => {
+    const value = (data.client as any)[field];
+    return !value || String(value).trim() === "";
+  });
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`);
+  }
+
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const marginLeft = 15;
@@ -61,7 +72,7 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
     currentY += 4.5;
   };
 
-  // ========== HEADER ==========
+  // ========== HEADER — NIVRA OFFICIAL INFO ==========
   doc.setFillColor(...accentTeal);
   doc.rect(0, 0, pageWidth, 3, "F");
   doc.setFillColor(...primaryNavy);
@@ -78,18 +89,24 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
 
   currentY = 32;
 
-  // Contract reference box - ALL required numbers (CTR, ORD, Account)
+  // Contract reference box - ALL required numbers (CTR#, ORD#, INV#, Compte#)
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 16, 1, 1, "FD");
+  doc.roundedRect(marginLeft, currentY, contentWidth, 20, 1, 1, "FD");
   doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(...textDark);
+  // Row 1: CTR# and ORD#
   doc.text(`Contrat #: ${data.contractNumber || "CTR-" + (data.orderId.slice(0, 8))}`, marginLeft + 3, currentY + 5);
-  doc.text(`Commande #: ${data.orderNumber || "—"}`, marginLeft + 65, currentY + 5);
-  doc.text(`Version: ${data.agreementVersion || 1}`, marginLeft + 3, currentY + 12);
-  doc.text(`Compte #: ${data.accountNumber || data.client.accountId || "À confirmer"}`, marginLeft + 65, currentY + 12);
+  doc.text(`Commande #: ${data.orderNumber || "ORD-" + (data.orderId.slice(0, 8))}`, marginLeft + 65, currentY + 5);
   doc.text(`Date: ${formatDate(data.snapshotCreatedAt)}`, marginLeft + 130, currentY + 5);
-  currentY += 22;
+  // Row 2: INV# (if exists), Compte#, Version
+  doc.setFont("helvetica", "normal");
+  const invoiceNumber = (data as any).invoiceNumber || "INV-" + (data.orderId.slice(0, 8));
+  doc.text(`Facture #: ${invoiceNumber}`, marginLeft + 3, currentY + 12);
+  doc.text(`Compte #: ${data.accountNumber || data.client.accountId || "À confirmer"}`, marginLeft + 65, currentY + 12);
+  doc.text(`Version: ${data.agreementVersion || 1}`, marginLeft + 130, currentY + 12);
+  currentY += 26;
 
   // ========== CLIENT SECTION ==========
   addSectionTitle("Client");
@@ -249,14 +266,14 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   doc.text("Frais de réactivation (si applicable après suspension): 15 $", marginLeft, currentY);
   currentY += 6;
 
-  // ========== PAYMENT SECTION ==========
+  // ========== PAYMENT SECTION — INTERAC ONLY (MANDATORY) ==========
   addSectionTitle("Paiement — Interac seulement");
   
   // CRITICAL: Interac-only payment notice (per Billing V2 requirements)
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...accentTeal);
   doc.setLineWidth(0.8);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 18, 1, 1, "FD");
+  doc.roundedRect(marginLeft, currentY, contentWidth, 22, 1, 1, "FD");
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
@@ -265,7 +282,10 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   doc.setTextColor(...textMuted);
   doc.setFontSize(6);
   doc.text("Le service est activé dès réception et confirmation du paiement. Aucun paiement par carte n'est accepté.", marginLeft + 3, currentY + 12);
-  currentY += 22;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...accentTeal);
+  doc.text("Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac.", marginLeft + 3, currentY + 18);
+  currentY += 26;
   
   const methodLabel = data.payment.method === "card" ? "Carte (non disponible)" : 
                       data.payment.method === "etransfer" ? "Virement Interac ✓" : 
@@ -314,12 +334,12 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   doc.text("Signature Nivra: _________________", marginLeft + sigBoxWidth + 13, currentY + 10);
   doc.text("Date: ___/___/______", marginLeft + sigBoxWidth + 13, currentY + 18);
 
-  // Footer
+  // Footer — NIVRA OFFICIAL INFO (ALWAYS PRESENT)
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFontSize(5);
   doc.setTextColor(...textMuted);
   doc.text(
-    `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address} — ${BUSINESS_INFO.email}`,
+    `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address} — ${BUSINESS_INFO.email} — ${BUSINESS_INFO.phone}`,
     pageWidth / 2,
     pageHeight - 8,
     { align: "center" }
