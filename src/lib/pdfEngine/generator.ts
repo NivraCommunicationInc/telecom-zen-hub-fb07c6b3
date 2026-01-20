@@ -87,7 +87,10 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     DOC_SUBTITLES[data.docType]
   );
 
-  // Company info box - compact (ALWAYS Nivra's official address)
+  // ================================================================================
+  // Company info box - compact (ALWAYS Nivra's official address per rule 8)
+  // MANDATORY: Nivra Communications Inc., 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
+  // ================================================================================
   const companyLines = [
     `${companyLegalName}`,
     `${BUSINESS_INFO.address}`, // ALWAYS Nivra's official address
@@ -153,14 +156,17 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     : "Nivra Telecom";
   addLabelValue(state, "Traité par", agentText, { addHeader });
 
-  // ========== SERVICES (ONLY IF PRESENT) ==========
-  // IMPORTANT: Each service MUST be on its own row, never concatenated
+  // ================================================================================
+  // SERVICES (ONLY IF PRESENT)
+  // CRITICAL RULE: Each service MUST be on its own row, NEVER concatenated
+  // One line per service — NEVER bundle multiple services on a single line
+  // ================================================================================
   if (data.services.length > 0) {
-    addSectionTitle(state, "Services inclus", { addHeader });
+    addSectionTitle(state, "BLOC A — Tarifs mensuels (récurrents)", { addHeader });
     
     // Enhanced table with columns: TYPE | SERVICE/FORFAIT | QTÉ | PRIX | PÉRIODE
     const serviceWidths = [28, 70, 15, 25, 30];
-    addTableHeader(state, ["TYPE", "SERVICE / FORFAIT", "QTÉ", "PRIX", "PÉRIODE"], serviceWidths, { addHeader });
+    addTableHeader(state, ["TYPE", "SERVICE / FORFAIT", "QTÉ", "PRIX UNIT.", "PÉRIODE"], serviceWidths, { addHeader });
     
     // Each service is its own row - never combine multiple services
     data.services.forEach((service, index) => {
@@ -169,7 +175,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
         ? `${service.name} — ${service.description}` 
         : service.name;
       
-      // Determine price label
+      // Determine price label per service type
       let priceLabel = service.priceLabel || "/mois";
       if (service.isOneTime) {
         priceLabel = "Frais unique";
@@ -218,7 +224,9 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     }
   }
 
-  // ========== EQUIPMENT (ONLY IF PRESENT) ==========
+  // ================================================================================
+  // EQUIPMENT (ONLY IF PRESENT) - Part of BLOC B: One-time fees
+  // ================================================================================
   if (data.equipment.length > 0) {
     addSectionTitle(state, "Équipement", { addHeader });
     
@@ -243,9 +251,13 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     state.currentY += 2;
   }
 
-  // ========== ONE-TIME FEES (ONLY IF PRESENT) ==========
+  // ================================================================================
+  // ONE-TIME FEES (ONLY IF PRESENT) - BLOC B: Frais uniques (non récurrents)
+  // Each fee on its own line — never combine
+  // RULE: Activation fee = 25$ (1 service) or 45$ (2+ services)
+  // ================================================================================
   if (data.oneTimeFees.length > 0) {
-    addSectionTitle(state, "Frais uniques", { addHeader });
+    addSectionTitle(state, "BLOC B — Frais uniques (non récurrents)", { addHeader });
     
     const feeWidths = [100, 68];
     addTableHeader(state, ["DESCRIPTION", "MONTANT"], feeWidths, { addHeader });
@@ -263,7 +275,9 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     state.currentY += 2;
   }
 
-  // ========== DISCOUNTS (ONLY IF PRESENT) ==========
+  // ================================================================================
+  // DISCOUNTS (ONLY IF PRESENT)
+  // ================================================================================
   if (data.discounts.length > 0) {
     addSectionTitle(state, "Rabais / Promotions", { addHeader });
     
@@ -547,20 +561,25 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     
     state.currentY += 4;
     
+    // ================================================================================
     // CRITICAL: Prepaid cycle notice + Interac payment (per Billing V2 requirements)
+    // MANDATORY TEXT: Must appear verbatim on all contract PDFs
+    // ================================================================================
     addInfoBox(
       state,
       [
         "IMPORTANT — FACTURATION PRÉPAYÉE (INTERAC SEULEMENT)",
-        "Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac, et non à la date de commande.",
+        "",
         "Paiement uniquement par virement Interac à Support@nivratelecom.ca.",
         "Le service est activé dès réception et confirmation du paiement.",
+        "",
+        "Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac et dure 30 jours.",
       ],
       { 
         addHeader, 
         bgColor: "background", 
         accentColor: "accent",
-        height: 34,
+        height: 42,
       }
     );
     

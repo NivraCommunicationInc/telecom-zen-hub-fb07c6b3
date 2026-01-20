@@ -23,15 +23,26 @@ const formatDate = (dateStr: string | undefined) => {
 };
 
 export async function generateContractSummaryPDF(data: ContractSummaryData): Promise<void> {
-  // ========== VALIDATION: Block if required client fields missing (per Nivra standard) ==========
+  // ================================================================================
+  // VALIDATION: Block if required client fields missing (per Nivra standard)
+  // Required: legalName, email, phone, serviceAddress, billingAddress (fallback to serviceAddress OK)
+  // ================================================================================
   const requiredFields = ["legalName", "email", "phone", "serviceAddress"];
   const missingFields = requiredFields.filter(field => {
     const value = (data.client as any)[field];
     return !value || String(value).trim() === "";
   });
   
+  // billing_address check: fallback to service_address is allowed
+  const hasBillingAddress = (data.client as any).billingAddress || (data.client as any).serviceAddress;
+  if (!hasBillingAddress) {
+    missingFields.push("billingAddress");
+  }
+  
   if (missingFields.length > 0) {
-    throw new Error(`Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`);
+    const errorMsg = `Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`;
+    console.error("[ContractSummaryPDF] VALIDATION BLOCKED:", errorMsg);
+    throw new Error(errorMsg);
   }
 
   const doc = new jsPDF();
@@ -335,13 +346,20 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   doc.text("Date: ___/___/______", marginLeft + sigBoxWidth + 13, currentY + 18);
 
   // Footer — NIVRA OFFICIAL INFO (ALWAYS PRESENT)
+  // MANDATORY: Nivra Communications Inc., 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFontSize(5);
   doc.setTextColor(...textMuted);
   doc.text(
-    `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address} — ${BUSINESS_INFO.email} — ${BUSINESS_INFO.phone}`,
+    `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address}`,
     pageWidth / 2,
-    pageHeight - 8,
+    pageHeight - 10,
+    { align: "center" }
+  );
+  doc.text(
+    `${BUSINESS_INFO.email} — ${BUSINESS_INFO.phone}`,
+    pageWidth / 2,
+    pageHeight - 6,
     { align: "center" }
   );
 

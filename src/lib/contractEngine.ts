@@ -65,33 +65,55 @@ export const ensureOrderContractUpToDate = async (params: {
     return fallback;
   };
   
+  // ================================================================================
   // VALIDATION: Block generation if required fields are missing (per Nivra standard)
-  // Required: full_name, email, phone, service_address, billing_address
-  const requiredFieldsMap: Record<string, string[]> = {
-    full_name: ["legalName", "full_name"],
-    email: ["email"],
-    phone: ["phone"],
-    service_address: ["serviceAddress", "service_address"],
-    billing_address: ["billingAddress", "billing_address", "serviceAddress", "service_address"], // Fallback to service address
+  // CRITICAL RULE: Must have full_name, email, phone, service_address, billing_address
+  // billing_address: fallback to service_address is ALLOWED
+  // ================================================================================
+  const requiredFieldsMap: Record<string, { candidates: string[]; allowFallback?: string[] }> = {
+    full_name: { candidates: ["legalName", "full_name"] },
+    email: { candidates: ["email"] },
+    phone: { candidates: ["phone"] },
+    service_address: { candidates: ["serviceAddress", "service_address"] },
+    billing_address: { 
+      candidates: ["billingAddress", "billing_address"], 
+      allowFallback: ["serviceAddress", "service_address"] // Fallback to service_address is allowed
+    },
   };
   
   const missingFields: string[] = [];
-  for (const [fieldName, candidates] of Object.entries(requiredFieldsMap)) {
+  for (const [fieldName, config] of Object.entries(requiredFieldsMap)) {
     let found = false;
-    for (const candidate of candidates) {
+    
+    // Check primary candidates
+    for (const candidate of config.candidates) {
       const value = resolveClientField(candidate);
       if (value && String(value).trim() !== "") {
         found = true;
         break;
       }
     }
+    
+    // Check fallback candidates if primary not found
+    if (!found && config.allowFallback) {
+      for (const candidate of config.allowFallback) {
+        const value = resolveClientField(candidate);
+        if (value && String(value).trim() !== "") {
+          found = true;
+          break;
+        }
+      }
+    }
+    
     if (!found) {
       missingFields.push(fieldName);
     }
   }
   
   if (missingFields.length > 0) {
-    throw new Error(`Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`);
+    const errorMsg = `Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`;
+    console.error("[ContractEngine] VALIDATION BLOCKED:", errorMsg, { orderId: params.orderId });
+    throw new Error(errorMsg);
   }
 
   // 1) Ensure a contract row exists + is linked

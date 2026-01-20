@@ -393,9 +393,18 @@ const AdminContracts = () => {
         try {
           const profile = service.profile;
           
-          // VALIDATION: Check for complete client coordinates (Nivra standard)
+          // ================================================================================
+          // VALIDATION: Check for complete client coordinates (Nivra standard - Rule 1)
+          // Required: full_name, email, phone, service_address, billing_address (fallback OK)
+          // ================================================================================
           const requiredFields = ['full_name', 'service_address', 'phone', 'email'];
-          const missingFields = requiredFields.filter(field => !profile?.[field]);
+          const missingFields = requiredFields.filter(field => !profile?.[field] || String(profile?.[field]).trim() === '');
+          
+          // Check billing_address with fallback to service_address
+          const hasBillingAddress = profile?.billing_address || profile?.service_address;
+          if (!hasBillingAddress) {
+            missingFields.push('billing_address');
+          }
           
           if (missingFields.length > 0) {
             console.warn(`[RegenerateContract] Missing client data for ${service.serviceName}:`, missingFields);
@@ -472,12 +481,14 @@ const AdminContracts = () => {
         toast.error(`${results.failed.length} contrat(s) ont échoué: ${results.failed.join(', ')}`);
       }
       
-      // Invalidate all relevant queries to refresh the UI immediately
+      // Invalidate all relevant queries to refresh the UI immediately (per Rule 10)
       queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["active-services-for-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["orders-needing-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["client-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["client-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order-details"] });
       
       setIsRegenerateDialogOpen(false);
       setSelectedServices([]);

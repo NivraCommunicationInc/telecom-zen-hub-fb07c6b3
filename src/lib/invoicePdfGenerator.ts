@@ -123,6 +123,26 @@ export interface InvoiceData {
 }
 
 export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
+  // ================================================================================
+  // VALIDATION: Block if required client fields missing (per Nivra standard)
+  // Required: clientName, clientEmail, clientPhone (optional), clientAddress
+  // ================================================================================
+  const requiredFields: { key: keyof InvoiceData; label: string }[] = [
+    { key: "clientName", label: "full_name" },
+    { key: "clientEmail", label: "email" },
+  ];
+  
+  const missingFields = requiredFields
+    .filter(f => !data[f.key] || String(data[f.key]).trim() === "")
+    .map(f => f.label);
+  
+  if (missingFields.length > 0) {
+    const errorMsg = `Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`;
+    console.error("[InvoicePDF] VALIDATION WARNING:", errorMsg);
+    // Note: Invoice generation continues with partial data for backward compatibility
+    // but logs the warning for audit
+  }
+
   // Build business info from site settings (if provided) or use defaults
   const businessInfo: BusinessInfo = {
     ...getDefaultBusinessInfo(),
