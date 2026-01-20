@@ -903,6 +903,25 @@ const ClientNewOrder = () => {
     !hasMobileService && !hasTVService && !hasInternetService && 
     !selectedServices.some(s => s.category === "Sécurité");
   
+  // Count distinct service types for activation fee calculation
+  // 1 service type = $25, 2+ service types = $45 (bundled cap)
+  const countServiceTypes = (): number => {
+    let count = 0;
+    if (hasInternetService) count++;
+    if (hasTVService) count++;
+    if (hasMobileService) count++;
+    return count;
+  };
+  
+  // Calculate activation fee based on number of service types
+  const calculateActivationFee = (): number => {
+    if (isEquipmentOnlyOrder) return 0;
+    const serviceTypeCount = countServiceTypes();
+    if (serviceTypeCount === 0) return 0;
+    if (serviceTypeCount === 1) return 25; // Single service
+    return 45; // 2+ services = bundled cap
+  };
+  
   // Check if Uber delivery is available based on client's phone area code
   const isUberDeliveryAvailable = (): boolean => {
     if (!profile?.phone) return false;
@@ -1525,8 +1544,8 @@ const ClientNewOrder = () => {
              DELIVERY_CONFIG.standard.fee)
           : (installationChoice === "auto" ? 30 : 0);
         
-        // For equipment-only orders, no activation fee on invoice
-        const invoiceActivationFee = isEquipmentOnlyOrder ? 0 : 25;
+        // Activation fee: $25 for 1 service type, $45 for 2+ service types
+        const invoiceActivationFee = calculateActivationFee();
         const invoiceInstallationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
         const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
         const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
@@ -2026,8 +2045,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   };
   
   const deliveryFee = calculateDeliveryFee();
-  // For equipment-only orders, no activation fee
-  const activationFee = isEquipmentOnlyOrder ? 0 : 25;
+  // Activation fee: $25 for 1 service type, $45 for 2+ service types
+  const activationFee = calculateActivationFee();
   const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
   
   // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
@@ -2425,8 +2444,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                                     )}
                                     {!isEquipmentOnlyOrder && isServiceSelected && (
                                       <div className="flex justify-between items-center text-xs">
-                                        <span className="text-muted-foreground">+ Frais d'activation</span>
-                                        <span className="text-muted-foreground">25,00 $</span>
+                                        <span className="text-muted-foreground">+ Frais d'activation ({countServiceTypes() >= 2 ? "forfait groupé" : "1 service"})</span>
+                                        <span className="text-muted-foreground">{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                                       </div>
                                     )}
                                   </div>

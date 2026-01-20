@@ -640,7 +640,7 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
 
   // Fixed fee schedule (must always appear for audits / regressions)
   addParagraph(
-    `Standard fees (CAD): Activation $${CONTRACT_TERMS.fees.activation.toFixed(2)}, Delivery $${CONTRACT_TERMS.fees.delivery.toFixed(2)}, Nivra 4K Terminal $${CONTRACT_TERMS.fees.tvTerminal.toFixed(2)}, Nivra Born WiFi Router $${CONTRACT_TERMS.fees.router.toFixed(2)}. Reactivation fee $${CONTRACT_TERMS.disputeChargeback.reactivationFee.toFixed(2)} applies ONLY for bank disputes/chargebacks.`
+    `Standard fees (CAD): Activation $${CONTRACT_TERMS.fees.activationSingle.toFixed(2)} (1 service) / $${CONTRACT_TERMS.fees.activationMultiple.toFixed(2)} (2+ services), Delivery $${CONTRACT_TERMS.fees.delivery.toFixed(2)}, Nivra 4K Terminal $${CONTRACT_TERMS.fees.tvTerminal.toFixed(2)}, Nivra Born WiFi Router $${CONTRACT_TERMS.fees.router.toFixed(2)}. Reactivation fee $${CONTRACT_TERMS.disputeChargeback.reactivationFee.toFixed(2)} applies ONLY for bank disputes/chargebacks.`
   );
   addParagraph(`Règle: Le forfait TV nécessite un forfait Internet actif.`);
 

@@ -261,7 +261,7 @@ export const ensureOrderContractUpToDate = async (params: {
     // Fallback service plan only if no specific services detected
     servicePlan: hasSpecificServices ? undefined : ((order as any).service_type || contract.contract_name),
 
-    activationFee: Number((order as any).activation_fee ?? CONTRACT_TERMS.fees.activation),
+    activationFee: Number((order as any).activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
     deliveryFee: Number((order as any).delivery_fee ?? CONTRACT_TERMS.fees.delivery),
     installationFee: Number((order as any).installation_fee ?? 0),
     terminalFee: Number((order as any).terminal_fee ?? 0),

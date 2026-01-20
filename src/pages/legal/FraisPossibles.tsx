@@ -7,7 +7,8 @@ import { CONTRACT_TERMS } from "@/lib/contractPolicies";
 
 const FraisPossibles = () => {
   const oneTimeFees = [
-    { name: "Activation", amount: `${CONTRACT_TERMS.fees.activation}$`, note: "Par nouveau service" },
+    { name: "Activation (1 service)", amount: `${CONTRACT_TERMS.fees.activationSingle}$`, note: "Internet, TV ou Mobile seul" },
+    { name: "Activation (2+ services)", amount: `${CONTRACT_TERMS.fees.activationMultiple}$`, note: "Forfait groupé (Internet + TV + Mobile)" },
     { name: "Livraison standard", amount: `${CONTRACT_TERMS.fees.delivery}$`, note: "Délai 24-78h ouvrables" },
     { name: "Livraison express (Uber)", amount: `${CONTRACT_TERMS.fees.uberExpress}$`, note: "Zones éligibles seulement" },
     { name: "Routeur Nivra Born WiFi", amount: `${CONTRACT_TERMS.fees.router}$`, note: "Achat, inclus garantie 1 an" },

@@ -36,7 +36,8 @@ export const CONTRACT_TERMS = {
   
   // One-time fees (not plan-dependent)
   fees: {
-    activation: 25,
+    activationSingle: 25, // 1 service type
+    activationMultiple: 45, // 2+ service types (bundled cap)
     delivery: 30,
     tvTerminal: 50, // per terminal
     router: 60,
@@ -474,7 +475,8 @@ export const CLIENT_ACKNOWLEDGEMENT = [
 ];
 
 export const FEES_SUMMARY = {
-  activation: { amount: CONTRACT_TERMS.fees.activation, description: "Activation fee" },
+  activationSingle: { amount: CONTRACT_TERMS.fees.activationSingle, description: "Activation fee (1 service)" },
+  activationMultiple: { amount: CONTRACT_TERMS.fees.activationMultiple, description: "Activation fee (2+ services)" },
   delivery: { amount: CONTRACT_TERMS.fees.delivery, description: "Delivery fee" },
   terminal: { amount: CONTRACT_TERMS.fees.tvTerminal, description: "Nivra 4K Smart Terminal (purchase)" },
   router: { amount: CONTRACT_TERMS.fees.router, description: "Nivra Born WiFi Router (purchase)" },
