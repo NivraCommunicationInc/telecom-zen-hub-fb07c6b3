@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Phone, Mail, MapPin, Clock } from "lucide-react";
+import { Mail, MapPin, Clock, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT } from "@/config/company";
@@ -12,7 +12,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
   // Use database values if available, fallback to config
   const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
   const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
   const address = siteSettings?.address || COMPANY_CONTACT.fullAddress;
 
@@ -71,14 +70,14 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </p>
             
             <div className="space-y-2.5">
-              <a 
-                href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`} 
+              <Link 
+                to="/portal/auth"
                 className="flex items-center gap-2.5 text-white/70 hover:text-accent transition-colors text-sm"
-                data-testid="footer-phone"
+                data-testid="footer-chat"
               >
-                <Phone className="w-4 h-4 text-accent/80" />
-                <span>{supportPhone}</span>
-              </a>
+                <MessageSquare className="w-4 h-4 text-accent/80" />
+                <span>{isFr ? "Chat / Tickets" : "Chat / Tickets"}</span>
+              </Link>
               <a 
                 href={`mailto:${supportEmail.toLowerCase()}`} 
                 className="flex items-center gap-2.5 text-white/70 hover:text-accent transition-colors text-sm"

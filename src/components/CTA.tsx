@@ -1,16 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Phone } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import ContactForm from "./ContactForm";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { COMPANY_CONTACT } from "@/config/company";
+import { Link } from "react-router-dom";
 
 const CTA = () => {
-  const { t } = useLanguage();
-  const { data: siteSettings } = useSiteSettings();
-  
-  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+  const { t, language } = useLanguage();
+  const isFrench = language === 'fr';
 
   return (
     <section id="contact" className="section-padding bg-gradient-to-b from-primary to-navy-700 relative overflow-hidden">
@@ -35,7 +31,7 @@ const CTA = () => {
               {t('cta.subtitle.order')}
             </p>
 
-            {/* Phone CTA */}
+            {/* Chat CTA */}
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-5">
               <Button 
                 variant="heroOutline" 
@@ -43,16 +39,16 @@ const CTA = () => {
                 className="gap-2" 
                 asChild
               >
-                <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
-                  <Phone className="w-4 h-4" />
-                  {t('cta.phone')}
-                </a>
+                <Link to="/portal/auth">
+                  <MessageSquare className="w-4 h-4" />
+                  {isFrench ? "Chat / Ouvrir un ticket" : "Chat / Open a ticket"}
+                </Link>
               </Button>
             </div>
 
             {/* Response time */}
             <p className="text-sm text-white/60">
-              {t('contact.success.text')}
+              {isFrench ? "Réponse entre 1h et 24h • Chat live selon disponibilité" : "Response within 1h to 24h • Live chat based on availability"}
             </p>
           </div>
 

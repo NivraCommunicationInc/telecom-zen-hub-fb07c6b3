@@ -7,9 +7,11 @@ export const COMPANY_CONTACT = {
   // Support contact details
   supportEmail: "support@nivratelecom.ca",
   supportEmailDisplay: "Support@nivratelecom.ca",
-  supportPhoneDisplay: "438-544-2233",
-  supportPhoneTel: "+14385442233",
-  supportPhoneFormatted: "(438) 544-2233",
+  // Phone removed - all support via chat/tickets
+  supportPhoneDisplay: "", // Deprecated - use chat/tickets
+  supportPhoneTel: "", // Deprecated - use chat/tickets  
+  supportPhoneFormatted: "", // Deprecated - use chat/tickets
+  
   
   // E-Transfer payment info (if different from support email)
   paymentEmail: "support@nivratelecom.ca",

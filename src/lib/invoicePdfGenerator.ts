@@ -32,7 +32,7 @@ const getDefaultBusinessInfo = (): BusinessInfo => ({
   description: "Telecommunications Services Provider — Province of Québec",
   address: COMPANY_CONTACT.fullAddress, // 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
   email: COMPANY_CONTACT.supportEmailDisplay,
-  phone: COMPANY_CONTACT.supportPhoneFormatted,
+  phone: "", // Phone removed - support via chat/tickets
   hours: COMPANY_CONTACT.supportHours,
   neq: "2291249786",
 });
