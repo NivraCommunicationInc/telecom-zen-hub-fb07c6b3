@@ -13,12 +13,12 @@ const CTA = () => {
   const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
 
   return (
-    <section id="contact" className="section-padding bg-primary relative overflow-hidden">
+    <section id="contact" className="section-padding bg-gradient-to-b from-primary to-navy-700 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-1/3 h-1/2 bg-gradient-to-bl from-accent/5 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-1/4 h-1/3 bg-gradient-to-tr from-accent/3 to-transparent" />
       </div>
-
 
       <div className="container mx-auto px-4 relative max-w-6xl">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-start">
@@ -28,10 +28,10 @@ const CTA = () => {
               {t('cta.badge')}
             </span>
 
-            <h2 className="text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               {t('cta.title.order')}
             </h2>
-            <p className="text-white/70 mb-6 max-w-md mx-auto lg:mx-0 leading-relaxed">
+            <p className="text-white/80 mb-6 max-w-md mx-auto lg:mx-0 leading-relaxed text-lg">
               {t('cta.subtitle.order')}
             </p>
 
@@ -39,7 +39,7 @@ const CTA = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-5">
               <Button 
                 variant="heroOutline" 
-                size="default" 
+                size="lg" 
                 className="gap-2" 
                 asChild
               >
@@ -51,7 +51,7 @@ const CTA = () => {
             </div>
 
             {/* Response time */}
-            <p className="text-xs text-white/50">
+            <p className="text-sm text-white/60">
               {t('contact.success.text')}
             </p>
           </div>

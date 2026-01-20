@@ -46,7 +46,7 @@ const NetworkTrust = () => {
   ];
 
   return (
-    <section className="py-20 bg-muted/50">
+    <section className="py-20 bg-secondary">
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-14">
@@ -63,7 +63,7 @@ const NetworkTrust = () => {
 
         {/* Trust Points Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
-          {trustPoints.map((point, index) => (
+          {trustPoints.map((point) => (
             <div 
               key={point.title}
               className="bg-card rounded-xl p-6 border border-border hover:border-accent/30 hover:shadow-md transition-all duration-300"
@@ -85,7 +85,7 @@ const NetworkTrust = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {testimonials.map((testimonial, index) => (
+            {testimonials.map((testimonial) => (
               <div 
                 key={testimonial.name}
                 className="bg-card rounded-xl p-6 border border-border"
@@ -113,23 +113,23 @@ const NetworkTrust = () => {
         </div>
 
         {/* Stats Bar */}
-        <div className="bg-primary rounded-2xl p-8">
+        <div className="bg-gradient-to-r from-primary to-navy-700 rounded-2xl p-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             <div>
               <div className="text-3xl lg:text-4xl font-bold text-accent mb-1">99.9%</div>
-              <div className="text-sm text-white/70">Disponibilité réseau</div>
+              <div className="text-sm text-white/80">Disponibilité réseau</div>
             </div>
             <div>
               <div className="text-3xl lg:text-4xl font-bold text-white mb-1">5G/LTE</div>
-              <div className="text-sm text-white/70">Réseau mobile</div>
+              <div className="text-sm text-white/80">Réseau mobile</div>
             </div>
             <div>
               <div className="text-3xl lg:text-4xl font-bold text-white mb-1">1 Gbps</div>
-              <div className="text-sm text-white/70">Vitesse fibre max</div>
+              <div className="text-sm text-white/80">Vitesse fibre max</div>
             </div>
             <div>
               <div className="text-3xl lg:text-4xl font-bold text-accent mb-1">&lt;24h</div>
-              <div className="text-sm text-white/70">Activation mobile</div>
+              <div className="text-sm text-white/80">Activation mobile</div>
             </div>
           </div>
         </div>

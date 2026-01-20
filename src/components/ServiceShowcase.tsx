@@ -92,7 +92,7 @@ const ServiceShowcase = () => {
 
         {/* Service Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {serviceCards.map((service, index) => (
+          {serviceCards.map((service) => (
             <div
               key={service.title}
               className={`
@@ -106,7 +106,7 @@ const ServiceShowcase = () => {
               {/* Popular badge */}
               {service.popular && (
                 <div className="absolute top-0 right-0">
-                  <div className="bg-accent text-white text-xs font-bold uppercase tracking-wider px-4 py-1.5 rounded-bl-xl">
+                  <div className="bg-accent text-accent-foreground text-xs font-bold uppercase tracking-wider px-4 py-1.5 rounded-bl-xl">
                     Populaire
                   </div>
                 </div>
@@ -154,7 +154,7 @@ const ServiceShowcase = () => {
                   </div>
                   <Button 
                     asChild 
-                    className={`w-full ${service.popular ? '' : 'bg-primary hover:bg-primary/90'}`}
+                    className={`w-full ${service.popular ? '' : 'bg-primary hover:bg-navy-700'}`}
                     variant={service.popular ? "accent" : "default"}
                   >
                     <Link to={service.link}>
@@ -169,11 +169,11 @@ const ServiceShowcase = () => {
         </div>
 
         {/* Bundle Banner */}
-        <div className="bg-primary rounded-2xl p-8 text-center">
+        <div className="bg-gradient-to-r from-primary to-navy-700 rounded-2xl p-8 text-center">
           <h3 className="text-2xl font-bold text-white mb-2">
             Combinez et économisez
           </h3>
-          <p className="text-white/70 mb-6 max-w-lg mx-auto">
+          <p className="text-white/80 mb-6 max-w-lg mx-auto">
             Regroupez Internet, TV et Mobile pour profiter de rabais exclusifs sur votre facture mensuelle
           </p>
           <Button variant="hero" size="lg" asChild>

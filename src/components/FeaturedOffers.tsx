@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wifi, Tv, Smartphone, Check } from "lucide-react";
+import { Wifi, Tv, Smartphone, Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface FeaturedService {
@@ -41,8 +41,8 @@ export function FeaturedOffers() {
         price: Number(internetPlan.price),
         description: internetPlan.description,
         badge: "POPULAIRE",
-        badgeColor: "bg-accent text-white",
-        icon: <Wifi className="w-5 h-5" />,
+        badgeColor: "bg-accent text-accent-foreground",
+        icon: <Wifi className="w-5 h-5 text-accent" />,
         features: [
           "Téléchargement haute vitesse",
           "Données illimitées",
@@ -66,8 +66,8 @@ export function FeaturedOffers() {
         price: Number(mobilePlan.price),
         description: mobilePlan.description,
         badge: "SANS CONTRAT",
-        badgeColor: "bg-cyan-600 text-white",
-        icon: <Smartphone className="w-5 h-5" />,
+        badgeColor: "bg-primary text-primary-foreground",
+        icon: <Smartphone className="w-5 h-5 text-primary" />,
         features: [
           "Appels Canada illimités",
           "Textos/MMS illimités",
@@ -91,8 +91,8 @@ export function FeaturedOffers() {
         price: Number(tvPlan.price),
         description: tvPlan.description,
         badge: "COMBO",
-        badgeColor: "bg-purple-600 text-white",
-        icon: <Tv className="w-5 h-5" />,
+        badgeColor: "bg-navy-600 text-white",
+        icon: <Tv className="w-5 h-5 text-navy-600" />,
         features: [
           "Internet GIGA 1 Gbps inclus",
           "Chaînes populaires + sports",
@@ -108,7 +108,7 @@ export function FeaturedOffers() {
 
   if (isLoading) {
     return (
-      <section className="py-16 bg-muted/30">
+      <section className="py-16 bg-secondary">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-10">
             <Skeleton className="h-6 w-40 mx-auto mb-4" />
@@ -131,7 +131,7 @@ export function FeaturedOffers() {
   }
 
   return (
-    <section className="py-16 bg-muted/30">
+    <section className="py-16 bg-secondary">
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Section header */}
         <div className="text-center mb-10">
@@ -148,12 +148,12 @@ export function FeaturedOffers() {
           {featuredOffers.map((offer) => (
             <Card
               key={offer.id}
-              className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300 bg-card"
+              className="relative overflow-hidden border border-border hover:border-accent/30 shadow-sm hover:shadow-md transition-all duration-300 bg-card"
             >
               <CardHeader className="pb-3 pt-5">
                 {/* Icon & Badge */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-2.5 rounded-xl bg-primary/5">
+                  <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
                     {offer.icon}
                   </div>
                   <Badge className={offer.badgeColor}>
@@ -173,7 +173,7 @@ export function FeaturedOffers() {
                   {offer.features.map((feature, index) => (
                     <div key={index} className="flex items-start gap-2.5 text-sm">
                       <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span className="text-muted-foreground">{feature}</span>
+                      <span className="text-foreground">{feature}</span>
                     </div>
                   ))}
                 </div>
@@ -189,8 +189,11 @@ export function FeaturedOffers() {
                 </div>
 
                 {/* CTA Button */}
-                <Button asChild className="w-full" size="lg">
-                  <Link to={offer.link}>Voir les détails</Link>
+                <Button asChild className="w-full" size="lg" variant="accent">
+                  <Link to={offer.link}>
+                    Voir les détails
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
