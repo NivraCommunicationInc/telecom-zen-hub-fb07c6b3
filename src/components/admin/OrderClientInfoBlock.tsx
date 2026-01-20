@@ -20,6 +20,7 @@ interface ClientInfo {
   full_name: string;
   email: string;
   phone: string;
+  date_of_birth: string;
   service_address: string;
   billing_address: string;
 }
