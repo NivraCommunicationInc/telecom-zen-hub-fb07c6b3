@@ -234,8 +234,8 @@ export const button = (
 `;
 };
 
-// Professional Footer - Phone number uses nowrap to prevent line breaks
-export const footer = (supportPhone: string, supportEmail: string): string => `
+// Professional Footer - Digital support only (chat/tickets)
+export const footer = (supportEmail: string): string => `
   <tr>
     <td style="background-color: ${colors.footerBg}; padding: 32px 40px;">
       <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
@@ -252,7 +252,7 @@ export const footer = (supportPhone: string, supportEmail: string): string => `
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
               <tr>
                 <td style="padding: 0 12px; white-space: nowrap;">
-                  <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">📞&nbsp;${supportPhone.replace(/-/g, '&#8209;')}</a>
+                  <a href="https://nivratelecom.ca/portal" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">💬&nbsp;Chat / Tickets</a>
                 </td>
                 <td style="padding: 0 12px; white-space: nowrap;">
                   <a href="mailto:${supportEmail}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">✉️&nbsp;${supportEmail}</a>
@@ -286,16 +286,16 @@ export const footer = (supportPhone: string, supportEmail: string): string => `
   </tr>
 `;
 
-// Help section - Clean design with non-breaking phone number
-export const helpSection = (supportPhone: string, supportEmail: string): string => `
+// Help section - Digital support only (chat/tickets)
+export const helpSection = (supportEmail: string): string => `
   <div style="margin-top: 32px; padding: 24px; background-color: ${colors.bgSection}; border-radius: 8px; text-align: center;">
     <p style="color: ${colors.textPrimary}; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">Besoin d'aide?</p>
-    <p style="color: ${colors.textSecondary}; font-size: 14px; margin: 0 0 16px 0;">Notre équipe est disponible pour vous assister</p>
+    <p style="color: ${colors.textSecondary}; font-size: 14px; margin: 0 0 16px 0;">Notre équipe est disponible via chat ou tickets (réponse sous 1h à 24h)</p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
       <tr>
         <td style="padding: 0 8px;">
-          <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="display: inline-block; padding: 10px 20px; background-color: ${colors.white}; color: ${colors.primary}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid ${colors.borderMedium}; white-space: nowrap;">
-            📞&nbsp;${supportPhone.replace(/-/g, '&#8209;')}
+          <a href="https://nivratelecom.ca/portal" style="display: inline-block; padding: 10px 20px; background-color: ${colors.primary}; color: ${colors.white}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; white-space: nowrap;">
+            💬&nbsp;Chat / Tickets
           </a>
         </td>
         <td style="padding: 0 8px;">

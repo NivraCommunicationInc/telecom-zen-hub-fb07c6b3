@@ -10,7 +10,6 @@ import {
 } from './components.ts';
 
 interface BaseParams {
-  supportPhone: string;
   supportEmail: string;
 }
 
@@ -18,7 +17,7 @@ interface BaseParams {
 export const discoverNivra = (params: BaseParams & {
   recipientName?: string;
 }): string => {
-  const { recipientName, supportPhone, supportEmail } = params;
+  const { recipientName, supportEmail } = params;
   const name = recipientName || 'Cher client';
   
   const content = `
@@ -82,7 +81,7 @@ export const discoverNivra = (params: BaseParams & {
                 </td>
                 <td style="padding-left: 16px;">
                   <p style="color: ${colors.gray900}; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">Support local</p>
-                  <p style="color: ${colors.gray500}; font-size: 14px; margin: 0;">Équipe québécoise à votre service.</p>
+                  <p style="color: ${colors.gray500}; font-size: 14px; margin: 0;">Équipe québécoise à votre service via chat ou tickets.</p>
                 </td>
               </tr>
             </table>
@@ -94,9 +93,9 @@ export const discoverNivra = (params: BaseParams & {
         ${button('Découvrir nos forfaits →', 'https://nivratelecom.ca/mobile', 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -113,7 +112,7 @@ export const welcomeOffer = (params: BaseParams & {
   promoCode?: string;
   expiryDate?: string;
 }): string => {
-  const { recipientName, discountPercent = 50, promoCode = 'BIENVENUE50', expiryDate, supportPhone, supportEmail } = params;
+  const { recipientName, discountPercent = 50, promoCode = 'BIENVENUE50', expiryDate, supportEmail } = params;
   const name = recipientName || 'Cher client';
   
   const content = `
@@ -141,9 +140,9 @@ export const welcomeOffer = (params: BaseParams & {
         *Offre applicable sur la première facture mensuelle. Non cumulable avec d'autres promotions.
       </p>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -170,7 +169,7 @@ export const seasonalCampaign = (params: BaseParams & {
     recipientName, campaignTitle, campaignSubtitle, bannerIcon = '🎁',
     offerTitle, offerDescription, promoCode, expiryDate,
     ctaText = 'Profiter de l\'offre', ctaUrl = 'https://nivratelecom.ca',
-    supportPhone, supportEmail 
+    supportEmail 
   } = params;
   const name = recipientName || 'Cher client';
   
@@ -202,9 +201,9 @@ export const seasonalCampaign = (params: BaseParams & {
         ${button(ctaText + ' →', ctaUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -221,7 +220,7 @@ export const abandonedCart = (params: BaseParams & {
   cartTotal?: number;
   cartUrl?: string;
 }): string => {
-  const { recipientName, cartItems = [], cartTotal, cartUrl = 'https://nivratelecom.ca/contact', supportPhone, supportEmail } = params;
+  const { recipientName, cartItems = [], cartTotal, cartUrl = 'https://nivratelecom.ca/contact', supportEmail } = params;
   const name = recipientName || 'Cher client';
   
   const itemsHtml = cartItems.map(item => `
@@ -264,12 +263,12 @@ export const abandonedCart = (params: BaseParams & {
       </div>
       
       <p style="color: ${colors.gray500}; font-size: 14px; text-align: center; margin-top: 24px;">
-        Des questions? N'hésitez pas à nous contacter, nous sommes là pour vous aider!
+        Des questions? N'hésitez pas à nous contacter via chat ou tickets, nous sommes là pour vous aider!
       </p>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -293,7 +292,7 @@ export const newsletter = (params: BaseParams & {
   }>;
   unsubscribeUrl?: string;
 }): string => {
-  const { recipientName, subject, previewText, sections, unsubscribeUrl = '#', supportPhone, supportEmail } = params;
+  const { recipientName, subject, previewText, sections, unsubscribeUrl = '#', supportEmail } = params;
   const name = recipientName || 'Cher abonné';
   
   const sectionsHtml = sections.map((section, index) => `
@@ -325,7 +324,7 @@ export const newsletter = (params: BaseParams & {
         <a href="${unsubscribeUrl}" style="color: ${colors.gray500}; text-decoration: underline;">Se désabonner</a>
       </p>
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(subject, previewText, content);
@@ -339,7 +338,7 @@ export const referralInvite = (params: BaseParams & {
   referralBenefit: string;
   referralUrl?: string;
 }): string => {
-  const { referrerName, recipientName, referralCode, referralBenefit, referralUrl = 'https://nivratelecom.ca', supportPhone, supportEmail } = params;
+  const { referrerName, recipientName, referralCode, referralBenefit, referralUrl = 'https://nivratelecom.ca', supportEmail } = params;
   const name = recipientName || 'Cher ami';
   
   const content = `
@@ -365,9 +364,9 @@ export const referralInvite = (params: BaseParams & {
         ${button('Devenir client →', referralUrl, 'success')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -387,7 +386,7 @@ export const personalizedProposal = (params: BaseParams & {
   validUntil?: string;
   portalUrl?: string;
 }): string => {
-  const { recipientName, agentName = 'L\'équipe Nivra', proposalSummary, services, totalMonthly, validUntil, portalUrl = 'https://nivratelecom.ca/contact', supportPhone, supportEmail } = params;
+  const { recipientName, agentName = 'L\'équipe Nivra', proposalSummary, services, totalMonthly, validUntil, portalUrl = 'https://nivratelecom.ca/contact', supportEmail } = params;
   
   const servicesHtml = services.map(service => `
     <tr style="border-bottom: 1px solid ${colors.gray200};">
@@ -396,122 +395,105 @@ export const personalizedProposal = (params: BaseParams & {
         ${service.description ? `<p style="color: ${colors.gray500}; font-size: 13px; margin: 0;">${escapeHtml(service.description)}</p>` : ''}
       </td>
       <td style="padding: 16px 0; text-align: right; vertical-align: top;">
-        <span style="color: ${colors.gray900}; font-size: 16px; font-weight: 700;">${formatCurrencySimple(service.price)}</span>
-        <span style="color: ${colors.gray500}; font-size: 13px;">/mois</span>
+        <span style="color: ${colors.gray900}; font-size: 15px; font-weight: 600;">${formatCurrencySimple(service.price)}/mois</span>
       </td>
     </tr>
   `).join('');
   
   const content = `
     ${header()}
-    ${statusBanner('info', '📋', 'Votre proposition personnalisée', 'Préparée spécialement pour vous')}
+    ${statusBanner('info', '📋', 'Votre proposition personnalisée', `De ${agentName}`)}
     ${contentWrapper(`
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
         Bonjour ${escapeHtml(recipientName)},
       </p>
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Suite à notre échange, voici votre proposition personnalisée:
-      </p>
-      <p style="color: ${colors.gray600}; font-size: 15px; font-style: italic; background-color: ${colors.gray50}; padding: 16px; border-radius: 8px; border-left: 4px solid ${colors.primary}; margin: 0 0 32px 0;">
-        "${escapeHtml(proposalSummary)}"
+        ${escapeHtml(proposalSummary)}
       </p>
       
-      ${sectionHeader('Votre forfait', 'primary')}
+      ${sectionHeader('Services proposés', 'primary')}
       <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-          <tbody style="padding: 0 20px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; padding: 0 20px;">
+          <tbody>
             ${servicesHtml}
-          </tbody>
-        </table>
-        <div style="background: linear-gradient(135deg, ${colors.navy} 0%, ${colors.navyLight} 100%); padding: 20px 24px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
             <tr>
-              <td>
-                <p style="color: ${colors.gray400}; font-size: 13px; font-weight: 500; margin: 0;">Total mensuel</p>
+              <td style="padding: 20px 0;">
+                <p style="color: ${colors.gray900}; font-size: 16px; font-weight: 700; margin: 0;">Total mensuel</p>
               </td>
-              <td style="text-align: right;">
-                <span style="color: ${colors.accent}; font-size: 24px; font-weight: 800;">${formatCurrencySimple(totalMonthly)}</span>
-                <span style="color: ${colors.gray400}; font-size: 14px;">/mois</span>
+              <td style="padding: 20px 0; text-align: right;">
+                <span style="color: ${colors.success}; font-size: 24px; font-weight: 800;">${formatCurrencySimple(totalMonthly)}</span>
+                <span style="color: ${colors.gray500}; font-size: 14px;">/mois</span>
               </td>
             </tr>
-          </table>
-        </div>
+          </tbody>
+        </table>
       </div>
       
-      ${validUntil ? alertBox('warning', '⏰', 'Offre valide jusqu\'au ' + validUntil, 'Contactez-nous rapidement pour bénéficier de cette proposition.') : ''}
+      ${validUntil ? alertBox('warning', '⏰', 'Offre valide jusqu\'au ' + validUntil, 'N\'attendez pas pour profiter de cette proposition personnalisée!') : ''}
       
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Accepter cette proposition →', portalUrl, 'success')}
+        ${button('Accepter cette offre →', portalUrl, 'success')}
       </div>
       
-      <p style="color: ${colors.gray500}; font-size: 14px; text-align: center; margin-top: 24px;">
-        — ${escapeHtml(agentName)}
-      </p>
-      
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    `Votre proposition personnalisée - Nivra Télécom`,
+    'Votre proposition personnalisée - Nivra Télécom',
     `${recipientName}, voici votre proposition personnalisée de ${formatCurrencySimple(totalMonthly)}/mois`,
     content
   );
 };
 
-// 8. Témoignages clients
-export const testimonials = (params: BaseParams & {
-  recipientName?: string;
-  testimonials: Array<{
-    name: string;
-    location?: string;
-    text: string;
-    rating?: number;
-  }>;
+// 8. Feedback request
+export const feedbackRequest = (params: BaseParams & {
+  clientName: string;
+  feedbackUrl?: string;
 }): string => {
-  const { recipientName, testimonials: testis, supportPhone, supportEmail } = params;
-  const name = recipientName || 'Cher client potentiel';
-  
-  const testimonialsHtml = testis.map(t => `
-    <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; padding: 24px; margin-bottom: 16px;">
-      <div style="margin-bottom: 12px;">
-        ${t.rating ? `<span style="font-size: 16px;">${'⭐'.repeat(t.rating)}</span>` : ''}
-      </div>
-      <p style="color: ${colors.gray700}; font-size: 15px; line-height: 1.6; font-style: italic; margin: 0 0 16px 0;">
-        "${escapeHtml(t.text)}"
-      </p>
-      <p style="color: ${colors.gray900}; font-size: 14px; font-weight: 600; margin: 0;">
-        — ${escapeHtml(t.name)}${t.location ? `, ${escapeHtml(t.location)}` : ''}
-      </p>
-    </div>
-  `).join('');
+  const { clientName, feedbackUrl = 'https://nivratelecom.ca/feedback', supportEmail } = params;
   
   const content = `
     ${header()}
-    ${statusBanner('success', '💬', 'Ils ont choisi Nivra', 'Découvrez l\'avis de nos clients')}
+    ${statusBanner('purple', '💬', 'Votre avis compte!', 'Aidez-nous à nous améliorer')}
     ${contentWrapper(`
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Bonjour ${escapeHtml(name)},
+        Bonjour ${escapeHtml(clientName)},
       </p>
-      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 32px 0;">
-        Découvrez ce que nos clients pensent de Nivra Télécom:
+      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
+        Nous espérons que vous appréciez vos services Nivra Télécom! Votre satisfaction est notre priorité, et nous aimerions connaître votre avis.
       </p>
       
-      ${testimonialsHtml}
-      
-      <div style="text-align: center; margin-top: 32px;">
-        ${button('Rejoindre Nivra →', 'https://nivratelecom.ca', 'primary')}
+      <div style="background: linear-gradient(135deg, ${colors.purpleLight} 0%, #ede9fe 100%); border: 1px solid ${colors.purpleBorder}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
+        <p style="color: ${colors.gray900}; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Comment évaluez-vous votre expérience?</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="padding: 0 8px;"><span style="font-size: 32px; cursor: pointer;">😞</span></td>
+            <td style="padding: 0 8px;"><span style="font-size: 32px; cursor: pointer;">😐</span></td>
+            <td style="padding: 0 8px;"><span style="font-size: 32px; cursor: pointer;">🙂</span></td>
+            <td style="padding: 0 8px;"><span style="font-size: 32px; cursor: pointer;">😊</span></td>
+            <td style="padding: 0 8px;"><span style="font-size: 32px; cursor: pointer;">🤩</span></td>
+          </tr>
+        </table>
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      <div style="text-align: center; margin-top: 32px;">
+        ${button('Donner mon avis →', feedbackUrl, 'primary')}
+      </div>
+      
+      <p style="color: ${colors.gray500}; font-size: 14px; text-align: center; margin-top: 24px;">
+        Merci de prendre le temps de nous aider à nous améliorer!
+      </p>
+      
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    'Ce que nos clients disent de Nivra',
-    `${name}, découvrez les témoignages de nos clients satisfaits`,
+    'Votre avis compte! - Nivra Télécom',
+    `${clientName}, nous aimerions connaître votre avis sur Nivra Télécom`,
     content
   );
 };

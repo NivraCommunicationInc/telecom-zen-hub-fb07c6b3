@@ -10,7 +10,6 @@ import {
 } from './components.ts';
 
 interface BaseParams {
-  supportPhone: string;
   supportEmail: string;
 }
 
@@ -35,7 +34,7 @@ export const monthlyInvoice = (params: BaseParams & {
   paymentUrl?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, invoiceNumber, invoiceDate, dueDate, services, subtotal, tpsAmount, tvqAmount, totalAmount, pdfUrl, paymentUrl, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, invoiceNumber, invoiceDate, dueDate, services, subtotal, tpsAmount, tvqAmount, totalAmount, pdfUrl, paymentUrl, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const servicesHtml = services.map(s => `
     <tr style="border-bottom: 1px solid ${colors.gray200};">
@@ -93,9 +92,9 @@ export const monthlyInvoice = (params: BaseParams & {
         ${pdfUrl ? `<div style="margin-top: 16px;"><a href="${pdfUrl}" style="color: ${colors.primary}; font-size: 14px; text-decoration: underline;">Télécharger le PDF</a></div>` : ''}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -115,7 +114,7 @@ export const paymentReceipt = (params: BaseParams & {
   transactionId?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, paymentDate, amount, paymentMethod, invoiceNumber, transactionId, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, paymentDate, amount, paymentMethod, invoiceNumber, transactionId, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -150,9 +149,9 @@ export const paymentReceipt = (params: BaseParams & {
         ${button('Voir mon compte →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -171,7 +170,7 @@ export const preauthorizedPaymentSuccess = (params: BaseParams & {
   nextPaymentDate?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, paymentDate, amount, invoiceNumber, nextPaymentDate, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, paymentDate, amount, invoiceNumber, nextPaymentDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -200,9 +199,9 @@ export const preauthorizedPaymentSuccess = (params: BaseParams & {
         ${button('Voir ma facture →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -222,7 +221,7 @@ export const paymentFailed = (params: BaseParams & {
   invoiceNumber?: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, amount, failureDate, failureReason, retryDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, amount, failureDate, failureReason, retryDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -255,9 +254,9 @@ export const paymentFailed = (params: BaseParams & {
       
       ${alertBox('warning', '⚠️', 'Important', 'Sans paiement, votre service pourrait être interrompu. Réglez votre solde rapidement pour éviter toute interruption.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -275,7 +274,7 @@ export const paymentRetry = (params: BaseParams & {
   invoiceNumber?: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, amount, retryDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, amount, retryDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -300,9 +299,9 @@ export const paymentRetry = (params: BaseParams & {
         ${button('Payer maintenant →', paymentUrl, 'success')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -321,7 +320,7 @@ export const overdueBalance = (params: BaseParams & {
   dueDate: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, overdueAmount, daysOverdue, invoiceNumber, dueDate, paymentUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, overdueAmount, daysOverdue, invoiceNumber, dueDate, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -356,9 +355,9 @@ export const overdueBalance = (params: BaseParams & {
       
       ${alertBox('warning', '⚠️', 'Évitez l\'interruption de service', 'Sans paiement rapide, votre service pourrait être suspendu. Des frais de retard peuvent également s\'appliquer.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -376,7 +375,7 @@ export const suspensionWarning = (params: BaseParams & {
   invoiceNumber: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, overdueAmount, suspensionDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, overdueAmount, suspensionDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -395,147 +394,119 @@ export const suspensionWarning = (params: BaseParams & {
         <p style="color: ${colors.errorText}; font-size: 20px; font-weight: 700; margin: 0;">Solde dû: ${formatCurrencySimple(overdueAmount)}</p>
       </div>
       
-      ${alertBox('error', '🚫', 'Conséquences de la suspension', 'Vous perdrez l\'accès à tous vos services Nivra (appels, textos, données, Internet). Des frais de rétablissement peuvent s\'appliquer.')}
-      
-      <div style="text-align: center; margin-top: 32px;">
-        ${button('⚡ Payer immédiatement →', paymentUrl, 'primary')}
-      </div>
-      
-      <p style="color: ${colors.gray500}; font-size: 14px; text-align: center; margin-top: 24px;">
-        Si vous avez des difficultés de paiement, contactez-nous pour discuter d'un arrangement.
-      </p>
-      
-      ${helpSection(supportPhone, supportEmail)}
-    `)}
-    ${footer(supportPhone, supportEmail)}
-  `;
-  
-  return emailDocument(
-    '🚨 Suspension imminente - Nivra Télécom',
-    `${clientName}, votre service sera suspendu le ${suspensionDate} sans paiement`,
-    content
-  );
-};
-
-// 8. Suspension de service
-export const serviceSuspended = (params: BaseParams & {
-  clientName: string;
-  overdueAmount: number;
-  suspensionDate: string;
-  servicesAffected: string[];
-  paymentUrl?: string;
-}): string => {
-  const { clientName, overdueAmount, suspensionDate, servicesAffected, paymentUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
-  
-  const servicesHtml = servicesAffected.map(s => `
-    <tr><td style="padding: 6px 0; color: ${colors.gray700}; font-size: 14px;">🚫 ${escapeHtml(s)}</td></tr>
-  `).join('');
-  
-  const content = `
-    ${header()}
-    ${statusBanner('error', '🔴', 'Service suspendu', 'Compte en souffrance')}
-    ${contentWrapper(`
-      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Bonjour ${escapeHtml(clientName)},
-      </p>
-      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        En raison d'un solde impayé, votre service a été suspendu le ${escapeHtml(suspensionDate)}.
-      </p>
-      
-      ${sectionHeader('Services suspendus', 'error')}
-      <div style="background-color: ${colors.errorLight}; border: 1px solid ${colors.errorBorder}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-          <tbody>
-            ${servicesHtml}
-          </tbody>
-        </table>
-      </div>
-      
+      ${sectionHeader('Détails', 'error')}
       <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
           <tbody>
-            ${infoRow('Solde à payer', formatCurrencySimple(overdueAmount))}
+            ${infoRow('Facture', invoiceNumber)}
+            ${infoRow('Montant dû', formatCurrencySimple(overdueAmount))}
             ${infoRow('Date de suspension', suspensionDate)}
           </tbody>
         </table>
       </div>
       
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Régler mon solde →', paymentUrl, 'success')}
+        ${button('Payer immédiatement →', paymentUrl, 'primary')}
       </div>
       
-      ${alertBox('info', 'ℹ️', 'Rétablissement', 'Votre service sera rétabli dans les minutes suivant la réception de votre paiement.')}
+      ${alertBox('error', '🚨', 'Conséquences de la suspension', 'En cas de suspension, vous perdrez temporairement l\'accès à tous vos services. Des frais de réactivation peuvent s\'appliquer.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    'Service suspendu - Nivra Télécom',
-    `${clientName}, votre service a été suspendu. Solde dû: ${formatCurrencySimple(overdueAmount)}`,
+    'URGENT: Avis de suspension - Nivra Télécom',
+    `${clientName}, votre service sera suspendu le ${suspensionDate} - Action immédiate requise`,
     content
   );
 };
 
-// 9. Rétablissement après paiement
-export const serviceRestored = (params: BaseParams & {
+// 8. Service suspendu
+export const serviceSuspended = (params: BaseParams & {
   clientName: string;
-  paymentAmount: number;
-  paymentDate: string;
-  servicesRestored: string[];
-  portalUrl?: string;
+  suspendedDate: string;
+  overdueAmount: number;
+  invoiceNumber: string;
+  paymentUrl?: string;
 }): string => {
-  const { clientName, paymentAmount, paymentDate, servicesRestored, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
-  
-  const servicesHtml = servicesRestored.map(s => `
-    <tr><td style="padding: 6px 0; color: ${colors.successText}; font-size: 14px;">✅ ${escapeHtml(s)}</td></tr>
-  `).join('');
+  const { clientName, suspendedDate, overdueAmount, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
-    ${statusBanner('success', '✓', 'Service rétabli!', 'Merci pour votre paiement')}
+    ${statusBanner('error', '🔴', 'Service suspendu', 'Compte inactif')}
     ${contentWrapper(`
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
         Bonjour ${escapeHtml(clientName)},
       </p>
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Nous avons bien reçu votre paiement et votre service a été rétabli!
+        Votre service a été suspendu en raison d'un solde impayé.
       </p>
       
-      ${sectionHeader('Services rétablis', 'success')}
-      <div style="background-color: ${colors.successLight}; border: 1px solid ${colors.successBorder}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-          <tbody>
-            ${servicesHtml}
-          </tbody>
-        </table>
+      <div style="background-color: ${colors.errorLight}; border: 2px solid ${colors.error}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
+        <p style="color: ${colors.error}; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">🔴 SERVICE SUSPENDU</p>
+        <p style="color: ${colors.gray900}; font-size: 20px; font-weight: 700; margin: 0 0 8px 0;">Depuis le ${escapeHtml(suspendedDate)}</p>
+        <p style="color: ${colors.errorText}; font-size: 28px; font-weight: 800; margin: 0;">${formatCurrencySimple(overdueAmount)} dû</p>
       </div>
       
-      ${sectionHeader('Paiement reçu', 'success')}
-      <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-          <tbody>
-            ${infoRow('Montant', formatCurrencySimple(paymentAmount))}
-            ${infoRow('Date', paymentDate)}
-          </tbody>
-        </table>
+      <div style="text-align: center; margin-top: 32px;">
+        ${button('Réactiver mon service →', paymentUrl, 'primary')}
+      </div>
+      
+      ${alertBox('info', 'ℹ️', 'Comment réactiver', 'Réglez votre solde impayé et votre service sera réactivé dans les 24 heures suivant la réception du paiement.')}
+      
+      ${helpSection(supportEmail)}
+    `)}
+    ${footer(supportEmail)}
+  `;
+  
+  return emailDocument(
+    'Service suspendu - Nivra Télécom',
+    `${clientName}, votre service a été suspendu - Réglez ${formatCurrencySimple(overdueAmount)} pour réactiver`,
+    content
+  );
+};
+
+// 9. Service réactivé
+export const serviceReactivated = (params: BaseParams & {
+  clientName: string;
+  reactivationDate: string;
+  portalUrl?: string;
+}): string => {
+  const { clientName, reactivationDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  
+  const content = `
+    ${header()}
+    ${statusBanner('success', '🟢', 'Service réactivé!', 'Bienvenue de retour')}
+    ${contentWrapper(`
+      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
+        Bonjour ${escapeHtml(clientName)},
+      </p>
+      <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
+        Excellente nouvelle! Votre service a été réactivé avec succès.
+      </p>
+      
+      <div style="background: linear-gradient(135deg, ${colors.successLight} 0%, #d1fae5 100%); border: 2px solid ${colors.success}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
+        <p style="color: ${colors.success}; font-size: 48px; margin: 0 0 16px 0;">✓</p>
+        <p style="color: ${colors.successText}; font-size: 20px; font-weight: 700; margin: 0;">Service actif</p>
+        <p style="color: ${colors.gray500}; font-size: 14px; margin: 8px 0 0 0;">Réactivé le ${escapeHtml(reactivationDate)}</p>
       </div>
       
       <div style="text-align: center; margin-top: 32px;">
         ${button('Accéder à mon portail →', portalUrl, 'success')}
       </div>
       
-      ${alertBox('success', '💡', 'Conseil', 'Activez le paiement préautorisé pour ne plus jamais manquer une échéance et profiter d\'un rabais automatique!')}
+      ${alertBox('info', '💡', 'Conseil', 'Activez le paiement préautorisé pour éviter les interruptions de service à l\'avenir et bénéficier d\'un rabais!')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    'Service rétabli! - Nivra Télécom',
-    `${clientName}, votre service a été rétabli suite à votre paiement`,
+    'Service réactivé! - Nivra Télécom',
+    `${clientName}, votre service Nivra est de nouveau actif!`,
     content
   );
 };
@@ -544,15 +515,15 @@ export const serviceRestored = (params: BaseParams & {
 export const creditApplied = (params: BaseParams & {
   clientName: string;
   creditAmount: number;
-  reason: string;
+  creditReason: string;
   newBalance?: number;
   portalUrl?: string;
 }): string => {
-  const { clientName, creditAmount, reason, newBalance, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, creditAmount, creditReason, newBalance, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
-    ${statusBanner('success', '💰', 'Crédit appliqué', 'Ajustement de compte')}
+    ${statusBanner('success', '💰', 'Crédit appliqué', 'Bonne nouvelle!')}
     ${contentWrapper(`
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
         Bonjour ${escapeHtml(clientName)},
@@ -561,9 +532,9 @@ export const creditApplied = (params: BaseParams & {
         Un crédit a été appliqué à votre compte.
       </p>
       
-      <div style="background-color: ${colors.successLight}; border: 2px solid ${colors.success}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
+      <div style="background: linear-gradient(135deg, ${colors.successLight} 0%, #d1fae5 100%); border: 2px solid ${colors.success}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
         <p style="color: ${colors.gray500}; font-size: 14px; font-weight: 500; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Crédit appliqué</p>
-        <p style="color: ${colors.successText}; font-size: 36px; font-weight: 800; margin: 0;">-${formatCurrencySimple(creditAmount)}</p>
+        <p style="color: ${colors.success}; font-size: 36px; font-weight: 800; margin: 0;">+${formatCurrencySimple(creditAmount)}</p>
       </div>
       
       ${sectionHeader('Détails', 'success')}
@@ -571,7 +542,7 @@ export const creditApplied = (params: BaseParams & {
         <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
           <tbody>
             ${infoRow('Montant du crédit', formatCurrencySimple(creditAmount))}
-            ${infoRow('Raison', reason)}
+            ${infoRow('Raison', creditReason)}
             ${newBalance !== undefined ? infoRow('Nouveau solde', formatCurrencySimple(newBalance)) : ''}
           </tbody>
         </table>
@@ -581,127 +552,121 @@ export const creditApplied = (params: BaseParams & {
         ${button('Voir mon compte →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    'Crédit appliqué - Nivra Télécom',
+    'Crédit appliqué à votre compte - Nivra Télécom',
     `${clientName}, un crédit de ${formatCurrencySimple(creditAmount)} a été appliqué à votre compte`,
     content
   );
 };
 
-// 11. Ajustement de facture
-export const invoiceAdjustment = (params: BaseParams & {
+// 11. Rappel de paiement (avant échéance)
+export const paymentReminder = (params: BaseParams & {
   clientName: string;
   invoiceNumber: string;
-  originalAmount: number;
-  adjustedAmount: number;
-  adjustmentReason: string;
-  newTotal: number;
-  portalUrl?: string;
+  amount: number;
+  dueDate: string;
+  daysUntilDue: number;
+  paymentUrl?: string;
 }): string => {
-  const { clientName, invoiceNumber, originalAmount, adjustedAmount, adjustmentReason, newTotal, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
-  
-  const isCredit = adjustedAmount < 0;
+  const { clientName, invoiceNumber, amount, dueDate, daysUntilDue, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
-    ${statusBanner('info', '📝', 'Ajustement de facture', `Facture #${invoiceNumber}`)}
+    ${statusBanner('warning', '📅', 'Rappel de paiement', `Échéance dans ${daysUntilDue} jour${daysUntilDue > 1 ? 's' : ''}`)}
     ${contentWrapper(`
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
         Bonjour ${escapeHtml(clientName)},
       </p>
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Votre facture #${escapeHtml(invoiceNumber)} a été ajustée.
+        Ceci est un rappel amical que votre facture arrive à échéance bientôt.
       </p>
       
-      ${sectionHeader('Détails de l\'ajustement', 'primary')}
+      <div style="background: linear-gradient(135deg, ${colors.warningLight} 0%, #fef3c7 100%); border: 2px solid ${colors.warning}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
+        <p style="color: ${colors.warningText}; font-size: 14px; font-weight: 500; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">À payer avant le</p>
+        <p style="color: ${colors.gray900}; font-size: 28px; font-weight: 800; margin: 0 0 8px 0;">${escapeHtml(dueDate)}</p>
+        <p style="color: ${colors.warningDark}; font-size: 24px; font-weight: 700; margin: 0;">${formatCurrencySimple(amount)}</p>
+      </div>
+      
+      ${sectionHeader('Détails', 'warning')}
       <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
           <tbody>
-            ${infoRow('Montant original', formatCurrencySimple(originalAmount))}
-            ${infoRow('Ajustement', (isCredit ? '-' : '+') + formatCurrencySimple(Math.abs(adjustedAmount)))}
-            ${infoRow('Raison', adjustmentReason)}
+            ${infoRow('Facture', invoiceNumber)}
+            ${infoRow('Montant', formatCurrencySimple(amount))}
+            ${infoRow('Date d\'échéance', dueDate)}
           </tbody>
         </table>
       </div>
       
-      ${amountBox('Nouveau total', formatCurrencySimple(newTotal), undefined, isCredit ? 'success' : 'primary')}
-      
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Voir ma facture →', portalUrl, 'primary')}
+        ${button('Payer maintenant →', paymentUrl, 'success')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${alertBox('info', '💡', 'Conseil', 'Activez le paiement préautorisé pour ne plus avoir à vous soucier des échéances!')}
+      
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    `Ajustement facture #${invoiceNumber} - Nivra Télécom`,
-    `${clientName}, votre facture a été ajustée. Nouveau total: ${formatCurrencySimple(newTotal)}`,
+    `Rappel: Facture ${invoiceNumber} - Échéance ${dueDate}`,
+    `${clientName}, votre facture de ${formatCurrencySimple(amount)} est due le ${dueDate}`,
     content
   );
 };
 
-// 12. Remboursement traité
-export const refundProcessed = (params: BaseParams & {
+// 12. Confirmation de changement de mode de paiement
+export const paymentMethodChanged = (params: BaseParams & {
   clientName: string;
-  refundAmount: number;
-  refundDate: string;
-  refundMethod: string;
-  refundReason: string;
-  transactionId?: string;
+  newPaymentMethod: string;
+  lastFourDigits?: string;
+  changedAt: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, refundAmount, refundDate, refundMethod, refundReason, transactionId, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, newPaymentMethod, lastFourDigits, changedAt, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
-    ${statusBanner('success', '💸', 'Remboursement traité', 'Votre demande a été acceptée')}
+    ${statusBanner('success', '💳', 'Mode de paiement mis à jour', 'Modification confirmée')}
     ${contentWrapper(`
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
         Bonjour ${escapeHtml(clientName)},
       </p>
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Votre remboursement a été traité avec succès.
+        Votre mode de paiement a été mis à jour avec succès.
       </p>
       
-      <div style="background-color: ${colors.successLight}; border: 2px solid ${colors.success}; border-radius: 16px; padding: 32px; text-align: center; margin: 24px 0;">
-        <p style="color: ${colors.gray500}; font-size: 14px; font-weight: 500; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Montant remboursé</p>
-        <p style="color: ${colors.successText}; font-size: 36px; font-weight: 800; margin: 0;">${formatCurrencySimple(refundAmount)}</p>
-      </div>
-      
-      ${sectionHeader('Détails', 'success')}
-      <div style="background-color: ${colors.gray50}; border: 1px solid ${colors.gray200}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+      ${sectionHeader('Nouveau mode de paiement', 'success')}
+      <div style="background-color: ${colors.successLight}; border: 1px solid ${colors.successBorder}; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
           <tbody>
-            ${infoRow('Montant', formatCurrencySimple(refundAmount))}
-            ${infoRow('Date', refundDate)}
-            ${infoRow('Méthode', refundMethod)}
-            ${infoRow('Raison', refundReason)}
-            ${transactionId ? infoRow('Transaction', transactionId) : ''}
+            ${infoRow('Type', newPaymentMethod)}
+            ${lastFourDigits ? infoRow('Terminant par', `****${lastFourDigits}`) : ''}
+            ${infoRow('Date de modification', changedAt)}
           </tbody>
         </table>
       </div>
       
-      ${alertBox('info', 'ℹ️', 'Délai de traitement', 'Le remboursement apparaîtra sur votre relevé dans un délai de 5-10 jours ouvrables selon votre institution financière.')}
+      ${alertBox('warning', '🔒', 'Sécurité', 'Si vous n\'avez pas effectué cette modification, contactez-nous immédiatement.')}
       
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Voir mon compte →', portalUrl, 'primary')}
+        ${button('Voir mes paramètres →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
-    'Remboursement traité - Nivra Télécom',
-    `${clientName}, votre remboursement de ${formatCurrencySimple(refundAmount)} a été traité`,
+    'Mode de paiement mis à jour - Nivra Télécom',
+    `${clientName}, votre mode de paiement a été modifié`,
     content
   );
 };

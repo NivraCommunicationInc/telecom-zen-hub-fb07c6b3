@@ -10,7 +10,6 @@ import {
 } from './components.ts';
 
 interface BaseParams {
-  supportPhone: string;
   supportEmail: string;
 }
 
@@ -42,7 +41,7 @@ export const orderTracking = (params: BaseParams & {
   carrier?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, orderNumber, status, trackingNumber, trackingUrl, estimatedDelivery, carrier, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, orderNumber, status, trackingNumber, trackingUrl, estimatedDelivery, carrier, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const statusConfig = {
     processing: { icon: '📋', title: 'Commande en traitement', color: 'info' as const },
@@ -109,9 +108,9 @@ export const orderTracking = (params: BaseParams & {
         ${button('Voir ma commande →', portalUrl, 'secondary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -133,7 +132,7 @@ export const simShipped = (params: BaseParams & {
   deliveryAddress?: Address;
   activationGuideUrl?: string;
 }): string => {
-  const { clientName, orderNumber, simType, trackingNumber, trackingUrl, estimatedDelivery, carrier, deliveryAddress, activationGuideUrl, supportPhone, supportEmail } = params;
+  const { clientName, orderNumber, simType, trackingNumber, trackingUrl, estimatedDelivery, carrier, deliveryAddress, activationGuideUrl, supportEmail } = params;
   
   const isEsim = simType === 'esim';
   
@@ -181,9 +180,9 @@ export const simShipped = (params: BaseParams & {
         </div>
       ` : ''}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -205,7 +204,7 @@ export const technicianScheduled = (params: BaseParams & {
   rescheduleUrl?: string;
   notes?: string;
 }): string => {
-  const { clientName, appointmentDate, appointmentTime, technicianName, serviceAddress, serviceType, appointmentNumber, rescheduleUrl, notes, supportPhone, supportEmail } = params;
+  const { clientName, appointmentDate, appointmentTime, technicianName, serviceAddress, serviceType, appointmentNumber, rescheduleUrl, notes, supportEmail } = params;
   
   const content = `
     ${header()}
@@ -246,9 +245,9 @@ export const technicianScheduled = (params: BaseParams & {
         </div>
       ` : ''}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -269,7 +268,7 @@ export const appointmentReminder = (params: BaseParams & {
   appointmentNumber?: string;
   rescheduleUrl?: string;
 }): string => {
-  const { clientName, appointmentDate, appointmentTime, technicianName, serviceAddress, serviceType, appointmentNumber, rescheduleUrl, supportPhone, supportEmail } = params;
+  const { clientName, appointmentDate, appointmentTime, technicianName, serviceAddress, serviceType, appointmentNumber, rescheduleUrl, supportEmail } = params;
   
   const content = `
     ${header()}
@@ -307,9 +306,9 @@ export const appointmentReminder = (params: BaseParams & {
         </p>
       ` : ''}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -327,7 +326,7 @@ export const activationSuccess = (params: BaseParams & {
   activationDate: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, serviceName, phoneNumber, activationDate, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, serviceName, phoneNumber, activationDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -356,11 +355,11 @@ export const activationSuccess = (params: BaseParams & {
         ${button('Accéder à mon portail →', portalUrl, 'success')}
       </div>
       
-      ${alertBox('info', '💡', 'Besoin d\'aide?', 'Consultez notre guide de démarrage rapide ou contactez notre support.')}
+      ${alertBox('info', '💡', 'Besoin d\'aide?', 'Consultez notre guide de démarrage rapide ou contactez notre support via chat ou tickets.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -378,7 +377,7 @@ export const quickStartGuide = (params: BaseParams & {
   faqUrl?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, serviceName, steps, faqUrl = 'https://nivratelecom.ca/faq', portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, serviceName, steps, faqUrl = 'https://nivratelecom.ca/faq', portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const stepsHtml = steps.map((step, index) => `
     <tr>
@@ -409,27 +408,31 @@ export const quickStartGuide = (params: BaseParams & {
         Bonjour ${escapeHtml(clientName)},
       </p>
       <p style="color: ${colors.gray700}; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
-        Voici les étapes pour bien démarrer avec votre nouveau service:
+        Voici comment démarrer avec votre nouveau service:
       </p>
       
+      ${sectionHeader('Étapes de démarrage', 'primary')}
       <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 24px;">
-        ${stepsHtml}
+        <tbody>
+          ${stepsHtml}
+        </tbody>
       </table>
       
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Consulter la FAQ →', faqUrl, 'secondary')}
-        <div style="height: 16px;"></div>
         ${button('Accéder à mon portail →', portalUrl, 'primary')}
+        <div style="margin-top: 16px;">
+          <a href="${faqUrl}" style="color: ${colors.primary}; font-size: 14px; text-decoration: underline;">Consulter la FAQ →</a>
+        </div>
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
     `Guide de démarrage: ${serviceName} - Nivra Télécom`,
-    `${clientName}, voici comment démarrer avec votre ${serviceName}`,
+    `${clientName}, voici comment démarrer avec ${serviceName}`,
     content
   );
 };

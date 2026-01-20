@@ -10,7 +10,6 @@ import {
 } from './components.ts';
 
 interface BaseParams {
-  supportPhone: string;
   supportEmail: string;
 }
 
@@ -21,7 +20,7 @@ export const accountCreated = (params: BaseParams & {
   accountNumber?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, clientEmail, accountNumber, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, clientEmail, accountNumber, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -50,9 +49,9 @@ export const accountCreated = (params: BaseParams & {
       
       ${alertBox('info', '💡', 'Prochaines étapes', 'Vous pouvez maintenant commander vos services et gérer votre compte depuis votre portail client.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -68,7 +67,7 @@ export const emailVerificationOtp = (params: BaseParams & {
   otpCode: string;
   expiresInMinutes?: number;
 }): string => {
-  const { clientName, otpCode, expiresInMinutes = 10, supportPhone, supportEmail } = params;
+  const { clientName, otpCode, expiresInMinutes = 10, supportEmail } = params;
   const name = clientName || 'Cher client';
   
   const content = `
@@ -93,9 +92,9 @@ export const emailVerificationOtp = (params: BaseParams & {
         Pour votre sécurité, ne partagez jamais ce code avec personne.
       </p>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -111,7 +110,7 @@ export const emailVerificationLink = (params: BaseParams & {
   verificationUrl: string;
   expiresInHours?: number;
 }): string => {
-  const { clientName, verificationUrl, expiresInHours = 24, supportPhone, supportEmail } = params;
+  const { clientName, verificationUrl, expiresInHours = 24, supportEmail } = params;
   const name = clientName || 'Cher client';
   
   const content = `
@@ -136,9 +135,9 @@ export const emailVerificationLink = (params: BaseParams & {
       
       ${alertBox('info', 'ℹ️', `Lien valide ${expiresInHours} heures`, 'Si vous n\'avez pas créé de compte, ignorez simplement cet email.')}
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -154,7 +153,7 @@ export const welcomeToNivra = (params: BaseParams & {
   accountNumber?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, accountNumber, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, accountNumber, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -211,7 +210,7 @@ export const welcomeToNivra = (params: BaseParams & {
                 </td>
                 <td style="padding-left: 16px;">
                   <p style="color: ${colors.gray900}; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">Contacter le support</p>
-                  <p style="color: ${colors.gray500}; font-size: 14px; margin: 0;">Notre équipe est là pour vous aider.</p>
+                  <p style="color: ${colors.gray500}; font-size: 14px; margin: 0;">Notre équipe est là pour vous aider via chat ou tickets.</p>
                 </td>
               </tr>
             </table>
@@ -227,9 +226,9 @@ export const welcomeToNivra = (params: BaseParams & {
         Merci de faire confiance à Nivra Télécom!
       </p>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -249,7 +248,7 @@ export const planSummary = (params: BaseParams & {
   startDate?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, planName, planDetails, monthlyPrice, features, startDate, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, planName, planDetails, monthlyPrice, features, startDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const featuresHtml = features.map(f => `
     <tr>
@@ -303,9 +302,9 @@ export const planSummary = (params: BaseParams & {
         ${button('Voir mes services →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -322,7 +321,7 @@ export const termsAccepted = (params: BaseParams & {
   termsVersion?: string;
   termsUrl?: string;
 }): string => {
-  const { clientName, acceptedAt, termsVersion = '1.0', termsUrl = 'https://nivratelecom.ca/terms', supportPhone, supportEmail } = params;
+  const { clientName, acceptedAt, termsVersion = '1.0', termsUrl = 'https://nivratelecom.ca/terms', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -349,9 +348,9 @@ export const termsAccepted = (params: BaseParams & {
         <a href="${termsUrl}" style="color: ${colors.primary}; font-size: 14px; text-decoration: underline;">Consulter les conditions générales →</a>
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
@@ -370,7 +369,7 @@ export const preauthorizedPaymentConfirmed = (params: BaseParams & {
   monthlyAmount?: number;
   portalUrl?: string;
 }): string => {
-  const { clientName, paymentMethod, lastFourDigits, billingDay, monthlyAmount, portalUrl = 'https://nivratelecom.ca/portal', supportPhone, supportEmail } = params;
+  const { clientName, paymentMethod, lastFourDigits, billingDay, monthlyAmount, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -401,9 +400,9 @@ export const preauthorizedPaymentConfirmed = (params: BaseParams & {
         ${button('Gérer mes paiements →', portalUrl, 'primary')}
       </div>
       
-      ${helpSection(supportPhone, supportEmail)}
+      ${helpSection(supportEmail)}
     `)}
-    ${footer(supportPhone, supportEmail)}
+    ${footer(supportEmail)}
   `;
   
   return emailDocument(
