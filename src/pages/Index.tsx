@@ -1,6 +1,5 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import TelecomStatsBar from "@/components/TelecomStatsBar";
 import ServiceShowcase from "@/components/ServiceShowcase";
 import NetworkTrust from "@/components/NetworkTrust";
 import CTA from "@/components/CTA";
@@ -19,7 +18,6 @@ const Index = () => {
       <HomeStatusBanner />
       <main>
         <Hero />
-        <TelecomStatsBar />
         <FeaturedOffers />
         <ServiceShowcase />
         <NetworkTrust />

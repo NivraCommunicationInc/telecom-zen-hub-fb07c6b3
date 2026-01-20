@@ -1,22 +1,11 @@
-import { Wifi, Smartphone, Tv, Shield, ArrowRight, Check } from "lucide-react";
+import { Wifi, Smartphone, Tv, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
-
-interface ServiceCardData {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  startingPrice: string;
-  features: string[];
-  badge?: string;
-  badgeColor?: string;
-  link: string;
-  gradient: string;
-}
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ServiceShowcase = () => {
-  const { data: services } = usePublicServices();
+  const { data: services, isLoading } = usePublicServices();
 
   // Get actual starting prices from database
   const getStartingPrice = (category: string): string => {
@@ -27,143 +16,150 @@ const ServiceShowcase = () => {
     return minPrice.toFixed(0);
   };
 
-  const serviceCards: ServiceCardData[] = [
+  const serviceCards = [
     {
       icon: Wifi,
       title: "Internet",
-      description: "Internet haute vitesse illimité avec installation professionnelle",
-      startingPrice: getStartingPrice("Internet"),
+      description: "Internet haute vitesse illimité avec installation professionnelle incluse",
+      category: "Internet",
       features: [
         "Jusqu'à 1 Gbps",
         "Données illimitées",
-        "Routeur WiFi 6 inclus",
-        "Installation pro"
+        "Routeur WiFi inclus",
       ],
-      badge: "Populaire",
-      badgeColor: "bg-accent",
+      popular: true,
       link: "/internet",
-      gradient: "from-accent/20 to-teal-400/20"
     },
     {
       icon: Smartphone,
       title: "Mobile",
       description: "Forfaits prépayés flexibles sur le réseau national 5G/LTE",
-      startingPrice: getStartingPrice("Mobile"),
+      category: "Mobile",
       features: [
         "Réseau 5G/LTE",
         "Appels Canada illimités",
         "Sans contrat",
-        "Activation rapide"
       ],
-      badge: "Sans contrat",
-      badgeColor: "bg-cyan-500",
       link: "/mobile",
-      gradient: "from-cyan-500/20 to-blue-500/20"
     },
     {
       icon: Tv,
-      title: "Télévision",
-      description: "IPTV premium avec 200+ chaînes et contenu à la demande",
-      startingPrice: getStartingPrice("TV"),
+      title: "Internet + TV",
+      description: "Combinez Internet et TV pour une expérience complète",
+      category: "TV",
       features: [
-        "200+ chaînes",
-        "Sports & nouvelles",
+        "Internet haute vitesse",
+        "Chaînes populaires",
         "Terminal 4K inclus",
-        "Guide interactif"
       ],
       link: "/tv",
-      gradient: "from-purple-500/20 to-pink-500/20"
     },
-    {
-      icon: Shield,
-      title: "Sécurité",
-      description: "Solutions de sécurité connectée pour votre maison et entreprise",
-      startingPrice: getStartingPrice("Sécurité"),
-      features: [
-        "Caméras HD/4K",
-        "Détecteurs mouvement",
-        "Appli mobile",
-        "Alertes en temps réel"
-      ],
-      link: "/contact",
-      gradient: "from-orange-500/20 to-red-500/20"
-    }
   ];
+
+  if (isLoading) {
+    return (
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-12">
+            <Skeleton className="h-8 w-48 mx-auto mb-4" />
+            <Skeleton className="h-12 w-96 mx-auto" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-[400px] rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-20 bg-background">
-      <div className="container mx-auto px-4 max-w-7xl">
+      <div className="container mx-auto px-4 max-w-6xl">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-14">
+        <div className="text-center max-w-2xl mx-auto mb-14">
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-semibold mb-4">
             Nos services
           </span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-5">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Tout pour rester connecté
           </h2>
-          <p className="text-lg text-muted-foreground">
-            Des solutions télécoms complètes pour la maison et l'entreprise. 
-            Un seul fournisseur, une seule facture.
+          <p className="text-muted-foreground text-lg">
+            Des solutions télécoms complètes pour la maison et l'entreprise
           </p>
         </div>
 
-        {/* Service Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Service Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {serviceCards.map((service, index) => (
             <div
               key={service.title}
-              className="group relative bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:border-accent/40 hover:shadow-elevated animate-fade-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className={`
+                relative bg-card rounded-2xl border transition-all duration-300 overflow-hidden
+                ${service.popular 
+                  ? 'border-accent shadow-lg ring-1 ring-accent/20' 
+                  : 'border-border hover:border-accent/40 hover:shadow-md'
+                }
+              `}
             >
-              {/* Gradient header */}
-              <div className={`h-2 bg-gradient-to-r ${service.gradient}`} />
-              
-              <div className="p-6">
-                {/* Icon & Badge */}
-                <div className="flex items-start justify-between mb-5">
-                  <div className="w-14 h-14 rounded-xl bg-primary/5 flex items-center justify-center group-hover:bg-accent/10 transition-colors">
-                    <service.icon className="w-7 h-7 text-primary group-hover:text-accent transition-colors" />
+              {/* Popular badge */}
+              {service.popular && (
+                <div className="absolute top-0 right-0">
+                  <div className="bg-accent text-white text-xs font-bold uppercase tracking-wider px-4 py-1.5 rounded-bl-xl">
+                    Populaire
                   </div>
-                  {service.badge && (
-                    <span className={`text-[10px] font-bold uppercase tracking-wider text-white ${service.badgeColor} px-2.5 py-1 rounded-full`}>
-                      {service.badge}
-                    </span>
-                  )}
+                </div>
+              )}
+
+              <div className="p-6">
+                {/* Icon */}
+                <div className={`
+                  w-14 h-14 rounded-xl flex items-center justify-center mb-5
+                  ${service.popular ? 'bg-accent/15' : 'bg-muted'}
+                `}>
+                  <service.icon className={`w-7 h-7 ${service.popular ? 'text-accent' : 'text-primary'}`} />
                 </div>
 
-                {/* Title & Description */}
+                {/* Title */}
                 <h3 className="text-xl font-bold text-foreground mb-2">
                   {service.title}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-5 leading-relaxed line-clamp-2">
+                
+                {/* Description */}
+                <p className="text-muted-foreground text-sm mb-5 leading-relaxed">
                   {service.description}
                 </p>
 
                 {/* Features */}
-                <ul className="space-y-2 mb-6">
+                <ul className="space-y-2.5 mb-6">
                   {service.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <li key={idx} className="flex items-center gap-2.5 text-sm text-foreground">
                       <Check className="w-4 h-4 text-accent flex-shrink-0" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
 
-                {/* Price & CTA */}
+                {/* Price */}
                 <div className="pt-5 border-t border-border">
-                  <div className="flex items-end justify-between mb-4">
-                    <div>
-                      <span className="text-xs text-muted-foreground">À partir de</span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-primary">{service.startingPrice}$</span>
-                        <span className="text-sm text-muted-foreground">/mois</span>
-                      </div>
+                  <div className="mb-4">
+                    <span className="text-sm text-muted-foreground">À partir de</span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-foreground">
+                        {getStartingPrice(service.category)}$
+                      </span>
+                      <span className="text-muted-foreground">/mois</span>
                     </div>
                   </div>
-                  <Button asChild className="w-full group/btn">
+                  <Button 
+                    asChild 
+                    className={`w-full ${service.popular ? '' : 'bg-primary hover:bg-primary/90'}`}
+                    variant={service.popular ? "accent" : "default"}
+                  >
                     <Link to={service.link}>
                       Voir les forfaits
-                      <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-1" />
+                      <ArrowRight className="w-4 h-4 ml-1" />
                     </Link>
                   </Button>
                 </div>
@@ -172,20 +168,20 @@ const ServiceShowcase = () => {
           ))}
         </div>
 
-        {/* Bundle CTA */}
-        <div className="mt-14 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-4 bg-accent/10 rounded-2xl border border-accent/20">
-            <div className="text-left">
-              <p className="font-semibold text-foreground">Combinez et économisez</p>
-              <p className="text-sm text-muted-foreground">Internet + TV + Mobile = jusqu'à 20% de rabais</p>
-            </div>
-            <Button variant="accent" asChild>
-              <Link to="/contact">
-                Créer mon forfait
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Link>
-            </Button>
-          </div>
+        {/* Bundle Banner */}
+        <div className="bg-primary rounded-2xl p-8 text-center">
+          <h3 className="text-2xl font-bold text-white mb-2">
+            Combinez et économisez
+          </h3>
+          <p className="text-white/70 mb-6 max-w-lg mx-auto">
+            Regroupez Internet, TV et Mobile pour profiter de rabais exclusifs sur votre facture mensuelle
+          </p>
+          <Button variant="hero" size="lg" asChild>
+            <Link to="/contact">
+              Créer mon forfait personnalisé
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Link>
+          </Button>
         </div>
       </div>
     </section>
