@@ -60,17 +60,17 @@ export const emailDocument = (title: string, preheader: string, content: string)
 
 const borderRadius = { sm: '4px', md: '8px', lg: '12px' };
 
-// Professional Header with Logo
+// Professional Header - Text-based for maximum email client compatibility
 export const header = (): string => `
   <tr>
-    <td class="header-padding" style="padding: 32px 40px; border-bottom: 1px solid ${colors.borderLight}; background-color: ${colors.white};">
+    <td class="header-padding" style="padding: 28px 40px; border-bottom: 3px solid ${colors.primary}; background-color: ${colors.white};">
       <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
         <tr>
           <td style="text-align: left;">
-            <img src="${LOGO_URL}" alt="Nivra Télécom" width="140" height="auto" style="display: block; max-width: 140px; height: auto;" />
+            <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: ${colors.primary}; font-family: ${fonts.primary};">Nivra Telecom</h1>
           </td>
           <td style="text-align: right; vertical-align: middle;">
-            <span style="color: ${colors.textMuted}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Télécommunications</span>
+            <span style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Télécommunications</span>
           </td>
         </tr>
       </table>
@@ -234,14 +234,14 @@ export const button = (
 `;
 };
 
-// Professional Footer
+// Professional Footer - Phone number uses nowrap to prevent line breaks
 export const footer = (supportPhone: string, supportEmail: string): string => `
   <tr>
     <td style="background-color: ${colors.footerBg}; padding: 32px 40px;">
       <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
         <tr>
           <td style="text-align: center; padding-bottom: 20px;">
-            <h4 style="color: ${colors.white}; font-size: 18px; font-weight: 700; margin: 0;">Nivra Télécom</h4>
+            <h4 style="color: ${colors.white}; font-size: 18px; font-weight: 700; margin: 0;">Nivra Telecom</h4>
             <p style="color: ${colors.footerText}; font-size: 13px; margin: 8px 0 0 0;">
               Fournisseur de services de télécommunications prépayés au Québec
             </p>
@@ -251,11 +251,11 @@ export const footer = (supportPhone: string, supportEmail: string): string => `
           <td style="text-align: center; padding-bottom: 20px;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
               <tr>
-                <td style="padding: 0 12px;">
-                  <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none;">📞 ${supportPhone}</a>
+                <td style="padding: 0 12px; white-space: nowrap;">
+                  <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">📞&nbsp;${supportPhone.replace(/-/g, '&#8209;')}</a>
                 </td>
-                <td style="padding: 0 12px;">
-                  <a href="mailto:${supportEmail}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none;">✉️ ${supportEmail}</a>
+                <td style="padding: 0 12px; white-space: nowrap;">
+                  <a href="mailto:${supportEmail}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">✉️&nbsp;${supportEmail}</a>
                 </td>
               </tr>
             </table>
@@ -277,7 +277,7 @@ export const footer = (supportPhone: string, supportEmail: string): string => `
         <tr>
           <td style="border-top: 1px solid #374151; padding-top: 16px; text-align: center;">
             <p style="color: ${colors.textLight}; font-size: 11px; margin: 0;">
-              © ${new Date().getFullYear()} Nivra Télécom Inc. Tous droits réservés.
+              © ${new Date().getFullYear()} Nivra Telecom Inc. Tous droits réservés.
             </p>
           </td>
         </tr>
@@ -286,7 +286,7 @@ export const footer = (supportPhone: string, supportEmail: string): string => `
   </tr>
 `;
 
-// Help section - Clean design
+// Help section - Clean design with non-breaking phone number
 export const helpSection = (supportPhone: string, supportEmail: string): string => `
   <div style="margin-top: 32px; padding: 24px; background-color: ${colors.bgSection}; border-radius: 8px; text-align: center;">
     <p style="color: ${colors.textPrimary}; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">Besoin d'aide?</p>
@@ -294,13 +294,13 @@ export const helpSection = (supportPhone: string, supportEmail: string): string 
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
       <tr>
         <td style="padding: 0 8px;">
-          <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="display: inline-block; padding: 10px 20px; background-color: ${colors.white}; color: ${colors.primary}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid ${colors.borderMedium};">
-            📞 ${supportPhone}
+          <a href="tel:+1${supportPhone.replace(/[^0-9]/g, "")}" style="display: inline-block; padding: 10px 20px; background-color: ${colors.white}; color: ${colors.primary}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid ${colors.borderMedium}; white-space: nowrap;">
+            📞&nbsp;${supportPhone.replace(/-/g, '&#8209;')}
           </a>
         </td>
         <td style="padding: 0 8px;">
-          <a href="mailto:${supportEmail}" style="display: inline-block; padding: 10px 20px; background-color: ${colors.white}; color: ${colors.primary}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid ${colors.borderMedium};">
-            ✉️ ${supportEmail}
+          <a href="mailto:${supportEmail}" style="display: inline-block; padding: 10px 20px; background-color: ${colors.white}; color: ${colors.primary}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid ${colors.borderMedium}; white-space: nowrap;">
+            ✉️&nbsp;${supportEmail}
           </a>
         </td>
       </tr>
