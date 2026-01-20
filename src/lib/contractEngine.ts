@@ -31,6 +31,16 @@ export const ensureOrderContractUpToDate = async (params: {
   if (orderError) throw orderError;
   if (!order) throw new Error("Order not found");
 
+  // PRIORITY 1: Fetch order snapshot (immutable client data at time of order)
+  const { data: orderSnapshot } = await backendClient
+    .from("order_snapshots")
+    .select("*")
+    .eq("order_id", params.orderId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  // PRIORITY 2: Fallback to live profile
   const { data: profile, error: profileError } = await backendClient
     .from("profiles")
     .select("*")
@@ -38,6 +48,34 @@ export const ensureOrderContractUpToDate = async (params: {
     .maybeSingle();
 
   if (profileError) throw profileError;
+  
+  // CLIENT DATA RESOLUTION: Snapshot first, then profile, then order
+  const clientSnapshot = (orderSnapshot?.client_snapshot || {}) as Record<string, any>;
+  const resolveClientField = (field: string, fallback: any = ""): any => {
+    // Priority: snapshot → profile → order → fallback
+    if (clientSnapshot[field] !== undefined && clientSnapshot[field] !== null && clientSnapshot[field] !== "") {
+      return clientSnapshot[field];
+    }
+    if (profile && (profile as any)[field] !== undefined && (profile as any)[field] !== null && (profile as any)[field] !== "") {
+      return (profile as any)[field];
+    }
+    if ((order as any)[field] !== undefined && (order as any)[field] !== null && (order as any)[field] !== "") {
+      return (order as any)[field];
+    }
+    return fallback;
+  };
+  
+  // VALIDATION: Block generation if required fields are missing
+  const requiredFields = ["full_name", "email", "phone", "service_address"];
+  const missingFields = requiredFields.filter(field => {
+    const value = resolveClientField(field === "full_name" ? "legalName" : field) || 
+                  resolveClientField(field);
+    return !value || String(value).trim() === "";
+  });
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`);
+  }
 
   // 1) Ensure a contract row exists + is linked
   let contractId = (order as any).related_contract_id as string | null;
@@ -94,16 +132,27 @@ export const ensureOrderContractUpToDate = async (params: {
   }
 
   // 3) Generate PDF blob + hash (client-side) and persist audit fields
-  const fullName =
-    profile?.full_name ||
-    profile?.email ||
-    (order as any).client_email ||
-    "Client";
+  // USE RESOLVED CLIENT DATA (snapshot priority, then profile fallback)
+  const fullName = resolveClientField("legalName") || 
+                   resolveClientField("full_name") || 
+                   resolveClientField("email") || 
+                   (order as any).client_email || 
+                   "Client";
   const [firstName, ...rest] = String(fullName).split(" ");
   const lastName = rest.join(" ");
+  
+  const clientEmail = resolveClientField("email") || (order as any).client_email || "";
+  const clientPhone = resolveClientField("phone") || "";
+  const serviceAddress = resolveClientField("serviceAddress") || resolveClientField("service_address") || "";
+  const serviceCity = resolveClientField("serviceCity") || resolveClientField("service_city") || "";
+  const serviceProvince = resolveClientField("serviceProvince") || resolveClientField("service_province") || "QC";
+  const servicePostalCode = resolveClientField("servicePostalCode") || resolveClientField("service_postal_code") || "";
+  const billingAddress = resolveClientField("billingAddress") || resolveClientField("billing_address") || serviceAddress;
 
   // Client account number (must always be shown in Contract PDF)
-  let clientAccountNumber: string | undefined = (order as any).client_account_number || undefined;
+  let clientAccountNumber: string | undefined = resolveClientField("accountId") || 
+                                                 (order as any).client_account_number || 
+                                                 undefined;
 
   if (!clientAccountNumber) {
     const { data: acc, error: accError } = await backendClient
@@ -238,15 +287,15 @@ export const ensureOrderContractUpToDate = async (params: {
     clientFirstName: firstName || "",
     clientLastName: lastName || "",
     clientName: String(fullName),
-    clientEmail: profile?.email || (order as any).client_email || "",
-    clientPhone: profile?.phone || "",
+    clientEmail: clientEmail,
+    clientPhone: clientPhone,
     clientAccountNumber: clientAccountNumber,
 
-    billingAddress: profile?.service_address || "",
-    serviceAddress: profile?.service_address || "",
-    serviceCity: profile?.service_city || "",
-    serviceProvince: profile?.service_province || "QC",
-    servicePostalCode: profile?.service_postal_code || "",
+    billingAddress: billingAddress,
+    serviceAddress: serviceAddress,
+    serviceCity: serviceCity,
+    serviceProvince: serviceProvince,
+    servicePostalCode: servicePostalCode,
 
     // Individual service plans with prices
     internetPlan: internetPlan,
