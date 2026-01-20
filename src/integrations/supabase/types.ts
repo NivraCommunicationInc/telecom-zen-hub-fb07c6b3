@@ -863,6 +863,274 @@ export type Database = {
           },
         ]
       }
+      billing_customers: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+          status: Database["public"]["Enums"]["billing_customer_status"] | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          phone: string
+          status?: Database["public"]["Enums"]["billing_customer_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string
+          status?: Database["public"]["Enums"]["billing_customer_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      billing_invoice_lines: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          invoice_id: string
+          line_total: number
+          quantity?: number | null
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_invoices: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          customer_id: string
+          cycle_end_date: string
+          cycle_start_date: string
+          due_date: string
+          id: string
+          invoice_number: string
+          notes: string | null
+          paid_at: string | null
+          payment_method:
+            | Database["public"]["Enums"]["billing_payment_method"]
+            | null
+          status: Database["public"]["Enums"]["billing_invoice_status"] | null
+          subscription_id: string | null
+          subtotal: number
+          total: number
+          tps_amount: number
+          tvq_amount: number
+          type: Database["public"]["Enums"]["billing_invoice_type"]
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          customer_id: string
+          cycle_end_date: string
+          cycle_start_date: string
+          due_date: string
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?:
+            | Database["public"]["Enums"]["billing_payment_method"]
+            | null
+          status?: Database["public"]["Enums"]["billing_invoice_status"] | null
+          subscription_id?: string | null
+          subtotal?: number
+          total?: number
+          tps_amount?: number
+          tvq_amount?: number
+          type: Database["public"]["Enums"]["billing_invoice_type"]
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          customer_id?: string
+          cycle_end_date?: string
+          cycle_start_date?: string
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?:
+            | Database["public"]["Enums"]["billing_payment_method"]
+            | null
+          status?: Database["public"]["Enums"]["billing_invoice_status"] | null
+          subscription_id?: string | null
+          subtotal?: number
+          total?: number
+          tps_amount?: number
+          tvq_amount?: number
+          type?: Database["public"]["Enums"]["billing_invoice_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_payments: {
+        Row: {
+          amount: number
+          confirmed_by: string | null
+          created_at: string | null
+          customer_id: string
+          id: string
+          invoice_id: string
+          method: Database["public"]["Enums"]["billing_payment_method"]
+          received_at: string | null
+          reference: string | null
+          status: Database["public"]["Enums"]["billing_payment_status"] | null
+        }
+        Insert: {
+          amount: number
+          confirmed_by?: string | null
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          invoice_id: string
+          method: Database["public"]["Enums"]["billing_payment_method"]
+          received_at?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["billing_payment_status"] | null
+        }
+        Update: {
+          amount?: number
+          confirmed_by?: string | null
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          invoice_id?: string
+          method?: Database["public"]["Enums"]["billing_payment_method"]
+          received_at?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["billing_payment_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_subscriptions: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          cycle_end_date: string
+          cycle_start_date: string
+          id: string
+          last_invoice_id: string | null
+          plan_code: string
+          plan_name: string
+          plan_price: number
+          status:
+            | Database["public"]["Enums"]["billing_subscription_status"]
+            | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          cycle_end_date: string
+          cycle_start_date: string
+          id?: string
+          last_invoice_id?: string | null
+          plan_code: string
+          plan_name: string
+          plan_price: number
+          status?:
+            | Database["public"]["Enums"]["billing_subscription_status"]
+            | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          cycle_end_date?: string
+          cycle_start_date?: string
+          id?: string
+          last_invoice_id?: string | null
+          plan_code?: string
+          plan_name?: string
+          plan_price?: number
+          status?:
+            | Database["public"]["Enums"]["billing_subscription_status"]
+            | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashout_requests: {
         Row: {
           admin_note: string | null
@@ -8190,6 +8458,10 @@ export type Database = {
         }
         Returns: Json
       }
+      calculate_billing_proration: {
+        Args: { p_new_price: number; p_subscription_id: string }
+        Returns: number
+      }
       calculate_next_invoice_date: {
         Args: { p_billing_day: number; p_from_date?: string }
         Returns: string
@@ -8235,6 +8507,7 @@ export type Database = {
       }
       generate_account_number: { Args: never; Returns: string }
       generate_appointment_number: { Args: never; Returns: string }
+      generate_billing_invoice_number: { Args: never; Returns: string }
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
@@ -8440,6 +8713,22 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client" | "technician" | "employee" | "influencer"
+      billing_customer_status: "active" | "suspended" | "closed"
+      billing_invoice_status:
+        | "draft"
+        | "pending"
+        | "paid"
+        | "failed"
+        | "cancelled"
+        | "refunded"
+      billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
+      billing_payment_method: "interac" | "stripe" | "square" | "manual"
+      billing_payment_status: "pending" | "confirmed" | "failed"
+      billing_subscription_status:
+        | "active"
+        | "pending"
+        | "suspended"
+        | "cancelled"
       cancellation_reason_code:
         | "price"
         | "moving"
@@ -8708,6 +8997,24 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client", "technician", "employee", "influencer"],
+      billing_customer_status: ["active", "suspended", "closed"],
+      billing_invoice_status: [
+        "draft",
+        "pending",
+        "paid",
+        "failed",
+        "cancelled",
+        "refunded",
+      ],
+      billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
+      billing_payment_method: ["interac", "stripe", "square", "manual"],
+      billing_payment_status: ["pending", "confirmed", "failed"],
+      billing_subscription_status: [
+        "active",
+        "pending",
+        "suspended",
+        "cancelled",
+      ],
       cancellation_reason_code: [
         "price",
         "moving",
