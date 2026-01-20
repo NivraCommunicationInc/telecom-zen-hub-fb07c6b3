@@ -992,40 +992,56 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.text(`Payé via : ${cardDisplay}`, margin + 6, currentY + 13);
     currentY += 24;
   } else {
+    // INTERAC-ONLY PAYMENT BOX (Mandatory per Billing V2)
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, "F");
+    doc.roundedRect(margin, currentY, contentWidth, 30, 2, 2, "F");
     doc.setDrawColor(...primaryColor);
-    doc.setLineWidth(0.3);
-    doc.line(margin, currentY, margin, currentY + 22);
+    doc.setLineWidth(0.5);
+    doc.line(margin, currentY, margin, currentY + 30);
 
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkColor);
-    doc.text("Instructions de paiement — Virement Interac", margin + 6, currentY + 7);
+    doc.text("Paiement uniquement par virement Interac", margin + 6, currentY + 8);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    doc.text("Courriel:", margin + 6, currentY + 14);
+    doc.text("Courriel:", margin + 6, currentY + 15);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryColor);
-    doc.text(ETRANSFER_CONFIG.emailDisplay, margin + 25, currentY + 14);
+    doc.text("Support@nivratelecom.ca", margin + 25, currentY + 15);
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...darkColor);
-    doc.text(`Question/Réponse sécurité : ${ETRANSFER_CONFIG.securityQuestion} / ${data.invoiceNumber}`, margin + 6, currentY + 19);
+    doc.text(`Référence: ${data.invoiceNumber}`, margin + 6, currentY + 21);
+    
+    doc.setFontSize(6);
+    doc.setTextColor(...grayColor);
+    doc.text("Le service est activé dès réception et confirmation du paiement. Aucun paiement par carte n'est accepté.", margin + 6, currentY + 27);
 
-    currentY += 28;
+    currentY += 36;
   }
 
-  // ============ PREPAID BILLING POLICY ============
-  // IMPROVED: Increased font size from 5.5-6 to 9.5-10 for readability
-  checkPageBreak(50);
+  // ============ PREPAID BILLING POLICY — INTERAC CYCLE RULE ==========
+  // CRITICAL: Include the mandatory billing cycle statement
+  checkPageBreak(60);
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkColor);
   doc.text("POLITIQUE DE FACTURATION PRÉPAYÉE", margin, currentY);
   currentY += 8;
+  
+  // MANDATORY: Billing cycle starts on Interac confirmation
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(...accentColor);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(margin, currentY, contentWidth, 12, 1, 1, "FD");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...navyColor);
+  doc.text("Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac.", margin + 4, currentY + 8);
+  currentY += 16;
   
   const policyTexts = [
     "Les services sont facturés à l'avance. Le paiement doit être confirmé AVANT la date de cycle (J0) pour renouveler le service.",

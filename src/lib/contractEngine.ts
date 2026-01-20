@@ -65,13 +65,30 @@ export const ensureOrderContractUpToDate = async (params: {
     return fallback;
   };
   
-  // VALIDATION: Block generation if required fields are missing
-  const requiredFields = ["full_name", "email", "phone", "service_address"];
-  const missingFields = requiredFields.filter(field => {
-    const value = resolveClientField(field === "full_name" ? "legalName" : field) || 
-                  resolveClientField(field);
-    return !value || String(value).trim() === "";
-  });
+  // VALIDATION: Block generation if required fields are missing (per Nivra standard)
+  // Required: full_name, email, phone, service_address, billing_address
+  const requiredFieldsMap: Record<string, string[]> = {
+    full_name: ["legalName", "full_name"],
+    email: ["email"],
+    phone: ["phone"],
+    service_address: ["serviceAddress", "service_address"],
+    billing_address: ["billingAddress", "billing_address", "serviceAddress", "service_address"], // Fallback to service address
+  };
+  
+  const missingFields: string[] = [];
+  for (const [fieldName, candidates] of Object.entries(requiredFieldsMap)) {
+    let found = false;
+    for (const candidate of candidates) {
+      const value = resolveClientField(candidate);
+      if (value && String(value).trim() !== "") {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      missingFields.push(fieldName);
+    }
+  }
   
   if (missingFields.length > 0) {
     throw new Error(`Coordonnées client incomplètes — impossible de générer le document. Champs manquants: ${missingFields.join(", ")}`);
