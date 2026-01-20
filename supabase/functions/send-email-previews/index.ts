@@ -22,7 +22,6 @@ const corsHeaders = {
 
 // Default params for all templates
 const baseParams = {
-  supportPhone: "(438) 394-9110",
   supportEmail: "support@nivratelecom.ca",
 };
 
@@ -134,15 +133,11 @@ const getTemplates = () => [
   },
   {
     category: "01 - MARKETING",
-    name: "Témoignages clients",
-    subject: "📧 [Preview] Témoignages clients",
-    html: marketing.testimonials({
+    name: "Demande d'avis",
+    subject: "📧 [Preview] Demande d'avis",
+    html: marketing.feedbackRequest({
       ...baseParams,
-      recipientName: sampleData.clientName,
-      testimonials: [
-        { name: "Pierre L.", location: "Montréal", text: "Service impeccable et prix imbattables!", rating: 5 },
-        { name: "Catherine B.", location: "Québec", text: "Enfin un fournisseur qui écoute ses clients.", rating: 5 },
-      ],
+      clientName: sampleData.clientName,
     }),
   },
 
@@ -485,20 +480,18 @@ const getTemplates = () => [
       ...baseParams,
       clientName: sampleData.clientName,
       overdueAmount: 51.74,
-      suspensionDate: "1er mars 2025",
-      servicesAffected: ["Forfait Mobile Essentiel 8GB", "Option appels internationaux"],
+      suspendedDate: "1er mars 2025",
+      invoiceNumber: sampleData.invoiceNumber,
     }),
   },
   {
     category: "05 - FACTURATION",
-    name: "Service rétabli",
-    subject: "📧 [Preview] Service rétabli",
-    html: billing.serviceRestored({
+    name: "Service réactivé",
+    subject: "📧 [Preview] Service réactivé",
+    html: billing.serviceReactivated({
       ...baseParams,
       clientName: sampleData.clientName,
-      paymentAmount: 51.74,
-      paymentDate: "2 mars 2025",
-      servicesRestored: ["Forfait Mobile Essentiel 8GB", "Option appels internationaux"],
+      reactivationDate: "2 mars 2025",
     }),
   },
   {
@@ -509,35 +502,33 @@ const getTemplates = () => [
       ...baseParams,
       clientName: sampleData.clientName,
       creditAmount: 15.00,
-      reason: "Compensation pour interruption de service",
+      creditReason: "Compensation pour interruption de service",
       newBalance: 36.74,
     }),
   },
   {
     category: "05 - FACTURATION",
-    name: "Ajustement facture",
-    subject: "📧 [Preview] Ajustement facture",
-    html: billing.invoiceAdjustment({
+    name: "Rappel de paiement",
+    subject: "📧 [Preview] Rappel de paiement",
+    html: billing.paymentReminder({
       ...baseParams,
       clientName: sampleData.clientName,
       invoiceNumber: sampleData.invoiceNumber,
-      originalAmount: 51.74,
-      adjustedAmount: -10.00,
-      adjustmentReason: "Correction suite à votre demande - Option internationale retirée",
-      newTotal: 41.74,
+      amount: 51.74,
+      dueDate: "15 février 2025",
+      daysUntilDue: 3,
     }),
   },
   {
     category: "05 - FACTURATION",
-    name: "Remboursement",
-    subject: "📧 [Preview] Remboursement",
-    html: billing.refundProcessed({
+    name: "Mode de paiement modifié",
+    subject: "📧 [Preview] Mode de paiement modifié",
+    html: billing.paymentMethodChanged({
       ...baseParams,
       clientName: sampleData.clientName,
-      refundAmount: 25.00,
-      refundMethod: "Carte Visa ****4521",
-      refundReason: "Annulation de service",
-      refundDate: "15 mars 2025",
+      newPaymentMethod: "Carte Visa",
+      lastFourDigits: "4521",
+      changedAt: "15 mars 2025 à 14h30",
     }),
   },
 ];
