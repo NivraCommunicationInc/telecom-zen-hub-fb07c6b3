@@ -9,7 +9,6 @@ import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } 
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
-import nivraLogo from "@/assets/nivra-logo.jpg";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -108,13 +107,12 @@ const Header = () => {
           {/* Logo - centered on mobile, left-aligned on desktop */}
           <Link 
             to="/" 
-            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 lg:static lg:translate-x-0"
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 lg:static lg:translate-x-0"
           >
-            <img 
-              src={nivraLogo} 
-              alt="Nivra Telecom" 
-              className="h-10 w-auto object-contain"
-            />
+            <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
+              <span className="font-bold text-white text-lg">N</span>
+            </div>
+            <span className="font-bold text-lg text-foreground">Nivra</span>
           </Link>
 
           {/* Desktop Navigation */}
