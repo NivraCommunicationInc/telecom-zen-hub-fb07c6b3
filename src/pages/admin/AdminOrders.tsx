@@ -70,6 +70,7 @@ import {
 import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
 import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
 import ManualOrderWizard from "@/components/admin/ManualOrderWizard";
+import { OrderClientInfoBlock } from "@/components/admin/OrderClientInfoBlock";
 import { MobileFulfillmentSection } from "@/components/admin/MobileFulfillmentSection";
 import { StreamingActivationSection } from "@/components/admin/StreamingActivationSection";
 import { InstallationFulfillmentSection } from "@/components/admin/InstallationFulfillmentSection";
@@ -1697,6 +1698,14 @@ const AdminOrders = () => {
 
                   {/* Details Tab */}
                   <TabsContent value="details" className="space-y-4 mt-4">
+                    {/* Client Info Block - TOP PRIORITY */}
+                    <OrderClientInfoBlock
+                      orderId={selectedOrder.id}
+                      userId={selectedOrder.user_id}
+                      orderProfile={selectedOrder.profiles}
+                      onInfoUpdated={() => refetch()}
+                    />
+
                     {/* Service Details Section */}
                     <Card className="border-primary/20 bg-primary/5">
                       <CardHeader className="pb-2">
