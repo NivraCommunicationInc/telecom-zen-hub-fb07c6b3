@@ -101,77 +101,150 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   addLabelValue("ID compte client", data.accountNumber || data.client.accountId || "À confirmer");
   currentY += 2;
 
-  // ========== SERVICES SECTION ==========
-  addSectionTitle("Services souscrits");
+  // ========== SERVICES SECTION — ONE LINE PER SERVICE (MANDATORY) ==========
+  addSectionTitle("Services souscrits (détail ligne par ligne)");
   
+  // Calculate totals for monthly services
   const totalMonthly = data.services.reduce((sum, s) => sum + (s.monthlyPrice || 0), 0) + 
     (data.tvChannels?.premiumTotal || 0);
 
+  // Render EACH service on its OWN row - never combine
   data.services.forEach(service => {
     doc.setFontSize(7);
+    
+    // Service type badge
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...accentTeal);
+    doc.text(service.type.toUpperCase(), marginLeft, currentY);
+    
+    // Service name
+    doc.setTextColor(...textDark);
+    doc.text(service.planName || service.type, marginLeft + 22, currentY);
+    
+    // Speed if applicable
+    if (service.speed) {
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...textMuted);
+      doc.text(`Vitesse: ${service.speed}`, marginLeft + 85, currentY);
+    }
+    
+    // Price - always on its own column
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...textDark);
-    doc.text(`☐ ${service.type}`, marginLeft, currentY);
-    doc.setFont("helvetica", "normal");
-    doc.text(`— Forfait: ${service.planName}`, marginLeft + 25, currentY);
-    if (service.speed) {
-      doc.text(`| Vitesse: ${service.speed}`, marginLeft + 90, currentY);
-    }
-    doc.text(`| Prix/mois: ${formatCurrency(service.monthlyPrice)}`, marginLeft + 130, currentY);
-    currentY += 4.5;
+    doc.text(formatCurrency(service.monthlyPrice) + "/mois", marginLeft + 135, currentY);
+    currentY += 5;
 
+    // Portability info on separate line
     if (service.portability) {
+      doc.setFont("helvetica", "normal");
       doc.setTextColor(...textMuted);
-      doc.text(`   Portabilité: Oui | Numéro: ${service.numberToPort || "À confirmer"}`, marginLeft + 5, currentY);
+      doc.setFontSize(6);
+      doc.text(`   → Portabilité: Oui | Numéro: ${service.numberToPort || "À confirmer"}`, marginLeft + 5, currentY);
       currentY += 4;
     }
   });
 
-  // TV Channels
+  // TV Channels summary (counts only, never individual channels)
   if (data.tvChannels) {
     currentY += 2;
     doc.setTextColor(...textMuted);
     doc.setFontSize(6);
-    doc.text(`Base Channels: ${data.tvChannels.baseChannels || 25}/26 (obligatoires)`, marginLeft + 5, currentY);
-    currentY += 3.5;
-    doc.text(`Free-Choice: ${data.tvChannels.freeChoiceCount || 0} chaînes | Premium: ${data.tvChannels.premiumCount || 0} chaînes (${formatCurrency(data.tvChannels.premiumTotal || 0)})`, marginLeft + 5, currentY);
+    doc.text(`Chaînes de base: ${data.tvChannels.baseChannels || 25}/26 | Au choix: ${data.tvChannels.freeChoiceCount || 0} | Premium: ${data.tvChannels.premiumCount || 0} (${formatCurrency(data.tvChannels.premiumTotal || 0)})`, marginLeft + 5, currentY);
     currentY += 4;
   }
 
+  // Subtotal monthly
   doc.setDrawColor(...borderLight);
   doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
   currentY += 4;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
   doc.setFontSize(8);
-  doc.text(`Total mensuel estimé: ${formatCurrency(totalMonthly)}/mois`, marginLeft, currentY);
+  doc.text(`Sous-total mensuel (avant taxes): ${formatCurrency(totalMonthly)}/mois`, marginLeft, currentY);
   currentY += 6;
 
-  // ========== DATES SECTION ==========
-  addSectionTitle("Dates et facturation");
+  // ========== DATES & BILLING CYCLE (PREPAID) ==========
+  addSectionTitle("Dates et cycle de facturation");
   addLabelValue("Date création compte", formatDate(data.dates.accountCreated));
-  addLabelValue("Bill Cycle (jour)", data.dates.billCycleDay ? String(data.dates.billCycleDay) : "À confirmer");
-  addLabelValue("Date activation/installation", formatDate(data.dates.activationDate));
+  addLabelValue("Jour du cycle (Bill Cycle)", data.dates.billCycleDay ? String(data.dates.billCycleDay) : "À confirmer après paiement");
+  addLabelValue("Date d'activation prévue", formatDate(data.dates.activationDate));
   addLabelValue("Prochaine facture", formatDate(data.dates.nextInvoiceDate));
   if (data.dates.dueDate) {
     addLabelValue("Échéance", formatDate(data.dates.dueDate));
   }
+  
+  // CRITICAL: Prepaid cycle notice
   currentY += 2;
+  doc.setFillColor(...bgLight);
+  doc.setDrawColor(...accentTeal);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(marginLeft, currentY, contentWidth, 12, 1, 1, "FD");
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryNavy);
+  doc.text("IMPORTANT: Le cycle de facturation commence uniquement après confirmation du paiement Interac.", marginLeft + 3, currentY + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...textMuted);
+  doc.text("Les dates ci-dessus sont provisoires et seront confirmées à la réception du paiement.", marginLeft + 3, currentY + 9);
+  currentY += 16;
 
-  // ========== ONE-TIME FEES ==========
-  addSectionTitle("Frais uniques / équipements vendus");
+  // ========== ONE-TIME FEES (BLOC B) ==========
+  addSectionTitle("BLOC B — Frais uniques (une seule fois)");
 
   const fees = data.oneTimeFees;
-  if (fees.router && fees.router > 0) addLabelValue("Routeur", formatCurrency(fees.router));
-  if (fees.terminal4k && fees.terminal4k > 0) addLabelValue("Terminal 4K", formatCurrency(fees.terminal4k));
-  if (fees.activationFee && fees.activationFee > 0) addLabelValue("Frais d'activation", formatCurrency(fees.activationFee));
-  if (fees.installationFee && fees.installationFee > 0) addLabelValue("Frais d'installation (standard)", formatCurrency(fees.installationFee));
-  if (fees.installationComplex && fees.installationComplex > 0) addLabelValue("Frais d'installation (complexe)", formatCurrency(fees.installationComplex));
-  if (fees.deliveryFee && fees.deliveryFee > 0) addLabelValue("Frais de livraison", formatCurrency(fees.deliveryFee));
+  let oneTimeFeeTotal = 0;
   
-  doc.setTextColor(...textMuted);
+  // Each fee on its own line
+  if (fees.activationFee && fees.activationFee > 0) {
+    const serviceCount = data.services.length;
+    const feeLabel = serviceCount >= 2 ? "Frais d'activation (forfait groupé 2+ services)" : "Frais d'activation (1 service)";
+    addLabelValue(feeLabel, formatCurrency(fees.activationFee));
+    oneTimeFeeTotal += fees.activationFee;
+  }
+  if (fees.router && fees.router > 0) {
+    addLabelValue("Routeur Nivra Born WiFi", formatCurrency(fees.router));
+    oneTimeFeeTotal += fees.router;
+  }
+  if (fees.terminal4k && fees.terminal4k > 0) {
+    addLabelValue("Terminal TV 4K", formatCurrency(fees.terminal4k));
+    oneTimeFeeTotal += fees.terminal4k;
+  }
+  if (fees.installationFee && fees.installationFee > 0) {
+    addLabelValue("Installation standard", formatCurrency(fees.installationFee));
+    oneTimeFeeTotal += fees.installationFee;
+  }
+  if (fees.installationComplex && fees.installationComplex > 0) {
+    addLabelValue("Installation complexe", formatCurrency(fees.installationComplex));
+    oneTimeFeeTotal += fees.installationComplex;
+  }
+  if (fees.deliveryFee && fees.deliveryFee > 0) {
+    addLabelValue("Livraison standard Québec", formatCurrency(fees.deliveryFee));
+    oneTimeFeeTotal += fees.deliveryFee;
+  }
+  
+  // One-time subtotal with taxes
+  const oneTimeTps = Math.round(oneTimeFeeTotal * 0.05 * 100) / 100;
+  const oneTimeTvq = Math.round(oneTimeFeeTotal * 0.09975 * 100) / 100;
+  const oneTimeTotalWithTax = oneTimeFeeTotal + oneTimeTps + oneTimeTvq;
+  
+  doc.setDrawColor(...borderLight);
+  doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
+  currentY += 3;
   doc.setFontSize(6);
-  doc.text("Frais de réactivation (rappel): 15 $", marginLeft, currentY);
+  doc.setTextColor(...textMuted);
+  doc.text(`Sous-total unique: ${formatCurrency(oneTimeFeeTotal)} | TPS: ${formatCurrency(oneTimeTps)} | TVQ: ${formatCurrency(oneTimeTvq)}`, marginLeft, currentY);
+  currentY += 3;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryNavy);
+  doc.setFontSize(7);
+  doc.text(`Total frais uniques avec taxes: ${formatCurrency(oneTimeTotalWithTax)}`, marginLeft, currentY);
+  currentY += 6;
+  
+  // Reactivation fee notice
+  doc.setTextColor(...textMuted);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5);
+  doc.text("Frais de réactivation (si applicable après suspension): 15 $", marginLeft, currentY);
   currentY += 6;
 
   // ========== PAYMENT SECTION ==========

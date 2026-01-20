@@ -292,8 +292,12 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
     state.currentY += 2;
   }
 
-  // ========== BILLING SUMMARY ==========
-  addSectionTitle(state, "Sommaire de facturation", { addHeader });
+  // ========== BILLING SUMMARY — STRICT TWO-BLOCK STRUCTURE ==========
+  // Block A: Tarifs mensuels (récurrents)
+  // Block B: Frais uniques (non récurrents)
+  // These MUST NEVER be combined per Billing V2 requirements
+  
+  addSectionTitle(state, "BLOC A — Tarifs mensuels (récurrents)", { addHeader });
 
   // INVARIANT CHECK: Verify billing math before rendering
   const taxableSubtotal = data.billing.subtotal + data.billing.oneTimeTotal - data.billing.discountTotal;
@@ -332,17 +336,50 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
   };
 
   // Show recurring services subtotal
-  addSummaryRow("Sous-total services (récurrent)", formatCurrency(data.billing.subtotal));
+  addSummaryRow("Sous-total mensuel (récurrent)", formatCurrency(data.billing.subtotal));
+  
+  // Monthly taxes
+  const monthlyTpsEstimate = Math.round(data.billing.subtotal * 0.05 * 100) / 100;
+  const monthlyTvqEstimate = Math.round(data.billing.subtotal * 0.09975 * 100) / 100;
+  addSummaryRow("TPS (5%)", formatCurrency(monthlyTpsEstimate));
+  addSummaryRow("TVQ (9.975%)", formatCurrency(monthlyTvqEstimate));
+  addSummaryRow("Total mensuel avec taxes", formatCurrency(data.billing.subtotal + monthlyTpsEstimate + monthlyTvqEstimate), false, true);
+  
+  state.currentY += 6;
+  
+  // ========== BLOCK B: ONE-TIME FEES ==========
+  addSectionTitle(state, "BLOC B — Frais uniques (non récurrents)", { addHeader });
   
   // Show one-time charges (equipment + fees) - MUST be included in taxable
   if (data.billing.oneTimeTotal > 0) {
-    addSummaryRow("Frais uniques (équipement + frais)", formatCurrency(data.billing.oneTimeTotal));
+    addSummaryRow("Équipement et frais ponctuels", formatCurrency(data.billing.oneTimeTotal));
   }
   
   // Show discounts
   if (data.billing.discountTotal > 0) {
     addSummaryRow("Rabais appliqués", `-${formatCurrency(data.billing.discountTotal)}`, true);
   }
+  
+  const oneTimeSubtotal = data.billing.oneTimeTotal - data.billing.discountTotal;
+  const oneTimeTps = Math.round(oneTimeSubtotal * 0.05 * 100) / 100;
+  const oneTimeTvq = Math.round(oneTimeSubtotal * 0.09975 * 100) / 100;
+  
+  addSummaryRow("Sous-total unique", formatCurrency(oneTimeSubtotal));
+  addSummaryRow("TPS (5%)", formatCurrency(oneTimeTps));
+  addSummaryRow("TVQ (9.975%)", formatCurrency(oneTimeTvq));
+  addSummaryRow("Total frais uniques avec taxes", formatCurrency(oneTimeSubtotal + oneTimeTps + oneTimeTvq), false, true);
+  
+  state.currentY += 6;
+  
+  // ========== GRAND TOTAL ==========
+  addSectionTitle(state, "Total à payer aujourd'hui", { addHeader });
+  
+  // CRITICAL: Show the SAME taxable subtotal used for tax calculation
+  addSummaryRow("Mensuel + Unique (taxable)", formatCurrency(taxableSubtotal), false, true);
+  
+  // Taxes calculated on taxable subtotal
+  addSummaryRow(`TPS (5% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tps));
+  addSummaryRow(`TVQ (9.975% de ${formatCurrency(taxableSubtotal)})`, formatCurrency(data.billing.tvq));
   
   // CRITICAL: Show the SAME taxable subtotal used for tax calculation
   addSummaryRow("Sous-total taxable", formatCurrency(taxableSubtotal), false, true);
@@ -514,6 +551,24 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       state, 
       "En signant ce contrat, le client confirme avoir lu, compris et accepté les Annexes A à E ci-jointes, qui font partie intégrante du présent contrat.", 
       { addHeader, fontSize: fontSize.small }
+    );
+    
+    state.currentY += 4;
+    
+    // CRITICAL: Prepaid cycle notice (per Billing V2 requirements)
+    addInfoBox(
+      state,
+      [
+        "IMPORTANT — FACTURATION PRÉPAYÉE",
+        "Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac, et non à la date de commande.",
+        "Les services sont activés après réception et vérification du virement Interac à Support@nivratelecom.ca.",
+      ],
+      { 
+        addHeader, 
+        bgColor: "background", 
+        accentColor: "accent",
+        height: 28,
+      }
     );
     
     state.currentY += 6;

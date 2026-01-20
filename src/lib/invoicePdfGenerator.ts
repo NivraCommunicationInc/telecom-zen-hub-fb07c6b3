@@ -593,12 +593,13 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
 
   currentY += 12;
 
-  // ============ SERVICES SOUSCRITS SECTION - Multi-service ============
+  // ============ BLOC A: TARIFS MENSUELS (RÉCURRENTS) ============
+  // RULE: One line per service - NEVER combine multiple services
   if (recurringServices.length > 0) {
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...accentColor);
-    doc.text("SERVICES SOUSCRITS", margin, currentY);
+    doc.text("BLOC A — TARIFS MENSUELS (RÉCURRENTS)", margin, currentY);
 
     currentY += 6;
     doc.setDrawColor(...primaryColor);
@@ -679,14 +680,15 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     currentY += 10;
   }
 
-  // ============ ONE-TIME FEES (EQUIPMENT + FEES) ============
+  // ============ BLOC B: FRAIS UNIQUES (NON RÉCURRENTS) ============
+  // These are charged ONCE, never combined with monthly fees
   if (oneTimeTotal > 0) {
     checkPageBreak(40);
     
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...accentColor);
-    doc.text("FRAIS UNIQUES / ONE-TIME FEES", margin, currentY);
+    doc.text("BLOC B — FRAIS UNIQUES (NON RÉCURRENTS)", margin, currentY);
 
     currentY += 6;
     doc.setDrawColor(...primaryColor);
