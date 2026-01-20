@@ -18,7 +18,7 @@ interface CreateSubscriptionRequest {
   plan_code: string;
   plan_name: string;
   plan_price: number;
-  payment_method?: 'interac' | 'stripe' | 'square' | 'manual';
+  payment_method?: 'interac' | 'manual';
 }
 
 serve(async (req) => {

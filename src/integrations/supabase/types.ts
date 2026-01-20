@@ -939,6 +939,7 @@ export type Database = {
       }
       billing_invoices: {
         Row: {
+          activation_fee: number | null
           created_at: string | null
           currency: string | null
           customer_id: string
@@ -961,6 +962,7 @@ export type Database = {
           type: Database["public"]["Enums"]["billing_invoice_type"]
         }
         Insert: {
+          activation_fee?: number | null
           created_at?: string | null
           currency?: string | null
           customer_id: string
@@ -983,6 +985,7 @@ export type Database = {
           type: Database["public"]["Enums"]["billing_invoice_type"]
         }
         Update: {
+          activation_fee?: number | null
           created_at?: string | null
           currency?: string | null
           customer_id?: string
@@ -1041,7 +1044,7 @@ export type Database = {
           customer_id: string
           id?: string
           invoice_id: string
-          method: Database["public"]["Enums"]["billing_payment_method"]
+          method?: Database["public"]["Enums"]["billing_payment_method"]
           received_at?: string | null
           reference?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
@@ -1086,6 +1089,7 @@ export type Database = {
           plan_code: string
           plan_name: string
           plan_price: number
+          service_category: string | null
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
@@ -1101,6 +1105,7 @@ export type Database = {
           plan_code: string
           plan_name: string
           plan_price: number
+          service_category?: string | null
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
@@ -1116,6 +1121,7 @@ export type Database = {
           plan_code?: string
           plan_name?: string
           plan_price?: number
+          service_category?: string | null
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
@@ -8458,6 +8464,10 @@ export type Database = {
         }
         Returns: Json
       }
+      calculate_activation_fee: {
+        Args: { service_count: number }
+        Returns: number
+      }
       calculate_billing_proration: {
         Args: { p_new_price: number; p_subscription_id: string }
         Returns: number
@@ -8722,7 +8732,7 @@ export type Database = {
         | "cancelled"
         | "refunded"
       billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
-      billing_payment_method: "interac" | "stripe" | "square" | "manual"
+      billing_payment_method: "interac" | "manual"
       billing_payment_status: "pending" | "confirmed" | "failed"
       billing_subscription_status:
         | "active"
@@ -9007,7 +9017,7 @@ export const Constants = {
         "refunded",
       ],
       billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
-      billing_payment_method: ["interac", "stripe", "square", "manual"],
+      billing_payment_method: ["interac", "manual"],
       billing_payment_status: ["pending", "confirmed", "failed"],
       billing_subscription_status: [
         "active",
