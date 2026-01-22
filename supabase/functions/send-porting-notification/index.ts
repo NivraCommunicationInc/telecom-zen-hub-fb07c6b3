@@ -1,22 +1,15 @@
 /**
  * send-porting-notification
- * Sends email + SMS notifications for number porting events
+ * Queues email + sends SMS notifications for number porting events
+ * Uses email_queue for professional templates from process-email-queue
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
-import { sendTemplateEmail, formatDateForTemplate } from "../_shared/resendTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Porting event to template mapping
-const PORTING_TEMPLATE_MAP: Record<string, { templateKey: string; label: string }> = {
-  porting_initiated: { templateKey: "order_in_progress", label: "Transfert de numéro initié" },
-  porting_completed: { templateKey: "order_completed", label: "Transfert de numéro complété" },
-  porting_failed: { templateKey: "order_cancelled", label: "Transfert échoué" },
 };
 
 interface PortingNotificationRequest {
@@ -33,24 +26,25 @@ interface PortingNotificationRequest {
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
-  console.log(`[${requestId}] send-porting-notification invoked (RESEND TEMPLATE)`);
+  console.log(`[${requestId}] send-porting-notification invoked (EMAIL_QUEUE)`);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!resendApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error(`[${requestId}] Missing required environment variables`);
       return new Response(JSON.stringify({ error: "Server not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: PortingNotificationRequest = await req.json();
     const {
@@ -67,43 +61,44 @@ Deno.serve(async (req) => {
 
     console.log(`[${requestId}] Event: ${event_type}, Number: ${porting_phone_number}`);
 
-    // Check if this event type is configured for emails
-    const eventConfig = PORTING_TEMPLATE_MAP[event_type];
-    if (!eventConfig) {
-      console.log(`[${requestId}] Event type ${event_type} not configured for emails`);
-      return new Response(JSON.stringify({ 
-        success: true, 
-        skipped: true, 
-        reason: "Event type not configured" 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
     const firstName = client_name?.split(" ")[0] || "Client";
 
-    // Send email using Resend template
-    const emailResult = await sendTemplateEmail({
-      resendApiKey,
-      templateKey: eventConfig.templateKey as any,
-      to: client_email,
-      variables: {
-        CLIENT_FIRST_NAME: firstName,
-        PHONE_NUMBER: porting_phone_number,
-        STATUS_LABEL: eventConfig.label,
-        ESTIMATED_DATE: estimated_date ? formatDateForTemplate(estimated_date) : "",
-        FAILURE_REASON: failure_reason || "",
-        PORTAL_LINK: `${siteBaseUrl}/portal`,
-      },
-      subject: `${eventConfig.label} — ${porting_phone_number} | Nivra Télécom`,
-    });
+    // Idempotency check
+    const eventKey = `${event_type}_${porting_phone_number}_${order_id || Date.now()}`;
 
-    if (!emailResult.success) {
-      console.error(`[${requestId}] Email failed:`, emailResult.error);
+    const { data: existingEmail } = await supabase
+      .from("email_queue")
+      .select("id")
+      .eq("event_key", eventKey)
+      .in("status", ["sent", "pending", "processing"])
+      .maybeSingle();
+
+    if (!existingEmail) {
+      // Queue email for professional template processing
+      const { error: queueError } = await supabase
+        .from("email_queue")
+        .insert({
+          event_key: eventKey,
+          template_key: event_type, // porting_initiated, porting_completed, porting_failed
+          to_email: client_email,
+          status: "pending",
+          template_vars: {
+            client_name: firstName,
+            phone_number: porting_phone_number,
+            estimated_date,
+            failure_reason,
+            portal_path: order_id ? `/portal/orders/${order_id}` : "/portal/orders",
+          },
+        });
+
+      if (queueError) {
+        console.error(`[${requestId}] Failed to queue email:`, queueError);
+      } else {
+        console.log(`[${requestId}] Email queued with template: ${event_type}`);
+      }
     } else {
-      console.log(`[${requestId}] Email sent: ${emailResult.id}`);
+      console.log(`[${requestId}] Email already queued/sent for this event`);
     }
 
     // Fetch phone from profiles if not provided
@@ -151,7 +146,7 @@ Deno.serve(async (req) => {
           message: smsMessage,
           clientId: clientIdForSms,
           eventType: event_type,
-          eventKey: `${event_type}_${porting_phone_number}_${order_id || Date.now()}`,
+          eventKey: `sms_${eventKey}`,
         });
         console.log(`[${requestId}] SMS result:`, JSON.stringify(smsResult));
       }
@@ -162,7 +157,7 @@ Deno.serve(async (req) => {
       request_id: requestId,
       event_type,
       porting_phone_number,
-      email_id: emailResult.id,
+      queued: true,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

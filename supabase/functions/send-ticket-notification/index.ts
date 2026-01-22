@@ -1,12 +1,11 @@
 /**
  * send-ticket-notification
- * Sends email + SMS notifications for ticket events using Resend templates
+ * Queues email + sends SMS notifications for ticket events
+ * Uses email_queue for professional templates from process-email-queue
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
-import { sendTemplateEmail, hasTemplate, type ResendTemplateKey } from "../_shared/resendTemplates.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -16,11 +15,6 @@ const STATUS_LABELS: Record<string, string> = {
   resolved: "Résolu",
   closed: "Fermé",
   cancelled: "Annulé",
-};
-
-// Map ticket events to Resend template keys
-const TICKET_TEMPLATE_MAP: Record<string, ResendTemplateKey> = {
-  ticket_created: "ticket_created",
 };
 
 interface TicketNotificationRequest {
@@ -38,7 +32,7 @@ interface TicketNotificationRequest {
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
-  console.log(`[${requestId}] send-ticket-notification invoked`);
+  console.log(`[${requestId}] send-ticket-notification invoked (EMAIL_QUEUE)`);
 
   const preflightResponse = handleCorsPreflightRequest(req);
   if (preflightResponse) return preflightResponse;
@@ -49,7 +43,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error(`[${requestId}] Supabase not configured`);
@@ -58,6 +51,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: TicketNotificationRequest = await req.json();
     const {
@@ -75,33 +70,54 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}] Event: ${event_type}, Ticket: ${ticket_number}`);
 
     const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
-    const portalUrl = `${siteBaseUrl}/portal`;
+    const firstName = client_name?.split(" ")[0] || "Client";
 
-    // Send email using Resend template if available
-    if (resendApiKey && event_type === "ticket_created") {
-      const templateKey = TICKET_TEMPLATE_MAP[event_type];
+    // Map event type to template key
+    const templateKeyMap: Record<string, string> = {
+      ticket_created: "ticket_created",
+      ticket_status_update: "ticket_status_update",
+      ticket_resolved: "ticket_resolved",
+    };
+
+    const templateKey = templateKeyMap[event_type];
+    
+    if (templateKey) {
+      // Idempotency check
+      const eventKey = `${event_type}_${ticket_id}_${new_status || "created"}`;
       
-      if (templateKey && hasTemplate(templateKey)) {
-        const firstName = client_name?.split(" ")[0] || "Client";
-        
-        const result = await sendTemplateEmail({
-          resendApiKey,
-          templateKey,
-          to: client_email,
-          variables: {
-            CLIENT_FIRST_NAME: firstName,
-            CLIENT_NAME: client_name || "Client",
-            TICKET_NUMBER: ticket_number,
-            SUBJECT: subject || "Demande de support",
-            PORTAL_LINK: portalUrl,
-          },
-        });
+      const { data: existingEmail } = await supabase
+        .from("email_queue")
+        .select("id")
+        .eq("event_key", eventKey)
+        .in("status", ["sent", "pending", "processing"])
+        .maybeSingle();
 
-        if (result.success) {
-          console.log(`[${requestId}] Email sent via Resend template: ${templateKey}`);
+      if (!existingEmail) {
+        // Queue email for professional template processing
+        const { error: queueError } = await supabase
+          .from("email_queue")
+          .insert({
+            event_key: eventKey,
+            template_key: templateKey,
+            to_email: client_email,
+            status: "pending",
+            template_vars: {
+              client_name: firstName,
+              ticket_number,
+              subject: subject || "Demande de support",
+              new_status,
+              status_label: STATUS_LABELS[new_status || ""] || new_status,
+              portal_path: `/portal/tickets/${ticket_id}`,
+            },
+          });
+
+        if (queueError) {
+          console.error(`[${requestId}] Failed to queue email:`, queueError);
         } else {
-          console.warn(`[${requestId}] Template email failed, will not retry: ${result.error}`);
+          console.log(`[${requestId}] Email queued with template: ${templateKey}`);
         }
+      } else {
+        console.log(`[${requestId}] Email already queued/sent for this event`);
       }
     }
 
@@ -122,7 +138,6 @@ Deno.serve(async (req) => {
     // Send SMS based on event type
     if (phoneForSms && toE164(phoneForSms)) {
       let smsMessage: string;
-      const firstName = client_name?.split(" ")[0] || "Client";
 
       switch (event_type) {
         case "ticket_created":
@@ -174,6 +189,7 @@ Deno.serve(async (req) => {
       request_id: requestId,
       event_type,
       ticket_number,
+      queued: true,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

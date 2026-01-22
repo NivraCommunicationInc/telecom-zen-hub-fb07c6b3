@@ -1,6 +1,11 @@
+/**
+ * send-installation-status-email
+ * Queues email + sends SMS notifications for installation status changes
+ * Uses email_queue for professional templates from process-email-queue
+ */
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
-import { sendTemplateEmail, formatDateTimeForTemplate } from "../_shared/resendTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,12 +13,12 @@ const corsHeaders = {
 };
 
 // Status to template mapping
-const STATUS_TEMPLATE_MAP: Record<string, { templateKey: string; label: string }> = {
-  installation_scheduled: { templateKey: "order_processing", label: "Installation planifiée" },
-  technician_en_route: { templateKey: "order_in_progress", label: "Technicien en route" },
-  installation_in_progress: { templateKey: "order_in_progress", label: "Installation en cours" },
-  installation_completed: { templateKey: "order_completed", label: "Installation terminée" },
-  completed: { templateKey: "order_completed", label: "Commande complétée" },
+const STATUS_TEMPLATE_MAP: Record<string, string> = {
+  installation_scheduled: "installation_scheduled",
+  technician_en_route: "technician_en_route",
+  installation_in_progress: "installation_in_progress",
+  installation_completed: "installation_completed",
+  completed: "installation_completed",
 };
 
 interface InstallationStatusEmailRequest {
@@ -31,19 +36,18 @@ interface InstallationStatusEmailRequest {
 }
 
 Deno.serve(async (req) => {
-  const requestId = crypto.randomUUID();
-  console.log(`[${requestId}] send-installation-status-email invoked (RESEND TEMPLATE)`);
+  const requestId = crypto.randomUUID().slice(0, 8);
+  console.log(`[${requestId}] send-installation-status-email invoked (EMAIL_QUEUE)`);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!resendApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error(`[${requestId}] Missing required environment variables`);
       return new Response(JSON.stringify({ error: "Service not configured" }), {
         status: 500,
@@ -78,8 +82,8 @@ Deno.serve(async (req) => {
     }
 
     // Check if this status is one we send emails for
-    const statusConfig = STATUS_TEMPLATE_MAP[new_status];
-    if (!statusConfig) {
+    const templateKey = STATUS_TEMPLATE_MAP[new_status];
+    if (!templateKey) {
       console.log(`[${requestId}] Status ${new_status} not configured for emails, skipping`);
       return new Response(JSON.stringify({ 
         success: true, 
@@ -92,78 +96,56 @@ Deno.serve(async (req) => {
     }
 
     // Idempotency check
-    const idempotencyKey = `installation_status_${order_id}_${new_status}`;
+    const eventKey = `installation_status_${order_id}_${new_status}`;
+    
     const { data: existingEmail } = await supabase
       .from("email_queue")
       .select("id, sent_at")
-      .eq("event_key", idempotencyKey)
-      .eq("status", "sent")
+      .eq("event_key", eventKey)
+      .in("status", ["sent", "pending", "processing"])
       .maybeSingle();
 
     if (existingEmail) {
-      console.log(`[${requestId}] Email already sent for this status change`);
+      console.log(`[${requestId}] Email already queued/sent for this status change`);
       return new Response(JSON.stringify({ 
         success: true, 
-        already_sent: true, 
-        sent_at: existingEmail.sent_at 
+        already_queued: true, 
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
-
-    // Send email using Resend template
-    const emailResult = await sendTemplateEmail({
-      resendApiKey,
-      templateKey: statusConfig.templateKey as any,
-      to: client_email,
-      variables: {
-        CLIENT_FIRST_NAME: client_first_name || "Client",
-        ORDER_NUMBER: order_number,
-        STATUS_LABEL: statusConfig.label,
-        SERVICE_ADDRESS: service_address || "",
-        SCHEDULED_DATE_TIME: scheduled_date_time || "",
-        TECHNICIAN_NAME: technician_name || "",
-        PORTAL_LINK: `${siteBaseUrl}/portal`,
-      },
-      subject: `${statusConfig.label} — Commande #${order_number} | Nivra Télécom`,
-    });
-
-    if (!emailResult.success) {
-      console.error(`[${requestId}] Resend error:`, emailResult.error);
-      
-      await supabase.from("email_queue").insert({
-        event_key: idempotencyKey,
-        template_key: "installation_status",
+    // Queue email for professional template processing
+    const { error: queueError } = await supabase
+      .from("email_queue")
+      .insert({
+        event_key: eventKey,
+        template_key: templateKey,
         to_email: client_email,
-        status: "failed",
-        last_error: emailResult.error,
-        template_vars: { order_id, order_number, new_status, old_status },
+        status: "pending",
+        template_vars: {
+          client_name: client_first_name || "Client",
+          order_number,
+          service_address,
+          scheduled_date_time,
+          technician_name,
+          portal_path: `/portal/orders/${order_id}`,
+        },
       });
 
+    if (queueError) {
+      console.error(`[${requestId}] Failed to queue email:`, queueError);
       return new Response(JSON.stringify({ 
         success: false, 
-        error: "Email sending failed" 
+        error: "Failed to queue email" 
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`[${requestId}] Email sent successfully: ${emailResult.id}`);
-
-    // Log successful send
-    await supabase.from("email_queue").insert({
-      event_key: idempotencyKey,
-      template_key: "installation_status",
-      to_email: client_email,
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      provider_message_id: emailResult.id,
-      template_vars: { order_id, order_number, new_status, old_status },
-    });
+    console.log(`[${requestId}] Email queued with template: ${templateKey}`);
 
     // Send SMS notification based on status (non-blocking)
     let phoneForSms = client_phone;
@@ -205,7 +187,7 @@ Deno.serve(async (req) => {
           message: smsMessage,
           clientId: clientIdForSms,
           eventType: `installation_${new_status}`,
-          eventKey: `installation_${order_id}_${new_status}`,
+          eventKey: `sms_installation_${order_id}_${new_status}`,
         });
         console.log(`[${requestId}] SMS result:`, JSON.stringify(smsResult));
       }
@@ -213,7 +195,8 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true,
-      message_id: emailResult.id,
+      queued: true,
+      template: templateKey,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
