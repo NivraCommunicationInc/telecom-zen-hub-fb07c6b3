@@ -65,6 +65,7 @@ const resolveClientData = (
     full_name: resolve(["legalName", "full_name", "fullName"]),
     email: resolve(["email"]),
     phone: resolve(["phone", "telephone"]),
+    date_of_birth: resolve(["dateOfBirth", "date_of_birth", "birthDate"]),
     service_address: serviceAddress,
     billing_address: resolve(["billingAddress", "billing_address"]) || serviceAddress,
   };
@@ -109,6 +110,7 @@ export const OrderClientInfoBlock = ({
     full_name: "",
     email: "",
     phone: "",
+    date_of_birth: "",
     service_address: "",
     billing_address: "",
   });
