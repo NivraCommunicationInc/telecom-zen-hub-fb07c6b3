@@ -1,10 +1,12 @@
+/**
+ * send-appointment-notification
+ * Queues email notifications for appointment events
+ * Uses email_queue for professional templates from process-email-queue
+ */
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { 
-  sendTemplateEmail, 
-  formatDateForTemplate,
-  formatDateTimeForTemplate 
-} from "../_shared/resendTemplates.ts";
 
 interface NotificationRequest {
   email: string;
@@ -19,6 +21,7 @@ interface NotificationRequest {
   instructions?: string;
   status: "confirmed" | "updated" | "cancelled" | "completed";
   notes?: string;
+  appointmentId?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -30,8 +33,14 @@ const handler = async (req: Request): Promise<Response> => {
   const requestId = crypto.randomUUID().slice(0, 8);
 
   try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Supabase not configured");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: NotificationRequest = await req.json();
     const { 
@@ -46,88 +55,95 @@ const handler = async (req: Request): Promise<Response> => {
       serviceAddressLine2,
       instructions,
       status, 
-      notes 
+      notes,
+      appointmentId,
     } = body;
 
-    console.log(`[${requestId}] Sending appointment notification: status=${status}, to=${email?.substring(0, 3)}***`);
+    console.log(`[${requestId}] Queuing appointment notification: status=${status}, to=${email?.substring(0, 3)}***`);
 
-    // Only send for confirmed status using Resend template
-    // Other statuses still use hardcoded HTML for now
-    if (status === "confirmed") {
-      const parsedDate = new Date(appointmentDate);
-      const dateStr = formatDateForTemplate(parsedDate);
-      const timeStr = appointmentTime || parsedDate.toLocaleTimeString("fr-CA", { timeStyle: "short" });
-      
-      const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
-      const portalUrl = `${siteBaseUrl}/portal`;
-      
-      const result = await sendTemplateEmail({
-        resendApiKey,
-        templateKey: "appointment_scheduled",
-        to: email,
-        variables: {
-          CLIENT_FIRST_NAME: name?.split(" ")[0] || "Client",
-          APPOINTMENT_DATE: dateStr,
-          APPOINTMENT_TIME: timeStr,
-          APPOINTMENT_TYPE: appointmentType || appointmentTitle || "Installation",
-          ORDER_NUMBER: orderNumber || "",
-          APPOINTMENT_ADDRESS_LINE1: serviceAddress || "",
-          APPOINTMENT_ADDRESS_LINE2: serviceAddressLine2 || "",
-          APPOINTMENT_INSTRUCTIONS: instructions || notes || "",
-          PORTAL_LINK: portalUrl,
-          RESCHEDULE_LINK: `${portalUrl}/appointments`,
-        },
+    // Map status to template key
+    const templateKeyMap: Record<string, string> = {
+      confirmed: "appointment_scheduled",
+      updated: "appointment_updated",
+      cancelled: "appointment_cancelled",
+      completed: "order_completed",
+    };
+
+    const templateKey = templateKeyMap[status];
+    
+    if (!templateKey) {
+      console.log(`[${requestId}] Unknown status: ${status}`);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Unknown appointment status" 
+      }), { 
+        status: 400, 
+        headers: { "Content-Type": "application/json", ...corsHeaders } 
       });
+    }
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send email");
-      }
+    // Idempotency check
+    const eventKey = `appointment_${status}_${appointmentId || appointmentDate}_${email}`;
 
+    const { data: existingEmail } = await supabase
+      .from("email_queue")
+      .select("id")
+      .eq("event_key", eventKey)
+      .in("status", ["sent", "pending", "processing"])
+      .maybeSingle();
+
+    if (existingEmail) {
+      console.log(`[${requestId}] Email already queued/sent for this event`);
       return new Response(JSON.stringify({ 
         success: true, 
-        result: { id: result.id },
-        method: "resend_template",
-        template: "appointment_scheduled_fr"
+        already_queued: true,
       }), { 
         status: 200, 
         headers: { "Content-Type": "application/json", ...corsHeaders } 
       });
     }
 
-    // Fallback to hardcoded HTML for other statuses
-    const statusMessages = {
-      confirmed: { subject: "Confirmation de votre rendez-vous - Nivra", heading: "Votre rendez-vous est confirmé!", message: "Nous avons bien confirmé votre rendez-vous.", color: "#10b981" },
-      updated: { subject: "Mise à jour de votre rendez-vous - Nivra", heading: "Votre rendez-vous a été modifié", message: "Les détails de votre rendez-vous ont été mis à jour.", color: "#f59e0b" },
-      cancelled: { subject: "Annulation de votre rendez-vous - Nivra", heading: "Votre rendez-vous a été annulé", message: "Nous vous informons que votre rendez-vous a été annulé.", color: "#ef4444" },
-      completed: { subject: "Rendez-vous terminé - Nivra", heading: "Merci pour votre visite!", message: "Votre rendez-vous s'est bien déroulé. Merci de votre confiance!", color: "#6366f1" },
-    };
+    // Format date/time for template
+    const parsedDate = new Date(appointmentDate);
+    const fullAddress = serviceAddressLine2 
+      ? `${serviceAddress}, ${serviceAddressLine2}` 
+      : serviceAddress;
 
-    const statusConfig = statusMessages[status];
-    const formattedDate = new Date(appointmentDate).toLocaleString("fr-CA", { dateStyle: "full", timeStyle: "short" });
+    // Queue email for professional template processing
+    const { error: queueError } = await supabase
+      .from("email_queue")
+      .insert({
+        event_key: eventKey,
+        template_key: templateKey,
+        to_email: email,
+        status: "pending",
+        template_vars: {
+          client_name: name?.split(" ")[0] || "Client",
+          title: appointmentTitle || appointmentType || "Rendez-vous",
+          scheduled_at: parsedDate.toISOString(),
+          service_address: fullAddress,
+          order_number: orderNumber,
+          cancellation_reason: status === "cancelled" ? notes : undefined,
+          portal_path: "/portal/appointments",
+        },
+      });
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-      body: JSON.stringify({
-        from: "Nivra Telecom <support@nivratelecom.ca>",
-        reply_to: "support@nivratelecom.ca",
-        to: [email],
-        subject: statusConfig.subject,
-        html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;"><h1 style="color: white; margin: 0;">Nivra Telecom</h1><p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Votre service, simplifié.</p></div><div style="padding: 30px; background: #f8fafc;"><h2 style="color: #0f172a;">Bonjour ${name || "cher client"},</h2><div style="background: ${statusConfig.color}20; border-left: 4px solid ${statusConfig.color}; padding: 15px; margin: 20px 0;"><h3 style="color: ${statusConfig.color}; margin: 0 0 10px;">${statusConfig.heading}</h3><p style="color: #475569; margin: 0;">${statusConfig.message}</p></div><div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;"><p style="margin: 0; color: #0f172a;"><strong>Rendez-vous:</strong> ${appointmentTitle}</p><p style="margin: 10px 0 0; color: #0f172a;"><strong>Date et heure:</strong> ${formattedDate}</p>${notes ? `<p style="margin: 10px 0 0; color: #64748b;"><strong>Notes:</strong> ${notes}</p>` : ""}</div><p style="color: #475569;">Cordialement,<br>L'équipe Nivra</p></div><div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;"><p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p><p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p><p style="margin: 0 0 12px; font-size: 13px; color: #52525b;"><a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">Support@nivratelecom.ca</a> | <a href="tel:4385442233" style="color: #0d9488; text-decoration: none;">438-544-2233</a></p><p style="margin: 0; font-size: 11px; color: #71717a;">Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br><em>You are receiving this email because of an action on your Nivra Telecom account.</em></p></div></div>`,
-      }),
-    });
+    if (queueError) {
+      console.error(`[${requestId}] Failed to queue email:`, queueError);
+      throw new Error(`Failed to queue email: ${queueError.message}`);
+    }
 
-    const result = await emailResponse.json();
-    if (!emailResponse.ok) throw new Error(result.message || "Failed to send email");
+    console.log(`[${requestId}] Email queued with template: ${templateKey}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      result,
-      method: "hardcoded_html"
+      queued: true,
+      template: templateKey,
     }), { 
       status: 200, 
       headers: { "Content-Type": "application/json", ...corsHeaders } 
     });
+
   } catch (error: any) {
     console.error(`[${requestId}] Error in send-appointment-notification:`, error);
     return new Response(JSON.stringify({ error: error.message }), { 

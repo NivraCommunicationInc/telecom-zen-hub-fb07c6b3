@@ -1048,6 +1048,192 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, "/contact"), "Contacter support / Contact support", config.supportEmail),
   },
+
+  // =============================================
+  // PORTING TEMPLATES
+  // =============================================
+
+  // PORTING INITIATED
+  porting_initiated: {
+    subject: "Nivra — Transfert de numéro initié ({{phone_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📱', 'Transfert initié', 'Porting initiated',
+        'Le transfert de votre numéro a été initié auprès de votre ancien fournisseur.',
+        'The transfer of your phone number has been initiated with your previous provider.'
+      )}
+      ${detailsCard([
+        { label: 'Numéro / Number', value: vars.phone_number || 'N/A' },
+        { label: 'Statut / Status', value: 'En cours / In progress' },
+        ...(vars.estimated_date ? [{ label: 'Date estimée / Estimated date', value: formatDate(vars.estimated_date) }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Le processus prend généralement 2-5 jours ouvrables. Nous vous tiendrons informé.<br>
+        <em style="color:${emailStyles.textMuted};">The process typically takes 2-5 business days. We'll keep you informed.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View order", config.supportEmail),
+  },
+
+  // PORTING COMPLETED
+  porting_completed: {
+    subject: "Nivra — Transfert de numéro complété! ({{phone_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Transfert complété!', 'Porting completed!',
+        'Votre numéro a été transféré avec succès vers Nivra Telecom.',
+        'Your phone number has been successfully transferred to Nivra Telecom.'
+      )}
+      ${detailsCard([
+        { label: 'Numéro / Number', value: vars.phone_number || 'N/A' },
+        { label: 'Statut / Status', value: 'Actif / Active' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Bienvenue chez Nivra! Votre numéro est maintenant actif sur notre réseau.<br>
+        <em style="color:${emailStyles.textMuted};">Welcome to Nivra! Your number is now active on our network.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Accéder au portail / Access portal", config.supportEmail),
+  },
+
+  // PORTING FAILED
+  porting_failed: {
+    subject: "Nivra — Problème avec le transfert de numéro ({{phone_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Problème de transfert', 'Porting issue',
+        'Un problème est survenu lors du transfert de votre numéro.',
+        'An issue occurred during the transfer of your phone number.'
+      )}
+      ${detailsCard([
+        { label: 'Numéro / Number', value: vars.phone_number || 'N/A' },
+        { label: 'Statut / Status', value: 'Échec / Failed' },
+        ...(vars.failure_reason ? [{ label: 'Raison / Reason', value: vars.failure_reason }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Notre équipe vous contactera pour résoudre ce problème. Vous pouvez aussi nous contacter directement.<br>
+        <em style="color:${emailStyles.textMuted};">Our team will contact you to resolve this issue. You can also contact us directly.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/contact"), "Contacter support / Contact support", config.supportEmail),
+  },
+
+  // =============================================
+  // INSTALLATION TEMPLATES
+  // =============================================
+
+  // INSTALLATION SCHEDULED
+  installation_scheduled: {
+    subject: "Nivra — Installation planifiée (#{{order_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '📅', 'Installation planifiée', 'Installation scheduled',
+        'Votre installation a été planifiée avec un de nos techniciens.',
+        'Your installation has been scheduled with one of our technicians.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Date et heure / Date & time', value: vars.scheduled_date_time ? formatDate(vars.scheduled_date_time, true) : 'À confirmer / TBD' },
+        ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
+        ...(vars.technician_name ? [{ label: 'Technicien / Technician', value: vars.technician_name }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Veuillez vous assurer qu'un adulte est présent à l'adresse le jour de l'installation.<br>
+        <em style="color:${emailStyles.textMuted};">Please ensure an adult is present at the address on the installation day.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir ma commande / View order", config.supportEmail),
+  },
+
+  // TECHNICIAN EN ROUTE
+  technician_en_route: {
+    subject: "Nivra — Technicien en route! (#{{order_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🚗', 'Technicien en route', 'Technician on the way',
+        'Notre technicien est en route vers votre adresse.',
+        'Our technician is on the way to your address.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
+        ...(vars.technician_name ? [{ label: 'Technicien / Technician', value: vars.technician_name }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Veuillez vous assurer qu'un adulte est présent pour accueillir le technicien.<br>
+        <em style="color:${emailStyles.textMuted};">Please ensure an adult is present to welcome the technician.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail),
+  },
+
+  // INSTALLATION IN PROGRESS
+  installation_in_progress: {
+    subject: "Nivra — Installation en cours (#{{order_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔧', 'Installation en cours', 'Installation in progress',
+        'L\'installation de vos services est actuellement en cours.',
+        'The installation of your services is currently in progress.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        ...(vars.technician_name ? [{ label: 'Technicien / Technician', value: vars.technician_name }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail),
+  },
+
+  // INSTALLATION COMPLETED
+  installation_completed: {
+    subject: "Nivra — Installation terminée! (#{{order_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Installation terminée!', 'Installation completed!',
+        'L\'installation de vos services a été complétée avec succès.',
+        'The installation of your services has been completed successfully.'
+      )}
+      ${detailsCard([
+        { label: 'Nº commande / Order #', value: vars.order_number || 'N/A' },
+        { label: 'Statut / Status', value: 'Actif / Active' },
+        ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom! Profitez de vos nouveaux services.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom! Enjoy your new services.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Accéder au portail / Access portal", config.supportEmail),
+  },
+
+  // TICKET STATUS UPDATE
+  ticket_status_update: {
+    subject: "Nivra — Mise à jour de votre ticket (#{{ticket_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔄', 'Statut mis à jour', 'Status updated',
+        'Le statut de votre ticket de support a été mis à jour.',
+        'The status of your support ticket has been updated.'
+      )}
+      ${detailsCard([
+        { label: 'Nº ticket / Ticket #', value: vars.ticket_number || 'N/A' },
+        { label: 'Nouveau statut / New status', value: vars.status_label || vars.new_status || 'N/A' },
+      ])}
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir mon ticket / View ticket", config.supportEmail),
+  },
+
+  // TICKET RESOLVED
+  ticket_resolved: {
+    subject: "Nivra — Ticket résolu! (#{{ticket_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Ticket résolu!', 'Ticket resolved!',
+        'Votre ticket de support a été résolu.',
+        'Your support ticket has been resolved.'
+      )}
+      ${detailsCard([
+        { label: 'Nº ticket / Ticket #', value: vars.ticket_number || 'N/A' },
+        { label: 'Statut / Status', value: 'Résolu / Resolved' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de votre patience. N\'hésitez pas à nous contacter si vous avez d\'autres questions.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for your patience. Don't hesitate to contact us if you have any other questions.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir mon ticket / View ticket", config.supportEmail),
+  },
 };
 
 // =============================================
