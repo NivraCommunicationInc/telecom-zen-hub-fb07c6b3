@@ -723,61 +723,61 @@ Deno.serve(async (req) => {
 
     const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
 
-    console.log(`[${requestId}] Generating HTML email...`);
+    console.log(`[${requestId}] Queueing email via email_queue...`);
 
-    const html = generateOrderConfirmationHtml({
-      clientFirstName: client_first_name || "Client",
-      orderNumber: order_number,
-      orderDate: order_date || orderData?.created_at || new Date().toISOString(),
-      paymentReference: payment_reference,
-      paymentMethod: payment_method,
-      services: services || [],
-      subtotal: finalSubtotal,
-      tpsAmount: finalTps,
-      tvqAmount: finalTvq,
-      totalWithTax: monthly_total_tax_in,
-      oneTimeFees: one_time_fees,
-      oneTimeTotal: one_time_total,
-      deliveryMethod: getDeliveryMethodLabel(delivery_method),
-      deliveryAddress: delivery_address,
-      portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
-      supportPhone: "438-544-2233",
-      supportEmail: "support@nivratelecom.ca",
-    });
+    // Create unique event key for idempotency
+    const eventKey = `order_confirmation_${order_id}`;
 
-    console.log(`[${requestId}] Sending email via Resend...`);
+    // Build service type string for template
+    const serviceType = services && services.length > 0 
+      ? services.map(s => s.name).join(", ")
+      : "Service Nivra";
 
-    const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "Nivra Télécom <Support@nivratelecom.ca>",
-      replyTo: "support@nivratelecom.ca",
-      to: [client_email],
-      subject: `Confirmation de commande #${order_number} — Nivra Télécom`,
-      html,
-    });
-
-    if (emailError) {
-      console.error(`[${requestId}] Resend error:`, emailError);
-      
-      await supabase.from("email_queue").insert({
-        event_key: `order_confirmation_${order_id}`,
-        template_key: "order_confirmation",
+    // Queue email for processing by process-email-queue with professional template
+    const { data: queuedEmail, error: queueError } = await supabase
+      .from("email_queue")
+      .insert({
+        event_key: eventKey,
         to_email: client_email,
-        status: "failed",
-        last_error: emailError.message || JSON.stringify(emailError),
-      });
+        template_key: "order_submitted",
+        template_vars: {
+          client_name: client_first_name || "Client",
+          client_email: client_email,
+          order_id: order_id,
+          order_number: order_number,
+          service_type: serviceType,
+          total_amount: monthly_total_tax_in,
+          subtotal: finalSubtotal,
+          tps_amount: finalTps,
+          tvq_amount: finalTvq,
+          one_time_total: one_time_total || 0,
+          delivery_method: getDeliveryMethodLabel(delivery_method),
+          delivery_address: delivery_address ? 
+            `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}` : null,
+          payment_reference: payment_reference,
+          payment_method: payment_method,
+          portal_path: `/portal/orders/${order_id}`,
+        },
+        status: "queued",
+        attempts: 0,
+        max_attempts: 3,
+      })
+      .select("id")
+      .single();
 
+    if (queueError) {
+      console.error(`[${requestId}] Failed to queue email:`, queueError);
       logResult("error", {
         order_id,
         order_number,
         to_email: maskEmail(client_email),
-        error: emailError.message,
+        error: queueError.message,
       });
-
       return new Response(JSON.stringify({
         success: false,
         status: "error",
-        error: "Email sending failed",
-        details: emailError.message,
+        error: "Failed to queue email",
+        details: queueError.message,
         request_id: requestId,
       }), {
         status: 500,
@@ -785,9 +785,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[${requestId}] ✅ Email sent successfully`);
-    console.log(`[${requestId}] resend_message_id=${emailData?.id}`);
+    console.log(`[${requestId}] ✅ Email queued successfully: ${queuedEmail.id}`);
 
+    // Update order to mark confirmation as queued
     const { error: updateError } = await supabase
       .from("orders")
       .update({ confirmation_email_sent_at: new Date().toISOString() })
@@ -797,21 +797,12 @@ Deno.serve(async (req) => {
       console.warn(`[${requestId}] Failed to update confirmation_email_sent_at:`, updateError);
     }
 
-    await supabase.from("email_queue").insert({
-      event_key: `order_confirmation_${order_id}`,
-      template_key: "order_confirmation",
-      to_email: client_email,
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      provider_message_id: emailData?.id || null,
-    });
-
     logResult("sent", {
       order_id,
       order_number,
       to_email: maskEmail(client_email),
-      method: "html_template_v2",
-      resend_message_id: emailData?.id,
+      method: "email_queue",
+      email_queue_id: queuedEmail.id,
       forced: force,
     });
 
@@ -836,9 +827,10 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      status: "sent",
-      message_id: emailData?.id,
+      status: "queued",
+      email_queue_id: queuedEmail.id,
       order_number,
+      method: "email_queue",
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

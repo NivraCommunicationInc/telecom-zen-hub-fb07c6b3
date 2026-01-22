@@ -2,6 +2,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
+/**
+ * Check Overdue Invoices - Cron job that:
+ * 1. Finds overdue invoices
+ * 2. Applies late fees if not already applied
+ * 3. Queues professional email notifications via email_queue
+ */
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(req);
@@ -15,14 +22,9 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Missing Supabase environment variables");
-    }
-
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -62,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
 
-    let sentCount = 0;
+    let queuedCount = 0;
     let updatedCount = 0;
 
     for (const invoice of overdueInvoices) {
@@ -74,6 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
+      // Apply late fee if not already applied
       if (!invoice.late_fee_applied) {
         const lateFee = Number(invoice.amount) * 0.05;
         const { error: updateError } = await supabase
@@ -101,85 +104,56 @@ const handler = async (req: Request): Promise<Response> => {
 
       const total = Number(invoice.amount) + (Number(invoice.fees) || 0) - (Number(invoice.credits) || 0);
 
-      try {
-        const formatCurrency = (value: number) => {
-          return new Intl.NumberFormat("fr-CA", {
-            style: "currency",
-            currency: "CAD",
-          }).format(value);
-        };
+      // Create unique event key for idempotency (one reminder per invoice per day)
+      const eventKey = `invoice_overdue_${invoice.id}_${today}`;
 
-        const formatDate = (dateStr: string) => {
-          return new Date(dateStr).toLocaleDateString("fr-CA", {
-            dateStyle: "long",
-          });
-        };
+      // Check if already queued today
+      const { data: existingEmail } = await supabase
+        .from("email_queue")
+        .select("id")
+        .eq("event_key", eventKey)
+        .maybeSingle();
 
-        const emailResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${resendApiKey}`,
+      if (existingEmail) {
+        console.log(`Overdue email already queued for invoice ${invoice.id} today`);
+        continue;
+      }
+
+      // Queue email for processing by process-email-queue with professional template
+      const { error: queueError } = await supabase
+        .from("email_queue")
+        .insert({
+          event_key: eventKey,
+          to_email: email,
+          template_key: "invoice_overdue",
+          template_vars: {
+            client_name: profile?.full_name || "Client",
+            client_email: email,
+            invoice_number: invoice.invoice_number || invoice.id.slice(0, 8),
+            amount: total,
+            due_date: invoice.due_date,
           },
-          body: JSON.stringify({
-            from: "Nivra <onboarding@resend.dev>",
-            to: [email],
-            subject: `Rappel - Facture ${invoice.invoice_number || ""} en retard - Nivra`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">Nivra</h1>
-                </div>
-                <div style="padding: 30px; background: #f8fafc;">
-                  <h2 style="color: #0f172a;">Bonjour ${profile?.full_name || "cher client"},</h2>
-                  
-                  <div style="background: #fef3c720; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-                    <h3 style="color: #f59e0b; margin: 0 0 10px;">⚠️ Rappel de paiement</h3>
-                    <p style="color: #475569; margin: 0;">Votre facture est maintenant en retard. Veuillez effectuer le paiement dès que possible pour éviter des frais supplémentaires.</p>
-                  </div>
-                  
-                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                    <h4 style="margin: 0 0 15px; color: #0f172a;">Détails de la facture</h4>
-                    <p style="margin: 8px 0; color: #0f172a;"><strong>Numéro de facture:</strong> ${invoice.invoice_number || invoice.id.slice(0, 8)}</p>
-                    <p style="margin: 8px 0; color: #0f172a;"><strong>Montant dû:</strong> ${formatCurrency(total)}</p>
-                    <p style="margin: 8px 0; color: #ef4444;"><strong>Date d'échéance:</strong> ${formatDate(invoice.due_date)} (dépassée)</p>
-                  </div>
-                  
-                  <div style="text-align: center; margin: 25px 0;">
-                    <p style="color: #475569; margin-bottom: 15px;">Connectez-vous à votre portail client pour consulter et payer votre facture.</p>
-                  </div>
-                  
-                  <p style="color: #475569;">Si vous avez des questions ou si vous avez déjà effectué ce paiement, veuillez nous contacter à Support@nivratelecom.ca.</p>
-                  <p style="color: #475569;">Cordialement,<br>L'équipe Nivra</p>
-                </div>
-                <div style="background: #0f172a; padding: 20px; text-align: center;">
-                  <p style="color: #94a3b8; margin: 0; font-size: 12px;">© 2024 Nivra. Tous droits réservés.</p>
-                </div>
-              </div>
-            `,
-          }),
+          status: "queued",
+          attempts: 0,
+          max_attempts: 3,
         });
 
-        if (emailResponse.ok) {
-          sentCount++;
-          console.log(`Sent overdue reminder to ${email} for invoice ${invoice.id}`);
-        } else {
-          const errorResult = await emailResponse.json();
-          console.error(`Failed to send email to ${email}:`, errorResult);
-        }
-      } catch (emailError) {
-        console.error(`Error sending email to ${email}:`, emailError);
+      if (queueError) {
+        console.error(`Failed to queue overdue email for invoice ${invoice.id}:`, queueError);
+      } else {
+        queuedCount++;
+        console.log(`Queued overdue reminder for invoice ${invoice.id} to ${email}`);
       }
     }
 
-    console.log(`Processed ${overdueInvoices.length} invoices, updated ${updatedCount}, sent ${sentCount} notifications`);
+    console.log(`Processed ${overdueInvoices.length} invoices, updated ${updatedCount}, queued ${queuedCount} notifications`);
 
     return new Response(
       JSON.stringify({ 
         message: "Overdue invoices processed", 
         total: overdueInvoices.length,
         updated: updatedCount,
-        notificationsSent: sentCount 
+        notificationsQueued: queuedCount 
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

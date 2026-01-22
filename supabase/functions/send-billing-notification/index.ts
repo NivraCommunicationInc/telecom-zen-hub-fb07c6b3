@@ -2,18 +2,22 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
-import { 
-  sendTemplateEmail, 
-  formatCurrencyForTemplate,
-  formatDateForTemplate,
-  hasTemplate,
-  type ResendTemplateKey
-} from "../_shared/resendTemplates.ts";
+import { formatCurrencyForTemplate, formatDateForTemplate } from "../_shared/resendTemplates.ts";
 
-// Map billing event types to Resend template keys
-const BILLING_TEMPLATE_MAP: Record<string, ResendTemplateKey> = {
+/**
+ * Send Billing Notification - Routes through email_queue for professional templates
+ * 
+ * Supported types:
+ * - invoice_created
+ * - payment_received  
+ * - payment_failed
+ * - invoice_overdue
+ */
+
+// Map billing event types to email_queue template keys
+const BILLING_TEMPLATE_MAP: Record<string, string> = {
   invoice_created: "invoice_created",
-  payment_received: "payment_receipt",
+  payment_received: "payment_received",
   payment_failed: "payment_failed",
   invoice_overdue: "invoice_overdue",
 };
@@ -27,110 +31,120 @@ const handler = async (req: Request): Promise<Response> => {
   const requestId = crypto.randomUUID().slice(0, 8);
 
   try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase configuration");
+    }
 
-    const { email, name, type, invoiceNumber, amount, dueDate, paidAt, paymentMethod, notes, phone, clientId } = await req.json();
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { 
+      email, 
+      name, 
+      type, 
+      invoiceNumber, 
+      amount, 
+      dueDate, 
+      paidAt, 
+      paymentMethod, 
+      notes, 
+      phone, 
+      clientId 
+    } = await req.json();
     
     console.log(`[${requestId}] Billing notification: type=${type}, to=${email?.substring(0, 3)}***`);
+
+    if (!email) {
+      throw new Error("Email is required");
+    }
 
     const formatCurrency = (value: number) => formatCurrencyForTemplate(value);
     const formatDate = (dateStr: string) => formatDateForTemplate(dateStr);
 
-    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
-    const portalUrl = `${siteBaseUrl}/portal`;
-
-    // Check if we have a Resend template for this type
+    // Get the template key for this billing type
     const templateKey = BILLING_TEMPLATE_MAP[type];
     
-    if (templateKey && hasTemplate(templateKey)) {
-      // Use Resend template
-      const variables: Record<string, string | number | undefined> = {
-        CLIENT_FIRST_NAME: name?.split(" ")[0] || "Client",
-        CLIENT_NAME: name || "Client",
-        INVOICE_NUMBER: invoiceNumber || "",
-        AMOUNT: formatCurrency(amount),
-        DUE_DATE: dueDate ? formatDate(dueDate) : "",
-        PAYMENT_DATE: paidAt ? formatDate(paidAt) : "",
-        PAYMENT_METHOD: paymentMethod || "",
-        PORTAL_LINK: portalUrl,
-      };
+    if (!templateKey) {
+      throw new Error(`Unknown billing notification type: ${type}`);
+    }
 
-      // Add type-specific variables
-      if (type === "invoice_overdue" && dueDate) {
-        const daysDiff = Math.floor((Date.now() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24));
-        variables.DAYS_OVERDUE = daysDiff > 0 ? String(daysDiff) : "0";
-      }
+    // Create unique event key for idempotency
+    const eventKey = `billing_${type}_${invoiceNumber || clientId || email}_${new Date().toISOString().split('T')[0]}`;
 
-      const result = await sendTemplateEmail({
-        resendApiKey,
-        templateKey,
-        to: email,
-        variables,
-      });
+    // Check if this email was already queued (idempotency)
+    const { data: existingEmail } = await supabase
+      .from("email_queue")
+      .select("id")
+      .eq("event_key", eventKey)
+      .maybeSingle();
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send email");
-      }
-
-      console.log(`[${requestId}] Email sent via Resend template: ${templateKey}`);
-
-      // Send SMS notification (non-blocking)
-      await sendBillingSms(type, phone, email, clientId, name, formatCurrency(amount), invoiceNumber, dueDate ? formatDate(dueDate) : undefined);
-
+    if (existingEmail) {
+      console.log(`[${requestId}] Email already queued for event: ${eventKey}`);
       return new Response(JSON.stringify({ 
         success: true, 
-        result: { id: result.id },
-        method: "resend_template",
-        template: templateKey
+        message: "Email already queued",
+        event_key: eventKey
       }), { 
         status: 200, 
         headers: { "Content-Type": "application/json", ...corsHeaders } 
       });
     }
 
-    // Fallback to hardcoded HTML for unmapped types
-    console.log(`[${requestId}] No template for type=${type}, using hardcoded HTML`);
-    
-    const typeConfigs: Record<string, any> = {
-      invoice_created: { subject: `Nouvelle facture ${invoiceNumber || ""} - Nivra`, heading: "Nouvelle facture créée", message: "Une nouvelle facture a été créée pour votre compte.", color: "#0891b2", icon: "📄" },
-      payment_received: { subject: "Confirmation de paiement - Nivra", heading: "Paiement reçu avec succès!", message: "Nous avons bien reçu votre paiement. Merci!", color: "#10b981", icon: "✅" },
-      payment_failed: { subject: "Échec du paiement - Nivra", heading: "Paiement non réussi", message: "Votre paiement n'a pas pu être traité.", color: "#ef4444", icon: "❌" },
-      invoice_overdue: { subject: "Facture en retard - Nivra", heading: "Rappel de paiement", message: "Votre facture est maintenant en retard.", color: "#f59e0b", icon: "⚠️" },
+    // Build template variables
+    const templateVars: Record<string, any> = {
+      client_name: name || "Client",
+      client_email: email,
+      invoice_number: invoiceNumber || "",
+      amount: amount || 0,
+      due_date: dueDate || "",
+      paid_at: paidAt || "",
+      payment_method: paymentMethod || "",
     };
 
-    const config = typeConfigs[type] || typeConfigs.invoice_created;
-    let detailsHtml = invoiceNumber ? `<p><strong>Facture:</strong> ${invoiceNumber}</p>` : "";
-    detailsHtml += `<p><strong>Montant:</strong> ${formatCurrency(amount)}</p>`;
-    if (dueDate) detailsHtml += `<p><strong>Échéance:</strong> ${formatDate(dueDate)}</p>`;
-    if (paidAt) detailsHtml += `<p><strong>Payé le:</strong> ${formatDate(paidAt)}</p>`;
+    // Add days overdue for overdue invoices
+    if (type === "invoice_overdue" && dueDate) {
+      const daysDiff = Math.floor((Date.now() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24));
+      templateVars.days_overdue = daysDiff > 0 ? daysDiff : 0;
+    }
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-      body: JSON.stringify({
-        from: "Nivra Telecom <support@nivratelecom.ca>",
-        reply_to: "support@nivratelecom.ca",
-        to: [email],
-        subject: config.subject,
-        html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;"><h1 style="color: white;">Nivra Telecom</h1><p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Votre service, simplifié.</p></div><div style="padding: 30px; background: #f8fafc;"><h2>Bonjour ${name || "cher client"},</h2><div style="background: ${config.color}20; border-left: 4px solid ${config.color}; padding: 15px; margin: 20px 0;"><h3 style="color: ${config.color};">${config.icon} ${config.heading}</h3><p>${config.message}</p></div><div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">${detailsHtml}</div><p>L'équipe Nivra</p></div><div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;"><p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p><p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p><p style="margin: 0 0 12px; font-size: 13px; color: #52525b;"><a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">Support@nivratelecom.ca</a></p><p style="margin: 0; font-size: 11px; color: #71717a;">Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br><em>You are receiving this email because of an action on your Nivra Telecom account.</em></p></div></div>`,
-      }),
-    });
+    // Queue email for processing by process-email-queue
+    const { data: queuedEmail, error: queueError } = await supabase
+      .from("email_queue")
+      .insert({
+        event_key: eventKey,
+        to_email: email,
+        template_key: templateKey,
+        template_vars: templateVars,
+        status: "queued",
+        attempts: 0,
+        max_attempts: 3,
+      })
+      .select("id")
+      .single();
 
-    const result = await emailResponse.json();
-    if (!emailResponse.ok) throw new Error(result.message);
+    if (queueError) {
+      console.error(`[${requestId}] Failed to queue email:`, queueError);
+      throw new Error(`Failed to queue email: ${queueError.message}`);
+    }
+
+    console.log(`[${requestId}] Email queued successfully: ${queuedEmail.id} with template: ${templateKey}`);
 
     // Send SMS notification (non-blocking)
     await sendBillingSms(type, phone, email, clientId, name, formatCurrency(amount), invoiceNumber, dueDate ? formatDate(dueDate) : undefined);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      result,
-      method: "hardcoded_html"
+      email_id: queuedEmail.id,
+      event_key: eventKey,
+      template: templateKey,
+      method: "email_queue"
     }), { 
       status: 200, 
       headers: { "Content-Type": "application/json", ...corsHeaders } 
     });
+
   } catch (error: any) {
     console.error(`[${requestId}] Error:`, error);
     return new Response(JSON.stringify({ error: error.message }), { 
