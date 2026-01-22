@@ -12,6 +12,9 @@ import * as onboarding from '../_shared/emailTemplates/onboarding.ts';
 import * as orders from '../_shared/emailTemplates/orders.ts';
 import * as portability from '../_shared/emailTemplates/portability.ts';
 import * as billing from '../_shared/emailTemplates/billing.ts';
+import * as account from '../_shared/emailTemplates/account.ts';
+import * as service from '../_shared/emailTemplates/service.ts';
+import * as support from '../_shared/emailTemplates/support.ts';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -529,6 +532,236 @@ const getTemplates = () => [
       newPaymentMethod: "Carte Visa",
       lastFourDigits: "4521",
       changedAt: "15 mars 2025 à 14h30",
+    }),
+  },
+
+  // ============ ACCOUNT & SECURITY (6) ============
+  {
+    category: "06 - COMPTE",
+    name: "Compte bloqué",
+    subject: "📧 [Preview] Compte bloqué",
+    html: account.accountBlocked({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      blockReason: "Plusieurs tentatives de connexion échouées détectées",
+      blockedAt: "15 janvier 2025 à 14h30",
+    }),
+  },
+  {
+    category: "06 - COMPTE",
+    name: "Compte débloqué",
+    subject: "📧 [Preview] Compte débloqué",
+    html: account.accountUnblocked({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      unblockedAt: "16 janvier 2025 à 10h00",
+    }),
+  },
+  {
+    category: "06 - COMPTE",
+    name: "Accès en ligne bloqué",
+    subject: "📧 [Preview] Accès en ligne bloqué",
+    html: account.onlineAccessBlocked({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      blockReason: "Activité suspecte détectée sur votre compte",
+      blockedAt: "15 janvier 2025 à 14h30",
+    }),
+  },
+  {
+    category: "06 - COMPTE",
+    name: "Réinitialisation mot de passe",
+    subject: "📧 [Preview] Réinitialisation mot de passe",
+    html: account.passwordReset({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      resetUrl: "https://nivratelecom.ca/reset?token=abc123",
+      requestedAt: "15 janvier 2025 à 14h30",
+      expiresInHours: 24,
+    }),
+  },
+  {
+    category: "06 - COMPTE",
+    name: "Mot de passe modifié",
+    subject: "📧 [Preview] Mot de passe modifié",
+    html: account.passwordChanged({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      changedAt: "15 janvier 2025 à 14h45",
+    }),
+  },
+  {
+    category: "06 - COMPTE",
+    name: "Connexion suspecte",
+    subject: "📧 [Preview] Connexion suspecte",
+    html: account.suspiciousLogin({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      loginTime: "15 janvier 2025 à 03h15",
+      ipAddress: "185.234.56.78",
+      location: "Paris, France",
+      device: "Chrome sur Windows",
+    }),
+  },
+
+  // ============ SERVICE LIFECYCLE (7) ============
+  {
+    category: "07 - SERVICES",
+    name: "Demande d'annulation reçue",
+    subject: "📧 [Preview] Demande d'annulation reçue",
+    html: service.cancellationRequestReceived({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      serviceName: "Forfait Essentiel 8GB",
+      requestDate: "15 janvier 2025",
+      effectiveDate: "15 février 2025",
+      requestNumber: "ANN-2025-0042",
+      cancellationReason: "Déménagement hors Québec",
+    }),
+  },
+  {
+    category: "07 - SERVICES",
+    name: "Service annulé",
+    subject: "📧 [Preview] Service annulé",
+    html: service.serviceCancelled({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      serviceName: "Forfait Essentiel 8GB",
+      cancellationDate: "15 février 2025",
+      finalBillAmount: 17.87,
+      refundAmount: 12.50,
+    }),
+  },
+  {
+    category: "07 - SERVICES",
+    name: "Service suspendu",
+    subject: "📧 [Preview] Service suspendu",
+    html: service.serviceSuspended({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      serviceName: "Forfait Essentiel 8GB",
+      suspensionDate: "1er mars 2025",
+      suspensionReason: "Facture impayée depuis plus de 30 jours",
+      amountDue: 51.74,
+    }),
+  },
+  {
+    category: "07 - SERVICES",
+    name: "Service réactivé",
+    subject: "📧 [Preview] Service réactivé",
+    html: service.serviceReactivated({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      serviceName: "Forfait Essentiel 8GB",
+      reactivationDate: "2 mars 2025",
+    }),
+  },
+  {
+    category: "07 - SERVICES",
+    name: "Changement de forfait",
+    subject: "📧 [Preview] Changement de forfait",
+    html: service.planChangeConfirmed({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      oldPlan: "Forfait Essentiel 8GB",
+      newPlan: "Forfait Premium 25GB",
+      effectiveDate: "1er février 2025",
+      newMonthlyPrice: 55,
+      proratedAmount: 8.50,
+    }),
+  },
+  {
+    category: "07 - SERVICES",
+    name: "SIM perdue déclarée",
+    subject: "📧 [Preview] SIM perdue déclarée",
+    html: service.simLostReported({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      phoneNumber: sampleData.phoneNumber,
+      reportedAt: "15 janvier 2025 à 14h30",
+      replacementFee: 10,
+    }),
+  },
+  {
+    category: "07 - SERVICES",
+    name: "SIM remplacement expédiée",
+    subject: "📧 [Preview] SIM remplacement expédiée",
+    html: service.replacementSimShipped({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      phoneNumber: sampleData.phoneNumber,
+      trackingNumber: "CP123456789CA",
+      carrier: "Postes Canada",
+      estimatedDelivery: "20 janvier 2025",
+    }),
+  },
+
+  // ============ SUPPORT TICKETS (5) ============
+  {
+    category: "08 - SUPPORT",
+    name: "Ticket créé",
+    subject: "📧 [Preview] Ticket créé",
+    html: support.ticketCreated({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      ticketNumber: "TKT-2025-0789",
+      subject: "Problème de connexion internet intermittent",
+      category: "Internet",
+      priority: "Urgent",
+      createdAt: "15 janvier 2025 à 14h30",
+    }),
+  },
+  {
+    category: "08 - SUPPORT",
+    name: "Ticket mis à jour",
+    subject: "📧 [Preview] Ticket mis à jour",
+    html: support.ticketUpdated({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      ticketNumber: "TKT-2025-0789",
+      subject: "Problème de connexion internet intermittent",
+      updateMessage: "Bonjour Jean-François,\n\nNous avons analysé votre connexion et identifié un problème avec le routeur. Un technicien vous contactera sous 24h pour planifier une intervention.\n\nMerci de votre patience!",
+      updatedBy: "Sophie Martin - Support technique",
+      updatedAt: "15 janvier 2025 à 16h45",
+    }),
+  },
+  {
+    category: "08 - SUPPORT",
+    name: "Ticket résolu",
+    subject: "📧 [Preview] Ticket résolu",
+    html: support.ticketResolved({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      ticketNumber: "TKT-2025-0789",
+      subject: "Problème de connexion internet intermittent",
+      resolution: "Le problème a été résolu suite au remplacement du routeur défectueux. Votre connexion devrait maintenant être stable. N'hésitez pas à nous recontacter si le problème persiste.",
+      resolvedAt: "17 janvier 2025 à 11h00",
+    }),
+  },
+  {
+    category: "08 - SUPPORT",
+    name: "Ticket fermé automatiquement",
+    subject: "📧 [Preview] Ticket fermé automatiquement",
+    html: support.ticketAutoClosed({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      ticketNumber: "TKT-2025-0789",
+      subject: "Problème de connexion internet intermittent",
+      closedAt: "24 janvier 2025",
+    }),
+  },
+  {
+    category: "08 - SUPPORT",
+    name: "Demande de documents",
+    subject: "📧 [Preview] Demande de documents",
+    html: support.documentRequest({
+      ...baseParams,
+      clientName: sampleData.clientName,
+      ticketNumber: "TKT-2025-0790",
+      requestReason: "Pour traiter votre demande de portabilité",
+      requiredDocuments: ["Copie de votre dernière facture de l'ancien fournisseur", "Pièce d'identité avec photo", "Preuve de résidence récente"],
+      uploadUrl: "https://nivratelecom.ca/portal/upload",
+      deadline: "22 janvier 2025",
     }),
   },
 ];
