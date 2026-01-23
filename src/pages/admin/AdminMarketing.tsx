@@ -18,7 +18,8 @@ import {
   TrendingUp,
   Play,
   Pause,
-  Eye
+  Eye,
+  UserPlus
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
@@ -28,6 +29,7 @@ import MarketingTemplates from "@/components/marketing/MarketingTemplates";
 import MarketingCampaigns from "@/components/marketing/MarketingCampaigns";
 import MarketingAutomations from "@/components/marketing/MarketingAutomations";
 import MarketingAnalytics from "@/components/marketing/MarketingAnalytics";
+import MarketingDirectSend from "@/components/marketing/MarketingDirectSend";
 
 const AdminMarketing = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -139,10 +141,14 @@ const AdminMarketing = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Vue d'ensemble</span>
+            </TabsTrigger>
+            <TabsTrigger value="direct" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Envoi Direct</span>
             </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -160,6 +166,10 @@ const AdminMarketing = () => {
 
           <TabsContent value="overview">
             <MarketingAnalytics />
+          </TabsContent>
+
+          <TabsContent value="direct">
+            <MarketingDirectSend />
           </TabsContent>
 
           <TabsContent value="templates">

@@ -5,8 +5,10 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 interface SendRequest {
   campaign_id?: string;
   automation_rule_id?: string;
+  template_id?: string;
   client_ids?: string[];
   test_email?: string;
+  subject_override?: string;
 }
 
 interface Client {
@@ -34,11 +36,11 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { campaign_id, automation_rule_id, client_ids, test_email }: SendRequest = await req.json();
+    const { campaign_id, automation_rule_id, template_id, client_ids, test_email, subject_override: reqSubjectOverride }: SendRequest = await req.json();
 
     // Get template and campaign/automation info
     let template: { id: string; subject: string; html_content: string; variables: string[] } | null = null;
-    let subjectOverride: string | null = null;
+    let subjectOverride: string | null = reqSubjectOverride || null;
     let segmentFilters: Record<string, unknown> = {};
 
     if (campaign_id) {
@@ -74,8 +76,21 @@ serve(async (req) => {
       }
 
       template = rule.email_templates;
-      subjectOverride = rule.subject_override;
+      subjectOverride = subjectOverride || rule.subject_override;
       segmentFilters = rule.segment_filters || {};
+    } else if (template_id) {
+      // Direct template send (no campaign/automation)
+      const { data: templateData, error } = await supabase
+        .from("email_templates")
+        .select("id, subject, html_content, variables")
+        .eq("id", template_id)
+        .single();
+
+      if (error || !templateData) {
+        throw new Error("Template not found");
+      }
+
+      template = templateData;
     }
 
     if (!template) {
