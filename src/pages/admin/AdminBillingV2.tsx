@@ -47,7 +47,10 @@ import {
   Calendar,
   Loader2,
   Play,
-  TrendingUp
+  TrendingUp,
+  Plus,
+  Download,
+  Upload
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -67,6 +70,8 @@ import {
   BILLING_SUBSCRIPTION_STATUS_LABELS,
   BILLING_SUBSCRIPTION_STATUS_COLORS,
 } from "@/lib/billing";
+import { LegacyInvoiceImportDialog } from "@/components/admin/billing/LegacyInvoiceImportDialog";
+import { CreateInvoiceDialog } from "@/components/admin/billing/CreateInvoiceDialog";
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
@@ -84,6 +89,10 @@ const AdminBillingV2 = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [paymentReference, setPaymentReference] = useState("");
   const [isMigrating, setIsMigrating] = useState(false);
+  
+  // New dialogs
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // Data hooks
   const { data: stats, isLoading: statsLoading } = useBillingStats();
@@ -180,19 +189,36 @@ const AdminBillingV2 = () => {
     <AdminLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold">Facturation V2</h1>
             <p className="text-muted-foreground">Nouveau système de facturation prepaid</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* NEW: Import from legacy */}
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(true)}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Importer Legacy
+            </Button>
+            
+            {/* NEW: Create manual invoice */}
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Créer facture
+            </Button>
+            
             <Button
               variant="outline"
               onClick={() => handleTriggerCron("billing-generate-renewals")}
               disabled={isMigrating}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Générer renouvellements
+              Renouvellements
             </Button>
             <Button
               variant="outline"
@@ -200,7 +226,7 @@ const AdminBillingV2 = () => {
               disabled={isMigrating}
             >
               <AlertTriangle className="h-4 w-4 mr-2" />
-              Vérifier impayés
+              Impayés
             </Button>
           </div>
         </div>
@@ -329,16 +355,33 @@ const AdminBillingV2 = () => {
           <TabsContent value="invoices" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <CardTitle>Toutes les factures</CardTitle>
                   <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Rechercher..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-64"
-                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setImportDialogOpen(true)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Importer
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setCreateDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-64"
+                      />
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -393,6 +436,13 @@ const AdminBillingV2 = () => {
                           </TableCell>
                         </TableRow>
                       ))}
+                      {(!filteredInvoices || filteredInvoices.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                            Aucune facture trouvée
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 )}
@@ -445,6 +495,13 @@ const AdminBillingV2 = () => {
                           </TableCell>
                         </TableRow>
                       ))}
+                      {(!subscriptions || subscriptions.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                            Aucun abonnement
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 )}
@@ -492,6 +549,13 @@ const AdminBillingV2 = () => {
                           <TableCell>{formatDate(customer.created_at)}</TableCell>
                         </TableRow>
                       ))}
+                      {(!customers || customers.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                            Aucun client
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 )}
@@ -509,7 +573,7 @@ const AdminBillingV2 = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-4">
+                <div className="flex gap-4 flex-wrap">
                   <Button
                     variant="outline"
                     onClick={() => handleMigration(true)}
@@ -527,10 +591,19 @@ const AdminBillingV2 = () => {
                     <Play className="h-4 w-4 mr-2" />
                     Exécuter la migration
                   </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setImportDialogOpen(true)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importer factures legacy
+                  </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   La simulation affiche ce qui serait migré sans modifier les données.
                   L'exécution crée les clients et abonnements dans le nouveau système.
+                  <br /><br />
+                  <strong>Import factures legacy:</strong> Sélectionnez les factures individuelles de l'ancien système (table billing) à téléporter vers Facturation V2.
                 </p>
               </CardContent>
             </Card>
@@ -573,6 +646,18 @@ const AdminBillingV2 = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Import Legacy Dialog */}
+        <LegacyInvoiceImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+        />
+
+        {/* Create Invoice Dialog */}
+        <CreateInvoiceDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+        />
       </div>
     </AdminLayout>
   );
