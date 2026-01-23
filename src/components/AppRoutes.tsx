@@ -100,6 +100,7 @@ import AdminReferralCashouts from "@/pages/admin/AdminReferralCashouts";
 import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
 import AdminPartnerTerms from "@/pages/admin/AdminPartnerTerms";
 import LiveActivityPage from "@/pages/admin/LiveActivityPage";
+import AdminDocumentRequests from "@/pages/admin/AdminDocumentRequests";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Influencer Portal
@@ -271,6 +272,8 @@ const AppRoutes = () => {
       <Route path="/admin/referrals/cashouts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCashouts /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralSettings /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/referrals/terms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPartnerTerms /></ProtectedRoute></AuthProvider>} />
+      {/* Document Requests */}
+      <Route path="/admin/document-requests" element={<AuthProvider><ProtectedRoute requireAdmin><AdminDocumentRequests /></ProtectedRoute></AuthProvider>} />
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
