@@ -760,7 +760,7 @@ const getTemplates = () => [
       ticketNumber: "TKT-2025-0790",
       requestReason: "Pour traiter votre demande de portabilité",
       requiredDocuments: ["Copie de votre dernière facture de l'ancien fournisseur", "Pièce d'identité avec photo", "Preuve de résidence récente"],
-      uploadUrl: "https://nivratelecom.ca/portal/upload",
+      uploadUrl: "https://nivratelecom.ca/portal/upload?token=SAMPLE_TOKEN",
       deadline: "22 janvier 2025",
     }),
   },

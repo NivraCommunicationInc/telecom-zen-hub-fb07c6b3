@@ -2402,6 +2402,56 @@ export type Database = {
         }
         Relationships: []
       }
+      document_requests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          deadline: string | null
+          id: string
+          request_reason: string | null
+          request_token: string
+          required_documents: Json
+          status: string
+          ticket_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline?: string | null
+          id?: string
+          request_reason?: string | null
+          request_token: string
+          required_documents?: Json
+          status?: string
+          ticket_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline?: string | null
+          id?: string
+          request_reason?: string | null
+          request_token?: string
+          required_documents?: Json
+          status?: string
+          ticket_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_requests_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_automation_rules: {
         Row: {
           created_at: string
