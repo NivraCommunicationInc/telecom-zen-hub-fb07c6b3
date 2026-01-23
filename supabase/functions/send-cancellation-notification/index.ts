@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { sendTemplateEmail, formatDateForTemplate, EMAIL_SENDER, RESEND_TEMPLATES, ResendTemplateKey } from "../_shared/resendTemplates.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,69 +28,76 @@ const serviceTypeLabels: Record<string, string> = {
   bundle: "Forfait combiné",
 };
 
-// Template mapping for cancellation events
-const CANCELLATION_TEMPLATE_MAP: Record<string, string> = {
-  cancellation_received: "service_cancellation_requested",
-  cancellation_scheduled: "service_cancellation",
-  cancellation_completed: "service_cancelled_90_days",
-  cancellation_declined: "service_cancellation_request",
-};
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
+  const requestId = crypto.randomUUID().slice(0, 8);
 
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Supabase not configured");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const data: CancellationEmailData = await req.json();
     const serviceLabel = serviceTypeLabels[data.service_type] || data.service_type;
 
-    console.log(`[send-cancellation-notification] Sending ${data.template} to ${data.to_email?.substring(0, 3)}***`);
+    console.log(`[${requestId}] Queuing ${data.template} to ${data.to_email?.substring(0, 3)}***`);
 
-    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+    // Create unique event key for idempotency
+    const eventKey = `${data.template}_${data.request_number}_${data.to_email}`;
 
-    // Determine which Resend template to use
-    const templateKey = CANCELLATION_TEMPLATE_MAP[data.template] as ResendTemplateKey || "service_cancellation_requested" as ResendTemplateKey;
+    // Check if already queued/sent
+    const { data: existingEmail } = await supabase
+      .from("email_queue")
+      .select("id")
+      .eq("event_key", eventKey)
+      .in("status", ["sent", "queued", "processing"])
+      .maybeSingle();
 
-    // Build subject based on template type
-    const subjects: Record<string, string> = {
-      cancellation_received: `Demande d'annulation reçue - ${data.request_number}`,
-      cancellation_scheduled: `Annulation planifiée - ${data.request_number}`,
-      cancellation_completed: `Annulation complétée - ${data.request_number}`,
-      cancellation_declined: `Demande d'annulation refusée - ${data.request_number}`,
-    };
-
-    const emailResult = await sendTemplateEmail({
-      resendApiKey,
-      templateKey,
-      to: data.to_email,
-      variables: {
-        CLIENT_FIRST_NAME: data.client_name || "Client",
-        REQUEST_NUMBER: data.request_number,
-        SERVICE_TYPE: serviceLabel,
-        EFFECTIVE_DATE: data.effective_date ? formatDateForTemplate(data.effective_date) : "—",
-        DECLINE_REASON: data.decline_reason || "",
-        PUBLIC_MESSAGE: data.public_message || "",
-        PORTAL_LINK: `${siteBaseUrl}/portal`,
-      },
-      subject: subjects[data.template],
-    });
-
-    if (!emailResult.success) {
-      console.error("[send-cancellation-notification] Email failed:", emailResult.error);
-      throw new Error(emailResult.error);
+    if (existingEmail) {
+      console.log(`[${requestId}] Email already queued/sent for this cancellation`);
+      return new Response(JSON.stringify({ success: true, already_queued: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log(`[send-cancellation-notification] Email sent successfully: ${emailResult.id}`);
+    // Queue email for processing by process-email-queue (template key matches the template name)
+    const { error: queueError } = await supabase.from("email_queue").insert({
+      event_key: eventKey,
+      template_key: data.template,
+      to_email: data.to_email,
+      status: "queued",
+      attempts: 0,
+      max_attempts: 5,
+      template_vars: {
+        client_name: data.client_name || "Client",
+        request_number: data.request_number,
+        service_type: serviceLabel,
+        effective_date: data.effective_date || "",
+        decline_reason: data.decline_reason || "",
+        public_message: data.public_message || "",
+        portal_path: "/portal/cancellations",
+      },
+    });
 
-    return new Response(JSON.stringify({ success: true, id: emailResult.id }), {
+    if (queueError) {
+      console.error(`[${requestId}] Failed to queue email:`, queueError);
+      throw new Error(`Failed to queue email: ${queueError.message}`);
+    }
+
+    console.log(`[${requestId}] Email queued with template: ${data.template}`);
+
+    return new Response(JSON.stringify({ success: true, queued: true, template: data.template }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("[send-cancellation-notification] Error:", error);
+    console.error(`[${requestId}] Error in send-cancellation-notification:`, error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
