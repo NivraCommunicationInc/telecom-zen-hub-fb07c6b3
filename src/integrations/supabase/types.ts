@@ -8752,6 +8752,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_user: { Args: never; Returns: boolean }
       is_assigned_technician: {
         Args: { _work_order_id: string }
         Returns: boolean
