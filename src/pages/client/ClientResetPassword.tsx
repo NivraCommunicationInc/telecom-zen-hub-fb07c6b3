@@ -1,0 +1,309 @@
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+
+const ClientResetPassword = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [validating, setValidating] = useState(true);
+
+  useEffect(() => {
+    // Check if we have a valid session from the reset link
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // If there's a hash in the URL, it's a magic link from Supabase
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const type = hashParams.get("type");
+        
+        if (accessToken && type === "recovery") {
+          // Set the session from the recovery token
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: hashParams.get("refresh_token") || ""
+          });
+          
+          if (error) {
+            setError("Le lien de réinitialisation a expiré ou est invalide.");
+          }
+        } else if (!session) {
+          setError("Aucun lien de réinitialisation valide détecté.");
+        }
+      } catch (err) {
+        console.error("Session check error:", err);
+        setError("Une erreur est survenue lors de la vérification du lien.");
+      } finally {
+        setValidating(false);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  const validatePassword = (pwd: string) => {
+    const checks = {
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd)
+    };
+    return checks;
+  };
+
+  const passwordChecks = validatePassword(password);
+  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!isPasswordValid) {
+      toast({
+        title: "Mot de passe invalide",
+        description: "Le mot de passe ne respecte pas les critères requis.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!passwordsMatch) {
+      toast({
+        title: "Erreur",
+        description: "Les mots de passe ne correspondent pas.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) throw error;
+
+      setSuccess(true);
+      toast({
+        title: "Mot de passe modifié",
+        description: "Votre mot de passe a été mis à jour avec succès."
+      });
+
+      // Redirect to portal after 3 seconds
+      setTimeout(() => {
+        navigate("/portal/auth");
+      }, 3000);
+    } catch (err: any) {
+      console.error("Password update error:", err);
+      toast({
+        title: "Erreur",
+        description: err.message || "Impossible de modifier le mot de passe.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (validating) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Vérification du lien...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-2" />
+            <CardTitle>Lien invalide</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Vous pouvez demander un nouveau lien de réinitialisation depuis la page de connexion.
+            </p>
+            <Button onClick={() => navigate("/portal/auth")}>
+              Retour à la connexion
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-2" />
+            <CardTitle>Mot de passe modifié!</CardTitle>
+            <CardDescription>
+              Votre mot de passe a été mis à jour avec succès.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Vous allez être redirigé vers la page de connexion...
+            </p>
+            <Button onClick={() => navigate("/portal/auth")}>
+              Se connecter maintenant
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-6">
+        {/* Header */}
+        <div className="text-center">
+          <img 
+            src="/lovable-uploads/3c596b71-aa59-43f0-ac7e-8b87a060ad02.png" 
+            alt="Nivra Telecom" 
+            className="h-10 mx-auto mb-4"
+          />
+          <h1 className="text-2xl font-bold">Réinitialiser le mot de passe</h1>
+          <p className="text-muted-foreground mt-1">
+            Choisissez un nouveau mot de passe sécurisé
+          </p>
+        </div>
+
+        <Card>
+          <form onSubmit={handleSubmit}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                Nouveau mot de passe
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* New Password */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Nouveau mot de passe</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Password Requirements */}
+              <div className="space-y-1 text-sm">
+                <p className="text-muted-foreground">Le mot de passe doit contenir:</p>
+                <ul className="space-y-1">
+                  <li className={`flex items-center gap-2 ${passwordChecks.length ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordChecks.length ? 'bg-green-500/20' : 'bg-muted'}`}>
+                      {passwordChecks.length && <CheckCircle2 className="w-3 h-3" />}
+                    </div>
+                    Au moins 8 caractères
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.uppercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordChecks.uppercase ? 'bg-green-500/20' : 'bg-muted'}`}>
+                      {passwordChecks.uppercase && <CheckCircle2 className="w-3 h-3" />}
+                    </div>
+                    Une lettre majuscule
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.lowercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordChecks.lowercase ? 'bg-green-500/20' : 'bg-muted'}`}>
+                      {passwordChecks.lowercase && <CheckCircle2 className="w-3 h-3" />}
+                    </div>
+                    Une lettre minuscule
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.number ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordChecks.number ? 'bg-green-500/20' : 'bg-muted'}`}>
+                      {passwordChecks.number && <CheckCircle2 className="w-3 h-3" />}
+                    </div>
+                    Un chiffre
+                  </li>
+                </ul>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                {confirmPassword && !passwordsMatch && (
+                  <p className="text-sm text-destructive">Les mots de passe ne correspondent pas</p>
+                )}
+                {passwordsMatch && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Les mots de passe correspondent
+                  </p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || !isPasswordValid || !passwordsMatch}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Modification en cours...
+                  </>
+                ) : (
+                  "Modifier le mot de passe"
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+
+        <div className="text-center text-sm text-muted-foreground">
+          <p>Besoin d'aide? Contactez-nous à support@nivratelecom.ca</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ClientResetPassword;

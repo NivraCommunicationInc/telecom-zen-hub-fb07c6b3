@@ -1696,11 +1696,66 @@ const ClientMyServices = () => {
             ) : (
               <p className="text-muted-foreground text-center py-4">Aucun document</p>
             )}
-            <div className="p-4 border-2 border-dashed border-border rounded-lg text-center">
+            <input
+              type="file"
+              id="document-upload-input"
+              className="hidden"
+              accept=".jpg,.jpeg,.png,.pdf,.heic"
+              multiple
+              onChange={async (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0 || !user?.id) return;
+                
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'];
+                const maxSize = 15 * 1024 * 1024;
+                
+                for (const file of Array.from(files)) {
+                  if (!allowedTypes.includes(file.type)) {
+                    toast({ title: "Type non supporté", description: `${file.name}: JPG, PNG, HEIC, PDF uniquement`, variant: "destructive" });
+                    continue;
+                  }
+                  if (file.size > maxSize) {
+                    toast({ title: "Fichier trop grand", description: `${file.name}: max 15 MB`, variant: "destructive" });
+                    continue;
+                  }
+                  
+                  try {
+                    const timestamp = Date.now();
+                    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const path = `${user.id}/general/${timestamp}_${safeName}`;
+                    
+                    const { error: uploadError } = await portalSupabase.storage
+                      .from("client-documents")
+                      .upload(path, file);
+                    
+                    if (uploadError) throw uploadError;
+                    
+                    // Record in client_documents table
+                    await portalSupabase.from("client_documents").insert({
+                      user_id: user.id,
+                      uploaded_by: user.id,
+                      document_name: safeName,
+                      document_url: path,
+                      document_type: "general"
+                    });
+                    
+                    toast({ title: "Document téléversé", description: safeName });
+                    queryClient.invalidateQueries({ queryKey: ["client-documents"] });
+                  } catch (err) {
+                    console.error("Upload error:", err);
+                    toast({ title: "Erreur", description: `Impossible de téléverser ${file.name}`, variant: "destructive" });
+                  }
+                }
+                e.target.value = "";
+              }}
+            />
+            <div 
+              className="p-4 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => document.getElementById('document-upload-input')?.click()}
+            >
               <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Téléversement disponible prochainement
-              </p>
+              <p className="text-sm font-medium">Cliquez pour téléverser</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, HEIC, PDF (max 15 MB)</p>
             </div>
           </div>
           <DialogFooter>
