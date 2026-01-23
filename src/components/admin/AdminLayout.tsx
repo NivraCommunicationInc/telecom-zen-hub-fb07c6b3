@@ -29,7 +29,8 @@ import {
   Trophy,
   Headphones,
   Megaphone,
-  Send
+  Send,
+  Upload
 } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ const navItems = [
   { icon: Send, label: "Communication Email", href: "/admin/communication-email" },
   { icon: MessageSquare, label: "Communication SMS", href: "/admin/communication-sms" },
   { icon: FileText, label: "Contrats", href: "/admin/contracts" },
+  { icon: Upload, label: "Documents clients", href: "/admin/document-requests" },
   { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
   { icon: Briefcase, label: "Carrières", href: "/admin/careers" },
   { icon: UserPlus, label: "Candidatures", href: "/admin/applications" },

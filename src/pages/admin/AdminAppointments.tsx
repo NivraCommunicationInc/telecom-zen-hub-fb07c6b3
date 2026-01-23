@@ -709,6 +709,12 @@ const AdminAppointments = () => {
     isPast(new Date(apt.scheduled_at)) && !isToday(new Date(apt.scheduled_at))
   );
   const cancelledAppointments = filteredAppointments.filter((apt: any) => apt.status === "cancelled");
+  
+  // Client reschedule requests - appointments modified by clients
+  const clientRescheduleRequests = filteredAppointments.filter((apt: any) => 
+    apt.internal_notes?.toLowerCase().includes("replanifié par le client") ||
+    apt.status === "modified"
+  );
 
   // Stats
   const stats = {
@@ -1116,6 +1122,10 @@ const AdminAppointments = () => {
               <Clock className="w-4 h-4" />
               À venir ({upcomingAppointments.length})
             </TabsTrigger>
+            <TabsTrigger value="reschedule" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Replanifiés ({clientRescheduleRequests.length})
+            </TabsTrigger>
             <TabsTrigger value="past" className="gap-2">
               <History className="w-4 h-4" />
               Passés ({pastAppointments.length})
@@ -1125,6 +1135,42 @@ const AdminAppointments = () => {
               Annulés ({cancelledAppointments.length})
             </TabsTrigger>
           </TabsList>
+
+          {/* Client Reschedule Requests Tab */}
+          <TabsContent value="reschedule">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5 text-purple-500" />
+                  Demandes de replanification
+                </CardTitle>
+                <CardDescription>
+                  Rendez-vous modifiés par les clients via le portail
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {clientRescheduleRequests.length > 0 ? (
+                  <div className="space-y-3">
+                    {clientRescheduleRequests.map((apt: any) => (
+                      <div key={apt.id} className="border border-purple-500/30 rounded-lg overflow-hidden bg-purple-500/5">
+                        {renderAppointmentCard(apt)}
+                        {apt.internal_notes && (
+                          <div className="px-4 pb-4 text-sm text-purple-400 bg-purple-500/10">
+                            <strong>Note client:</strong> {apt.internal_notes}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <RefreshCw className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Aucune demande de replanification</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="upcoming">
             <Card className="bg-card border-border">
