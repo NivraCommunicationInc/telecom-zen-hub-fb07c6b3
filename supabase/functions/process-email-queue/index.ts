@@ -1478,12 +1478,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Process email queue
+    // Process email queue - fetch both 'queued' and 'pending' status
     const { data: queuedEmails, error: fetchError } = await supabase
       .from("email_queue")
       .select("*")
-      .eq("status", "queued")
-      .lte("next_retry_at", new Date().toISOString())
+      .in("status", ["queued", "pending"])
+      .or(`next_retry_at.is.null,next_retry_at.lte.${new Date().toISOString()}`)
       .order("created_at", { ascending: true })
       .limit(20);
 
@@ -1504,17 +1504,46 @@ Deno.serve(async (req) => {
         .eq("id", email.id);
 
       try {
-        const template = emailTemplates[email.template_key];
+        // TEMPLATE KEY ALIASES - map old keys to new professional templates
+        const templateKeyAliases: Record<string, string> = {
+          'order_confirmation': 'order_submitted',
+          'order_confirmation_html': 'order_submitted',
+          'nivra_order_confirmation_fr': 'order_submitted',
+          'payment_received': 'payment_confirmed',
+          'billing_new_invoice': 'invoice_created',
+          'billing_payment_confirmed': 'payment_confirmed',
+          'billing_renewal_reminder': 'invoice_overdue',
+        };
+        
+        // Support both template_key and template_type (Billing V2 uses template_type)
+        const rawTemplateKey = email.template_key || email.template_type || 'unknown';
+        const templateKey = templateKeyAliases[rawTemplateKey] || rawTemplateKey;
+        
+        // Support both template_vars and template_data (Billing V2 uses template_data)
+        const templateVars = email.template_vars || email.template_data || {};
+        
+        const template = emailTemplates[templateKey];
         
         if (!template) {
-          throw new Error(`Unknown template: ${email.template_key}`);
+          console.warn(`Unknown template: ${rawTemplateKey} (resolved to: ${templateKey}), skipping...`);
+          // Mark as failed with descriptive error
+          await supabase
+            .from("email_queue")
+            .update({
+              status: "failed",
+              last_error: `Template inconnu: ${rawTemplateKey}`,
+              attempts: email.attempts + 1,
+            })
+            .eq("id", email.id);
+          results.push({ id: email.id, status: "failed", error: `Unknown template: ${rawTemplateKey}` });
+          continue;
         }
 
-        const html = template.getHtml(email.template_vars || {}, emailConfig);
+        const html = template.getHtml(templateVars, emailConfig);
         
         // Replace template variables in subject
         let subject = template.subject;
-        const vars = email.template_vars || {};
+        const vars = templateVars;
         if (vars.order_number) subject = subject.replace('{{order_number}}', vars.order_number);
         if (vars.invoice_number) subject = subject.replace('{{invoice_number}}', vars.invoice_number);
         if (vars.ticket_number) subject = subject.replace('{{ticket_number}}', vars.ticket_number);

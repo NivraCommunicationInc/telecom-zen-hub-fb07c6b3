@@ -268,29 +268,31 @@ serve(async (req) => {
       console.log(`[billing-create-order] Created subscription ${subscription.id} with invoice ${invoiceNumber}`);
     }
     
-    // Step 3: Queue welcome email with Interac payment instructions
+    // Step 3: Queue welcome email with Interac payment instructions (use correct column names)
     await supabase.from("email_queue").insert({
+      event_key: `billing_order_${results.customer_id}_${Date.now()}`,
       to_email: body.email,
-      to_name: `${body.first_name} ${body.last_name}`,
-      template_type: "billing_new_invoice",
-      template_data: {
-        clientName: `${body.first_name} ${body.last_name}`,
-        invoiceNumber: results.subscriptions[0]?.invoice_number || 'N/A',
-        planName: body.services.map(s => s.plan_name).join(', '),
+      template_key: "invoice_created",
+      template_vars: {
+        client_name: `${body.first_name} ${body.last_name}`,
+        invoice_number: results.subscriptions[0]?.invoice_number || 'N/A',
+        plan_name: body.services.map(s => s.plan_name).join(', '),
         subtotal: body.services.reduce((sum, s) => sum + s.plan_price, 0).toFixed(2),
-        activationFee: activationFee.toFixed(2),
-        tps: (results.total_amount * 0.05 / 1.14975).toFixed(2),
-        tvq: (results.total_amount * 0.09975 / 1.14975).toFixed(2),
+        activation_fee: activationFee.toFixed(2),
+        tps_amount: (results.total_amount * 0.05 / 1.14975).toFixed(2),
+        tvq_amount: (results.total_amount * 0.09975 / 1.14975).toFixed(2),
         total: results.total_amount.toFixed(2),
-        dueDate: dueDate,
-        cycleStart: cycleStartStr,
-        cycleEnd: cycleEndStr,
-        serviceCount: serviceCount,
-        // Interac instructions
-        paymentMethod: 'Interac e-Transfer',
-        paymentEmail: 'Support@nivratelecom.ca'
+        amount: results.total_amount.toFixed(2),
+        due_date: dueDate,
+        cycle_start: cycleStartStr,
+        cycle_end: cycleEndStr,
+        service_count: serviceCount,
+        payment_method: 'Interac e-Transfer',
+        payment_email: 'Support@nivratelecom.ca'
       },
-      priority: "high"
+      status: "queued",
+      attempts: 0,
+      max_attempts: 5
     });
     
     console.log(`[billing-create-order] Order processed: ${results.subscriptions.length} subscriptions, total: $${results.total_amount.toFixed(2)}`);

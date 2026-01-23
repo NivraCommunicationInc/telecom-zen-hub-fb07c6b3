@@ -134,21 +134,24 @@ serve(async (req) => {
             status: 'pending'
           });
         
-        // Queue reminder email
+        // Queue reminder email with correct column names
         if (sub.customer) {
           await supabase.from("email_queue").insert({
+            event_key: `billing_renewal_${sub.id}_${newCycleStart.toISOString().split('T')[0]}`,
             to_email: sub.customer.email,
-            to_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
-            template_type: "billing_renewal_reminder",
-            template_data: {
-              clientName: `${sub.customer.first_name} ${sub.customer.last_name}`,
-              invoiceNumber: invoiceNumber,
-              planName: sub.plan_name,
+            template_key: "invoice_created",
+            template_vars: {
+              client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
+              invoice_number: invoiceNumber,
+              plan_name: sub.plan_name,
               total: total.toFixed(2),
-              dueDate: dueDate,
-              daysRemaining: 3
+              amount: total.toFixed(2),
+              due_date: dueDate,
+              days_remaining: 3
             },
-            priority: "high"
+            status: "queued",
+            attempts: 0,
+            max_attempts: 5
           });
         }
         
