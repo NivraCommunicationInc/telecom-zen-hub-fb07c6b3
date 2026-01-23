@@ -188,7 +188,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="absolute top-full left-0 right-0 bg-card border-b border-border p-4 space-y-1">
+          <div className="absolute top-full left-0 right-0 bg-card border-b border-border p-4 space-y-1 max-h-[calc(100dvh-4.5rem)] overflow-y-auto overscroll-contain">
             {navItems.map((item) => (
               <Link
                 key={item.href}
