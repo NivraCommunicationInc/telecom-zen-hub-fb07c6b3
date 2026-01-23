@@ -164,22 +164,25 @@ serve(async (req) => {
     
     if (customer) {
       await supabase.from("email_queue").insert({
+        event_key: `billing_sub_${subscription.id}_${invoiceNumber}`,
         to_email: customer.email,
-        to_name: `${customer.first_name} ${customer.last_name}`,
-        template_type: "billing_new_invoice",
-        template_data: {
-          clientName: `${customer.first_name} ${customer.last_name}`,
-          invoiceNumber: invoiceNumber,
-          planName: body.plan_name,
+        template_key: "invoice_created",
+        template_vars: {
+          client_name: `${customer.first_name} ${customer.last_name}`,
+          invoice_number: invoiceNumber,
+          plan_name: body.plan_name,
           subtotal: subtotal.toFixed(2),
-          tps: tpsAmount.toFixed(2),
-          tvq: tvqAmount.toFixed(2),
+          tps_amount: tpsAmount.toFixed(2),
+          tvq_amount: tvqAmount.toFixed(2),
           total: total.toFixed(2),
-          dueDate: dueDate,
-          cycleStart: cycleStartDate.toISOString().split('T')[0],
-          cycleEnd: cycleEndDate.toISOString().split('T')[0]
+          amount: total.toFixed(2),
+          due_date: dueDate,
+          cycle_start: cycleStartDate.toISOString().split('T')[0],
+          cycle_end: cycleEndDate.toISOString().split('T')[0]
         },
-        priority: "high"
+        status: "queued",
+        attempts: 0,
+        max_attempts: 5
       });
     }
     
