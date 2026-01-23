@@ -16,24 +16,34 @@ interface EmailQueueItem {
 // SHARED EMAIL LAYOUT COMPONENTS
 // =============================================
 
+// PROFESSIONAL BLUE DESIGN SYSTEM - #0066CC Primary
 const emailStyles = {
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  bgColor: "#f4f4f5",
+  fontFamily: "Arial, Helvetica, 'Segoe UI', sans-serif",
+  bgColor: "#F8FAFB",
   cardBg: "#ffffff",
-  textPrimary: "#18181b",
-  textSecondary: "#52525b",
-  textMuted: "#71717a",
-  accent: "#0d9488",
-  accentLight: "#ccfbf1",
+  textPrimary: "#1A1A1A",
+  textSecondary: "#4A4A4A",
+  textMuted: "#6B7280",
+  // Professional Blue Primary
+  accent: "#0066CC",
+  accentDark: "#004C99",
+  accentLight: "#E6F0FA",
+  // Status Colors
   success: "#059669",
-  successBg: "#d1fae5",
-  warning: "#d97706",
-  warningBg: "#fef3c7",
-  error: "#dc2626",
-  errorBg: "#fee2e2",
-  info: "#0284c7",
-  infoBg: "#e0f2fe",
-  border: "#e4e4e7",
+  successBg: "#ECFDF5",
+  successBorder: "#A7F3D0",
+  warning: "#D97706",
+  warningBg: "#FFFBEB",
+  warningBorder: "#FCD34D",
+  error: "#DC2626",
+  errorBg: "#FEF2F2",
+  errorBorder: "#FECACA",
+  info: "#2563EB",
+  infoBg: "#EFF6FF",
+  infoBorder: "#BFDBFE",
+  border: "#E5E7EB",
+  footerBg: "#1F2937",
+  footerText: "#D1D5DB",
 };
 
 const formatCurrency = (amount: number) => 
@@ -96,20 +106,20 @@ const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEm
       <td align="center" style="padding:24px 16px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; width:100%;">
           
-          <!-- HEADER -->
+          <!-- HEADER - Professional Blue -->
           <tr>
             <td style="background-color:${emailStyles.cardBg}; border-radius:12px 12px 0 0; padding:0;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
-                  <td style="height:4px; background:linear-gradient(90deg, ${emailStyles.accent}, #14b8a6); border-radius:12px 12px 0 0;"></td>
+                  <td style="height:4px; background-color:${emailStyles.accent}; border-radius:12px 12px 0 0;"></td>
                 </tr>
                 <tr>
-                  <td style="padding:28px 32px 20px;">
+                  <td style="padding:28px 32px 20px; border-bottom:1px solid ${emailStyles.border};">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td>
                           <h1 style="margin:0; font-size:26px; font-weight:700; color:${emailStyles.accent}; letter-spacing:-0.5px;">Nivra Telecom</h1>
-                          <p style="margin:4px 0 0; font-size:13px; color:${emailStyles.textMuted};">Votre service, simplifié.</p>
+                          <p style="margin:4px 0 0; font-size:11px; color:${emailStyles.textMuted}; text-transform:uppercase; letter-spacing:1px;">Télécommunications</p>
                         </td>
                       </tr>
                     </table>
@@ -156,24 +166,32 @@ const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEm
           </tr>
           ` : ''}
           
-          <!-- FOOTER -->
+          <!-- FOOTER - Professional Dark -->
           <tr>
-            <td style="background-color:${emailStyles.cardBg}; border-radius:0 0 12px 12px; padding:24px 32px; border-top:1px solid ${emailStyles.border};">
+            <td style="background-color:${emailStyles.footerBg}; border-radius:0 0 12px 12px; padding:32px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
-                  <td align="center">
-                    <p style="margin:0 0 6px; font-size:13px; font-weight:600; color:${emailStyles.textPrimary};">
-                      Nivra Telecom
+                  <td align="center" style="padding-bottom:16px;">
+                    <h4 style="margin:0; font-size:18px; font-weight:700; color:#ffffff;">Nivra Telecom</h4>
+                    <p style="margin:8px 0 0; font-size:13px; color:${emailStyles.footerText};">
+                      Fournisseur de services de télécommunications prépayés au Québec
                     </p>
-                    <p style="margin:0 0 6px; font-size:12px; color:${emailStyles.textMuted};">
-                      Laval, QC, Canada
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:16px;">
+                    <p style="margin:0; font-size:12px; color:${emailStyles.footerText};">
+                      1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
                     </p>
-                    <p style="margin:0 0 12px; font-size:13px; color:${emailStyles.textSecondary};">
-                      <a href="mailto:${email}" style="color:${emailStyles.accent}; text-decoration:none;">${email}</a>
+                    <p style="margin:8px 0 0; font-size:13px;">
+                      <a href="mailto:${email}" style="color:#9CA3AF; text-decoration:none; white-space:nowrap;">✉️&nbsp;${email}</a>
                     </p>
-                    <p style="margin:0; font-size:11px; color:${emailStyles.textMuted};">
-                      Vous recevez cet email suite à une action sur votre compte Nivra Telecom.<br>
-                      <em>You are receiving this email because of an action on your Nivra Telecom account.</em>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="border-top:1px solid #374151; padding-top:16px;">
+                    <p style="margin:0; font-size:11px; color:#9CA3AF;">
+                      © ${new Date().getFullYear()} Nivra Telecom Inc. Tous droits réservés.
                     </p>
                   </td>
                 </tr>
@@ -1199,7 +1217,72 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
     `, joinUrl(config.baseUrl, vars.portal_path || "/portal"), "Accéder au portail / Access portal", config.supportEmail),
   },
 
-  // TICKET STATUS UPDATE
+  // =============================================
+  // SERVICE STATUS TEMPLATES
+  // =============================================
+
+  // SERVICE ACTIVATED
+  service_activated: {
+    subject: "Nivra — Service activé",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Service activé!', 'Service activated!',
+        'Votre service est maintenant actif et prêt à utiliser.',
+        'Your service is now active and ready to use.'
+      )}
+      ${detailsCard([
+        { label: 'Service', value: vars.service_name || 'N/A' },
+        { label: 'Type', value: vars.service_type || 'N/A' },
+        { label: 'Statut / Status', value: vars.status_label || 'Actif / Active' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom! Profitez de votre service.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom! Enjoy your service.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/services"), "Voir mes services / View services", config.supportEmail),
+  },
+
+  // SERVICE SUSPENDED
+  service_suspended: {
+    subject: "Nivra — Service suspendu",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '⚠️', 'Service suspendu', 'Service suspended',
+        'Votre service a été temporairement suspendu.',
+        'Your service has been temporarily suspended.'
+      )}
+      ${detailsCard([
+        { label: 'Service', value: vars.service_name || 'N/A' },
+        { label: 'Type', value: vars.service_type || 'N/A' },
+        ...(vars.reason ? [{ label: 'Raison / Reason', value: vars.reason }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour réactiver votre service, veuillez contacter notre support ou régulariser votre compte.<br>
+        <em style="color:${emailStyles.textMuted};">To reactivate your service, please contact our support or settle your account.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/services"), "Contacter support / Contact support", config.supportEmail),
+  },
+
+  // SERVICE REACTIVATED
+  service_reactivated: {
+    subject: "Nivra — Service rétabli",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '🔄', 'Service rétabli!', 'Service restored!',
+        'Votre service a été rétabli et est à nouveau actif.',
+        'Your service has been restored and is active again.'
+      )}
+      ${detailsCard([
+        { label: 'Service', value: vars.service_name || 'N/A' },
+        { label: 'Type', value: vars.service_type || 'N/A' },
+        { label: 'Statut / Status', value: vars.status_label || 'Actif / Active' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de votre patience. Profitez à nouveau de votre service!<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for your patience. Enjoy your service again!</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/services"), "Voir mes services / View services", config.supportEmail),
+  },
   ticket_status_update: {
     subject: "Nivra — Mise à jour de votre ticket (#{{ticket_number}})",
     getHtml: (vars, config) => wrapEmail(`
