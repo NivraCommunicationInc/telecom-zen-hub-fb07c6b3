@@ -1,9 +1,8 @@
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Paperclip, X, FileText, Image, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { backendClient } from "@/integrations/backend/client";
+import { uploadTicketAttachment } from "@/lib/ticketAttachments";
 import { cn } from "@/lib/utils";
 
 export interface UploadedFile {
@@ -12,7 +11,7 @@ export interface UploadedFile {
   size: number;
   type: string;
   path: string;
-  url?: string;
+  // NOTE: No url field - we use signed URLs fetched on-demand
 }
 
 interface TicketAttachmentUploaderProps {
@@ -109,38 +108,23 @@ export const TicketAttachmentUploader: React.FC<TicketAttachmentUploaderProps> =
 
     try {
       for (const file of pendingFiles) {
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${ticketId}/${uploaderId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const result = await uploadTicketAttachment(ticketId, uploaderId, file);
 
-        const { data, error } = await backendClient.storage
-          .from("ticket-attachments")
-          .upload(fileName, file, {
-            contentType: file.type,
-            upsert: false,
-          });
-
-        if (error) {
-          console.error("[TicketAttachmentUploader] Upload error:", error);
+        if (!result) {
           toast({
             title: "Erreur d'upload",
-            description: `${file.name}: ${error.message}`,
+            description: `${file.name}: Échec de l'upload`,
             variant: "destructive",
           });
           continue;
         }
 
-        // Get public URL
-        const { data: urlData } = backendClient.storage
-          .from("ticket-attachments")
-          .getPublicUrl(data.path);
-
         uploaded.push({
-          id: data.id || data.path,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          path: data.path,
-          url: urlData?.publicUrl,
+          id: result.path,
+          name: result.name,
+          size: result.size,
+          type: result.type,
+          path: result.path,
         });
       }
 
@@ -184,7 +168,7 @@ export const TicketAttachmentUploader: React.FC<TicketAttachmentUploaderProps> =
     <div className={cn("space-y-2", className)}>
       {/* File input */}
       <div className="flex items-center gap-2">
-        <Input
+        <input
           ref={fileInputRef}
           type="file"
           accept={ALLOWED_TYPES.join(",")}
