@@ -196,6 +196,90 @@ FROM public.billing_invoices
 WHERE balance_due < 0;
 
 -- ============================================================
+-- CHECK 8: Crons pg_cron actifs (billing-related)
+-- ============================================================
+INSERT INTO _billing_v2_check_results
+SELECT 
+  8,
+  'Crons pg_cron billing actifs',
+  CASE 
+    WHEN (
+      SELECT COUNT(*) FROM cron.job 
+      WHERE jobname IN (
+        'payment-reminders-hourly',
+        'billing-check-overdue-hourly', 
+        'billing-generate-renewals-hourly'
+      )
+    ) >= 3 THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  (
+    SELECT string_agg(jobname, ', ' ORDER BY jobname)
+    FROM cron.job 
+    WHERE jobname LIKE '%billing%' OR jobname LIKE '%payment%' OR jobname LIKE '%renewal%'
+  );
+
+-- ============================================================
+-- CHECK 9: Aucun doublon reference (Interac - data health)
+-- ============================================================
+INSERT INTO _billing_v2_check_results
+SELECT 
+  9,
+  'Aucun doublon reference (Interac)',
+  CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  CASE WHEN COUNT(*) = 0 
+    THEN 'Aucun doublon détecté'
+    ELSE COUNT(*) || ' reference(s) en doublon: ' || (
+      SELECT string_agg(reference, ', ')
+      FROM (
+        SELECT reference
+        FROM public.billing_payments
+        WHERE reference IS NOT NULL AND reference != ''
+        GROUP BY reference
+        HAVING COUNT(*) > 1
+        LIMIT 5
+      ) dups
+    )
+  END
+FROM (
+  SELECT reference
+  FROM public.billing_payments
+  WHERE reference IS NOT NULL AND reference != ''
+  GROUP BY reference
+  HAVING COUNT(*) > 1
+) duplicates;
+
+-- ============================================================
+-- CHECK 10: Aucun doublon provider_payment_id par provider (PayPal)
+-- ============================================================
+INSERT INTO _billing_v2_check_results
+SELECT 
+  10,
+  'Aucun doublon provider_payment_id (PayPal)',
+  CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  CASE WHEN COUNT(*) = 0 
+    THEN 'Aucun doublon détecté'
+    ELSE COUNT(*) || ' provider_payment_id en doublon: ' || (
+      SELECT string_agg(provider || ':' || provider_payment_id, ', ')
+      FROM (
+        SELECT provider, provider_payment_id
+        FROM public.billing_payments
+        WHERE provider_payment_id IS NOT NULL
+        GROUP BY provider, provider_payment_id
+        HAVING COUNT(*) > 1
+        LIMIT 5
+      ) dups
+    )
+  END
+FROM (
+  SELECT provider, provider_payment_id
+  FROM public.billing_payments
+  WHERE provider_payment_id IS NOT NULL
+  GROUP BY provider, provider_payment_id
+  HAVING COUNT(*) > 1
+) duplicates;
+
+-- ============================================================
 -- RÉSULTATS FINAUX
 -- ============================================================
 
@@ -215,7 +299,7 @@ ORDER BY check_id;
 -- Résumé
 SELECT 
   '======== RÉSUMÉ ========' AS " ",
-  COUNT(*) FILTER (WHERE status = 'PASS') || '/7 PASS' AS "Score",
+  COUNT(*) FILTER (WHERE status = 'PASS') || '/10 PASS' AS "Score",
   CASE 
     WHEN COUNT(*) FILTER (WHERE status = 'FAIL') = 0 
     THEN '✅ TOUS LES CHECKS PASSENT'
