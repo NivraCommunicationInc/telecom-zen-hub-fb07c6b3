@@ -215,6 +215,40 @@ scripts/billing_v2_post_update_checks.sql
 
 ---
 
+## 🚀 Release Checklist — Validation Post-Update
+
+### ☐ 1. Déploiement terminé
+
+L'update est bien appliquée sur l'environnement visé (**Test** ou **Live**).
+
+### ☐ 2. Exécuter le script de validation
+
+1. Ouvrir **Lovable** → **Cloud View** → **Run SQL**
+2. Coller et exécuter : `scripts/billing_v2_post_update_checks.sql`
+
+### ☐ 3. Résultat obligatoire
+
+| Condition | Statut |
+|-----------|--------|
+| `10/10 PASS` | ✅ Release VALIDÉE |
+| Un check `FAIL` (exception) | ❌ Release NON validée → corriger → relancer |
+
+### ☐ 4. Validation métier minimale (~1 minute)
+
+Vérifier rapidement dans l'**Admin Portal** :
+
+- [ ] Une facture `pending` existe (ou en créer une en test)
+- [ ] Un paiement `confirmed` met bien la facture à `paid` quand `balance_due = 0`
+
+### ☐ 5. Documentation
+
+Si l'update touche **facturation / paiements / crons / triggers** :
+
+- [ ] Confirmer que `docs/billing_v2.md` est à jour
+- [ ] Sinon, mettre à jour la doc **avant** de considérer la release terminée
+
+---
+
 ## Scripts de vérification
 
 - **Post-update checks** : `scripts/billing_v2_post_update_checks.sql`
@@ -230,3 +264,4 @@ scripts/billing_v2_post_update_checks.sql
 | 2026-01-24 | Lovable AI | Création initiale — Billing V2 finalisé |
 | 2026-01-24 | Lovable AI | Ajout Policy Paiements & Corrections (Admin) |
 | 2026-01-24 | Lovable AI | Ajout Actions Admin + Exemples formats valides |
+| 2026-01-24 | Lovable AI | Ajout Release Checklist — Validation Post-Update |
