@@ -70,6 +70,7 @@ import AdminStreamingCatalog from "@/pages/admin/AdminStreamingCatalog";
 import AdminSystemStatus from "@/pages/admin/AdminSystemStatus";
 import AdminInternalTickets from "@/pages/admin/AdminInternalTickets";
 import AdminEmailActivity from "@/pages/admin/AdminEmailActivity";
+import AdminEmailDeliverability from "@/pages/admin/AdminEmailDeliverability";
 import AdminAccount from "@/pages/admin/AdminAccount";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminUsersAccess from "@/pages/admin/AdminUsersAccess";
@@ -244,6 +245,7 @@ const AppRoutes = () => {
       <Route path="/admin/system-status" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSystemStatus /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/internal-tickets" element={<AuthProvider><ProtectedRoute requireAdmin><AdminInternalTickets /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/email-activity" element={<AuthProvider><ProtectedRoute requireAdmin><AdminEmailActivity /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/email-deliverability" element={<AuthProvider><ProtectedRoute requireAdmin><AdminEmailDeliverability /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/account" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAccount /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/users" element={<AuthProvider><ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/users-access" element={<AuthProvider><ProtectedRoute requireAdmin><AdminUsersAccess /></ProtectedRoute></AuthProvider>} />

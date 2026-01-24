@@ -1753,6 +1753,29 @@ Deno.serve(async (req) => {
         // Generate plain text version from subject for preview
         const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
 
+        // DOMAIN VALIDATION: Only allow verified Resend domains
+        const ALLOWED_DOMAINS = ['nivratelecom.ca', 'nivra.ca'];
+        const fromDomain = emailFromAddress.split('@')[1]?.toLowerCase();
+        
+        if (!fromDomain || !ALLOWED_DOMAINS.some(d => fromDomain.endsWith(d))) {
+          const domainError = `BLOQUÉ: Domaine From non vérifié (${fromDomain}). Domaines autorisés: ${ALLOWED_DOMAINS.join(', ')}`;
+          console.error(domainError);
+          
+          await supabase
+            .from("email_queue")
+            .update({
+              status: "failed",
+              last_error: domainError,
+              attempts: email.attempts + 1,
+              from_email: emailFromAddress,
+              subject: subject,
+            })
+            .eq("id", email.id);
+          
+          results.push({ id: email.id, status: "failed", error: domainError });
+          continue;
+        }
+
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
@@ -1770,24 +1793,31 @@ Deno.serve(async (req) => {
         });
 
         const result = await emailResponse.json();
+        
+        // Log full Resend response for diagnostics
+        console.log(`[RESEND RESPONSE] email_id=${email.id}, response=`, JSON.stringify(result));
 
         if (!emailResponse.ok) {
           throw new Error(result.message || "Failed to send email");
         }
 
-        // Mark as sent
+        // Mark as sent with full diagnostic data
         await supabase
           .from("email_queue")
           .update({
             status: "sent",
             sent_at: new Date().toISOString(),
             provider_message_id: result.id,
+            provider_status: "sent",
+            from_email: emailFromAddress,
+            subject: subject,
+            resend_response: result,
             attempts: email.attempts + 1,
           })
           .eq("id", email.id);
 
         results.push({ id: email.id, status: "sent", provider_id: result.id });
-        console.log(`Email sent: ${email.id} to ${email.to_email}`);
+        console.log(`[EMAIL SENT] id=${email.id} to=${email.to_email} resend_id=${result.id}`);
 
       } catch (sendError: any) {
         const newAttempts = email.attempts + 1;
