@@ -140,7 +140,14 @@ interface SendPasswordResetRequest {
   email: string;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest;
+interface LinkAuthRequest {
+  action: "link_auth";
+  employee_id: string;
+  password?: string;
+  send_invitation?: boolean;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest | LinkAuthRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
@@ -2496,6 +2503,198 @@ serve(async (req: Request) => {
             error: { code: "SEND_FAILED", message: err.message, step: `${stepBase}.send_email` } satisfies ApiError,
           });
         }
+      }
+
+      case "link_auth": {
+        const { employee_id, password, send_invitation = true } = body as LinkAuthRequest;
+        const stepBase = "link_auth";
+        console.log(`[admin-manage-staff] ${stepBase}.start employee_id=${employee_id} request_id=${requestId}`);
+
+        if (!employee_id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "MISSING_EMPLOYEE_ID", message: "ID de l'employé requis", step: stepBase } satisfies ApiError,
+          });
+        }
+
+        // Fetch the employee record
+        const { data: employee, error: empError } = await adminClient
+          .from("employees")
+          .select("id, email, full_name, role, user_id, phone")
+          .eq("id", employee_id)
+          .maybeSingle();
+
+        if (empError || !employee) {
+          console.error(`[admin-manage-staff] ${stepBase} employee not found:`, empError);
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "EMPLOYEE_NOT_FOUND", message: "Employé non trouvé", step: stepBase } satisfies ApiError,
+          });
+        }
+
+        if (employee.user_id) {
+          console.log(`[admin-manage-staff] ${stepBase} already linked user_id=${employee.user_id}`);
+          return json(200, {
+            ok: true,
+            request_id: requestId,
+            message: "L'employé a déjà un compte de connexion lié",
+            already_linked: true,
+            user_id: employee.user_id,
+          });
+        }
+
+        const email = employee.email;
+        const full_name = employee.full_name;
+        const role = employee.role as StaffRole;
+
+        // Generate a secure temporary password if not provided
+        const tempPassword = password || (() => {
+          const array = new Uint8Array(20);
+          crypto.getRandomValues(array);
+          const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+          return Array.from(array).map(b => chars[b % chars.length]).join('');
+        })();
+
+        console.log(`[admin-manage-staff] ${stepBase} creating auth user for ${email}`);
+
+        // Create auth user
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name,
+            require_password_change: !password, // Require change if using temp password
+          },
+        });
+
+        let userId: string;
+
+        if (authError) {
+          // Check if user already exists
+          const isEmailExists = 
+            authError.message?.toLowerCase().includes("already registered") ||
+            authError.message?.toLowerCase().includes("email_exists") ||
+            (authError as any).code === "email_exists";
+
+          if (isEmailExists) {
+            console.log(`[admin-manage-staff] ${stepBase} auth user already exists, finding...`);
+            
+            const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({
+              perPage: 1000,
+            });
+
+            if (listError) {
+              return json(500, {
+                ok: false,
+                request_id: requestId,
+                error: { code: "LIST_USERS_FAILED", message: listError.message, step: stepBase } satisfies ApiError,
+              });
+            }
+
+            const existingUser = listData?.users?.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase()
+            );
+
+            if (!existingUser) {
+              return json(500, {
+                ok: false,
+                request_id: requestId,
+                error: { code: "USER_NOT_FOUND", message: "Utilisateur auth introuvable", step: stepBase } satisfies ApiError,
+              });
+            }
+
+            userId = existingUser.id;
+          } else {
+            console.error(`[admin-manage-staff] ${stepBase} auth creation failed:`, authError);
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "AUTH_CREATE_FAILED", message: authError.message, step: stepBase } satisfies ApiError,
+            });
+          }
+        } else {
+          if (!authData.user) {
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "NO_USER_RETURNED", message: "Aucun utilisateur créé", step: stepBase } satisfies ApiError,
+            });
+          }
+          userId = authData.user.id;
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} linking user_id=${userId} to employee_id=${employee_id}`);
+
+        // Update employee record with user_id
+        const { error: updateError } = await adminClient
+          .from("employees")
+          .update({ user_id: userId })
+          .eq("id", employee_id);
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} update employee failed:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "UPDATE_EMPLOYEE_FAILED", message: updateError.message, step: stepBase } satisfies ApiError,
+          });
+        }
+
+        // Also update technician if role is technician
+        if (role === "technician") {
+          await adminClient
+            .from("technicians")
+            .update({ user_id: userId })
+            .eq("email", email);
+        }
+
+        // Create/update profile
+        await adminClient
+          .from("profiles")
+          .upsert({
+            user_id: userId,
+            email,
+            full_name,
+          }, { onConflict: "user_id" });
+
+        // Create/update user_roles
+        await adminClient.from("user_roles").delete().eq("user_id", userId);
+        await adminClient.from("user_roles").insert({
+          user_id: userId,
+          role: role || "employee",
+          is_active: true,
+          require_password_change: !password,
+        });
+
+        // Send password reset if requested
+        if (send_invitation && !password) {
+          const appBaseUrl = getAppBaseUrl();
+          const resetUrl = `${appBaseUrl}/staff`;
+          console.log(`[admin-manage-staff] ${stepBase} sending reset email to ${email}`);
+          await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
+        }
+
+        await logAction("staff_auth_linked", {
+          request_id: requestId,
+          employee_id,
+          user_id: userId,
+          role,
+          sent_invitation: send_invitation && !password,
+        }, { type: "user", id: userId, email });
+
+        console.log(`[admin-manage-staff] ${stepBase} SUCCESS employee_id=${employee_id} user_id=${userId}`);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Compte de connexion créé et lié avec succès",
+          user_id: userId,
+          sent_invitation: send_invitation && !password,
+        });
       }
 
       default:

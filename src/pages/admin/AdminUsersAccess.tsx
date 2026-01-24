@@ -63,7 +63,7 @@ interface StaffUser {
   banned_until: string | null;
   is_active: boolean;
   status: StaffStatus;
-  source: "user_roles";
+  source: "user_roles" | "employees_unlinked";
   permissions: Partial<PermissionSet>;
   phone?: string | null;
   badge_number?: string | null;
@@ -71,6 +71,8 @@ interface StaffUser {
   pin_set_at?: string | null;
   require_password_change?: boolean;
   last_login_at?: string | null;
+  employee_id?: string; // For employees without auth user
+  has_auth_account?: boolean;
 }
 
 const statusConfig: Record<StaffStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -131,6 +133,7 @@ const AdminUsersAccess = () => {
     queryKey: ["admin-all-staff-users"],
     queryFn: async () => {
       const users: StaffUser[] = [];
+      const linkedEmails = new Set<string>();
 
       // Get admin AND employee users from user_roles
       const { data: rolesData, error: rolesError } = await adminSupabase
@@ -147,8 +150,17 @@ const AdminUsersAccess = () => {
           .select("user_id, email, full_name, created_at")
           .in("user_id", userIds);
 
+        // Also get employee details for those with user_ids
+        const { data: employeeDetails } = await adminSupabase
+          .from("employees")
+          .select("user_id, phone, badge_number, job_title, pin_set_at")
+          .in("user_id", userIds);
+
         rolesData.forEach(roleRow => {
           const profile = profiles?.find(p => p.user_id === roleRow.user_id);
+          const empDetail = employeeDetails?.find(e => e.user_id === roleRow.user_id);
+          if (profile?.email) linkedEmails.add(profile.email.toLowerCase());
+          
           users.push({
             id: roleRow.user_id,
             email: profile?.email || "—",
@@ -163,6 +175,44 @@ const AdminUsersAccess = () => {
             permissions: (roleRow.permissions as Partial<PermissionSet>) || {},
             require_password_change: roleRow.require_password_change || false,
             last_login_at: roleRow.last_login_at || null,
+            phone: empDetail?.phone || null,
+            badge_number: empDetail?.badge_number || null,
+            job_title: empDetail?.job_title || null,
+            pin_set_at: empDetail?.pin_set_at || null,
+            has_auth_account: true,
+          });
+        });
+      }
+
+      // Also get unlinked employees (those without user_id)
+      const { data: unlinkedEmployees, error: empError } = await adminSupabase
+        .from("employees")
+        .select("id, email, full_name, phone, badge_number, job_title, role, is_active, pin_set_at, created_at")
+        .is("user_id", null);
+
+      if (!empError && unlinkedEmployees) {
+        unlinkedEmployees.forEach(emp => {
+          // Skip if this email is already linked
+          if (linkedEmails.has(emp.email.toLowerCase())) return;
+          
+          users.push({
+            id: emp.id, // This is the employees.id
+            employee_id: emp.id,
+            email: emp.email,
+            role: (emp.role as StaffRole) || "employee",
+            full_name: emp.full_name,
+            created_at: emp.created_at || new Date().toISOString(),
+            last_sign_in_at: null,
+            banned_until: null,
+            is_active: emp.is_active !== false,
+            status: emp.is_active ? "active" : "disabled",
+            source: "employees_unlinked",
+            permissions: {},
+            phone: emp.phone,
+            badge_number: emp.badge_number,
+            job_title: emp.job_title,
+            pin_set_at: emp.pin_set_at,
+            has_auth_account: false,
           });
         });
       }
@@ -246,7 +296,32 @@ const AdminUsersAccess = () => {
     },
   });
 
-  // Disable user mutation
+  // Link auth account mutation (for employees without auth user)
+  const linkAuthMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const response = await adminSupabase.functions.invoke("admin-manage-staff", {
+        body: { action: "link_auth", employee_id: employeeId, send_invitation: true },
+      });
+      if (response.error || (response.data as any)?.ok === false) {
+        const details = await extractErrorDetails(response);
+        throw Object.assign(new Error(details.message), { details });
+      }
+      return response.data;
+    },
+    onSuccess: (data: { message?: string; sent_invitation?: boolean }) => {
+      toast({ 
+        title: "Succès", 
+        description: data.message || "Compte de connexion créé et lié",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-all-staff-users"] });
+    },
+    onError: (error: Error & { details?: typeof errorModalDetails }) => {
+      setErrorModalDetails(error.details || null);
+      setErrorModalOpen(true);
+      toast({ title: "Erreur", description: error.message, variant: "destructive", duration: 15000 });
+    },
+  });
+
   const disableMutation = useMutation({
     mutationFn: async (userId: string) => {
       const response = await adminSupabase.functions.invoke("admin-manage-staff", {
@@ -811,6 +886,20 @@ const AdminUsersAccess = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  {/* Show link auth button for unlinked employees */}
+                                  {user.source === "employees_unlinked" && user.employee_id && (
+                                    <>
+                                      <DropdownMenuItem 
+                                        onClick={() => linkAuthMutation.mutate(user.employee_id!)}
+                                        disabled={linkAuthMutation.isPending}
+                                        className="text-primary font-medium"
+                                      >
+                                        <KeyRound className="h-4 w-4 mr-2" />
+                                        Créer compte de connexion
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                    </>
+                                  )}
                                   <DropdownMenuItem onClick={() => openDetailsDrawer(user)}>
                                     <Eye className="h-4 w-4 mr-2" />
                                     Voir détails
