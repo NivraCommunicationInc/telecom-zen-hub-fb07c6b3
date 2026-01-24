@@ -189,6 +189,32 @@ scripts/billing_v2_post_update_checks.sql
 
 ---
 
+## Actions Admin (Mapping UI → Règles)
+
+| Bouton / Écran | Action système | Règle appliquée |
+|----------------|----------------|-----------------|
+| **Confirm payment (Interac)** | `status = confirmed` | Exige `reference` non vide |
+| **Confirm payment (PayPal)** | `status = confirmed` | Exige `provider_payment_id` non vide |
+| **Reopen invoice** | `status = pending` ou `overdue` | Selon `due_date` vs `now()` |
+| **Add admin note** | Stocke dans `legacy_note` | Piste d'audit interne |
+| **Void payment** | `status = voided` | Ne supprime pas — garde la trace |
+| **Apply late fee** | Ajoute à `fees` | Recalcule `balance_due` automatiquement |
+
+---
+
+## Exemples acceptés (formats valides)
+
+| Champ | Exemple | Notes |
+|-------|---------|-------|
+| `reference` (Interac) | `CA1234567890` | Format alphanumérique bancaire |
+| `provider_payment_id` (PayPal) | `8MC585209K746631H` | Capture ID PayPal |
+| `source` | `live` | **Seule valeur en production** |
+| `source` | `legacy_migration` | Import données historiques |
+| `source` | `test` | Environnement de test uniquement |
+| `source` | `manual_correction` | Correction admin avec justification |
+
+---
+
 ## Scripts de vérification
 
 - **Post-update checks** : `scripts/billing_v2_post_update_checks.sql`
@@ -203,3 +229,4 @@ scripts/billing_v2_post_update_checks.sql
 |------|--------|-------------|
 | 2026-01-24 | Lovable AI | Création initiale — Billing V2 finalisé |
 | 2026-01-24 | Lovable AI | Ajout Policy Paiements & Corrections (Admin) |
+| 2026-01-24 | Lovable AI | Ajout Actions Admin + Exemples formats valides |
