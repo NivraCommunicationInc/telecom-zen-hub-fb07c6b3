@@ -27,7 +27,11 @@ interface EmailQueueItem {
   max_attempts: number;
   last_error: string | null;
   provider_message_id: string | null;
+  provider_status: string | null;
   sent_at: string | null;
+  delivered_at: string | null;
+  opened_at: string | null;
+  bounced_at: string | null;
   created_at: string;
 }
 
@@ -543,9 +547,9 @@ const AdminEmailActivity = () => {
                     <TableHead>Destinataire</TableHead>
                     <TableHead>Template</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Tentatives</TableHead>
+                    <TableHead>Livraison</TableHead>
+                    <TableHead>Provider ID</TableHead>
                     <TableHead>Erreur</TableHead>
-                    <TableHead>Créé le</TableHead>
                     <TableHead>Envoyé le</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -558,13 +562,23 @@ const AdminEmailActivity = () => {
                       </TableCell>
                       <TableCell>{getStatusBadge(email.status)}</TableCell>
                       <TableCell>
-                        {email.attempts}/{email.max_attempts}
+                        {email.bounced_at ? (
+                          <Badge variant="destructive" className="text-xs">Bounce</Badge>
+                        ) : email.opened_at ? (
+                          <Badge className="bg-green-600 text-xs">Ouvert</Badge>
+                        ) : email.delivered_at ? (
+                          <Badge className="bg-blue-500 text-xs">Livré</Badge>
+                        ) : email.provider_status ? (
+                          <Badge variant="secondary" className="text-xs">{email.provider_status}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground max-w-[120px] truncate">
+                        {email.provider_message_id || "-"}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate text-red-500 text-sm">
                         {email.last_error || "-"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(email.created_at), "dd MMM HH:mm", { locale: fr })}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {email.sent_at

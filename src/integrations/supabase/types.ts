@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_access_logs: {
+        Row: {
+          access_granted: boolean
+          client_user_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          method: string
+          portal: string | null
+          reason: string
+          staff_user_id: string
+          user_agent: string | null
+          verified_fields: Json | null
+        }
+        Insert: {
+          access_granted?: boolean
+          client_user_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          method: string
+          portal?: string | null
+          reason: string
+          staff_user_id: string
+          user_agent?: string | null
+          verified_fields?: Json | null
+        }
+        Update: {
+          access_granted?: boolean
+          client_user_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          method?: string
+          portal?: string | null
+          reason?: string
+          staff_user_id?: string
+          user_agent?: string | null
+          verified_fields?: Json | null
+        }
+        Relationships: []
+      }
       account_service_locations: {
         Row: {
           account_id: string
@@ -2720,13 +2762,19 @@ export type Database = {
       email_queue: {
         Row: {
           attempts: number
+          bounced_at: string | null
+          clicked_at: string | null
           created_at: string
+          delivered_at: string | null
           event_key: string
           id: string
           last_error: string | null
           max_attempts: number
           next_retry_at: string | null
+          opened_at: string | null
           provider_message_id: string | null
+          provider_response: Json | null
+          provider_status: string | null
           sent_at: string | null
           status: string
           template_key: string
@@ -2735,13 +2783,19 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          bounced_at?: string | null
+          clicked_at?: string | null
           created_at?: string
+          delivered_at?: string | null
           event_key: string
           id?: string
           last_error?: string | null
           max_attempts?: number
           next_retry_at?: string | null
+          opened_at?: string | null
           provider_message_id?: string | null
+          provider_response?: Json | null
+          provider_status?: string | null
           sent_at?: string | null
           status?: string
           template_key: string
@@ -2750,13 +2804,19 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          bounced_at?: string | null
+          clicked_at?: string | null
           created_at?: string
+          delivered_at?: string | null
           event_key?: string
           id?: string
           last_error?: string | null
           max_attempts?: number
           next_retry_at?: string | null
+          opened_at?: string | null
           provider_message_id?: string | null
+          provider_response?: Json | null
+          provider_status?: string | null
           sent_at?: string | null
           status?: string
           template_key?: string
