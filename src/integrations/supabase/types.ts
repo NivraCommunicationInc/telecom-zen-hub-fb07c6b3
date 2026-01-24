@@ -8041,7 +8041,7 @@ export type Database = {
           is_admin: boolean
           is_internal_note: boolean | null
           sender_name: string | null
-          sender_role: string | null
+          sender_role: string
           ticket_id: string
           user_id: string
         }
@@ -8053,7 +8053,7 @@ export type Database = {
           is_admin?: boolean
           is_internal_note?: boolean | null
           sender_name?: string | null
-          sender_role?: string | null
+          sender_role?: string
           ticket_id: string
           user_id: string
         }
@@ -8065,7 +8065,7 @@ export type Database = {
           is_admin?: boolean
           is_internal_note?: boolean | null
           sender_name?: string | null
-          sender_role?: string | null
+          sender_role?: string
           ticket_id?: string
           user_id?: string
         }
