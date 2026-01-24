@@ -946,14 +946,19 @@ export type Database = {
       billing_invoices: {
         Row: {
           activation_fee: number | null
+          amount_paid: number | null
+          balance_due: number | null
           created_at: string | null
           currency: string | null
           customer_id: string
           cycle_end_date: string
           cycle_start_date: string
           due_date: string
+          fees: number | null
           id: string
           invoice_number: string
+          late_fee_amount: number | null
+          late_fee_applied: boolean | null
           notes: string | null
           paid_at: string | null
           payment_method:
@@ -969,14 +974,19 @@ export type Database = {
         }
         Insert: {
           activation_fee?: number | null
+          amount_paid?: number | null
+          balance_due?: number | null
           created_at?: string | null
           currency?: string | null
           customer_id: string
           cycle_end_date: string
           cycle_start_date: string
           due_date: string
+          fees?: number | null
           id?: string
           invoice_number: string
+          late_fee_amount?: number | null
+          late_fee_applied?: boolean | null
           notes?: string | null
           paid_at?: string | null
           payment_method?:
@@ -992,14 +1002,19 @@ export type Database = {
         }
         Update: {
           activation_fee?: number | null
+          amount_paid?: number | null
+          balance_due?: number | null
           created_at?: string | null
           currency?: string | null
           customer_id?: string
           cycle_end_date?: string
           cycle_start_date?: string
           due_date?: string
+          fees?: number | null
           id?: string
           invoice_number?: string
+          late_fee_amount?: number | null
+          late_fee_applied?: boolean | null
           notes?: string | null
           paid_at?: string | null
           payment_method?:
@@ -8868,6 +8883,7 @@ export type Database = {
         | "failed"
         | "cancelled"
         | "refunded"
+        | "overdue"
       billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
       billing_payment_method: "interac" | "manual"
       billing_payment_status: "pending" | "confirmed" | "failed"
@@ -9152,6 +9168,7 @@ export const Constants = {
         "failed",
         "cancelled",
         "refunded",
+        "overdue",
       ],
       billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
       billing_payment_method: ["interac", "manual"],
