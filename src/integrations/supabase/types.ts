@@ -1053,11 +1053,13 @@ export type Database = {
           customer_id: string
           id: string
           invoice_id: string
+          legacy_note: string | null
           method: Database["public"]["Enums"]["billing_payment_method"]
           provider: string | null
           provider_payment_id: string | null
           received_at: string | null
           reference: string | null
+          source: string | null
           status: Database["public"]["Enums"]["billing_payment_status"] | null
         }
         Insert: {
@@ -1067,11 +1069,13 @@ export type Database = {
           customer_id: string
           id?: string
           invoice_id: string
+          legacy_note?: string | null
           method?: Database["public"]["Enums"]["billing_payment_method"]
           provider?: string | null
           provider_payment_id?: string | null
           received_at?: string | null
           reference?: string | null
+          source?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
         }
         Update: {
@@ -1081,11 +1085,13 @@ export type Database = {
           customer_id?: string
           id?: string
           invoice_id?: string
+          legacy_note?: string | null
           method?: Database["public"]["Enums"]["billing_payment_method"]
           provider?: string | null
           provider_payment_id?: string | null
           received_at?: string | null
           reference?: string | null
+          source?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
         }
         Relationships: [
