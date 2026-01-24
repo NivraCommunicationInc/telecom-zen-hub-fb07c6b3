@@ -199,7 +199,11 @@ export function useVerifyProof() {
 
       if (proofError) throw proofError;
 
-      // Update billing based on verification result
+      // ============================================================
+      // LEGACY BILLING UPDATE - Source of truth: billing table
+      // TODO: Migrate to billing_invoices V2 + billing_payments
+      // Date: 2026-01-24 - Backlog migration complète
+      // ============================================================
       if (status === 'verified') {
         const { error: billingError } = await backendClient
           .from('billing')

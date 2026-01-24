@@ -113,7 +113,11 @@ export default function EquipmentOrderDetails({ order, onUpdate }: EquipmentOrde
 
       if (orderError) throw orderError;
 
-      // Create invoice in billing table
+      // ============================================================
+      // TODO: LEGACY BILLING - Migrate to billing_invoices V2
+      // Source of truth temporaire: billing table
+      // Date: 2026-01-24 - Backlog migration
+      // ============================================================
       const { error: billingError } = await supabase.from("billing").insert({
         user_id: order.user_id,
         client_email: order.client_email,
@@ -131,7 +135,10 @@ export default function EquipmentOrderDetails({ order, onUpdate }: EquipmentOrde
         notes: `Commande équipement - ${paymentForm.payment_method}`,
       });
 
-      if (billingError) throw billingError;
+      if (billingError) {
+        console.error("[LEGACY] billing insert error:", billingError);
+        throw billingError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });

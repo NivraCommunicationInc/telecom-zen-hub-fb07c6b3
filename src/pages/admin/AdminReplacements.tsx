@@ -314,6 +314,11 @@ const AdminReplacements = () => {
   });
 
   // Generate invoice (creates billing record)
+  // ============================================================
+  // TODO: LEGACY BILLING - Migrate to billing_invoices V2
+  // Source of truth temporaire: billing table
+  // Date: 2026-01-24 - Backlog migration
+  // ============================================================
   const generateInvoiceMutation = useMutation({
     mutationFn: async () => {
       if (!replacementOrder) throw new Error("No order");
@@ -337,7 +342,10 @@ const AdminReplacements = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("[LEGACY] billing insert error:", error);
+        throw error;
+      }
 
       // Update replacement order with invoice info
       await supabase
