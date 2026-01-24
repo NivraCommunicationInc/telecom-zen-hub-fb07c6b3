@@ -142,9 +142,58 @@ Tenter 2 INSERT avec la même `reference` (live + non vide) :
 
 ---
 
+## Policy Paiements & Corrections (Admin)
+
+### 1. Règle générale
+
+- Un paiement ne doit être mis à `confirmed` **que lorsqu'il est vérifié** (preuve Interac valide ou confirmation PayPal).
+- Les paiements `pending` peuvent être incomplets (ex. Interac sans référence), **c'est normal**.
+
+### 2. Interac (virement)
+
+| Étape | Action |
+|-------|--------|
+| Avant confirmation | `status = pending` |
+| À la confirmation | L'admin **doit obligatoirement** saisir une référence bancaire Interac (champ `reference`) |
+
+⚠️ **Anti-doublon** : Une référence Interac ne peut être utilisée qu'**une seule fois**.  
+Si la référence existe déjà → ne pas recréer un paiement : vérifier l'invoice associée et corriger au besoin.
+
+### 3. PayPal Business
+
+| Règle | Description |
+|-------|-------------|
+| À la confirmation | `provider = paypal` et `provider_payment_id` doit être rempli (`capture_id`) |
+| Interdit | Ne **jamais** mettre de `reference` Interac sur un paiement PayPal |
+
+### 4. Corrections / erreurs
+
+> ❌ **Pas de rétrogradation automatique** — Ne pas éditer les champs au hasard.
+
+**Procédure recommandée :**
+
+1. **Annuler** le paiement (`status = voided` ou `reversed` si disponible, ou via procédure interne)
+2. **Ajouter une note** (raison, date, opérateur)
+3. **Réouvrir la facture** si nécessaire (action admin dédiée)
+
+🎯 **Objectif** : Garder une piste d'audit claire et éviter de casser le service client.
+
+### 5. Après chaque mise à jour du site
+
+```bash
+# Exécuter dans Lovable Cloud → Run SQL
+scripts/billing_v2_post_update_checks.sql
+```
+
+✅ Le site est considéré **"validé"** seulement si **tous les checks sont PASS**.
+
+---
+
 ## Scripts de vérification
 
 - **Post-update checks** : `scripts/billing_v2_post_update_checks.sql`
+- Exécution : Lovable Cloud → Run SQL (rôle `postgres` ou `service_role`)
+- Sortie attendue : `10/10 PASS` + aucune exception
 
 ---
 
@@ -153,3 +202,4 @@ Tenter 2 INSERT avec la même `reference` (live + non vide) :
 | Date | Auteur | Description |
 |------|--------|-------------|
 | 2026-01-24 | Lovable AI | Création initiale — Billing V2 finalisé |
+| 2026-01-24 | Lovable AI | Ajout Policy Paiements & Corrections (Admin) |
