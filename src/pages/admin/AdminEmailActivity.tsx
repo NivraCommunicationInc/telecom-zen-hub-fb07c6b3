@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, FileText } from "lucide-react";
+import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, FileText, Shield } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -598,7 +598,7 @@ const AdminEmailActivity = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />
-              Configuration
+              Configuration Fournisseur
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -613,11 +613,80 @@ const AdminEmailActivity = () => {
               </div>
               <div>
                 <span className="text-muted-foreground">Email expéditeur:</span>
-                <span className="ml-2 font-medium">Nivra (via Resend)</span>
+                <span className="ml-2 font-medium">notifications@nivratelecom.ca</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Tentatives max:</span>
                 <span className="ml-2 font-medium">5 (avec backoff exponentiel)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Anti-Spam Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              Configuration Anti-Spam (Délivrabilité)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground mb-4">
+                Ces configurations doivent être vérifiées dans le dashboard Resend et les DNS du domaine pour éviter que les emails atterrissent en spam.
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium">SPF Record</span>
+                    <Badge variant="outline" className="text-xs">DNS TXT</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Autorise les serveurs Resend à envoyer pour nivratelecom.ca
+                  </p>
+                  <code className="text-xs bg-muted p-2 rounded block break-all">
+                    v=spf1 include:amazonses.com ~all
+                  </code>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium">DKIM</span>
+                    <Badge variant="outline" className="text-xs">DNS CNAME</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Signature cryptographique pour valider l'authenticité
+                  </p>
+                  <code className="text-xs bg-muted p-2 rounded block">
+                    Configuré via Resend Dashboard
+                  </code>
+                </div>
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium">DMARC</span>
+                    <Badge variant="outline" className="text-xs">DNS TXT</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Politique de rapport et traitement des échecs
+                  </p>
+                  <code className="text-xs bg-muted p-2 rounded block break-all">
+                    v=DMARC1; p=none; rua=mailto:dmarc@nivratelecom.ca
+                  </code>
+                </div>
+              </div>
+              <div className="mt-4 p-3 rounded border border-yellow-500/50 bg-yellow-500/10">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-yellow-500">Protocole de test recommandé:</p>
+                    <ul className="text-muted-foreground mt-1 space-y-1 list-disc list-inside">
+                      <li>Envoyer test à Gmail + Outlook</li>
+                      <li>Vérifier inbox ET spam</li>
+                      <li>Ouvrir "Show Original" pour voir les headers (SPF/DKIM/DMARC pass/fail)</li>
+                      <li>Si spam: vérifier enregistrements DNS</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
