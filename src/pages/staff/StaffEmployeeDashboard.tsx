@@ -100,7 +100,10 @@ export default function StaffEmployeeDashboard() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/admin/clients?search=${encodeURIComponent(searchQuery.trim())}`);
+      // Employee cannot access /admin - show toast
+      toast.info("Accès limité: La recherche clients complète est disponible dans le panneau Admin.", {
+        duration: 4000,
+      });
     }
   };
 
@@ -216,44 +219,44 @@ export default function StaffEmployeeDashboard() {
           </div>
 
           <button
-            onClick={() => navigate("/admin/orders/new")}
-            className="p-4 rounded-lg border border-green-500 bg-green-500/10 hover:bg-green-500/20 transition-colors flex items-center justify-center gap-2 text-green-500"
+            onClick={() => toast.info("Accès Admin requis pour créer des commandes")}
+            className="p-4 rounded-lg border border-slate-500 bg-slate-600/30 cursor-not-allowed flex items-center justify-center gap-2 text-slate-400"
+            disabled
           >
             <Plus className="h-5 w-5" />
             <span className="font-medium">Nouvelle commande</span>
           </button>
         </div>
 
-        {/* Quick Links */}
+        {/* Info Banner - Employee Restricted Access */}
+        <div className="p-4 rounded-lg border border-blue-500/50 bg-blue-500/10 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0" />
+          <div>
+            <p className="text-blue-400 font-medium">Portail Employé</p>
+            <p className="text-slate-400 text-sm">
+              Vous avez accès en lecture seule. Contactez un administrateur pour accéder aux fonctionnalités complètes.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Links - Disabled for Employee */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button
-            onClick={() => navigate("/admin/orders")}
-            className="p-4 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-3"
-          >
+          <div className="p-4 rounded-lg border border-slate-600 bg-slate-700/30 text-slate-500 flex items-center gap-3 cursor-not-allowed">
             <ShoppingCart className="h-5 w-5" />
             <span className="font-medium">Commandes</span>
-          </button>
-          <button
-            onClick={() => navigate("/admin/clients")}
-            className="p-4 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-3"
-          >
+          </div>
+          <div className="p-4 rounded-lg border border-slate-600 bg-slate-700/30 text-slate-500 flex items-center gap-3 cursor-not-allowed">
             <Users className="h-5 w-5" />
             <span className="font-medium">Clients</span>
-          </button>
-          <button
-            onClick={() => navigate("/admin/support")}
-            className="p-4 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-3"
-          >
+          </div>
+          <div className="p-4 rounded-lg border border-slate-600 bg-slate-700/30 text-slate-500 flex items-center gap-3 cursor-not-allowed">
             <Ticket className="h-5 w-5" />
             <span className="font-medium">Tickets</span>
-          </button>
-          <button
-            onClick={() => navigate("/admin/billing")}
-            className="p-4 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-3"
-          >
+          </div>
+          <div className="p-4 rounded-lg border border-slate-600 bg-slate-700/30 text-slate-500 flex items-center gap-3 cursor-not-allowed">
             <FileText className="h-5 w-5" />
             <span className="font-medium">Factures</span>
-          </button>
+          </div>
         </div>
 
         {/* Recent Orders & Tickets */}
@@ -271,10 +274,9 @@ export default function StaffEmployeeDashboard() {
                 <p className="text-slate-400 text-center py-4">Aucune commande</p>
               ) : (
                 recentOrders.map((order) => (
-                  <button
+                  <div
                     key={order.id}
-                    onClick={() => navigate(`/admin/orders/${order.id}`)}
-                    className="w-full p-3 rounded-lg border border-slate-600 bg-slate-700/50 hover:bg-slate-700 transition-colors text-left"
+                    className="w-full p-3 rounded-lg border border-slate-600 bg-slate-700/50 text-left"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-medium text-white">{order.order_number}</span>
@@ -286,7 +288,7 @@ export default function StaffEmployeeDashboard() {
                         {format(new Date(order.created_at), "d MMM", { locale: fr })}
                       </span>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </CardContent>
@@ -305,10 +307,9 @@ export default function StaffEmployeeDashboard() {
                 <p className="text-slate-400 text-center py-4">Aucun ticket ouvert</p>
               ) : (
                 openTickets.map((ticket) => (
-                  <button
+                  <div
                     key={ticket.id}
-                    onClick={() => navigate(`/admin/support/${ticket.id}`)}
-                    className="w-full p-3 rounded-lg border border-slate-600 bg-slate-700/50 hover:bg-slate-700 transition-colors text-left"
+                    className="w-full p-3 rounded-lg border border-slate-600 bg-slate-700/50 text-left"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-medium text-white">{ticket.ticket_number}</span>
@@ -321,7 +322,7 @@ export default function StaffEmployeeDashboard() {
                         {format(new Date(ticket.created_at), "d MMM", { locale: fr })}
                       </span>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </CardContent>
