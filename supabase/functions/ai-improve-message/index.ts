@@ -42,11 +42,11 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Only use dedicated AI key, never service role key
-    const LOVABLE_AI_KEY = Deno.env.get("LOVABLE_AI_KEY");
+    // SECURITY: Use auto-provisioned Lovable API key
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!LOVABLE_AI_KEY) {
-      console.error(`[${requestId}] LOVABLE_AI_KEY not configured`);
+    if (!LOVABLE_API_KEY) {
+      console.error(`[${requestId}] LOVABLE_API_KEY not configured`);
       return new Response(
         JSON.stringify({
           success: false,
@@ -79,7 +79,7 @@ serve(async (req) => {
     }
 
     // Call Lovable AI (Gemini)
-    const LOVABLE_AI_URL = Deno.env.get("LOVABLE_AI_URL") || "https://lovable-ai.lovable.dev/v1/chat/completions";
+    const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
     console.log(`[${requestId}] Calling Lovable AI...`);
     
@@ -87,7 +87,7 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_AI_KEY}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
