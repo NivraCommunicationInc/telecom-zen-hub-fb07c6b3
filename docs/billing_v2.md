@@ -247,6 +247,21 @@ Si l'update touche **facturation / paiements / crons / triggers** :
 - [ ] Confirmer que `docs/billing_v2.md` est à jour
 - [ ] Sinon, mettre à jour la doc **avant** de considérer la release terminée
 
+### ☐ 6. Release Log (obligatoire)
+
+Consigner chaque release dans une note interne ou champ "Release log" :
+
+```
+Date (MTL): YYYY-MM-DD HH:MM
+Environnement: Test | Live
+Version/Commit: (hash ou label)
+Script post-update: 10/10 PASS (OK)
+Opérateur: (nom)
+Notes: (ex: "billing only", "UI admin", "cron change", "none")
+```
+
+> ⚠️ **Règle** : S'il n'y a pas de log + pas de 10/10 PASS, la release **n'est pas considérée validée**.
+
 ---
 
 ## Scripts de vérification
