@@ -331,6 +331,48 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_notification_settings: {
+        Row: {
+          category: string
+          created_at: string | null
+          digest_interval_minutes: number | null
+          email_recipients: string[] | null
+          id: string
+          is_enabled: boolean | null
+          rate_limit_per_hour: number | null
+          setting_key: string
+          setting_label: string
+          updated_at: string | null
+          use_digest: boolean | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          digest_interval_minutes?: number | null
+          email_recipients?: string[] | null
+          id?: string
+          is_enabled?: boolean | null
+          rate_limit_per_hour?: number | null
+          setting_key: string
+          setting_label: string
+          updated_at?: string | null
+          use_digest?: boolean | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          digest_interval_minutes?: number | null
+          email_recipients?: string[] | null
+          id?: string
+          is_enabled?: boolean | null
+          rate_limit_per_hour?: number | null
+          setting_key?: string
+          setting_label?: string
+          updated_at?: string | null
+          use_digest?: boolean | null
+        }
+        Relationships: []
+      }
       admin_otp_codes: {
         Row: {
           admin_user_id: string
@@ -7784,28 +7826,141 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          reply_id: string | null
+          storage_bucket: string | null
+          ticket_id: string
+          uploader_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          reply_id?: string | null
+          storage_bucket?: string | null
+          ticket_id: string
+          uploader_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          reply_id?: string | null
+          storage_bucket?: string | null
+          ticket_id?: string
+          uploader_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_attachments_reply_id_fkey"
+            columns: ["reply_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_replies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_participants: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          can_reassign: boolean | null
+          can_reply: boolean | null
+          id: string
+          role: string
+          ticket_id: string
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          can_reassign?: boolean | null
+          can_reply?: boolean | null
+          id?: string
+          role?: string
+          ticket_id: string
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          can_reassign?: boolean | null
+          can_reply?: boolean | null
+          id?: string
+          role?: string
+          ticket_id?: string
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_participants_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_replies: {
         Row: {
+          attachments: Json | null
           content: string
           created_at: string
           id: string
           is_admin: boolean
+          is_internal_note: boolean | null
+          sender_name: string | null
+          sender_role: string | null
           ticket_id: string
           user_id: string
         }
         Insert: {
+          attachments?: Json | null
           content: string
           created_at?: string
           id?: string
           is_admin?: boolean
+          is_internal_note?: boolean | null
+          sender_name?: string | null
+          sender_role?: string | null
           ticket_id: string
           user_id: string
         }
         Update: {
+          attachments?: Json | null
           content?: string
           created_at?: string
           id?: string
           is_admin?: boolean
+          is_internal_note?: boolean | null
+          sender_name?: string | null
+          sender_role?: string | null
           ticket_id?: string
           user_id?: string
         }

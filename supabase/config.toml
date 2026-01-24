@@ -138,3 +138,11 @@ verify_jwt = false
 [functions.send-email-previews]
 verify_jwt = false
 
+[functions.ai-improve-message]
+verify_jwt = false
+
+[functions.notify-client-update]
+verify_jwt = false
+
+[functions.notify-admin-alert]
+verify_jwt = false
