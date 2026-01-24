@@ -36,6 +36,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AIImproveButton } from "@/components/tickets/AIImproveButton";
+import { TicketAttachmentUploader } from "@/components/tickets/TicketAttachmentUploader";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   open: { label: "Ouvert", color: "bg-blue-500/20 text-blue-600", icon: Circle },
@@ -504,9 +505,24 @@ const AdminInternalTickets = () => {
                 </ScrollArea>
               </div>
 
-              {/* Reply input with AI button */}
+              {/* Reply input with AI button and Attachments */}
               <div className="space-y-2">
                 <Textarea value={newReply} onChange={(e) => setNewReply(e.target.value)} placeholder="Écrire une réponse..." rows={2} className="w-full" />
+                
+                {/* Attachment Uploader */}
+                {selectedTicket?.id && user?.id && (
+                  <TicketAttachmentUploader
+                    ticketId={selectedTicket.id}
+                    uploaderId={user.id}
+                    onFilesUploaded={(files) => {
+                      console.log("[AdminInternalTickets] Files uploaded:", files);
+                    }}
+                    maxFiles={5}
+                    maxSizeMB={50}
+                    disabled={isSubmitting}
+                  />
+                )}
+                
                 <div className="flex items-center justify-between gap-2">
                   <AIImproveButton
                     message={newReply}
