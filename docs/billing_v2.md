@@ -1,0 +1,155 @@
+# Billing V2 — Convention & Garde-fous (Nivra Telecom)
+
+> **⚠️ RÈGLE DE NON-RÉGRESSION**  
+> Toute modification future liée à la facturation, paiements, crons ou triggers **DOIT** mettre à jour ce document.
+
+## Objectif
+
+Standardiser la facturation V2 pour garantir :
+
+- une **source de vérité unique** (V2),
+- une **idempotence des paiements** (anti-doublons),
+- des **règles cohérentes** entre Interac et PayPal,
+- une **stabilité face aux updates** (Lovable / refactors).
+
+---
+
+## Modèle de paiement (`billing_payments`)
+
+### Champs clés
+
+| Champ | Description |
+|-------|-------------|
+| `provider` | Processeur / réseau de paiement. Valeurs usuelles : `interac`, `paypal` (extensible) |
+| `method` | Mode de paiement côté produit (ex. `interac`, `paypal`, `manual`). Ne pas confondre avec `provider`. |
+| `reference` | Référence bancaire Interac (ex: `CA1234…`). **UNIQUE globale** (idempotence Interac) |
+| `provider_payment_id` | Identifiant PayPal (ex: `capture_id` / `order_id`). **UNIQUE composite** `(provider, provider_payment_id)` |
+| `status` | Ex. `pending`, `confirmed` (autres statuts possibles selon design) |
+| `source` | Origine d'écriture du paiement. Valeurs autorisées : `live`, `legacy_migration`, `test`, `manual_correction` |
+| `legacy_note` | Note interne pour conserver des traces legacy (si applicable) |
+
+### Règles de cohérence (enforced DB)
+
+Ces règles s'appliquent **uniquement** pour `source='live'` et `status='confirmed'` :
+
+#### Interac (`provider='interac'`)
+- `reference` **requise**
+- `provider_payment_id` **doit être NULL**
+
+#### PayPal (`provider='paypal'`)
+- `provider_payment_id` **requis**
+- `reference` **doit être NULL**
+
+#### Autres providers (futur)
+- **Au moins une clé** doit être présente (`reference` OU `provider_payment_id`)
+
+> **Note** : Les paiements `pending` (ou non confirmés) peuvent être incomplets (ex. Interac sans référence tant que la preuve n'est pas validée).
+
+### Idempotence (anti-doublons)
+
+| Provider | Mécanisme |
+|----------|-----------|
+| **Interac** | `reference` est unique (index unique, ignoré si NULL/empty) |
+| **PayPal** | `(provider, provider_payment_id)` est unique (index unique, ignoré si NULL) |
+
+---
+
+## Modèle facture (`billing_invoices`)
+
+### Montants (règles immuables)
+
+| Champ | Description |
+|-------|-------------|
+| `total` | **Immutable** — montant taxes incluses hors frais |
+| `fees` | Frais additionnels (ex. late fee) |
+| `amount_paid` | Somme des paiements confirmés rattachés à la facture |
+| `balance_due` | **Calculé automatiquement** : `balance_due = total + fees - amount_paid` |
+
+### Statuts
+
+| Statut | Description |
+|--------|-------------|
+| `pending` | Non payée |
+| `overdue` | En retard (après `due_date`) |
+| `paid` | Payée |
+
+---
+
+## Triggers / Automations (invariants)
+
+### Paiements → Facture (`amount_paid`)
+
+`billing_invoices.amount_paid` est recalculé depuis `billing_payments` :
+
+- **Inclusion** : `billing_payments.status = 'confirmed'`
+- **Somme** : `SUM(amount)` sur les paiements confirmés par facture
+
+### Facture (`balance_due` + auto-paid)
+
+Le trigger facture maintient :
+
+1. `balance_due = total + fees - amount_paid`
+2. **Clamp** : si `balance_due < 0` → `balance_due = 0`
+3. **Transition automatique** :
+   - Si `status IN ('pending','overdue')` et `balance_due <= 0`
+   - Alors `status = 'paid'` + `paid_at = now()` (si `paid_at` NULL)
+
+---
+
+## Checklist Post-Update (5 checks rapides)
+
+### 1. Crons actifs
+
+Doit rester **uniquement** :
+- `billing-check-overdue-hourly`
+- `billing-generate-renewals-hourly`
+- `payment-reminders-hourly`
+- `process-email-queue`
+
+❌ **Aucun** ancien cron `*-daily` / doublon.
+
+### 2. Trigger invoice
+
+- Sur `billing_invoices` : trigger `sync_billing_invoice_balance` actif
+- Vérifier que `balance_due` se recalcule sur UPDATE.
+
+### 3. Trigger payments
+
+- Sur `billing_payments` : trigger `sync_invoice_amount_paid` actif
+- Vérifier qu'un paiement confirmé met à jour `amount_paid`.
+
+### 4. Test paiement → paid
+
+Ajouter un paiement `confirmed` sur une facture `pending` :
+
+**Attendu** :
+- `amount_paid` augmente
+- `balance_due` diminue jusqu'à 0
+- `status` passe à `paid`
+- `paid_at` est rempli
+
+### 5. Test idempotence Interac
+
+Tenter 2 INSERT avec la même `reference` (live + non vide) :
+
+**Attendu** : une seule ligne est acceptée (doublon bloqué)
+
+---
+
+## Règle d'or
+
+> **Ne jamais modifier les contraintes/triggers ci-dessus sans conserver les mêmes invariants** (idempotence, cohérence provider, `balance_due` calculé, auto-paid).
+
+---
+
+## Scripts de vérification
+
+- **Post-update checks** : `scripts/billing_v2_post_update_checks.sql`
+
+---
+
+## Historique
+
+| Date | Auteur | Description |
+|------|--------|-------------|
+| 2026-01-24 | Lovable AI | Création initiale — Billing V2 finalisé |
