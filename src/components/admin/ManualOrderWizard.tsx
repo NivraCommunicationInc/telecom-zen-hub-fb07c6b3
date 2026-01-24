@@ -478,32 +478,11 @@ export default function ManualOrderWizard({
       if (orderError) throw orderError;
 
       // ============================================================
-      // TODO: LEGACY BILLING - Migrate to billing_invoices V2
-      // Source of truth temporaire: billing table
-      // Date: 2026-01-24 - Backlog migration
+      // LEGACY BILLING BLOCKED - Source unique V2
+      // Date: 2026-01-24 - Écriture legacy désactivée
       // ============================================================
-      const { error: billingError } = await supabase
-        .from("billing")
-        .insert({
-          user_id: orderState.clientId,
-          client_email: client?.email,
-          order_id: order.id,
-          related_order_number: order.order_number,
-          amount: calculations.totalOneTime,
-          subtotal: calculations.subtotalOneTime,
-          delivery_fee: calculations.deliveryFee,
-          activation_fee: calculations.activationFee,
-          installation_fee: calculations.installationFee,
-          discount_amount: calculations.discountAmount,
-          tps_amount: calculations.tps,
-          tvq_amount: calculations.tvq,
-          status: orderState.paymentMethod === "etransfer" && orderState.etransferStatus === "Complete" ? "paid" : "pending",
-          due_date: format(addDays(new Date(), 5), "yyyy-MM-dd"),
-        });
-
-      if (billingError) {
-        console.error("[LEGACY] billing insert error:", billingError);
-      }
+      console.warn("[BILLING] Legacy write BLOCKED in ManualOrderWizard - V2 required");
+      // Ne pas créer de billing legacy - sera fait via V2
 
       // Create TV setup ticket if TV service included (non-blocking)
       const hasTVService = orderState.selectedPlans.some((p) => 
