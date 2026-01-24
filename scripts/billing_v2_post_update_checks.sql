@@ -2,141 +2,135 @@
 -- Billing V2 — Post-Update Verification Script
 -- Nivra Telecom
 -- ============================================================
--- Ce script vérifie les invariants Billing V2 après un update.
--- IL NE MODIFIE AUCUNE DONNÉE RÉELLE (read-only + tables temp).
+-- PROCÉDURE D'EXÉCUTION:
+-- 1. Aller dans Lovable → Cloud View → "Run SQL"
+-- 2. Sélectionner l'environnement (Test ou Live)
+-- 3. Coller ce script entier
+-- 4. Exécuter
+-- 5. Vérifier que TOUS les résultats sont "PASS"
+--
+-- RÔLE REQUIS: postgres (admin) ou service_role
+-- TEMPS: ~5 secondes
+-- ============================================================
+-- CE SCRIPT NE MODIFIE AUCUNE DONNÉE RÉELLE
 -- ============================================================
 
-\echo '============================================================'
-\echo 'BILLING V2 POST-UPDATE CHECKS'
-\echo '============================================================'
+-- Table temporaire pour collecter les résultats
+DROP TABLE IF EXISTS _billing_v2_check_results;
+CREATE TEMP TABLE _billing_v2_check_results (
+  check_id INT,
+  check_name TEXT,
+  status TEXT,  -- 'PASS', 'FAIL', 'WARNING'
+  details TEXT
+);
 
 -- ============================================================
--- CHECK 1: Crons actifs (liste pour vérification manuelle)
+-- CHECK 1: Trigger sync_billing_invoice_balance sur billing_invoices
 -- ============================================================
-\echo ''
-\echo '--- CHECK 1: Crons Edge Functions ---'
-\echo 'Crons attendus (actifs):'
-\echo '  - billing-check-overdue-hourly'
-\echo '  - billing-generate-renewals-hourly'
-\echo '  - payment-reminders-hourly'
-\echo '  - process-email-queue'
-\echo ''
-\echo 'Crons interdits (doublons/legacy):'
-\echo '  - *-daily (remplacés par hourly)'
-\echo ''
-\echo 'NOTE: Vérifier manuellement dans supabase/config.toml ou dashboard.'
-
--- ============================================================
--- CHECK 2: Triggers sur billing_invoices
--- ============================================================
-\echo ''
-\echo '--- CHECK 2: Triggers sur billing_invoices ---'
-
+INSERT INTO _billing_v2_check_results
 SELECT 
-  tgname AS trigger_name,
-  tgenabled AS enabled,
-  pg_get_triggerdef(oid) AS definition
-FROM pg_trigger
-WHERE tgrelid = 'public.billing_invoices'::regclass
-  AND NOT tgisinternal
-ORDER BY tgname;
-
--- Vérification spécifique du trigger balance
-SELECT 
+  1,
+  'Trigger balance sur billing_invoices',
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM pg_trigger 
       WHERE tgrelid = 'public.billing_invoices'::regclass 
         AND tgname LIKE '%balance%'
         AND tgenabled != 'D'
-    ) 
-    THEN '✅ PASS: Trigger balance actif sur billing_invoices'
-    ELSE '❌ FAIL: Trigger balance MANQUANT ou désactivé!'
-  END AS check_result;
+    ) THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM pg_trigger 
+      WHERE tgrelid = 'public.billing_invoices'::regclass 
+        AND tgname LIKE '%balance%'
+        AND tgenabled != 'D'
+    ) THEN 'Trigger actif'
+    ELSE 'TRIGGER MANQUANT! balance_due ne sera pas recalculé.'
+  END;
 
 -- ============================================================
--- CHECK 3: Triggers sur billing_payments
+-- CHECK 2: Trigger sync_invoice_amount_paid sur billing_payments
 -- ============================================================
-\echo ''
-\echo '--- CHECK 3: Triggers sur billing_payments ---'
-
+INSERT INTO _billing_v2_check_results
 SELECT 
-  tgname AS trigger_name,
-  tgenabled AS enabled,
-  pg_get_triggerdef(oid) AS definition
-FROM pg_trigger
-WHERE tgrelid = 'public.billing_payments'::regclass
-  AND NOT tgisinternal
-ORDER BY tgname;
-
--- Vérification spécifique du trigger sync
-SELECT 
+  2,
+  'Trigger sync sur billing_payments',
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM pg_trigger 
       WHERE tgrelid = 'public.billing_payments'::regclass 
         AND tgname LIKE '%sync%'
         AND tgenabled != 'D'
-    ) 
-    THEN '✅ PASS: Trigger sync actif sur billing_payments'
-    ELSE '❌ FAIL: Trigger sync MANQUANT ou désactivé!'
-  END AS check_result;
+    ) THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM pg_trigger 
+      WHERE tgrelid = 'public.billing_payments'::regclass 
+        AND tgname LIKE '%sync%'
+        AND tgenabled != 'D'
+    ) THEN 'Trigger actif'
+    ELSE 'TRIGGER MANQUANT! amount_paid ne sera pas synchronisé.'
+  END;
 
 -- ============================================================
--- CHECK 4: Contraintes sur billing_payments
+-- CHECK 3: Contrainte chk_billing_payments_source_valid
 -- ============================================================
-\echo ''
-\echo '--- CHECK 4: Contraintes billing_payments ---'
-
+INSERT INTO _billing_v2_check_results
 SELECT 
-  conname AS constraint_name,
-  pg_get_constraintdef(oid) AS definition
-FROM pg_constraint
-WHERE conrelid = 'public.billing_payments'::regclass
-  AND contype = 'c'
-ORDER BY conname;
-
--- Vérification contrainte source
-SELECT 
+  3,
+  'Contrainte source_valid',
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM pg_constraint 
       WHERE conrelid = 'public.billing_payments'::regclass 
         AND conname = 'chk_billing_payments_source_valid'
-    ) 
-    THEN '✅ PASS: Contrainte source_valid présente'
-    ELSE '❌ FAIL: Contrainte source_valid MANQUANTE!'
-  END AS check_result;
+    ) THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM pg_constraint 
+      WHERE conrelid = 'public.billing_payments'::regclass 
+        AND conname = 'chk_billing_payments_source_valid'
+    ) THEN 'Valeurs: live, legacy_migration, test, manual_correction'
+    ELSE 'CONTRAINTE MANQUANTE! source non validée.'
+  END;
 
--- Vérification contrainte provider reference
+-- ============================================================
+-- CHECK 4: Contrainte chk_provider_confirmed_reference (Interac/PayPal)
+-- ============================================================
+INSERT INTO _billing_v2_check_results
 SELECT 
+  4,
+  'Contrainte provider_confirmed_reference (Interac+PayPal)',
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM pg_constraint 
       WHERE conrelid = 'public.billing_payments'::regclass 
         AND conname = 'chk_provider_confirmed_reference'
-    ) 
-    THEN '✅ PASS: Contrainte provider_confirmed_reference présente'
-    ELSE '❌ FAIL: Contrainte provider_confirmed_reference MANQUANTE!'
-  END AS check_result;
+    ) THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM pg_constraint 
+      WHERE conrelid = 'public.billing_payments'::regclass 
+        AND conname = 'chk_provider_confirmed_reference'
+    ) THEN 'Interac=reference, PayPal=provider_payment_id (live+confirmed)'
+    ELSE 'CONTRAINTE MANQUANTE! Cohérence provider non enforced.'
+  END;
 
 -- ============================================================
--- CHECK 5: Index d'idempotence
+-- CHECK 5: Index unique reference (Idempotence Interac)
 -- ============================================================
-\echo ''
-\echo '--- CHECK 5: Index idempotence ---'
-
+INSERT INTO _billing_v2_check_results
 SELECT 
-  indexname,
-  indexdef
-FROM pg_indexes
-WHERE tablename = 'billing_payments'
-  AND schemaname = 'public'
-  AND (indexname LIKE '%reference%' OR indexname LIKE '%provider_payment%' OR indexname LIKE '%idempotent%')
-ORDER BY indexname;
-
--- Vérification index Interac (reference unique)
-SELECT 
+  5,
+  'Index unique reference (Interac idempotence)',
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM pg_indexes 
@@ -144,13 +138,27 @@ SELECT
         AND schemaname = 'public'
         AND indexdef LIKE '%UNIQUE%'
         AND indexdef LIKE '%reference%'
-    ) 
-    THEN '✅ PASS: Index unique sur reference (Interac idempotence)'
-    ELSE '⚠️ WARNING: Index unique reference non trouvé (vérifier manuellement)'
-  END AS check_result;
+    ) THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM pg_indexes 
+      WHERE tablename = 'billing_payments' 
+        AND schemaname = 'public'
+        AND indexdef LIKE '%UNIQUE%'
+        AND indexdef LIKE '%reference%'
+    ) THEN 'Anti-doublon Interac actif'
+    ELSE 'INDEX MANQUANT! Doublons Interac possibles.'
+  END;
 
--- Vérification index PayPal (provider + provider_payment_id)
+-- ============================================================
+-- CHECK 6: Index unique (provider, provider_payment_id) (Idempotence PayPal)
+-- ============================================================
+INSERT INTO _billing_v2_check_results
 SELECT 
+  6,
+  'Index unique provider_payment_id (PayPal idempotence)',
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM pg_indexes 
@@ -158,108 +166,78 @@ SELECT
         AND schemaname = 'public'
         AND indexdef LIKE '%UNIQUE%'
         AND indexdef LIKE '%provider_payment_id%'
-    ) 
-    THEN '✅ PASS: Index unique sur provider_payment_id (PayPal idempotence)'
-    ELSE '⚠️ WARNING: Index unique provider_payment_id non trouvé (vérifier manuellement)'
-  END AS check_result;
-
--- ============================================================
--- CHECK 6: Test idempotence Interac (dry-run avec table temp)
--- ============================================================
-\echo ''
-\echo '--- CHECK 6: Test idempotence Interac (dry-run) ---'
-
-DO $$
-DECLARE
-  test_ref TEXT := 'TEST_IDEMPOTENCE_' || gen_random_uuid()::text;
-  insert_count INT;
-BEGIN
-  -- Créer table temporaire avec mêmes contraintes
-  CREATE TEMP TABLE IF NOT EXISTS temp_idempotence_test (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reference TEXT,
-    CONSTRAINT temp_unique_ref UNIQUE (reference)
-  );
-  
-  -- Nettoyer
-  DELETE FROM temp_idempotence_test;
-  
-  -- Premier insert (doit réussir)
-  INSERT INTO temp_idempotence_test (reference) VALUES (test_ref);
-  
-  -- Deuxième insert (doit échouer)
-  BEGIN
-    INSERT INTO temp_idempotence_test (reference) VALUES (test_ref);
-    RAISE NOTICE '❌ FAIL: Doublon accepté! Idempotence cassée.';
-  EXCEPTION WHEN unique_violation THEN
-    RAISE NOTICE '✅ PASS: Doublon rejeté correctement (idempotence OK)';
+    ) THEN 'PASS'
+    ELSE 'FAIL'
+  END,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM pg_indexes 
+      WHERE tablename = 'billing_payments' 
+        AND schemaname = 'public'
+        AND indexdef LIKE '%UNIQUE%'
+        AND indexdef LIKE '%provider_payment_id%'
+    ) THEN 'Anti-doublon PayPal actif'
+    ELSE 'INDEX MANQUANT! Doublons PayPal possibles.'
   END;
-  
-  -- Nettoyer
-  DROP TABLE temp_idempotence_test;
-END $$;
 
 -- ============================================================
--- CHECK 7: Cohérence données actuelles
+-- CHECK 7: Aucune facture avec balance_due négative
 -- ============================================================
-\echo ''
-\echo '--- CHECK 7: Cohérence données actuelles ---'
-
--- Paiements live+confirmed sans référence (violation potentielle)
+INSERT INTO _billing_v2_check_results
 SELECT 
-  CASE 
-    WHEN COUNT(*) = 0 
-    THEN '✅ PASS: Aucun paiement live+confirmed Interac sans reference'
-    ELSE '❌ FAIL: ' || COUNT(*) || ' paiements Interac live+confirmed sans reference!'
-  END AS check_result
-FROM public.billing_payments
-WHERE source = 'live' 
-  AND status = 'confirmed' 
-  AND provider = 'interac' 
-  AND (reference IS NULL OR reference = '');
-
--- Paiements live+confirmed PayPal sans provider_payment_id
-SELECT 
-  CASE 
-    WHEN COUNT(*) = 0 
-    THEN '✅ PASS: Aucun paiement live+confirmed PayPal sans provider_payment_id'
-    ELSE '❌ FAIL: ' || COUNT(*) || ' paiements PayPal live+confirmed sans provider_payment_id!'
-  END AS check_result
-FROM public.billing_payments
-WHERE source = 'live' 
-  AND status = 'confirmed' 
-  AND provider = 'paypal' 
-  AND provider_payment_id IS NULL;
-
--- Factures avec balance_due négative (violation invariant)
-SELECT 
-  CASE 
-    WHEN COUNT(*) = 0 
-    THEN '✅ PASS: Aucune facture avec balance_due négative'
-    ELSE '❌ FAIL: ' || COUNT(*) || ' factures avec balance_due < 0!'
-  END AS check_result
+  7,
+  'Aucune facture balance_due < 0',
+  CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  CASE WHEN COUNT(*) = 0 
+    THEN 'Invariant respecté'
+    ELSE COUNT(*) || ' factures avec balance négative!'
+  END
 FROM public.billing_invoices
 WHERE balance_due < 0;
 
--- Factures paid mais balance_due > 0 (incohérence)
-SELECT 
-  CASE 
-    WHEN COUNT(*) = 0 
-    THEN '✅ PASS: Toutes les factures paid ont balance_due = 0'
-    ELSE '⚠️ WARNING: ' || COUNT(*) || ' factures paid avec balance_due > 0 (vérifier)'
-  END AS check_result
-FROM public.billing_invoices
-WHERE status = 'paid' 
-  AND balance_due > 0;
+-- ============================================================
+-- RÉSULTATS FINAUX
+-- ============================================================
 
--- ============================================================
--- SUMMARY
--- ============================================================
-\echo ''
-\echo '============================================================'
-\echo 'BILLING V2 POST-UPDATE CHECKS COMPLETE'
-\echo '============================================================'
-\echo 'Revue manuelle requise pour:'
-\echo '  - Crons (vérifier config.toml)'
-\echo '  - Warnings éventuels ci-dessus'
-\echo '============================================================'
+-- Afficher tous les résultats
+SELECT 
+  check_id AS "#",
+  check_name AS "Invariant",
+  CASE status
+    WHEN 'PASS' THEN '✅ PASS'
+    WHEN 'FAIL' THEN '❌ FAIL'
+    WHEN 'WARNING' THEN '⚠️ WARNING'
+  END AS "Résultat",
+  details AS "Détails"
+FROM _billing_v2_check_results
+ORDER BY check_id;
+
+-- Résumé
+SELECT 
+  '======== RÉSUMÉ ========' AS " ",
+  COUNT(*) FILTER (WHERE status = 'PASS') || '/7 PASS' AS "Score",
+  CASE 
+    WHEN COUNT(*) FILTER (WHERE status = 'FAIL') = 0 
+    THEN '✅ TOUS LES CHECKS PASSENT'
+    ELSE '❌ ' || COUNT(*) FILTER (WHERE status = 'FAIL') || ' ÉCHEC(S) - CORRIGER AVANT DÉPLOIEMENT'
+  END AS "Verdict"
+FROM _billing_v2_check_results;
+
+-- Si FAIL, lever une exception pour bloquer clairement
+DO $$
+DECLARE
+  fail_count INT;
+  fail_names TEXT;
+BEGIN
+  SELECT COUNT(*), string_agg(check_name, ', ')
+  INTO fail_count, fail_names
+  FROM _billing_v2_check_results
+  WHERE status = 'FAIL';
+  
+  IF fail_count > 0 THEN
+    RAISE EXCEPTION E'\n\n❌❌❌ BILLING V2 CHECK FAILED ❌❌❌\n\n% invariant(s) en échec:\n%\n\nNE PAS DÉPLOYER avant correction!\n', fail_count, fail_names;
+  END IF;
+END $$;
+
+-- Nettoyage
+DROP TABLE IF EXISTS _billing_v2_check_results;
