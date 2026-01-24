@@ -477,7 +477,11 @@ export default function ManualOrderWizard({
 
       if (orderError) throw orderError;
 
-      // Create billing invoice
+      // ============================================================
+      // TODO: LEGACY BILLING - Migrate to billing_invoices V2
+      // Source of truth temporaire: billing table
+      // Date: 2026-01-24 - Backlog migration
+      // ============================================================
       const { error: billingError } = await supabase
         .from("billing")
         .insert({
@@ -498,7 +502,7 @@ export default function ManualOrderWizard({
         });
 
       if (billingError) {
-        console.error("Failed to create billing:", billingError);
+        console.error("[LEGACY] billing insert error:", billingError);
       }
 
       // Create TV setup ticket if TV service included (non-blocking)

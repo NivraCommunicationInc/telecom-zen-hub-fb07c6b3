@@ -1587,6 +1587,12 @@ const ClientNewOrder = () => {
         const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
         const invoiceTotalWithTax = invoiceBaseAmount + invoiceTps + invoiceTvq;
 
+        // ============================================================
+        // TODO: LEGACY BILLING - HOTFIX SOURCE UNIQUE
+        // Cette écriture dans la table 'billing' est conservée pour 
+        // compatibilité mais sera migrée vers billing_invoices V2.
+        // Date: 2026-01-24 - Backlog migration complète
+        // ============================================================
         const { error: billingError } = await supabase.from("billing").insert({
           user_id: user.id,
           client_email: profile?.email || user.email,
@@ -1601,17 +1607,17 @@ const ClientNewOrder = () => {
           tvq_amount: invoiceTvq,
           status: "pending",
           is_preauthorized: false,
-          payment_method_type: "etransfer", // INTERAC ONLY
+          payment_method_type: "etransfer",
           preauth_discount: 0,
           preauth_discount_applied: false,
         });
 
         if (billingError) {
-          console.error("Legacy billing record error:", billingError);
+          console.error("[LEGACY] billing insert error:", billingError);
           postStepErrors.push("billing_legacy");
         }
       } catch (billingErr) {
-        console.error("Legacy billing step failed:", billingErr);
+        console.error("[LEGACY] billing step failed:", billingErr);
         postStepErrors.push("billing_legacy");
       }
 
