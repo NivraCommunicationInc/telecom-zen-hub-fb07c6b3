@@ -1,8 +1,9 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X, Search } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { GlobalSearchTrigger } from "@/components/admin/GlobalSearch";
@@ -20,6 +21,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
   const { updateCurrentPage } = usePresence();
 
   // Track current page for presence
@@ -55,12 +57,36 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </div>
         </div>
         
-        {/* Global Search */}
+        {/* Global Search (DB search) */}
         <div className="px-4 pt-4">
           <GlobalSearchTrigger />
         </div>
+
+        {/* Sidebar Menu Filter */}
+        <div className="px-4 pt-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Filtrer le menu..."
+              value={sidebarSearchQuery}
+              onChange={(e) => setSidebarSearchQuery(e.target.value)}
+              className="pl-9 pr-8 h-9 text-sm"
+            />
+            {sidebarSearchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSidebarSearchQuery("")}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        </div>
         
-        <AdminSidebarNav />
+        <AdminSidebarNav searchQuery={sidebarSearchQuery} />
 
         <div className="p-4 border-t border-border space-y-3">
           <div className="px-4 mb-2">
