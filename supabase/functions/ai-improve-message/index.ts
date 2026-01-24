@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 /**
  * AI IMPROVE MESSAGE - Assistant IA pour améliorer les messages tickets
  * Utilise Lovable AI (Gemini) pour reformuler en style télécom professionnel
+ * 
+ * SECURITY: Uses dedicated LOVABLE_AI_KEY only. Never falls back to service role key.
  */
 
 const corsHeaders = {
@@ -32,11 +34,29 @@ FORMAT DE RÉPONSE:
 Retourne uniquement le texte amélioré, sans explication ni commentaire.`;
 
 serve(async (req) => {
+  const requestId = crypto.randomUUID();
+  console.log(`[${requestId}] ai-improve-message invoked`);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // SECURITY: Only use dedicated AI key, never service role key
+    const LOVABLE_AI_KEY = Deno.env.get("LOVABLE_AI_KEY");
+    
+    if (!LOVABLE_AI_KEY) {
+      console.error(`[${requestId}] LOVABLE_AI_KEY not configured`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Service IA non configuré. Contactez l'administrateur.",
+          ai_disabled: true,
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { original_message, context, tone }: ImproveMessageRequest = await req.json();
 
     if (!original_message || original_message.trim().length < 10) {
@@ -60,8 +80,9 @@ serve(async (req) => {
 
     // Call Lovable AI (Gemini)
     const LOVABLE_AI_URL = Deno.env.get("LOVABLE_AI_URL") || "https://lovable-ai.lovable.dev/v1/chat/completions";
-    const LOVABLE_AI_KEY = Deno.env.get("LOVABLE_AI_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+    console.log(`[${requestId}] Calling Lovable AI...`);
+    
     const response = await fetch(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
@@ -81,7 +102,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[ai-improve-message] AI API error:", errorText);
+      console.error(`[${requestId}] AI API error:`, errorText);
       throw new Error("Erreur lors de l'appel à l'IA");
     }
 
@@ -92,7 +113,7 @@ serve(async (req) => {
       throw new Error("L'IA n'a pas retourné de réponse valide");
     }
 
-    console.log("[ai-improve-message] Successfully improved message");
+    console.log(`[${requestId}] Successfully improved message`);
 
     return new Response(
       JSON.stringify({
@@ -104,7 +125,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error("[ai-improve-message] Error:", error);
+    console.error(`[${requestId}] Error:`, error);
     return new Response(
       JSON.stringify({ 
         success: false, 

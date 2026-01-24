@@ -1765,6 +1765,51 @@ export type Database = {
         }
         Relationships: []
       }
+      client_notification_logs: {
+        Row: {
+          client_email: string
+          client_name: string | null
+          created_at: string
+          email_id: string | null
+          email_sent: boolean | null
+          entity_id: string | null
+          entity_number: string | null
+          entity_type: string | null
+          event_key: string
+          event_type: string
+          id: string
+          portal_path: string | null
+        }
+        Insert: {
+          client_email: string
+          client_name?: string | null
+          created_at?: string
+          email_id?: string | null
+          email_sent?: boolean | null
+          entity_id?: string | null
+          entity_number?: string | null
+          entity_type?: string | null
+          event_key: string
+          event_type: string
+          id?: string
+          portal_path?: string | null
+        }
+        Update: {
+          client_email?: string
+          client_name?: string | null
+          created_at?: string
+          email_id?: string | null
+          email_sent?: boolean | null
+          entity_id?: string | null
+          entity_number?: string | null
+          entity_type?: string | null
+          event_key?: string
+          event_type?: string
+          id?: string
+          portal_path?: string | null
+        }
+        Relationships: []
+      }
       client_pin_logs: {
         Row: {
           action: string
