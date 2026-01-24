@@ -114,31 +114,10 @@ export default function EquipmentOrderDetails({ order, onUpdate }: EquipmentOrde
       if (orderError) throw orderError;
 
       // ============================================================
-      // TODO: LEGACY BILLING - Migrate to billing_invoices V2
-      // Source of truth temporaire: billing table
-      // Date: 2026-01-24 - Backlog migration
+      // LEGACY BILLING BLOCKED - Source unique V2
+      // Date: 2026-01-24 - Throw error to force V2 implementation
       // ============================================================
-      const { error: billingError } = await supabase.from("billing").insert({
-        user_id: order.user_id,
-        client_email: order.client_email,
-        order_id: order.id,
-        related_order_number: order.order_number,
-        amount: order.total_amount,
-        subtotal: order.subtotal,
-        delivery_fee: order.delivery_fee || 0,
-        tps_amount: order.tps_amount,
-        tvq_amount: order.tvq_amount,
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        amount_paid: paymentForm.amount,
-        payment_reference: paymentForm.payment_reference,
-        notes: `Commande équipement - ${paymentForm.payment_method}`,
-      });
-
-      if (billingError) {
-        console.error("[LEGACY] billing insert error:", billingError);
-        throw billingError;
-      }
+      throw new Error("LEGACY_BILLING_BLOCKED: Écriture legacy désactivée. Implémenter billing_invoices V2.");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });

@@ -313,52 +313,17 @@ const AdminReplacements = () => {
     },
   });
 
-  // Generate invoice (creates billing record)
+  // Generate invoice - LEGACY BLOCKED
   // ============================================================
-  // TODO: LEGACY BILLING - Migrate to billing_invoices V2
-  // Source of truth temporaire: billing table
-  // Date: 2026-01-24 - Backlog migration
+  // LEGACY BILLING BLOCKED - Source unique V2
+  // Date: 2026-01-24 - Throw error to force V2 implementation
   // ============================================================
   const generateInvoiceMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{ id: string; invoice_number: string }> => {
       if (!replacementOrder) throw new Error("No order");
       
-      const { data, error } = await supabase
-        .from("billing")
-        .insert({
-          user_id: selectedTicket.user_id,
-          client_email: selectedTicket.client_email,
-          amount: replacementOrder.total_amount,
-          subtotal: replacementOrder.subtotal,
-          delivery_fee: replacementOrder.delivery_fee,
-          fees: replacementOrder.admin_fee,
-          tps_amount: replacementOrder.tps_amount,
-          tvq_amount: replacementOrder.tvq_amount,
-          status: "pending",
-          due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-          notes: `Remplacement équipement - ${selectedTicket.ticket_number}`,
-          related_order_number: replacementOrder.order_number,
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error("[LEGACY] billing insert error:", error);
-        throw error;
-      }
-
-      // Update replacement order with invoice info
-      await supabase
-        .from("replacement_orders")
-        .update({
-          invoice_id: data.id,
-          invoice_number: data.invoice_number,
-          invoice_status: "unpaid",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", replacementOrder.id);
-
-      return data;
+      // BLOCKED: Legacy billing désactivé
+      throw new Error("LEGACY_BILLING_BLOCKED: Écriture legacy désactivée pour les remplacements. Implémenter billing_invoices V2.");
     },
     onSuccess: (data) => {
       refetchOrder();
