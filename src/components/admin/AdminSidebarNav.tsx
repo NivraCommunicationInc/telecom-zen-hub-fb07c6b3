@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -39,6 +39,8 @@ import {
   Phone,
   HardDrive,
   User,
+  Search,
+  X,
   LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface NavItem {
   icon: LucideIcon;
@@ -186,11 +192,26 @@ const navGroups: NavGroup[] = [
 ];
 
 const STORAGE_KEY = "admin_sidebar_groups_state";
+const ACCORDION_MODE_KEY = "admin_sidebar_accordion_mode";
 
-const AdminSidebarNav = () => {
+interface AdminSidebarNavProps {
+  searchQuery?: string;
+}
+
+const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
   const location = useLocation();
   
-  // Initialize open groups from localStorage or auto-open active group
+  // Accordion mode: only one group open at a time
+  const [accordionMode, setAccordionMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(ACCORDION_MODE_KEY);
+      return saved === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  // Initialize open groups from localStorage
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -213,27 +234,91 @@ const AdminSidebarNav = () => {
     return null;
   };
 
-  // Auto-open the group containing the active route
+  // Filter groups and items based on search query
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return navGroups;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    
+    return navGroups
+      .map(group => {
+        // Check if group label matches
+        const groupMatches = group.label.toLowerCase().includes(query);
+        
+        // Filter items that match
+        const matchingItems = group.items.filter(item =>
+          item.label.toLowerCase().includes(query)
+        );
+
+        // Include group if group label matches OR has matching items
+        if (groupMatches) {
+          return group; // Return full group if group name matches
+        } else if (matchingItems.length > 0) {
+          return { ...group, items: matchingItems };
+        }
+        
+        return null;
+      })
+      .filter((group): group is NavGroup => group !== null);
+  }, [searchQuery]);
+
+  // Auto-expand groups that have search matches
   useEffect(() => {
-    const activeGroupId = getActiveGroupId();
-    if (activeGroupId && !openGroups[activeGroupId]) {
+    if (searchQuery.trim()) {
+      const matchingGroupIds = filteredGroups.map(g => g.id);
+      const newOpenGroups: Record<string, boolean> = {};
+      matchingGroupIds.forEach(id => {
+        newOpenGroups[id] = true;
+      });
       setOpenGroups(prev => ({
         ...prev,
-        [activeGroupId]: true,
+        ...newOpenGroups,
       }));
     }
-  }, [location.pathname]);
+  }, [searchQuery, filteredGroups]);
+
+  // Auto-open the group containing the active route
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      const activeGroupId = getActiveGroupId();
+      if (activeGroupId && !openGroups[activeGroupId]) {
+        if (accordionMode) {
+          // In accordion mode, close others and open only active
+          setOpenGroups({ [activeGroupId]: true });
+        } else {
+          setOpenGroups(prev => ({
+            ...prev,
+            [activeGroupId]: true,
+          }));
+        }
+      }
+    }
+  }, [location.pathname, accordionMode]);
 
   // Persist open groups state
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(openGroups));
   }, [openGroups]);
 
+  // Persist accordion mode
+  useEffect(() => {
+    localStorage.setItem(ACCORDION_MODE_KEY, String(accordionMode));
+  }, [accordionMode]);
+
   const toggleGroup = (groupId: string) => {
-    setOpenGroups(prev => ({
-      ...prev,
-      [groupId]: !prev[groupId],
-    }));
+    if (accordionMode) {
+      // In accordion mode, close all others and toggle this one
+      setOpenGroups(prev => ({
+        [groupId]: !prev[groupId],
+      }));
+    } else {
+      setOpenGroups(prev => ({
+        ...prev,
+        [groupId]: !prev[groupId],
+      }));
+    }
   };
 
   const isItemActive = (href: string) => location.pathname === href;
@@ -241,60 +326,107 @@ const AdminSidebarNav = () => {
   const isGroupActive = (group: NavGroup) => 
     group.items.some(item => isItemActive(item.href));
 
-  return (
-    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-      {navGroups.map((group) => {
-        const isOpen = openGroups[group.id] ?? false;
-        const hasActiveItem = isGroupActive(group);
+  const handleAccordionModeChange = (checked: boolean) => {
+    setAccordionMode(checked);
+    if (checked) {
+      // When enabling accordion mode, keep only the active group open
+      const activeGroupId = getActiveGroupId();
+      if (activeGroupId) {
+        setOpenGroups({ [activeGroupId]: true });
+      } else {
+        setOpenGroups({});
+      }
+    }
+  };
 
-        return (
-          <Collapsible
-            key={group.id}
-            open={isOpen}
-            onOpenChange={() => toggleGroup(group.id)}
-          >
-            <CollapsibleTrigger
-              className={cn(
-                "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
-                hasActiveItem
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <group.icon className="w-4 h-4" />
-                <span>{group.label}</span>
-              </div>
-              {isOpen ? (
-                <ChevronDown className="w-4 h-4 transition-transform" />
-              ) : (
-                <ChevronRight className="w-4 h-4 transition-transform" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pl-4 mt-1 space-y-0.5">
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                    isItemActive(item.href)
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
+  return (
+    <nav className="flex-1 flex flex-col overflow-hidden">
+      {/* Accordion Mode Toggle */}
+      <div className="px-4 py-2 border-b border-border/50">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="accordion-mode" className="text-xs text-muted-foreground cursor-pointer">
+            Mode accordéon
+          </Label>
+          <Switch
+            id="accordion-mode"
+            checked={accordionMode}
+            onCheckedChange={handleAccordionModeChange}
+            className="scale-75"
+          />
+        </div>
+      </div>
+
+      {/* Navigation Groups */}
+      <div className="flex-1 p-3 space-y-1 overflow-y-auto">
+        {filteredGroups.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            Aucun résultat pour "{searchQuery}"
+          </div>
+        ) : (
+          filteredGroups.map((group, index) => {
+            const isOpen = openGroups[group.id] ?? false;
+            const hasActiveItem = isGroupActive(group);
+            const isLastGroup = index === filteredGroups.length - 1;
+
+            return (
+              <div key={group.id}>
+                <Collapsible
+                  open={isOpen}
+                  onOpenChange={() => toggleGroup(group.id)}
                 >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        );
-      })}
+                  <CollapsibleTrigger
+                    className={cn(
+                      "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      hasActiveItem
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <group.icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{group.label}</span>
+                    </div>
+                    {isOpen ? (
+                      <ChevronDown className="w-4 h-4 shrink-0 transition-transform" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 shrink-0 transition-transform" />
+                    )}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-1">
+                    <div className="ml-3 pl-3 border-l-2 border-border/50 space-y-0.5">
+                      {group.items.map((item) => (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                            isItemActive(item.href)
+                              ? "bg-primary text-primary-foreground font-medium"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          )}
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+                
+                {/* Subtle separator between groups */}
+                {!isLastGroup && (
+                  <div className="my-2 mx-3 border-t border-border/30" />
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </nav>
   );
 };
 
 // Export for mobile menu usage
 export { navGroups };
+export type { NavGroup, NavItem };
 export default AdminSidebarNav;
