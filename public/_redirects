@@ -6,6 +6,15 @@
 /google*.html /google*.html 200
 
 # ============================================
+# LEGACY STAFF PORTAL REDIRECTS -> /staff
+# ============================================
+/employee /staff 301
+/employee/* /staff 301
+/technician /staff 301
+/technician/* /staff 301
+/portal/login /portal/auth 301
+
+# ============================================
 # PERMANENT REDIRECTS: /client/* -> /portal/*
 # ============================================
 /client/new-order /portal/new-order 301

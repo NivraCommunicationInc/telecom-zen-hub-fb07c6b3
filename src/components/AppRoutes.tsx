@@ -303,9 +303,12 @@ const AppRoutes = () => {
         </>
       )}
       
-      {/* EMPLOYEE PORTAL DISABLED - All /employee/* routes redirect to NotFound */}
-      <Route path="/employee/*" element={<NotFound />} />
-      <Route path="/employee" element={<NotFound />} />
+      {/* LEGACY STAFF ROUTES - Redirect to unified /staff portal */}
+      <Route path="/employee/*" element={<Navigate to="/staff" replace />} />
+      <Route path="/employee" element={<Navigate to="/staff" replace />} />
+      <Route path="/technician/*" element={<Navigate to="/staff" replace />} />
+      <Route path="/technician" element={<Navigate to="/staff" replace />} />
+      <Route path="/portal/login" element={<Navigate to="/portal/auth" replace />} />
       
       {/* ============================================ */}
       {/* CLIENT PORTAL ROUTES - Wrapped with MaintenanceGuard */}
