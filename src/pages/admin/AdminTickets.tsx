@@ -75,6 +75,7 @@ import { ClientSearchAutocomplete } from "@/components/admin/ClientSearchAutocom
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { AIImproveButton } from "@/components/tickets/AIImproveButton";
 
 // Extended status options
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -604,26 +605,35 @@ const AdminTickets = () => {
                             rows={4}
                             className="resize-none"
                           />
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                addReplyMutation.mutate(replyContent);
-                                updateTicketMutation.mutate({ ticketId: selectedTicket.id, status: "resolved" });
-                              }}
-                              disabled={!replyContent.trim() || addReplyMutation.isPending}
-                            >
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              Répondre et Résoudre
-                            </Button>
-                            <Button
-                              variant="hero"
-                              onClick={() => addReplyMutation.mutate(replyContent)}
-                              disabled={!replyContent.trim() || addReplyMutation.isPending}
-                            >
-                              <Send className="w-4 h-4 mr-2" />
-                              Envoyer
-                            </Button>
+                          <div className="flex items-center justify-between">
+                            <AIImproveButton
+                              message={replyContent}
+                              onApply={(improved) => setReplyContent(improved)}
+                              context="ticket_reply"
+                              tone="professional"
+                              disabled={!replyContent.trim()}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  addReplyMutation.mutate(replyContent);
+                                  updateTicketMutation.mutate({ ticketId: selectedTicket.id, status: "resolved" });
+                                }}
+                                disabled={!replyContent.trim() || addReplyMutation.isPending}
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                Répondre et Résoudre
+                              </Button>
+                              <Button
+                                variant="hero"
+                                onClick={() => addReplyMutation.mutate(replyContent)}
+                                disabled={!replyContent.trim() || addReplyMutation.isPending}
+                              >
+                                <Send className="w-4 h-4 mr-2" />
+                                Envoyer
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ) : (
