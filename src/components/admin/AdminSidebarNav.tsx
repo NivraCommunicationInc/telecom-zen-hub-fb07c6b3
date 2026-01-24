@@ -42,6 +42,7 @@ import {
   Search,
   X,
   Gavel,
+  Bell,
   LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -177,6 +178,7 @@ const navGroups: NavGroup[] = [
     label: "Système & Administration",
     icon: HardDrive,
     items: [
+      { icon: Bell, label: "Notifications", href: "/admin/notifications-settings" },
       { icon: Wrench, label: "Maintenance", href: "/admin/maintenance" },
       { icon: Mail, label: "Emails", href: "/admin/email-activity" },
       { icon: ExternalLink, label: "Gestion du Site", href: "/admin/site" },

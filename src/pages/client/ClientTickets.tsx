@@ -195,26 +195,80 @@ const ClientTickets = () => {
 
   const addReplyMutation = useMutation({
     mutationFn: async (content: string) => {
+      if (!user?.id) {
+        throw new Error("Vous devez être connecté pour répondre");
+      }
+      if (!selectedTicket?.id) {
+        throw new Error("Aucun ticket sélectionné");
+      }
+      if (!content.trim()) {
+        throw new Error("Le message ne peut pas être vide");
+      }
+
+      console.log("[ClientTickets] Sending reply:", {
+        ticket_id: selectedTicket.id,
+        user_id: user.id,
+        content_length: content.length,
+      });
+
       const { data, error } = await portalSupabase
         .from("ticket_replies")
         .insert({
-          ticket_id: selectedTicket?.id,
-          user_id: user?.id,
-          content,
+          ticket_id: selectedTicket.id,
+          user_id: user.id,
+          content: content.trim(),
           is_admin: false,
         })
         .select()
         .single();
-      if (error) throw error;
+
+      if (error) {
+        console.error("[ClientTickets] Reply error:", error);
+        // Provide specific error messages
+        if (error.code === "42501") {
+          throw new Error("Vous n'avez pas la permission de répondre à ce ticket");
+        }
+        if (error.code === "23503") {
+          throw new Error("Ce ticket n'existe plus ou a été supprimé");
+        }
+        if (error.code === "23502") {
+          throw new Error("Données manquantes. Veuillez réessayer.");
+        }
+        throw new Error(error.message || "Erreur lors de l'envoi de la réponse");
+      }
+
+      // Send admin notification (non-blocking)
+      notifyAdmin({
+        event_type: "ticket_reply",
+        event_id: selectedTicket.id,
+        event_number: selectedTicket.ticket_number,
+        client_name: profile?.full_name || user?.email,
+        client_email: user?.email,
+        client_phone: profile?.phone,
+        summary: `Nouvelle réponse sur ticket ${selectedTicket.ticket_number}`,
+        details: {
+          "Sujet": selectedTicket.subject,
+          "Message": content.substring(0, 100) + (content.length > 100 ? "..." : ""),
+        },
+        priority: "normal",
+        admin_portal_link: getAdminPortalLink(`/admin/tickets?ticket=${selectedTicket.ticket_number}`),
+      }).catch(err => console.warn("[ClientTickets] Admin notification failed:", err));
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket-replies"] });
-      toast({ title: "Réponse envoyée" });
+      queryClient.invalidateQueries({ queryKey: ["client-tickets-all"] });
+      toast({ title: "Réponse envoyée avec succès" });
       setReplyContent("");
     },
-    onError: () => {
-      toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
+    onError: (error: Error) => {
+      console.error("[ClientTickets] Reply mutation error:", error);
+      toast({ 
+        title: "Erreur lors de l'envoi", 
+        description: error.message || "Une erreur inattendue s'est produite. Veuillez réessayer.",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -503,20 +557,30 @@ const ClientTickets = () => {
 
               {/* Reply Form */}
               {selectedTicket.status !== "closed" && selectedTicket.status !== "resolved" && (
-                <div className="flex gap-3">
+                <div className="space-y-3 pt-4 border-t border-border">
                   <Textarea
                     placeholder="Écrivez votre réponse..."
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
-                    className="flex-1"
+                    className="min-h-[100px]"
+                    disabled={addReplyMutation.isPending}
                   />
-                  <Button
-                    variant="hero"
-                    onClick={() => addReplyMutation.mutate(replyContent)}
-                    disabled={!replyContent.trim() || addReplyMutation.isPending}
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-2">
+                    {addReplyMutation.isPending && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Envoi en cours...
+                      </span>
+                    )}
+                    <Button
+                      variant="hero"
+                      onClick={() => addReplyMutation.mutate(replyContent)}
+                      disabled={!replyContent.trim() || addReplyMutation.isPending}
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Envoyer
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

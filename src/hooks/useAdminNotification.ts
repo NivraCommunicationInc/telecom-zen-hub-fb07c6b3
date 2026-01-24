@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type AdminNotificationEventType = 
   | "new_order"
   | "new_ticket"
+  | "ticket_reply"
   | "new_appointment"
   | "channel_change_request"
   | "plan_change_request"

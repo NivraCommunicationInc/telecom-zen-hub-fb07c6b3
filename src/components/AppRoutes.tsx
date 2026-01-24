@@ -102,6 +102,7 @@ import LiveActivityPage from "@/pages/admin/LiveActivityPage";
 import AdminDocumentRequests from "@/pages/admin/AdminDocumentRequests";
 import AdminContestedInvoices from "@/pages/admin/AdminContestedInvoices";
 import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
+import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Influencer Portal
@@ -276,6 +277,8 @@ const AppRoutes = () => {
       <Route path="/admin/referrals/terms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPartnerTerms /></ProtectedRoute></AuthProvider>} />
       {/* Document Requests */}
       <Route path="/admin/document-requests" element={<AuthProvider><ProtectedRoute requireAdmin><AdminDocumentRequests /></ProtectedRoute></AuthProvider>} />
+      {/* Notifications Settings */}
+      <Route path="/admin/notifications-settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotificationsSettings /></ProtectedRoute></AuthProvider>} />
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
