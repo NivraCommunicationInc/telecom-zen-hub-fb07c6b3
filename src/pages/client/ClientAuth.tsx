@@ -317,6 +317,9 @@ const ClientAuth = () => {
     phone: string;
     password: string;
     pin: string;
+    serviceAddress: string;
+    serviceCity: string;
+    servicePostalCode: string;
   }) => {
     setIsLoading(true);
     const { error } = await signUp({
@@ -326,6 +329,9 @@ const ClientAuth = () => {
       lastName: formData.lastName,
       phone: formData.phone,
       pin: formData.pin,
+      serviceAddress: formData.serviceAddress,
+      serviceCity: formData.serviceCity,
+      servicePostalCode: formData.servicePostalCode,
     });
     setIsLoading(false);
     if (error) {

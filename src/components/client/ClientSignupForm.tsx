@@ -3,9 +3,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { 
-  Loader2, User, Mail, Phone, Lock, Eye, EyeOff, Shield 
+  Loader2, User, Mail, Phone, Lock, Eye, EyeOff, Shield, MapPin 
 } from "lucide-react";
 import { validateCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
+
+// Format postal code: A1A 1A1
+const formatPostalCode = (value: string): string => {
+  const cleaned = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6);
+  if (cleaned.length <= 3) return cleaned;
+  return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+};
 
 // Canadian phone format: (XXX) XXX-XXXX
 const formatCanadianPhone = (value: string): string => {
@@ -25,6 +32,9 @@ export interface SignupFormData {
   confirmPassword: string;
   pin: string;
   confirmPin: string;
+  serviceAddress: string;
+  serviceCity: string;
+  servicePostalCode: string;
 }
 
 interface ClientSignupFormProps {
@@ -42,6 +52,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
     confirmPassword: "",
     pin: "",
     confirmPin: "",
+    serviceAddress: "",
+    serviceCity: "",
+    servicePostalCode: "",
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -57,6 +70,12 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
     // Special handling for phone formatting
     if (field === "phone") {
       setFormData(prev => ({ ...prev, [field]: formatCanadianPhone(value) }));
+      return;
+    }
+
+    // Special handling for postal code
+    if (field === "servicePostalCode") {
+      setFormData(prev => ({ ...prev, [field]: formatPostalCode(value) }));
       return;
     }
 
@@ -99,6 +118,19 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       newErrors.phone = "Le numéro de téléphone est requis";
     } else if (!validateCanadianPhone(formData.phone)) {
       newErrors.phone = "Veuillez entrer un numéro canadien valide";
+    }
+
+    // Service address (required for Quebec service)
+    if (!formData.serviceAddress.trim()) {
+      newErrors.serviceAddress = "L'adresse de service est requise";
+    }
+    if (!formData.serviceCity.trim()) {
+      newErrors.serviceCity = "La ville est requise";
+    }
+    if (!formData.servicePostalCode.trim()) {
+      newErrors.servicePostalCode = "Le code postal est requis";
+    } else if (!/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(formData.servicePostalCode.replace(/\s/g, ""))) {
+      newErrors.servicePostalCode = "Code postal invalide (ex: H2X 1Y4)";
     }
 
     // Password
@@ -221,6 +253,73 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
         {errors.phone && (
           <p className="text-xs text-destructive">{errors.phone}</p>
         )}
+      </div>
+
+      {/* Service Address Section */}
+      <div className="pt-2 border-t border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <MapPin className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium">Adresse de service (Québec seulement)</span>
+        </div>
+        
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="signup-serviceAddress" className="text-sm font-medium">
+              Adresse <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="signup-serviceAddress"
+              type="text"
+              placeholder="123 rue Principale"
+              value={formData.serviceAddress}
+              onChange={(e) => handleChange("serviceAddress", e.target.value)}
+              className={errors.serviceAddress ? "border-destructive" : ""}
+              autoComplete="street-address"
+            />
+            {errors.serviceAddress && (
+              <p className="text-xs text-destructive">{errors.serviceAddress}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-serviceCity" className="text-sm font-medium">
+                Ville <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="signup-serviceCity"
+                type="text"
+                placeholder="Montréal"
+                value={formData.serviceCity}
+                onChange={(e) => handleChange("serviceCity", e.target.value)}
+                className={errors.serviceCity ? "border-destructive" : ""}
+                autoComplete="address-level2"
+              />
+              {errors.serviceCity && (
+                <p className="text-xs text-destructive">{errors.serviceCity}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-servicePostalCode" className="text-sm font-medium">
+                Code postal <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="signup-servicePostalCode"
+                type="text"
+                placeholder="H2X 1Y4"
+                value={formData.servicePostalCode}
+                onChange={(e) => handleChange("servicePostalCode", e.target.value)}
+                className={errors.servicePostalCode ? "border-destructive" : ""}
+                maxLength={7}
+                autoComplete="postal-code"
+              />
+              {errors.servicePostalCode && (
+                <p className="text-xs text-destructive">{errors.servicePostalCode}</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Password */}

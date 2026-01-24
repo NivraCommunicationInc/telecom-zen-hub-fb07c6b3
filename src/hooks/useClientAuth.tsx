@@ -11,6 +11,9 @@ export interface SignupData {
   lastName: string;
   phone: string;
   pin: string;
+  serviceAddress?: string;
+  serviceCity?: string;
+  servicePostalCode?: string;
 }
 
 interface ClientAuthContextType {
@@ -177,6 +180,10 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
           phone: data.phone,
           client_pin: data.pin,
           email: data.email,
+          service_address: data.serviceAddress || null,
+          service_city: data.serviceCity || null,
+          service_postal_code: data.servicePostalCode?.replace(/\s/g, "").toUpperCase() || null,
+          service_province: "QC",
         }, { onConflict: "user_id" });
       } catch (profileError) {
         console.error("Error updating profile:", profileError);
