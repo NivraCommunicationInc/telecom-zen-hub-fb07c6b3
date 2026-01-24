@@ -41,6 +41,7 @@ import {
   User,
   Search,
   X,
+  Gavel,
   LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useDisputeCounts } from "@/hooks/useDisputeCounts";
 
 interface NavItem {
   icon: LucideIcon;
@@ -117,6 +120,8 @@ const navGroups: NavGroup[] = [
     items: [
       { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
       { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
+      { icon: FileText, label: "Factures contestées", href: "/admin/contested-invoices" },
+      { icon: Gavel, label: "Paiements contestés", href: "/admin/contested-payments" },
     ],
   },
   {
@@ -200,6 +205,7 @@ interface AdminSidebarNavProps {
 
 const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
   const location = useLocation();
+  const { data: disputeCounts } = useDisputeCounts();
   
   // Accordion mode: only one group open at a time
   const [accordionMode, setAccordionMode] = useState<boolean>(() => {
@@ -385,6 +391,12 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
                     <div className="flex items-center gap-3">
                       <group.icon className="w-4 h-4 shrink-0" />
                       <span className="truncate">{group.label}</span>
+                      {/* Dispute counter badge for billing group */}
+                      {group.id === "billing" && disputeCounts && disputeCounts.total > 0 && (
+                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs font-medium">
+                          {disputeCounts.total}
+                        </Badge>
+                      )}
                     </div>
                     {isOpen ? (
                       <ChevronDown className="w-4 h-4 shrink-0 transition-transform" />
