@@ -1,21 +1,26 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { backendClient } from "@/integrations/backend/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ActivityFilterCategory } from "@/components/admin/live-activity/ActivityFilterTabs";
 import { ACTIVITY_CONFIG } from "@/components/admin/live-activity/ActivityFeedItem";
 
+/**
+ * Unified Activity type mapped from activity_logs table
+ */
 export interface LiveActivity {
   id: string;
-  user_id: string | null;
-  session_id: string | null;
-  activity_type: string;
-  activity_label: string | null;
-  city: string | null;
-  province: string | null;
-  postal_code: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  metadata: Record<string, unknown>;
+  user_id: string;
+  action: string; // Maps to activity_type for display
+  entity_type: string;
+  entity_id: string | null;
+  actor_name: string | null;
+  actor_role: string | null;
+  actor_email: string | null;
+  details: Record<string, unknown> | null;
+  changed_field: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
   created_at: string;
 }
 
@@ -44,7 +49,6 @@ export const useLiveActivityFeedV2 = (
   options: UseLiveActivityFeedV2Options = {}
 ): UseLiveActivityFeedV2Return => {
   const { limit = 50, pollingInterval = 15000 } = options;
-  const queryClient = useQueryClient();
 
   const [isLive, setIsLive] = useState(true);
   const [filter, setFilter] = useState<ActivityFilterCategory>("all");
@@ -53,7 +57,7 @@ export const useLiveActivityFeedV2 = (
   const [newActivityIds, setNewActivityIds] = useState<Set<string>>(new Set());
   const previousIdsRef = useRef<Set<string>>(new Set());
 
-  // Main query with polling
+  // Main query with polling - using activity_logs table (source of truth)
   const {
     data: fetchedActivities = [],
     isLoading,
@@ -64,7 +68,7 @@ export const useLiveActivityFeedV2 = (
     queryKey: ["live-activity-feed-v2", limit],
     queryFn: async () => {
       const { data, error } = await backendClient
-        .from("live_activity_logs")
+        .from("activity_logs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -77,18 +81,18 @@ export const useLiveActivityFeedV2 = (
     staleTime: 5000,
   });
 
-  // Realtime subscription
+  // Realtime subscription for activity_logs table
   useEffect(() => {
     if (!isLive) return;
 
     const channel = backendClient
-      .channel("live-activity-v2")
+      .channel("activity-logs-realtime")
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "live_activity_logs",
+          table: "activity_logs",
         },
         (payload) => {
           const newActivity = payload.new as LiveActivity;
@@ -145,11 +149,28 @@ export const useLiveActivityFeedV2 = (
     previousIdsRef.current = currentIds;
   }, [allActivities]);
 
-  // Get category for activity
+  // Get category for activity based on action or entity_type
   const getCategory = useCallback(
     (activity: LiveActivity): ActivityFilterCategory => {
-      const config = ACTIVITY_CONFIG[activity.activity_type];
-      return config?.category || "system";
+      // First check if we have a direct mapping in ACTIVITY_CONFIG
+      const config = ACTIVITY_CONFIG[activity.action];
+      if (config?.category) return config.category;
+
+      // Fallback: categorize by entity_type
+      const entityType = activity.entity_type?.toLowerCase() || "";
+      if (entityType.includes("order") || entityType.includes("demand")) return "orders";
+      if (entityType.includes("payment") || entityType.includes("billing") || entityType.includes("invoice")) return "payments";
+      if (entityType.includes("client") || entityType.includes("user") || entityType.includes("profile")) return "clients";
+      if (entityType.includes("ticket") || entityType.includes("support")) return "tickets";
+
+      // Fallback: categorize by action keywords
+      const action = activity.action?.toLowerCase() || "";
+      if (action.includes("order") || action.includes("demand")) return "orders";
+      if (action.includes("payment") || action.includes("invoice") || action.includes("billing")) return "payments";
+      if (action.includes("signup") || action.includes("login") || action.includes("profile") || action.includes("client")) return "clients";
+      if (action.includes("ticket") || action.includes("support")) return "tickets";
+
+      return "system";
     },
     []
   );

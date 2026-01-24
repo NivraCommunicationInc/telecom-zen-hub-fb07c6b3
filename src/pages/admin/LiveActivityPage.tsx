@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   UserPlus,
   LogIn,
+  Users,
 } from "lucide-react";
 import { useLiveActivityFeedV2 } from "@/hooks/useLiveActivityFeedV2";
 import { QuebecMap } from "@/components/admin/live-activity/QuebecMap";
@@ -118,30 +119,32 @@ export default function LiveActivityPage() {
     pollingInterval: 15000, // 15 seconds
   });
 
-  // Prepare map points from all activities (not filtered)
-  const mapPoints = activities
-    .filter((a) => a.latitude && a.longitude)
-    .map((a) => ({
-      id: a.id,
-      lat: a.latitude!,
-      lng: a.longitude!,
-      city: a.city || "Inconnu",
-      activityType: a.activity_type,
-      label: a.activity_label || "",
-      isRecent: Date.now() - new Date(a.created_at).getTime() < 5 * 60 * 1000,
-    }));
+  // Map points not available with activity_logs (no geo data)
+  // This would require a different data source or adding geo columns
+  const mapPoints: Array<{
+    id: string;
+    lat: number;
+    lng: number;
+    city: string;
+    activityType: string;
+    label: string;
+    isRecent: boolean;
+  }> = [];
 
-  // Calculate stats
+  // Calculate stats based on activity_logs schema (action field)
   const now = new Date();
   const stats = {
     total: activities.length,
     lastHour: activities.filter(
       (a) => now.getTime() - new Date(a.created_at).getTime() < 60 * 60 * 1000
     ).length,
-    orders: activities.filter((a) => a.activity_type.includes("order")).length,
-    signups: activities.filter((a) => a.activity_type === "signup").length,
-    logins: activities.filter((a) => a.activity_type === "login").length,
-    uniqueCities: new Set(activities.map((a) => a.city).filter(Boolean)).size,
+    orders: activities.filter((a) => 
+      a.action?.includes("order") || 
+      a.entity_type?.toLowerCase().includes("order")
+    ).length,
+    signups: activities.filter((a) => a.action === "signup").length,
+    logins: activities.filter((a) => a.action === "login").length,
+    uniqueActors: new Set(activities.map((a) => a.actor_name).filter(Boolean)).size,
   };
 
   const handleClearFilter = () => {
@@ -259,9 +262,9 @@ export default function LiveActivityPage() {
             color="warning"
           />
           <StatCard
-            title="Villes actives"
-            value={stats.uniqueCities}
-            icon={MapPin}
+            title="Acteurs uniques"
+            value={stats.uniqueActors}
+            icon={Users}
           />
         </div>
 
