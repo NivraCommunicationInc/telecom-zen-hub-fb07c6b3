@@ -100,6 +100,8 @@ import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
 import AdminPartnerTerms from "@/pages/admin/AdminPartnerTerms";
 import LiveActivityPage from "@/pages/admin/LiveActivityPage";
 import AdminDocumentRequests from "@/pages/admin/AdminDocumentRequests";
+import AdminContestedInvoices from "@/pages/admin/AdminContestedInvoices";
+import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Influencer Portal
@@ -249,6 +251,8 @@ const AppRoutes = () => {
       <Route path="/admin/pdf-test" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTest /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/contested-invoices" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContestedInvoices /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/contested-payments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContestedPayments /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
