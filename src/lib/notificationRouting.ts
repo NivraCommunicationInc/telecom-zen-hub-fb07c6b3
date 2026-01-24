@@ -129,6 +129,7 @@ function isValidRoute(linkTarget: string, scope: NotificationScope): boolean {
     '/admin/system-status',
     '/admin/internal-tickets',
     '/admin/email-activity',
+    '/admin/email-deliverability',
     '/admin/account',
     '/admin/users',
     '/admin/users-access',

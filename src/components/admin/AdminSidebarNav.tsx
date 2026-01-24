@@ -181,6 +181,7 @@ const navGroups: NavGroup[] = [
       { icon: Bell, label: "Notifications", href: "/admin/notifications-settings" },
       { icon: Wrench, label: "Maintenance", href: "/admin/maintenance" },
       { icon: Mail, label: "Emails", href: "/admin/email-activity" },
+      { icon: Mail, label: "Délivrabilité Emails", href: "/admin/email-deliverability" },
       { icon: ExternalLink, label: "Gestion du Site", href: "/admin/site" },
       { icon: Users, label: "Utilisateurs & Accès", href: "/admin/users-access" },
       { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },

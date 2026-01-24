@@ -12,7 +12,7 @@ const corsHeaders = {
  * 
  * Configure in Resend Dashboard:
  * Webhook URL: https://<project-ref>.supabase.co/functions/v1/resend-webhook
- * Events: email.delivered, email.opened, email.clicked, email.bounced, email.complained
+ * Events: email.sent, email.delivered, email.opened, email.clicked, email.bounced, email.complained
  */
 
 interface ResendWebhookEvent {
@@ -46,20 +46,53 @@ serve(async (req) => {
     const resendId = event.data.email_id;
     const toEmail = event.data.to[0];
 
-    // Find the email send record
-    const { data: emailSend, error: findError } = await supabase
+    // =============================================
+    // 1. STORE RAW EVENT IN email_events TABLE
+    // =============================================
+    const { error: eventInsertError } = await supabase
+      .from("email_events")
+      .insert({
+        message_id: resendId,
+        event_type: event.type,
+        raw: event,
+        created_at: event.created_at || new Date().toISOString(),
+      });
+
+    if (eventInsertError) {
+      console.error("[email_events INSERT ERROR]", eventInsertError);
+    } else {
+      console.log(`[email_events] Stored event: ${event.type} for ${resendId}`);
+    }
+
+    // =============================================
+    // 2. UPDATE email_queue STATUS
+    // =============================================
+    
+    // Find the email send record by provider_message_id
+    const { data: emailRecord, error: findError } = await supabase
+      .from("email_queue")
+      .select("id, open_count, click_count, click_urls")
+      .eq("provider_message_id", resendId)
+      .maybeSingle();
+
+    if (findError) {
+      console.error("Error finding email_queue record:", findError);
+    }
+
+    // Also check email_sends for backward compatibility
+    let emailSend = null;
+    const { data: emailSendRecord, error: findSendError } = await supabase
       .from("email_sends")
       .select("id, campaign_id, automation_rule_id, open_count, click_count, click_urls")
       .eq("resend_id", resendId)
       .maybeSingle();
-
-    if (findError) {
-      console.error("Error finding email send:", findError);
+    
+    if (!findSendError) {
+      emailSend = emailSendRecord;
     }
 
     // If not found by resend_id, try by email (for older sends)
-    let sendId = emailSend?.id;
-    if (!sendId) {
+    if (!emailSend) {
       const { data: byEmail } = await supabase
         .from("email_sends")
         .select("id, campaign_id, automation_rule_id, open_count, click_count, click_urls")
@@ -69,46 +102,62 @@ serve(async (req) => {
         .maybeSingle();
       
       if (byEmail) {
-        sendId = byEmail.id;
+        emailSend = byEmail;
       }
     }
 
     const now = new Date().toISOString();
-    const updates: Record<string, unknown> = {};
+
+    // Updates for email_queue
+    const queueUpdates: Record<string, unknown> = {};
+    
+    // Updates for email_sends (backward compat)
+    const sendUpdates: Record<string, unknown> = {};
     let campaignUpdate: Record<string, unknown> | null = null;
 
     switch (event.type) {
+      case "email.sent":
+        queueUpdates.provider_status = "sent";
+        break;
+
       case "email.delivered":
-        updates.status = "delivered";
-        updates.delivered_at = now;
+        queueUpdates.provider_status = "delivered";
+        queueUpdates.delivered_at = now;
+        sendUpdates.status = "delivered";
+        sendUpdates.delivered_at = now;
         campaignUpdate = { field: "total_delivered", increment: 1 };
         break;
 
       case "email.opened":
-        updates.status = "opened";
-        updates.opened_at = now;
-        updates.open_count = (emailSend?.open_count || 0) + 1;
+        queueUpdates.provider_status = "opened";
+        queueUpdates.opened_at = now;
+        sendUpdates.status = "opened";
+        sendUpdates.opened_at = now;
+        sendUpdates.open_count = (emailSend?.open_count || 0) + 1;
         campaignUpdate = { field: "total_opened", increment: 1 };
         break;
 
       case "email.clicked":
-        updates.status = "clicked";
-        updates.clicked_at = now;
-        updates.click_count = (emailSend?.click_count || 0) + 1;
+        queueUpdates.provider_status = "clicked";
+        sendUpdates.status = "clicked";
+        sendUpdates.clicked_at = now;
+        sendUpdates.click_count = (emailSend?.click_count || 0) + 1;
         
         // Track clicked URLs
         const clickUrls = (emailSend?.click_urls as string[]) || [];
         if (event.data.click?.link && !clickUrls.includes(event.data.click.link)) {
           clickUrls.push(event.data.click.link);
         }
-        updates.click_urls = clickUrls;
+        sendUpdates.click_urls = clickUrls;
         
         campaignUpdate = { field: "total_clicked", increment: 1 };
         break;
 
       case "email.bounced":
-        updates.status = "bounced";
-        updates.bounced_at = now;
+        queueUpdates.provider_status = "bounced";
+        queueUpdates.bounced_at = now;
+        sendUpdates.status = "bounced";
+        sendUpdates.bounced_at = now;
         campaignUpdate = { field: "total_bounced", increment: 1 };
         
         // Add to unsubscribe list
@@ -121,7 +170,9 @@ serve(async (req) => {
         break;
 
       case "email.complained":
-        updates.status = "complained";
+        queueUpdates.provider_status = "complained";
+        queueUpdates.complained_at = now;
+        sendUpdates.status = "complained";
         
         // Add to unsubscribe list
         await supabase.from("email_unsubscribes").upsert({
@@ -145,12 +196,26 @@ serve(async (req) => {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
-    // Update email send record
-    if (sendId && Object.keys(updates).length > 0) {
+    // Update email_queue record
+    if (emailRecord?.id && Object.keys(queueUpdates).length > 0) {
+      const { error: queueUpdateError } = await supabase
+        .from("email_queue")
+        .update(queueUpdates)
+        .eq("id", emailRecord.id);
+      
+      if (queueUpdateError) {
+        console.error("[email_queue UPDATE ERROR]", queueUpdateError);
+      } else {
+        console.log(`[email_queue] Updated: ${emailRecord.id} -> ${queueUpdates.provider_status}`);
+      }
+    }
+
+    // Update email_sends record (backward compat)
+    if (emailSend?.id && Object.keys(sendUpdates).length > 0) {
       await supabase
         .from("email_sends")
-        .update(updates)
-        .eq("id", sendId);
+        .update(sendUpdates)
+        .eq("id", emailSend.id);
     }
 
     // Update campaign stats
@@ -167,7 +232,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ received: true }), {
+    return new Response(JSON.stringify({ received: true, event_type: event.type }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
