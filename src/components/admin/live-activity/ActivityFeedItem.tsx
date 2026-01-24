@@ -11,14 +11,20 @@ import {
   Eye,
   Ticket,
   Settings,
-  MapPin,
+  CheckCircle,
+  XCircle,
+  Edit,
+  Truck,
+  Phone,
+  Shield,
+  FileText,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import type { LiveActivity } from "@/hooks/useLiveActivityFeed";
+import type { LiveActivity } from "@/hooks/useLiveActivityFeedV2";
 
-// Activity type configuration
+// Activity type configuration based on action field from activity_logs
 export const ACTIVITY_CONFIG: Record<
   string,
   {
@@ -29,6 +35,7 @@ export const ACTIVITY_CONFIG: Record<
     category: "orders" | "payments" | "clients" | "tickets" | "system";
   }
 > = {
+  // Order actions
   order_started: {
     icon: ShoppingCart,
     label: "Commande débutée",
@@ -44,12 +51,42 @@ export const ACTIVITY_CONFIG: Record<
     category: "orders",
   },
   order_cancelled: {
-    icon: ShoppingCart,
+    icon: XCircle,
     label: "Commande annulée",
     color: "text-red-600",
     bgColor: "bg-red-500/10",
     category: "orders",
   },
+  order_status_changed: {
+    icon: ShoppingCart,
+    label: "Statut commande",
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10",
+    category: "orders",
+  },
+  status_changed: {
+    icon: Edit,
+    label: "Statut modifié",
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10",
+    category: "orders",
+  },
+  technician_assigned: {
+    icon: Truck,
+    label: "Technicien assigné",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-500/10",
+    category: "orders",
+  },
+  equipment_assigned: {
+    icon: Phone,
+    label: "Équipement assigné",
+    color: "text-teal-600",
+    bgColor: "bg-teal-500/10",
+    category: "orders",
+  },
+  
+  // Client actions
   signup: {
     icon: UserPlus,
     label: "Inscription",
@@ -71,11 +108,41 @@ export const ACTIVITY_CONFIG: Record<
     bgColor: "bg-indigo-500/10",
     category: "clients",
   },
+  id_verification: {
+    icon: Shield,
+    label: "Vérification ID",
+    color: "text-green-600",
+    bgColor: "bg-green-500/10",
+    category: "clients",
+  },
+  update: {
+    icon: Edit,
+    label: "Mise à jour",
+    color: "text-slate-600",
+    bgColor: "bg-slate-500/10",
+    category: "system",
+  },
+  
+  // Payment actions
   payment: {
     icon: CreditCard,
     label: "Paiement",
     color: "text-emerald-600",
     bgColor: "bg-emerald-500/10",
+    category: "payments",
+  },
+  payment_recorded: {
+    icon: CreditCard,
+    label: "Paiement enregistré",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-500/10",
+    category: "payments",
+  },
+  payment_confirmed: {
+    icon: CheckCircle,
+    label: "Paiement confirmé",
+    color: "text-green-600",
+    bgColor: "bg-green-500/10",
     category: "payments",
   },
   subscription: {
@@ -85,6 +152,8 @@ export const ACTIVITY_CONFIG: Record<
     bgColor: "bg-pink-500/10",
     category: "payments",
   },
+  
+  // Ticket actions
   ticket_created: {
     icon: Ticket,
     label: "Ticket créé",
@@ -99,6 +168,8 @@ export const ACTIVITY_CONFIG: Record<
     bgColor: "bg-orange-500/10",
     category: "tickets",
   },
+  
+  // System actions
   page_view: {
     icon: Eye,
     label: "Visite",
@@ -123,6 +194,13 @@ const DEFAULT_CONFIG = {
   category: "system" as const,
 };
 
+// Helper to format action label from snake_case
+const formatActionLabel = (action: string): string => {
+  return action
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
 interface ActivityFeedItemProps {
   activity: LiveActivity;
   isNew?: boolean;
@@ -132,7 +210,7 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({
   activity,
   isNew = false,
 }) => {
-  const config = ACTIVITY_CONFIG[activity.activity_type] || DEFAULT_CONFIG;
+  const config = ACTIVITY_CONFIG[activity.action] || DEFAULT_CONFIG;
   const Icon = config.icon;
 
   const timeAgo = formatDistanceToNow(new Date(activity.created_at), {
@@ -143,6 +221,29 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({
   const exactTime = format(new Date(activity.created_at), "HH:mm:ss", {
     locale: fr,
   });
+
+  // Build subtitle from details or actor info
+  const getSubtitle = (): string | null => {
+    // Try to get message from details
+    if (activity.details && typeof activity.details === "object") {
+      const details = activity.details as Record<string, unknown>;
+      if (details.message && typeof details.message === "string") {
+        return details.message;
+      }
+      // Fallback: show order_number, ticket_number, etc.
+      if (details.order_number) return `Commande ${details.order_number}`;
+      if (details.ticket_number) return `Ticket ${details.ticket_number}`;
+      if (details.reference) return `Réf: ${details.reference}`;
+    }
+    // Show entity info
+    if (activity.entity_type && activity.entity_id) {
+      return `${activity.entity_type} • ${activity.entity_id.substring(0, 8)}...`;
+    }
+    return null;
+  };
+
+  const subtitle = getSubtitle();
+  const displayLabel = config === DEFAULT_CONFIG ? formatActionLabel(activity.action) : config.label;
 
   return (
     <div
@@ -168,7 +269,7 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({
         {/* Title row */}
         <div className="flex items-center gap-2">
           <span className={cn("font-medium text-sm", config.color)}>
-            {config.label}
+            {displayLabel}
           </span>
           {isNew && (
             <span className="relative flex h-2 w-2">
@@ -178,20 +279,24 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({
           )}
         </div>
 
-        {/* Subtitle - activity label or metadata */}
-        {activity.activity_label && (
+        {/* Subtitle */}
+        {subtitle && (
           <p className="text-sm text-foreground truncate">
-            {activity.activity_label}
+            {subtitle}
           </p>
         )}
 
-        {/* Location & Time row */}
+        {/* Actor & Time row */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          {activity.city && (
+          {activity.actor_name && (
             <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {activity.city}
-              {activity.province && `, ${activity.province}`}
+              <Users className="h-3 w-3" />
+              {activity.actor_name}
+              {activity.actor_role && (
+                <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">
+                  {activity.actor_role}
+                </Badge>
+              )}
             </span>
           )}
           <span title={exactTime} className="cursor-default">
