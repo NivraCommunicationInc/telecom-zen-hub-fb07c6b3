@@ -1054,6 +1054,8 @@ export type Database = {
           id: string
           invoice_id: string
           method: Database["public"]["Enums"]["billing_payment_method"]
+          provider: string | null
+          provider_payment_id: string | null
           received_at: string | null
           reference: string | null
           status: Database["public"]["Enums"]["billing_payment_status"] | null
@@ -1066,6 +1068,8 @@ export type Database = {
           id?: string
           invoice_id: string
           method?: Database["public"]["Enums"]["billing_payment_method"]
+          provider?: string | null
+          provider_payment_id?: string | null
           received_at?: string | null
           reference?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
@@ -1078,6 +1082,8 @@ export type Database = {
           id?: string
           invoice_id?: string
           method?: Database["public"]["Enums"]["billing_payment_method"]
+          provider?: string | null
+          provider_payment_id?: string | null
           received_at?: string | null
           reference?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
