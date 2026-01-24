@@ -26,6 +26,7 @@ import { portalClient as portalSupabase } from "@/integrations/backend";
 import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2, Package, ExternalLink, Paperclip } from "lucide-react";
 import { TicketAttachmentUploader } from "@/components/tickets/TicketAttachmentUploader";
 import { TicketAttachmentDisplay } from "@/components/tickets/TicketAttachmentDisplay";
+import { AIImproveButton } from "@/components/tickets/AIImproveButton";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -220,6 +221,7 @@ const ClientTickets = () => {
           user_id: user.id,
           content: content.trim(),
           is_admin: false,
+          sender_role: "client",
         })
         .select()
         .single();
@@ -581,21 +583,30 @@ const ClientTickets = () => {
                     disabled={addReplyMutation.isPending}
                   />
                   
-                  <div className="flex items-center justify-end gap-2">
-                    {addReplyMutation.isPending && (
-                      <span className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Envoi en cours...
-                      </span>
-                    )}
-                    <Button
-                      variant="hero"
-                      onClick={() => addReplyMutation.mutate(replyContent)}
-                      disabled={!replyContent.trim() || addReplyMutation.isPending}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Envoyer
-                    </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <AIImproveButton
+                      message={replyContent}
+                      onApply={(improved) => setReplyContent(improved)}
+                      context="ticket_reply"
+                      tone="professional"
+                      disabled={!replyContent.trim() || replyContent.length < 10}
+                    />
+                    <div className="flex items-center gap-2">
+                      {addReplyMutation.isPending && (
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Envoi en cours...
+                        </span>
+                      )}
+                      <Button
+                        variant="hero"
+                        onClick={() => addReplyMutation.mutate(replyContent)}
+                        disabled={!replyContent.trim() || addReplyMutation.isPending}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Envoyer
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

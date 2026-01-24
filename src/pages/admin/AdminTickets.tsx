@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -139,6 +139,9 @@ const AdminTickets = () => {
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLog();
   
+  // Current user ID for uploads
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  
   // State
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [replyContent, setReplyContent] = useState("");
@@ -161,6 +164,13 @@ const AdminTickets = () => {
     cc_participants: [] as string[], // Array of user_ids
   });
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  
+  // Fetch current user ID on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.id) setCurrentUserId(user.id);
+    });
+  }, []);
 
   // Fetch staff for CC selection
   const { data: staffMembers } = useQuery({
@@ -658,6 +668,20 @@ const AdminTickets = () => {
                             rows={4}
                             className="resize-none"
                           />
+                          
+                          {/* Attachment Uploader */}
+                          <TicketAttachmentUploader
+                            ticketId={selectedTicket.id}
+                            uploaderId={currentUserId}
+                            onFilesUploaded={(files) => {
+                              console.log("[AdminTickets] Files uploaded:", files);
+                              queryClient.invalidateQueries({ queryKey: ["ticket-attachments", selectedTicket.id] });
+                            }}
+                            maxFiles={5}
+                            maxSizeMB={50}
+                            disabled={addReplyMutation.isPending || !currentUserId}
+                          />
+                          
                           <div className="flex items-center justify-between">
                             <AIImproveButton
                               message={replyContent}
