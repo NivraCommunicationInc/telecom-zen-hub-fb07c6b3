@@ -257,6 +257,32 @@ Si l'update touche **facturation / paiements / crons / triggers** :
 
 ---
 
+## Conventions UI (couleurs et alertes)
+
+### Règle Amber (warning visuel)
+
+Les couleurs **amber** sont utilisées intentionnellement pour distinguer un **warning visuel non-bloquant**.
+
+| Règle | Description |
+|-------|-------------|
+| **Usage autorisé** | UI-only, indicateur informatif, non-bloquant |
+| **Usage interdit** | États PASS/FAIL, statuts critiques, validations binaires |
+| **Nouvelle utilisation** | Toute nouvelle utilisation amber doit être limitée à : UI-only / non-blocking |
+
+### États PASS/FAIL (script de validation)
+
+- Le script `billing_v2_post_update_checks.sql` utilise un système **strictement binaire** :
+  - `PASS` = check réussi (vert implicite)
+  - `FAIL` = check échoué → **RAISE EXCEPTION** (bloque l'exécution)
+- Aucune ambiguïté : un FAIL empêche la validation de la release.
+
+### Localisation de la bannière
+
+- La bannière "Post-update validation" est affichée **uniquement** sur la page Admin Facturation V2.
+- Elle n'apparaît **jamais** sur le portail client.
+
+---
+
 ## Historique
 
 | Date | Auteur | Description |
