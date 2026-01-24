@@ -1317,6 +1317,205 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, vars.portal_path || "/portal/tickets"), "Voir mon ticket / View ticket", config.supportEmail),
   },
+
+  // =============================================
+  // PAYMENT REMINDER TEMPLATES (J-7, J-3, J-1, J+1)
+  // =============================================
+
+  // PAYMENT REMINDER 7 DAYS BEFORE
+  payment_reminder_7days: {
+    subject: "Nivra — Rappel: Paiement dû dans 7 jours (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📅', 'Rappel de paiement', 'Payment reminder',
+        'Votre facture arrive à échéance dans 7 jours.',
+        'Your invoice is due in 7 days.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour éviter toute interruption de service, veuillez effectuer votre paiement avant l'échéance.<br>
+        <em style="color:${emailStyles.textMuted};">To avoid any service interruption, please make your payment before the due date.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT REMINDER 3 DAYS BEFORE
+  payment_reminder_3days: {
+    subject: "Nivra — Rappel: Paiement dû dans 3 jours (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '⚠️', 'Rappel urgent', 'Urgent reminder',
+        'Votre facture arrive à échéance dans 3 jours.',
+        'Your invoice is due in 3 days.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Payez maintenant pour éviter toute interruption de vos services Nivra.<br>
+        <em style="color:${emailStyles.textMuted};">Pay now to avoid any interruption of your Nivra services.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT REMINDER 1 DAY BEFORE
+  payment_reminder_1day: {
+    subject: "Nivra — URGENT: Paiement dû demain (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '⏰', 'Dernier rappel!', 'Final reminder!',
+        'Votre facture arrive à échéance DEMAIN.',
+        'Your invoice is due TOMORROW.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        <strong>Action requise immédiatement.</strong> Votre service sera suspendu si le paiement n'est pas reçu.<br>
+        <em style="color:${emailStyles.textMuted};"><strong>Immediate action required.</strong> Your service will be suspended if payment is not received.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT DUE TODAY
+  payment_due_today: {
+    subject: "Nivra — Paiement dû AUJOURD'HUI (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '🚨', 'Paiement dû aujourd\'hui!', 'Payment due today!',
+        'Votre facture est due AUJOURD\'HUI. Payez maintenant pour éviter l\'interruption.',
+        'Your invoice is due TODAY. Pay now to avoid interruption.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Échéance / Due date', value: 'AUJOURD\'HUI / TODAY' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Votre service sera suspendu à minuit si le paiement n'est pas reçu.<br>
+        <em style="color:${emailStyles.textMuted};">Your service will be suspended at midnight if payment is not received.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT OVERDUE 1 DAY (J+1)
+  payment_overdue_1day: {
+    subject: "Nivra — Service en risque: Paiement en retard (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '⚠️', 'Paiement en retard', 'Payment overdue',
+        'Votre facture est en retard. Votre service peut être suspendu à tout moment.',
+        'Your invoice is overdue. Your service may be suspended at any time.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+        { label: 'Jours de retard / Days overdue', value: '1 jour / 1 day' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Effectuez votre paiement immédiatement pour rétablir votre compte.<br>
+        <em style="color:${emailStyles.textMuted};">Make your payment immediately to restore your account.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT OVERDUE WITH LATE FEE (J+3)
+  payment_overdue_late_fee: {
+    subject: "Nivra — Frais de retard appliqués (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '💰', 'Frais de retard appliqués', 'Late fee applied',
+        'Des frais de retard de 5% ont été ajoutés à votre facture impayée.',
+        'A 5% late fee has been added to your unpaid invoice.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant original / Original amount', value: formatCurrency(vars.amount) },
+        { label: 'Frais de retard / Late fee', value: formatCurrency((vars.amount || 0) * 0.05) },
+        { label: 'Nouveau total / New total', value: formatCurrency((vars.amount || 0) * 1.05) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Payez maintenant pour éviter des frais supplémentaires et la suspension de votre service.<br>
+        <em style="color:${emailStyles.textMuted};">Pay now to avoid additional fees and service suspension.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // SERVICE WILL BE SUSPENDED (J+5)
+  service_suspension_warning: {
+    subject: "Nivra — AVIS FINAL: Suspension imminente (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '🔴', 'AVIS FINAL DE SUSPENSION', 'FINAL SUSPENSION NOTICE',
+        'Votre service sera suspendu dans 24 heures si le paiement n\'est pas reçu.',
+        'Your service will be suspended in 24 hours if payment is not received.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Jours de retard / Days overdue', value: vars.days_overdue || '5+' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        <strong>Ceci est votre dernier avis avant suspension.</strong> Une fois suspendu, des frais de reconnexion peuvent s'appliquer.<br>
+        <em style="color:${emailStyles.textMuted};"><strong>This is your final notice before suspension.</strong> Once suspended, reconnection fees may apply.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
+
+  // PAYMENT CONFIRMED (V2 Billing)
+  payment_confirmed: {
+    subject: "Nivra — Paiement confirmé! (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Paiement confirmé!', 'Payment confirmed!',
+        'Votre paiement a été confirmé et votre service est maintenant actif.',
+        'Your payment has been confirmed and your service is now active.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant payé / Amount paid', value: formatCurrency(vars.amount || vars.total) },
+        { label: 'Date de confirmation / Confirmation date', value: formatDate(new Date().toISOString()) },
+        ...(vars.cycle_start_date && vars.cycle_end_date ? [
+          { label: 'Période de service / Service period', value: `${formatDate(vars.cycle_start_date)} - ${formatDate(vars.cycle_end_date)}` }
+        ] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom! Votre service est actif et prêt à utiliser.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom! Your service is active and ready to use.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal"), "Voir mes services / View services", config.supportEmail),
+  },
+
+  // RENEWAL INVOICE CREATED (V2 Billing)
+  renewal_invoice_created: {
+    subject: "Nivra — Facture de renouvellement (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔄', 'Renouvellement à venir', 'Upcoming renewal',
+        'Votre facture de renouvellement a été générée. Payez avant l\'échéance pour continuer votre service.',
+        'Your renewal invoice has been generated. Pay before the due date to continue your service.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount || vars.total) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+        { label: 'Prochaine période / Next period', value: vars.cycle_start_date ? `${formatDate(vars.cycle_start_date)} - ${formatDate(vars.cycle_end_date)}` : 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Service prépayé: payez avant l'échéance pour éviter l'interruption.<br>
+        <em style="color:${emailStyles.textMuted};">Prepaid service: pay before the due date to avoid interruption.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
 };
 
 // =============================================

@@ -751,6 +751,8 @@ export type Database = {
           related_order_number: string | null
           replacement_order_id: string | null
           replacement_ticket_id: string | null
+          service_activated_at: string | null
+          service_status: string | null
           status: string
           subtotal: number | null
           tps_amount: number | null
@@ -792,6 +794,8 @@ export type Database = {
           related_order_number?: string | null
           replacement_order_id?: string | null
           replacement_ticket_id?: string | null
+          service_activated_at?: string | null
+          service_status?: string | null
           status?: string
           subtotal?: number | null
           tps_amount?: number | null
@@ -833,6 +837,8 @@ export type Database = {
           related_order_number?: string | null
           replacement_order_id?: string | null
           replacement_ticket_id?: string | null
+          service_activated_at?: string | null
+          service_status?: string | null
           status?: string
           subtotal?: number | null
           tps_amount?: number | null
@@ -8607,6 +8613,7 @@ export type Database = {
         Args: { p_admin_user_id: string; p_session_token_hash: string }
         Returns: boolean
       }
+      check_and_queue_payment_reminders: { Args: never; Returns: undefined }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
