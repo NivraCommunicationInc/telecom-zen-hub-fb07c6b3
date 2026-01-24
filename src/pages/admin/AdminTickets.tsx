@@ -76,6 +76,9 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { AIImproveButton } from "@/components/tickets/AIImproveButton";
+import { TicketAttachmentUploader } from "@/components/tickets/TicketAttachmentUploader";
+import { TicketAttachmentDisplay } from "@/components/tickets/TicketAttachmentDisplay";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Extended status options
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -155,8 +158,43 @@ const AdminTickets = () => {
     requires_id_upload: false,
     related_order_id: "",
     issue_type: "",
+    cc_participants: [] as string[], // Array of user_ids
   });
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+
+  // Fetch staff for CC selection
+  const { data: staffMembers } = useQuery({
+    queryKey: ["staff-for-cc"],
+    queryFn: async () => {
+      // Fetch employees
+      const { data: employees } = await supabase
+        .from("employees")
+        .select("user_id, full_name, email")
+        .eq("is_active", true);
+      
+      // Fetch technicians with profiles
+      const { data: technicians } = await supabase
+        .from("technicians")
+        .select("user_id, full_name, phone")
+        .eq("is_active", true);
+      
+      const staff: Array<{ user_id: string; name: string; email?: string; role: string }> = [];
+      
+      employees?.forEach(e => {
+        if (e.user_id) {
+          staff.push({ user_id: e.user_id, name: e.full_name || e.email || "Employé", email: e.email || undefined, role: "employee" });
+        }
+      });
+      
+      technicians?.forEach(t => {
+        if (t.user_id) {
+          staff.push({ user_id: t.user_id, name: t.full_name || "Technicien", role: "technician" });
+        }
+      });
+      
+      return staff;
+    },
+  });
 
   // Fetch all support tickets with client info
   const { data: tickets, isLoading, refetch } = useQuery({
@@ -432,6 +470,20 @@ const AdminTickets = () => {
         .single();
 
       if (error) throw error;
+
+      // Add CC participants if any
+      if (ticketData.cc_participants && ticketData.cc_participants.length > 0 && data?.id) {
+        const participantsToInsert = ticketData.cc_participants.map(userId => ({
+          ticket_id: data.id,
+          user_id: userId,
+          role: 'cc',
+          can_reply: true,
+          added_by: user.id,
+        }));
+        
+        await supabase.from("ticket_participants").insert(participantsToInsert);
+      }
+
       return data;
     },
     onSuccess: (data) => {
@@ -451,6 +503,7 @@ const AdminTickets = () => {
         requires_id_upload: false,
         related_order_id: "",
         issue_type: "",
+        cc_participants: [],
       });
       setSelectedClientId("");
     },
@@ -1088,6 +1141,35 @@ const AdminTickets = () => {
                       rows={4}
                     />
                   </div>
+                  
+                  {/* CC Participants - Staff multi-select */}
+                  {staffMembers && staffMembers.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>CC Employés/Techniciens (optionnel)</Label>
+                      <div className="p-3 border rounded-lg space-y-2 max-h-32 overflow-y-auto">
+                        {staffMembers.map((staff) => (
+                          <div key={staff.user_id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`cc-${staff.user_id}`}
+                              checked={newTicket.cc_participants.includes(staff.user_id)}
+                              onCheckedChange={(checked) => {
+                                setNewTicket(prev => ({
+                                  ...prev,
+                                  cc_participants: checked
+                                    ? [...prev.cc_participants, staff.user_id]
+                                    : prev.cc_participants.filter(id => id !== staff.user_id)
+                                }));
+                              }}
+                            />
+                            <Label htmlFor={`cc-${staff.user_id}`} className="text-sm font-normal cursor-pointer">
+                              {staff.name} <span className="text-muted-foreground">({staff.role === "employee" ? "Employé" : "Technicien"})</span>
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Ces personnes pourront voir et répondre au ticket.</p>
+                    </div>
+                  )}
                   
                   {/* ID Upload Toggle */}
                   <div className="flex items-center justify-between p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">

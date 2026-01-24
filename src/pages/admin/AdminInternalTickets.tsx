@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { AIImproveButton } from "@/components/tickets/AIImproveButton";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   open: { label: "Ouvert", color: "bg-blue-500/20 text-blue-600", icon: Circle },
@@ -503,12 +504,22 @@ const AdminInternalTickets = () => {
                 </ScrollArea>
               </div>
 
-              {/* Reply input */}
-              <div className="flex gap-2">
-                <Textarea value={newReply} onChange={(e) => setNewReply(e.target.value)} placeholder="Écrire une réponse..." rows={2} className="flex-1" />
-                <Button onClick={handleSendReply} disabled={isSubmitting || !newReply.trim()}>
-                  <Send className="w-4 h-4" />
-                </Button>
+              {/* Reply input with AI button */}
+              <div className="space-y-2">
+                <Textarea value={newReply} onChange={(e) => setNewReply(e.target.value)} placeholder="Écrire une réponse..." rows={2} className="w-full" />
+                <div className="flex items-center justify-between gap-2">
+                  <AIImproveButton
+                    message={newReply}
+                    onApply={(improved) => setNewReply(improved)}
+                    context="ticket_reply"
+                    tone="professional"
+                    disabled={!newReply.trim() || newReply.length < 10}
+                  />
+                  <Button onClick={handleSendReply} disabled={isSubmitting || !newReply.trim()}>
+                    <Send className="w-4 h-4 mr-2" />
+                    Envoyer
+                  </Button>
+                </div>
               </div>
             </div>
           )}

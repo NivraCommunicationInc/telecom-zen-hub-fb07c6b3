@@ -23,7 +23,9 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2, Package, ExternalLink } from "lucide-react";
+import { MessageSquare, Plus, Send, ArrowLeft, Upload, FileText, CheckCircle, Clock, XCircle, AlertCircle, Loader2, Package, ExternalLink, Paperclip } from "lucide-react";
+import { TicketAttachmentUploader } from "@/components/tickets/TicketAttachmentUploader";
+import { TicketAttachmentDisplay } from "@/components/tickets/TicketAttachmentDisplay";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -555,9 +557,9 @@ const ClientTickets = () => {
                 ))}
               </div>
 
-              {/* Reply Form */}
+              {/* Reply Form with Attachments */}
               {selectedTicket.status !== "closed" && selectedTicket.status !== "resolved" && (
-                <div className="space-y-3 pt-4 border-t border-border">
+                <div className="space-y-4 pt-4 border-t border-border">
                   <Textarea
                     placeholder="Écrivez votre réponse..."
                     value={replyContent}
@@ -565,6 +567,20 @@ const ClientTickets = () => {
                     className="min-h-[100px]"
                     disabled={addReplyMutation.isPending}
                   />
+                  
+                  {/* Attachment Uploader */}
+                  <TicketAttachmentUploader
+                    ticketId={selectedTicket.id}
+                    uploaderId={user?.id || ""}
+                    onFilesUploaded={(files) => {
+                      console.log("[ClientTickets] Files uploaded:", files);
+                      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", selectedTicket.id] });
+                    }}
+                    maxFiles={5}
+                    maxSizeMB={50}
+                    disabled={addReplyMutation.isPending}
+                  />
+                  
                   <div className="flex items-center justify-end gap-2">
                     {addReplyMutation.isPending && (
                       <span className="text-sm text-muted-foreground flex items-center gap-2">
