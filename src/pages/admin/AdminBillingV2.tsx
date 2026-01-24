@@ -231,6 +231,30 @@ const AdminBillingV2 = () => {
           </div>
         </div>
 
+        {/* Post-Update Validation Banner */}
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <span className="font-medium text-amber-800 dark:text-amber-200">Post-update validation:</span>
+                <code className="bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded text-xs font-mono">
+                  scripts/billing_v2_post_update_checks.sql
+                </code>
+                <Badge variant="outline" className="border-amber-600 text-amber-700 dark:text-amber-300">
+                  10/10 PASS required
+                </Badge>
+              </div>
+              <a
+                href="/admin/billing-playbook"
+                className="text-xs text-amber-700 dark:text-amber-300 hover:underline"
+              >
+                Voir documentation →
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
