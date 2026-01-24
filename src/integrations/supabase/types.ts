@@ -2759,14 +2759,40 @@ export type Database = {
           },
         ]
       }
+      email_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          message_id: string
+          raw: Json | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          message_id: string
+          raw?: Json | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          message_id?: string
+          raw?: Json | null
+        }
+        Relationships: []
+      }
       email_queue: {
         Row: {
           attempts: number
           bounced_at: string | null
           clicked_at: string | null
+          complained_at: string | null
           created_at: string
           delivered_at: string | null
           event_key: string
+          from_email: string | null
           id: string
           last_error: string | null
           max_attempts: number
@@ -2775,8 +2801,10 @@ export type Database = {
           provider_message_id: string | null
           provider_response: Json | null
           provider_status: string | null
+          resend_response: Json | null
           sent_at: string | null
           status: string
+          subject: string | null
           template_key: string
           template_vars: Json | null
           to_email: string
@@ -2785,9 +2813,11 @@ export type Database = {
           attempts?: number
           bounced_at?: string | null
           clicked_at?: string | null
+          complained_at?: string | null
           created_at?: string
           delivered_at?: string | null
           event_key: string
+          from_email?: string | null
           id?: string
           last_error?: string | null
           max_attempts?: number
@@ -2796,8 +2826,10 @@ export type Database = {
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
+          resend_response?: Json | null
           sent_at?: string | null
           status?: string
+          subject?: string | null
           template_key: string
           template_vars?: Json | null
           to_email: string
@@ -2806,9 +2838,11 @@ export type Database = {
           attempts?: number
           bounced_at?: string | null
           clicked_at?: string | null
+          complained_at?: string | null
           created_at?: string
           delivered_at?: string | null
           event_key?: string
+          from_email?: string | null
           id?: string
           last_error?: string | null
           max_attempts?: number
@@ -2817,8 +2851,10 @@ export type Database = {
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
+          resend_response?: Json | null
           sent_at?: string | null
           status?: string
+          subject?: string | null
           template_key?: string
           template_vars?: Json | null
           to_email?: string
