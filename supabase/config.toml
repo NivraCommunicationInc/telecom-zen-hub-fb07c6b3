@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.paypal-create-subscription]
 verify_jwt = false
+
+[functions.paypal-charge-subscription]
+verify_jwt = false

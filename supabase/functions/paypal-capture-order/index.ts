@@ -136,11 +136,14 @@ serve(async (req) => {
             })
             .eq("id", invoice.id);
 
-          // If fully paid, activate subscription
+          // If fully paid, activate subscription and enable auto-billing
           if (newBalanceDue <= 0 && invoice.subscription_id) {
             await supabase
               .from("billing_subscriptions")
-              .update({ status: "active" })
+              .update({ 
+                status: "active",
+                auto_billing_enabled: true,
+              })
               .eq("id", invoice.subscription_id);
           }
 

@@ -22,6 +22,7 @@ import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
 import PaymentDisputeTimeline from "@/components/client/PaymentDisputeTimeline";
 import { ETRANSFER_CONFIG, COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import PayPalButton from "@/components/payment/PayPalButton";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -31,7 +32,7 @@ const ETRANSFER_INFO = {
 };
 
 // Payment method type
-type PaymentMethod = "etransfer" | "credit_card";
+type PaymentMethod = "etransfer" | "credit_card" | "paypal";
 
 const ClientInvoices = () => {
   const { user } = useClientAuth();
@@ -887,15 +888,19 @@ const ClientInvoices = () => {
                 {/* Payment Method Selection */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Méthode de paiement</Label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <Button
                       type="button"
-                      variant={paymentMethod === "credit_card" ? "default" : "outline"}
+                      variant={paymentMethod === "paypal" ? "default" : "outline"}
                       className="flex items-center justify-center gap-2 h-16"
-                      onClick={() => setPaymentMethod("credit_card")}
+                      onClick={() => setPaymentMethod("paypal")}
                     >
-                      <CreditCard className="w-5 h-5" />
-                      <span>Carte de crédit</span>
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19.554 9.488c.121.563.106 1.246-.04 2.017-.582 2.464-2.477 3.88-5.336 3.88h-.71c-.323 0-.6.216-.665.524l-.513 3.292-.146.935c-.033.211.127.403.34.403h2.398c.283 0 .526-.19.581-.468l.024-.123.46-2.922.03-.163c.055-.278.298-.468.58-.468h.367c2.369 0 4.221-1.042 4.762-4.057.226-1.261.11-2.314-.488-3.054a2.57 2.57 0 0 0-.644-.563c.138.244.252.505.34.78z" fill="#179BD7"/>
+                        <path d="M18.474 9.081a5.97 5.97 0 0 0-.74-.195 9.456 9.456 0 0 0-1.505-.11h-4.562c-.283 0-.526.19-.581.467l-.973 6.17-.028.18c.065-.308.342-.524.665-.524h1.386c2.84 0 5.062-1.155 5.713-4.495.019-.099.036-.195.05-.289a3.09 3.09 0 0 0-.425-.204z" fill="#222D65"/>
+                        <path d="M10.663 9.243a.595.595 0 0 1 .58-.467h4.563c.541 0 1.047.037 1.505.11.129.02.254.045.375.073.128.03.25.063.365.1.058.018.113.038.168.058a3.1 3.1 0 0 1 .257.103c.086-.55.085-1.106-.027-1.648-.376-1.822-1.667-2.573-3.612-2.573h-5.8c-.323 0-.6.216-.665.524L6.67 17.403c-.04.253.152.48.408.48h2.972l.746-4.733.867-3.907z" fill="#253B80"/>
+                      </svg>
+                      <span>PayPal</span>
                     </Button>
                     <Button
                       type="button"
@@ -904,12 +909,95 @@ const ClientInvoices = () => {
                       onClick={() => setPaymentMethod("etransfer")}
                     >
                       <Banknote className="w-5 h-5" />
-                      <span>Virement Interac</span>
+                      <span>Interac</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "credit_card" ? "default" : "outline"}
+                      className="flex items-center justify-center gap-2 h-16 opacity-50"
+                      onClick={() => setPaymentMethod("credit_card")}
+                      disabled
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      <span>Carte</span>
                     </Button>
                   </div>
                 </div>
 
-                {paymentMethod === "credit_card" ? (
+                {/* PayPal Payment */}
+                {paymentMethod === "paypal" && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
+                      </p>
+                      <PayPalButton
+                        amount={Number(customAmount) || calculateTotal(selectedInvoice)}
+                        invoiceId={selectedInvoice.id}
+                        description={`Facture ${selectedInvoice.invoice_number || selectedInvoice.id.slice(0, 8)}`}
+                        onSuccess={(captureId) => {
+                          toast.success("Paiement PayPal réussi!");
+                          setPaymentInfoOpen(false);
+                          resetPaymentForm();
+                          refetchInvoices();
+                          refetchProfile();
+                        }}
+                        onError={(error) => {
+                          toast.error("Erreur PayPal: " + error);
+                        }}
+                      />
+                    </div>
+                    
+                    <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+                      <AlertTriangle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        Vous serez redirigé vers PayPal pour compléter le paiement. Votre facture sera mise à jour automatiquement.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Interac E-Transfer */}
+                {paymentMethod === "etransfer" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
+                    
+                    <div className="bg-muted rounded-lg p-4 space-y-4">
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
+                          <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t border-border pt-4">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
+                        <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
+                      </div>
+                      
+                      <div className="border-t border-border pt-4">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
+                        <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        <strong>Important:</strong> Votre paiement sera traité dans les 24-48 heures ouvrables après réception.
+                      </p>
+                    </div>
+
+                    <Button className="w-full" onClick={() => setPaymentInfoOpen(false)}>
+                      Fermer
+                    </Button>
+                  </div>
+                )}
+
+                {/* Credit Card (disabled) */}
+                {paymentMethod === "credit_card" && (
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="cardName">Nom sur la carte</Label>
@@ -966,42 +1054,6 @@ const ClientInvoices = () => {
                       onClick={() => handleProcessPayment(true)}
                     >
                       {isProcessing ? "Traitement en cours..." : `Payer ${Number(customAmount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-foreground">Informations de paiement Interac</h3>
-                    
-                    <div className="bg-muted rounded-lg p-4 space-y-4">
-                      <div>
-                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Courriel de paiement</label>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="font-medium text-foreground">{ETRANSFER_INFO.email}</span>
-                          <Button size="sm" variant="ghost" onClick={() => copyToClipboard(ETRANSFER_INFO.email, "Courriel")}>
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="border-t border-border pt-4">
-                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Question de sécurité</label>
-                        <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.question}</p>
-                      </div>
-                      
-                      <div className="border-t border-border pt-4">
-                        <label className="text-xs text-muted-foreground uppercase tracking-wide">Réponse</label>
-                        <p className="font-medium text-foreground mt-1">{ETRANSFER_INFO.answer}</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
-                      <p className="text-sm text-amber-700 dark:text-amber-300">
-                        <strong>Important:</strong> Votre paiement sera traité dans les 24-48 heures ouvrables après réception.
-                      </p>
-                    </div>
-
-                    <Button className="w-full" onClick={() => setPaymentInfoOpen(false)}>
-                      Fermer
                     </Button>
                   </div>
                 )}
