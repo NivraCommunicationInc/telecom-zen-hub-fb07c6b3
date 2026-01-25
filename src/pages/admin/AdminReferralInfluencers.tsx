@@ -87,6 +87,8 @@ const AdminReferralInfluencers = () => {
     email: "",
     phone: "",
     notes: "",
+    password: "",
+    activate_immediately: true,
   });
 
   // Fetch influencers with their codes and referrals count
@@ -147,6 +149,8 @@ const AdminReferralInfluencers = () => {
           email: data.email,
           phone: data.phone || undefined,
           notes: data.notes || undefined,
+          password: data.password || undefined,
+          activate_immediately: data.activate_immediately,
         },
       });
 
@@ -161,19 +165,21 @@ const AdminReferralInfluencers = () => {
         throw new Error(result?.message || "Erreur inconnue");
       }
 
-      // Send invitation email
-      const { error: emailError } = await supabase.functions.invoke("send-partner-invite", {
-        body: { influencer_id: result.influencer_id },
-      });
+      // Only send invitation email if NOT activated immediately
+      if (!result.activated) {
+        const { error: emailError } = await supabase.functions.invoke("send-partner-invite", {
+          body: { influencer_id: result.influencer_id },
+        });
 
-      if (emailError) {
-        console.error("[createInfluencer] Email send error:", emailError);
-        toast.warning("Partenaire créé, mais l'email n'a pas pu être envoyé.");
+        if (emailError) {
+          console.error("[createInfluencer] Email send error:", emailError);
+          toast.warning("Partenaire créé, mais l'email n'a pas pu être envoyé.");
+        }
       }
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["influencers"] });
       setCreateDialogOpen(false);
       setNewInfluencer({
@@ -182,8 +188,15 @@ const AdminReferralInfluencers = () => {
         email: "",
         phone: "",
         notes: "",
+        password: "",
+        activate_immediately: true,
       });
-      toast.success("Partenaire créé avec succès. Email d'invitation envoyé.");
+      
+      if (result.activated) {
+        toast.success("Compte partenaire créé et activé avec succès! Le partenaire peut se connecter immédiatement.");
+      } else {
+        toast.success("Partenaire créé avec succès. Email d'invitation envoyé.");
+      }
     },
     onError: (error: Error) => {
       console.error("[createInfluencer] Error:", error);
@@ -731,14 +744,14 @@ const AdminReferralInfluencers = () => {
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Nouvel Influenceur</DialogTitle>
             <DialogDescription>
-              Créez un nouveau partenaire. Une invitation sera envoyée par email.
+              Créez un nouveau partenaire. Vous pouvez activer le compte immédiatement en définissant un mot de passe.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">Prénom *</Label>
@@ -793,6 +806,55 @@ const AdminReferralInfluencers = () => {
                 placeholder="+1 514 555 1234"
               />
             </div>
+            
+            {/* Password Section */}
+            <div className="border-t pt-4 mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h4 className="font-medium text-sm">Activation immédiate</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Définir un mot de passe pour activer le compte sans invitation
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newInfluencer.activate_immediately}
+                    onChange={(e) =>
+                      setNewInfluencer({
+                        ...newInfluencer,
+                        activate_immediately: e.target.checked,
+                        password: e.target.checked ? newInfluencer.password : "",
+                      })
+                    }
+                    className="rounded border-muted-foreground"
+                  />
+                  <span className="text-sm">Activer maintenant</span>
+                </label>
+              </div>
+              
+              {newInfluencer.activate_immediately && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Mot de passe *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newInfluencer.password}
+                    onChange={(e) =>
+                      setNewInfluencer({ ...newInfluencer, password: e.target.value })
+                    }
+                    placeholder="Minimum 8 caractères"
+                    autoComplete="new-password"
+                  />
+                  {newInfluencer.password && newInfluencer.password.length < 8 && (
+                    <p className="text-xs text-destructive">
+                      Le mot de passe doit contenir au moins 8 caractères
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="notes">Notes internes</Label>
               <Textarea
@@ -802,7 +864,7 @@ const AdminReferralInfluencers = () => {
                   setNewInfluencer({ ...newInfluencer, notes: e.target.value })
                 }
                 placeholder="Notes optionnelles..."
-                rows={3}
+                rows={2}
               />
             </div>
           </div>
@@ -819,13 +881,14 @@ const AdminReferralInfluencers = () => {
                 !newInfluencer.first_name ||
                 !newInfluencer.last_name ||
                 !newInfluencer.email ||
+                (newInfluencer.activate_immediately && (!newInfluencer.password || newInfluencer.password.length < 8)) ||
                 createInfluencer.isPending
               }
             >
               {createInfluencer.isPending && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              Créer et inviter
+              {newInfluencer.activate_immediately ? "Créer et activer" : "Créer et inviter"}
             </Button>
           </DialogFooter>
         </DialogContent>
