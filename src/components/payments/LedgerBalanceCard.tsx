@@ -57,23 +57,26 @@ export function LedgerBalanceCard({
     );
   }
 
-  const hasBalance = balance.balance > 0;
-  const hasCredit = balance.isCredit;
+  // Single balance state: positive = owes money, negative = has credit, zero = balanced
+  const balanceAmount = balance.balance;
+  const hasCredit = balanceAmount < 0;
+  const owesAmount = balanceAmount > 0;
+  const isBalanced = balanceAmount === 0;
 
   return (
-    <Card className={`bg-card border-border ${hasBalance ? 'border-amber-500/30' : hasCredit ? 'border-emerald-500/30' : ''}`}>
+    <Card className={`bg-card border-border ${owesAmount ? 'border-amber-500/30' : hasCredit ? 'border-emerald-500/30' : ''}`}>
       {showTitle && (
         <CardHeader className={compact ? "py-3" : ""}>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Wallet className={`w-5 h-5 ${hasBalance ? 'text-amber-500' : 'text-emerald-500'}`} />
+            <Wallet className={`w-5 h-5 ${owesAmount ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-muted-foreground'}`} />
             Solde du compte
           </CardTitle>
         </CardHeader>
       )}
       <CardContent className={compact ? "pt-0" : ""}>
-        {/* Main Balance */}
+        {/* Single Balance Display */}
         <div className={`p-4 rounded-lg ${
-          hasBalance 
+          owesAmount 
             ? 'bg-amber-500/10 border border-amber-500/30' 
             : hasCredit
             ? 'bg-emerald-500/10 border border-emerald-500/30'
@@ -82,63 +85,31 @@ export function LedgerBalanceCard({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                {hasCredit ? 'Crédit disponible' : 'Solde à payer'}
+                {hasCredit ? 'Crédit disponible' : owesAmount ? 'Solde à payer' : 'Compte équilibré'}
               </p>
               <p className={`text-3xl font-bold ${
-                hasBalance ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-foreground'
+                owesAmount ? 'text-amber-500' : hasCredit ? 'text-emerald-500' : 'text-foreground'
               }`}>
-                {hasCredit 
-                  ? balance.availableCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
-                  : balance.balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
-                }
+                {Math.abs(balanceAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
               </p>
+              {hasCredit && (
+                <p className="text-xs text-emerald-600 mt-1">
+                  Ce crédit sera appliqué automatiquement à votre prochaine facture
+                </p>
+              )}
             </div>
-            {hasBalance ? (
+            {owesAmount ? (
               <TrendingUp className="w-8 h-8 text-amber-500" />
             ) : hasCredit ? (
               <TrendingDown className="w-8 h-8 text-emerald-500" />
             ) : (
-              <CheckCircle className="w-8 h-8 text-muted-foreground" />
+              <CheckCircle className="w-8 h-8 text-emerald-500" />
             )}
           </div>
         </div>
 
-        {/* Breakdown */}
-        {!compact && (
-          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div className="p-3 bg-muted/30 rounded-lg">
-              <p className="text-muted-foreground">Total facturé</p>
-              <p className="text-lg font-semibold">
-                {balance.totalDebits.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
-            </div>
-            <div className="p-3 bg-muted/30 rounded-lg">
-              <p className="text-muted-foreground">Total payé</p>
-              <p className="text-lg font-semibold text-emerald-600">
-                {balance.totalCredits.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Preauthorized Warning */}
-        {balance.preauthorized > 0 && (
-          <div className="mt-3 flex items-center gap-2 p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <Clock className="w-4 h-4 text-blue-500" />
-            <div className="flex-1">
-              <p className="text-sm text-blue-600">
-                Préautorisé en attente: {balance.preauthorized.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Ce montant n'affecte pas encore le solde
-              </p>
-            </div>
-            <Badge className="bg-blue-500/20 text-blue-600">En cours</Badge>
-          </div>
-        )}
-
-        {/* Zero Balance State */}
-        {!hasBalance && !hasCredit && balance.totalDebits === 0 && (
+        {/* Zero Balance State - only when no transactions at all */}
+        {isBalanced && balance.totalDebits === 0 && (
           <div className="mt-4 text-center">
             <CheckCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Aucune transaction</p>
