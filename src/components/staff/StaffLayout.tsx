@@ -75,13 +75,10 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
             return;
           }
 
-          // Check if onboarding is required
+          // Check if onboarding is required - redirect to setup page
           if (!roleData.onboarding_completed_at || !roleData.terms_accepted_at || !roleData.staff_pin_hash) {
-            console.log("[StaffLayout] Onboarding not complete");
-            if (mounted) navigate("/staff", { 
-              replace: true, 
-              state: { message: "Veuillez compléter la configuration via le lien reçu par email." } 
-            });
+            console.log("[StaffLayout] Onboarding not complete, redirecting to setup");
+            if (mounted) navigate("/staff/setup", { replace: true });
             return;
           }
         }
