@@ -1,6 +1,8 @@
 /**
- * Hook for real-time ledger balance
- * Uses Realtime for instant updates across Admin/Employee/Client
+ * Hook for real-time ledger balance - V2 Billing System
+ * 
+ * Uses billing_invoices and billing_payments as source of truth.
+ * Balance = sum(invoice totals) - sum(confirmed payments)
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,120 +16,109 @@ export interface LedgerBalance {
   availableCredit: number;
   isCredit: boolean;
   display: string;
-  preauthorized: number;
-}
-
-export interface LedgerEntry {
-  id: string;
-  client_id: string;
-  entry_type: string;
-  amount: number;
-  description: string | null;
-  reference_type: string | null;
-  reference_id: string | null;
-  reference_number: string | null;
-  payment_method: string | null;
-  payment_status: string | null;
-  captured_at: string | null;
-  created_at: string;
+  /** Last confirmed payment date */
+  lastPaymentDate: string | null;
+  /** Last payment amount */
+  lastPaymentAmount: number | null;
+  /** Last payment method */
+  lastPaymentMethod: string | null;
 }
 
 /**
- * Fetch ledger balance using database function
+ * Fetch ledger balance from V2 billing system
  */
 async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
-  // Try to use the database function first
-  const { data, error } = await backendClient.rpc('get_client_ledger_balance', {
+  // Try RPC function first (most efficient)
+  const { data: rpcData, error: rpcError } = await backendClient.rpc('get_client_ledger_balance', {
     p_client_id: clientId
   });
-
-  if (error) {
-    console.warn("[useLedgerBalance] RPC error, falling back to manual calculation:", error);
-    // Fallback to manual calculation from ledger_entries
-    return await calculateFromLedgerEntries(clientId);
-  }
-
-  if (data && data.length > 0) {
-    const result = data[0];
-    const balance = Number(result.balance) || 0;
-    const isCredit = balance < 0;
-    
-    return {
-      totalDebits: Number(result.total_debits) || 0,
-      totalCredits: Number(result.total_credits) || 0,
-      balance,
-      availableCredit: Number(result.available_credit) || 0,
-      isCredit,
-      display: isCredit
-        ? `Crédit: ${Math.abs(balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
-        : balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
-      preauthorized: 0, // Would need separate query for preauthorized
-    };
-  }
-
-  return {
-    totalDebits: 0,
-    totalCredits: 0,
-    balance: 0,
-    availableCredit: 0,
-    isCredit: false,
-    display: "0,00 $",
-    preauthorized: 0,
-  };
-}
-
-/**
- * Fallback: calculate from ledger_entries directly
- */
-async function calculateFromLedgerEntries(clientId: string): Promise<LedgerBalance> {
-  const { data: entries, error } = await backendClient
-    .from('ledger_entries')
-    .select('*')
-    .eq('client_id', clientId);
-
-  if (error) {
-    console.error("[useLedgerBalance] Error fetching entries:", error);
-    return {
-      totalDebits: 0,
-      totalCredits: 0,
-      balance: 0,
-      availableCredit: 0,
-      isCredit: false,
-      display: "0,00 $",
-      preauthorized: 0,
-    };
-  }
 
   let totalDebits = 0;
   let totalCredits = 0;
 
-  for (const entry of entries || []) {
-    const amount = Number(entry.amount) || 0;
-    if (amount > 0) {
-      totalDebits += amount;
-    } else if (amount < 0) {
-      // Only count captured payments
-      const isCaptured = entry.captured_at || 
-        ['paid', 'complete', 'captured'].includes(entry.payment_status || '');
-      if (isCaptured) {
-        totalCredits += Math.abs(amount);
+  if (!rpcError && rpcData && rpcData.length > 0) {
+    const result = rpcData[0];
+    totalDebits = Number(result.total_debits) || 0;
+    totalCredits = Number(result.total_credits) || 0;
+  } else {
+    // Fallback: Calculate from V2 tables directly
+    console.warn("[useLedgerBalance] RPC unavailable, using V2 tables directly");
+    
+    // Get customer_id from billing_customers (linked to user_id)
+    const { data: customer } = await backendClient
+      .from('billing_customers')
+      .select('id')
+      .eq('user_id', clientId)
+      .maybeSingle();
+
+    if (customer) {
+      // Sum all invoice totals (debits)
+      const { data: invoices } = await backendClient
+        .from('billing_invoices')
+        .select('total, status')
+        .eq('customer_id', customer.id)
+        .not('status', 'in', '("cancelled","refunded")');
+
+      for (const inv of invoices || []) {
+        totalDebits += Number(inv.total) || 0;
+      }
+
+      // Sum all confirmed payments (credits)
+      const { data: payments } = await backendClient
+        .from('billing_payments')
+        .select('amount, status')
+        .eq('customer_id', customer.id)
+        .eq('status', 'confirmed');
+
+      for (const pay of payments || []) {
+        totalCredits += Number(pay.amount) || 0;
       }
     }
   }
 
-  const balance = totalDebits - totalCredits;
+  // Fetch last payment info
+  const { data: customer } = await backendClient
+    .from('billing_customers')
+    .select('id')
+    .eq('user_id', clientId)
+    .maybeSingle();
+
+  let lastPaymentDate: string | null = null;
+  let lastPaymentAmount: number | null = null;
+  let lastPaymentMethod: string | null = null;
+
+  if (customer) {
+    const { data: lastPayment } = await backendClient
+      .from('billing_payments')
+      .select('amount, method, received_at, created_at')
+      .eq('customer_id', customer.id)
+      .eq('status', 'confirmed')
+      .order('received_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastPayment) {
+      lastPaymentDate = lastPayment.received_at || lastPayment.created_at;
+      lastPaymentAmount = Number(lastPayment.amount) || null;
+      lastPaymentMethod = lastPayment.method;
+    }
+  }
+
+  const balance = Math.round((totalDebits - totalCredits) * 100) / 100;
   const isCredit = balance < 0;
 
   return {
-    totalDebits,
-    totalCredits,
+    totalDebits: Math.round(totalDebits * 100) / 100,
+    totalCredits: Math.round(totalCredits * 100) / 100,
     balance,
     availableCredit: isCredit ? Math.abs(balance) : 0,
     isCredit,
     display: isCredit
       ? `Crédit: ${Math.abs(balance).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
       : balance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }),
-    preauthorized: 0,
+    lastPaymentDate,
+    lastPaymentAmount,
+    lastPaymentMethod,
   };
 }
 
@@ -144,32 +135,18 @@ export function useLedgerBalance(clientId: string | undefined) {
     staleTime: 30000, // 30 seconds
   });
 
-  // Subscribe to real-time changes
+  // Subscribe to real-time changes on V2 tables
   useEffect(() => {
     if (!clientId) return;
 
     const channel = backendClient
-      .channel(`ledger-${clientId}`)
+      .channel(`ledger-v2-${clientId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'ledger_entries',
-          filter: `client_id=eq.${clientId}`,
-        },
-        () => {
-          // Invalidate and refetch on any change
-          queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'billing',
-          filter: `user_id=eq.${clientId}`,
+          table: 'billing_invoices',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] });
@@ -180,8 +157,7 @@ export function useLedgerBalance(clientId: string | undefined) {
         {
           event: '*',
           schema: 'public',
-          table: 'payment_proofs',
-          filter: `client_id=eq.${clientId}`,
+          table: 'billing_payments',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] });
@@ -195,26 +171,6 @@ export function useLedgerBalance(clientId: string | undefined) {
   }, [clientId, queryClient]);
 
   return query;
-}
-
-/**
- * Hook for ledger entries list
- */
-export function useLedgerEntries(clientId: string | undefined) {
-  return useQuery({
-    queryKey: ["ledger-entries", clientId],
-    queryFn: async () => {
-      const { data, error } = await backendClient
-        .from('ledger_entries')
-        .select('*')
-        .eq('client_id', clientId!)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as LedgerEntry[];
-    },
-    enabled: !!clientId,
-  });
 }
 
 export default useLedgerBalance;
