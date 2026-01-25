@@ -1116,16 +1116,16 @@ const AdminContracts = () => {
                         </div>
                         
                         {/* Client */}
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 relative overflow-hidden">
+                        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 relative overflow-hidden">
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
-                          <p className="text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider font-bold mb-2">Client (Subscriber)</p>
-                          <p className="text-slate-900 dark:text-white text-sm font-medium">{selectedContract.profiles?.full_name || "N/A"}</p>
-                          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">{selectedContract.profiles?.email}</p>
+                          <p className="text-[10px] text-cyan-400 uppercase tracking-wider font-bold mb-2">Client (Subscriber)</p>
+                          <p className="text-white text-sm font-medium">{selectedContract.profiles?.full_name || "N/A"}</p>
+                          <p className="text-slate-400 text-xs mt-1">{selectedContract.profiles?.email}</p>
                           {selectedContract.profiles?.phone && (
-                            <p className="text-slate-500 dark:text-slate-400 text-xs">{selectedContract.profiles.phone}</p>
+                            <p className="text-slate-400 text-xs">{selectedContract.profiles.phone}</p>
                           )}
                           {selectedContract.profiles?.client_number && (
-                            <p className="text-cyan-600 dark:text-cyan-400 text-xs font-mono font-bold mt-2">
+                            <p className="text-cyan-400 text-xs font-mono font-bold mt-2">
                               Account: {selectedContract.profiles.client_number}
                             </p>
                           )}
@@ -1137,11 +1137,11 @@ const AdminContracts = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">2</div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Agreement Identification</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wide">Agreement Identification</h3>
                         <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
                       </div>
                       
-                      <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <div className="bg-slate-800/30 rounded-lg overflow-hidden border border-slate-700">
                         <table className="w-full text-sm">
                           <thead className="bg-slate-900 text-white">
                             <tr>
@@ -1149,21 +1149,21 @@ const AdminContracts = () => {
                               <th className="text-left px-4 py-2 text-xs font-bold uppercase">Value</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                          <tbody className="divide-y divide-slate-700">
                             <tr>
-                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Contract ID</td>
-                              <td className="px-4 py-2 font-mono font-medium">{selectedContract.contract_number || selectedContract.id.slice(0, 8).toUpperCase()}</td>
+                              <td className="px-4 py-2 text-slate-400">Contract ID</td>
+                              <td className="px-4 py-2 font-mono font-medium text-white">{selectedContract.contract_number || selectedContract.id.slice(0, 8).toUpperCase()}</td>
                             </tr>
-                            <tr className="bg-white dark:bg-slate-800/50">
-                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Agreement Version</td>
-                              <td className="px-4 py-2 font-medium">{CONTRACT_TERMS.version}</td>
+                            <tr className="bg-slate-800/50">
+                              <td className="px-4 py-2 text-slate-400">Agreement Version</td>
+                              <td className="px-4 py-2 font-medium text-white">{CONTRACT_TERMS.version}</td>
                             </tr>
                             <tr>
-                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Issue Date</td>
-                              <td className="px-4 py-2 font-medium">{format(new Date(selectedContract.created_at), "d MMMM yyyy", { locale: fr })}</td>
+                              <td className="px-4 py-2 text-slate-400">Issue Date</td>
+                              <td className="px-4 py-2 font-medium text-white">{format(new Date(selectedContract.created_at), "d MMMM yyyy", { locale: fr })}</td>
                             </tr>
-                            <tr className="bg-white dark:bg-slate-800/50">
-                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Status</td>
+                            <tr className="bg-slate-800/50">
+                              <td className="px-4 py-2 text-slate-400">Status</td>
                               <td className="px-4 py-2">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                                   selectedContract.is_signed 
@@ -1184,13 +1184,13 @@ const AdminContracts = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">3</div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Services Subscribed</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wide">Services Subscribed</h3>
                         <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
                       </div>
                       
-                      <div className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-800/30 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                        <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedContract.contract_name}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Bound to all services selected through the Nivra platform</p>
+                      <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 rounded-lg p-4 border border-slate-700">
+                        <p className="text-lg font-bold text-white">{selectedContract.contract_name}</p>
+                        <p className="text-xs text-slate-400 mt-1">Bound to all services selected through the Nivra platform</p>
                       </div>
                     </div>
 
@@ -1199,12 +1199,12 @@ const AdminContracts = () => {
                       <div>
                         <div className="flex items-center gap-3 mb-4">
                           <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">4</div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Service Address</h3>
+                          <h3 className="text-sm font-bold text-white uppercase tracking-wide">Service Address</h3>
                           <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
                         </div>
                         
-                        <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                          <p className="text-sm font-medium">
+                        <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700">
+                          <p className="text-sm font-medium text-white">
                             {selectedContract.profiles.service_address}, {selectedContract.profiles.service_city}, {selectedContract.profiles.service_province || "QC"} {selectedContract.profiles.service_postal_code}
                           </p>
                         </div>
@@ -1216,29 +1216,29 @@ const AdminContracts = () => {
                       <div>
                         <div className="flex items-center gap-3 mb-4">
                           <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">5</div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Identity Validation</h3>
+                          <h3 className="text-sm font-bold text-white uppercase tracking-wide">Identity Validation</h3>
                           <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
                         </div>
                         
                         <div className="grid grid-cols-4 gap-3">
-                          <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                          <div className="bg-slate-800/30 rounded-lg p-3 border border-slate-700">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider">Type</p>
-                            <p className="text-sm font-medium mt-1">{selectedContract.profiles.id_type}</p>
+                            <p className="text-sm font-medium mt-1 text-white">{selectedContract.profiles.id_type}</p>
                           </div>
-                          <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                          <div className="bg-slate-800/30 rounded-lg p-3 border border-slate-700">
                             <p className="text-[10px] text-slate-500 uppercase tracking-wider">Number</p>
-                            <p className="text-sm font-medium mt-1 font-mono">{selectedContract.profiles.id_number}</p>
+                            <p className="text-sm font-medium mt-1 font-mono text-white">{selectedContract.profiles.id_number}</p>
                           </div>
                           {selectedContract.profiles.id_province && (
-                            <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                            <div className="bg-slate-800/30 rounded-lg p-3 border border-slate-700">
                               <p className="text-[10px] text-slate-500 uppercase tracking-wider">Province</p>
-                              <p className="text-sm font-medium mt-1">{selectedContract.profiles.id_province}</p>
+                              <p className="text-sm font-medium mt-1 text-white">{selectedContract.profiles.id_province}</p>
                             </div>
                           )}
                           {selectedContract.profiles.id_expiration && (
-                            <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                            <div className="bg-slate-800/30 rounded-lg p-3 border border-slate-700">
                               <p className="text-[10px] text-slate-500 uppercase tracking-wider">Expiry</p>
-                              <p className="text-sm font-medium mt-1">{selectedContract.profiles.id_expiration}</p>
+                              <p className="text-sm font-medium mt-1 text-white">{selectedContract.profiles.id_expiration}</p>
                             </div>
                           )}
                         </div>
@@ -1249,29 +1249,29 @@ const AdminContracts = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-7 h-7 rounded bg-slate-900 flex items-center justify-center text-white text-xs font-bold">6</div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Policy Summary</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wide">Policy Summary</h3>
                         <div className="flex-1 h-px bg-gradient-to-r from-teal-500 to-transparent" />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3 border-l-4 border-amber-500">
-                          <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold">Dispute/Chargeback Only</p>
-                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mt-1">{CONTRACT_TERMS.disputeChargeback.interestRate}% per month</p>
+                        <div className="bg-amber-950/20 rounded-lg p-3 border-l-4 border-amber-500">
+                          <p className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">Dispute/Chargeback Only</p>
+                          <p className="text-sm font-medium text-amber-300 mt-1">{CONTRACT_TERMS.disputeChargeback.interestRate}% per month</p>
                           <p className="text-[10px] text-amber-500/70 mt-1">+ ${CONTRACT_TERMS.disputeChargeback.reactivationFee} reconnection fee</p>
                         </div>
-                        <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 border-l-4 border-blue-500">
-                          <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold">Warranty</p>
-                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mt-1">{CONTRACT_TERMS.warranty.duration}</p>
+                        <div className="bg-blue-950/20 rounded-lg p-3 border-l-4 border-blue-500">
+                          <p className="text-[10px] text-blue-400 uppercase tracking-wider font-bold">Warranty</p>
+                          <p className="text-sm font-medium text-blue-300 mt-1">{CONTRACT_TERMS.warranty.duration}</p>
                           <p className="text-[10px] text-blue-500/70 mt-1">{CONTRACT_TERMS.warranty.coverage}</p>
                         </div>
-                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3 border-l-4 border-amber-500">
-                          <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold">Cancellation</p>
-                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mt-1">{CONTRACT_TERMS.cancellation.afterDeliveryCharge}</p>
+                        <div className="bg-amber-950/20 rounded-lg p-3 border-l-4 border-amber-500">
+                          <p className="text-[10px] text-amber-400 uppercase tracking-wider font-bold">Cancellation</p>
+                          <p className="text-sm font-medium text-amber-300 mt-1">{CONTRACT_TERMS.cancellation.afterDeliveryCharge}</p>
                           <p className="text-[10px] text-amber-500/70 mt-1">{CONTRACT_TERMS.cancellation.noticeDays} days notice</p>
                         </div>
-                        <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-3 border-l-4 border-emerald-500">
-                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider font-bold">Credit Check</p>
-                          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 mt-1">Not Required</p>
+                        <div className="bg-emerald-950/20 rounded-lg p-3 border-l-4 border-emerald-500">
+                          <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">Credit Check</p>
+                          <p className="text-sm font-medium text-emerald-300 mt-1">Not Required</p>
                           <p className="text-[10px] text-emerald-500/70 mt-1">Pre-authorization only</p>
                         </div>
                       </div>

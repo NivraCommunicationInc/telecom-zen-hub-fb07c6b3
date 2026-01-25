@@ -923,23 +923,23 @@ const AdminClients = () => {
           }}
         >
           <DialogContent 
-            className="max-w-6xl h-[90vh] flex flex-col p-0"
+            className="max-w-6xl h-[90vh] flex flex-col p-0 bg-slate-900 border-slate-700"
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Sticky Header */}
-            <div className="flex-shrink-0 bg-background border-b border-border px-6 py-4">
+            <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 px-6 py-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
                     <User className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="font-semibold text-lg truncate">
+                    <h2 className="font-semibold text-lg truncate text-white">
                       {selectedClient?.full_name || selectedClient?.email}
                     </h2>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-3 text-sm text-slate-400">
                       {selectedClient?.client_number && (
                         <span className="font-mono">{selectedClient.client_number}</span>
                       )}
@@ -1003,7 +1003,7 @@ const AdminClients = () => {
 
             {selectedClient && (
               <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-                <TabsList className="grid grid-cols-9 w-full flex-shrink-0 overflow-x-auto sticky top-0 z-10 bg-background">
+                <TabsList className="grid grid-cols-9 w-full flex-shrink-0 overflow-x-auto sticky top-0 z-10 bg-slate-800/50 border border-slate-700">
                   <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
                   <TabsTrigger value="identity" className="text-xs">Identité</TabsTrigger>
                   <TabsTrigger value="services" className="text-xs">Services</TabsTrigger>

@@ -13,11 +13,11 @@ const AdminTechnicians = () => {
           <p className="text-muted-foreground">Cette section a été centralisée</p>
         </div>
 
-        <Card className="border-primary/50 bg-primary/5">
+        <Card className="border-slate-700 bg-slate-800/50">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Wrench className="h-8 w-8 text-primary" />
+              <div className="h-16 w-16 rounded-full bg-teal-500/20 flex items-center justify-center">
+                <Wrench className="h-8 w-8 text-teal-400" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-foreground">Gestion centralisée</h3>
