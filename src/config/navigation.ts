@@ -60,6 +60,14 @@ export const NAV_TARGETS: NavTarget[] = [
     fallbackRoute: '/streaming',
   },
   {
+    id: 'compare',
+    label: 'Compare',
+    labelFr: 'Comparer',
+    type: 'route',
+    target: '/compare',
+    fallbackRoute: '/compare',
+  },
+  {
     id: 'about',
     label: 'About',
     labelFr: 'À propos',
