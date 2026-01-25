@@ -415,13 +415,14 @@ export default function StaffEmployeeDashboard() {
                     {recentOrders.map((order) => {
                       const status = getStatusConfig(order.status);
                       return (
-                        <div
+                        <button
                           key={order.id}
-                          className="p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                          onClick={() => navigate(`/staff/orders/${order.id}`)}
+                          className="w-full p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-teal-500/50 transition-all text-left group"
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
-                              <span className="font-mono font-semibold text-white">{order.order_number}</span>
+                              <span className="font-mono font-semibold text-white group-hover:text-teal-400 transition-colors">{order.order_number}</span>
                               <Badge className={`${status.className} flex items-center gap-1`}>
                                 {status.icon}
                                 {status.label}
@@ -438,11 +439,18 @@ export default function StaffEmployeeDashboard() {
                               {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
                             </span>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
                 )}
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/staff/orders")}
+                  className="w-full mt-4 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  Voir toutes les commandes
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -458,13 +466,14 @@ export default function StaffEmployeeDashboard() {
                       const priority = getPriorityConfig(ticket.priority || "medium");
                       const status = getStatusConfig(ticket.status);
                       return (
-                        <div
+                        <button
                           key={ticket.id}
-                          className="p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                          onClick={() => navigate(`/staff/tickets/${ticket.id}`)}
+                          className="w-full p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-teal-500/50 transition-all text-left group"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-3">
-                              <span className="font-mono font-semibold text-white">{ticket.ticket_number}</span>
+                              <span className="font-mono font-semibold text-white group-hover:text-teal-400 transition-colors">{ticket.ticket_number}</span>
                               <Badge className={priority.className}>
                                 {priority.label}
                               </Badge>
@@ -482,15 +491,81 @@ export default function StaffEmployeeDashboard() {
                               {format(new Date(ticket.created_at), "d MMM yyyy", { locale: fr })}
                             </span>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
                 )}
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/staff/tickets")}
+                  className="w-full mt-4 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  Voir tous les tickets
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Quick Links Section */}
+        <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-white text-lg">Accès rapide</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/staff/clients")}
+                className="h-auto py-4 flex flex-col gap-2 border-slate-700 hover:border-teal-500/50 hover:bg-slate-800/50"
+              >
+                <Users className="h-5 w-5 text-teal-400" />
+                <span className="text-sm">Clients</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/staff/orders")}
+                className="h-auto py-4 flex flex-col gap-2 border-slate-700 hover:border-teal-500/50 hover:bg-slate-800/50"
+              >
+                <ShoppingCart className="h-5 w-5 text-teal-400" />
+                <span className="text-sm">Commandes</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/staff/billing")}
+                className="h-auto py-4 flex flex-col gap-2 border-slate-700 hover:border-teal-500/50 hover:bg-slate-800/50"
+              >
+                <DollarSign className="h-5 w-5 text-teal-400" />
+                <span className="text-sm">Facturation</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/staff/appointments")}
+                className="h-auto py-4 flex flex-col gap-2 border-slate-700 hover:border-teal-500/50 hover:bg-slate-800/50"
+              >
+                <Clock className="h-5 w-5 text-teal-400" />
+                <span className="text-sm">RDV</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/staff/tv-channels")}
+                className="h-auto py-4 flex flex-col gap-2 border-slate-700 hover:border-teal-500/50 hover:bg-slate-800/50"
+              >
+                <Ticket className="h-5 w-5 text-teal-400" />
+                <span className="text-sm">TV</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/staff/notes")}
+                className="h-auto py-4 flex flex-col gap-2 border-slate-700 hover:border-teal-500/50 hover:bg-slate-800/50"
+              >
+                <FileText className="h-5 w-5 text-teal-400" />
+                <span className="text-sm">Notes</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         </main>
       </div>
 

@@ -369,11 +369,11 @@ export default function StaffClientDetail() {
                         <Link
                           key={order.id}
                           to={`/staff/orders/${order.id}`}
-                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-teal-500/50 transition-all group"
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-mono font-semibold text-white">{order.order_number}</p>
+                              <p className="font-mono font-semibold text-white group-hover:text-teal-400 transition-colors">{order.order_number}</p>
                               <p className="text-sm text-slate-400">{order.service_type}</p>
                             </div>
                             <div className="text-right">
@@ -407,13 +407,14 @@ export default function StaffClientDetail() {
                   <ScrollArea className="max-h-[400px]">
                     <div className="space-y-3">
                       {billing.map((bill: any) => (
-                        <div
+                        <Link
                           key={bill.id}
-                          className="p-4 rounded-lg border border-slate-700 bg-slate-800/30"
+                          to={`/staff/billing/${bill.id}`}
+                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-teal-500/50 transition-all group"
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-mono font-semibold text-white">{bill.invoice_number || "Facture"}</p>
+                              <p className="font-mono font-semibold text-white group-hover:text-teal-400 transition-colors">{bill.invoice_number || "Facture"}</p>
                               <p className="text-sm text-slate-400">
                                 Échéance: {bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "-"}
                               </p>
@@ -425,7 +426,7 @@ export default function StaffClientDetail() {
                               </p>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </ScrollArea>
@@ -449,11 +450,11 @@ export default function StaffClientDetail() {
                         <Link
                           key={ticket.id}
                           to={`/staff/tickets/${ticket.id}`}
-                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-teal-500/50 transition-all group"
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-semibold text-white">{ticket.subject}</p>
+                              <p className="font-semibold text-white group-hover:text-teal-400 transition-colors">{ticket.subject}</p>
                               <p className="text-sm text-slate-400 font-mono">{ticket.ticket_number}</p>
                             </div>
                             {getStatusBadge(ticket.status)}
@@ -485,11 +486,11 @@ export default function StaffClientDetail() {
                         <Link
                           key={apt.id}
                           to={`/staff/appointments/${apt.id}`}
-                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                          className="block p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-teal-500/50 transition-all group"
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-semibold text-white">{apt.title}</p>
+                              <p className="font-semibold text-white group-hover:text-teal-400 transition-colors">{apt.title}</p>
                               <p className="text-sm text-slate-400">
                                 {format(new Date(apt.scheduled_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
                               </p>

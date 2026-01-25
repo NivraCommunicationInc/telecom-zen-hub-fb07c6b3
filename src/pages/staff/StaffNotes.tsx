@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Search, User, Calendar, Tag } from "lucide-react";
+import { FileText, Search, User, Calendar, Tag, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -97,11 +97,21 @@ export default function StaffNotes() {
       <main className="flex-1 p-6 overflow-auto z-10">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
-            <FileText className="h-6 w-6 text-teal-400" />
-            Notes internes
-          </h1>
-          <p className="text-slate-400">Consultation des notes internes clients (lecture seule)</p>
+          <div className="flex items-center gap-4 mb-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <FileText className="h-6 w-6 text-teal-400" />
+              Notes internes
+            </h1>
+          </div>
+          <p className="text-slate-400 ml-14">Consultation des notes internes clients (lecture seule)</p>
         </div>
 
         {/* Filters */}

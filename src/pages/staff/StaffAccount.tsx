@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Settings, User, Mail, Phone, Key, Shield, LogOut } from "lucide-react";
+import { Settings, User, Mail, Phone, Key, Shield, LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -92,11 +92,21 @@ export default function StaffAccount() {
       <main className="flex-1 p-6 overflow-auto z-10">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
-            <Settings className="h-6 w-6 text-teal-400" />
-            Mon compte
-          </h1>
-          <p className="text-slate-400">Gérer vos paramètres de compte</p>
+          <div className="flex items-center gap-4 mb-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <Settings className="h-6 w-6 text-teal-400" />
+              Mon compte
+            </h1>
+          </div>
+          <p className="text-slate-400 ml-14">Gérer vos paramètres de compte</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">

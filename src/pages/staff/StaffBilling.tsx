@@ -2,7 +2,7 @@
  * StaffBilling - Employee portal billing view
  */
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, Search, Loader2, RefreshCw, Clock, 
-  CheckCircle, AlertTriangle, User, Calendar
+  CheckCircle, AlertTriangle, User, Calendar, ArrowLeft, Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import StaffBackground from "@/components/staff/StaffBackground";
 
 export default function StaffBilling() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -71,6 +72,14 @@ export default function StaffBilling() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg">
               <DollarSign className="h-6 w-6 text-slate-900" />
             </div>
@@ -138,16 +147,17 @@ export default function StaffBilling() {
                     const isOverdue = bill.due_date && new Date(bill.due_date) < new Date() && bill.status === "pending";
                     
                     return (
-                      <div
+                      <Link
                         key={bill.id}
-                        className={`p-4 rounded-lg border bg-slate-800/30 ${
-                          isOverdue ? "border-red-500/50" : "border-slate-700"
+                        to={`/staff/billing/${bill.id}`}
+                        className={`block p-4 rounded-lg border bg-slate-800/30 hover:bg-slate-800/50 transition-all group ${
+                          isOverdue ? "border-red-500/50 hover:border-red-400/70" : "border-slate-700 hover:border-teal-500/50"
                         }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-mono font-semibold text-white">
+                              <span className="font-mono font-semibold text-white group-hover:text-teal-400 transition-colors">
                                 {bill.invoice_number || "Facture"}
                               </span>
                               <Badge className={isOverdue ? "bg-red-500/20 text-red-400" : status.className}>
@@ -160,15 +170,18 @@ export default function StaffBilling() {
                               </p>
                             )}
                           </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-teal-400">
-                              {bill.amount?.toFixed(2)} $
-                            </p>
-                            {bill.balance_due && bill.balance_due > 0 && (
-                              <p className="text-sm text-amber-400">
-                                Solde: {bill.balance_due.toFixed(2)} $
+                          <div className="text-right flex items-start gap-3">
+                            <div>
+                              <p className="text-xl font-bold text-teal-400">
+                                {bill.amount?.toFixed(2)} $
                               </p>
-                            )}
+                              {bill.balance_due && bill.balance_due > 0 && (
+                                <p className="text-sm text-amber-400">
+                                  Solde: {bill.balance_due.toFixed(2)} $
+                                </p>
+                              )}
+                            </div>
+                            <Eye className="h-4 w-4 text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-sm text-slate-400">
@@ -189,7 +202,7 @@ export default function StaffBilling() {
                             </span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

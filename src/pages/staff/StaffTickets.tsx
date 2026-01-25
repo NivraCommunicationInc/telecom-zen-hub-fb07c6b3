@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Ticket, Search, Loader2, RefreshCw, Clock, 
-  CheckCircle, AlertTriangle, User, MessageSquare
+  CheckCircle, AlertTriangle, User, MessageSquare, ArrowLeft
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -72,6 +72,8 @@ export default function StaffTickets() {
     return configs[priority] || { label: priority, className: "bg-slate-600" };
   };
 
+  const nav = useNavigate();
+
   return (
     <div className="min-h-screen relative">
       <StaffBackground />
@@ -80,6 +82,14 @@ export default function StaffTickets() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => nav("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg">
               <Ticket className="h-6 w-6 text-slate-900" />
             </div>
