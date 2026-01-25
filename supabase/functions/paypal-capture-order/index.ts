@@ -182,8 +182,8 @@ serve(async (req) => {
         } else if (invoice) {
           console.log("[PayPal] Found invoice in billing_invoices:", invoice.id);
           
-          // Create payment record in billing_payments
-          const { error: paymentError } = await supabase
+        // Create payment record in billing_payments
+          const { data: paymentData, error: paymentError } = await supabase
             .from("billing_payments")
             .insert({
               invoice_id: invoice.id,
@@ -194,8 +194,12 @@ serve(async (req) => {
               provider_payment_id: captureId,
               status: "confirmed",
               received_at: new Date().toISOString(),
-              source: "live",
-            });
+              source: "portal",
+            })
+            .select()
+            .single();
+          
+          console.log("[PayPal] Payment record created:", paymentData?.id || "success");
 
           if (paymentError) {
             console.error("[PayPal] Payment record error:", paymentError);

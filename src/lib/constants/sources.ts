@@ -15,6 +15,7 @@ export const PAYMENT_SOURCES = {
   CASH: 'cash',
   CHECK: 'check',
   BANK_TRANSFER: 'bank_transfer',
+  PAYPAL: 'paypal',
 } as const;
 
 export type PaymentSource = typeof PAYMENT_SOURCES[keyof typeof PAYMENT_SOURCES];
@@ -40,4 +41,5 @@ export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
   [PAYMENT_SOURCES.CASH]: 'Espèces',
   [PAYMENT_SOURCES.CHECK]: 'Chèque',
   [PAYMENT_SOURCES.BANK_TRANSFER]: 'Virement bancaire',
+  [PAYMENT_SOURCES.PAYPAL]: 'PayPal',
 };
