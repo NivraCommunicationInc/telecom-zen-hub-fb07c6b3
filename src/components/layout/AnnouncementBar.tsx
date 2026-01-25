@@ -122,7 +122,8 @@ const AnnouncementBar = () => {
 
   return (
     <div
-      className="sticky top-0 z-[60] bg-accent text-accent-foreground overflow-hidden"
+      id="announcement-bar"
+      className="relative z-[60] bg-accent text-accent-foreground overflow-hidden"
       role="banner"
       aria-label="Annonce promotionnelle"
     >
