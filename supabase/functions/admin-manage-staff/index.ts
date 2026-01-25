@@ -716,20 +716,20 @@ serve(async (req: Request) => {
             console.log(`[admin-manage-staff] Sending password reset email to admin ${email} with redirect: ${resetUrl}`);
             await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
           } else {
-            // Employee/Technician: send PIN setup invite instead
-            console.log(`[admin-manage-staff] Sending PIN invite to ${role} ${email}`);
+            // Employee/Technician: send profile setup invite (password + PIN + terms)
+            console.log(`[admin-manage-staff] Sending profile setup invite to ${role} ${email}`);
             
-            // Generate one-time token
+            // Generate one-time token for onboarding
             const tokenBytes = new Uint8Array(32);
             crypto.getRandomValues(tokenBytes);
             const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
             const tokenHash = await hashToken(token);
             
-            // Store token hash
+            // Store token in staff_onboarding_tokens table
             const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 24);
+            expiresAt.setHours(expiresAt.getHours() + 48); // 48 hours to complete setup
             
-            await adminClient.from("pin_invite_tokens").insert({
+            await adminClient.from("staff_onboarding_tokens").insert({
               user_id: userId,
               email,
               role,
@@ -738,19 +738,17 @@ serve(async (req: Request) => {
               created_by_admin_id: callingUser.id,
             });
             
-            // Build link
-            const portalPath = role === "employee" ? "/employee/set-pin" : "/technician/set-pin";
-            const setPinLink = `${appBaseUrl}${portalPath}?token=${token}`;
-            const loginPath = role === "employee" ? "/employee/login" : "/technician/auth";
-            const loginLink = `${appBaseUrl}${loginPath}`;
+            // Build setup link to the new onboarding page
+            const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
+            const staffLoginLink = `${appBaseUrl}/staff`;
             
-            // Send onboarding email
+            // Send professional onboarding email
             const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
             await resend.emails.send({
               from: "Nivra Telecom <support@nivratelecom.ca>",
               reply_to: "support@nivratelecom.ca",
               to: [email],
-              subject: `Bienvenue chez Nivra - Configuration de votre accès ${role === "employee" ? "employé" : "technicien"}`,
+              subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -758,39 +756,49 @@ serve(async (req: Request) => {
                     <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Bienvenue dans l'équipe!</p>
                   </div>
                   <div style="padding: 30px; background: #f8fafc;">
-                    <h2>Bonjour ${full_name},</h2>
-                    <p>Votre compte ${role === "employee" ? "employé" : "technicien"} a été créé.</p>
-                    <p><strong>Pour accéder au portail, vous devez d'abord configurer votre PIN (4 chiffres) :</strong></p>
-                    <p style="margin: 25px 0;">
-                      <a href="${setPinLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                        Configurer mon PIN
+                    <h2 style="color: #1e293b; margin-bottom: 16px;">Bonjour ${full_name},</h2>
+                    <p style="color: #374151; line-height: 1.6;">Votre compte <strong>${role === "employee" ? "employé" : "technicien"}</strong> a été créé avec succès.</p>
+                    
+                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+                      <p style="color: #92400e; margin: 0; font-weight: 600;">Configuration requise</p>
+                      <p style="color: #78350f; margin: 8px 0 0; font-size: 14px;">
+                        Avant d'accéder au portail, vous devez configurer votre profil: mot de passe, NIP de sécurité et accepter les conditions d'utilisation.
+                      </p>
+                    </div>
+                    
+                    <p style="margin: 25px 0; text-align: center;">
+                      <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                        Configurer mon profil
                       </a>
                     </p>
-                    <p style="font-size: 13px; color: #64748b;">Ce lien expire dans 24 heures.</p>
+                    <p style="font-size: 13px; color: #64748b; text-align: center;">Ce lien expire dans 48 heures.</p>
+                    
                     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
-                    <p><strong>Comment vous connecter :</strong></p>
-                    <ol style="color: #374151; line-height: 1.8;">
-                      <li>Accédez à <a href="${loginLink}" style="color: #0d9488;">${loginLink}</a></li>
-                      <li>Entrez votre email: <strong>${email}</strong></li>
-                      <li>Entrez votre PIN (4 chiffres)</li>
+                    
+                    <p style="color: #374151; font-weight: 600; margin-bottom: 12px;">Étapes de configuration:</p>
+                    <ol style="color: #374151; line-height: 2; padding-left: 20px;">
+                      <li>Créez votre mot de passe sécurisé</li>
+                      <li>Choisissez un NIP à 4 chiffres (requis pour accéder aux profils clients)</li>
+                      <li>Acceptez les conditions de confidentialité</li>
                     </ol>
-                    <p style="margin-top: 20px; color: #64748b; font-size: 13px;">
-                      <em>Note: Vous n'avez pas de mot de passe. Votre connexion se fait uniquement avec email + PIN.</em>
+                    
+                    <p style="margin-top: 24px; color: #64748b; font-size: 13px;">
+                      Une fois configuré, connectez-vous à <a href="${staffLoginLink}" style="color: #0d9488;">${staffLoginLink}</a>
                     </p>
                   </div>
-                  <div style="padding: 24px 30px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+                  <div style="padding: 24px 30px; background: #f1f5f9; border-top: 1px solid #e2e8f0; text-align: center;">
                     <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
-                    <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">Laval, QC, Canada</p>
+                    <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">1799 Av. Pierre-Péladeau, Laval, QC</p>
                     <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
                       <a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">support@nivratelecom.ca</a> | 
-                      <a href="tel:4385442233" style="color: #0d9488; text-decoration: none;">438-544-2233</a>
+                      <a href="tel:4385442233" style="color: #0d9488; text-decoration: none; white-space: nowrap;">438-544-2233</a>
                     </p>
                   </div>
                 </div>
               `,
             });
             
-            await logAction("staff_pin_invite_sent", { request_id: requestId, role }, { type: "user", id: userId, email });
+            await logAction("staff_onboarding_invite_sent", { request_id: requestId, role }, { type: "user", id: userId, email });
           }
         }
 
@@ -799,7 +807,7 @@ serve(async (req: Request) => {
           : send_invitation 
             ? role === "admin" 
               ? "Utilisateur créé. Un email de configuration du mot de passe a été envoyé."
-              : "Utilisateur créé. Un email de configuration du PIN a été envoyé."
+              : "Utilisateur créé. Un email de configuration du profil a été envoyé."
             : "Utilisateur créé avec succès.";
 
         return json(200, {

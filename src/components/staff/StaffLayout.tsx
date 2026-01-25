@@ -2,6 +2,7 @@ import { useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import StaffBackground from "./StaffBackground";
 
 interface StaffLayoutProps {
   children: ReactNode;
@@ -14,7 +15,9 @@ interface StaffLayoutProps {
  * This layout ensures:
  * 1. User is authenticated
  * 2. User has the required staff role
- * 3. Redirects to /staff (not /) when not authenticated or unauthorized
+ * 3. Onboarding is complete (for employee/technician)
+ * 4. Terms are accepted
+ * 5. Redirects to /staff (not /) when not authenticated or unauthorized
  */
 export default function StaffLayout({ children, requiredRole }: StaffLayoutProps) {
   const navigate = useNavigate();
@@ -48,6 +51,39 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
             navigate("/staff", { replace: true });
           }
           return;
+        }
+
+        // For employee/technician, check onboarding completion
+        if (requiredRole === "employee" || requiredRole === "technician") {
+          const { data: roleData, error } = await supabase
+            .from("user_roles")
+            .select("onboarding_completed_at, terms_accepted_at, staff_pin_hash, is_active, status")
+            .eq("user_id", session.user.id)
+            .eq("role", requiredRole)
+            .maybeSingle();
+
+          if (error || !roleData) {
+            console.error("[StaffLayout] Error checking role data:", error);
+            if (mounted) navigate("/staff", { replace: true });
+            return;
+          }
+
+          // Check if account is active
+          if (!roleData.is_active || roleData.status !== "active") {
+            console.warn("[StaffLayout] Account not active");
+            if (mounted) navigate("/staff", { replace: true });
+            return;
+          }
+
+          // Check if onboarding is required
+          if (!roleData.onboarding_completed_at || !roleData.terms_accepted_at || !roleData.staff_pin_hash) {
+            console.log("[StaffLayout] Onboarding not complete");
+            if (mounted) navigate("/staff", { 
+              replace: true, 
+              state: { message: "Veuillez compléter la configuration via le lien reçu par email." } 
+            });
+            return;
+          }
         }
 
         if (mounted) {
@@ -84,8 +120,12 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen flex items-center justify-center relative">
+        <StaffBackground />
+        <div className="flex flex-col items-center gap-4 z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-400" />
+          <p className="text-slate-400">Vérification de l'accès...</p>
+        </div>
       </div>
     );
   }
