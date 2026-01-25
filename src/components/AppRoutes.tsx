@@ -29,6 +29,7 @@ import Contest from "@/pages/Contest";
 import TrackOrder from "@/pages/TrackOrder";
 import StatusPage from "@/pages/StatusPage";
 import Install from "@/pages/Install";
+import ComparePlans from "@/pages/ComparePlans";
 
 // Legal pages
 import ConditionsDeService from "@/pages/legal/ConditionsDeService";
@@ -209,6 +210,7 @@ const AppRoutes = () => {
       <Route path="/mobile" element={<MaintenanceGuard><PublicLayout><MobilePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/mobile-coverage" element={<MaintenanceGuard><PublicLayout><MobileCoverage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/streaming" element={<MaintenanceGuard><PublicLayout><StreamingPlans /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/compare" element={<MaintenanceGuard><PublicLayout><ComparePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/careers" element={<MaintenanceGuard><PublicLayout><Careers /></PublicLayout></MaintenanceGuard>} />
       <Route path="/apply" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
       <Route path="/apply/:jobId" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
