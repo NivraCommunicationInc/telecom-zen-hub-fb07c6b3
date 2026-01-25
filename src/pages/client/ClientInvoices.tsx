@@ -941,6 +941,12 @@ const ClientInvoices = () => {
                           resetPaymentForm();
                           refetchInvoices();
                           refetchProfile();
+                          // Invalidate all billing-related caches for instant UI updates
+                          queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
+                          queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-balance"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
                         }}
                         onError={(error) => {
                           toast.error("Erreur PayPal: " + error);
