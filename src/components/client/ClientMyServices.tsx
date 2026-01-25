@@ -51,6 +51,7 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
+import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 
 // Plans matching website exactly - DO NOT modify
 const AVAILABLE_PLANS = {
@@ -204,13 +205,13 @@ const ClientMyServices = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch profile for credit balance and province
+  // Fetch profile for province info only (credit/balance comes from V2 ledger)
   const { data: profile } = useQuery({
-    queryKey: ["client-profile-credit", user?.id],
+    queryKey: ["client-profile-province", user?.id],
     queryFn: async () => {
       const { data, error } = await portalSupabase
         .from("profiles")
-        .select("store_credit, balance, service_province, service_city")
+        .select("service_province, service_city")
         .eq("user_id", user?.id)
         .maybeSingle();
       if (error) throw error;
@@ -218,6 +219,9 @@ const ClientMyServices = () => {
     },
     enabled: !!user?.id,
   });
+
+  // V2 Ledger Balance - Single source of truth for credit/balance
+  const { data: ledgerBalance } = useLedgerBalance(user?.id);
 
   // Fetch billing/invoices for payment info and overdue status
   const { data: billingRecords } = useQuery({
@@ -543,13 +547,15 @@ const ClientMyServices = () => {
     )
   ) || [];
 
-  // Billing calculations
+  // Billing calculations - V2 Ledger as source of truth
   const lastPayment = payments?.[0];
   const overdueInvoices = billingRecords?.filter((b: any) => 
     b.status === "overdue" || (b.due_date && new Date(b.due_date) < new Date() && b.status !== "paid")
   ) || [];
-  const clientCredit = Number(profile?.store_credit || 0);
-  const accountBalance = Number(profile?.balance || 0);
+  
+  // Use V2 ledger balance instead of legacy profile columns
+  const clientCredit = ledgerBalance?.availableCredit || 0;
+  const accountBalance = ledgerBalance?.balance || 0;
 
   // Calculate split billing totals
   const billingTotals = billingRecords?.reduce((acc: any, b: any) => {
@@ -632,19 +638,29 @@ const ClientMyServices = () => {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Crédit disponible</p>
-              <p className="text-lg font-semibold text-emerald-500">
-                {clientCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
-            </div>
-            
-            <div>
-              <p className="text-xs text-muted-foreground">Solde compte</p>
-              <p className={`text-lg font-semibold ${accountBalance < 0 ? "text-red-500" : "text-foreground"}`}>
-                {accountBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
-            </div>
+            {/* Unified balance display from V2 ledger */}
+            {ledgerBalance?.isCredit ? (
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Crédit disponible</p>
+                <p className="text-lg font-semibold text-emerald-500">
+                  {clientCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </div>
+            ) : accountBalance > 0 ? (
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Solde à payer</p>
+                <p className="text-lg font-semibold text-amber-500">
+                  {accountBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </div>
+            ) : (
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Solde compte</p>
+                <p className="text-lg font-semibold text-emerald-500">
+                  Compte équilibré
+                </p>
+              </div>
+            )}
             
             <div>
               <p className="text-xs text-muted-foreground">Frais équipement</p>
