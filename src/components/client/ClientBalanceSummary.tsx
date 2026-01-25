@@ -100,22 +100,22 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   const displayBalance = Math.abs(balance);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 col-span-full sm:col-span-1">
       {/* Prepaid info banner */}
       <Card className="bg-cyan-500/10 border-cyan-500/30">
-        <CardContent className="p-3">
+        <CardContent className="p-2 sm:p-3">
           <p className="text-xs text-cyan-700 dark:text-cyan-300">
-            <strong>Service prépayé</strong> = renouvellement seulement si paiement confirmé. Après 90 jours sans renouvellement, le numéro peut devenir irrécupérable.
+            <strong>Service prépayé</strong> = renouvellement seulement si paiement confirmé.
           </p>
         </CardContent>
       </Card>
 
       <Card className={`bg-card border-border ${!isCredit && balance > 0 ? 'border-amber-500/30' : ''}`}>
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           {/* Balance Display */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
                 isCredit ? 'bg-blue-500/20' : balance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
               }`}>
                 {isCredit ? (
@@ -124,11 +124,11 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                   <DollarSign className={`w-5 h-5 ${balance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
                 )}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground uppercase truncate">
                   {isCredit ? "Crédit disponible" : "Solde dû"}
                 </p>
-                <p className={`text-xl font-bold ${
+                <p className={`text-lg sm:text-xl font-bold ${
                   isCredit ? 'text-blue-500' : balance > 0 ? 'text-amber-500' : 'text-emerald-500'
                 }`}>
                   {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
@@ -138,9 +138,9 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
             
             {/* Pay Now Button - Only show if balance > 0 */}
             {balance > 0 && (
-              <Link to="/portal/invoices">
+              <Link to="/portal/invoices" className="w-full sm:w-auto">
                 <Button 
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
                   size="sm"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
@@ -152,16 +152,16 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
 
           {/* Last Payment Info */}
           {ledger?.lastPaymentDate && (
-            <div className="flex items-center justify-between text-sm mb-4 p-2 bg-muted/30 rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 text-sm mb-4 p-2 bg-muted/30 rounded-lg">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                <span>Dernier paiement</span>
+                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <span className="text-xs sm:text-sm">Dernier paiement</span>
               </div>
-              <div className="text-right">
-                <span className="font-medium">
+              <div className="text-left sm:text-right pl-6 sm:pl-0">
+                <span className="font-medium text-sm">
                   {ledger.lastPaymentAmount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </span>
-                <span className="text-muted-foreground ml-2">
+                <span className="text-muted-foreground ml-2 text-xs sm:text-sm">
                   {format(new Date(ledger.lastPaymentDate), "d MMM yyyy", { locale: fr })}
                 </span>
               </div>
@@ -179,35 +179,35 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                 const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date();
                 const amountDue = invoice.balance_due ?? (invoice.total - (invoice.amount_paid || 0));
 
-                return (
-                  <div 
-                    key={invoice.id}
-                    className={`p-2 rounded-lg flex items-center justify-between ${
-                      isOverdue ? 'bg-red-500/5 border border-red-500/20' : 'bg-muted/30'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-medium truncate">
-                          {invoice.invoice_number || '—'}
-                        </span>
-                        <Badge className={`${statusInfo.color} text-xs`}>
-                          {isOverdue ? 'En retard' : statusInfo.label}
-                        </Badge>
+                  return (
+                    <div 
+                      key={invoice.id}
+                      className={`p-2 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2 ${
+                        isOverdue ? 'bg-red-500/5 border border-red-500/20' : 'bg-muted/30'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-medium truncate max-w-[100px]">
+                            {invoice.invoice_number || '—'}
+                          </span>
+                          <Badge className={`${statusInfo.color} text-xs`}>
+                            {isOverdue ? 'En retard' : statusInfo.label}
+                          </Badge>
+                        </div>
+                        {invoice.due_date && (
+                          <p className={`text-xs truncate ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            Échéance: {format(new Date(invoice.due_date), "d MMM", { locale: fr })}
+                          </p>
+                        )}
                       </div>
-                      {invoice.due_date && (
-                        <p className={`text-xs ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
-                          Échéance: {format(new Date(invoice.due_date), "d MMM yyyy", { locale: fr })}
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-bold text-sm">
+                          {amountDue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </p>
-                      )}
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <p className="font-bold text-sm">
-                        {amountDue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </p>
-                    </div>
-                  </div>
-                );
+                  );
               })}
               {unpaidInvoices.length > 3 && (
                 <Link to="/portal/invoices">
