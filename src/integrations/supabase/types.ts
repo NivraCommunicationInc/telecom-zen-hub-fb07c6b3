@@ -9430,7 +9430,7 @@ export type Database = {
         | "refunded"
         | "overdue"
       billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
-      billing_payment_method: "interac" | "manual"
+      billing_payment_method: "interac" | "manual" | "paypal"
       billing_payment_status: "pending" | "confirmed" | "failed"
       billing_subscription_status:
         | "active"
@@ -9716,7 +9716,7 @@ export const Constants = {
         "overdue",
       ],
       billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
-      billing_payment_method: ["interac", "manual"],
+      billing_payment_method: ["interac", "manual", "paypal"],
       billing_payment_status: ["pending", "confirmed", "failed"],
       billing_subscription_status: [
         "active",
