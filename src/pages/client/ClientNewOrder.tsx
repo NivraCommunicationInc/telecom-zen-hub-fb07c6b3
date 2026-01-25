@@ -1572,38 +1572,12 @@ const ClientNewOrder = () => {
         postStepErrors.push("billing_v2");
       }
 
-      // Legacy billing record (kept for backward compatibility, can be removed later)
-      try {
-        const invoiceSubtotal = 
-          subtotal + 
-          paidChannelTotal + 
-          equipmentSubtotal +
-          selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
-        const invoiceDeliveryFee = isDeliveryOnlyOrder 
-          ? (deliveryChoice === "uber" 
-              ? DELIVERY_CONFIG.uber.fee 
-              : DELIVERY_CONFIG.standard.fee)
-          : (installationChoice === "auto" ? 30 : 0);
-        
-        // Activation fee: $25 for 1 service type, $45 for 2+ service types
-        const invoiceActivationFee = calculateActivationFee();
-        const invoiceInstallationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
-        const invoiceBaseAmount = invoiceSubtotal + invoiceDeliveryFee + invoiceActivationFee + invoiceInstallationFee;
-        const invoiceTps = Math.round(invoiceBaseAmount * 0.05 * 100) / 100;
-        const invoiceTvq = Math.round(invoiceBaseAmount * 0.09975 * 100) / 100;
-        const invoiceTotalWithTax = invoiceBaseAmount + invoiceTps + invoiceTvq;
-
-        // ============================================================
-        // LEGACY BILLING BLOCKED - Source unique V2 en cours
-        // Date: 2026-01-24 - Écriture legacy désactivée
-        // TODO: Implémenter billing_invoices V2 ici
-        // ============================================================
-        console.warn("[BILLING] Legacy write BLOCKED - V2 migration required");
-        // Écriture legacy bloquée - ne fait rien
-        // L'invoice sera créée via billing_invoices V2 quand implémenté
-      } catch (billingErr) {
-        console.warn("[BILLING] Legacy billing skipped (blocked):", billingErr);
-      }
+      // ============================================================
+      // BILLING V2 - Migration complétée (2026-01-25)
+      // La facturation est gérée par la fonction edge billing-create-order
+      // appelée aux lignes 1550-1568 ci-dessus
+      // Le bloc legacy a été supprimé car plus utilisé
+      // ============================================================
 
       // Create support ticket for TV channel configuration if TV service is included
       if (hasTVService && channelData.length > 0) {
