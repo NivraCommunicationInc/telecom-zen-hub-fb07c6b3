@@ -156,8 +156,15 @@ import StaffOnboarding from "@/pages/staff/StaffOnboarding";
 import StaffAdminDashboard from "@/pages/staff/StaffAdminDashboard";
 import StaffEmployeeDashboard from "@/pages/staff/StaffEmployeeDashboard";
 import StaffTechnicianDashboard from "@/pages/staff/StaffTechnicianDashboard";
+import StaffClients from "@/pages/staff/StaffClients";
+import StaffClientDetail from "@/pages/staff/StaffClientDetail";
+import StaffOrders from "@/pages/staff/StaffOrders";
+import StaffTickets from "@/pages/staff/StaffTickets";
+import StaffAppointments from "@/pages/staff/StaffAppointments";
+import StaffBilling from "@/pages/staff/StaffBilling";
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
+import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
 
 // DEV-ONLY imports (lazy to avoid bundling in production)
 const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus"));
