@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
 interface PayPalButtonProps {
   amount: number;
@@ -95,13 +96,13 @@ export const PayPalButton = ({
             },
           });
 
-          if (error) throw new Error(error.message);
+          if (error) throw error;
           if (!data?.paypal_order_id) throw new Error("No order ID returned");
 
           return data.paypal_order_id;
         } catch (err) {
           console.error("PayPal create order error:", err);
-          const errorMessage = err instanceof Error ? err.message : "Erreur PayPal";
+          const errorMessage = await getInvokeErrorMessage(err);
           toast.error(errorMessage);
           onError?.(errorMessage);
           throw err;
@@ -119,14 +120,14 @@ export const PayPalButton = ({
             },
           });
 
-          if (error) throw new Error(error.message);
+          if (error) throw error;
           if (!captureData?.success) throw new Error(captureData?.error || "Capture failed");
 
           toast.success("Paiement réussi!");
           onSuccess?.(captureData.capture_id);
         } catch (err) {
           console.error("PayPal capture error:", err);
-          const errorMessage = err instanceof Error ? err.message : "Erreur de capture";
+          const errorMessage = await getInvokeErrorMessage(err);
           toast.error(errorMessage);
           onError?.(errorMessage);
         } finally {
