@@ -113,7 +113,12 @@ const AdminBilling = () => {
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [paymentConfirmation, setPaymentConfirmation] = useState<any>(null);
   const [paymentBill, setPaymentBill] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"credit" | "etransfer" | "">("");
+  const [paymentMethod, setPaymentMethod] = useState<"credit" | "etransfer" | "paypal" | "">("");
+  const [paypalDetails, setPaypalDetails] = useState({
+    transactionId: "",
+    payerEmail: "",
+    amount: "",
+  });
   const [cardDetails, setCardDetails] = useState({
     cardNumber: "",
     cardName: "",
@@ -712,6 +717,7 @@ const AdminBilling = () => {
     setPaymentMethod("");
     setCardDetails({ cardNumber: "", cardName: "", expiry: "", cvv: "" });
     setEtransferDetails({ senderName: "", amount: calculateTotal(bill).toString(), receivedBy: "" });
+    setPaypalDetails({ transactionId: "", payerEmail: "", amount: calculateTotal(bill).toString() });
     setPaymentDialogOpen(true);
   };
 
@@ -732,6 +738,13 @@ const AdminBilling = () => {
       }
     }
 
+    if (paymentMethod === "paypal") {
+      if (!paypalDetails.transactionId || !paypalDetails.amount) {
+        toast({ title: "Veuillez remplir l'ID de transaction PayPal et le montant", variant: "destructive" });
+        return;
+      }
+    }
+
     setIsProcessingPayment(true);
     
     try {
@@ -739,14 +752,18 @@ const AdminBilling = () => {
       
       const referenceNumber = generatePaymentReference();
       const totalAmount = calculateTotal(paymentBill);
-      const paymentAmount = paymentMethod === "etransfer" ? parseFloat(etransferDetails.amount) : totalAmount;
+      const paymentAmount = paymentMethod === "etransfer" 
+        ? parseFloat(etransferDetails.amount) 
+        : paymentMethod === "paypal" 
+          ? parseFloat(paypalDetails.amount) 
+          : totalAmount;
       
       // Create payment record
       const paymentData: any = {
         billing_id: paymentBill.id,
         user_id: paymentBill.user_id,
         amount: paymentAmount,
-        payment_method: paymentMethod === "credit" ? "credit_card" : "etransfer",
+        payment_method: paymentMethod === "credit" ? "credit_card" : paymentMethod === "paypal" ? "paypal" : "etransfer",
         reference_number: referenceNumber,
         status: "completed",
       };
@@ -755,6 +772,9 @@ const AdminBilling = () => {
         const cardNum = cardDetails.cardNumber.replace(/\s/g, "");
         paymentData.card_last_four = cardNum.slice(-4);
         paymentData.card_type = cardNum.startsWith("4") ? "Visa" : cardNum.startsWith("5") ? "Mastercard" : "Card";
+      } else if (paymentMethod === "paypal") {
+        paymentData.provider_payment_id = paypalDetails.transactionId;
+        paymentData.notes = `PayPal Transaction: ${paypalDetails.transactionId}${paypalDetails.payerEmail ? ` - Payer: ${paypalDetails.payerEmail}` : ""}`;
       } else {
         paymentData.etransfer_sender_name = etransferDetails.senderName;
         paymentData.etransfer_amount = parseFloat(etransferDetails.amount);
@@ -780,7 +800,9 @@ const AdminBilling = () => {
       // Update billing status based on payment
       const paymentNote = paymentMethod === "credit" 
         ? `[Paiement reçu via Carte de crédit - ****${paymentData.card_last_four}]`
-        : `[Paiement reçu via Virement Interac - ${etransferDetails.senderName}]`;
+        : paymentMethod === "paypal"
+          ? `[Paiement reçu via PayPal - ${paypalDetails.transactionId}]`
+          : `[Paiement reçu via Virement Interac - ${etransferDetails.senderName}]`;
 
       if (paymentAmount >= totalAmount) {
         // Full payment or overpayment - mark as paid
@@ -856,7 +878,11 @@ const AdminBilling = () => {
             invoiceNumber: paymentBill.invoice_number,
             amount: paymentAmount,
             paidAt: new Date().toISOString(),
-            paymentMethod: paymentMethod === "credit" ? `Carte de crédit (****${paymentData.card_last_four})` : "Virement Interac",
+            paymentMethod: paymentMethod === "credit" 
+              ? `Carte de crédit (****${paymentData.card_last_four})` 
+              : paymentMethod === "paypal" 
+                ? `PayPal (${paypalDetails.transactionId})` 
+                : "Virement Interac",
           }
         );
       }
@@ -871,6 +897,7 @@ const AdminBilling = () => {
         date: new Date().toISOString(),
         ...(paymentMethod === "credit" ? { cardLast4: paymentData.card_last_four, cardType: paymentData.card_type } : {}),
         ...(paymentMethod === "etransfer" ? { senderName: etransferDetails.senderName, receivedBy: etransferDetails.receivedBy } : {}),
+        ...(paymentMethod === "paypal" ? { paypalTransactionId: paypalDetails.transactionId, payerEmail: paypalDetails.payerEmail } : {}),
       });
       
       setPaymentDialogOpen(false);
@@ -1606,11 +1633,12 @@ const AdminBilling = () => {
 
                 <div>
                   <Label>Méthode de paiement</Label>
-                  <Select value={paymentMethod} onValueChange={(v: "credit" | "etransfer") => setPaymentMethod(v)}>
+                  <Select value={paymentMethod} onValueChange={(v: "credit" | "etransfer" | "paypal") => setPaymentMethod(v)}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="credit">Carte de crédit</SelectItem>
                       <SelectItem value="etransfer">Virement Interac</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
+                      <SelectItem value="credit">Carte de crédit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1631,6 +1659,23 @@ const AdminBilling = () => {
                     <div><Label>Nom de l'expéditeur</Label><Input placeholder="Nom du client ou entreprise" value={etransferDetails.senderName} onChange={(e) => setEtransferDetails({ ...etransferDetails, senderName: e.target.value })} /></div>
                     <div><Label>Montant reçu ($)</Label><Input type="number" value={etransferDetails.amount} onChange={(e) => setEtransferDetails({ ...etransferDetails, amount: e.target.value })} /></div>
                     <div><Label>Reçu par (employé)</Label><Input placeholder="Nom de l'employé" value={etransferDetails.receivedBy} onChange={(e) => setEtransferDetails({ ...etransferDetails, receivedBy: e.target.value })} /></div>
+                  </div>
+                )}
+
+                {paymentMethod === "paypal" && (
+                  <div className="space-y-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19.554 9.488c.121.563.106 1.246-.04 2.017-.582 2.464-2.477 3.88-5.336 3.88h-.71c-.323 0-.6.216-.665.524l-.513 3.292-.146.935c-.033.211.127.403.34.403h2.398c.283 0 .526-.19.581-.468l.024-.123.46-2.922.03-.163c.055-.278.298-.468.58-.468h.367c2.369 0 4.221-1.042 4.762-4.057.226-1.261.11-2.314-.488-3.054a2.57 2.57 0 0 0-.644-.563c.138.244.252.505.34.78z" fill="#179BD7"/>
+                        <path d="M18.474 9.081a5.97 5.97 0 0 0-.74-.195 9.456 9.456 0 0 0-1.505-.11h-4.562c-.283 0-.526.19-.581.467l-.973 6.17-.028.18c.065-.308.342-.524.665-.524h1.386c2.84 0 5.062-1.155 5.713-4.495.019-.099.036-.195.05-.289a3.09 3.09 0 0 0-.425-.204z" fill="#222D65"/>
+                        <path d="M10.663 9.243a.595.595 0 0 1 .58-.467h4.563c.541 0 1.047.037 1.505.11.129.02.254.045.375.073.128.03.25.063.365.1.058.018.113.038.168.058a3.1 3.1 0 0 1 .257.103c.086-.55.085-1.106-.027-1.648-.376-1.822-1.667-2.573-3.612-2.573h-5.8c-.323 0-.6.216-.665.524L6.67 17.403c-.04.253.152.48.408.48h2.972l.746-4.733.867-3.907z" fill="#253B80"/>
+                      </svg>
+                      <span className="font-medium text-blue-600">PayPal</span>
+                    </div>
+                    <div><Label>ID Transaction PayPal *</Label><Input placeholder="Ex: 5TY12345AB678901C" value={paypalDetails.transactionId} onChange={(e) => setPaypalDetails({ ...paypalDetails, transactionId: e.target.value.toUpperCase() })} /></div>
+                    <div><Label>Montant reçu ($) *</Label><Input type="number" value={paypalDetails.amount} onChange={(e) => setPaypalDetails({ ...paypalDetails, amount: e.target.value })} /></div>
+                    <div><Label>Courriel du payeur (optionnel)</Label><Input type="email" placeholder="client@example.com" value={paypalDetails.payerEmail} onChange={(e) => setPaypalDetails({ ...paypalDetails, payerEmail: e.target.value })} /></div>
+                    <p className="text-xs text-muted-foreground">L'ID de transaction se trouve dans les détails de la transaction sur PayPal.</p>
                   </div>
                 )}
 
@@ -1659,8 +1704,10 @@ const AdminBilling = () => {
                   <div className="flex justify-between"><span className="text-muted-foreground">Référence:</span><span className="font-mono font-medium">{paymentConfirmation.referenceNumber}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Facture:</span><span>{paymentConfirmation.invoiceNumber}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Client:</span><span>{paymentConfirmation.clientName}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Méthode:</span><span>{paymentConfirmation.method === "credit" ? "Carte de crédit" : "Virement Interac"}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Méthode:</span><span>{paymentConfirmation.method === "credit" ? "Carte de crédit" : paymentConfirmation.method === "paypal" ? "PayPal" : "Virement Interac"}</span></div>
                   {paymentConfirmation.cardLast4 && <div className="flex justify-between"><span className="text-muted-foreground">Carte:</span><span>{paymentConfirmation.cardType} •••• {paymentConfirmation.cardLast4}</span></div>}
+                  {paymentConfirmation.paypalTransactionId && <div className="flex justify-between"><span className="text-muted-foreground">Transaction PayPal:</span><span className="font-mono text-xs">{paymentConfirmation.paypalTransactionId}</span></div>}
+                  {paymentConfirmation.payerEmail && <div className="flex justify-between"><span className="text-muted-foreground">Payeur:</span><span>{paymentConfirmation.payerEmail}</span></div>}
                   {paymentConfirmation.senderName && <div className="flex justify-between"><span className="text-muted-foreground">Expéditeur:</span><span>{paymentConfirmation.senderName}</span></div>}
                   {paymentConfirmation.receivedBy && <div className="flex justify-between"><span className="text-muted-foreground">Reçu par:</span><span>{paymentConfirmation.receivedBy}</span></div>}
                   <div className="flex justify-between"><span className="text-muted-foreground">Date:</span><span>{format(new Date(paymentConfirmation.date), "d MMM yyyy HH:mm", { locale: fr })}</span></div>
