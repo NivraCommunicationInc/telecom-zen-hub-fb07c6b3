@@ -88,6 +88,10 @@ serve(async (req) => {
         // Due date = new cycle end date
         const dueDate = newCycleEnd.toISOString().split('T')[0];
         
+        // Determine payment method based on subscription
+        const hasPayPalSubscription = !!sub.paypal_subscription_id;
+        const paymentMethod = hasPayPalSubscription ? 'paypal' : 'interac';
+        
         // Create renewal invoice
         const { data: invoice, error: invoiceError } = await supabase
           .from("billing_invoices")
@@ -101,7 +105,7 @@ serve(async (req) => {
             tvq_amount: tvqAmount,
             total,
             currency: 'CAD',
-            payment_method: 'interac',
+            payment_method: paymentMethod,
             status: 'pending',
             cycle_start_date: newCycleStart.toISOString().split('T')[0],
             cycle_end_date: newCycleEnd.toISOString().split('T')[0],
@@ -123,16 +127,33 @@ serve(async (req) => {
             line_total: sub.plan_price
           });
         
-        // Create pending payment
+        // Create pending payment with appropriate method
         await supabase
           .from("billing_payments")
           .insert({
             invoice_id: invoice.id,
             customer_id: sub.customer_id,
-            method: 'interac',
+            method: paymentMethod,
             amount: total,
             status: 'pending'
           });
+        
+        // If PayPal subscription, trigger automatic charge
+        if (hasPayPalSubscription) {
+          console.log(`[billing-generate-renewals] Triggering PayPal auto-charge for ${sub.id}`);
+          try {
+            await supabase.functions.invoke("paypal-charge-subscription", {
+              body: {
+                subscription_id: sub.id,
+                invoice_id: invoice.id,
+                amount: total,
+              },
+            });
+          } catch (chargeErr) {
+            console.error(`[billing-generate-renewals] PayPal charge error:`, chargeErr);
+            // Continue - PayPal will charge automatically via their scheduler
+          }
+        }
         
         // Queue reminder email with correct column names
         if (sub.customer) {

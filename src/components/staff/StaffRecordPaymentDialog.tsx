@@ -38,8 +38,9 @@ interface StaffRecordPaymentDialogProps {
 
 const PAYMENT_METHODS = [
   { value: "interac", label: "Virement Interac", icon: Send, color: "text-teal-400" },
+  { value: "paypal", label: "PayPal", icon: DollarSign, color: "text-blue-400" },
   { value: "cash", label: "Espèces", icon: Banknote, color: "text-emerald-400" },
-  { value: "card", label: "Carte de crédit", icon: CreditCard, color: "text-blue-400", disabled: true },
+  { value: "card", label: "Carte de crédit", icon: CreditCard, color: "text-purple-400", disabled: true },
 ];
 
 export function StaffRecordPaymentDialog({

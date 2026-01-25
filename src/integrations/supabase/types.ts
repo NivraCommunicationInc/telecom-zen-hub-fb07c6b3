@@ -1197,12 +1197,15 @@ export type Database = {
       }
       billing_subscriptions: {
         Row: {
+          auto_billing_enabled: boolean | null
           created_at: string | null
           customer_id: string
           cycle_end_date: string
           cycle_start_date: string
           id: string
           last_invoice_id: string | null
+          paypal_plan_id: string | null
+          paypal_subscription_id: string | null
           plan_code: string
           plan_name: string
           plan_price: number
@@ -1213,12 +1216,15 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          auto_billing_enabled?: boolean | null
           created_at?: string | null
           customer_id: string
           cycle_end_date: string
           cycle_start_date: string
           id?: string
           last_invoice_id?: string | null
+          paypal_plan_id?: string | null
+          paypal_subscription_id?: string | null
           plan_code: string
           plan_name: string
           plan_price: number
@@ -1229,12 +1235,15 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          auto_billing_enabled?: boolean | null
           created_at?: string | null
           customer_id?: string
           cycle_end_date?: string
           cycle_start_date?: string
           id?: string
           last_invoice_id?: string | null
+          paypal_plan_id?: string | null
+          paypal_subscription_id?: string | null
           plan_code?: string
           plan_name?: string
           plan_price?: number
