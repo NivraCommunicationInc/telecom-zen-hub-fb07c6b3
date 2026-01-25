@@ -201,12 +201,25 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Ensure user_roles entry exists
+      // Ensure user_roles entry exists with is_active = true
       if (authUser) {
-        await supabaseAdmin
+        const { error: roleError } = await supabaseAdmin
           .from("user_roles")
-          .upsert({ user_id: authUser.id, role: "influencer" }, { onConflict: "user_id,role", ignoreDuplicates: true });
-        diagnosis.repair_actions.push("ENSURED: user_roles entry for influencer");
+          .upsert(
+            { 
+              user_id: authUser.id, 
+              role: "influencer",
+              is_active: true,
+            }, 
+            { onConflict: "user_id,role" }
+          );
+        
+        if (roleError) {
+          console.error("[partner-account-diagnose] Role upsert error:", roleError);
+          diagnosis.repair_actions.push(`WARN: Could not ensure user_roles: ${roleError.message}`);
+        } else {
+          diagnosis.repair_actions.push("ENSURED: user_roles entry with is_active=true for influencer");
+        }
       }
     }
 

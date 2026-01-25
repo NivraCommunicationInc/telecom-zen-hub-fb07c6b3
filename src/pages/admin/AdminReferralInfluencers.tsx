@@ -52,6 +52,7 @@ import {
   Stethoscope,
   Wrench,
   Clock,
+  Link2,
 } from "lucide-react";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
 import { toast } from "sonner";
@@ -293,6 +294,30 @@ const AdminReferralInfluencers = () => {
     },
   });
 
+  // Quick repair mutation for inline use
+  const quickRepairMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const { data, error } = await supabase.functions.invoke("partner-account-diagnose", {
+        body: { email, repair: true },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["influencers"] });
+      if (data.repaired) {
+        toast.success("Compte lié et réparé avec succès!");
+      } else if (data.issues?.length === 0) {
+        toast.info("Aucun problème détecté, le compte est déjà configuré.");
+      } else {
+        toast.warning("Réparation partielle. Voir diagnostic pour détails.");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   // Diagnose account
   const handleDiagnose = async () => {
     if (!diagnoseEmail) {
@@ -335,6 +360,29 @@ const AdminReferralInfluencers = () => {
     } finally {
       setIsRepairing(false);
     }
+  };
+
+  // Quick diagnose for a specific influencer
+  const handleQuickDiagnose = (email: string) => {
+    setDiagnoseEmail(email);
+    setDiagnoseDialogOpen(true);
+    setDiagnoseResult(null);
+    // Auto-run diagnose
+    setTimeout(async () => {
+      setIsDiagnosing(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("partner-account-diagnose", {
+          body: { email, repair: false },
+        });
+        if (error) throw error;
+        setDiagnoseResult(data);
+      } catch (error: any) {
+        console.error("Diagnose error:", error);
+        toast.error(`Erreur: ${error.message}`);
+      } finally {
+        setIsDiagnosing(false);
+      }
+    }, 100);
   };
 
   const getStatusBadge = (status: string) => {
@@ -623,6 +671,24 @@ const AdminReferralInfluencers = () => {
                                 {activateInfluencer.isPending ? "Activation..." : "Activer"}
                               </DropdownMenuItem>
                             )}
+                            {/* Link Account - for unlinked influencers */}
+                            {!influencer.user_id && (
+                              <DropdownMenuItem
+                                onClick={() => quickRepairMutation.mutate(influencer.email)}
+                                disabled={quickRepairMutation.isPending}
+                                className="text-blue-500"
+                              >
+                                <Link2 className="w-4 h-4 mr-2" />
+                                {quickRepairMutation.isPending ? "Liaison..." : "Lier le compte"}
+                              </DropdownMenuItem>
+                            )}
+                            {/* Diagnose */}
+                            <DropdownMenuItem
+                              onClick={() => handleQuickDiagnose(influencer.email)}
+                            >
+                              <Stethoscope className="w-4 h-4 mr-2" />
+                              Diagnostiquer
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {influencer.status !== "suspended" ? (
                               <DropdownMenuItem
