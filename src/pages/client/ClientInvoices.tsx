@@ -21,9 +21,11 @@ import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
 import PaymentDisputeTimeline from "@/components/client/PaymentDisputeTimeline";
 import PaymentHistoryV2 from "@/components/client/PaymentHistoryV2";
+import MobileInvoiceCard from "@/components/client/MobileInvoiceCard";
 import { ETRANSFER_CONFIG, COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import PayPalButton from "@/components/payment/PayPalButton";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // E-transfer payment info
 const ETRANSFER_INFO = {
@@ -38,6 +40,7 @@ type PaymentMethod = "etransfer" | "credit_card" | "paypal";
 const ClientInvoices = () => {
   const { user } = useClientAuth();
   const { data: siteSettings } = useSiteSettings();
+  const isMobile = useIsMobile();
   
   // Use site_settings as source of truth, COMPANY_CONTACT as fallback
   const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
@@ -551,11 +554,11 @@ const ClientInvoices = () => {
                     Mes factures
                   </CardTitle>
                   <Tabs value={filterTab} onValueChange={setFilterTab}>
-                    <TabsList>
-                      <TabsTrigger value="all">Toutes</TabsTrigger>
-                      <TabsTrigger value="pending">En attente</TabsTrigger>
-                      <TabsTrigger value="paid">Payées</TabsTrigger>
-                      <TabsTrigger value="overdue">En retard</TabsTrigger>
+                    <TabsList className="h-auto flex-wrap">
+                      <TabsTrigger value="all" className="text-xs sm:text-sm">Toutes</TabsTrigger>
+                      <TabsTrigger value="pending" className="text-xs sm:text-sm">En attente</TabsTrigger>
+                      <TabsTrigger value="paid" className="text-xs sm:text-sm">Payées</TabsTrigger>
+                      <TabsTrigger value="overdue" className="text-xs sm:text-sm">En retard</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -568,168 +571,195 @@ const ClientInvoices = () => {
                     ))}
                   </div>
                 ) : filteredInvoices && filteredInvoices.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nº</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Montant</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Frais</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédits</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde dû</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Échéance</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredInvoices.map((inv: any) => {
-                          const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
-                          const total = calculateTotal(inv);
-                          const lateFeeAmount = isOverdue && !inv.late_fee_applied ? Number(inv.amount) * 0.05 : 0;
-                          
-                          return (
-                            <tr key={inv.id} className="border-b border-border/50 hover:bg-accent/50">
-                              <td className="py-3 px-4 text-sm font-mono text-foreground">
-                                {inv.invoice_number || inv.id.slice(0, 8)}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-muted-foreground">
-                                {format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-foreground">
-                                {Number(inv.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                              </td>
-                              <td className="py-3 px-4 text-sm">
-                                {(Number(inv.fees || 0) + lateFeeAmount) > 0 ? (
-                                  <span className="text-amber-500">
-                                    +{(Number(inv.fees || 0) + lateFeeAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                                    {lateFeeAmount > 0 && (
-                                      <span className="text-xs block text-red-500">(+5% retard)</span>
-                                    )}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
-                              </td>
-                              <td className="py-3 px-4 text-sm">
-                                {Number(inv.credits || 0) > 0 ? (
-                                  <span className="text-emerald-500">
-                                    -{Number(inv.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
-                              </td>
-                              <td className="py-3 px-4 text-sm font-medium text-foreground">
-                                {total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                              </td>
-                              <td className="py-3 px-4 text-sm">
-                                {/* Solde dû column */}
-                                {inv.balance_due !== null && inv.balance_due !== undefined ? (
-                                  Number(inv.balance_due) <= 0 ? (
-                                    <span className="text-emerald-500 font-medium flex items-center gap-1">
-                                      <CheckCircle className="w-3 h-3" />
-                                      0,00 $
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-3">
+                      {filteredInvoices.map((inv: any) => (
+                        <MobileInvoiceCard
+                          key={inv.id}
+                          invoice={inv}
+                          statusLabels={statusLabels}
+                          statusColors={statusColors}
+                          calculateTotal={calculateTotal}
+                          onViewPDF={handleViewPDF}
+                          onDownloadPDF={handleDownloadPDF}
+                          onPreview={(inv) => {
+                            setPreviewInvoice(inv);
+                            setInvoicePreviewOpen(true);
+                          }}
+                          onPay={handlePayClick}
+                          onDispute={(inv) => {
+                            setDisputePayment(inv);
+                            setDisputeDialogOpen(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nº</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Montant</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Frais</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédits</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde dû</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Échéance</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredInvoices.map((inv: any) => {
+                            const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
+                            const total = calculateTotal(inv);
+                            const lateFeeAmount = isOverdue && !inv.late_fee_applied ? Number(inv.amount) * 0.05 : 0;
+                            
+                            return (
+                              <tr key={inv.id} className="border-b border-border/50 hover:bg-accent/50">
+                                <td className="py-3 px-4 text-sm font-mono text-foreground">
+                                  {inv.invoice_number || inv.id.slice(0, 8)}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-muted-foreground">
+                                  {format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-foreground">
+                                  {Number(inv.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                </td>
+                                <td className="py-3 px-4 text-sm">
+                                  {(Number(inv.fees || 0) + lateFeeAmount) > 0 ? (
+                                    <span className="text-amber-500">
+                                      +{(Number(inv.fees || 0) + lateFeeAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                      {lateFeeAmount > 0 && (
+                                        <span className="text-xs block text-red-500">(+5% retard)</span>
+                                      )}
                                     </span>
                                   ) : (
-                                    <span className="text-amber-500 font-medium">
-                                      {Number(inv.balance_due).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-sm">
+                                  {Number(inv.credits || 0) > 0 ? (
+                                    <span className="text-emerald-500">
+                                      -{Number(inv.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                                     </span>
-                                  )
-                                ) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-muted-foreground">
-                                <span className={isOverdue ? "text-red-500 font-medium" : ""}>
-                                  {inv.due_date ? format(new Date(inv.due_date), "d MMM yyyy", { locale: fr }) : "—"}
-                                  {isOverdue && <AlertTriangle className="w-3 h-3 inline ml-1" />}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="flex flex-wrap gap-1">
-                                  <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-muted"}>
-                                    {isOverdue && inv.status !== "paid" ? "En retard" : statusLabels[inv.status] || inv.status}
-                                  </Badge>
-                                  {inv.preauth_discount_applied && (
-                                    <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
-                                      -5$/mois
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-sm font-medium text-foreground">
+                                  {total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                </td>
+                                <td className="py-3 px-4 text-sm">
+                                  {/* Solde dû column */}
+                                  {inv.balance_due !== null && inv.balance_due !== undefined ? (
+                                    Number(inv.balance_due) <= 0 ? (
+                                      <span className="text-emerald-500 font-medium flex items-center gap-1">
+                                        <CheckCircle className="w-3 h-3" />
+                                        0,00 $
+                                      </span>
+                                    ) : (
+                                      <span className="text-amber-500 font-medium">
+                                        {Number(inv.balance_due).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-muted-foreground">
+                                  <span className={isOverdue ? "text-red-500 font-medium" : ""}>
+                                    {inv.due_date ? format(new Date(inv.due_date), "d MMM yyyy", { locale: fr }) : "—"}
+                                    {isOverdue && <AlertTriangle className="w-3 h-3 inline ml-1" />}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="flex flex-wrap gap-1">
+                                    <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-muted"}>
+                                      {isOverdue && inv.status !== "paid" ? "En retard" : statusLabels[inv.status] || inv.status}
                                     </Badge>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => handleViewPDF(inv)}
-                                    title="Voir PDF"
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => handleDownloadPDF(inv)}
-                                    title="Télécharger PDF"
-                                  >
-                                    <Download className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => {
-                                      setPreviewInvoice(inv);
-                                      setInvoicePreviewOpen(true);
-                                    }}
-                                    title="Aperçu rapide"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  {/* Pay button: disabled if already paid OR balance_due <= 0 */}
-                                  {inv.status !== "paid" && (Number(inv.balance_due) > 0 || inv.balance_due === null || inv.balance_due === undefined) && (
-                                    <Button 
-                                      size="sm" 
-                                      variant="hero" 
-                                      onClick={() => handlePayClick(inv)}
-                                      disabled={Number(inv.balance_due) <= 0 && inv.balance_due !== null && inv.balance_due !== undefined}
-                                    >
-                                      <DollarSign className="w-4 h-4 mr-1" />
-                                      Payer
-                                    </Button>
-                                  )}
-                                  {/* Show "Paid" badge when balance is 0 but status not yet updated */}
-                                  {inv.status !== "paid" && Number(inv.balance_due) <= 0 && inv.balance_due !== null && inv.balance_due !== undefined && (
-                                    <Badge className="bg-emerald-500/20 text-emerald-500">
-                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                      Payé
-                                    </Badge>
-                                  )}
-                                  {inv.status === "paid" && (
+                                    {inv.preauth_discount_applied && (
+                                      <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
+                                        -5$/mois
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="flex gap-2">
                                     <Button 
                                       size="sm" 
                                       variant="outline"
-                                      className="text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
-                                      onClick={() => {
-                                        setDisputePayment(inv);
-                                        setDisputeDialogOpen(true);
-                                      }}
-                                      title="Contester ce paiement"
+                                      onClick={() => handleViewPDF(inv)}
+                                      title="Voir PDF"
                                     >
-                                      <AlertTriangle className="w-4 h-4" />
+                                      <FileText className="w-4 h-4" />
                                     </Button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => handleDownloadPDF(inv)}
+                                      title="Télécharger PDF"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => {
+                                        setPreviewInvoice(inv);
+                                        setInvoicePreviewOpen(true);
+                                      }}
+                                      title="Aperçu rapide"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    {/* Pay button: disabled if already paid OR balance_due <= 0 */}
+                                    {inv.status !== "paid" && (Number(inv.balance_due) > 0 || inv.balance_due === null || inv.balance_due === undefined) && (
+                                      <Button 
+                                        size="sm" 
+                                        variant="hero" 
+                                        onClick={() => handlePayClick(inv)}
+                                        disabled={Number(inv.balance_due) <= 0 && inv.balance_due !== null && inv.balance_due !== undefined}
+                                      >
+                                        <DollarSign className="w-4 h-4 mr-1" />
+                                        Payer
+                                      </Button>
+                                    )}
+                                    {/* Show "Paid" badge when balance is 0 but status not yet updated */}
+                                    {inv.status !== "paid" && Number(inv.balance_due) <= 0 && inv.balance_due !== null && inv.balance_due !== undefined && (
+                                      <Badge className="bg-emerald-500/20 text-emerald-500">
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        Payé
+                                      </Badge>
+                                    )}
+                                    {inv.status === "paid" && (
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className="text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
+                                        onClick={() => {
+                                          setDisputePayment(inv);
+                                          setDisputeDialogOpen(true);
+                                        }}
+                                        title="Contester ce paiement"
+                                      >
+                                        <AlertTriangle className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-12">
                     <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

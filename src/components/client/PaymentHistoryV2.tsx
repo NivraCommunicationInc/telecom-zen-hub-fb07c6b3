@@ -134,13 +134,14 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
   }
 
   const EntryRow = ({ entry }: { entry: LedgerEntry }) => (
-    <div className={`p-3 rounded-lg flex items-center justify-between ${
+    <div className={`p-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 ${
       entry.type === 'credit' 
         ? 'bg-emerald-500/5 border border-emerald-500/20' 
         : 'bg-amber-500/5 border border-amber-500/20'
     }`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+      {/* Left side: Icon + Description */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
           entry.type === 'credit' ? 'bg-emerald-500/20' : 'bg-amber-500/20'
         }`}>
           {entry.type === 'credit' ? (
@@ -149,29 +150,30 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
             <ArrowUpCircle className="w-5 h-5 text-amber-500" />
           )}
         </div>
-        <div>
-          <p className="font-medium text-sm">{entry.description}</p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3" />
-            <span>{format(new Date(entry.date), "d MMM yyyy", { locale: fr })}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm truncate">{entry.description}</p>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <Calendar className="w-3 h-3 flex-shrink-0" />
+            <span className="whitespace-nowrap">{format(new Date(entry.date), "d MMM yyyy", { locale: fr })}</span>
             {entry.method && (
               <>
-                <span>•</span>
-                <span>{methodLabels[entry.method] || entry.method}</span>
+                <span className="hidden sm:inline">•</span>
+                <span className="whitespace-nowrap">{methodLabels[entry.method] || entry.method}</span>
               </>
             )}
           </div>
         </div>
       </div>
-      <div className="text-right">
-        <p className={`font-bold ${
+      {/* Right side: Amount */}
+      <div className="text-right flex-shrink-0 pl-[52px] sm:pl-0">
+        <p className={`font-bold text-base sm:text-sm ${
           entry.type === 'credit' ? 'text-emerald-500' : 'text-amber-500'
         }`}>
           {entry.type === 'credit' ? '+' : '-'}
           {entry.amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
         </p>
         {entry.reference && (
-          <p className="text-xs text-muted-foreground font-mono">{entry.reference}</p>
+          <p className="text-xs text-muted-foreground font-mono truncate max-w-[120px] sm:max-w-none">{entry.reference}</p>
         )}
       </div>
     </div>
@@ -187,17 +189,19 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="all" className="text-sm">
-              Tout ({entries?.length || 0})
+          <TabsList className="grid w-full grid-cols-3 mb-4 h-auto">
+            <TabsTrigger value="all" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <span className="hidden sm:inline">Tout</span>
+              <span className="sm:hidden">Tous</span>
+              <span className="ml-1">({entries?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="credits" className="text-sm">
-              <ArrowDownCircle className="w-4 h-4 mr-1 text-emerald-500" />
-              Crédits ({credits.length})
+            <TabsTrigger value="credits" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <ArrowDownCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 text-emerald-500 flex-shrink-0" />
+              <span className="truncate">{credits.length}</span>
             </TabsTrigger>
-            <TabsTrigger value="debits" className="text-sm">
-              <ArrowUpCircle className="w-4 h-4 mr-1 text-amber-500" />
-              Débits ({debits.length})
+            <TabsTrigger value="debits" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              <ArrowUpCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 text-amber-500 flex-shrink-0" />
+              <span className="truncate">{debits.length}</span>
             </TabsTrigger>
           </TabsList>
 
