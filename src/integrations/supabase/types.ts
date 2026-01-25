@@ -7317,6 +7317,39 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_client_access_sessions: {
+        Row: {
+          client_user_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          reason: string
+          staff_user_id: string
+          verification_method: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          client_user_id: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          reason: string
+          staff_user_id: string
+          verification_method?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          client_user_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          reason?: string
+          staff_user_id?: string
+          verification_method?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       staff_email_allowlist: {
         Row: {
           allowed_role: string
@@ -7341,6 +7374,42 @@ export type Database = {
           email?: string
           id?: string
           is_bootstrap?: boolean | null
+        }
+        Relationships: []
+      }
+      staff_onboarding_tokens: {
+        Row: {
+          created_at: string | null
+          created_by_admin_id: string | null
+          email: string
+          expires_at: string
+          id: string
+          role: string
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by_admin_id?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          role: string
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by_admin_id?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          role?: string
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -8239,13 +8308,23 @@ export type Database = {
           is_active: boolean | null
           last_auth_check_at: string | null
           last_login_at: string | null
+          onboarding_completed_at: string | null
           otp_required: boolean | null
           otp_verified_at: string | null
           permissions: Json | null
+          require_onboarding: boolean | null
           require_password_change: boolean | null
           require_pin_change: boolean | null
+          require_terms_acceptance: boolean | null
           role: Database["public"]["Enums"]["app_role"]
+          staff_pin_failed_attempts: number | null
+          staff_pin_hash: string | null
+          staff_pin_lockout_until: string | null
+          staff_pin_salt: string | null
+          staff_pin_set_at: string | null
           status: string
+          terms_accepted_at: string | null
+          terms_version: string | null
           user_id: string
         }
         Insert: {
@@ -8255,13 +8334,23 @@ export type Database = {
           is_active?: boolean | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
+          onboarding_completed_at?: string | null
           otp_required?: boolean | null
           otp_verified_at?: string | null
           permissions?: Json | null
+          require_onboarding?: boolean | null
           require_password_change?: boolean | null
           require_pin_change?: boolean | null
+          require_terms_acceptance?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
+          staff_pin_failed_attempts?: number | null
+          staff_pin_hash?: string | null
+          staff_pin_lockout_until?: string | null
+          staff_pin_salt?: string | null
+          staff_pin_set_at?: string | null
           status?: string
+          terms_accepted_at?: string | null
+          terms_version?: string | null
           user_id: string
         }
         Update: {
@@ -8271,13 +8360,23 @@ export type Database = {
           is_active?: boolean | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
+          onboarding_completed_at?: string | null
           otp_required?: boolean | null
           otp_verified_at?: string | null
           permissions?: Json | null
+          require_onboarding?: boolean | null
           require_password_change?: boolean | null
           require_pin_change?: boolean | null
+          require_terms_acceptance?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
+          staff_pin_failed_attempts?: number | null
+          staff_pin_hash?: string | null
+          staff_pin_lockout_until?: string | null
+          staff_pin_salt?: string | null
+          staff_pin_set_at?: string | null
           status?: string
+          terms_accepted_at?: string | null
+          terms_version?: string | null
           user_id?: string
         }
         Relationships: []
@@ -9303,6 +9402,10 @@ export type Database = {
       }
       verify_pin: {
         Args: { pin_input: string; user_id_input: string }
+        Returns: boolean
+      }
+      verify_staff_pin: {
+        Args: { p_pin: string; p_user_id: string }
         Returns: boolean
       }
     }
