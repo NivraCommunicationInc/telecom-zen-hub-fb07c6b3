@@ -1,6 +1,6 @@
 /**
  * StaffClientDetail - Employee portal client profile view
- * Completely isolated from admin portal - uses staff-specific data access
+ * Enhanced with account info, streaming, and billing cycle display
  */
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
@@ -14,9 +14,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
   User, ArrowLeft, Phone, Mail, MapPin, Calendar, 
-  FileText, ShoppingCart, DollarSign, Ticket, Tv,
+  FileText, ShoppingCart, DollarSign, Ticket, Play,
   Clock, CheckCircle, XCircle, AlertTriangle, Loader2,
-  Building, CreditCard, Hash, RefreshCw, Eye, Shield
+  Building, CreditCard, Hash, RefreshCw, Eye, Shield,
+  Star, Wallet, TrendingUp
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -24,6 +25,19 @@ import { toast } from "sonner";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { useStaffClientAccess } from "@/components/staff/StaffClientAccessGate";
 import { StaffClientAccessGate } from "@/components/staff/StaffClientAccessGate";
+
+const creditClassColors: Record<string, { label: string; className: string; description: string }> = {
+  A: { label: "Classe A", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", description: "Excellent - Aucun retard" },
+  B: { label: "Classe B", className: "bg-blue-500/20 text-blue-400 border-blue-500/30", description: "Bon - Retards mineurs" },
+  C: { label: "Classe C", className: "bg-amber-500/20 text-amber-400 border-amber-500/30", description: "Standard - Surveillance" },
+  D: { label: "Classe D", className: "bg-red-500/20 text-red-400 border-red-500/30", description: "À risque - Retards fréquents" },
+};
+
+const accountStatusColors: Record<string, { label: string; className: string }> = {
+  active: { label: "Actif", className: "bg-green-500/20 text-green-400 border-green-500/30" },
+  suspended: { label: "Suspendu", className: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  closed: { label: "Fermé", className: "bg-red-500/20 text-red-400 border-red-500/30" },
+};
 
 export default function StaffClientDetail() {
   const { id: clientId } = useParams<{ id: string }>();
@@ -57,6 +71,26 @@ export default function StaffClientDetail() {
         .maybeSingle();
       
       if (error) throw error;
+      return data;
+    },
+    enabled: !!clientId && hasVerifiedAccess,
+  });
+
+  // Fetch client account (for credit_class, billing_cycle_day, status)
+  const { data: account } = useQuery({
+    queryKey: ["staff-client-account", clientId],
+    queryFn: async () => {
+      if (!clientId) return null;
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("client_id", clientId)
+        .maybeSingle();
+      
+      if (error) {
+        console.warn("Account fetch error:", error);
+        return null;
+      }
       return data;
     },
     enabled: !!clientId && hasVerifiedAccess,
@@ -134,6 +168,26 @@ export default function StaffClientDetail() {
     enabled: !!clientId && hasVerifiedAccess,
   });
 
+  // Fetch client streaming subscriptions
+  const { data: streamingSubscriptions } = useQuery({
+    queryKey: ["staff-client-streaming", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("client_streaming_subscriptions")
+        .select("*, streaming_services(name, logo_url)")
+        .eq("user_id", clientId)
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.warn("Streaming fetch error:", error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!clientId && hasVerifiedAccess,
+  });
+
   const handleAccessGranted = () => {
     setHasVerifiedAccess(true);
     setShowAccessGate(false);
@@ -158,6 +212,7 @@ export default function StaffClientDetail() {
       in_progress: { label: "En cours", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
       resolved: { label: "Résolu", className: "bg-green-500/20 text-green-400 border-green-500/30" },
       scheduled: { label: "Planifié", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+      active: { label: "Actif", className: "bg-green-500/20 text-green-400 border-green-500/30" },
     };
     const config = configs[status] || { label: status, className: "bg-slate-500/20 text-slate-400" };
     return <Badge className={config.className}>{config.label}</Badge>;
@@ -210,6 +265,9 @@ export default function StaffClientDetail() {
     );
   }
 
+  const creditInfo = creditClassColors[account?.credit_class || "C"];
+  const accountStatusInfo = accountStatusColors[account?.status || "active"];
+
   return (
     <div className="min-h-screen relative">
       <StaffBackground />
@@ -260,6 +318,61 @@ export default function StaffClientDetail() {
           </div>
         </div>
 
+        {/* Account Status Card */}
+        {account && (
+          <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-teal-400" />
+                Statut du compte
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Account Status */}
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <p className="text-sm text-slate-500 mb-2">Statut compte</p>
+                  <Badge className={accountStatusInfo.className}>
+                    {accountStatusInfo.label}
+                  </Badge>
+                </div>
+                
+                {/* Credit Class */}
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <p className="text-sm text-slate-500 mb-2 flex items-center gap-1">
+                    <Star className="h-3 w-3" /> Classe de crédit
+                  </p>
+                  <Badge className={creditInfo.className}>
+                    {creditInfo.label}
+                  </Badge>
+                  <p className="text-xs text-slate-500 mt-1">{creditInfo.description}</p>
+                </div>
+                
+                {/* Billing Cycle */}
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <p className="text-sm text-slate-500 mb-2 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Cycle de facturation
+                  </p>
+                  <p className="text-white font-semibold">
+                    Jour {account.billing_cycle_day || 1}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">de chaque mois</p>
+                </div>
+                
+                {/* Account Number */}
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <p className="text-sm text-slate-500 mb-2 flex items-center gap-1">
+                    <Hash className="h-3 w-3" /> N° Compte
+                  </p>
+                  <p className="text-white font-mono font-semibold">
+                    {account.account_number || "-"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Client Info Card */}
         <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
           <CardHeader>
@@ -304,8 +417,8 @@ export default function StaffClientDetail() {
                     <Building className="h-3 w-3" /> Adresse de facturation
                   </p>
                   <p className="text-white">
-                    {client.service_address || "-"}
-                    {client.service_city && `, ${client.service_city}`}
+                    {account?.billing_address || client.service_address || "-"}
+                    {(account?.billing_city || client.service_city) && `, ${account?.billing_city || client.service_city}`}
                   </p>
                 </div>
               </div>
@@ -325,13 +438,52 @@ export default function StaffClientDetail() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Statut</p>
+                  <p className="text-sm text-slate-500">Statut profil</p>
                   {getStatusBadge(client.account_status || "active")}
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Streaming Subscriptions Card */}
+        {streamingSubscriptions && streamingSubscriptions.length > 0 && (
+          <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Play className="h-5 w-5 text-teal-400" />
+                Abonnements Streaming ({streamingSubscriptions.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {streamingSubscriptions.map((sub: any) => (
+                  <div 
+                    key={sub.id} 
+                    className="p-4 rounded-lg border border-slate-700/50 bg-slate-800/30 flex items-center gap-4"
+                  >
+                    {sub.streaming_services?.logo_url ? (
+                      <img 
+                        src={sub.streaming_services.logo_url} 
+                        alt={sub.streaming_services.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Play className="h-5 w-5 text-white" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-white font-medium">{sub.streaming_services?.name || "Service"}</p>
+                      <p className="text-sm text-teal-400">{sub.monthly_price?.toFixed(2)} $/mois</p>
+                    </div>
+                    {getStatusBadge(sub.status || "active")}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Tabs defaultValue="orders" className="w-full">
