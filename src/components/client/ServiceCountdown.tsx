@@ -146,6 +146,7 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
           <Progress 
             value={progress} 
             className="h-2 bg-muted/50"
+            indicatorClassName={config.progressColor}
           />
         </div>
 
