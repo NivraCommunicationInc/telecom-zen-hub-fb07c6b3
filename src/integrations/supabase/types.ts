@@ -7697,7 +7697,7 @@ export type Database = {
           description: string
           id: string
           id_files: Json | null
-          id_verification_status: string
+          id_verification_status: string | null
           internal_notes: string | null
           issue_type: string | null
           owner_user_id: string
@@ -7721,7 +7721,7 @@ export type Database = {
           description: string
           id?: string
           id_files?: Json | null
-          id_verification_status?: string
+          id_verification_status?: string | null
           internal_notes?: string | null
           issue_type?: string | null
           owner_user_id: string
@@ -7745,7 +7745,7 @@ export type Database = {
           description?: string
           id?: string
           id_files?: Json | null
-          id_verification_status?: string
+          id_verification_status?: string | null
           internal_notes?: string | null
           issue_type?: string | null
           owner_user_id?: string

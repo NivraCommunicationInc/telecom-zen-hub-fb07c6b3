@@ -122,75 +122,52 @@ const InfluencerOnboarding = () => {
     setIsSubmitting(true);
 
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: inviteData.email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin + "/influencer/dashboard",
+      // Use server-side Edge Function for reliable account creation
+      console.log("[Onboarding] Calling partner-complete-invite...");
+      
+      const { data, error } = await supabase.functions.invoke("partner-complete-invite", {
+        body: {
+          token,
+          password,
+          payout_method: payoutMethod,
+          payout_email: payoutEmail,
         },
       });
 
-      if (authError) throw authError;
+      console.log("[Onboarding] Response:", { data, error });
 
-      if (!authData.user) {
-        throw new Error("Failed to create user");
+      if (error) {
+        console.error("[Onboarding] Network error:", error);
+        toast.error("Erreur de connexion. Veuillez réessayer.");
+        return;
       }
 
-      // CRITICAL: Update influencer with user_id and activate FIRST
-      const { error: updateError } = await supabase
-        .from("influencers")
-        .update({
-          user_id: authData.user.id,
-          status: "active", // Auto-activate on signup completion
-          payout_method: payoutMethod,
-          payout_email: payoutEmail,
-        })
-        .eq("id", inviteData.influencer_id);
-
-      if (updateError) {
-        console.error("[Onboarding] Failed to update influencer:", updateError);
-        throw new Error("Impossible de lier le compte. Contactez le support.");
+      // Check for specific error codes
+      if (data?.code === "USER_EXISTS") {
+        toast.error("Un compte existe déjà avec cet email. Utilisez 'Mot de passe oublié'.");
+        navigate("/influencer/login");
+        return;
       }
 
-      // Mark invite as used
-      await supabase
-        .from("influencer_invites")
-        .update({ used_at: new Date().toISOString() })
-        .eq("id", inviteData.invite_id);
-
-      // CRITICAL: Add role to user_roles table with is_active = true
-      // Use upsert to handle race conditions
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .upsert({
-          user_id: authData.user.id,
-          role: "influencer",
-          is_active: true,
-        }, {
-          onConflict: "user_id,role",
-        });
-
-      if (roleError) {
-        console.error("[Onboarding] Failed to create role (non-fatal):", roleError);
-        // Non-fatal - the partner-self-signup function should have created it
+      if (data?.code === "ALREADY_ACTIVATED") {
+        toast.success("Votre compte est déjà activé!");
+        navigate("/influencer/login");
+        return;
       }
 
-      // Verify the setup was successful
-      const { data: verifyInfluencer } = await supabase
-        .from("influencers")
-        .select("id, user_id, status")
-        .eq("id", inviteData.influencer_id)
-        .single();
-
-      console.log("[Onboarding] Verification:", verifyInfluencer);
-
-      if (!verifyInfluencer?.user_id) {
-        throw new Error("La liaison du compte a échoué. Contactez le support.");
+      if (data?.ok === false) {
+        toast.error(data?.message || "Erreur lors de la création du compte");
+        return;
       }
 
-      toast.success("Compte créé avec succès! Vous pouvez maintenant vous connecter.");
-      navigate("/influencer/login");
+      // Success
+      if (data?.ok === true) {
+        toast.success(data?.message || "Compte créé avec succès!");
+        navigate("/influencer/login");
+      } else {
+        console.error("[Onboarding] Unexpected response:", data);
+        toast.error("Réponse inattendue du serveur");
+      }
     } catch (error: any) {
       console.error("[Onboarding] Submit error:", error);
       toast.error(error.message || "Erreur lors de la création du compte");

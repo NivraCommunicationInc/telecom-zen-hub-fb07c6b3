@@ -403,6 +403,7 @@ const AdminTickets = () => {
           user_id: user.id,
           content,
           is_admin: true,
+          sender_role: "admin",
         })
         .select()
         .single();
@@ -426,8 +427,13 @@ const AdminTickets = () => {
       toast({ title: "Réponse envoyée", description: "Le client recevra une notification" });
       setReplyContent("");
     },
-    onError: () => {
-      toast({ title: "Erreur", description: "Impossible d'envoyer la réponse", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("[AdminTickets] Reply error:", error);
+      toast({ 
+        title: "Erreur", 
+        description: error?.message || "Impossible d'envoyer la réponse", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -468,9 +474,9 @@ const AdminTickets = () => {
           priority: ticketData.priority,
           category: ticketData.category,
           requires_id_upload: ticketData.requires_id_upload,
-          id_verification_status: ticketData.requires_id_upload ? 'not_received' : null,
+          id_verification_status: ticketData.requires_id_upload ? 'not_received' : undefined,
           created_by_user_id: user.id,
-          created_by_role: 'admin',
+          created_by_role: "admin",
           status: 'open',
           related_order_id: ticketData.related_order_id || null,
           related_order_reference: relatedOrderReference,
