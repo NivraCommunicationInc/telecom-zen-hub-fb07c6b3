@@ -243,7 +243,7 @@ const ClientInternetOrder = () => {
   const [phoneError, setPhoneError] = useState("");
 
   // Payment method state
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new" | "etransfer">("etransfer");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"saved" | "new" | "etransfer" | "paypal">("etransfer");
   const [selectedCardId, setSelectedCardId] = useState("");
   const [savedCardCvv, setSavedCardCvv] = useState("");
   const [cvvError, setCvvError] = useState("");

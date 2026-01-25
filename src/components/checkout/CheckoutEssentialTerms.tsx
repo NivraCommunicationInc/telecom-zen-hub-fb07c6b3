@@ -16,7 +16,7 @@ interface CheckoutEssentialTermsProps {
   isFrench: boolean;
   acknowledged: boolean;
   onAcknowledgeChange: (checked: boolean) => void;
-  paymentMethod?: "credit_card" | "etransfer" | "saved" | "new";
+  paymentMethod?: "credit_card" | "etransfer" | "saved" | "new" | "paypal";
 }
 
 /**
