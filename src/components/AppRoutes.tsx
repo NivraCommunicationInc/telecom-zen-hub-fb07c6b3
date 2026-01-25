@@ -152,6 +152,7 @@ import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 
 // Staff portal pages
 import StaffLogin from "@/pages/staff/StaffLogin";
+import StaffOnboarding from "@/pages/staff/StaffOnboarding";
 import StaffAdminDashboard from "@/pages/staff/StaffAdminDashboard";
 import StaffEmployeeDashboard from "@/pages/staff/StaffEmployeeDashboard";
 import StaffTechnicianDashboard from "@/pages/staff/StaffTechnicianDashboard";
@@ -377,6 +378,7 @@ const AppRoutes = () => {
       {/* STAFF PORTAL ROUTES - NO MaintenanceGuard (always accessible) */}
       {/* ============================================ */}
       <Route path="/staff" element={<StaffLogin />} />
+      <Route path="/staff/setup" element={<StaffOnboarding />} />
 
       {/* Staff Admin: use the dedicated /admin portal (secret code + full features) */}
       <Route path="/staff/admin" element={<Navigate to="/admin" replace />} />
@@ -388,27 +390,26 @@ const AppRoutes = () => {
           <StaffEmployeeDashboard />
         </StaffLayout>
       } />
-
-      {/* Staff Technician */}
-      <Route path="/staff/technician" element={
-        <StaffLayout requiredRole="technician">
-          <StaffTechnicianDashboard />
-        </StaffLayout>
-      } />
-
-      {/* Staff Employee */}
-      <Route path="/staff/employee" element={
+      <Route path="/staff/employee/*" element={
         <StaffLayout requiredRole="employee">
           <StaffEmployeeDashboard />
         </StaffLayout>
       } />
-      
+
       {/* Staff Technician */}
       <Route path="/staff/technician" element={
         <StaffLayout requiredRole="technician">
           <StaffTechnicianDashboard />
         </StaffLayout>
       } />
+      <Route path="/staff/technician/*" element={
+        <StaffLayout requiredRole="technician">
+          <StaffTechnicianDashboard />
+        </StaffLayout>
+      } />
+
+      {/* Catch-all 404 */}
+      <Route path="*" element={<NotFound />} />
       
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
