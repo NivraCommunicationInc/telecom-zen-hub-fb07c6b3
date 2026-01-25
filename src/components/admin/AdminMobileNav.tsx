@@ -156,23 +156,23 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
   };
 
   return (
-    <div className="absolute top-full left-0 right-0 bg-card border-b border-border max-h-[calc(100dvh-4.5rem)] overflow-hidden flex flex-col">
+    <div className="absolute top-full left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 max-h-[calc(100dvh-4.5rem)] overflow-hidden flex flex-col">
       {/* Search Input */}
-      <div className="p-3 border-b border-border/50">
+      <div className="p-3 border-b border-slate-700/50">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
             type="text"
             placeholder="Filtrer le menu..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-8 h-9 text-sm"
+            className="pl-9 pr-8 h-9 text-sm bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
           />
           {searchQuery && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-slate-400 hover:text-white"
               onClick={() => setSearchQuery("")}
             >
               <X className="w-3 h-3" />
@@ -181,7 +181,7 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
         </div>
         {/* Accordion Mode Toggle */}
         <div className="flex items-center justify-between mt-2">
-          <Label htmlFor="mobile-accordion-mode" className="text-xs text-muted-foreground cursor-pointer">
+          <Label htmlFor="mobile-accordion-mode" className="text-xs text-slate-500 cursor-pointer">
             Mode accordéon
           </Label>
           <Switch
@@ -196,7 +196,7 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
       {/* Navigation Groups */}
       <div className="flex-1 p-3 space-y-1 overflow-y-auto overscroll-contain">
         {filteredGroups.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
+          <div className="text-center py-8 text-slate-500 text-sm">
             Aucun résultat pour "{searchQuery}"
           </div>
         ) : (
@@ -215,8 +215,8 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
                     className={cn(
                       "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                       hasActiveItem
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        ? "bg-teal-500/20 text-teal-400"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -230,7 +230,7 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
                     )}
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-1">
-                    <div className="ml-3 pl-3 border-l-2 border-border/50 space-y-0.5">
+                    <div className="ml-3 pl-3 border-l-2 border-slate-700/50 space-y-0.5">
                       {group.items.map((item) => (
                         <Link
                           key={item.href}
@@ -239,8 +239,8 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                             isItemActive(item.href)
-                              ? "bg-primary text-primary-foreground font-medium"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-900 font-medium"
+                              : "text-slate-400 hover:bg-slate-800 hover:text-white"
                           )}
                         >
                           <item.icon className="w-4 h-4 shrink-0" />
@@ -253,7 +253,7 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
                 
                 {/* Subtle separator between groups */}
                 {!isLastGroup && (
-                  <div className="my-2 mx-3 border-t border-border/30" />
+                  <div className="my-2 mx-3 border-t border-slate-700/30" />
                 )}
               </div>
             );
@@ -262,10 +262,10 @@ const AdminMobileNav = ({ onClose, onSignOut }: AdminMobileNavProps) => {
       </div>
       
       {/* Sign Out Button */}
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-slate-700/50">
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+          className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-slate-800"
           onClick={onSignOut}
         >
           <LogOut className="w-5 h-5" />
