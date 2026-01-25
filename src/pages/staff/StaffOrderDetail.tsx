@@ -1,6 +1,6 @@
 /**
  * StaffOrderDetail - Order detail page for staff portal
- * Enhanced with internal notes
+ * Enhanced with internal notes, contract and invoice PDF access
  */
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, Package, MapPin, Phone, Mail, User, 
-  FileText, MessageSquare, Plus, Clock, CreditCard, Send
+  FileText, MessageSquare, Plus, Clock, CreditCard, Send,
+  Download, Eye, FileCheck, Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +47,7 @@ export default function StaffOrderDetail() {
   const queryClient = useQueryClient();
   const [newNote, setNewNote] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ["current-staff-user"],
@@ -75,7 +77,7 @@ export default function StaffOrderDetail() {
       if (orderData?.user_id) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, email, phone")
+          .select("full_name, email, phone, service_address, service_city, service_postal_code, date_of_birth")
           .eq("user_id", orderData.user_id)
           .maybeSingle();
         profileData = profile;
@@ -95,6 +97,22 @@ export default function StaffOrderDetail() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as OrderNote[];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch related billing for this order
+  const { data: orderBilling } = useQuery({
+    queryKey: ["staff-order-billing", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing")
+        .select("*")
+        .eq("order_id", id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) return [];
+      return data || [];
     },
     enabled: !!id,
   });
@@ -130,6 +148,86 @@ export default function StaffOrderDetail() {
     return <Badge variant="outline" className="text-xs">{role}</Badge>;
   };
 
+  const handleViewContract = async () => {
+    if (!order) return;
+    
+    setIsGeneratingPdf("contract");
+    try {
+      const { viewContractPDF } = await import("@/lib/pdfEngine/legacyWrappers");
+      
+      // Build contract data from order
+      const contractData = {
+        client: {
+          name: order.profile?.full_name || order.client_first_name || "Client",
+          email: order.profile?.email || order.client_email || "",
+          phone: order.profile?.phone || order.client_phone || "",
+          address: order.profile?.service_address || order.shipping_address || "",
+          city: order.profile?.service_city || order.shipping_city || "",
+          postal_code: order.profile?.service_postal_code || order.shipping_postal_code || "",
+        },
+        order: {
+          order_number: order.order_number || order.confirmation_number,
+          service_type: order.service_type,
+          subtotal: order.subtotal || 0,
+          tps: order.tps_amount || 0,
+          tvq: order.tvq_amount || 0,
+          total: order.total_amount || 0,
+          created_at: order.created_at,
+        },
+      };
+      
+      viewContractPDF(contractData as any);
+      toast.success("Contrat ouvert");
+    } catch (error) {
+      console.error("Contract PDF error:", error);
+      toast.error("Impossible de générer le contrat");
+    } finally {
+      setIsGeneratingPdf(null);
+    }
+  };
+
+  const handleViewInvoice = async () => {
+    if (!order) return;
+    
+    setIsGeneratingPdf("invoice");
+    try {
+      const { viewInvoicePDF } = await import("@/lib/pdfEngine/legacyWrappers");
+      
+      // Build invoice data from order
+      const invoiceData = {
+        invoice_number: order.order_number ? `INV-${order.order_number.replace("ORD-", "")}` : "INV-TEMP",
+        client: {
+          name: order.profile?.full_name || order.client_first_name || "Client",
+          email: order.profile?.email || order.client_email || "",
+          phone: order.profile?.phone || order.client_phone || "",
+          address: order.profile?.service_address || order.shipping_address || "",
+          city: order.profile?.service_city || order.shipping_city || "",
+        },
+        line_items: [
+          {
+            description: order.service_type || "Service",
+            amount: order.subtotal || order.total_amount || 0,
+          }
+        ],
+        subtotal: order.subtotal || 0,
+        tps: order.tps_amount || 0,
+        tvq: order.tvq_amount || 0,
+        total: order.total_amount || 0,
+        created_at: order.created_at,
+        due_date: order.created_at,
+        status: order.payment_status || order.status,
+      };
+      
+      viewInvoicePDF(invoiceData as any);
+      toast.success("Facture ouverte");
+    } catch (error) {
+      console.error("Invoice PDF error:", error);
+      toast.error("Impossible de générer la facture");
+    } finally {
+      setIsGeneratingPdf(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center relative">
@@ -157,18 +255,56 @@ export default function StaffOrderDetail() {
       <StaffSidebar onSignOut={handleSignOut} />
       
       <main className="flex-1 p-6 overflow-auto z-10">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/staff/orders")} className="text-slate-400 hover:text-white">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-              <Package className="h-6 w-6 text-teal-400" />
-              {order.order_number || order.confirmation_number}
-            </h1>
-            <p className="text-slate-400 text-sm">{format(new Date(order.created_at), "d MMMM yyyy HH:mm", { locale: fr })}</p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/staff/orders")} className="text-slate-400 hover:text-white">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                <Package className="h-6 w-6 text-teal-400" />
+                {order.order_number || order.confirmation_number}
+              </h1>
+              <p className="text-slate-400 text-sm">{format(new Date(order.created_at), "d MMMM yyyy HH:mm", { locale: fr })}</p>
+            </div>
+            <Badge className={statusColors[order.status] || statusColors.pending}>{order.status}</Badge>
           </div>
-          <Badge className={statusColors[order.status] || statusColors.pending}>{order.status}</Badge>
+          
+          {/* PDF Actions */}
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleViewContract}
+              disabled={isGeneratingPdf === "contract"}
+              className="border-teal-500/50 text-teal-400 hover:bg-teal-500/10"
+            >
+              {isGeneratingPdf === "contract" ? (
+                <span className="animate-pulse">Génération...</span>
+              ) : (
+                <>
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Voir Contrat
+                </>
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleViewInvoice}
+              disabled={isGeneratingPdf === "invoice"}
+              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+            >
+              {isGeneratingPdf === "invoice" ? (
+                <span className="animate-pulse">Génération...</span>
+              ) : (
+                <>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Voir Facture
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -180,49 +316,117 @@ export default function StaffOrderDetail() {
               <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-slate-500" />{order.profile?.phone || order.client_phone || "N/A"}</div>
               <Separator className="bg-slate-700" />
               <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-slate-500 mt-1" /><div>{order.shipping_address}, {order.shipping_city}</div></div>
-              {order.user_id && <Button variant="outline" size="sm" onClick={() => navigate(`/staff/clients/${order.user_id}`)} className="w-full">Voir profil</Button>}
+              {order.user_id && <Button variant="outline" size="sm" onClick={() => navigate(`/staff/clients/${order.user_id}`)} className="w-full">Voir profil client</Button>}
             </CardContent>
           </Card>
 
           <Card className="bg-slate-800/50 border-slate-700/50">
-            <CardHeader><CardTitle className="text-white flex items-center gap-2"><FileText className="h-5 w-5 text-teal-400" />Détails</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-white flex items-center gap-2"><FileText className="h-5 w-5 text-teal-400" />Détails financiers</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between"><span className="text-slate-400">Service</span><span className="text-white">{order.service_type || "N/A"}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Paiement</span><span className="text-white flex items-center gap-1"><CreditCard className="h-3 w-3" />{order.payment_method || "Interac"}</span></div>
               <Separator className="bg-slate-700" />
               <div className="flex justify-between"><span className="text-slate-400">Sous-total</span><span className="text-white">{order.subtotal?.toFixed(2) || "0.00"} $</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">TPS/TVQ</span><span className="text-white">{((order.tps_amount || 0) + (order.tvq_amount || 0)).toFixed(2)} $</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">TPS (5%)</span><span className="text-white">{order.tps_amount?.toFixed(2) || "0.00"} $</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">TVQ (9.975%)</span><span className="text-white">{order.tvq_amount?.toFixed(2) || "0.00"} $</span></div>
+              <Separator className="bg-slate-700" />
               <div className="flex justify-between text-lg font-semibold"><span className="text-white">Total</span><span className="text-teal-400">{order.total_amount?.toFixed(2) || "0.00"} $</span></div>
             </CardContent>
           </Card>
 
-          <Card className="bg-amber-500/5 border-amber-500/30 lg:col-span-2">
+          {/* Related Invoices */}
+          {orderBilling && orderBilling.length > 0 && (
+            <Card className="bg-slate-800/50 border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-teal-400" />
+                  Factures liées ({orderBilling.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {orderBilling.map((bill: any) => (
+                    <div 
+                      key={bill.id}
+                      className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/50 flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-white font-mono text-sm">{bill.invoice_number || "Facture"}</p>
+                        <p className="text-xs text-slate-500">
+                          {bill.due_date ? format(new Date(bill.due_date), "d MMM yyyy", { locale: fr }) : "-"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={statusColors[bill.status] || "bg-slate-500/20 text-slate-400"}>
+                          {bill.status}
+                        </Badge>
+                        <p className="text-teal-400 font-semibold mt-1">{bill.amount?.toFixed(2)} $</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Internal Notes */}
+          <Card className={`bg-amber-500/5 border-amber-500/30 ${!orderBilling?.length ? 'lg:col-span-2' : ''}`}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center justify-between text-white">
-                <div className="flex items-center gap-2"><MessageSquare className="w-4 h-4 text-amber-500" />Notes internes<Badge className="bg-amber-500/20 text-amber-400 text-xs">{notes.length}</Badge></div>
-                <Button variant="outline" size="sm" onClick={() => setIsAddingNote(!isAddingNote)} className="gap-1"><Plus className="w-3 h-3" />Ajouter</Button>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-amber-500" />
+                  Notes internes
+                  <Badge className="bg-amber-500/20 text-amber-400 text-xs">{notes.length}</Badge>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setIsAddingNote(!isAddingNote)} className="gap-1">
+                  <Plus className="w-3 h-3" />
+                  Ajouter
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {isAddingNote && (
                 <div className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg space-y-2">
-                  <Textarea placeholder="Écrire une note..." value={newNote} onChange={(e) => setNewNote(e.target.value)} rows={3} className="bg-slate-900/50 border-slate-700 text-white" />
+                  <Textarea 
+                    placeholder="Écrire une note interne..." 
+                    value={newNote} 
+                    onChange={(e) => setNewNote(e.target.value)} 
+                    rows={3} 
+                    className="bg-slate-900/50 border-slate-700 text-white" 
+                  />
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => { setIsAddingNote(false); setNewNote(""); }}>Annuler</Button>
-                    <Button size="sm" onClick={() => addNoteMutation.mutate(newNote)} disabled={!newNote.trim()} className="bg-teal-500 hover:bg-teal-600"><Send className="w-3 h-3 mr-1" />Envoyer</Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => addNoteMutation.mutate(newNote)} 
+                      disabled={!newNote.trim() || addNoteMutation.isPending} 
+                      className="bg-teal-500 hover:bg-teal-600"
+                    >
+                      <Send className="w-3 h-3 mr-1" />
+                      Envoyer
+                    </Button>
                   </div>
                 </div>
               )}
-              {notes.length === 0 ? <p className="text-slate-500 text-center py-4">Aucune note</p> : (
+              {notes.length === 0 ? (
+                <p className="text-slate-500 text-center py-4">Aucune note interne</p>
+              ) : (
                 <ScrollArea className="max-h-[300px]">
                   <div className="space-y-2">
                     {notes.map((note) => (
                       <div key={note.id} className="p-3 bg-slate-800/30 border border-slate-700/50 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2"><User className="w-3 h-3 text-slate-500" /><span className="text-sm text-slate-300">{note.created_by_name}</span>{getRoleBadge(note.created_by_role)}</div>
-                          <div className="flex items-center gap-1 text-xs text-slate-500"><Clock className="w-3 h-3" />{format(new Date(note.created_at), "d MMM HH:mm", { locale: fr })}</div>
+                          <div className="flex items-center gap-2">
+                            <User className="w-3 h-3 text-slate-500" />
+                            <span className="text-sm text-slate-300">{note.created_by_name}</span>
+                            {getRoleBadge(note.created_by_role)}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-slate-500">
+                            <Clock className="w-3 h-3" />
+                            {format(new Date(note.created_at), "d MMM HH:mm", { locale: fr })}
+                          </div>
                         </div>
-                        <p className="text-sm text-slate-300">{note.body}</p>
+                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{note.body}</p>
                       </div>
                     ))}
                   </div>

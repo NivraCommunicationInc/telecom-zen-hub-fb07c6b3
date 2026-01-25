@@ -1,18 +1,29 @@
 /**
  * StaffStreaming - Manage client streaming subscriptions
- * Staff portal - completely isolated from admin
+ * Staff portal - enhanced with activation/deactivation controls
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Play, Search, User, Calendar, ArrowLeft } from "lucide-react";
+import { Play, Search, User, Calendar, DollarSign, ArrowLeft, Power, PowerOff, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
 
@@ -26,8 +37,8 @@ const statusColors: Record<string, string> = {
 interface StreamingSubscriptionWithProfile {
   id: string;
   user_id: string;
-  streaming_service_id: string;
-  status: string | null;
+  streaming_service_id: string | null;
+  status: string;
   monthly_price: number | null;
   start_date: string | null;
   created_at: string;
@@ -37,7 +48,10 @@ interface StreamingSubscriptionWithProfile {
 
 export default function StaffStreaming() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedSub, setSelectedSub] = useState<StreamingSubscriptionWithProfile | null>(null);
+  const [actionType, setActionType] = useState<"activate" | "suspend" | null>(null);
 
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ["staff-streaming-subscriptions"],
@@ -46,7 +60,7 @@ export default function StaffStreaming() {
         .from("client_streaming_subscriptions")
         .select("id, user_id, streaming_service_id, status, monthly_price, start_date, created_at")
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (error) throw error;
 
@@ -82,6 +96,29 @@ export default function StaffStreaming() {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ subId, newStatus }: { subId: string; newStatus: string }) => {
+      const { error } = await supabase
+        .from("client_streaming_subscriptions")
+        .update({ 
+          status: newStatus,
+          ...(newStatus === "cancelled" ? { cancelled_at: new Date().toISOString() } : {})
+        })
+        .eq("id", subId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(actionType === "activate" ? "Service activé" : "Service suspendu");
+      queryClient.invalidateQueries({ queryKey: ["staff-streaming-subscriptions"] });
+      setSelectedSub(null);
+      setActionType(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Erreur lors de la mise à jour");
+    },
+  });
+
   const filteredSubscriptions = subscriptions?.filter((sub) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
@@ -96,6 +133,22 @@ export default function StaffStreaming() {
     await supabase.auth.signOut();
     navigate("/staff");
   };
+
+  const handleStatusAction = (sub: StreamingSubscriptionWithProfile, action: "activate" | "suspend") => {
+    setSelectedSub(sub);
+    setActionType(action);
+  };
+
+  const confirmAction = () => {
+    if (!selectedSub || !actionType) return;
+    const newStatus = actionType === "activate" ? "active" : "suspended";
+    updateStatusMutation.mutate({ subId: selectedSub.id, newStatus });
+  };
+
+  // Stats
+  const activeCount = subscriptions?.filter(s => s.status === "active").length || 0;
+  const suspendedCount = subscriptions?.filter(s => s.status === "suspended" || s.status === "cancelled").length || 0;
+  const totalRevenue = subscriptions?.filter(s => s.status === "active").reduce((acc, s) => acc + (s.monthly_price || 0), 0) || 0;
 
   return (
     <div className="min-h-screen flex relative">
@@ -116,10 +169,47 @@ export default function StaffStreaming() {
             </Button>
             <h1 className="text-2xl font-bold text-white flex items-center gap-3">
               <Play className="h-6 w-6 text-teal-400" />
-              Gestion Streaming
+              Gestion Streaming+
             </h1>
           </div>
           <p className="text-slate-400 ml-14">Gérer les abonnements streaming des clients</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card className="bg-slate-800/50 border-slate-700/50">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-green-500/20">
+                <Power className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-white">{activeCount}</p>
+                <p className="text-sm text-slate-400">Actifs</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-800/50 border-slate-700/50">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-red-500/20">
+                <PowerOff className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-white">{suspendedCount}</p>
+                <p className="text-sm text-slate-400">Suspendus/Annulés</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-800/50 border-slate-700/50">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-teal-500/20">
+                <DollarSign className="h-5 w-5 text-teal-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-white">{totalRevenue.toFixed(2)} $</p>
+                <p className="text-sm text-slate-400">Revenus mensuels</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search */}
@@ -145,7 +235,7 @@ export default function StaffStreaming() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSubscriptions?.map((sub) => (
-              <Card key={sub.id} className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+              <Card key={sub.id} className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm hover:border-teal-500/30 transition-colors">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -156,20 +246,20 @@ export default function StaffStreaming() {
                           className="h-10 w-10 rounded-lg object-cover"
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded-lg bg-slate-700 flex items-center justify-center">
-                          <Play className="h-5 w-5 text-slate-400" />
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                          <Play className="h-5 w-5 text-white" />
                         </div>
                       )}
                       <div>
                         <CardTitle className="text-white text-base">
-                          {sub.service?.name || "Service"}
+                          {sub.service?.name || "Service Streaming"}
                         </CardTitle>
-                        <p className="text-sm text-slate-400">
-                          {sub.monthly_price?.toFixed(2) || "0.00"} $/mois
+                        <p className="text-sm text-teal-400 font-semibold">
+                          {sub.monthly_price?.toFixed(2)} $/mois
                         </p>
                       </div>
                     </div>
-                    <Badge className={statusColors[sub.status || "pending"]}>
+                    <Badge className={statusColors[sub.status] || statusColors.pending}>
                       {sub.status}
                     </Badge>
                   </div>
@@ -182,25 +272,95 @@ export default function StaffStreaming() {
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-slate-500" />
                     <span className="text-slate-400">
-                      Depuis {sub.start_date ? format(new Date(sub.start_date), "d MMM yyyy", { locale: fr }) : "N/A"}
+                      Depuis {sub.start_date 
+                        ? format(new Date(sub.start_date), "d MMM yyyy", { locale: fr })
+                        : format(new Date(sub.created_at), "d MMM yyyy", { locale: fr })
+                      }
                     </span>
                   </div>
-                  {sub.user_id && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/staff/clients/${sub.user_id}`)}
-                      className="w-full mt-2"
-                    >
-                      Voir le client
-                    </Button>
-                  )}
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    {sub.status === "active" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+                        onClick={() => handleStatusAction(sub, "suspend")}
+                      >
+                        <PowerOff className="h-3 w-3 mr-1" />
+                        Suspendre
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 border-green-500/50 text-green-400 hover:bg-green-500/10"
+                        onClick={() => handleStatusAction(sub, "activate")}
+                      >
+                        <Power className="h-3 w-3 mr-1" />
+                        Activer
+                      </Button>
+                    )}
+                    {sub.user_id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/staff/clients/${sub.user_id}`)}
+                        className="flex-1"
+                      >
+                        Voir client
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </main>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!selectedSub && !!actionType} onOpenChange={() => { setSelectedSub(null); setActionType(null); }}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-400" />
+              {actionType === "activate" ? "Activer le service" : "Suspendre le service"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              {actionType === "activate" ? (
+                <>
+                  Voulez-vous activer le service <strong className="text-white">{selectedSub?.service?.name}</strong> pour{" "}
+                  <strong className="text-white">{selectedSub?.profile?.full_name}</strong> ?
+                </>
+              ) : (
+                <>
+                  Voulez-vous suspendre le service <strong className="text-white">{selectedSub?.service?.name}</strong> pour{" "}
+                  <strong className="text-white">{selectedSub?.profile?.full_name}</strong> ?
+                  <br />
+                  <span className="text-amber-400">Le client n'aura plus accès à ce service.</span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700">
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmAction}
+              className={actionType === "activate" 
+                ? "bg-green-600 hover:bg-green-700 text-white" 
+                : "bg-orange-600 hover:bg-orange-700 text-white"
+              }
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending ? "En cours..." : "Confirmer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
