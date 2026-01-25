@@ -3554,6 +3554,107 @@ export type Database = {
           },
         ]
       }
+      field_sales_orders: {
+        Row: {
+          appointment_date: string | null
+          appointment_notes: string | null
+          converted_at: string | null
+          converted_order_id: string | null
+          created_at: string
+          customer_address: string
+          customer_city: string | null
+          customer_date_of_birth: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          customer_postal_code: string | null
+          id: string
+          internal_notes: string | null
+          local_id: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          sale_latitude: number | null
+          sale_longitude: number | null
+          salesperson_id: string
+          selected_channels: Json | null
+          services: Json
+          sync_error: string | null
+          sync_status: string | null
+          synced_at: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          appointment_date?: string | null
+          appointment_notes?: string | null
+          converted_at?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          customer_address: string
+          customer_city?: string | null
+          customer_date_of_birth?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          customer_postal_code?: string | null
+          id?: string
+          internal_notes?: string | null
+          local_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          sale_latitude?: number | null
+          sale_longitude?: number | null
+          salesperson_id: string
+          selected_channels?: Json | null
+          services?: Json
+          sync_error?: string | null
+          sync_status?: string | null
+          synced_at?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          appointment_date?: string | null
+          appointment_notes?: string | null
+          converted_at?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          customer_address?: string
+          customer_city?: string | null
+          customer_date_of_birth?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          customer_postal_code?: string | null
+          id?: string
+          internal_notes?: string | null
+          local_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          sale_latitude?: number | null
+          sale_longitude?: number | null
+          salesperson_id?: string
+          selected_channels?: Json | null
+          services?: Json
+          sync_error?: string | null
+          sync_status?: string | null
+          synced_at?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_sales_orders_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fulfillment_snapshots: {
         Row: {
           created_at: string
@@ -6745,6 +6846,75 @@ export type Database = {
           },
         ]
       }
+      sales_commissions: {
+        Row: {
+          commission_amount: number
+          commission_rate: number
+          converted_order_id: string | null
+          created_at: string
+          field_order_id: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          sale_amount: number
+          salesperson_id: string
+          status: string | null
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          commission_amount: number
+          commission_rate?: number
+          converted_order_id?: string | null
+          created_at?: string
+          field_order_id?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          sale_amount: number
+          salesperson_id: string
+          status?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          commission_amount?: number
+          commission_rate?: number
+          converted_order_id?: string | null
+          created_at?: string
+          field_order_id?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          sale_amount?: number
+          salesperson_id?: string
+          status?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_commissions_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_commissions_field_order_id_fkey"
+            columns: ["field_order_id"]
+            isOneToOne: false
+            referencedRelation: "field_sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_action_logs: {
         Row: {
           action: string
@@ -9322,6 +9492,7 @@ export type Database = {
         Args: { _work_order_id: string }
         Returns: boolean
       }
+      is_field_sales: { Args: { _user_id?: string }; Returns: boolean }
       is_first_client_order: {
         Args: { p_order_id: string; p_user_id: string }
         Returns: boolean
@@ -9419,7 +9590,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "client" | "technician" | "employee" | "influencer"
+      app_role:
+        | "admin"
+        | "client"
+        | "technician"
+        | "employee"
+        | "influencer"
+        | "field_sales"
       billing_customer_status: "active" | "suspended" | "closed"
       billing_invoice_status:
         | "draft"
@@ -9704,7 +9881,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "client", "technician", "employee", "influencer"],
+      app_role: [
+        "admin",
+        "client",
+        "technician",
+        "employee",
+        "influencer",
+        "field_sales",
+      ],
       billing_customer_status: ["active", "suspended", "closed"],
       billing_invoice_status: [
         "draft",

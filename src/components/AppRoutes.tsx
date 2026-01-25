@@ -118,6 +118,11 @@ import InfluencerCashouts from "@/pages/influencer/InfluencerCashouts";
 import InfluencerSettings from "@/pages/influencer/InfluencerSettings";
 import InfluencerTerms from "@/pages/influencer/InfluencerTerms";
 import { InfluencerAuthProvider } from "@/hooks/useInfluencerAuth";
+
+// Field Sales Portal (Door-to-Door)
+import FieldSalesLogin from "@/pages/field-sales/FieldSalesLogin";
+import FieldSalesDashboard from "@/pages/field-sales/FieldSalesDashboard";
+import FieldSalesLayout from "@/components/field-sales/FieldSalesLayout";
 import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
 import PartnerTermsAcceptanceGuard from "@/components/influencer/PartnerTermsAcceptanceGuard";
 
@@ -447,6 +452,10 @@ const AppRoutes = () => {
           <StaffTechnicianDashboard />
         </StaffLayout>
       } />
+
+      {/* Field Sales Portal (Door-to-Door) */}
+      <Route path="/field-sales" element={<FieldSalesLogin />} />
+      <Route path="/field-sales/dashboard" element={<FieldSalesLayout><FieldSalesDashboard /></FieldSalesLayout>} />
 
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
