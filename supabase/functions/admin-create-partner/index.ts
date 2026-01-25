@@ -11,6 +11,9 @@ interface CreatePartnerRequest {
   email: string;
   phone?: string;
   notes?: string;
+  // New fields for complete account creation
+  password?: string;
+  activate_immediately?: boolean;
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -70,7 +73,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: false, code: "FORBIDDEN", message: "Admin access required" });
     }
 
-    const { first_name, last_name, email, phone, notes } = (await req.json()) as CreatePartnerRequest;
+    const { first_name, last_name, email, phone, notes, password, activate_immediately } = (await req.json()) as CreatePartnerRequest;
 
     if (!first_name || !last_name || !email) {
       return jsonResponse({ ok: false, code: "MISSING_FIELDS", message: "first_name, last_name, email required" });
@@ -78,12 +81,12 @@ Deno.serve(async (req) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    console.log(`[admin-create-partner] Creating partner: ${normalizedEmail}`);
+    console.log(`[admin-create-partner] Creating partner: ${normalizedEmail}, with_password: ${!!password}, activate: ${activate_immediately}`);
 
     // Check if influencer already exists
     const { data: existing } = await supabaseAdmin
       .from("influencers")
-      .select("id, status")
+      .select("id, status, user_id")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
@@ -96,12 +99,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    // If password provided, create auth user immediately
+    let authUserId: string | null = null;
+    
+    if (password) {
+      if (password.length < 8) {
+        return jsonResponse({ ok: false, code: "PASSWORD_TOO_SHORT", message: "Le mot de passe doit contenir au moins 8 caractères" });
+      }
+
+      console.log(`[admin-create-partner] Creating auth user for: ${normalizedEmail}`);
+
+      // Check if auth user already exists
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const existingAuthUser = authUsers?.users?.find(u => u.email?.toLowerCase() === normalizedEmail);
+
+      if (existingAuthUser) {
+        console.log(`[admin-create-partner] Auth user already exists: ${existingAuthUser.id}`);
+        authUserId = existingAuthUser.id;
+        
+        // Update password for existing user
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+          password,
+          email_confirm: true,
+        });
+
+        if (updateError) {
+          console.error("[admin-create-partner] Password update error:", updateError);
+          return jsonResponse({ ok: false, code: "AUTH_ERROR", message: updateError.message });
+        }
+      } else {
+        // Create new auth user
+        const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+          email: normalizedEmail,
+          password,
+          email_confirm: true,
+        });
+
+        if (createUserError) {
+          console.error("[admin-create-partner] User creation error:", createUserError);
+          return jsonResponse({ ok: false, code: "AUTH_ERROR", message: createUserError.message });
+        }
+
+        authUserId = newUser.user.id;
+        console.log(`[admin-create-partner] Created auth user: ${authUserId}`);
+      }
+    }
+
     // Get default commission plan
     const { data: defaultPlan } = await supabaseAdmin
       .from("commission_plans")
       .select("id")
       .eq("is_default", true)
       .maybeSingle();
+
+    // Determine status based on whether we're activating immediately
+    const status = (password && activate_immediately) ? "active" : "invited";
 
     // Insert influencer using service role (bypasses RLS)
     const { data: influencer, error: insertError } = await supabaseAdmin
@@ -112,7 +164,8 @@ Deno.serve(async (req) => {
         email: normalizedEmail,
         phone: phone?.trim() || null,
         notes: notes?.trim() || null,
-        status: "invited",
+        status,
+        user_id: authUserId,
         payout_method: "etransfer",
         payout_email: normalizedEmail,
         commission_plan_id: defaultPlan?.id || null,
@@ -130,6 +183,43 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[admin-create-partner] Created influencer: ${influencer.id}`);
+
+    // If auth user was created, add role
+    if (authUserId) {
+      const { error: roleError } = await supabaseAdmin
+        .from("user_roles")
+        .upsert({
+          user_id: authUserId,
+          role: "influencer",
+          is_active: true,
+          status: "active",
+        }, {
+          onConflict: "user_id,role",
+        });
+
+      if (roleError) {
+        console.error("[admin-create-partner] Role creation error (non-fatal):", roleError);
+      }
+
+      // Also create profile if needed
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          id: authUserId,
+          user_id: authUserId,
+          email: normalizedEmail,
+          first_name: first_name.trim(),
+          last_name: last_name.trim(),
+          full_name: `${first_name.trim()} ${last_name.trim()}`,
+          phone: phone?.trim() || null,
+        }, {
+          onConflict: "id",
+        });
+
+      if (profileError) {
+        console.error("[admin-create-partner] Profile creation error (non-fatal):", profileError);
+      }
+    }
 
     // Generate referral code
     const code = `${first_name.toUpperCase().slice(0, 3)}${Math.random()
@@ -150,25 +240,36 @@ Deno.serve(async (req) => {
       // Non-fatal, influencer was created
     }
 
-    // Create invite token
-    const token = crypto.randomUUID();
-    const { error: inviteError } = await supabaseAdmin
-      .from("influencer_invites")
-      .insert({
-        influencer_id: influencer.id,
-        token,
-      });
+    // Only create invite token if not activated immediately
+    let token: string | null = null;
+    if (!password || !activate_immediately) {
+      token = crypto.randomUUID();
+      const { error: inviteError } = await supabaseAdmin
+        .from("influencer_invites")
+        .insert({
+          influencer_id: influencer.id,
+          token,
+        });
 
-    if (inviteError) {
-      console.error("[admin-create-partner] Invite insert error:", inviteError);
-      // Non-fatal
+      if (inviteError) {
+        console.error("[admin-create-partner] Invite insert error:", inviteError);
+        // Non-fatal
+      }
     }
+
+    const message = password && activate_immediately 
+      ? "Compte partenaire créé et activé avec succès"
+      : "Partenaire créé avec succès";
 
     return jsonResponse({
       ok: true,
       influencer_id: influencer.id,
+      user_id: authUserId,
       code,
-      message: "Partenaire créé avec succès",
+      status,
+      token,
+      activated: password && activate_immediately,
+      message,
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
