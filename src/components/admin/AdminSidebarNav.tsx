@@ -351,9 +351,9 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
   return (
     <nav className="flex-1 flex flex-col overflow-hidden">
       {/* Accordion Mode Toggle */}
-      <div className="px-4 py-2 border-b border-border/50">
+      <div className="px-4 py-2 border-b border-slate-700/50">
         <div className="flex items-center justify-between">
-          <Label htmlFor="accordion-mode" className="text-xs text-muted-foreground cursor-pointer">
+          <Label htmlFor="accordion-mode" className="text-xs text-slate-500 cursor-pointer">
             Mode accordéon
           </Label>
           <Switch
@@ -368,7 +368,7 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
       {/* Navigation Groups */}
       <div className="flex-1 p-3 space-y-1 overflow-y-auto">
         {filteredGroups.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
+          <div className="text-center py-8 text-slate-500 text-sm">
             Aucun résultat pour "{searchQuery}"
           </div>
         ) : (
@@ -387,8 +387,8 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
                     className={cn(
                       "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                       hasActiveItem
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        ? "bg-teal-500/20 text-teal-400"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -408,7 +408,7 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
                     )}
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-1">
-                    <div className="ml-3 pl-3 border-l-2 border-border/50 space-y-0.5">
+                    <div className="ml-3 pl-3 border-l-2 border-slate-700/50 space-y-0.5">
                       {group.items.map((item) => (
                         <Link
                           key={item.href}
@@ -416,8 +416,8 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                             isItemActive(item.href)
-                              ? "bg-primary text-primary-foreground font-medium"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-900 font-medium"
+                              : "text-slate-400 hover:bg-slate-800 hover:text-white"
                           )}
                         >
                           <item.icon className="w-4 h-4 shrink-0" />
@@ -430,7 +430,7 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
                 
                 {/* Subtle separator between groups */}
                 {!isLastGroup && (
-                  <div className="my-2 mx-3 border-t border-border/30" />
+                  <div className="my-2 mx-3 border-t border-slate-700/30" />
                 )}
               </div>
             );
