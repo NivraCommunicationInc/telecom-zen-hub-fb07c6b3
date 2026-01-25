@@ -9278,7 +9278,7 @@ export type Database = {
       }
       get_user_staff_roles: {
         Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["staff_role"][]
+        Returns: Database["public"]["Enums"]["app_role"][]
       }
       has_role: {
         Args: {
@@ -9289,7 +9289,7 @@ export type Database = {
       }
       has_staff_role: {
         Args: {
-          _role: Database["public"]["Enums"]["staff_role"]
+          _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean

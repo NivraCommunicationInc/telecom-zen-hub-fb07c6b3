@@ -21,6 +21,13 @@ interface TokenData {
   full_name?: string;
 }
 
+interface AuthUserData {
+  user_id: string;
+  email: string;
+  role: string;
+  full_name?: string;
+}
+
 const STAFF_TERMS = `
 TERMES ET CONDITIONS D'ACCÈS AU PORTAIL EMPLOYÉ/TECHNICIEN NIVRA TELECOM
 
@@ -74,7 +81,9 @@ export default function StaffOnboarding() {
   const [isValidating, setIsValidating] = useState(true);
   const [isValid, setIsValid] = useState(false);
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
+  const [authUserData, setAuthUserData] = useState<AuthUserData | null>(null);
   const [errorReason, setErrorReason] = useState<string | null>(null);
+  const [mode, setMode] = useState<"token" | "authenticated">("token");
 
   // Form state
   const [password, setPassword] = useState("");
@@ -86,18 +95,56 @@ export default function StaffOnboarding() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Stepper
+  // Stepper - 2 steps for authenticated users (PIN + Terms), 3 for token users (Password + PIN + Terms)
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
 
   useEffect(() => {
-    const validateToken = async () => {
+    const initialize = async () => {
+      // First check if user is already authenticated with a staff role needing onboarding
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Check if user has a staff role that needs onboarding
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role, is_active, status, onboarding_completed_at, terms_accepted_at")
+          .eq("user_id", session.user.id)
+          .in("role", ["employee", "technician"])
+          .maybeSingle();
+
+        if (roleData && roleData.is_active && roleData.status === "active" && 
+            (!roleData.onboarding_completed_at || !roleData.terms_accepted_at)) {
+          // User is authenticated and needs to complete onboarding
+          console.log("[StaffOnboarding] Authenticated user needs onboarding");
+          
+          // Get profile info
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          setAuthUserData({
+            user_id: session.user.id,
+            email: session.user.email || "",
+            role: roleData.role,
+            full_name: profile?.full_name || undefined,
+          });
+          setMode("authenticated");
+          setIsValid(true);
+          setIsValidating(false);
+          return;
+        }
+      }
+
+      // If no token provided and user doesn't need onboarding, show error
       if (!token) {
         setErrorReason("no_token");
         setIsValidating(false);
         return;
       }
 
+      // Validate token
       try {
         const { data, error } = await supabase.functions.invoke("staff-validate-onboarding-token", {
           body: { token },
@@ -108,6 +155,7 @@ export default function StaffOnboarding() {
           setIsValid(false);
         } else {
           setTokenData(data.data);
+          setMode("token");
           setIsValid(true);
         }
       } catch (error) {
@@ -119,10 +167,16 @@ export default function StaffOnboarding() {
       }
     };
 
-    validateToken();
+    initialize();
   }, [token]);
 
-  const validateStep1 = () => {
+  // Get total steps based on mode
+  const totalSteps = mode === "authenticated" ? 2 : 3;
+  const stepLabels = mode === "authenticated" 
+    ? ["NIP sécurité", "Conditions"]
+    : ["Mot de passe", "NIP sécurité", "Conditions"];
+
+  const validatePassword = () => {
     if (password.length < 8) {
       toast.error("Le mot de passe doit contenir au moins 8 caractères");
       return false;
@@ -138,7 +192,7 @@ export default function StaffOnboarding() {
     return true;
   };
 
-  const validateStep2 = () => {
+  const validatePin = () => {
     if (!/^\d{4}$/.test(pin)) {
       toast.error("Le NIP doit être exactement 4 chiffres");
       return false;
@@ -155,8 +209,9 @@ export default function StaffOnboarding() {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1 && !validateStep1()) return;
-    if (currentStep === 2 && !validateStep2()) return;
+    if (mode === "token" && currentStep === 1 && !validatePassword()) return;
+    const pinStep = mode === "authenticated" ? 1 : 2;
+    if (currentStep === pinStep && !validatePin()) return;
     setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
   };
 
@@ -170,8 +225,9 @@ export default function StaffOnboarding() {
       return;
     }
 
-    if (!tokenData) {
-      toast.error("Données d'invitation invalides");
+    const userData = mode === "token" ? tokenData : authUserData;
+    if (!userData) {
+      toast.error("Données d'utilisateur invalides");
       return;
     }
 
@@ -180,15 +236,17 @@ export default function StaffOnboarding() {
     try {
       const { data, error } = await supabase.functions.invoke("staff-complete-onboarding", {
         body: {
-          token,
-          password,
+          token: mode === "token" ? token : null,
+          password: mode === "token" ? password : null,
           pin,
           terms_accepted: true,
           terms_version: "1.0",
+          authenticated_mode: mode === "authenticated",
         },
       });
 
       if (error) {
+        console.error("Onboarding error:", error);
         toast.error("Erreur de connexion au serveur");
         return;
       }
@@ -205,8 +263,9 @@ export default function StaffOnboarding() {
       }
 
       if (data?.ok === true) {
-        toast.success("Compte configuré avec succès! Vous pouvez maintenant vous connecter.");
-        navigate("/staff");
+        toast.success("Compte configuré avec succès! Vous pouvez maintenant accéder au portail.");
+        const redirectRole = userData.role;
+        navigate(`/staff/${redirectRole}`);
       }
     } catch (error) {
       console.error("Onboarding error:", error);
@@ -222,7 +281,7 @@ export default function StaffOnboarding() {
         <StaffBackground />
         <div className="flex flex-col items-center gap-4 z-10">
           <Loader2 className="h-10 w-10 animate-spin text-teal-400" />
-          <p className="text-slate-300">Validation du lien...</p>
+          <p className="text-slate-300">Validation...</p>
         </div>
       </div>
     );
@@ -237,10 +296,10 @@ export default function StaffOnboarding() {
             <div className="mx-auto mb-4 p-3 rounded-full bg-red-500/20">
               <AlertCircle className="h-8 w-8 text-red-400" />
             </div>
-            <CardTitle className="text-white">Lien invalide</CardTitle>
+            <CardTitle className="text-white">Accès non autorisé</CardTitle>
             <CardDescription className="text-slate-400">
-              {errorReason === "no_token" && "Aucun token fourni dans l'URL."}
-              {errorReason === "expired" && "Ce lien a expiré. Contactez votre administrateur."}
+              {errorReason === "no_token" && "Vous n'avez pas de lien de configuration valide. Connectez-vous d'abord ou contactez votre administrateur."}
+              {errorReason === "expired" && "Ce lien a expiré. Contactez votre administrateur pour obtenir un nouveau lien."}
               {errorReason === "used" && "Ce lien a déjà été utilisé."}
               {errorReason === "invalid_token" && "Ce lien est invalide ou a expiré."}
               {errorReason === "server_error" && "Erreur serveur. Veuillez réessayer."}
@@ -260,7 +319,13 @@ export default function StaffOnboarding() {
     );
   }
 
-  const roleLabel = tokenData?.role === "employee" ? "Employé" : "Technicien";
+  const userData = mode === "token" ? tokenData : authUserData;
+  const roleLabel = userData?.role === "employee" ? "Employé" : "Technicien";
+
+  // Determine current step content
+  const isPasswordStep = mode === "token" && currentStep === 1;
+  const isPinStep = (mode === "token" && currentStep === 2) || (mode === "authenticated" && currentStep === 1);
+  const isTermsStep = currentStep === totalSteps;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
@@ -274,13 +339,13 @@ export default function StaffOnboarding() {
           </div>
           <h1 className="text-2xl font-bold text-white">Configuration de votre compte</h1>
           <p className="text-slate-400">
-            Bienvenue {tokenData?.full_name || tokenData?.email}! Configurez votre accès {roleLabel}.
+            Bienvenue {userData?.full_name || userData?.email}! Configurez votre accès {roleLabel}.
           </p>
         </div>
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-2">
-          {[1, 2, 3].map((step) => (
+          {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
             <div key={step} className="flex items-center">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
@@ -293,7 +358,7 @@ export default function StaffOnboarding() {
               >
                 {step < currentStep ? <CheckCircle className="h-4 w-4" /> : step}
               </div>
-              {step < 3 && (
+              {step < totalSteps && (
                 <div
                   className={`w-12 h-0.5 ${
                     step < currentStep ? "bg-teal-500" : "bg-slate-700"
@@ -304,16 +369,16 @@ export default function StaffOnboarding() {
           ))}
         </div>
         <div className="flex justify-between text-xs text-slate-500 px-2">
-          <span>Mot de passe</span>
-          <span>NIP sécurité</span>
-          <span>Conditions</span>
+          {stepLabels.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
         </div>
 
         {/* Form Card */}
         <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl">
           <CardContent className="pt-6">
-            {/* Step 1: Password */}
-            {currentStep === 1 && (
+            {/* Password Step (token mode only) */}
+            {isPasswordStep && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
                   <Lock className="h-5 w-5 text-teal-400" />
@@ -356,8 +421,8 @@ export default function StaffOnboarding() {
               </div>
             )}
 
-            {/* Step 2: PIN */}
-            {currentStep === 2 && (
+            {/* PIN Step */}
+            {isPinStep && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
                   <KeyRound className="h-5 w-5 text-teal-400" />
@@ -406,8 +471,8 @@ export default function StaffOnboarding() {
               </div>
             )}
 
-            {/* Step 3: Terms */}
-            {currentStep === 3 && (
+            {/* Terms Step */}
+            {isTermsStep && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
                   <FileText className="h-5 w-5 text-teal-400" />
@@ -453,26 +518,26 @@ export default function StaffOnboarding() {
                 <Button
                   type="button"
                   onClick={handleNextStep}
-                  className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-900 font-semibold"
+                  className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-400 text-slate-900 font-semibold hover:from-teal-400 hover:to-cyan-300"
                 >
                   Continuer
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               ) : (
                 <Button
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting || !acceptTerms}
-                  className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-900 font-semibold disabled:opacity-50"
+                  className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-400 text-slate-900 font-semibold hover:from-teal-400 hover:to-cyan-300 disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Configuration...
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <Shield className="h-4 w-4 mr-2" />
                       Activer mon compte
                     </>
                   )}
@@ -482,9 +547,11 @@ export default function StaffOnboarding() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-slate-500 text-sm">
-          © {new Date().getFullYear()} Nivra Telecom. Portail du personnel.
-        </p>
+        {/* Security Badge */}
+        <div className="flex items-center justify-center gap-2 text-slate-500 text-xs">
+          <Shield className="h-3.5 w-3.5" />
+          <span>Connexion sécurisée • Données chiffrées</span>
+        </div>
       </div>
     </div>
   );

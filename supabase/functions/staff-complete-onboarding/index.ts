@@ -63,15 +63,11 @@ serve(async (req: Request) => {
     });
 
   try {
-    const { token, password, pin, terms_accepted, terms_version } = await req.json();
+    const { token, password, pin, terms_accepted, terms_version, authenticated_mode } = await req.json();
 
     // Validate inputs
-    if (!token || !password || !pin) {
-      return json(400, { ok: false, message: "Token, mot de passe et NIP requis" });
-    }
-
-    if (password.length < 8) {
-      return json(400, { ok: false, message: "Mot de passe trop court (min 8 caractères)" });
+    if (!pin) {
+      return json(400, { ok: false, message: "NIP requis" });
     }
 
     if (!/^\d{4}$/.test(pin)) {
@@ -86,53 +82,110 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Validate token
-    const tokenHash = await hashToken(token);
-    
-    const { data: tokenRecord, error: tokenError } = await adminClient
-      .from("staff_onboarding_tokens")
-      .select("*")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
+    let userId: string;
+    let userEmail: string;
+    let userRole: string;
+    let tokenRecordId: string | null = null;
+    let createdByAdminId: string | null = null;
 
-    if (tokenError || !tokenRecord) {
-      console.error("[staff-complete-onboarding] Token lookup error:", tokenError);
-      return json(400, { ok: false, message: "Token invalide" });
+    // Two modes: token-based (new invite) or authenticated (existing user needing setup)
+    if (authenticated_mode) {
+      // Get user from Authorization header
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return json(401, { ok: false, message: "Non autorisé" });
+      }
+
+      const accessToken = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: authError } = await adminClient.auth.getUser(accessToken);
+
+      if (authError || !user) {
+        console.error("[staff-complete-onboarding] Auth error:", authError);
+        return json(401, { ok: false, message: "Session invalide" });
+      }
+
+      // Verify user has a staff role needing onboarding
+      const { data: roleData, error: roleError } = await adminClient
+        .from("user_roles")
+        .select("role, is_active, status, onboarding_completed_at")
+        .eq("user_id", user.id)
+        .in("role", ["employee", "technician"])
+        .maybeSingle();
+
+      if (roleError || !roleData) {
+        console.error("[staff-complete-onboarding] Role check error:", roleError);
+        return json(403, { ok: false, message: "Rôle staff non trouvé" });
+      }
+
+      if (roleData.onboarding_completed_at) {
+        return json(200, { ok: false, code: "ALREADY_CONFIGURED", message: "Compte déjà configuré" });
+      }
+
+      userId = user.id;
+      userEmail = user.email || "";
+      userRole = roleData.role;
+
+      console.log(`[staff-complete-onboarding] Authenticated mode for ${userEmail}, role=${userRole}`);
+    } else {
+      // Token-based mode - require token and password
+      if (!token || !password) {
+        return json(400, { ok: false, message: "Token et mot de passe requis" });
+      }
+
+      if (password.length < 8) {
+        return json(400, { ok: false, message: "Mot de passe trop court (min 8 caractères)" });
+      }
+
+      // Validate token
+      const tokenHash = await hashToken(token);
+      
+      const { data: tokenRecord, error: tokenError } = await adminClient
+        .from("staff_onboarding_tokens")
+        .select("*")
+        .eq("token_hash", tokenHash)
+        .maybeSingle();
+
+      if (tokenError || !tokenRecord) {
+        console.error("[staff-complete-onboarding] Token lookup error:", tokenError);
+        return json(400, { ok: false, message: "Token invalide" });
+      }
+
+      if (tokenRecord.used_at) {
+        return json(200, { ok: false, code: "ALREADY_CONFIGURED", message: "Ce lien a déjà été utilisé" });
+      }
+
+      if (new Date(tokenRecord.expires_at) < new Date()) {
+        return json(400, { ok: false, message: "Ce lien a expiré" });
+      }
+
+      userId = tokenRecord.user_id;
+      userEmail = tokenRecord.email;
+      userRole = tokenRecord.role;
+      tokenRecordId = tokenRecord.id;
+      createdByAdminId = tokenRecord.created_by_admin_id;
+
+      console.log(`[staff-complete-onboarding] Token mode for ${userEmail}, role=${userRole}`);
+
+      // Update password via Supabase Auth
+      const { error: pwError } = await adminClient.auth.admin.updateUserById(userId, {
+        password,
+        user_metadata: {
+          require_password_change: false,
+          onboarding_completed: true,
+        },
+      });
+
+      if (pwError) {
+        console.error("[staff-complete-onboarding] Password update error:", pwError);
+        return json(500, { ok: false, message: "Erreur lors de la mise à jour du mot de passe" });
+      }
     }
 
-    if (tokenRecord.used_at) {
-      return json(200, { ok: false, code: "ALREADY_CONFIGURED", message: "Ce lien a déjà été utilisé" });
-    }
-
-    if (new Date(tokenRecord.expires_at) < new Date()) {
-      return json(400, { ok: false, message: "Ce lien a expiré" });
-    }
-
-    const userId = tokenRecord.user_id;
-    const userEmail = tokenRecord.email;
-    const userRole = tokenRecord.role;
-
-    console.log(`[staff-complete-onboarding] Processing for user ${userId} (${userEmail}), role=${userRole}`);
-
-    // 1. Update password via Supabase Auth
-    const { error: pwError } = await adminClient.auth.admin.updateUserById(userId, {
-      password,
-      user_metadata: {
-        require_password_change: false,
-        onboarding_completed: true,
-      },
-    });
-
-    if (pwError) {
-      console.error("[staff-complete-onboarding] Password update error:", pwError);
-      return json(500, { ok: false, message: "Erreur lors de la mise à jour du mot de passe" });
-    }
-
-    // 2. Hash and store PIN
+    // Hash and store PIN
     const pinSalt = generateSalt();
     const pinHash = await hashPinPBKDF2(pin, pinSalt);
 
-    // 3. Update user_roles with PIN and onboarding status
+    // Update user_roles with PIN and onboarding status
     const { error: roleError } = await adminClient
       .from("user_roles")
       .update({
@@ -149,22 +202,25 @@ serve(async (req: Request) => {
         is_active: true,
         status: "active",
       })
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("role", userRole);
 
     if (roleError) {
       console.error("[staff-complete-onboarding] Role update error:", roleError);
       return json(500, { ok: false, message: "Erreur lors de la configuration du compte" });
     }
 
-    // 4. Mark token as used
-    await adminClient
-      .from("staff_onboarding_tokens")
-      .update({ used_at: new Date().toISOString() })
-      .eq("id", tokenRecord.id);
+    // Mark token as used (if token mode)
+    if (tokenRecordId) {
+      await adminClient
+        .from("staff_onboarding_tokens")
+        .update({ used_at: new Date().toISOString() })
+        .eq("id", tokenRecordId);
+    }
 
-    // 5. Log the successful onboarding
+    // Log the successful onboarding
     await adminClient.from("admin_audit_log").insert({
-      admin_user_id: tokenRecord.created_by_admin_id || userId,
+      admin_user_id: createdByAdminId || userId,
       admin_email: "system",
       action: "staff_onboarding_completed",
       details: {
@@ -173,6 +229,7 @@ serve(async (req: Request) => {
         email: userEmail,
         role: userRole,
         terms_version: terms_version || "1.0",
+        mode: authenticated_mode ? "authenticated" : "token",
       },
       target_type: "staff_user",
       target_id: userId,
