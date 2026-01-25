@@ -113,26 +113,41 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
       <Card className={`bg-card border-border ${!isCredit && balance > 0 ? 'border-amber-500/30' : ''}`}>
         <CardContent className="p-4">
           {/* Balance Display */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              isCredit ? 'bg-blue-500/20' : balance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
-            }`}>
-              {isCredit ? (
-                <CreditCard className="w-5 h-5 text-blue-500" />
-              ) : (
-                <DollarSign className={`w-5 h-5 ${balance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase">
-                {isCredit ? "Crédit disponible" : "Solde dû"}
-              </p>
-              <p className={`text-xl font-bold ${
-                isCredit ? 'text-blue-500' : balance > 0 ? 'text-amber-500' : 'text-emerald-500'
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                isCredit ? 'bg-blue-500/20' : balance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
               }`}>
-                {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-              </p>
+                {isCredit ? (
+                  <CreditCard className="w-5 h-5 text-blue-500" />
+                ) : (
+                  <DollarSign className={`w-5 h-5 ${balance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">
+                  {isCredit ? "Crédit disponible" : "Solde dû"}
+                </p>
+                <p className={`text-xl font-bold ${
+                  isCredit ? 'text-blue-500' : balance > 0 ? 'text-amber-500' : 'text-emerald-500'
+                }`}>
+                  {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </div>
             </div>
+            
+            {/* Pay Now Button - Only show if balance > 0 */}
+            {balance > 0 && (
+              <Link to="/portal/invoices">
+                <Button 
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  size="sm"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Payer
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Last Payment Info */}

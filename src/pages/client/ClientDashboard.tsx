@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import TVOrderStatusTracker from "@/components/client/TVOrderStatusTracker";
+import ServiceCountdown from "@/components/client/ServiceCountdown";
+import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
@@ -132,6 +134,14 @@ const ClientDashboard = () => {
         {/* TV Order Status Tracker */}
         {orders && orders.length > 0 && (
           <TVOrderStatusTracker orders={orders} />
+        )}
+
+        {/* Prepaid Status: Balance + Service Countdown */}
+        {user?.id && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ClientBalanceSummary userId={user.id} />
+            <ServiceCountdown userId={user.id} />
+          </div>
         )}
 
         {/* Quick Stats */}

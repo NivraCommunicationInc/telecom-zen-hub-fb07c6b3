@@ -31,11 +31,14 @@ import { cn } from "@/lib/utils";
 import { PortalSystemStatusBanner } from "@/components/client/PortalSystemStatusBanner";
 import { PortalNotificationBell } from "@/components/client/PortalNotificationBell";
 import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
+import PrepaidUrgentBanner from "@/components/client/PrepaidUrgentBanner";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useOverdueCount } from "@/hooks/useOverdueCount";
 import { toast } from "sonner";
 import ClientPortalBackground from "./ClientPortalBackground";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -45,7 +48,7 @@ const mainNavItems = [
   { path: "/portal", label: "Tableau de bord", icon: LayoutDashboard },
   { path: "/portal/services", label: "Mes services", icon: Wifi },
   { path: "/portal/orders", label: "Mes commandes", icon: Package },
-  { path: "/portal/invoices", label: "Facturation", icon: FileText },
+  { path: "/portal/invoices", label: "Facturation", icon: FileText, hasBadge: true },
 ];
 
 const serviceNavItems = [
@@ -67,6 +70,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const navigate = useNavigate();
   const { user, signOut } = useClientAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Get overdue invoice count for badge
+  const { data: overdueCount } = useOverdueCount(user?.id);
 
   // Auto-logout handler for idle timeout
   const handleIdleLogout = useCallback(async () => {
@@ -101,12 +107,14 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   const NavLink = ({ item, onClick }: { item: typeof mainNavItems[0]; onClick?: () => void }) => {
     const isActive = location.pathname === item.path;
+    const showBadge = item.hasBadge && overdueCount && overdueCount > 0;
+    
     return (
       <Link
         to={item.path}
         onClick={onClick}
         className={cn(
-          "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group",
+          "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative",
           isActive
             ? "bg-gradient-to-r from-cyan-500/20 via-cyan-500/15 to-teal-500/10 text-cyan-400 shadow-lg shadow-cyan-500/5 border border-cyan-500/20"
             : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -114,7 +122,12 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       >
         <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-cyan-400" : "group-hover:text-cyan-400")} />
         <span className="flex-1 font-medium">{item.label}</span>
-        {isActive && <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
+        {showBadge && (
+          <Badge className="bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] flex items-center justify-center">
+            {overdueCount}
+          </Badge>
+        )}
+        {isActive && !showBadge && <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
       </Link>
     );
   };
@@ -137,6 +150,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       
       {/* Account Blocked Banner */}
       <AccountBlockedBanner />
+      
+      {/* Urgent Payment Banner */}
+      {user?.id && <PrepaidUrgentBanner userId={user.id} />}
       
       <div className="flex-1 flex relative z-10">
         {/* Mobile Header */}
