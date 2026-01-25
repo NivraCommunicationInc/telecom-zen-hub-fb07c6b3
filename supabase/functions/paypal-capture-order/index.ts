@@ -91,81 +91,172 @@ serve(async (req) => {
     console.log("[PayPal] Capture ID:", captureId, "Amount:", amount, "CustomId:", customId);
 
     // If we have an invoice_id, update the billing system
+    // Support both legacy "billing" table and new "billing_invoices" table
     if (body.invoice_id) {
-      // Get invoice details
-      const { data: invoice, error: invoiceError } = await supabase
-        .from("billing_invoices")
-        .select("*, customer:billing_customers(*)")
+      let invoiceUpdated = false;
+      let customerEmail = "";
+      let customerName = "";
+      let invoiceNumber = "";
+
+      // First, try the legacy "billing" table (used by portal)
+      const { data: legacyInvoice, error: legacyError } = await supabase
+        .from("billing")
+        .select("*, profile:profiles!billing_user_id_fkey(full_name, email)")
         .eq("id", body.invoice_id)
-        .single();
+        .maybeSingle();
 
-      if (invoiceError) {
-        console.error("[PayPal] Invoice lookup error:", invoiceError);
-      } else if (invoice) {
-        // Create payment record
-        const { error: paymentError } = await supabase
-          .from("billing_payments")
-          .insert({
-            invoice_id: invoice.id,
-            customer_id: invoice.customer_id,
-            amount: amount,
-            method: "paypal",
-            provider: "paypal",
-            provider_payment_id: captureId,
-            status: "confirmed",
-            received_at: new Date().toISOString(),
-            source: "live",
-          });
+      if (legacyInvoice) {
+        console.log("[PayPal] Found invoice in legacy billing table:", legacyInvoice.id);
+        
+        // Calculate new amounts
+        const currentAmountPaid = Number(legacyInvoice.amount_paid) || 0;
+        const newAmountPaid = currentAmountPaid + amount;
+        const invoiceTotal = Number(legacyInvoice.amount) || 0;
+        const newBalanceDue = Math.max(0, invoiceTotal - newAmountPaid);
+        const isPaid = newBalanceDue <= 0;
 
-        if (paymentError) {
-          console.error("[PayPal] Payment record error:", paymentError);
+        // Update the legacy billing record
+        const { error: updateError } = await supabase
+          .from("billing")
+          .update({
+            amount_paid: newAmountPaid,
+            balance_due: newBalanceDue,
+            status: isPaid ? "paid" : "partial",
+            paid_at: isPaid ? new Date().toISOString() : null,
+            payment_method_type: "paypal",
+            payment_reference: captureId,
+            notes: `${legacyInvoice.notes || ""}\n[PayPal] Paiement reçu: ${amount.toFixed(2)}$ - Réf: ${captureId}`.trim(),
+          })
+          .eq("id", body.invoice_id);
+
+        if (updateError) {
+          console.error("[PayPal] Legacy billing update error:", updateError);
         } else {
-          console.log("[PayPal] Payment recorded for invoice:", invoice.id);
-
-          // Update invoice status (trigger will handle balance calculation)
-          const newAmountPaid = (invoice.amount_paid || 0) + amount;
-          const newBalanceDue = invoice.total - newAmountPaid;
+          console.log("[PayPal] Legacy billing updated successfully");
+          invoiceUpdated = true;
+          invoiceNumber = legacyInvoice.invoice_number || body.invoice_id.slice(0, 8);
           
-          await supabase
-            .from("billing_invoices")
-            .update({
-              amount_paid: newAmountPaid,
-              balance_due: newBalanceDue,
-              status: newBalanceDue <= 0 ? "paid" : "pending",
-              paid_at: newBalanceDue <= 0 ? new Date().toISOString() : null,
-            })
-            .eq("id", invoice.id);
-
-          // If fully paid, activate subscription and enable auto-billing
-          if (newBalanceDue <= 0 && invoice.subscription_id) {
-            await supabase
-              .from("billing_subscriptions")
-              .update({ 
-                status: "active",
-                auto_billing_enabled: true,
-              })
-              .eq("id", invoice.subscription_id);
+          // Get user info for email
+          if (legacyInvoice.profile) {
+            customerEmail = legacyInvoice.profile.email || legacyInvoice.client_email || "";
+            customerName = legacyInvoice.profile.full_name || "";
+          } else {
+            customerEmail = legacyInvoice.client_email || "";
           }
 
-          // Queue confirmation email
-          if (invoice.customer) {
-            await supabase.from("email_queue").insert({
-              event_key: `paypal_payment_${captureId}`,
-              to_email: invoice.customer.email,
-              template_key: "payment_confirmed",
-              template_vars: {
-                client_name: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
-                amount: amount.toFixed(2),
-                invoice_number: invoice.invoice_number,
-                payment_method: "PayPal",
-                reference: captureId,
-              },
-              status: "queued",
-              attempts: 0,
-              max_attempts: 5,
+          // Also insert into payments table for history
+          const { error: paymentHistoryError } = await supabase
+            .from("payments")
+            .insert({
+              user_id: legacyInvoice.user_id,
+              amount: amount,
+              payment_method: "paypal",
+              reference_number: captureId,
+              payment_reference: captureId,
+              notes: `Paiement PayPal automatique - Capture ID: ${captureId}`,
+              billing_id: body.invoice_id,
+              status: "completed",
+              source: "portal",
             });
+
+          if (paymentHistoryError) {
+            console.error("[PayPal] Payment history insert error:", paymentHistoryError);
+          } else {
+            console.log("[PayPal] Payment history recorded successfully");
           }
         }
+      } else {
+        console.log("[PayPal] Invoice not found in legacy billing, trying billing_invoices...");
+      }
+
+      // If not found in legacy table, try billing_invoices (V2 system)
+      if (!invoiceUpdated) {
+        const { data: invoice, error: invoiceError } = await supabase
+          .from("billing_invoices")
+          .select("*, customer:billing_customers(*)")
+          .eq("id", body.invoice_id)
+          .maybeSingle();
+
+        if (invoiceError) {
+          console.error("[PayPal] Invoice lookup error:", invoiceError);
+        } else if (invoice) {
+          console.log("[PayPal] Found invoice in billing_invoices:", invoice.id);
+          
+          // Create payment record in billing_payments
+          const { error: paymentError } = await supabase
+            .from("billing_payments")
+            .insert({
+              invoice_id: invoice.id,
+              customer_id: invoice.customer_id,
+              amount: amount,
+              method: "paypal",
+              provider: "paypal",
+              provider_payment_id: captureId,
+              status: "confirmed",
+              received_at: new Date().toISOString(),
+              source: "live",
+            });
+
+          if (paymentError) {
+            console.error("[PayPal] Payment record error:", paymentError);
+          } else {
+            console.log("[PayPal] Payment recorded for invoice:", invoice.id);
+
+            // Update invoice status (trigger will handle balance calculation)
+            const newAmountPaid = (invoice.amount_paid || 0) + amount;
+            const newBalanceDue = invoice.total - newAmountPaid;
+            
+            await supabase
+              .from("billing_invoices")
+              .update({
+                amount_paid: newAmountPaid,
+                balance_due: newBalanceDue,
+                status: newBalanceDue <= 0 ? "paid" : "pending",
+                paid_at: newBalanceDue <= 0 ? new Date().toISOString() : null,
+              })
+              .eq("id", invoice.id);
+
+            invoiceUpdated = true;
+            invoiceNumber = invoice.invoice_number;
+
+            // If fully paid, activate subscription and enable auto-billing
+            if (newBalanceDue <= 0 && invoice.subscription_id) {
+              await supabase
+                .from("billing_subscriptions")
+                .update({ 
+                  status: "active",
+                  auto_billing_enabled: true,
+                })
+                .eq("id", invoice.subscription_id);
+            }
+
+            // Get customer info for email
+            if (invoice.customer) {
+              customerEmail = invoice.customer.email;
+              customerName = `${invoice.customer.first_name} ${invoice.customer.last_name}`;
+            }
+          }
+        }
+      }
+
+      // Queue confirmation email if we have customer info
+      if (invoiceUpdated && customerEmail) {
+        await supabase.from("email_queue").insert({
+          event_key: `paypal_payment_${captureId}`,
+          to_email: customerEmail,
+          template_key: "payment_confirmed",
+          template_vars: {
+            client_name: customerName || "Client",
+            amount: amount.toFixed(2),
+            invoice_number: invoiceNumber,
+            payment_method: "PayPal",
+            reference: captureId,
+          },
+          status: "queued",
+          attempts: 0,
+          max_attempts: 5,
+        });
+        console.log("[PayPal] Confirmation email queued to:", customerEmail);
       }
     }
 
