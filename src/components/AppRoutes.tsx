@@ -121,7 +121,12 @@ import { InfluencerAuthProvider } from "@/hooks/useInfluencerAuth";
 
 // Field Sales Portal (Door-to-Door)
 import FieldSalesLogin from "@/pages/field-sales/FieldSalesLogin";
+import FieldSalesSetup from "@/pages/field-sales/FieldSalesSetup";
 import FieldSalesDashboard from "@/pages/field-sales/FieldSalesDashboard";
+import FieldSalesNewSale from "@/pages/field-sales/FieldSalesNewSale";
+import FieldSalesList from "@/pages/field-sales/FieldSalesList";
+import FieldSalesCommissions from "@/pages/field-sales/FieldSalesCommissions";
+import FieldSalesAccount from "@/pages/field-sales/FieldSalesAccount";
 import FieldSalesLayout from "@/components/field-sales/FieldSalesLayout";
 import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
 import PartnerTermsAcceptanceGuard from "@/components/influencer/PartnerTermsAcceptanceGuard";
@@ -455,7 +460,12 @@ const AppRoutes = () => {
 
       {/* Field Sales Portal (Door-to-Door) */}
       <Route path="/field-sales" element={<FieldSalesLogin />} />
+      <Route path="/field-sales/setup" element={<FieldSalesSetup />} />
       <Route path="/field-sales/dashboard" element={<FieldSalesLayout><FieldSalesDashboard /></FieldSalesLayout>} />
+      <Route path="/field-sales/new-sale" element={<FieldSalesLayout><FieldSalesNewSale /></FieldSalesLayout>} />
+      <Route path="/field-sales/sales" element={<FieldSalesLayout><FieldSalesList /></FieldSalesLayout>} />
+      <Route path="/field-sales/commissions" element={<FieldSalesLayout><FieldSalesCommissions /></FieldSalesLayout>} />
+      <Route path="/field-sales/account" element={<FieldSalesLayout><FieldSalesAccount /></FieldSalesLayout>} />
 
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
