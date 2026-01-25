@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck, Wifi, Lock, Phone } from "lucide-react";
 import { backendClient as supabase } from "@/integrations/backend/client";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { ClientSignupForm } from "@/components/client/ClientSignupForm";
+import ClientPortalBackground from "@/components/client/ClientPortalBackground";
 
 type AuthStep = "credentials" | "pin";
 
@@ -47,7 +48,6 @@ const ClientAuth = () => {
         body: { email, user_id: userId },
       });
       
-      // Handle edge function invocation errors
       if (error) {
         console.error("[sendPinEmail] Invocation error:", error);
         return { 
@@ -56,12 +56,10 @@ const ClientAuth = () => {
         };
       }
       
-      // Handle structured response: { sent: true/false, reason?: string, error?: string }
       if (data?.sent === false) {
         if (data.reason === "rate_limited") {
           return { success: false, rateLimited: true, error: "Code déjà envoyé récemment" };
         }
-        // Use user-friendly error message from server, or provide default
         const errorMsg = data.error || "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca";
         return { success: false, error: errorMsg };
       }
@@ -70,12 +68,10 @@ const ClientAuth = () => {
         return { success: true };
       }
       
-      // Legacy fallback for unexpected response shape
       if (data?.error) {
         return { success: false, error: data.error };
       }
       
-      // If we get here with no clear sent status, treat as failure
       console.warn("[sendPinEmail] Unexpected response shape:", data);
       return { 
         success: false, 
@@ -124,27 +120,26 @@ const ClientAuth = () => {
       const pendingPinUserId = sessionStorage.getItem("client_pin_pending_user_id");
       
       if (pinVerified === "true") {
-        // Already verified, redirect to portal
         navigate("/portal", { replace: true });
       } else if (pendingPinEmail && pendingPinUserId) {
-        // Resume PIN step
         setPendingEmail(pendingPinEmail);
         setPendingUserId(pendingPinUserId);
         setAuthStep("pin");
       }
-      // If not verified and no pending email, stay on credentials step
     }
   }, [user, authLoading, navigate, isResetMode]);
 
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/30 animate-pulse">
-            <span className="font-display font-bold text-slate-900 text-2xl">N</span>
+      <div className="min-h-screen flex items-center justify-center relative">
+        <ClientPortalBackground />
+        <div className="flex flex-col items-center gap-4 relative z-10">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-2xl shadow-cyan-500/30 animate-pulse">
+            <span className="font-display font-bold text-[#0d1526] text-3xl">N</span>
           </div>
           <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+          <p className="text-slate-400 text-sm">Chargement...</p>
         </div>
       </div>
     );
@@ -165,7 +160,6 @@ const ClientAuth = () => {
       return;
     }
     
-    // Get user from session after successful login
     const { data: { user: currentUser } } = await portalSupabase.auth.getUser();
     
     if (!currentUser?.id) {
@@ -177,16 +171,12 @@ const ClientAuth = () => {
     const userEmail = loginData.email.trim();
     const userId = currentUser.id;
     
-    // Check if device is trusted (within 20 minutes window)
     const trustedUntil = Number(localStorage.getItem("portal_trusted_until") || 0);
     const isTrusted = Date.now() < trustedUntil;
 
-    // DEV/PREVIEW-ONLY E2E BYPASS: allow a dedicated test user to skip PIN
-    // Guarded by VITE_E2E_MODE + DEV so it is never active in production builds.
     const isE2E = import.meta.env.DEV === true && import.meta.env.VITE_E2E_MODE === "true";
     const e2eEmail = (import.meta.env.VITE_E2E_TEST_EMAIL || "").toLowerCase();
     if (isE2E && e2eEmail && userEmail.toLowerCase() === e2eEmail) {
-      // Mark PIN as verified and trust device for 20 minutes.
       sessionStorage.setItem("client_pin_verified", "true");
       sessionStorage.removeItem("client_pin_pending_email");
       sessionStorage.removeItem("client_pin_pending_user_id");
@@ -199,7 +189,6 @@ const ClientAuth = () => {
     }
     
     if (isTrusted) {
-      // Trusted device: skip PIN step entirely
       sessionStorage.setItem("client_pin_verified", "true");
       sessionStorage.removeItem("client_pin_pending_email");
       sessionStorage.removeItem("client_pin_pending_user_id");
@@ -209,28 +198,22 @@ const ClientAuth = () => {
       return;
     }
     
-    // Not trusted: proceed with PIN verification
-    // Store pending PIN state in sessionStorage (for route guard and persistence)
     sessionStorage.setItem("client_pin_pending_email", userEmail);
     sessionStorage.setItem("client_pin_pending_user_id", userId);
     sessionStorage.removeItem("client_pin_verified");
     
-    // Store email and user ID for PIN verification
     setPendingEmail(userEmail);
     setPendingUserId(userId);
     
-    // Send PIN email
     setIsSendingPin(true);
     const pinResult = await sendPinEmail(userEmail, userId);
     setIsSendingPin(false);
     setIsLoading(false);
     
-    // Move to PIN verification step (even if rate-limited, show PIN screen)
     setAuthStep("pin");
     setPin("");
     
     if (!pinResult.success) {
-      // Check if rate-limited
       if (pinResult.rateLimited) {
         toast({ 
           title: "Code déjà envoyé récemment", 
@@ -247,6 +230,7 @@ const ClientAuth = () => {
       toast({ title: "Code envoyé", description: "Vérifiez votre boîte de réception" });
     }
   };
+
   const handleResendPin = async () => {
     if (!pendingEmail || !pendingUserId) {
       toast({ title: "Erreur", description: "Session expirée, veuillez vous reconnecter", variant: "destructive" });
@@ -259,7 +243,6 @@ const ClientAuth = () => {
     setIsSendingPin(false);
     
     if (!result.success) {
-      // Check if rate-limited
       if (result.rateLimited) {
         toast({ 
           title: "Code déjà envoyé récemment", 
@@ -302,12 +285,10 @@ const ClientAuth = () => {
       return;
     }
 
-    // Mark PIN as verified and set trusted device for 20 minutes
     sessionStorage.setItem("client_pin_verified", "true");
     sessionStorage.removeItem("client_pin_pending_email");
     sessionStorage.removeItem("client_pin_pending_user_id");
     
-    // Set trusted device expiry (20 minutes from now)
     const trustedUntil = Date.now() + 20 * 60 * 1000;
     localStorage.setItem("portal_trusted_until", trustedUntil.toString());
     
@@ -393,50 +374,52 @@ const ClientAuth = () => {
     }
   };
 
-  // Password reset mode (user clicked link in email)
+  // Password reset mode
   if (isResetMode) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <ClientPortalBackground />
+        <div className="w-full max-w-md relative z-10">
+          <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Retour à l'accueil
           </Link>
           
-          <Card className="bg-card border-border">
+          <Card className="bg-[#0d1526]/90 backdrop-blur-2xl border-slate-800/50 shadow-2xl shadow-cyan-500/5">
             <CardHeader className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                  <span className="font-display font-bold text-navy-900 text-xl">N</span>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                  <span className="font-display font-bold text-[#0d1526] text-2xl">N</span>
                 </div>
-                <span className="font-display font-bold text-xl text-foreground">Nivra</span>
               </div>
-              <CardTitle className="text-2xl">Nouveau mot de passe</CardTitle>
-              <CardDescription>Entrez votre nouveau mot de passe</CardDescription>
+              <CardTitle className="text-2xl text-white">Nouveau mot de passe</CardTitle>
+              <CardDescription className="text-slate-400">Entrez votre nouveau mot de passe</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
-                  <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                  <Label htmlFor="new-password" className="text-slate-300">Nouveau mot de passe</Label>
                   <Input
                     id="new-password"
                     type="password"
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirm-new-password">Confirmer le mot de passe</Label>
+                  <Label htmlFor="confirm-new-password" className="text-slate-300">Confirmer le mot de passe</Label>
                   <Input
                     id="confirm-new-password"
                     type="password"
                     placeholder="••••••••"
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                   />
                 </div>
-                <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
+                <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Mettre à jour le mot de passe
                 </Button>
@@ -451,26 +434,26 @@ const ClientAuth = () => {
   // Forgot password view
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <ClientPortalBackground />
+        <div className="w-full max-w-md relative z-10">
           <button 
             onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+            className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour à la connexion
           </button>
           
-          <Card className="bg-card border-border">
+          <Card className="bg-[#0d1526]/90 backdrop-blur-2xl border-slate-800/50 shadow-2xl shadow-cyan-500/5">
             <CardHeader className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                  <span className="font-display font-bold text-navy-900 text-xl">N</span>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                  <span className="font-display font-bold text-[#0d1526] text-2xl">N</span>
                 </div>
-                <span className="font-display font-bold text-xl text-foreground">Nivra</span>
               </div>
-              <CardTitle className="text-2xl">Mot de passe oublié</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-2xl text-white">Mot de passe oublié</CardTitle>
+              <CardDescription className="text-slate-400">
                 {resetEmailSent 
                   ? "Un email vous a été envoyé" 
                   : "Entrez votre email pour réinitialiser votre mot de passe"}
@@ -479,18 +462,18 @@ const ClientAuth = () => {
             <CardContent>
               {resetEmailSent ? (
                 <div className="text-center space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mx-auto flex items-center justify-center">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 mx-auto flex items-center justify-center">
+                    <CheckCircle className="w-8 h-8 text-emerald-400" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-foreground font-medium">Email envoyé!</p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-white font-medium">Email envoyé!</p>
+                    <p className="text-slate-400 text-sm">
                       Vérifiez votre boîte de réception et cliquez sur le lien pour réinitialiser votre mot de passe.
                     </p>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="w-full mt-4"
+                    className="w-full mt-4 border-slate-700/50 text-slate-300 hover:text-white hover:bg-slate-800/50"
                     onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
                   >
                     Retour à la connexion
@@ -499,16 +482,17 @@ const ClientAuth = () => {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div>
-                    <Label htmlFor="reset-email">Email</Label>
+                    <Label htmlFor="reset-email" className="text-slate-300">Email</Label>
                     <Input
                       id="reset-email"
                       type="email"
                       placeholder="votre@email.com"
                       value={forgotPasswordEmail}
                       onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                   </div>
-                  <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
+                  <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
                     Envoyer le lien de réinitialisation
                   </Button>
@@ -524,39 +508,34 @@ const ClientAuth = () => {
   // PIN verification step
   if (authStep === "pin") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <ClientPortalBackground />
+        <div className="w-full max-w-md relative z-10">
           <button 
             onClick={() => { setAuthStep("credentials"); setPin(""); }}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+            className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour à la connexion
           </button>
           
-          <Card className="bg-card border-border">
+          <Card className="bg-[#0d1526]/90 backdrop-blur-2xl border-slate-800/50 shadow-2xl shadow-cyan-500/5">
             <CardHeader className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                  <span className="font-display font-bold text-navy-900 text-xl">N</span>
-                </div>
-                <span className="font-display font-bold text-xl text-foreground">Nivra</span>
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500/20 to-teal-500/10 border border-cyan-500/30 mx-auto flex items-center justify-center mb-4">
+                <ShieldCheck className="w-10 h-10 text-cyan-400" />
               </div>
-              <div className="w-16 h-16 rounded-full bg-cyan-100 dark:bg-cyan-900/30 mx-auto flex items-center justify-center mb-4">
-                <ShieldCheck className="w-8 h-8 text-cyan-600" />
-              </div>
-              <CardTitle className="text-2xl">Vérification en 2 étapes</CardTitle>
-              <CardDescription>Entrez le code à 6 chiffres</CardDescription>
+              <CardTitle className="text-2xl text-white">Vérification en 2 étapes</CardTitle>
+              <CardDescription className="text-slate-400">Entrez le code à 6 chiffres envoyé par email</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-3 bg-muted/50 rounded-lg text-center">
-                <p className="text-sm text-muted-foreground">
+              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/30 text-center">
+                <p className="text-sm text-slate-400">
                   Un code de vérification à 6 chiffres a été envoyé à votre adresse email. Veuillez le saisir pour continuer.
                 </p>
               </div>
               
               <div>
-                <Label htmlFor="pin-input">Code de vérification</Label>
+                <Label htmlFor="pin-input" className="text-slate-300">Code de vérification</Label>
                 <Input
                   id="pin-input"
                   type="text"
@@ -571,28 +550,27 @@ const ClientAuth = () => {
                     const text = e.clipboardData.getData("text");
                     setPin(sanitizePin(text));
                   }}
-                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                  className="text-center text-3xl tracking-[0.5em] font-mono bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-600 focus:border-cyan-500 focus:ring-cyan-500/20 h-14"
                   aria-label="Code de vérification à 6 chiffres"
                 />
               </div>
               
               <Button 
                 onClick={handleVerifyPin}
-                className="w-full" 
-                variant="hero" 
+                className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25 h-12" 
                 disabled={!pinIsValid || isVerifyingPin}
               >
                 {isVerifyingPin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
                 Vérifier et continuer
               </Button>
               
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-sm text-slate-500 text-center">
                 Vous n'avez pas reçu le code? Vérifiez votre dossier spam ou{" "}
                 <button 
                   type="button"
                   onClick={handleResendPin}
                   disabled={isSendingPin}
-                  className="text-cyan-500 hover:text-cyan-400 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-cyan-400 hover:text-cyan-300 underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isSendingPin ? "Envoi en cours..." : "renvoyer le code"}
                 </button>
@@ -604,11 +582,10 @@ const ClientAuth = () => {
     );
   }
 
+  // Main login/signup view
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-transparent rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-blue-600/10 via-indigo-500/5 to-transparent rounded-full blur-3xl" />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <ClientPortalBackground />
       
       <div className="w-full max-w-md relative z-10">
         <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
@@ -616,62 +593,82 @@ const ClientAuth = () => {
           Retour à l'accueil
         </Link>
         
-        <Card className="bg-slate-900/80 backdrop-blur-xl border-slate-800 shadow-2xl shadow-cyan-500/5">
-          <CardHeader className="text-center pb-2">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                <span className="font-display font-bold text-slate-900 text-2xl">N</span>
+        <Card className="bg-[#0d1526]/90 backdrop-blur-2xl border-slate-800/50 shadow-2xl shadow-cyan-500/5">
+          <CardHeader className="text-center pb-4">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-xl shadow-cyan-500/30">
+                <span className="font-display font-bold text-[#0d1526] text-2xl">N</span>
               </div>
               <div className="text-left">
                 <span className="font-display font-bold text-2xl text-white block">Nivra</span>
-                <span className="text-xs text-slate-500">Telecom</span>
+                <span className="text-xs text-cyan-400/80 font-medium tracking-wider uppercase">Telecom</span>
               </div>
             </div>
             <CardTitle className="text-2xl text-white">Espace Client</CardTitle>
-            <CardDescription className="text-slate-400">Connectez-vous ou créez un compte</CardDescription>
+            <CardDescription className="text-slate-400">Connectez-vous pour gérer vos services</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-800/50">
-                <TabsTrigger value="login" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-slate-900">Connexion</TabsTrigger>
-                <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-slate-900">Inscription</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-800/50 p-1 rounded-xl">
+                <TabsTrigger 
+                  value="login" 
+                  className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-[#0d1526] data-[state=active]:font-semibold data-[state=active]:shadow-lg transition-all"
+                >
+                  Connexion
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="signup" 
+                  className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-[#0d1526] data-[state=active]:font-semibold data-[state=active]:shadow-lg transition-all"
+                >
+                  Inscription
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <Label htmlFor="login-email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="login-email" className="text-slate-300 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-slate-500" />
+                      Email
+                    </Label>
                     <Input
                       id="login-email"
                       type="email"
                       placeholder="votre@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="login-password" className="text-slate-300">Mot de passe</Label>
+                    <Label htmlFor="login-password" className="text-slate-300 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-slate-500" />
+                      Mot de passe
+                    </Label>
                     <Input
                       id="login-password"
                       type="password"
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
                     />
                   </div>
                   <div className="text-right">
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-cyan-400 hover:text-cyan-300 underline transition-colors"
+                      className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
                     >
                       Mot de passe oublié?
                     </button>
                   </div>
-                  <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-slate-900 font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25 h-12 text-base" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
                     Se connecter
                   </Button>
                 </form>
@@ -686,8 +683,14 @@ const ClientAuth = () => {
         
         {/* Trust badges */}
         <div className="mt-6 flex items-center justify-center gap-6 text-slate-500 text-xs">
-          <span className="flex items-center gap-1"><ShieldCheck className="w-4 h-4" /> Connexion sécurisée</span>
-          <span className="flex items-center gap-1"><Mail className="w-4 h-4" /> Vérification 2FA</span>
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-cyan-500/70" /> 
+            <span>Connexion sécurisée</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Lock className="w-4 h-4 text-cyan-500/70" /> 
+            <span>Vérification 2FA</span>
+          </span>
         </div>
       </div>
     </div>
