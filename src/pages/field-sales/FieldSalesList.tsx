@@ -27,7 +27,23 @@ interface Sale {
   payment_method: string;
   sync_status: string;
   created_at: string;
+  service_type: string;
 }
+
+const getServiceInfo = (serviceType: string) => {
+  switch (serviceType) {
+    case "internet":
+      return { icon: "🌐", label: "Internet" };
+    case "tv":
+      return { icon: "📺", label: "Télévision" };
+    case "mobile":
+      return { icon: "📱", label: "Mobile" };
+    case "bundle":
+      return { icon: "📦", label: "Forfait" };
+    default:
+      return { icon: "📋", label: "Service" };
+  }
+};
 
 export default function FieldSalesList() {
   const navigate = useNavigate();
@@ -47,7 +63,7 @@ export default function FieldSalesList() {
 
       const { data, error } = await supabase
         .from("field_sales_orders")
-        .select("id, customer_name, customer_email, total_amount, payment_status, payment_method, sync_status, created_at")
+        .select("id, customer_name, customer_email, total_amount, payment_status, payment_method, sync_status, created_at, service_type")
         .eq("salesperson_id", session.user.id)
         .order("created_at", { ascending: false });
 
@@ -168,10 +184,10 @@ export default function FieldSalesList() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">{serviceInfo.icon}</span>
+                          <span className="text-lg">{getServiceInfo(sale.service_type).icon}</span>
                           <h3 className="text-white font-medium truncate">{sale.customer_name}</h3>
                         </div>
-                        <p className="text-sm text-slate-400 truncate">{serviceInfo.label}</p>
+                        <p className="text-sm text-slate-400 truncate">{getServiceInfo(sale.service_type).label}</p>
                         <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
                           <Calendar className="h-3 w-3" />
                           {format(new Date(sale.created_at), "d MMM yyyy, HH:mm", { locale: fr })}
