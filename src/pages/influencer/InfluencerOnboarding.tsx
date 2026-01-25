@@ -137,18 +137,21 @@ const InfluencerOnboarding = () => {
         throw new Error("Failed to create user");
       }
 
-      // Update influencer with user_id and activate
+      // CRITICAL: Update influencer with user_id and activate FIRST
       const { error: updateError } = await supabase
         .from("influencers")
         .update({
           user_id: authData.user.id,
-          status: "active",
+          status: "active", // Auto-activate on signup completion
           payout_method: payoutMethod,
           payout_email: payoutEmail,
         })
         .eq("id", inviteData.influencer_id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("[Onboarding] Failed to update influencer:", updateError);
+        throw new Error("Impossible de lier le compte. Contactez le support.");
+      }
 
       // Mark invite as used
       await supabase
@@ -156,11 +159,35 @@ const InfluencerOnboarding = () => {
         .update({ used_at: new Date().toISOString() })
         .eq("id", inviteData.invite_id);
 
-      // Add role to user_roles table
-      await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role: "influencer",
-      });
+      // CRITICAL: Add role to user_roles table with is_active = true
+      // Use upsert to handle race conditions
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: authData.user.id,
+          role: "influencer",
+          is_active: true,
+        }, {
+          onConflict: "user_id,role",
+        });
+
+      if (roleError) {
+        console.error("[Onboarding] Failed to create role (non-fatal):", roleError);
+        // Non-fatal - the partner-self-signup function should have created it
+      }
+
+      // Verify the setup was successful
+      const { data: verifyInfluencer } = await supabase
+        .from("influencers")
+        .select("id, user_id, status")
+        .eq("id", inviteData.influencer_id)
+        .single();
+
+      console.log("[Onboarding] Verification:", verifyInfluencer);
+
+      if (!verifyInfluencer?.user_id) {
+        throw new Error("La liaison du compte a échoué. Contactez le support.");
+      }
 
       toast.success("Compte créé avec succès! Vous pouvez maintenant vous connecter.");
       navigate("/influencer/login");

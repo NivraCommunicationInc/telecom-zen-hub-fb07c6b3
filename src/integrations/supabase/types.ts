@@ -1502,6 +1502,13 @@ export type Database = {
             referencedRelation: "support_tickets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "channel_selections_related_ticket_id_fkey"
+            columns: ["related_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
         ]
       }
       chatbot_logs: {
@@ -2610,6 +2617,13 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_requests_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -8019,6 +8033,13 @@ export type Database = {
             referencedRelation: "support_tickets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ticket_participants: {
@@ -8066,6 +8087,13 @@ export type Database = {
             referencedRelation: "support_tickets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ticket_participants_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ticket_replies: {
@@ -8111,6 +8139,13 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_replies_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -8830,6 +8865,96 @@ export type Database = {
           value_text?: string | null
         }
         Relationships: []
+      }
+      tickets: {
+        Row: {
+          category: string | null
+          client_email: string | null
+          created_at: string | null
+          created_by_role: string | null
+          created_by_user_id: string | null
+          description: string | null
+          id: string | null
+          id_files: Json | null
+          id_verification_status: string | null
+          internal_notes: string | null
+          issue_type: string | null
+          owner_user_id: string | null
+          point_of_contact_id: string | null
+          priority: string | null
+          related_order_id: string | null
+          related_order_reference: string | null
+          requires_id_upload: boolean | null
+          status: string | null
+          subject: string | null
+          ticket_number: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          client_email?: string | null
+          created_at?: string | null
+          created_by_role?: string | null
+          created_by_user_id?: string | null
+          description?: string | null
+          id?: string | null
+          id_files?: Json | null
+          id_verification_status?: string | null
+          internal_notes?: string | null
+          issue_type?: string | null
+          owner_user_id?: string | null
+          point_of_contact_id?: string | null
+          priority?: string | null
+          related_order_id?: string | null
+          related_order_reference?: string | null
+          requires_id_upload?: boolean | null
+          status?: string | null
+          subject?: string | null
+          ticket_number?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          client_email?: string | null
+          created_at?: string | null
+          created_by_role?: string | null
+          created_by_user_id?: string | null
+          description?: string | null
+          id?: string | null
+          id_files?: Json | null
+          id_verification_status?: string | null
+          internal_notes?: string | null
+          issue_type?: string | null
+          owner_user_id?: string | null
+          point_of_contact_id?: string | null
+          priority?: string | null
+          related_order_id?: string | null
+          related_order_reference?: string | null
+          requires_id_upload?: boolean | null
+          status?: string | null
+          subject?: string | null
+          ticket_number?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_point_of_contact_id_fkey"
+            columns: ["point_of_contact_id"]
+            isOneToOne: false
+            referencedRelation: "authorized_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tv_channels_public: {
         Row: {
