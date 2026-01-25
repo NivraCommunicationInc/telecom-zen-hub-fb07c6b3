@@ -1,20 +1,22 @@
 /**
- * Ledger Balance Card Component
- * Real-time balance display with preauthorized vs captured distinction
+ * Ledger Balance Card Component - V2 Billing
+ * Single balance state: Solde à payer / Crédit disponible / Équilibré
  */
 
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Wallet, 
   CheckCircle, 
   AlertCircle, 
-  Clock,
   TrendingUp,
   TrendingDown,
+  Calendar,
 } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
 
 interface LedgerBalanceCardProps {
   clientId: string;
@@ -113,6 +115,34 @@ export function LedgerBalanceCard({
           <div className="mt-4 text-center">
             <CheckCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Aucune transaction</p>
+          </div>
+        )}
+
+        {/* Last Payment Context */}
+        {balance.lastPaymentDate && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="w-4 h-4" />
+                <span>Dernier paiement</span>
+              </div>
+              <div className="text-right">
+                <span className="font-medium">
+                  {balance.lastPaymentAmount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </span>
+                <span className="text-muted-foreground ml-2">
+                  {format(new Date(balance.lastPaymentDate), "d MMM yyyy", { locale: fr })}
+                </span>
+              </div>
+            </div>
+            <div className="mt-2 text-right">
+              <Link 
+                to="/portal/invoices" 
+                className="text-xs text-primary hover:underline"
+              >
+                Voir l'historique des paiements →
+              </Link>
+            </div>
           </div>
         )}
       </CardContent>

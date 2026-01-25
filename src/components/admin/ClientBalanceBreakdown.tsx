@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Clock,
   TrendingDown,
+  Calendar,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
@@ -104,7 +105,6 @@ export const ClientBalanceBreakdown = ({
   const totalBalance = ledgerBalance?.balance ?? 0;
   const hasCredit = ledgerBalance?.isCredit ?? false;
   const availableCredit = ledgerBalance?.availableCredit ?? 0;
-  const preauthorized = ledgerBalance?.preauthorized ?? 0;
 
   // Combine and sort all invoices
   const allUnpaidInvoices: UnpaidInvoice[] = [
@@ -201,17 +201,18 @@ export const ClientBalanceBreakdown = ({
           </div>
         </div>
 
-        {/* Preauthorized Notice */}
-        {preauthorized > 0 && (
-          <div className="mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+        {/* Last Payment Info */}
+        {ledgerBalance?.lastPaymentDate && (
+          <div className="mb-4 p-3 bg-muted/50 rounded-lg border border-border">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-500" />
+              <Calendar className="w-4 h-4 text-muted-foreground" />
               <div>
-                <p className="text-sm text-blue-600 font-medium">
-                  Préautorisé: {preauthorized.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                <p className="text-sm text-foreground font-medium">
+                  Dernier paiement: {ledgerBalance.lastPaymentAmount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Non capturé — n'affecte pas le solde
+                  {new Date(ledgerBalance.lastPaymentDate).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" })}
+                  {ledgerBalance.lastPaymentMethod && ` • ${ledgerBalance.lastPaymentMethod.toUpperCase()}`}
                 </p>
               </div>
             </div>
