@@ -36,7 +36,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col">
+    <div className="min-h-screen relative flex flex-col admin-dark">
       {/* Staff-style background */}
       <StaffBackground />
       

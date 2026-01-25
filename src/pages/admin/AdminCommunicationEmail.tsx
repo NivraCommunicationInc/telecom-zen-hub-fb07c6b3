@@ -697,7 +697,7 @@ const AdminCommunicationEmail = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="border rounded-lg p-6 bg-white dark:bg-slate-950 space-y-4">
+          <div className="border rounded-lg p-6 bg-slate-900 border-slate-700 space-y-4">
             <div className="border-b pb-4">
               <p className="text-sm text-muted-foreground">De: Nivra Télécom &lt;communication@nivratelecom.ca&gt;</p>
               <p className="text-sm text-muted-foreground">À: {totalRecipients} destinataire(s)</p>
