@@ -159,9 +159,17 @@ import StaffTechnicianDashboard from "@/pages/staff/StaffTechnicianDashboard";
 import StaffClients from "@/pages/staff/StaffClients";
 import StaffClientDetail from "@/pages/staff/StaffClientDetail";
 import StaffOrders from "@/pages/staff/StaffOrders";
+import StaffOrderDetail from "@/pages/staff/StaffOrderDetail";
 import StaffTickets from "@/pages/staff/StaffTickets";
+import StaffTicketDetail from "@/pages/staff/StaffTicketDetail";
 import StaffAppointments from "@/pages/staff/StaffAppointments";
+import StaffAppointmentDetail from "@/pages/staff/StaffAppointmentDetail";
 import StaffBilling from "@/pages/staff/StaffBilling";
+import StaffBillingDetail from "@/pages/staff/StaffBillingDetail";
+import StaffStreaming from "@/pages/staff/StaffStreaming";
+import StaffTvChannels from "@/pages/staff/StaffTvChannels";
+import StaffNotes from "@/pages/staff/StaffNotes";
+import StaffAccount from "@/pages/staff/StaffAccount";
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
 import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
@@ -391,13 +399,43 @@ const AppRoutes = () => {
       <Route path="/staff/admin" element={<Navigate to="/admin" replace />} />
       <Route path="/staff/admin/*" element={<Navigate to="/admin" replace />} />
 
-      {/* Staff Employee */}
-      <Route path="/staff/employee" element={
+      {/* Staff Dashboard - redirect based on role */}
+      <Route path="/staff/dashboard" element={
         <StaffLayout requiredRole="employee">
           <StaffEmployeeDashboard />
         </StaffLayout>
       } />
-      <Route path="/staff/employee/*" element={
+
+      {/* Staff Clients */}
+      <Route path="/staff/clients" element={<StaffLayout requiredRole="employee"><StaffClients /></StaffLayout>} />
+      <Route path="/staff/clients/:id" element={<StaffLayout requiredRole="employee"><StaffClientDetail /></StaffLayout>} />
+
+      {/* Staff Orders */}
+      <Route path="/staff/orders" element={<StaffLayout requiredRole="employee"><StaffOrders /></StaffLayout>} />
+      <Route path="/staff/orders/:id" element={<StaffLayout requiredRole="employee"><StaffOrderDetail /></StaffLayout>} />
+
+      {/* Staff Tickets */}
+      <Route path="/staff/tickets" element={<StaffLayout requiredRole="employee"><StaffTickets /></StaffLayout>} />
+      <Route path="/staff/tickets/:id" element={<StaffLayout requiredRole="employee"><StaffTicketDetail /></StaffLayout>} />
+
+      {/* Staff Appointments */}
+      <Route path="/staff/appointments" element={<StaffLayout requiredRole="employee"><StaffAppointments /></StaffLayout>} />
+      <Route path="/staff/appointments/:id" element={<StaffLayout requiredRole="employee"><StaffAppointmentDetail /></StaffLayout>} />
+
+      {/* Staff Billing */}
+      <Route path="/staff/billing" element={<StaffLayout requiredRole="employee"><StaffBilling /></StaffLayout>} />
+      <Route path="/staff/billing/:id" element={<StaffLayout requiredRole="employee"><StaffBillingDetail /></StaffLayout>} />
+
+      {/* Staff TV & Streaming */}
+      <Route path="/staff/tv-channels" element={<StaffLayout requiredRole="employee"><StaffTvChannels /></StaffLayout>} />
+      <Route path="/staff/streaming" element={<StaffLayout requiredRole="employee"><StaffStreaming /></StaffLayout>} />
+
+      {/* Staff Notes & Account */}
+      <Route path="/staff/notes" element={<StaffLayout requiredRole="employee"><StaffNotes /></StaffLayout>} />
+      <Route path="/staff/account" element={<StaffLayout requiredRole="employee"><StaffAccount /></StaffLayout>} />
+
+      {/* Staff Employee */}
+      <Route path="/staff/employee" element={
         <StaffLayout requiredRole="employee">
           <StaffEmployeeDashboard />
         </StaffLayout>
@@ -409,15 +447,7 @@ const AppRoutes = () => {
           <StaffTechnicianDashboard />
         </StaffLayout>
       } />
-      <Route path="/staff/technician/*" element={
-        <StaffLayout requiredRole="technician">
-          <StaffTechnicianDashboard />
-        </StaffLayout>
-      } />
 
-      {/* Catch-all 404 */}
-      <Route path="*" element={<NotFound />} />
-      
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
