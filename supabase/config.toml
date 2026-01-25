@@ -158,3 +158,6 @@ verify_jwt = false
 
 [functions.paypal-charge-subscription]
 verify_jwt = false
+
+[functions.paypal-webhook]
+verify_jwt = false
