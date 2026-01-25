@@ -186,7 +186,7 @@ export default function StaffEmployeeDashboard() {
   };
 
   const navigateToClientProfile = (clientUserId: string) => {
-    navigate(`/admin/clients?id=${clientUserId}`);
+    navigate(`/staff/clients/${clientUserId}`);
   };
 
   const handleAccessGranted = () => {
