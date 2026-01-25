@@ -16,7 +16,7 @@ export interface CheckoutEssentialTermsBaseProps {
   isFrench: boolean;
   checklist: ChecklistState;
   onChecklistChange: (key: keyof ChecklistState, checked: boolean) => void;
-  paymentMethod?: "credit_card" | "etransfer" | "saved" | "new";
+  paymentMethod?: "credit_card" | "etransfer" | "saved" | "new" | "paypal";
 }
 
 // E-Transfer status display component

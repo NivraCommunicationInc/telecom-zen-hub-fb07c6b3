@@ -146,3 +146,12 @@ verify_jwt = false
 
 [functions.notify-admin-alert]
 verify_jwt = false
+
+[functions.paypal-create-order]
+verify_jwt = false
+
+[functions.paypal-capture-order]
+verify_jwt = false
+
+[functions.paypal-create-subscription]
+verify_jwt = false
