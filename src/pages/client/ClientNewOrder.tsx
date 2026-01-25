@@ -4776,6 +4776,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           setPaymentConfirmationNumber(captureId);
                           setPaymentComplete(true);
                           toast.success(`Paiement PayPal réussi! Confirmation: ${captureId}`);
+                          // Invalidate all billing-related caches for instant UI updates
+                          queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
+                          queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-balance"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
                         }}
                         onError={(error) => {
                           console.error("PayPal error:", error);

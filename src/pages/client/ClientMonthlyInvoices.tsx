@@ -379,7 +379,12 @@ const ClientMonthlyInvoices = () => {
                           toast({ title: "Paiement réussi!", description: "Votre facture a été payée." });
                           setPaymentDialogOpen(false);
                           setSelectedInvoice(null);
+                          // Invalidate all billing-related caches for instant UI updates
                           queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
+                          queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
+                          queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-balance"] });
+                          queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
                         }}
                         onError={(error) => {
                           toast({ title: "Erreur PayPal", description: error, variant: "destructive" });
