@@ -174,7 +174,7 @@ export function StaffRecordPaymentDialog({
           {/* Payment Method */}
           <div className="space-y-2">
             <Label className="text-slate-300">Méthode de paiement</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {PAYMENT_METHODS.map((method) => {
                 const Icon = method.icon;
                 return (

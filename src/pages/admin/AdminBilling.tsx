@@ -2023,6 +2023,7 @@ const AdminBilling = () => {
                     <SelectItem value="cash">Comptant</SelectItem>
                     <SelectItem value="cheque">Chèque</SelectItem>
                     <SelectItem value="etransfer">Virement Interac</SelectItem>
+                    <SelectItem value="paypal">PayPal</SelectItem>
                     <SelectItem value="card">Carte de crédit</SelectItem>
                     <SelectItem value="debit">Carte de débit</SelectItem>
                     <SelectItem value="wire">Virement bancaire</SelectItem>

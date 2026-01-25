@@ -1266,7 +1266,12 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                       !selectedDate || 
                       !selectedTime || 
                       !validateCanadianPhone(checkoutPhone) ||
-                      (selectedPaymentMethod === "saved" ? (!selectedCardId || savedCardCvv.length < 3) : (!newCardData.cardNumber || !newCardData.cvv))
+                      // Only require card data if using saved/new card, not for PayPal/Interac
+                      (selectedPaymentMethod === "saved" 
+                        ? (!selectedCardId || savedCardCvv.length < 3) 
+                        : selectedPaymentMethod === "new" 
+                          ? (!newCardData.cardNumber || !newCardData.cvv)
+                          : false) // PayPal and Interac don't require card data
                     }
                   >
                     {isFrench ? "Continuer" : "Continue"}
