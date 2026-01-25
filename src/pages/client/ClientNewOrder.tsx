@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import React from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { ProfessionalOrderSummary } from "@/components/checkout/ProfessionalOrderSummary";
+import PayPalButton from "@/components/payment/PayPalButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -540,9 +541,10 @@ const ClientNewOrder = () => {
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
-  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | null>("etransfer"); // Default to Interac (credit card in maintenance)
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | null>("etransfer"); // Default to Interac (credit card in maintenance)
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
+  const [paypalCaptureId, setPaypalCaptureId] = useState("");
   
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -1501,18 +1503,22 @@ const ClientNewOrder = () => {
 
         // Create payment record with pending/pre-authorized status
         const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
+        const paymentMethodValue = paymentMethod === "credit_card" ? "credit_card" : paymentMethod === "paypal" ? "paypal" : "etransfer";
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
           amount: totalAmount,
-          payment_method: paymentMethod === "credit_card" ? "credit_card" : "etransfer",
+          payment_method: paymentMethodValue,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
-          status: "pending",
+          status: paymentMethod === "paypal" && paypalCaptureId ? "completed" : "pending",
           card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
           card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
           etransfer_amount: paymentMethod === "etransfer" ? totalAmount : null,
           etransfer_sender_name: paymentMethod === "etransfer" ? etransferSenderName : null,
-          notes: `Pré-autorisation pour commande ${data.order_number} - En attente de validation admin`,
+          provider_payment_id: paymentMethod === "paypal" ? paypalCaptureId : null,
+          captured_at: paymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
+          source: "portal",
+          notes: `Pré-autorisation pour commande ${data.order_number}${paymentMethod === "paypal" ? " - Payé via PayPal" : " - En attente de validation admin"}`,
         });
 
         if (paymentError) {
@@ -4602,27 +4608,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Payment method selection - Credit card in maintenance */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Credit Card - MAINTENANCE MODE */}
-                    <div
-                      className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60 relative"
-                    >
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="outline" className="bg-amber-500/20 text-amber-600 border-amber-500/50 text-xs">
-                          Maintenance
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
-                          <CreditCard className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-muted-foreground">Carte de crédit</p>
-                          <p className="text-xs text-muted-foreground">Temporairement indisponible</p>
-                        </div>
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Interac E-Transfer - ACTIVE & RECOMMENDED */}
                     <div
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
@@ -4634,6 +4620,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setPaymentMethod("etransfer");
                         setPaymentComplete(false);
                         setPaymentConfirmationNumber("");
+                        setPaypalCaptureId("");
                       }}
                     >
                       <div className="absolute top-2 right-2">
@@ -4650,6 +4637,62 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <div>
                           <p className="font-medium text-foreground">Virement Interac</p>
                           <p className="text-xs text-muted-foreground">E-Transfer</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PayPal - ACTIVE */}
+                    <div
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
+                        paymentMethod === "paypal"
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-border hover:border-blue-500/50"
+                      }`}
+                      onClick={() => {
+                        setPaymentMethod("paypal");
+                        setPaymentComplete(false);
+                        setPaymentConfirmationNumber("");
+                        setPaypalCaptureId("");
+                      }}
+                    >
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-blue-500/20 text-blue-600 border-0 text-xs">
+                          Sécurisé
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          paymentMethod === "paypal" ? "bg-blue-500" : "bg-muted"
+                        }`}>
+                          <svg className={`w-5 h-5 ${paymentMethod === "paypal" ? "text-white" : "text-muted-foreground"}`} viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.554 9.488c.121.563.106 1.246-.04 2.017-.582 2.464-2.477 3.88-5.336 3.88h-.71c-.323 0-.6.216-.665.524l-.513 3.292-.146.935c-.033.211.127.403.34.403h2.398c.283 0 .526-.19.581-.468l.024-.123.46-2.922.03-.163c.055-.278.298-.468.58-.468h.367c2.369 0 4.221-1.042 4.762-4.057.226-1.261.11-2.314-.488-3.054a2.57 2.57 0 0 0-.644-.563c.138.244.252.505.34.78z"/>
+                            <path d="M18.474 9.081a5.97 5.97 0 0 0-.74-.195 9.456 9.456 0 0 0-1.505-.11h-4.562c-.283 0-.526.19-.581.467l-.973 6.17-.028.18c.065-.308.342-.524.665-.524h1.386c2.84 0 5.062-1.155 5.713-4.495.019-.099.036-.195.05-.289a3.09 3.09 0 0 0-.425-.204z"/>
+                            <path d="M10.663 9.243a.595.595 0 0 1 .58-.467h4.563c.541 0 1.047.037 1.505.11.129.02.254.045.375.073.128.03.25.063.365.1.058.018.113.038.168.058a3.1 3.1 0 0 1 .257.103c.086-.55.085-1.106-.027-1.648-.376-1.822-1.667-2.573-3.612-2.573h-5.8c-.323 0-.6.216-.665.524L6.67 17.403c-.04.253.152.48.408.48h2.972l.746-4.733.867-3.907z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">PayPal</p>
+                          <p className="text-xs text-muted-foreground">Carte ou compte</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Credit Card - MAINTENANCE MODE */}
+                    <div
+                      className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60 relative"
+                    >
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="outline" className="bg-amber-500/20 text-amber-600 border-amber-500/50 text-xs">
+                          Maintenance
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
+                          <CreditCard className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground">Carte de crédit</p>
+                          <p className="text-xs text-muted-foreground">Temporairement indisponible</p>
                         </div>
                       </div>
                     </div>
@@ -4716,6 +4759,35 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <Check className="w-4 h-4 mr-2" />
                         Confirmer le paiement E-Transfer
                       </Button>
+                    </div>
+                  )}
+
+                  {/* PayPal Form */}
+                  {paymentMethod === "paypal" && !paymentComplete && (
+                    <div className="space-y-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
+                      </p>
+                      <PayPalButton
+                        amount={totalAmount}
+                        description="Commande Nivra Telecom"
+                        onSuccess={(captureId) => {
+                          setPaypalCaptureId(captureId);
+                          setPaymentConfirmationNumber(captureId);
+                          setPaymentComplete(true);
+                          toast.success(`Paiement PayPal réussi! Confirmation: ${captureId}`);
+                        }}
+                        onError={(error) => {
+                          console.error("PayPal error:", error);
+                          toast.error("Erreur PayPal. Veuillez réessayer.");
+                        }}
+                      />
+                      <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+                        <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          Vous serez redirigé vers PayPal pour compléter le paiement. Votre commande sera confirmée automatiquement.
+                        </p>
+                      </div>
                     </div>
                   )}
 
