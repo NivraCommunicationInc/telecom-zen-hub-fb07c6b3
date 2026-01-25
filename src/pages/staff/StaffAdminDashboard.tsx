@@ -6,9 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { 
   Shield, LogOut, Loader2, ShoppingCart, Users, FileText, 
   Calendar, Ticket, DollarSign, Settings, BarChart3,
-  Package, Tv, Smartphone, Wifi, Bell, UserCog
+  Package, Tv, Smartphone, Wifi, Bell, UserCog, RefreshCw,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
+import StaffBackground from "@/components/staff/StaffBackground";
+import { StaffSidebar } from "@/components/staff/StaffSidebar";
 
 interface DashboardStats {
   totalOrders: number;
@@ -19,9 +22,52 @@ interface DashboardStats {
   unpaidInvoices: number;
 }
 
+interface StaffInfo {
+  name: string;
+  email: string;
+}
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  color: "teal" | "orange" | "pink" | "yellow" | "blue" | "green" | "purple" | "red";
+  highlight?: boolean;
+}
+
+const StatCard = ({ label, value, icon, color, highlight }: StatCardProps) => {
+  const colorClasses = {
+    teal: "from-teal-500 to-cyan-500",
+    orange: "from-orange-500 to-amber-500",
+    pink: "from-pink-500 to-rose-500",
+    yellow: "from-yellow-500 to-amber-400",
+    blue: "from-blue-500 to-indigo-500",
+    green: "from-green-500 to-emerald-500",
+    purple: "from-purple-500 to-violet-500",
+    red: "from-red-500 to-rose-500",
+  };
+
+  return (
+    <Card className={`border-slate-700/50 bg-slate-900/60 backdrop-blur-xl ${highlight ? "ring-2 ring-yellow-500/50" : ""}`}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[color]} shadow-lg`}>
+            {icon}
+          </div>
+          <div>
+            <p className="text-sm text-slate-400">{label}</p>
+            <p className={`text-2xl font-bold ${highlight ? "text-yellow-400" : "text-white"}`}>{value}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function StaffAdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
     pendingOrders: 0,
@@ -32,13 +78,32 @@ export default function StaffAdminDashboard() {
   });
 
   useEffect(() => {
-    // StaffLayout already handles auth, just fetch data
     const loadData = async () => {
-      await fetchStats();
+      await Promise.all([fetchStaffInfo(), fetchStats()]);
       setLoading(false);
     };
     loadData();
   }, []);
+
+  const fetchStaffInfo = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        
+        setStaffInfo({
+          name: profile?.full_name || session.user.email?.split("@")[0] || "Admin",
+          email: session.user.email || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching staff info:", error);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -78,19 +143,20 @@ export default function StaffAdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen flex items-center justify-center relative">
+        <StaffBackground />
+        <Loader2 className="h-10 w-10 animate-spin text-teal-400 z-10" />
       </div>
     );
   }
 
   const quickActions = [
-    { label: "Commandes", icon: ShoppingCart, href: "/admin/orders", color: "from-blue-500 to-blue-600" },
-    { label: "Clients", icon: Users, href: "/admin/clients", color: "from-green-500 to-green-600" },
-    { label: "Factures", icon: FileText, href: "/admin/billing", color: "from-purple-500 to-purple-600" },
-    { label: "Rendez-vous", icon: Calendar, href: "/admin/appointments", color: "from-orange-500 to-orange-600" },
-    { label: "Tickets", icon: Ticket, href: "/admin/support", color: "from-pink-500 to-pink-600" },
-    { label: "Paiements", icon: DollarSign, href: "/admin/payments", color: "from-emerald-500 to-emerald-600" },
+    { label: "Commandes", icon: ShoppingCart, href: "/admin/orders", color: "from-blue-500 to-indigo-500" },
+    { label: "Clients", icon: Users, href: "/admin/clients", color: "from-green-500 to-emerald-500" },
+    { label: "Factures", icon: FileText, href: "/admin/billing", color: "from-purple-500 to-violet-500" },
+    { label: "Rendez-vous", icon: Calendar, href: "/admin/appointments", color: "from-orange-500 to-amber-500" },
+    { label: "Tickets", icon: Ticket, href: "/admin/support", color: "from-pink-500 to-rose-500" },
+    { label: "Paiements", icon: DollarSign, href: "/admin/payments", color: "from-teal-500 to-cyan-500" },
   ];
 
   const catalogActions = [
@@ -108,94 +174,129 @@ export default function StaffAdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur border-b border-slate-700 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600">
-              <Shield className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Administration</h1>
-              <p className="text-sm text-slate-400">Nivra Telecom</p>
+    <div className="min-h-screen relative flex">
+      <StaffBackground />
+      
+      {/* Sidebar */}
+      <StaffSidebar 
+        onSignOut={handleLogout}
+        userEmail={staffInfo?.email}
+        userName={staffInfo?.name}
+      />
+      
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header for mobile */}
+        <header className="lg:hidden sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg shadow-teal-500/20">
+                  <Shield className="h-6 w-6 text-slate-900" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-white">Portail Admin</h1>
+                  <p className="text-sm text-slate-400">Bienvenue, {staffInfo?.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fetchStats()}
+                  className="text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleLogout}
+                  className="text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Déconnexion
+                </Button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+        </header>
+
+        <main className="flex-1 p-6 relative z-10 space-y-6 overflow-auto">
+          {/* Full Panel Button */}
+          <div className="flex justify-end">
             <Button
-              variant="outline"
               onClick={goToAdmin}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-900 hover:from-teal-600 hover:to-cyan-600"
             >
+              <ExternalLink className="h-4 w-4 mr-2" />
               Panneau complet
             </Button>
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-white hover:bg-slate-700"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Déconnexion
-            </Button>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard label="Commandes" value={stats.totalOrders} icon={ShoppingCart} />
-          <StatCard label="En attente" value={stats.pendingOrders} icon={Package} highlight />
-          <StatCard label="Clients" value={stats.totalClients} icon={Users} />
-          <StatCard label="Tickets ouverts" value={stats.openTickets} icon={Ticket} highlight={stats.openTickets > 0} />
-          <StatCard label="RDV aujourd'hui" value={stats.todayAppointments} icon={Calendar} />
-          <StatCard label="Factures impayées" value={stats.unpaidInvoices} icon={FileText} highlight={stats.unpaidInvoices > 0} />
-        </div>
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <StatCard 
+              label="Commandes" 
+              value={stats.totalOrders} 
+              icon={<ShoppingCart className="h-5 w-5 text-white" />}
+              color="blue"
+            />
+            <StatCard 
+              label="En attente" 
+              value={stats.pendingOrders} 
+              icon={<Package className="h-5 w-5 text-white" />}
+              color="orange"
+              highlight={stats.pendingOrders > 0}
+            />
+            <StatCard 
+              label="Clients" 
+              value={stats.totalClients} 
+              icon={<Users className="h-5 w-5 text-white" />}
+              color="green"
+            />
+            <StatCard 
+              label="Tickets ouverts" 
+              value={stats.openTickets} 
+              icon={<Ticket className="h-5 w-5 text-white" />}
+              color="pink"
+              highlight={stats.openTickets > 0}
+            />
+            <StatCard 
+              label="RDV aujourd'hui" 
+              value={stats.todayAppointments} 
+              icon={<Calendar className="h-5 w-5 text-white" />}
+              color="purple"
+            />
+            <StatCard 
+              label="Factures impayées" 
+              value={stats.unpaidInvoices} 
+              icon={<FileText className="h-5 w-5 text-white" />}
+              color="red"
+              highlight={stats.unpaidInvoices > 0}
+            />
+          </div>
 
-        {/* Quick Actions */}
-        <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-white">Actions rapides</CardTitle>
-            <CardDescription className="text-slate-400">Accédez aux modules principaux</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <button
-                    key={action.label}
-                    onClick={() => navigate(action.href)}
-                    className={`p-4 rounded-lg bg-gradient-to-r ${action.color} text-white hover:opacity-90 transition-opacity flex flex-col items-center gap-2`}
-                  >
-                    <Icon className="h-6 w-6" />
-                    <span className="text-sm font-medium">{action.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Catalog & Admin */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
+          {/* Quick Actions */}
+          <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="text-white">Catalogue</CardTitle>
-              <CardDescription className="text-slate-400">Gérer les services et produits</CardDescription>
+              <CardTitle className="text-white flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-teal-400" />
+                Actions rapides
+              </CardTitle>
+              <CardDescription className="text-slate-400">Accédez aux modules principaux</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                {catalogActions.map((action) => {
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {quickActions.map((action) => {
                   const Icon = action.icon;
                   return (
                     <button
                       key={action.label}
                       onClick={() => navigate(action.href)}
-                      className="p-4 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-3"
+                      className={`p-4 rounded-xl bg-gradient-to-r ${action.color} text-white hover:opacity-90 transition-all hover:scale-105 flex flex-col items-center gap-2 shadow-lg`}
                     >
-                      <Icon className="h-5 w-5" />
-                      <span className="font-medium">{action.label}</span>
+                      <Icon className="h-6 w-6" />
+                      <span className="text-sm font-medium">{action.label}</span>
                     </button>
                   );
                 })}
@@ -203,53 +304,64 @@ export default function StaffAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-white">Administration</CardTitle>
-              <CardDescription className="text-slate-400">Paramètres et configuration</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                {adminActions.map((action) => {
-                  const Icon = action.icon;
-                  return (
-                    <button
-                      key={action.label}
-                      onClick={() => navigate(action.href)}
-                      className="p-4 rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-3"
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="font-medium">{action.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    </div>
-  );
-}
+          {/* Catalog & Admin */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Package className="h-5 w-5 text-teal-400" />
+                  Catalogue
+                </CardTitle>
+                <CardDescription className="text-slate-400">Gérer les services et produits</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {catalogActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.label}
+                        onClick={() => navigate(action.href)}
+                        className="p-4 rounded-xl border border-slate-700/50 bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 hover:text-white hover:border-teal-500/30 transition-all flex items-center gap-3"
+                      >
+                        <Icon className="h-5 w-5 text-teal-400" />
+                        <span className="font-medium">{action.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-function StatCard({ 
-  label, 
-  value, 
-  icon: Icon, 
-  highlight = false 
-}: { 
-  label: string; 
-  value: number; 
-  icon: React.ElementType; 
-  highlight?: boolean;
-}) {
-  return (
-    <div className={`p-4 rounded-lg border ${highlight ? "border-yellow-500/50 bg-yellow-500/10" : "border-slate-700 bg-slate-800/50"}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`h-4 w-4 ${highlight ? "text-yellow-500" : "text-slate-400"}`} />
-        <span className="text-sm text-slate-400">{label}</span>
+            <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-teal-400" />
+                  Administration
+                </CardTitle>
+                <CardDescription className="text-slate-400">Paramètres et configuration</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {adminActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.label}
+                        onClick={() => navigate(action.href)}
+                        className="p-4 rounded-xl border border-slate-700/50 bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 hover:text-white hover:border-teal-500/30 transition-all flex items-center gap-3"
+                      >
+                        <Icon className="h-5 w-5 text-teal-400" />
+                        <span className="font-medium">{action.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
-      <p className={`text-2xl font-bold ${highlight ? "text-yellow-500" : "text-white"}`}>{value}</p>
     </div>
   );
 }
