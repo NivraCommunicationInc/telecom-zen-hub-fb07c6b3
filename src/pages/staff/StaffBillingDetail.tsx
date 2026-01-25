@@ -1,11 +1,12 @@
 /**
  * StaffBillingDetail - Billing/Invoice detail page for staff portal
  * Completely isolated from admin - stays within /staff namespace
+ * NOW INCLUDES: Payment recording (Interac, cash, manual)
  */
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, DollarSign, User, Calendar, FileText, CreditCard } from "lucide-react";
+import { ArrowLeft, DollarSign, User, Calendar, FileText, CreditCard, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,20 +15,21 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
+import { StaffRecordPaymentDialog } from "@/components/staff/StaffRecordPaymentDialog";
 
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  paid: "bg-green-500/20 text-green-400 border-green-500/30",
-  overdue: "bg-red-500/20 text-red-400 border-red-500/30",
-  partial: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  cancelled: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
+  pending: { label: "En attente", color: "bg-amber-500/20 text-amber-400 border-amber-500/30", icon: Clock },
+  paid: { label: "Payé", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", icon: CheckCircle },
+  overdue: { label: "En retard", color: "bg-red-500/20 text-red-400 border-red-500/30", icon: AlertTriangle },
+  partial: { label: "Partiel", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: Clock },
+  cancelled: { label: "Annulé", color: "bg-slate-500/20 text-slate-400 border-slate-500/30", icon: FileText },
 };
 
 export default function StaffBillingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: invoice, isLoading } = useQuery({
+  const { data: invoice, isLoading, refetch } = useQuery({
     queryKey: ["staff-billing-detail", id],
     queryFn: async () => {
       const { data: invoiceData, error } = await supabase
@@ -49,7 +51,18 @@ export default function StaffBillingDetail() {
         profileData = profile;
       }
 
-      return { ...invoiceData, profile: profileData };
+      // Fetch payment history
+      let payments: any[] = [];
+      if (invoiceData?.id) {
+        const { data: paymentData } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("billing_id", invoiceData.id)
+          .order("created_at", { ascending: false });
+        payments = paymentData || [];
+      }
+
+      return { ...invoiceData, profile: profileData, payments };
     },
     enabled: !!id,
   });
@@ -82,7 +95,9 @@ export default function StaffBillingDetail() {
     );
   }
 
-  const balanceDue = (invoice.amount || 0) - (invoice.amount_paid || 0);
+  const balanceDue = Math.max(0, (invoice.amount || 0) - (invoice.amount_paid || 0));
+  const status = statusConfig[invoice.status] || statusConfig.pending;
+  const StatusIcon = status.icon;
 
   return (
     <div className="min-h-screen flex relative">
@@ -91,27 +106,42 @@ export default function StaffBillingDetail() {
       
       <main className="flex-1 p-6 overflow-auto z-10">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/staff/billing")}
-            className="text-slate-400 hover:text-white"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-              <DollarSign className="h-6 w-6 text-teal-400" />
-              Facture {invoice.invoice_number}
-            </h1>
-            <p className="text-slate-400">
-              Créée le {format(new Date(invoice.created_at), "d MMMM yyyy", { locale: fr })}
-            </p>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/billing")}
+              className="text-slate-400 hover:text-white"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                <DollarSign className="h-6 w-6 text-teal-400" />
+                Facture {invoice.invoice_number}
+              </h1>
+              <p className="text-slate-400">
+                Créée le {format(new Date(invoice.created_at), "d MMMM yyyy", { locale: fr })}
+              </p>
+            </div>
           </div>
-          <Badge className={statusColors[invoice.status] || statusColors.pending}>
-            {invoice.status}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge className={status.color}>
+              <StatusIcon className="h-3 w-3 mr-1" />
+              {status.label}
+            </Badge>
+            {balanceDue > 0 && (
+              <StaffRecordPaymentDialog
+                billingId={invoice.id}
+                userId={invoice.user_id}
+                balanceDue={balanceDue}
+                invoiceNumber={invoice.invoice_number}
+                clientEmail={invoice.profile?.email || invoice.client_email}
+                onSuccess={() => refetch()}
+              />
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -126,7 +156,7 @@ export default function StaffBillingDetail() {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-slate-500 text-sm">Nom</p>
-                <p className="text-white">{invoice.profile?.full_name || "N/A"}</p>
+                <p className="text-white font-medium">{invoice.profile?.full_name || "N/A"}</p>
               </div>
               <div>
                 <p className="text-slate-500 text-sm">Email</p>
@@ -141,9 +171,9 @@ export default function StaffBillingDetail() {
                   variant="outline"
                   size="sm"
                   onClick={() => navigate(`/staff/clients/${invoice.user_id}`)}
-                  className="w-full mt-4"
+                  className="w-full mt-4 border-slate-700 text-slate-300 hover:bg-slate-800"
                 >
-                  Voir le profil client
+                  Voir le dossier client
                 </Button>
               )}
             </CardContent>
@@ -183,12 +213,12 @@ export default function StaffBillingDetail() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Montant payé</span>
-                <span className="text-green-400">{invoice.amount_paid?.toFixed(2) || "0.00"} $</span>
+                <span className="text-emerald-400">{invoice.amount_paid?.toFixed(2) || "0.00"} $</span>
               </div>
               <Separator className="bg-slate-700" />
-              <div className="flex justify-between text-lg font-semibold">
+              <div className="flex justify-between text-lg font-bold">
                 <span className="text-white">Solde dû</span>
-                <span className={balanceDue > 0 ? "text-red-400" : "text-green-400"}>
+                <span className={balanceDue > 0 ? "text-red-400" : "text-emerald-400"}>
                   {balanceDue.toFixed(2)} $
                 </span>
               </div>
@@ -213,7 +243,7 @@ export default function StaffBillingDetail() {
               {invoice.due_date && (
                 <div className="flex justify-between">
                   <span className="text-slate-400">Date d'échéance</span>
-                  <span className="text-white">
+                  <span className={new Date(invoice.due_date) < new Date() && invoice.status !== "paid" ? "text-red-400" : "text-white"}>
                     {format(new Date(invoice.due_date), "d MMM yyyy", { locale: fr })}
                   </span>
                 </div>
@@ -221,7 +251,7 @@ export default function StaffBillingDetail() {
               {invoice.paid_at && (
                 <div className="flex justify-between">
                   <span className="text-slate-400">Date de paiement</span>
-                  <span className="text-green-400">
+                  <span className="text-emerald-400">
                     {format(new Date(invoice.paid_at), "d MMM yyyy", { locale: fr })}
                   </span>
                 </div>
@@ -229,9 +259,47 @@ export default function StaffBillingDetail() {
             </CardContent>
           </Card>
 
+          {/* Payment History */}
+          <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-teal-400" />
+                Historique des paiements
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {invoice.payments && invoice.payments.length > 0 ? (
+                <div className="space-y-3">
+                  {invoice.payments.map((payment: any) => (
+                    <div key={payment.id} className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-white font-medium">{payment.amount?.toFixed(2)} $</p>
+                          <p className="text-xs text-slate-500 capitalize">{payment.payment_method || "—"}</p>
+                        </div>
+                        <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
+                          {payment.status === "completed" ? "Confirmé" : payment.status}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>{payment.reference_number || "—"}</span>
+                        <span>{format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}</span>
+                      </div>
+                      {payment.created_by_name && (
+                        <p className="text-xs text-slate-500 mt-1">Par: {payment.created_by_name}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-500 text-center py-4">Aucun paiement enregistré</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           {invoice.notes && (
-            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <FileText className="h-5 w-5 text-teal-400" />

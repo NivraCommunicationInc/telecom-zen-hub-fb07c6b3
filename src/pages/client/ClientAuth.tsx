@@ -139,8 +139,13 @@ const ClientAuth = () => {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/30 animate-pulse">
+            <span className="font-display font-bold text-slate-900 text-2xl">N</span>
+          </div>
+          <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+        </div>
       </div>
     );
   }
@@ -600,63 +605,72 @@ const ClientAuth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-transparent rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-blue-600/10 via-indigo-500/5 to-transparent rounded-full blur-3xl" />
+      
+      <div className="w-full max-w-md relative z-10">
+        <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Retour à l'accueil
         </Link>
         
-        <Card className="bg-card border-border">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center">
-                <span className="font-display font-bold text-navy-900 text-xl">N</span>
+        <Card className="bg-slate-900/80 backdrop-blur-xl border-slate-800 shadow-2xl shadow-cyan-500/5">
+          <CardHeader className="text-center pb-2">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                <span className="font-display font-bold text-slate-900 text-2xl">N</span>
               </div>
-              <span className="font-display font-bold text-xl text-foreground">Nivra</span>
+              <div className="text-left">
+                <span className="font-display font-bold text-2xl text-white block">Nivra</span>
+                <span className="text-xs text-slate-500">Telecom</span>
+              </div>
             </div>
-            <CardTitle className="text-2xl">Portail Client</CardTitle>
-            <CardDescription>Connectez-vous ou créez un compte</CardDescription>
+            <CardTitle className="text-2xl text-white">Espace Client</CardTitle>
+            <CardDescription className="text-slate-400">Connectez-vous ou créez un compte</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">Connexion</TabsTrigger>
-                <TabsTrigger value="signup">Inscription</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-800/50">
+                <TabsTrigger value="login" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-slate-900">Connexion</TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-slate-900">Inscription</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email" className="text-slate-300">Email</Label>
                     <Input
                       id="login-email"
                       type="email"
                       placeholder="votre@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="login-password">Mot de passe</Label>
+                    <Label htmlFor="login-password" className="text-slate-300">Mot de passe</Label>
                     <Input
                       id="login-password"
                       type="password"
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                   </div>
                   <div className="text-right">
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-cyan-500 hover:text-cyan-400 underline"
+                      className="text-sm text-cyan-400 hover:text-cyan-300 underline transition-colors"
                     >
                       Mot de passe oublié?
                     </button>
                   </div>
-                  <Button type="submit" className="w-full" variant="hero" disabled={isLoading}>
+                  <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-slate-900 font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Se connecter
                   </Button>
@@ -669,6 +683,12 @@ const ClientAuth = () => {
             </Tabs>
           </CardContent>
         </Card>
+        
+        {/* Trust badges */}
+        <div className="mt-6 flex items-center justify-center gap-6 text-slate-500 text-xs">
+          <span className="flex items-center gap-1"><ShieldCheck className="w-4 h-4" /> Connexion sécurisée</span>
+          <span className="flex items-center gap-1"><Mail className="w-4 h-4" /> Vérification 2FA</span>
+        </div>
       </div>
     </div>
   );
