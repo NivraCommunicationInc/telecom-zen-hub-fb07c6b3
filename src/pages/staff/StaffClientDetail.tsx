@@ -26,7 +26,7 @@ import { useStaffClientAccess } from "@/components/staff/StaffClientAccessGate";
 import { StaffClientAccessGate } from "@/components/staff/StaffClientAccessGate";
 
 export default function StaffClientDetail() {
-  const { clientId } = useParams<{ clientId: string }>();
+  const { id: clientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { checkAccess, revokeAccess } = useStaffClientAccess();
   
