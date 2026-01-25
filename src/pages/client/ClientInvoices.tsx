@@ -20,6 +20,7 @@ import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
 import PaymentDisputeTimeline from "@/components/client/PaymentDisputeTimeline";
+import PaymentHistoryV2 from "@/components/client/PaymentHistoryV2";
 import { ETRANSFER_CONFIG, COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import PayPalButton from "@/components/payment/PayPalButton";
@@ -740,79 +741,8 @@ const ClientInvoices = () => {
           </TabsContent>
 
           <TabsContent value="payments">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-cyan-400" />
-                  Historique des paiements
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {paymentsLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
-                    ))}
-                  </div>
-                ) : payments && payments.length > 0 ? (
-                  <div className="space-y-3">
-                    {payments.map((payment: any) => {
-                      const isPending = payment.status === "pending";
-                      return (
-                        <div
-                          key={payment.id}
-                          className={`flex items-center justify-between p-4 bg-accent/50 rounded-lg border ${
-                            isPending ? "border-blue-500/30" : "border-border"
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              isPending ? "bg-blue-500/20" : "bg-emerald-500/20"
-                            }`}>
-                              {isPending ? (
-                                <Clock className="w-6 h-6 text-blue-500" />
-                              ) : (
-                                <CheckCircle className="w-6 h-6 text-emerald-500" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {Number(payment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {payment.payment_method === "credit_card" ? "Carte de crédit" : "Virement Interac"}
-                                {payment.card_last_four && ` •••• ${payment.card_last_four}`}
-                              </p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                Réf: {payment.reference_number}
-                              </p>
-                              {isPending && (
-                                <Badge className="mt-1 bg-blue-500/20 text-blue-500 text-xs">
-                                  Pré-autorisé - En attente validation
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">
-                              {format(new Date(payment.created_at), "d MMM yyyy", { locale: fr })}
-                            </p>
-                            <Button size="sm" variant="ghost" onClick={() => handleViewPayment(payment)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Aucun paiement enregistré</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* V2 Payment History - Source of truth */}
+            {user?.id && <PaymentHistoryV2 userId={user.id} />}
           </TabsContent>
         </Tabs>
 
