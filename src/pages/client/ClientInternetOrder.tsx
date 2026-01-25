@@ -255,6 +255,9 @@ const ClientInternetOrder = () => {
   });
   const [saveNewCard, setSaveNewCard] = useState(false);
   
+  // PayPal capture ID when payment is completed via PayPal
+  const [paypalCaptureId, setPaypalCaptureId] = useState("");
+  
   // PIN setup for new clients
   const [clientPin, setClientPin] = useState("");
   const [confirmClientPin, setConfirmClientPin] = useState("");
@@ -447,24 +450,44 @@ const ClientInternetOrder = () => {
       // SECURITY: Extract only safe metadata from card - NEVER send PAN/CVV to backend
       const { extractCardMetadata } = await import("@/lib/validation");
       
-      // Build payment reference info with metadata only (no PAN, no CVV, no raw expiry)
-      const paymentInfo = selectedPaymentMethod === "saved" 
-        ? {
-            method: "saved_card",
-            card_id: selectedCardId,
-            card_type: savedCards?.find((c: any) => c.id === selectedCardId)?.card_type,
-            last_four: savedCards?.find((c: any) => c.id === selectedCardId)?.last_four,
-          }
-        : (() => {
-            const metadata = extractCardMetadata(newCardData.cardNumber, newCardData.expiry);
-            return {
-              method: "new_card",
-              card_type: metadata?.brand || "Card",
-              last_four: metadata?.last4 || "****",
-              exp_month: metadata?.expMonth,
-              exp_year: metadata?.expYear,
-            };
-          })();
+      // Build payment reference info based on payment method
+      let paymentInfo: { method: string; card_type?: string; last_four?: string; card_id?: string; capture_id?: string; exp_month?: string; exp_year?: string };
+      let paymentStatus = "pre_authorized";
+      
+      if (selectedPaymentMethod === "paypal" && paypalCaptureId) {
+        // PayPal payment already completed
+        paymentInfo = {
+          method: "paypal",
+          card_type: "PayPal",
+          last_four: paypalCaptureId.slice(-4),
+          capture_id: paypalCaptureId,
+        };
+        paymentStatus = "paid"; // Already paid via PayPal
+      } else if (selectedPaymentMethod === "etransfer") {
+        // E-transfer pending
+        paymentInfo = {
+          method: "etransfer",
+          card_type: "Interac",
+          last_four: "VIRT",
+        };
+        paymentStatus = "pending"; // Awaiting e-transfer
+      } else if (selectedPaymentMethod === "saved") {
+        paymentInfo = {
+          method: "saved_card",
+          card_id: selectedCardId,
+          card_type: savedCards?.find((c: any) => c.id === selectedCardId)?.card_type,
+          last_four: savedCards?.find((c: any) => c.id === selectedCardId)?.last_four,
+        };
+      } else {
+        const metadata = extractCardMetadata(newCardData.cardNumber, newCardData.expiry);
+        paymentInfo = {
+          method: "new_card",
+          card_type: metadata?.brand || "Card",
+          last_four: metadata?.last4 || "****",
+          exp_month: String(metadata?.expMonth || ""),
+          exp_year: String(metadata?.expYear || ""),
+        };
+      }
 
       // Build structured line_items for contract PDF
       const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
@@ -482,6 +505,13 @@ const ClientInternetOrder = () => {
         ],
       });
 
+      // Build payment description for notes
+      const paymentDescription = selectedPaymentMethod === "paypal" 
+        ? `PayPal (Réf: ${paypalCaptureId})`
+        : selectedPaymentMethod === "etransfer"
+          ? "Virement Interac (en attente)"
+          : `${paymentInfo.card_type} ****${paymentInfo.last_four}`;
+
       // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
       const { data: orderData, error: orderError } = await supabase.from("orders").upsert({
         client_request_id: clientRequestId,
@@ -497,7 +527,7 @@ const ClientInternetOrder = () => {
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: "pending",
-        payment_status: "pre_authorized",
+        payment_status: paymentStatus,
         preauth_card_id: selectedPaymentMethod === "saved" ? selectedCardId : null,
         preauth_discount: 0,
         installation_type: installationMethod,
@@ -511,11 +541,12 @@ const ClientInternetOrder = () => {
 ${isFrench ? "Adresse d'installation" : "Installation address"}: ${address}
 ${isFrench ? "Méthode d'installation" : "Installation method"}: ${installationMethod === "auto" ? (isFrench ? "Auto-installation" : "Self-installation") : (isFrench ? "Technicien Nivra" : "Nivra Technician")}
 ${isFrench ? "Date préférée" : "Preferred date"}: ${selectedDate ? format(new Date(selectedDate), "d MMMM yyyy", { locale: isFrench ? fr : undefined }) : "N/A"} ${selectedTime}
-${isFrench ? "Paiement" : "Payment"}: ${paymentInfo.card_type} ****${paymentInfo.last_four} (${isFrench ? "Dépôt préautorisé" : "Pre-authorized deposit"})
+${isFrench ? "Paiement" : "Payment"}: ${paymentDescription}
 ${notes || ""}`.trim(),
         internal_notes: `Router: Nivra Born Wifi ($60 paid upfront)
-Payment: ${JSON.stringify(paymentInfo)}
-Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
+Payment Method: ${selectedPaymentMethod}
+Payment Info: ${JSON.stringify(paymentInfo)}
+${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` : `Amount: $${totalDueNow.toFixed(2)}`}`,
       } as any, {
         onConflict: 'client_request_id',
         ignoreDuplicates: false,
@@ -1234,6 +1265,11 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 onSaveNewCardChange={setSaveNewCard}
                 totalAmount={totalDueNow}
                 cvvError={cvvError}
+                onPayPalSuccess={(captureId) => {
+                  setPaypalCaptureId(captureId);
+                  toast.success(isFrench ? "Paiement PayPal réussi!" : "PayPal payment successful!");
+                  setStep(4); // Move to final confirmation
+                }}
               />
             </div>
 

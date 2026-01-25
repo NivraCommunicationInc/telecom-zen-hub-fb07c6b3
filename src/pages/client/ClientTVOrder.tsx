@@ -355,6 +355,9 @@ const ClientTVOrder = () => {
     cvv: "",
   });
   const [saveNewCard, setSaveNewCard] = useState(false);
+  
+  // PayPal capture ID when payment is completed via PayPal
+  const [paypalCaptureId, setPaypalCaptureId] = useState("");
 
   // Security PIN for new accounts
   const [securityPin, setSecurityPin] = useState("");
@@ -1452,6 +1455,11 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 onSaveNewCardChange={setSaveNewCard}
                 totalAmount={totalDueNow}
                 cvvError={cvvError}
+                onPayPalSuccess={(captureId) => {
+                  setPaypalCaptureId(captureId);
+                  toast.success(isFrench ? "Paiement PayPal réussi!" : "PayPal payment successful!");
+                  setStep(4); // Move to final confirmation
+                }}
               />
             </div>
 
