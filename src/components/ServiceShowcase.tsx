@@ -75,7 +75,7 @@ const ServiceShowcase = () => {
   }
 
   return (
-    <section className="py-20 bg-background">
+    <section id="services" className="py-20 bg-background">
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-14">
