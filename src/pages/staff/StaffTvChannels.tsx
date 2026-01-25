@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tv, Search, User, Calendar, Package } from "lucide-react";
+import { Tv, Search, User, Calendar, Package, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,11 +97,21 @@ export default function StaffTvChannels() {
       <main className="flex-1 p-6 overflow-auto z-10">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
-            <Tv className="h-6 w-6 text-teal-400" />
-            Gestion Chaînes TV
-          </h1>
-          <p className="text-slate-400">Gérer les sélections de chaînes des clients</p>
+          <div className="flex items-center gap-4 mb-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <Tv className="h-6 w-6 text-teal-400" />
+              Gestion Chaînes TV
+            </h1>
+          </div>
+          <p className="text-slate-400 ml-14">Gérer les sélections de chaînes des clients</p>
         </div>
 
         {/* Search */}

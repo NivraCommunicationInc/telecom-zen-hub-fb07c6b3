@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ShoppingCart, Search, Loader2, RefreshCw, Clock, 
-  CheckCircle, XCircle, AlertTriangle, User, DollarSign
+  CheckCircle, XCircle, AlertTriangle, User, DollarSign, ArrowLeft
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -73,6 +73,14 @@ export default function StaffOrders() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg">
               <ShoppingCart className="h-6 w-6 text-slate-900" />
             </div>

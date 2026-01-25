@@ -2,7 +2,7 @@
  * StaffAppointments - Employee portal appointments view
  */
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Calendar, Search, Loader2, RefreshCw, Clock, 
-  CheckCircle, MapPin, User, Phone
+  CheckCircle, MapPin, User, Phone, ArrowLeft
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import StaffBackground from "@/components/staff/StaffBackground";
 
 export default function StaffAppointments() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -73,6 +74,14 @@ export default function StaffAppointments() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg">
               <Calendar className="h-6 w-6 text-slate-900" />
             </div>
