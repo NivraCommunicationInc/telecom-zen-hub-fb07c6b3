@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function parseJsonSafe(raw: string): any | null {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 interface CreatePayPalOrderRequest {
   invoice_id?: string;
   amount: number;
@@ -98,9 +106,29 @@ serve(async (req) => {
     });
 
     if (!orderResponse.ok) {
-      const error = await orderResponse.text();
-      console.error("[PayPal] Order creation error:", error);
-      throw new Error(`PayPal order creation failed: ${error}`);
+      const raw = await orderResponse.text();
+      console.error("[PayPal] Order creation error:", raw);
+
+      const paypalError = parseJsonSafe(raw);
+      const issue = paypalError?.details?.[0]?.issue;
+      const detailDescription = paypalError?.details?.[0]?.description;
+      const baseMessage = paypalError?.message || raw;
+      const debugId = paypalError?.debug_id;
+
+      // Messages orientés support (FR) pour les erreurs fréquentes
+      let friendly = "Erreur PayPal lors de la création de la commande.";
+      if (issue === "PAYEE_ACCOUNT_RESTRICTED") {
+        friendly = "Paiement PayPal indisponible: le compte marchand PayPal est restreint (à débloquer côté PayPal).";
+      } else if (issue) {
+        friendly = `Erreur PayPal: ${issue}${detailDescription ? ` — ${detailDescription}` : ""}.`;
+      } else if (baseMessage) {
+        friendly = `Erreur PayPal: ${baseMessage}`;
+      }
+
+      const msg = `${friendly}${debugId ? ` (debug_id: ${debugId})` : ""}`;
+      const e: any = new Error(msg);
+      e.paypal = paypalError;
+      throw e;
     }
 
     const orderData = await orderResponse.json();
@@ -133,8 +161,16 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error("[PayPal] Error:", error);
+
+    const paypal = (error && typeof error === "object" && "paypal" in error)
+      ? (error as any).paypal
+      : undefined;
+
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+        ...(paypal ? { paypal } : {}),
+      }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
