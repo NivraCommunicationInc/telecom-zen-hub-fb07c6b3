@@ -156,6 +156,9 @@ const ClientInvoices = () => {
       if (!user?.id) throw new Error("Not authenticated");
 
       const referenceNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+
+      // AUDIT TRAIL: Get client user info for self-service payments
+      const clientName = profile?.full_name || user.email?.split('@')[0] || 'Client';
       
       // Create payment record
       const paymentData: any = {
@@ -165,6 +168,10 @@ const ClientInvoices = () => {
         payment_method: method === "credit_card" ? "credit_card" : "etransfer",
         reference_number: referenceNumber,
         status: "completed",
+        created_by_id: user.id,
+        created_by_name: clientName,
+        created_by_role: 'client',
+        source: 'client_portal'
       };
 
       if (method === "credit_card" && cardDetails) {

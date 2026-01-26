@@ -440,6 +440,7 @@ const AdminBilling = () => {
       
       // Get current admin user info for audit trail
       const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("Non authentifié");
       let adminName = currentUser?.email || 'Admin';
       let adminRole = 'admin';
       
@@ -468,7 +469,7 @@ const AdminBilling = () => {
           billing_id: payment.billing_id || null,
           status: "completed",
           source: "admin",
-          created_by_id: currentUser?.id || null,
+          created_by_id: currentUser.id,
           created_by_name: adminName,
           created_by_role: adminRole,
         })

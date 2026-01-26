@@ -96,7 +96,9 @@ export function StaffRecordPaymentDialog({
           source: "staff",
           created_by_id: currentUser.id,
           created_by_name: staffName,
-          created_by_role: "employee",
+          // IMPORTANT: DB audit trigger only allows specific roles (admin/manager/support/billing/system/client)
+          // Staff portal employees record payments under 'billing' role for audit compliance.
+          created_by_role: "billing",
         });
 
       if (paymentError) throw paymentError;
