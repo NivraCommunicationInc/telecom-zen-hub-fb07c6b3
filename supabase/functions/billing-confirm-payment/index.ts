@@ -89,7 +89,7 @@ serve(async (req) => {
       .update({
         status: 'confirmed',
         reference: body.payment_reference || null,
-        confirmed_by: body.confirmed_by || null,
+        confirmed_by: body.confirmed_by || 'admin',
         received_at: paidAt
       })
       .eq("invoice_id", body.invoice_id)
