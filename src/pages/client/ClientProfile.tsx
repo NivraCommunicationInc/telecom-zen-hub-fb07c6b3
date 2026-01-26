@@ -17,7 +17,7 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight, MapPin, Plus, Building2, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, Plus, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -27,6 +27,13 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
+// New Phase 2 components
+import ClientAvatarUpload from "@/components/client/ClientAvatarUpload";
+import ClientProfileChangeHistory from "@/components/client/ClientProfileChangeHistory";
+import ClientSessionInfo from "@/components/client/ClientSessionInfo";
+import ClientBillingAddressSection from "@/components/client/ClientBillingAddressSection";
+import ClientDataExport from "@/components/client/ClientDataExport";
+import ClientPinConfirmDialog from "@/components/client/ClientPinConfirmDialog";
 const ClientProfile = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
@@ -61,6 +68,9 @@ const ClientProfile = () => {
     service_city: "",
     service_postal_code: "",
   });
+  // PIN confirmation dialog for sensitive actions
+  const [pinConfirmOpen, setPinConfirmOpen] = useState(false);
+  const [pendingProfileUpdate, setPendingProfileUpdate] = useState<typeof formData | null>(null);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["client-profile", user?.id],
@@ -183,6 +193,32 @@ const ClientProfile = () => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // Log changes to client_profile_changes table
+      const changedFields: { field: string; oldValue: string | null; newValue: string | null }[] = [];
+      
+      if (profile) {
+        const fieldsToCheck = [
+          { key: "first_name", old: profile.first_name, new: data.first_name },
+          { key: "last_name", old: profile.last_name, new: data.last_name },
+          { key: "phone", old: profile.phone, new: data.phone },
+          { key: "date_of_birth", old: profile.date_of_birth, new: data.date_of_birth },
+          { key: "service_address", old: profile.service_address, new: data.service_address },
+          { key: "service_city", old: profile.service_city, new: data.service_city },
+          { key: "service_postal_code", old: profile.service_postal_code, new: data.service_postal_code },
+        ];
+        
+        for (const field of fieldsToCheck) {
+          if (field.old !== field.new && (field.old || field.new)) {
+            changedFields.push({
+              field: field.key,
+              oldValue: field.old || null,
+              newValue: field.new || null,
+            });
+          }
+        }
+      }
+
+      // Update profile
       const { error } = await portalSupabase
         .from("profiles")
         .update({
@@ -198,13 +234,30 @@ const ClientProfile = () => {
         })
         .eq("user_id", user?.id);
       if (error) throw error;
+
+      // Log changes
+      if (changedFields.length > 0 && user?.id) {
+        for (const change of changedFields) {
+          await portalSupabase.from("client_profile_changes").insert({
+            client_id: user.id,
+            changed_by_id: user.id,
+            changed_by_role: "client",
+            field_name: change.field,
+            old_value: change.oldValue,
+            new_value: change.newValue,
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["client-profile-changes"] });
       toast({ title: "Profil mis à jour avec succès" });
+      setPendingProfileUpdate(null);
     },
     onError: () => {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+      setPendingProfileUpdate(null);
     },
   });
 
@@ -228,6 +281,17 @@ const ClientProfile = () => {
       });
     },
   });
+
+  // Check if there are sensitive changes that require PIN confirmation
+  const hasSensitiveChanges = (data: typeof formData): boolean => {
+    if (!profile) return false;
+    // Phone, date of birth, and address are sensitive fields
+    return (
+      data.phone !== (profile.phone || "") ||
+      data.date_of_birth !== (profile.date_of_birth || "") ||
+      data.service_address !== (profile.service_address || "")
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,7 +319,20 @@ const ClientProfile = () => {
       }
     }
     
-    updateProfileMutation.mutate(formData);
+    // Check if sensitive changes require PIN confirmation
+    if (hasSensitiveChanges(formData)) {
+      setPendingProfileUpdate(formData);
+      setPinConfirmOpen(true);
+    } else {
+      updateProfileMutation.mutate(formData);
+    }
+  };
+
+  // Handle PIN confirmed - execute pending update
+  const handlePinConfirmed = () => {
+    if (pendingProfileUpdate) {
+      updateProfileMutation.mutate(pendingProfileUpdate);
+    }
   };
 
   // Password strength validation
@@ -393,6 +470,17 @@ const ClientProfile = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Avatar Upload */}
+                  <div className="flex justify-center pb-2">
+                    <ClientAvatarUpload
+                      userId={user?.id || ""}
+                      currentAvatarUrl={profile?.avatar_url}
+                      fullName={profile?.full_name || formData.full_name}
+                      onAvatarChange={(url) => {
+                        queryClient.invalidateQueries({ queryKey: ["client-profile"] });
+                      }}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="first_name">Prénom</Label>
@@ -603,6 +691,34 @@ const ClientProfile = () => {
           <div className="lg:col-span-2">
             <ClientAuthorizedContacts />
           </div>
+
+          {/* NEW: Profile Change History */}
+          <div className="lg:col-span-2">
+            {user?.id && <ClientProfileChangeHistory clientId={user.id} />}
+          </div>
+
+          {/* NEW: Additional Security & Data Sections */}
+          <div className="space-y-6">
+            {/* Session Info */}
+            {user?.id && <ClientSessionInfo userId={user.id} />}
+            
+            {/* Data Export (GDPR/Loi 25) */}
+            {user?.id && user?.email && (
+              <ClientDataExport userId={user.id} userEmail={user.email} />
+            )}
+          </div>
+
+          {/* NEW: Billing Address */}
+          <div className="space-y-6">
+            {user?.id && (
+              <ClientBillingAddressSection
+                userId={user.id}
+                serviceAddress={profile?.service_address}
+                serviceCity={profile?.service_city}
+                servicePostalCode={profile?.service_postal_code}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -758,6 +874,21 @@ const ClientProfile = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PIN Confirmation Dialog for sensitive changes */}
+      {user?.id && (
+        <ClientPinConfirmDialog
+          open={pinConfirmOpen}
+          onOpenChange={(open) => {
+            setPinConfirmOpen(open);
+            if (!open) setPendingProfileUpdate(null);
+          }}
+          userId={user.id}
+          onConfirmed={handlePinConfirmed}
+          title="Confirmation de modification"
+          description="Pour modifier vos informations sensibles (téléphone, adresse, date de naissance), veuillez confirmer votre identité avec votre NIP client."
+        />
+      )}
     </ClientLayout>
   );
 };

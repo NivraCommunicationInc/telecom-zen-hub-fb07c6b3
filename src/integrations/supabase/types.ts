@@ -1904,6 +1904,42 @@ export type Database = {
         }
         Relationships: []
       }
+      client_profile_changes: {
+        Row: {
+          changed_by_id: string
+          changed_by_role: string
+          client_id: string
+          created_at: string
+          field_name: string
+          id: string
+          ip_address: string | null
+          new_value: string | null
+          old_value: string | null
+        }
+        Insert: {
+          changed_by_id: string
+          changed_by_role?: string
+          client_id: string
+          created_at?: string
+          field_name: string
+          id?: string
+          ip_address?: string | null
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          changed_by_id?: string
+          changed_by_role?: string
+          client_id?: string
+          created_at?: string
+          field_name?: string
+          id?: string
+          ip_address?: string | null
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Relationships: []
+      }
       client_streaming_subscriptions: {
         Row: {
           account_id: string | null
@@ -5662,6 +5698,7 @@ export type Database = {
       profiles: {
         Row: {
           account_status: string | null
+          avatar_url: string | null
           balance: number | null
           blocked_at: string | null
           blocked_by: string | null
@@ -5685,6 +5722,7 @@ export type Database = {
           id_type: string | null
           internal_notes: string | null
           last_auth_check_at: string | null
+          last_login_at: string | null
           last_name: string | null
           online_access_status: string | null
           phone: string | null
@@ -5708,6 +5746,7 @@ export type Database = {
         }
         Insert: {
           account_status?: string | null
+          avatar_url?: string | null
           balance?: number | null
           blocked_at?: string | null
           blocked_by?: string | null
@@ -5731,6 +5770,7 @@ export type Database = {
           id_type?: string | null
           internal_notes?: string | null
           last_auth_check_at?: string | null
+          last_login_at?: string | null
           last_name?: string | null
           online_access_status?: string | null
           phone?: string | null
@@ -5754,6 +5794,7 @@ export type Database = {
         }
         Update: {
           account_status?: string | null
+          avatar_url?: string | null
           balance?: number | null
           blocked_at?: string | null
           blocked_by?: string | null
@@ -5777,6 +5818,7 @@ export type Database = {
           id_type?: string | null
           internal_notes?: string | null
           last_auth_check_at?: string | null
+          last_login_at?: string | null
           last_name?: string | null
           online_access_status?: string | null
           phone?: string | null
