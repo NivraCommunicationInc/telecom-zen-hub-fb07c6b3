@@ -10,7 +10,7 @@ interface CheckoutPhoneFieldProps {
 }
 
 // Canadian phone format: (XXX) XXX-XXXX
-const formatCanadianPhone = (value: string): string => {
+export const formatCanadianPhone = (value: string): string => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   if (digits.length === 0) return "";
   if (digits.length <= 3) return `(${digits}`;

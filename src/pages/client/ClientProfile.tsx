@@ -17,14 +17,16 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight, MapPin, Plus, Building2, Trash2 } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Wifi, Settings, ArrowRight, MapPin, Plus, Building2, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
-
+import { useLedgerBalance } from "@/hooks/useLedgerBalance";
+import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
+import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 const ClientProfile = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
@@ -135,6 +137,9 @@ const ClientProfile = () => {
     enabled: !!accounts && accounts.length > 0,
   });
 
+  // V2 Ledger Balance - Single source of truth for balance/credit
+  const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
+
   // Add service location mutation
   const addLocationMutation = useMutation({
     mutationFn: async (data: typeof newLocation) => {
@@ -226,12 +231,53 @@ const ClientProfile = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate phone format
+    if (formData.phone && !validateCanadianPhone(formData.phone)) {
+      toast({ 
+        title: "Format de téléphone invalide", 
+        description: "Utilisez le format (514) 555-1234",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    // Validate age (minimum 16 years for telecom services)
+    if (formData.date_of_birth) {
+      const dobValidation = validateDob(formData.date_of_birth, { minAge: MIN_AGE_TELECOM });
+      if (!dobValidation.isValid) {
+        toast({ 
+          title: "Date de naissance invalide", 
+          description: dobValidation.error?.fr || "Vous devez avoir au moins 16 ans",
+          variant: "destructive" 
+        });
+        return;
+      }
+    }
+    
     updateProfileMutation.mutate(formData);
   };
 
+  // Password strength validation
+  const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    if (password.length < 8) errors.push("Au moins 8 caractères");
+    if (!/[A-Z]/.test(password)) errors.push("Au moins une majuscule");
+    if (!/[a-z]/.test(password)) errors.push("Au moins une minuscule");
+    if (!/[0-9]/.test(password)) errors.push("Au moins un chiffre");
+    if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~]/.test(password)) errors.push("Au moins un caractère spécial");
+    return { isValid: errors.length === 0, errors };
+  };
+
+  const passwordValidation = validatePassword(passwordForm.newPassword);
+
   const handlePasswordChange = () => {
-    if (passwordForm.newPassword.length < 6) {
-      toast({ title: "Le mot de passe doit contenir au moins 6 caractères", variant: "destructive" });
+    if (!passwordValidation.isValid) {
+      toast({ 
+        title: "Mot de passe trop faible", 
+        description: passwordValidation.errors.join(", "),
+        variant: "destructive" 
+      });
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -282,12 +328,20 @@ const ClientProfile = () => {
           </Card>
           <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-amber-500" />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                (ledgerBalance?.balance ?? 0) > 0 ? "bg-amber-500/20" : "bg-emerald-500/20"
+              }`}>
+                <DollarSign className={`w-5 h-5 ${
+                  (ledgerBalance?.balance ?? 0) > 0 ? "text-amber-500" : "text-emerald-500"
+                }`} />
               </div>
               <div>
-                <p className="text-lg font-bold text-foreground">
-                  {Number(profile?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                <p className={`text-lg font-bold ${
+                  (ledgerBalance?.balance ?? 0) > 0 ? "text-amber-500" : "text-emerald-500"
+                }`}>
+                  {((ledgerBalance?.balance ?? 0) > 0)
+                    ? Number(ledgerBalance?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
+                    : "0,00 $"}
                 </p>
                 <p className="text-xs text-muted-foreground">Solde dû</p>
               </div>
@@ -300,7 +354,7 @@ const ClientProfile = () => {
               </div>
               <div>
                 <p className="text-lg font-bold text-emerald-500">
-                  {Number(profile?.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                  {Number(ledgerBalance?.availableCredit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </p>
                 <p className="text-xs text-muted-foreground">Crédit</p>
               </div>
@@ -378,9 +432,22 @@ const ClientProfile = () => {
                       id="phone"
                       type="tel"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, phone: formatCanadianPhone(e.target.value) })}
                       placeholder="(514) 555-1234"
+                      maxLength={14}
                     />
+                    {formData.phone && !validateCanadianPhone(formData.phone) && (
+                      <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                        <XCircle className="w-3 h-3" />
+                        Format invalide. Utilisez (514) 555-1234
+                      </p>
+                    )}
+                    {formData.phone && validateCanadianPhone(formData.phone) && (
+                      <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Format valide
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="date_of_birth">Date de naissance</Label>
@@ -389,8 +456,11 @@ const ClientProfile = () => {
                       type="date"
                       value={formData.date_of_birth}
                       onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={getMaxDobDate(MIN_AGE_TELECOM)}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Vous devez avoir au moins {MIN_AGE_TELECOM} ans pour nos services
+                    </p>
                   </div>
                   <Button
                     type="submit"
@@ -542,7 +612,7 @@ const ClientProfile = () => {
           <DialogHeader>
             <DialogTitle>Modifier le mot de passe</DialogTitle>
             <DialogDescription>
-              Entrez votre nouveau mot de passe. Il doit contenir au moins 6 caractères.
+              Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -554,6 +624,7 @@ const ClientProfile = () => {
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                   placeholder="••••••••"
+                  className={passwordForm.newPassword ? (passwordValidation.isValid ? "border-emerald-500" : "border-amber-500") : ""}
                 />
                 <Button
                   type="button"
@@ -565,6 +636,42 @@ const ClientProfile = () => {
                   {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
               </div>
+              {/* Password strength indicator */}
+              {passwordForm.newPassword && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className={`h-1 flex-1 rounded ${
+                          i <= (5 - passwordValidation.errors.length)
+                            ? passwordValidation.isValid
+                              ? "bg-emerald-500"
+                              : "bg-amber-500"
+                            : "bg-muted"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-xs space-y-0.5">
+                    {["Au moins 8 caractères", "Une majuscule", "Une minuscule", "Un chiffre", "Un caractère spécial"].map((req, idx) => {
+                      const checks = [
+                        passwordForm.newPassword.length >= 8,
+                        /[A-Z]/.test(passwordForm.newPassword),
+                        /[a-z]/.test(passwordForm.newPassword),
+                        /[0-9]/.test(passwordForm.newPassword),
+                        /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~]/.test(passwordForm.newPassword),
+                      ];
+                      return (
+                        <p key={idx} className={`flex items-center gap-1 ${checks[idx] ? "text-emerald-500" : "text-muted-foreground"}`}>
+                          {checks[idx] ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {req}
+                        </p>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <Label>Confirmer le mot de passe</Label>
