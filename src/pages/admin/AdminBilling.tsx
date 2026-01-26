@@ -915,14 +915,25 @@ const AdminBilling = () => {
     setDetailsDialogOpen(true);
   };
 
+  /**
+   * Calculate invoice total - CORRECTED LOGIC
+   * The 'amount' field already contains the FULL total (subtotal + installation + activation + taxes)
+   * We only add late fees (fees) and subtract credits - DO NOT re-add installation/activation fees
+   * 
+   * The individual fee fields (installation_fee, activation_fee, delivery_fee) are for 
+   * DISPLAY/BREAKDOWN purposes only, not for recalculation.
+   */
   const calculateTotal = (bill: any) => {
     const base = Number(bill.amount) || 0;
-    const fees = Number(bill.fees) || 0;
-    const deliveryFee = Number(bill.delivery_fee) || 0;
-    const installationFee = Number(bill.installation_fee) || 0;
-    const activationFee = Number(bill.activation_fee) || 0;
+    // 'fees' typically contains late fees or additional charges NOT included in base
+    const lateFees = Number(bill.late_fee_amount) || 0;
     const credits = Number(bill.credits) || 0;
-    return base + fees + deliveryFee + installationFee + activationFee - credits;
+    // Preauth discount if applied
+    const preauthDiscount = bill.preauth_discount_applied ? (Number(bill.preauth_discount) || 0) : 0;
+    
+    // Base amount already includes: subtotal + installation + activation + delivery + taxes
+    // Only add late fees and subtract credits/discounts
+    return base + lateFees - credits - preauthDiscount;
   };
 
   // Helper to fetch related order data for a billing entry
@@ -1579,18 +1590,60 @@ const AdminBilling = () => {
                   </div>
                 )}
                 
-                {/* Totals Summary */}
+                {/* Totals Summary - CORRECTED: fees are INCLUDED in base, not added */}
                 <div className="p-4 bg-muted rounded-lg space-y-1">
-                  <div className="flex justify-between text-sm"><span>Base:</span><span>{Number(selectedBill.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm text-muted-foreground"><span>Livraison:</span><span>+{Number(selectedBill.delivery_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm text-muted-foreground"><span>Installation:</span><span>+{Number(selectedBill.installation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm text-muted-foreground"><span>Activation:</span><span>+{Number(selectedBill.activation_fee || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm text-muted-foreground"><span>Autres frais:</span><span>+{Number(selectedBill.fees || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  <div className="flex justify-between text-sm text-emerald-500"><span>Crédits:</span><span>-{Number(selectedBill.credits || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
-                  {selectedBill.preauth_discount_applied && (
-                    <div className="flex justify-between text-sm text-emerald-500"><span>Rabais pré-autorisé:</span><span>-{Number(selectedBill.preauth_discount || 5).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  <div className="flex justify-between text-sm font-medium">
+                    <span>Montant total (TTC):</span>
+                    <span>{Number(selectedBill.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                  
+                  {/* Show breakdown as informational only - these are INCLUDED in total, not added */}
+                  {(Number(selectedBill.installation_fee) > 0 || Number(selectedBill.activation_fee) > 0 || Number(selectedBill.delivery_fee) > 0) && (
+                    <div className="text-xs text-muted-foreground pl-2 border-l-2 border-muted-foreground/30 mt-2 space-y-0.5">
+                      <p className="italic mb-1">Détail inclus dans le montant:</p>
+                      {Number(selectedBill.installation_fee) > 0 && (
+                        <div className="flex justify-between"><span>• Installation:</span><span>{Number(selectedBill.installation_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                      )}
+                      {Number(selectedBill.activation_fee) > 0 && (
+                        <div className="flex justify-between"><span>• Activation:</span><span>{Number(selectedBill.activation_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                      )}
+                      {Number(selectedBill.delivery_fee) > 0 && (
+                        <div className="flex justify-between"><span>• Livraison:</span><span>{Number(selectedBill.delivery_fee).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                      )}
+                    </div>
                   )}
-                  <div className="flex justify-between font-bold mt-2 pt-2 border-t"><span>Total dû:</span><span>{calculateTotal(selectedBill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span></div>
+                  
+                  {/* Late fees - these ARE added on top */}
+                  {Number(selectedBill.late_fee_amount) > 0 && (
+                    <div className="flex justify-between text-sm text-amber-500">
+                      <span>Frais de retard:</span>
+                      <span>+{Number(selectedBill.late_fee_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  
+                  {/* Credits - subtracted */}
+                  {Number(selectedBill.credits) > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-500">
+                      <span>Crédits appliqués:</span>
+                      <span>-{Number(selectedBill.credits).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  
+                  {/* Preauth discount */}
+                  {selectedBill.preauth_discount_applied && (
+                    <div className="flex justify-between text-sm text-emerald-500">
+                      <span>Rabais pré-autorisé:</span>
+                      <span>-{Number(selectedBill.preauth_discount || 5).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  
+                  {/* Final total */}
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t">
+                    <span>Solde dû:</span>
+                    <span className={calculateTotal(selectedBill) > 0 ? 'text-amber-500' : 'text-emerald-500'}>
+                      {calculateTotal(selectedBill).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </div>
                 </div>
                 
                 <div><Label>Notes</Label><Textarea value={selectedBill.notes || ""} onChange={(e) => setSelectedBill({ ...selectedBill, notes: e.target.value })} /></div>

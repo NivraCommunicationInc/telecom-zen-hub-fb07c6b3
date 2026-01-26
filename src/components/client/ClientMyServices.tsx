@@ -220,8 +220,8 @@ const ClientMyServices = () => {
     enabled: !!user?.id,
   });
 
-  // V2 Ledger Balance - Single source of truth for credit/balance
-  const { data: ledgerBalance } = useLedgerBalance(user?.id);
+  // V2 Ledger Balance - Single source of truth for credit/balance (with portal auth)
+  const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
 
   // Fetch billing/invoices for payment info and overdue status
   const { data: billingRecords } = useQuery({
