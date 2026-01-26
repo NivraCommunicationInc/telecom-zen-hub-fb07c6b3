@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Loader2, Bot, User, Sparkles } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Sparkles, Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -20,13 +22,50 @@ const ChatbotWidget = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [verifiedClientId, setVerifiedClientId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { language } = useLanguage();
 
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session?.user);
+    };
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session?.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const welcomeMessage = language === "fr"
-    ? "Bonjour! Je suis Nivra, votre assistant virtuel. Je peux vous aider à:\n\n• 📦 Suivre vos commandes\n• 📅 Gérer vos rendez-vous\n• 🧾 Consulter vos factures\n• 🎫 Créer des tickets support\n• ℹ️ Répondre à vos questions\n\nComment puis-je vous aider?"
-    : "Hello! I'm Nivra, your virtual assistant. I can help you with:\n\n• 📦 Track your orders\n• 📅 Manage your appointments\n• 🧾 View your invoices\n• 🎫 Create support tickets\n• ℹ️ Answer your questions\n\nHow can I help you?";
+    ? `Bonjour! Je suis Nivra, votre assistant virtuel. Je peux vous aider à:
+
+• 📦 Suivre vos commandes
+• 📅 Gérer vos rendez-vous
+• 🧾 Consulter vos factures et solde
+• 🎫 Créer des tickets support
+• ℹ️ Répondre à vos questions
+
+${isAuthenticated ? "✅ Vous êtes connecté, j'ai accès à vos informations." : "🔒 Pour accéder à vos données personnelles, connectez-vous ou vérifiez votre identité."}
+
+Comment puis-je vous aider?`
+    : `Hello! I'm Nivra, your virtual assistant. I can help you with:
+
+• 📦 Track your orders
+• 📅 Manage your appointments
+• 🧾 View your invoices and balance
+• 🎫 Create support tickets
+• ℹ️ Answer your questions
+
+${isAuthenticated ? "✅ You are logged in, I have access to your information." : "🔒 To access your personal data, please log in or verify your identity."}
+
+How can I help you?`;
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -59,12 +98,12 @@ const ChatbotWidget = () => {
   // Build conversation history for context
   const getConversationHistory = useCallback(() => {
     return messages
-      .filter(m => m.content !== welcomeMessage) // Exclude welcome message
+      .filter(m => !m.content.includes("Je suis Nivra") && !m.content.includes("I'm Nivra"))
       .map(m => ({
         role: m.role,
         content: m.content
       }));
-  }, [messages, welcomeMessage]);
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -87,10 +126,16 @@ const ChatbotWidget = () => {
           sessionId,
           language,
           conversationHistory: getConversationHistory(),
+          verifiedClientId,
         },
       });
 
       if (response.error) throw response.error;
+
+      // Update verified client ID if returned
+      if (response.data.verifiedClientId && !verifiedClientId) {
+        setVerifiedClientId(response.data.verifiedClientId);
+      }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -131,18 +176,58 @@ const ChatbotWidget = () => {
   const quickActions = language === "fr" 
     ? [
         { label: "Mes commandes", message: "Je veux voir mes commandes" },
-        { label: "Mes factures", message: "Affiche mes factures" },
+        { label: "Mon solde", message: "Quel est mon solde de compte?" },
         { label: "Rendez-vous", message: "Quels sont mes prochains rendez-vous?" },
       ]
     : [
         { label: "My orders", message: "I want to see my orders" },
-        { label: "My invoices", message: "Show my invoices" },
+        { label: "My balance", message: "What is my account balance?" },
         { label: "Appointments", message: "What are my upcoming appointments?" },
       ];
 
   const handleQuickAction = (message: string) => {
     setInput(message);
     setTimeout(() => sendMessage(), 100);
+  };
+
+  // Render message content with markdown and link support
+  const renderMessageContent = (content: string) => {
+    return (
+      <ReactMarkdown
+        components={{
+          a: ({ href, children }) => {
+            if (href?.startsWith('/')) {
+              return (
+                <Link 
+                  to={href} 
+                  className="text-accent underline hover:text-accent/80"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {children}
+                </Link>
+              );
+            }
+            return (
+              <a 
+                href={href} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-accent underline hover:text-accent/80"
+              >
+                {children}
+              </a>
+            );
+          },
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+          li: ({ children }) => <li className="mb-1">{children}</li>,
+          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
   };
 
   return (
@@ -183,8 +268,20 @@ const ChatbotWidget = () => {
                 Nivra
                 <Sparkles className="w-4 h-4 text-yellow-300" />
               </h3>
-              <p className="text-xs text-white/80">
-                {language === "fr" ? "Assistant intelligent" : "Smart Assistant"}
+              <p className="text-xs text-white/80 flex items-center gap-1">
+                {isAuthenticated ? (
+                  <>
+                    <ShieldCheck className="w-3 h-3" />
+                    {language === "fr" ? "Connecté" : "Logged in"}
+                  </>
+                ) : verifiedClientId ? (
+                  <>
+                    <ShieldCheck className="w-3 h-3" />
+                    {language === "fr" ? "Identité vérifiée" : "Identity verified"}
+                  </>
+                ) : (
+                  language === "fr" ? "Assistant intelligent" : "Smart Assistant"
+                )}
               </p>
             </div>
             <button
@@ -194,6 +291,23 @@ const ChatbotWidget = () => {
               <X className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Login prompt for non-authenticated users */}
+          {!isAuthenticated && !verifiedClientId && (
+            <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {language === "fr" 
+                  ? "Connectez-vous pour un accès complet" 
+                  : "Log in for full access"}
+              </span>
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                  <LogIn className="w-3 h-3" />
+                  {language === "fr" ? "Connexion" : "Login"}
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
@@ -213,13 +327,16 @@ const ChatbotWidget = () => {
                   )}
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
+                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
                       message.role === "user"
                         ? "bg-accent text-white rounded-br-md"
                         : "bg-muted text-foreground rounded-bl-md"
                     )}
                   >
-                    {message.content}
+                    {message.role === "assistant" 
+                      ? renderMessageContent(message.content)
+                      : message.content
+                    }
                   </div>
                   {message.role === "user" && (
                     <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-1">
