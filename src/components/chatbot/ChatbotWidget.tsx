@@ -300,7 +300,7 @@ How can I help you?`;
                   ? "Connectez-vous pour un accès complet" 
                   : "Log in for full access"}
               </span>
-              <Link to="/auth" onClick={() => setIsOpen(false)}>
+              <Link to="/portal/auth" onClick={() => setIsOpen(false)}>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
                   <LogIn className="w-3 h-3" />
                   {language === "fr" ? "Connexion" : "Login"}
