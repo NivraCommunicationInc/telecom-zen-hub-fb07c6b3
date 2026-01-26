@@ -27,13 +27,21 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
-// New Phase 2 components
+// Phase 2 components
 import ClientAvatarUpload from "@/components/client/ClientAvatarUpload";
 import ClientProfileChangeHistory from "@/components/client/ClientProfileChangeHistory";
 import ClientSessionInfo from "@/components/client/ClientSessionInfo";
 import ClientBillingAddressSection from "@/components/client/ClientBillingAddressSection";
 import ClientDataExport from "@/components/client/ClientDataExport";
 import ClientPinConfirmDialog from "@/components/client/ClientPinConfirmDialog";
+// Phase 3 components - New features
+import ClientMFASetup from "@/components/client/ClientMFASetup";
+import ClientEmailChange from "@/components/client/ClientEmailChange";
+import ClientNotificationPreferences from "@/components/client/ClientNotificationPreferences";
+import ClientLanguagePreference from "@/components/client/ClientLanguagePreference";
+import ClientAccountDeletion from "@/components/client/ClientAccountDeletion";
+import ClientNumberDisplay from "@/components/client/ClientNumberDisplay";
+import ClientCommunicationPreferences from "@/components/client/ClientCommunicationPreferences";
 const ClientProfile = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
@@ -381,10 +389,20 @@ const ClientProfile = () => {
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Mon profil</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos informations personnelles et votre compte</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-foreground">Mon profil</h1>
+            <p className="text-muted-foreground mt-1">Gérez vos informations personnelles et votre compte</p>
+          </div>
         </div>
+
+        {/* Client Number Display - Prominent for support */}
+        {profile?.client_number && (
+          <ClientNumberDisplay 
+            clientNumber={profile.client_number} 
+            clientName={profile.full_name || formData.full_name}
+          />
+        )}
 
         {/* Account Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -626,15 +644,6 @@ const ClientProfile = () => {
                     Modifier
                   </Button>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">Authentification à deux facteurs</p>
-                    <p className="text-sm text-muted-foreground">
-                      Non activée
-                    </p>
-                  </div>
-                  <Badge variant="outline">Bientôt</Badge>
-                </div>
               </CardContent>
             </Card>
 
@@ -687,17 +696,42 @@ const ClientProfile = () => {
             </Card>
           </div>
 
+          {/* PHASE 3: 2FA Setup */}
+          <div className="lg:col-span-2">
+            {user?.id && <ClientMFASetup userId={user.id} />}
+          </div>
+
+          {/* PHASE 3: Email Change */}
+          <div className="space-y-6">
+            {user?.id && user?.email && (
+              <ClientEmailChange userId={user.id} currentEmail={user.email} />
+            )}
+            
+            {/* Language Preference */}
+            {user?.id && <ClientLanguagePreference userId={user.id} />}
+          </div>
+
+          {/* PHASE 3: Notification Preferences */}
+          <div className="space-y-6">
+            {user?.id && <ClientNotificationPreferences userId={user.id} />}
+          </div>
+
+          {/* PHASE 3: Communication Preferences (Marketing) */}
+          <div className="lg:col-span-2">
+            {user?.id && <ClientCommunicationPreferences userId={user.id} />}
+          </div>
+
           {/* Authorized Contacts - Full Width */}
           <div className="lg:col-span-2">
             <ClientAuthorizedContacts />
           </div>
 
-          {/* NEW: Profile Change History */}
+          {/* Profile Change History */}
           <div className="lg:col-span-2">
             {user?.id && <ClientProfileChangeHistory clientId={user.id} />}
           </div>
 
-          {/* NEW: Additional Security & Data Sections */}
+          {/* Additional Security & Data Sections */}
           <div className="space-y-6">
             {/* Session Info */}
             {user?.id && <ClientSessionInfo userId={user.id} />}
@@ -708,7 +742,7 @@ const ClientProfile = () => {
             )}
           </div>
 
-          {/* NEW: Billing Address */}
+          {/* Billing Address & Account Deletion */}
           <div className="space-y-6">
             {user?.id && (
               <ClientBillingAddressSection
@@ -718,6 +752,9 @@ const ClientProfile = () => {
                 servicePostalCode={profile?.service_postal_code}
               />
             )}
+            
+            {/* PHASE 3: Account Deletion (Loi 25) */}
+            {user?.id && <ClientAccountDeletion userId={user.id} />}
           </div>
         </div>
       </div>
