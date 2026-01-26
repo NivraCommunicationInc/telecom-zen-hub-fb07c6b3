@@ -51,28 +51,76 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   // Use V2 ledger balance hook
   const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(userId);
 
-  // Fetch unpaid invoices from V2 system
+  // Fetch unpaid invoices from BOTH V2 and legacy systems
   const { data: unpaidInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["unpaid-invoices-v2", userId],
+    queryKey: ["unpaid-invoices-unified", userId],
     queryFn: async () => {
-      // Get customer_id first
+      const allUnpaid: UnpaidInvoice[] = [];
+
+      // 1. V2 System: billing_invoices
       const { data: customer } = await backendClient
         .from('billing_customers')
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (!customer) return [];
+      if (customer) {
+        const { data: v2Invoices } = await backendClient
+          .from('billing_invoices')
+          .select('id, invoice_number, due_date, status, total, amount_paid, balance_due')
+          .eq('customer_id', customer.id)
+          .not('status', 'in', '("paid","cancelled","refunded")')
+          .order('due_date', { ascending: true });
 
-      const { data, error } = await backendClient
-        .from('billing_invoices')
-        .select('id, invoice_number, due_date, status, total, amount_paid, balance_due')
-        .eq('customer_id', customer.id)
-        .not('status', 'in', '("paid","cancelled","refunded")')
-        .order('due_date', { ascending: true });
+        for (const inv of v2Invoices || []) {
+          const balanceDue = Number(inv.balance_due) ?? (Number(inv.total) - Number(inv.amount_paid || 0));
+          if (balanceDue > 0) {
+            allUnpaid.push({
+              id: inv.id,
+              invoice_number: inv.invoice_number,
+              due_date: inv.due_date,
+              status: inv.status,
+              total: Number(inv.total),
+              amount_paid: Number(inv.amount_paid || 0),
+              balance_due: balanceDue,
+            });
+          }
+        }
+      }
 
-      if (error) throw error;
-      return (data || []) as UnpaidInvoice[];
+      // 2. Legacy System: billing table
+      const { data: legacyInvoices } = await backendClient
+        .from('billing')
+        .select('id, invoice_number, amount, amount_paid, balance_due, status, due_date')
+        .eq('user_id', userId)
+        .not('status', 'in', '("paid","cancelled","voided","refunded")');
+
+      for (const inv of legacyInvoices || []) {
+        const invoiceAmount = Number(inv.amount) || 0;
+        const amountPaid = Number(inv.amount_paid) || 0;
+        const balanceDue = Number(inv.balance_due) ?? (invoiceAmount - amountPaid);
+        
+        if (balanceDue > 0) {
+          allUnpaid.push({
+            id: inv.id,
+            invoice_number: inv.invoice_number || `INV-${inv.id.slice(0, 8)}`,
+            due_date: inv.due_date,
+            status: inv.status,
+            total: invoiceAmount,
+            amount_paid: amountPaid,
+            balance_due: balanceDue,
+          });
+        }
+      }
+
+      // Sort by due date
+      allUnpaid.sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      });
+
+      return allUnpaid;
     },
     enabled: !!userId,
   });
