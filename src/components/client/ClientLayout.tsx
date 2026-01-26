@@ -34,6 +34,7 @@ import AccountBlockedBanner from "@/components/client/AccountBlockedBanner";
 import PrepaidUrgentBanner from "@/components/client/PrepaidUrgentBanner";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { useOverdueCount } from "@/hooks/useOverdueCount";
+import { portalClient } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
 import ClientPortalBackground from "./ClientPortalBackground";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -71,8 +72,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   const { user, signOut } = useClientAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Get overdue invoice count for badge
-  const { data: overdueCount } = useOverdueCount(user?.id);
+  // Get overdue invoice count for badge - use portalClient for proper RLS
+  const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
 
   // Auto-logout handler for idle timeout
   const handleIdleLogout = useCallback(async () => {

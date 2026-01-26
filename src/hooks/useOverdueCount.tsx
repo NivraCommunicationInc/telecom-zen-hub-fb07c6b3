@@ -2,12 +2,26 @@
  * Hook for counting overdue/unpaid invoices - UNIFIED Billing System
  * Counts from both V2 (billing_invoices) and legacy (billing) tables
  * Used for badge display in navigation
+ * 
+ * CRITICAL: For client portal, pass portalClient for proper RLS authentication
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { backendClient } from "@/integrations/backend/client";
 
-export function useOverdueCount(userId: string | undefined) {
+/**
+ * @param userId - The user ID to count overdue invoices for
+ * @param supabaseClient - Optional: The authenticated Supabase client to use
+ *                         For portal context, pass portalClient
+ *                         Defaults to backendClient for admin/staff contexts
+ */
+export function useOverdueCount(
+  userId: string | undefined,
+  supabaseClient?: SupabaseClient
+) {
+  const client = supabaseClient || backendClient;
+  
   return useQuery({
     queryKey: ["overdue-count-unified", userId],
     queryFn: async () => {
@@ -16,14 +30,14 @@ export function useOverdueCount(userId: string | undefined) {
       let totalCount = 0;
 
       // 1. V2 System: Count from billing_invoices
-      const { data: customer } = await backendClient
+      const { data: customer } = await client
         .from('billing_customers')
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (customer) {
-        const { count: v2Count } = await backendClient
+        const { count: v2Count } = await client
           .from('billing_invoices')
           .select('id', { count: 'exact', head: true })
           .eq('customer_id', customer.id)
@@ -34,7 +48,7 @@ export function useOverdueCount(userId: string | undefined) {
       }
 
       // 2. Legacy System: Count from billing table
-      const { count: legacyCount } = await backendClient
+      const { count: legacyCount } = await client
         .from('billing')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)

@@ -1,11 +1,13 @@
 /**
  * Client Balance Summary - V2 Billing System
  * Uses useLedgerBalance hook as single source of truth
+ * 
+ * CRITICAL: Uses portalClient for authenticated RLS queries
  */
 
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { useQuery } from "@tanstack/react-query";
-import { backendClient } from "@/integrations/backend/client";
+import { portalClient } from "@/integrations/backend/portalClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,8 +50,8 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 };
 
 export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
-  // Use V2 ledger balance hook
-  const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(userId);
+  // Use V2 ledger balance hook with portal client for proper RLS
+  const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(userId, portalClient);
 
   // Fetch unpaid invoices from BOTH V2 and legacy systems
   const { data: unpaidInvoices, isLoading: invoicesLoading } = useQuery({
@@ -58,14 +60,14 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
       const allUnpaid: UnpaidInvoice[] = [];
 
       // 1. V2 System: billing_invoices
-      const { data: customer } = await backendClient
+      const { data: customer } = await portalClient
         .from('billing_customers')
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (customer) {
-        const { data: v2Invoices } = await backendClient
+        const { data: v2Invoices } = await portalClient
           .from('billing_invoices')
           .select('id, invoice_number, due_date, status, total, amount_paid, balance_due')
           .eq('customer_id', customer.id)
@@ -89,7 +91,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
       }
 
       // 2. Legacy System: billing table
-      const { data: legacyInvoices } = await backendClient
+      const { data: legacyInvoices } = await portalClient
         .from('billing')
         .select('id, invoice_number, amount, amount_paid, balance_due, status, due_date')
         .eq('user_id', userId)

@@ -1,11 +1,13 @@
 /**
  * Prepaid Urgent Banner - Shows when client has overdue invoices
  * Displays prominently in portal layout when payment is late
+ * 
+ * CRITICAL: Uses portalClient for authenticated RLS queries
  */
 
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { useQuery } from "@tanstack/react-query";
-import { backendClient } from "@/integrations/backend/client";
+import { portalClient } from "@/integrations/backend/portalClient";
 import { AlertTriangle, CreditCard, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -16,14 +18,15 @@ interface PrepaidUrgentBannerProps {
 }
 
 export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
-  const { data: ledger } = useLedgerBalance(userId);
+  // Use portal client for proper RLS authentication
+  const { data: ledger } = useLedgerBalance(userId, portalClient);
   
   // Check for overdue invoices
   const { data: overdueData } = useQuery({
     queryKey: ["overdue-check-v2", userId],
     queryFn: async () => {
       // Get customer_id first
-      const { data: customer } = await backendClient
+      const { data: customer } = await portalClient
         .from('billing_customers')
         .select('id')
         .eq('user_id', userId)
@@ -32,7 +35,7 @@ export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
       if (!customer) return { count: 0, oldestDueDate: null, daysOverdue: 0 };
 
       // Check for overdue invoices
-      const { data: overdueInvoices } = await backendClient
+      const { data: overdueInvoices } = await portalClient
         .from('billing_invoices')
         .select('id, due_date, balance_due')
         .eq('customer_id', customer.id)

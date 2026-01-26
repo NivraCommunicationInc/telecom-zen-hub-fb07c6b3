@@ -6,10 +6,16 @@
  * - billing table (legacy system)
  * 
  * Balance = sum(all invoice totals) - sum(all confirmed payments)
+ * 
+ * CRITICAL: This hook requires an authenticated Supabase client to work correctly
+ * with RLS policies. Pass the appropriate client based on context:
+ * - Portal: use portalClient from @/integrations/backend/portalClient
+ * - Admin/Staff: use backendClient from @/integrations/backend/client
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { backendClient } from "@/integrations/backend/client";
 
 export interface LedgerBalance {
@@ -43,7 +49,10 @@ interface LegacyInvoice {
 /**
  * Fetch unified ledger balance from both V2 and legacy systems
  */
-async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
+async function fetchLedgerBalance(
+  clientId: string, 
+  supabaseClient: SupabaseClient
+): Promise<LedgerBalance> {
   let totalDebits = 0;
   let totalCredits = 0;
   let unpaidInvoiceCount = 0;
@@ -56,7 +65,7 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
   // ============================================
   
   // Get customer_id from billing_customers (linked to user_id)
-  const { data: customer } = await backendClient
+  const { data: customer } = await supabaseClient
     .from('billing_customers')
     .select('id')
     .eq('user_id', clientId)
@@ -64,7 +73,7 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
 
   if (customer) {
     // Sum all invoice totals (debits) from V2
-    const { data: invoices } = await backendClient
+    const { data: invoices } = await supabaseClient
       .from('billing_invoices')
       .select('total, status, balance_due')
       .eq('customer_id', customer.id)
@@ -80,7 +89,7 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
     }
 
     // Sum all confirmed payments (credits) from V2
-    const { data: payments } = await backendClient
+    const { data: payments } = await supabaseClient
       .from('billing_payments')
       .select('amount, status, method, received_at, created_at')
       .eq('customer_id', customer.id)
@@ -104,7 +113,7 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
   // PART 2: Legacy System (billing table)
   // ============================================
   
-  const { data: legacyInvoices } = await backendClient
+  const { data: legacyInvoices } = await supabaseClient
     .from('billing')
     .select('id, invoice_number, amount, amount_paid, balance_due, status, due_date, paid_at')
     .eq('user_id', clientId)
@@ -165,13 +174,23 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
 
 /**
  * Hook for real-time ledger balance with auto-refresh on changes
+ * 
+ * @param clientId - The user ID to fetch balance for
+ * @param supabaseClient - Optional: The authenticated Supabase client to use
+ *                         For portal context, pass portalClient
+ *                         Defaults to backendClient for admin/staff contexts
  */
-export function useLedgerBalance(clientId: string | undefined) {
+export function useLedgerBalance(
+  clientId: string | undefined, 
+  supabaseClient?: SupabaseClient
+) {
   const queryClient = useQueryClient();
+  // Use provided client or default to backendClient
+  const client = supabaseClient || backendClient;
 
   const query = useQuery({
     queryKey: ["ledger-balance", clientId],
-    queryFn: () => fetchLedgerBalance(clientId!),
+    queryFn: () => fetchLedgerBalance(clientId!, client),
     enabled: !!clientId,
     staleTime: 30000, // 30 seconds
   });
@@ -180,7 +199,7 @@ export function useLedgerBalance(clientId: string | undefined) {
   useEffect(() => {
     if (!clientId) return;
 
-    const channel = backendClient
+    const channel = client
       .channel(`ledger-unified-${clientId}`)
       .on(
         'postgres_changes',
@@ -218,9 +237,9 @@ export function useLedgerBalance(clientId: string | undefined) {
       .subscribe();
 
     return () => {
-      backendClient.removeChannel(channel);
+      client.removeChannel(channel);
     };
-  }, [clientId, queryClient]);
+  }, [clientId, queryClient, client]);
 
   return query;
 }
