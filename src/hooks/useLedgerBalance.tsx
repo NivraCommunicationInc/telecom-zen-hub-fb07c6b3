@@ -1,8 +1,11 @@
 /**
- * Hook for real-time ledger balance - V2 Billing System
+ * Hook for real-time ledger balance - UNIFIED Billing System
  * 
- * Uses billing_invoices and billing_payments as source of truth.
- * Balance = sum(invoice totals) - sum(confirmed payments)
+ * Combines data from:
+ * - billing_invoices + billing_payments (V2 system)
+ * - billing table (legacy system)
+ * 
+ * Balance = sum(all invoice totals) - sum(all confirmed payments)
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,88 +25,125 @@ export interface LedgerBalance {
   lastPaymentAmount: number | null;
   /** Last payment method */
   lastPaymentMethod: string | null;
+  /** Number of unpaid invoices */
+  unpaidInvoiceCount: number;
+}
+
+interface LegacyInvoice {
+  id: string;
+  invoice_number: string | null;
+  amount: number;
+  amount_paid: number | null;
+  balance_due: number | null;
+  status: string;
+  due_date: string | null;
+  paid_at: string | null;
 }
 
 /**
- * Fetch ledger balance from V2 billing system
+ * Fetch unified ledger balance from both V2 and legacy systems
  */
 async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
-  // Try RPC function first (most efficient)
-  const { data: rpcData, error: rpcError } = await backendClient.rpc('get_client_ledger_balance', {
-    p_client_id: clientId
-  });
-
   let totalDebits = 0;
   let totalCredits = 0;
+  let unpaidInvoiceCount = 0;
+  let lastPaymentDate: string | null = null;
+  let lastPaymentAmount: number | null = null;
+  let lastPaymentMethod: string | null = null;
 
-  if (!rpcError && rpcData && rpcData.length > 0) {
-    const result = rpcData[0];
-    totalDebits = Number(result.total_debits) || 0;
-    totalCredits = Number(result.total_credits) || 0;
-  } else {
-    // Fallback: Calculate from V2 tables directly
-    console.warn("[useLedgerBalance] RPC unavailable, using V2 tables directly");
-    
-    // Get customer_id from billing_customers (linked to user_id)
-    const { data: customer } = await backendClient
-      .from('billing_customers')
-      .select('id')
-      .eq('user_id', clientId)
-      .maybeSingle();
-
-    if (customer) {
-      // Sum all invoice totals (debits)
-      const { data: invoices } = await backendClient
-        .from('billing_invoices')
-        .select('total, status')
-        .eq('customer_id', customer.id)
-        .not('status', 'in', '("cancelled","refunded")');
-
-      for (const inv of invoices || []) {
-        totalDebits += Number(inv.total) || 0;
-      }
-
-      // Sum all confirmed payments (credits)
-      const { data: payments } = await backendClient
-        .from('billing_payments')
-        .select('amount, status')
-        .eq('customer_id', customer.id)
-        .eq('status', 'confirmed');
-
-      for (const pay of payments || []) {
-        totalCredits += Number(pay.amount) || 0;
-      }
-    }
-  }
-
-  // Fetch last payment info
+  // ============================================
+  // PART 1: V2 System (billing_invoices + billing_payments)
+  // ============================================
+  
+  // Get customer_id from billing_customers (linked to user_id)
   const { data: customer } = await backendClient
     .from('billing_customers')
     .select('id')
     .eq('user_id', clientId)
     .maybeSingle();
 
-  let lastPaymentDate: string | null = null;
-  let lastPaymentAmount: number | null = null;
-  let lastPaymentMethod: string | null = null;
-
   if (customer) {
-    const { data: lastPayment } = await backendClient
+    // Sum all invoice totals (debits) from V2
+    const { data: invoices } = await backendClient
+      .from('billing_invoices')
+      .select('total, status, balance_due')
+      .eq('customer_id', customer.id)
+      .not('status', 'in', '("cancelled","refunded")');
+
+    for (const inv of invoices || []) {
+      totalDebits += Number(inv.total) || 0;
+      // Count unpaid invoices
+      const balanceDue = Number(inv.balance_due) || 0;
+      if (balanceDue > 0 && inv.status !== 'paid') {
+        unpaidInvoiceCount++;
+      }
+    }
+
+    // Sum all confirmed payments (credits) from V2
+    const { data: payments } = await backendClient
       .from('billing_payments')
-      .select('amount, method, received_at, created_at')
+      .select('amount, status, method, received_at, created_at')
       .eq('customer_id', customer.id)
       .eq('status', 'confirmed')
-      .order('received_at', { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
+      .order('received_at', { ascending: false, nullsFirst: false });
 
-    if (lastPayment) {
-      lastPaymentDate = lastPayment.received_at || lastPayment.created_at;
-      lastPaymentAmount = Number(lastPayment.amount) || null;
-      lastPaymentMethod = lastPayment.method;
+    for (const pay of payments || []) {
+      totalCredits += Number(pay.amount) || 0;
+    }
+
+    // Get last payment from V2
+    if (payments && payments.length > 0) {
+      const lastPay = payments[0];
+      lastPaymentDate = lastPay.received_at || lastPay.created_at;
+      lastPaymentAmount = Number(lastPay.amount) || null;
+      lastPaymentMethod = lastPay.method;
     }
   }
 
+  // ============================================
+  // PART 2: Legacy System (billing table)
+  // ============================================
+  
+  const { data: legacyInvoices } = await backendClient
+    .from('billing')
+    .select('id, invoice_number, amount, amount_paid, balance_due, status, due_date, paid_at')
+    .eq('user_id', clientId)
+    .not('status', 'in', '("cancelled","voided","refunded")');
+
+  for (const inv of (legacyInvoices || []) as LegacyInvoice[]) {
+    const invoiceAmount = Number(inv.amount) || 0;
+    const amountPaid = Number(inv.amount_paid) || 0;
+    
+    // Add invoice total to debits
+    totalDebits += invoiceAmount;
+    
+    // Add confirmed payments to credits
+    if (inv.status === 'paid' || inv.paid_at) {
+      totalCredits += amountPaid > 0 ? amountPaid : invoiceAmount;
+      
+      // Track last payment from legacy
+      if (inv.paid_at && (!lastPaymentDate || new Date(inv.paid_at) > new Date(lastPaymentDate))) {
+        lastPaymentDate = inv.paid_at;
+        lastPaymentAmount = amountPaid > 0 ? amountPaid : invoiceAmount;
+        lastPaymentMethod = 'interac'; // Legacy mostly used Interac
+      }
+    } else {
+      // Count unpaid legacy invoices
+      const balanceDue = Number(inv.balance_due) ?? (invoiceAmount - amountPaid);
+      if (balanceDue > 0) {
+        unpaidInvoiceCount++;
+      }
+      // If partially paid, add the partial payment to credits
+      if (amountPaid > 0) {
+        totalCredits += amountPaid;
+      }
+    }
+  }
+
+  // ============================================
+  // PART 3: Calculate final balance
+  // ============================================
+  
   const balance = Math.round((totalDebits - totalCredits) * 100) / 100;
   const isCredit = balance < 0;
 
@@ -119,6 +159,7 @@ async function fetchLedgerBalance(clientId: string): Promise<LedgerBalance> {
     lastPaymentDate,
     lastPaymentAmount,
     lastPaymentMethod,
+    unpaidInvoiceCount,
   };
 }
 
@@ -135,12 +176,12 @@ export function useLedgerBalance(clientId: string | undefined) {
     staleTime: 30000, // 30 seconds
   });
 
-  // Subscribe to real-time changes on V2 tables
+  // Subscribe to real-time changes on both V2 and legacy tables
   useEffect(() => {
     if (!clientId) return;
 
     const channel = backendClient
-      .channel(`ledger-v2-${clientId}`)
+      .channel(`ledger-unified-${clientId}`)
       .on(
         'postgres_changes',
         {
@@ -158,6 +199,17 @@ export function useLedgerBalance(clientId: string | undefined) {
           event: '*',
           schema: 'public',
           table: 'billing_payments',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'billing',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["ledger-balance", clientId] });

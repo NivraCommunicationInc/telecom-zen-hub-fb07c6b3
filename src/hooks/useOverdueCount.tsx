@@ -1,5 +1,6 @@
 /**
- * Hook for counting overdue invoices - V2 Billing System
+ * Hook for counting overdue/unpaid invoices - UNIFIED Billing System
+ * Counts from both V2 (billing_invoices) and legacy (billing) tables
  * Used for badge display in navigation
  */
 
@@ -8,29 +9,40 @@ import { backendClient } from "@/integrations/backend/client";
 
 export function useOverdueCount(userId: string | undefined) {
   return useQuery({
-    queryKey: ["overdue-count-v2", userId],
+    queryKey: ["overdue-count-unified", userId],
     queryFn: async () => {
       if (!userId) return 0;
+      
+      let totalCount = 0;
 
-      // Get customer_id first
+      // 1. V2 System: Count from billing_invoices
       const { data: customer } = await backendClient
         .from('billing_customers')
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (!customer) return 0;
+      if (customer) {
+        const { count: v2Count } = await backendClient
+          .from('billing_invoices')
+          .select('id', { count: 'exact', head: true })
+          .eq('customer_id', customer.id)
+          .not('status', 'in', '("paid","cancelled","refunded")')
+          .gt('balance_due', 0);
 
-      // Count overdue invoices
-      const { count, error } = await backendClient
-        .from('billing_invoices')
+        totalCount += v2Count || 0;
+      }
+
+      // 2. Legacy System: Count from billing table
+      const { count: legacyCount } = await backendClient
+        .from('billing')
         .select('id', { count: 'exact', head: true })
-        .eq('customer_id', customer.id)
-        .in('status', ['overdue', 'pending'])
-        .lt('due_date', new Date().toISOString());
+        .eq('user_id', userId)
+        .not('status', 'in', '("paid","cancelled","voided","refunded")');
 
-      if (error) return 0;
-      return count || 0;
+      totalCount += legacyCount || 0;
+
+      return totalCount;
     },
     enabled: !!userId,
     staleTime: 60000, // 1 minute
