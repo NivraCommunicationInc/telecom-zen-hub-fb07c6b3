@@ -56,6 +56,57 @@ export type Database = {
         }
         Relationships: []
       }
+      account_deletion_requests: {
+        Row: {
+          admin_notes: string | null
+          client_id: string
+          created_at: string
+          data_export_completed: boolean | null
+          final_deletion_date: string | null
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          processed_by_role: string | null
+          reason: string | null
+          request_type: string
+          requested_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          client_id: string
+          created_at?: string
+          data_export_completed?: boolean | null
+          final_deletion_date?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          processed_by_role?: string | null
+          reason?: string | null
+          request_type: string
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          client_id?: string
+          created_at?: string
+          data_export_completed?: boolean | null
+          final_deletion_date?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          processed_by_role?: string | null
+          reason?: string | null
+          request_type?: string
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       account_service_locations: {
         Row: {
           account_id: string
@@ -1727,8 +1778,12 @@ export type Database = {
           id: string
           marketing_emails: boolean | null
           newsletter: boolean | null
+          preferred_contact_method: string | null
           promotional_emails: boolean | null
           service_updates: boolean | null
+          sms_invoices: boolean | null
+          sms_reminders: boolean | null
+          sms_service_updates: boolean | null
           updated_at: string
         }
         Insert: {
@@ -1739,8 +1794,12 @@ export type Database = {
           id?: string
           marketing_emails?: boolean | null
           newsletter?: boolean | null
+          preferred_contact_method?: string | null
           promotional_emails?: boolean | null
           service_updates?: boolean | null
+          sms_invoices?: boolean | null
+          sms_reminders?: boolean | null
+          sms_service_updates?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -1751,8 +1810,12 @@ export type Database = {
           id?: string
           marketing_emails?: boolean | null
           newsletter?: boolean | null
+          preferred_contact_method?: string | null
           promotional_emails?: boolean | null
           service_updates?: boolean | null
+          sms_invoices?: boolean | null
+          sms_reminders?: boolean | null
+          sms_service_updates?: boolean | null
           updated_at?: string
         }
         Relationships: []
@@ -2817,6 +2880,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_change_requests: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          current_email: string
+          expires_at: string
+          id: string
+          new_email: string
+          new_email_verified: boolean | null
+          old_email_verified: boolean | null
+          status: string
+          verification_token: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_email: string
+          expires_at?: string
+          id?: string
+          new_email: string
+          new_email_verified?: boolean | null
+          old_email_verified?: boolean | null
+          status?: string
+          verification_token: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_email?: string
+          expires_at?: string
+          id?: string
+          new_email?: string
+          new_email_verified?: boolean | null
+          old_email_verified?: boolean | null
+          status?: string
+          verification_token?: string
+        }
+        Relationships: []
       }
       email_events: {
         Row: {
@@ -5724,11 +5829,19 @@ export type Database = {
           last_auth_check_at: string | null
           last_login_at: string | null
           last_name: string | null
+          mfa_enabled: boolean | null
+          mfa_secret: string | null
+          mfa_verified_at: string | null
+          notification_channel: string | null
           online_access_status: string | null
+          pending_email: string | null
+          pending_email_expires_at: string | null
+          pending_email_token: string | null
           phone: string | null
           pin_failed_attempts: number | null
           pin_is_default: boolean | null
           pin_lockout_until: string | null
+          preferred_language: string | null
           sector_tags: string[] | null
           security_alert_level: string | null
           security_flagged_at: string | null
@@ -5772,11 +5885,19 @@ export type Database = {
           last_auth_check_at?: string | null
           last_login_at?: string | null
           last_name?: string | null
+          mfa_enabled?: boolean | null
+          mfa_secret?: string | null
+          mfa_verified_at?: string | null
+          notification_channel?: string | null
           online_access_status?: string | null
+          pending_email?: string | null
+          pending_email_expires_at?: string | null
+          pending_email_token?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
+          preferred_language?: string | null
           sector_tags?: string[] | null
           security_alert_level?: string | null
           security_flagged_at?: string | null
@@ -5820,11 +5941,19 @@ export type Database = {
           last_auth_check_at?: string | null
           last_login_at?: string | null
           last_name?: string | null
+          mfa_enabled?: boolean | null
+          mfa_secret?: string | null
+          mfa_verified_at?: string | null
+          notification_channel?: string | null
           online_access_status?: string | null
+          pending_email?: string | null
+          pending_email_expires_at?: string | null
+          pending_email_token?: string | null
           phone?: string | null
           pin_failed_attempts?: number | null
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
+          preferred_language?: string | null
           sector_tags?: string[] | null
           security_alert_level?: string | null
           security_flagged_at?: string | null
