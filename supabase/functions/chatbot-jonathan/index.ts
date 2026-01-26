@@ -12,6 +12,7 @@ interface ChatRequest {
   sessionId: string;
   language: "fr" | "en";
   conversationHistory?: Array<{ role: string; content: string }>;
+  verifiedClientId?: string; // Client verified via security questions
 }
 
 interface ToolCall {
@@ -101,6 +102,18 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_account_balance",
+      description: "Récupère le solde du compte client (montant dû, crédit disponible)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "get_tickets",
       description: "Récupère les tickets de support du client",
       parameters: {
@@ -130,6 +143,22 @@ const TOOLS = [
           priority: { type: "string", enum: ["normal", "high", "urgent"], description: "Priorité" }
         },
         required: ["subject", "description", "category"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "verify_client_identity",
+      description: "Vérifie l'identité d'un client non-connecté via questions de sécurité (email + date naissance + téléphone)",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Adresse email du client" },
+          date_of_birth: { type: "string", description: "Date de naissance au format YYYY-MM-DD" },
+          phone_last_4: { type: "string", description: "Les 4 derniers chiffres du numéro de téléphone" }
+        },
+        required: ["email", "date_of_birth", "phone_last_4"]
       }
     }
   },
@@ -189,61 +218,143 @@ const TOOLS = [
   }
 ];
 
+// Tools available for non-authenticated users (before verification)
+const PUBLIC_TOOLS = [
+  "submit_contact_form", 
+  "get_influencer_info", 
+  "get_service_info",
+  "verify_client_identity"
+];
+
 // ======================== TOOL HANDLERS ========================
 async function handleToolCall(
   toolName: string, 
   args: Record<string, any>, 
   supabase: any,
   userId: string | null,
+  verifiedClientId: string | null,
   language: string
-): Promise<string> {
+): Promise<{ result: string; verifiedClientId?: string }> {
   const fr = language === "fr";
+  const effectiveUserId = userId || verifiedClientId;
   
   try {
     switch (toolName) {
+      case "verify_client_identity": {
+        // Verify client identity via security questions
+        const { email, date_of_birth, phone_last_4 } = args;
+        
+        if (!email || !date_of_birth || !phone_last_4) {
+          return { 
+            result: fr 
+              ? "Pour vérifier votre identité, j'ai besoin de votre email, date de naissance et les 4 derniers chiffres de votre téléphone."
+              : "To verify your identity, I need your email, date of birth and last 4 digits of your phone number."
+          };
+        }
+        
+        // Find profile matching the criteria
+        const { data: profiles, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone, date_of_birth")
+          .ilike("email", email.toLowerCase().trim());
+        
+        if (error || !profiles?.length) {
+          console.log("[Chatbot] Verification failed: email not found", email);
+          return { 
+            result: fr 
+              ? "❌ Vérification échouée. Les informations ne correspondent à aucun compte. Vérifiez vos données ou contactez-nous."
+              : "❌ Verification failed. Information doesn't match any account. Please check your data or contact us."
+          };
+        }
+        
+        // Check each matching profile
+        for (const profile of profiles) {
+          const p = profile as any;
+          
+          // Check date of birth
+          const profileDob = p.date_of_birth?.substring(0, 10);
+          if (profileDob !== date_of_birth) continue;
+          
+          // Check phone last 4 digits
+          const phoneDigits = (p.phone || "").replace(/\D/g, "");
+          if (!phoneDigits.endsWith(phone_last_4)) continue;
+          
+          // All checks passed!
+          console.log("[Chatbot] Client identity verified:", p.id);
+          
+          return {
+            result: fr
+              ? `✅ Identité vérifiée! Bonjour ${p.full_name?.split(" ")[0] || ""}. Je peux maintenant accéder à vos informations de compte. Que souhaitez-vous savoir?`
+              : `✅ Identity verified! Hello ${p.full_name?.split(" ")[0] || ""}. I can now access your account information. What would you like to know?`,
+            verifiedClientId: p.id
+          };
+        }
+        
+        console.log("[Chatbot] Verification failed: no matching profile");
+        return { 
+          result: fr 
+            ? "❌ Vérification échouée. Les informations ne correspondent pas. Pour des raisons de sécurité, veuillez vous connecter à votre compte ou nous contacter directement."
+            : "❌ Verification failed. Information doesn't match. For security reasons, please log in to your account or contact us directly."
+        };
+      }
+      
       case "get_order_details": {
-        if (!userId) return fr ? "Vous devez être connecté pour voir vos commandes." : "You must be logged in to view your orders.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Pour voir vos commandes, connectez-vous à votre compte ou vérifiez votre identité avec votre email, date de naissance et téléphone." 
+              : "To view your orders, please log in or verify your identity with your email, date of birth and phone."
+          };
+        }
         
         if (args.order_number) {
           const { data: order, error } = await supabase
             .from("orders")
             .select("*")
-            .eq("user_id", userId)
+            .eq("user_id", effectiveUserId)
             .eq("order_number", args.order_number as string)
             .single();
           
-          if (error || !order) return fr ? `Commande ${args.order_number} non trouvée.` : `Order ${args.order_number} not found.`;
+          if (error || !order) return { result: fr ? `Commande ${args.order_number} non trouvée.` : `Order ${args.order_number} not found.` };
           
           const o = order as any;
-          return JSON.stringify({
-            order_number: o.order_number,
-            status: o.status,
-            service_type: o.service_type,
-            total: o.total_amount,
-            created_at: o.created_at,
-            delivery_method: o.delivery_method,
-            tracking_number: o.tracking_number
-          });
+          return { 
+            result: JSON.stringify({
+              order_number: o.order_number,
+              status: o.status,
+              service_type: o.service_type,
+              total: o.total_amount,
+              created_at: o.created_at,
+              delivery_method: o.delivery_method,
+              tracking_number: o.tracking_number
+            })
+          };
         }
         
         const { data: orders } = await supabase
           .from("orders")
           .select("order_number, status, service_type, total_amount, created_at")
-          .eq("user_id", userId)
+          .eq("user_id", effectiveUserId)
           .order("created_at", { ascending: false })
           .limit(5);
         
-        if (!orders?.length) return fr ? "Aucune commande trouvée." : "No orders found.";
-        return JSON.stringify(orders);
+        if (!orders?.length) return { result: fr ? "Aucune commande trouvée." : "No orders found." };
+        return { result: JSON.stringify(orders) };
       }
       
       case "get_appointments": {
-        if (!userId) return fr ? "Vous devez être connecté pour voir vos rendez-vous." : "You must be logged in to view your appointments.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Pour voir vos rendez-vous, connectez-vous ou vérifiez votre identité." 
+              : "To view your appointments, please log in or verify your identity."
+          };
+        }
         
         let query = supabase
           .from("appointments")
           .select("id, title, scheduled_at, status, service_type, service_address")
-          .eq("client_id", userId)
+          .eq("client_id", effectiveUserId)
           .order("scheduled_at", { ascending: true });
         
         if (!args.include_past) {
@@ -252,21 +363,27 @@ async function handleToolCall(
         
         const { data: appointments } = await query.limit(10);
         
-        if (!appointments?.length) return fr ? "Aucun rendez-vous trouvé." : "No appointments found.";
-        return JSON.stringify(appointments);
+        if (!appointments?.length) return { result: fr ? "Aucun rendez-vous trouvé." : "No appointments found." };
+        return { result: JSON.stringify(appointments) };
       }
       
       case "reschedule_appointment": {
-        if (!userId) return fr ? "Vous devez être connecté pour modifier vos rendez-vous." : "You must be logged in to reschedule.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Vous devez être connecté ou vérifié pour modifier vos rendez-vous." 
+              : "You must be logged in or verified to reschedule."
+          };
+        }
         
         const { data: apt } = await supabase
           .from("appointments")
           .select("*")
           .eq("id", args.appointment_id as string)
-          .eq("client_id", userId)
+          .eq("client_id", effectiveUserId)
           .single();
         
-        if (!apt) return fr ? "Rendez-vous non trouvé." : "Appointment not found.";
+        if (!apt) return { result: fr ? "Rendez-vous non trouvé." : "Appointment not found." };
         
         // Check if more than 24h away
         const aptData = apt as any;
@@ -274,9 +391,11 @@ async function handleToolCall(
         const hoursUntil = (scheduledDate.getTime() - Date.now()) / (1000 * 60 * 60);
         
         if (hoursUntil < 24) {
-          return fr 
-            ? "Impossible de modifier un rendez-vous moins de 24h à l'avance. Veuillez nous appeler au 1-888-NIVRA." 
-            : "Cannot reschedule less than 24h before. Please call 1-888-NIVRA.";
+          return { 
+            result: fr 
+              ? "Impossible de modifier un rendez-vous moins de 24h à l'avance. Veuillez nous contacter à support@nivratelecom.ca." 
+              : "Cannot reschedule less than 24h before. Please contact us at support@nivratelecom.ca."
+          };
         }
         
         const newDateTime = new Date(`${args.new_date}T${args.new_time}:00`);
@@ -291,18 +410,52 @@ async function handleToolCall(
         
         if (error) throw error;
         
-        return fr 
-          ? `Rendez-vous reprogrammé au ${args.new_date} à ${args.new_time}. Vous recevrez une confirmation par email.`
-          : `Appointment rescheduled to ${args.new_date} at ${args.new_time}. You will receive a confirmation email.`;
+        return { 
+          result: fr 
+            ? `Rendez-vous reprogrammé au ${args.new_date} à ${args.new_time}. Vous recevrez une confirmation par email.`
+            : `Appointment rescheduled to ${args.new_date} at ${args.new_time}. You will receive a confirmation email.`
+        };
       }
       
       case "get_invoices": {
-        if (!userId) return fr ? "Vous devez être connecté pour voir vos factures." : "You must be logged in to view invoices.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Pour voir vos factures, connectez-vous ou vérifiez votre identité." 
+              : "To view your invoices, please log in or verify your identity."
+          };
+        }
         
+        // Use Billing V2 tables
+        const { data: customer } = await supabase
+          .from("billing_customers")
+          .select("id")
+          .eq("user_id", effectiveUserId)
+          .single();
+        
+        if (!customer) {
+          // Fallback to legacy billing table
+          let query = supabase
+            .from("billing")
+            .select("invoice_number, amount, status, due_date, paid_at, created_at")
+            .eq("user_id", effectiveUserId)
+            .order("created_at", { ascending: false });
+          
+          if (args.status_filter && args.status_filter !== "all") {
+            query = query.eq("status", args.status_filter);
+          }
+          
+          const { data: invoices } = await query.limit(10);
+          
+          if (!invoices?.length) return { result: fr ? "Aucune facture trouvée." : "No invoices found." };
+          return { result: JSON.stringify(invoices) };
+        }
+        
+        // Use V2 invoices
         let query = supabase
-          .from("billing")
-          .select("invoice_number, amount, status, due_date, paid_at, created_at")
-          .eq("user_id", userId)
+          .from("billing_invoices")
+          .select("invoice_number, total, status, due_date, paid_at, created_at, balance_due")
+          .eq("customer_id", (customer as any).id)
           .order("created_at", { ascending: false });
         
         if (args.status_filter && args.status_filter !== "all") {
@@ -311,35 +464,109 @@ async function handleToolCall(
         
         const { data: invoices } = await query.limit(10);
         
-        if (!invoices?.length) return fr ? "Aucune facture trouvée." : "No invoices found.";
-        return JSON.stringify(invoices);
+        if (!invoices?.length) return { result: fr ? "Aucune facture trouvée." : "No invoices found." };
+        return { result: JSON.stringify(invoices) };
+      }
+      
+      case "get_account_balance": {
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Pour voir votre solde, connectez-vous ou vérifiez votre identité." 
+              : "To view your balance, please log in or verify your identity."
+          };
+        }
+        
+        // Try to get balance from ledger function
+        const { data: ledgerBalance, error: ledgerError } = await supabase
+          .rpc("get_client_ledger_balance", { p_client_id: effectiveUserId });
+        
+        if (!ledgerError && ledgerBalance) {
+          const b = ledgerBalance as any;
+          const balance = b.balance || 0;
+          const amountDue = b.amount_due || 0;
+          const availableCredit = b.available_credit || 0;
+          const outstandingInvoices = b.outstanding_invoices || 0;
+          
+          if (balance < 0) {
+            return { 
+              result: fr
+                ? `💳 **Solde à payer:** ${Math.abs(balance).toFixed(2)} $\n📄 Factures impayées: ${outstandingInvoices}\n\nPour payer, accédez à votre espace client ou envoyez un virement Interac à support@nivratelecom.ca`
+                : `💳 **Amount Due:** $${Math.abs(balance).toFixed(2)}\n📄 Unpaid invoices: ${outstandingInvoices}\n\nTo pay, access your client portal or send an Interac transfer to support@nivratelecom.ca`
+            };
+          } else if (balance > 0) {
+            return { 
+              result: fr
+                ? `✅ **Crédit disponible:** ${balance.toFixed(2)} $\n\nVotre compte est en règle! Ce crédit sera appliqué automatiquement à votre prochaine facture.`
+                : `✅ **Available Credit:** $${balance.toFixed(2)}\n\nYour account is in good standing! This credit will be automatically applied to your next invoice.`
+            };
+          } else {
+            return { 
+              result: fr
+                ? `✅ **Solde:** 0.00 $\n\nVotre compte est à jour. Aucun paiement requis pour le moment.`
+                : `✅ **Balance:** $0.00\n\nYour account is up to date. No payment required at this time.`
+            };
+          }
+        }
+        
+        // Fallback: try legacy profile balance
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("balance, store_credit")
+          .eq("id", effectiveUserId)
+          .single();
+        
+        if (profile) {
+          const p = profile as any;
+          const totalBalance = (p.balance || 0) + (p.store_credit || 0);
+          return { 
+            result: fr
+              ? `💳 **Solde du compte:** ${totalBalance.toFixed(2)} $`
+              : `💳 **Account Balance:** $${totalBalance.toFixed(2)}`
+          };
+        }
+        
+        return { result: fr ? "Impossible de récupérer le solde." : "Unable to retrieve balance." };
       }
       
       case "get_invoice_download_link": {
-        if (!userId) return fr ? "Vous devez être connecté." : "You must be logged in.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Vous devez être connecté pour télécharger une facture." 
+              : "You must be logged in to download an invoice."
+          };
+        }
         
         const { data: invoice } = await supabase
           .from("billing")
           .select("id, invoice_number")
-          .eq("user_id", userId)
+          .eq("user_id", effectiveUserId)
           .eq("invoice_number", args.invoice_number as string)
           .single();
         
-        if (!invoice) return fr ? "Facture non trouvée." : "Invoice not found.";
+        if (!invoice) return { result: fr ? "Facture non trouvée." : "Invoice not found." };
         
-        // Return link to download page
-        return fr
-          ? `Vous pouvez télécharger votre facture ${args.invoice_number} depuis votre espace client: /client/invoices`
-          : `You can download invoice ${args.invoice_number} from your client portal: /client/invoices`;
+        return { 
+          result: fr
+            ? `Vous pouvez télécharger votre facture ${args.invoice_number} depuis votre espace client: /client/invoices`
+            : `You can download invoice ${args.invoice_number} from your client portal: /client/invoices`
+        };
       }
       
       case "get_tickets": {
-        if (!userId) return fr ? "Vous devez être connecté pour voir vos tickets." : "You must be logged in to view tickets.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Pour voir vos tickets, connectez-vous ou vérifiez votre identité." 
+              : "To view your tickets, please log in or verify your identity."
+          };
+        }
         
         let query = supabase
           .from("support_tickets")
           .select("ticket_number, subject, status, priority, category, created_at, updated_at")
-          .eq("user_id", userId)
+          .eq("user_id", effectiveUserId)
           .order("created_at", { ascending: false });
         
         if (args.status_filter && args.status_filter !== "all") {
@@ -348,21 +575,23 @@ async function handleToolCall(
         
         const { data: tickets } = await query.limit(10);
         
-        if (!tickets?.length) return fr ? "Aucun ticket trouvé." : "No tickets found.";
-        return JSON.stringify(tickets);
+        if (!tickets?.length) return { result: fr ? "Aucun ticket trouvé." : "No tickets found." };
+        return { result: JSON.stringify(tickets) };
       }
       
       case "create_support_ticket": {
-        if (!userId) {
-          return fr 
-            ? "Vous devez être connecté pour créer un ticket. Utilisez plutôt le formulaire de contact."
-            : "You must be logged in to create a ticket. Use the contact form instead.";
+        if (!effectiveUserId) {
+          return { 
+            result: fr 
+              ? "Vous devez être connecté pour créer un ticket. Utilisez plutôt le formulaire de contact."
+              : "You must be logged in to create a ticket. Use the contact form instead."
+          };
         }
         
         const { data: profile } = await supabase
           .from("profiles")
           .select("email, full_name")
-          .eq("id", userId)
+          .eq("id", effectiveUserId)
           .single();
         
         const profileData = profile as any;
@@ -370,8 +599,8 @@ async function handleToolCall(
         const { data: ticket, error } = await supabase
           .from("support_tickets")
           .insert({
-            user_id: userId,
-            owner_user_id: userId,
+            user_id: effectiveUserId,
+            owner_user_id: effectiveUserId,
             client_email: profileData?.email,
             subject: args.subject as string,
             description: args.description as string,
@@ -385,9 +614,11 @@ async function handleToolCall(
         if (error) throw error;
         
         const ticketData = ticket as any;
-        return fr 
-          ? `Ticket créé avec succès! Numéro: ${ticketData.ticket_number}. Notre équipe vous répondra sous 24-48h.`
-          : `Ticket created successfully! Number: ${ticketData.ticket_number}. Our team will respond within 24-48h.`;
+        return { 
+          result: fr 
+            ? `Ticket créé avec succès! Numéro: ${ticketData.ticket_number}. Notre équipe vous répondra sous 24-48h.`
+            : `Ticket created successfully! Number: ${ticketData.ticket_number}. Our team will respond within 24-48h.`
+        };
       }
       
       case "submit_contact_form": {
@@ -405,9 +636,11 @@ async function handleToolCall(
         
         if (error) throw error;
         
-        return fr 
-          ? "Votre demande a été envoyée! Notre équipe vous contactera dans les plus brefs délais."
-          : "Your request has been sent! Our team will contact you shortly.";
+        return { 
+          result: fr 
+            ? "Votre demande a été envoyée! Notre équipe vous contactera dans les plus brefs délais."
+            : "Your request has been sent! Our team will contact you shortly."
+        };
       }
       
       case "get_influencer_info": {
@@ -428,7 +661,7 @@ async function handleToolCall(
             : "Requirements: active social media presence, Quebec audience, content related to tech/telecom or lifestyle."
         };
         
-        return info[infoType as keyof typeof info] || info.general;
+        return { result: info[infoType as keyof typeof info] || info.general };
       }
       
       case "get_service_info": {
@@ -450,18 +683,18 @@ async function handleToolCall(
         };
         
         if (serviceType === "all") {
-          return Object.values(services).join("\n\n");
+          return { result: Object.values(services).join("\n\n") };
         }
         
-        return services[serviceType as keyof typeof services] || services.mobile;
+        return { result: services[serviceType as keyof typeof services] || services.mobile };
       }
       
       default:
-        return fr ? "Action non reconnue." : "Unknown action.";
+        return { result: fr ? "Action non reconnue." : "Unknown action." };
     }
   } catch (error) {
     console.error(`[Chatbot] Tool ${toolName} error:`, error);
-    return fr ? "Une erreur s'est produite. Veuillez réessayer." : "An error occurred. Please try again.";
+    return { result: fr ? "Une erreur s'est produite. Veuillez réessayer." : "An error occurred. Please try again." };
   }
 }
 
@@ -474,7 +707,7 @@ serve(async (req) => {
   const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   try {
-    const { message, sessionId, language = "fr", conversationHistory = [] } = await req.json() as ChatRequest;
+    const { message, sessionId, language = "fr", conversationHistory = [], verifiedClientId: incomingVerifiedId } = await req.json() as ChatRequest;
 
     if (!message || typeof message !== "string" || message.length > 2000) {
       return new Response(
@@ -499,6 +732,7 @@ serve(async (req) => {
     let authenticatedUserId: string | null = null;
     let isAuthenticated = false;
     let userProfile: { full_name?: string; email?: string } | null = null;
+    let verifiedClientId: string | null = incomingVerifiedId || null;
 
     const authHeader = req.headers.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
@@ -537,51 +771,73 @@ serve(async (req) => {
 
     // Build system prompt
     const fr = language === "fr";
+    const hasAccess = isAuthenticated || verifiedClientId;
+    
     const systemPrompt = fr
       ? `Tu es Nivra, l'assistant virtuel intelligent de Nivra Télécom, une entreprise de télécommunications prépayées au Québec.
 
-${isAuthenticated ? `L'utilisateur est connecté: ${userProfile?.full_name || "Client"}.` : "L'utilisateur n'est PAS connecté."}
+${isAuthenticated 
+  ? `✅ L'utilisateur est connecté: ${userProfile?.full_name || "Client"}.` 
+  : verifiedClientId 
+    ? `✅ L'utilisateur a vérifié son identité via questions de sécurité.`
+    : `❌ L'utilisateur n'est PAS connecté et n'a PAS vérifié son identité.`}
 
 TU DISPOSES D'OUTILS POUR AIDER LES CLIENTS:
-- get_order_details: Voir les commandes
-- get_appointments: Voir les rendez-vous
-- reschedule_appointment: Reprogrammer un RDV (24h minimum avant)
-- get_invoices: Voir les factures
-- get_invoice_download_link: Télécharger une facture
-- get_tickets: Voir les tickets support
-- create_support_ticket: Créer un ticket
-- submit_contact_form: Formulaire contact (non-connectés)
-- get_influencer_info: Programme partenaires
-- get_service_info: Info sur nos services
+- get_order_details: Voir les commandes (🔒 nécessite connexion/vérification)
+- get_appointments: Voir les rendez-vous (🔒)
+- reschedule_appointment: Reprogrammer un RDV (🔒)
+- get_invoices: Voir les factures (🔒)
+- get_account_balance: Voir le solde du compte (🔒)
+- get_invoice_download_link: Télécharger une facture (🔒)
+- get_tickets: Voir les tickets support (🔒)
+- create_support_ticket: Créer un ticket (🔒)
+- verify_client_identity: Vérifier l'identité (email + date naissance + 4 derniers chiffres téléphone)
+- submit_contact_form: Formulaire contact (🔓 public)
+- get_influencer_info: Programme partenaires (🔓 public)
+- get_service_info: Info sur nos services (🔓 public)
 
-RÈGLES:
-1. Utilise les outils quand pertinent - ne devine JAMAIS les données
-2. Sois professionnel, concis et empathique
-3. Pour les non-connectés, suggère de se connecter ou utilise le formulaire contact
+RÈGLES IMPORTANTES:
+1. ${hasAccess 
+    ? "Le client a accès à ses données. Utilise les outils quand pertinent."
+    : `Si le client demande ses commandes/rendez-vous/factures/solde, propose-lui DEUX OPTIONS:
+   a) Se connecter à son compte: "Connectez-vous via [Se connecter](/auth) pour accéder à vos informations"
+   b) Vérifier son identité: Demande son EMAIL, DATE DE NAISSANCE et les 4 DERNIERS CHIFFRES de son TÉLÉPHONE`}
+2. Utilise les outils quand pertinent - ne devine JAMAIS les données
+3. Sois professionnel, concis et empathique
 4. Ne révèle jamais de données techniques (IDs, erreurs internes)
-5. Si tu ne peux pas aider, dirige vers support@nivra.ca ou 1-888-NIVRA`
+5. Si tu ne peux pas aider, dirige vers support@nivratelecom.ca`
       : `You are Nivra, the intelligent virtual assistant for Nivra Telecom, a prepaid telecom company in Quebec.
 
-${isAuthenticated ? `User is logged in: ${userProfile?.full_name || "Customer"}.` : "User is NOT logged in."}
+${isAuthenticated 
+  ? `✅ User is logged in: ${userProfile?.full_name || "Customer"}.` 
+  : verifiedClientId 
+    ? `✅ User has verified their identity via security questions.`
+    : `❌ User is NOT logged in and has NOT verified their identity.`}
 
 YOU HAVE TOOLS TO HELP CUSTOMERS:
-- get_order_details: View orders
-- get_appointments: View appointments
-- reschedule_appointment: Reschedule appointment (24h minimum notice)
-- get_invoices: View invoices
-- get_invoice_download_link: Download invoice
-- get_tickets: View support tickets
-- create_support_ticket: Create ticket
-- submit_contact_form: Contact form (non-logged users)
-- get_influencer_info: Partner program info
-- get_service_info: Service info
+- get_order_details: View orders (🔒 requires login/verification)
+- get_appointments: View appointments (🔒)
+- reschedule_appointment: Reschedule appointment (🔒)
+- get_invoices: View invoices (🔒)
+- get_account_balance: View account balance (🔒)
+- get_invoice_download_link: Download invoice (🔒)
+- get_tickets: View support tickets (🔒)
+- create_support_ticket: Create ticket (🔒)
+- verify_client_identity: Verify identity (email + DOB + last 4 phone digits)
+- submit_contact_form: Contact form (🔓 public)
+- get_influencer_info: Partner program info (🔓 public)
+- get_service_info: Service info (🔓 public)
 
-RULES:
-1. Use tools when relevant - NEVER guess data
-2. Be professional, concise and empathetic
-3. For non-logged users, suggest login or use contact form
+IMPORTANT RULES:
+1. ${hasAccess 
+    ? "Customer has access to their data. Use tools when relevant."
+    : `If customer asks for orders/appointments/invoices/balance, offer TWO OPTIONS:
+   a) Log in: "Log in at [Login](/auth) to access your information"
+   b) Verify identity: Ask for EMAIL, DATE OF BIRTH and LAST 4 DIGITS of their PHONE`}
+2. Use tools when relevant - NEVER guess data
+3. Be professional, concise and empathetic
 4. Never reveal technical data (IDs, internal errors)
-5. If you can't help, direct to support@nivra.ca or 1-888-NIVRA`;
+5. If you can't help, direct to support@nivratelecom.ca`;
 
     // Build messages with conversation history
     const messages: Array<{ role: string; content: string }> = [
@@ -589,6 +845,11 @@ RULES:
       ...conversationHistory.slice(-10), // Keep last 10 messages for context
       { role: "user", content: message }
     ];
+
+    // Determine which tools are available
+    const availableTools = hasAccess 
+      ? TOOLS 
+      : TOOLS.filter(t => PUBLIC_TOOLS.includes(t.function.name));
 
     // First AI call with tools
     let aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -600,9 +861,7 @@ RULES:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages,
-        tools: isAuthenticated ? TOOLS : TOOLS.filter(t => 
-          ["submit_contact_form", "get_influencer_info", "get_service_info"].includes(t.function.name)
-        ),
+        tools: availableTools,
         tool_choice: "auto",
         max_tokens: 1000,
         temperature: 0.7,
@@ -624,6 +883,7 @@ RULES:
     
     // Handle tool calls
     const toolCalls: ToolCall[] = responseMessage?.tool_calls || [];
+    let newVerifiedClientId: string | null = null;
     
     if (toolCalls.length > 0) {
       console.log("[Chatbot] Tool calls detected:", toolCalls.map(t => t.function.name));
@@ -633,13 +893,20 @@ RULES:
       
       for (const toolCall of toolCalls) {
         const args = JSON.parse(toolCall.function.arguments || "{}");
-        const result = await handleToolCall(
+        const { result, verifiedClientId: newId } = await handleToolCall(
           toolCall.function.name,
           args,
           supabaseAdmin,
           authenticatedUserId,
+          verifiedClientId,
           language
         );
+        
+        // Track if identity was verified
+        if (newId) {
+          newVerifiedClientId = newId;
+          verifiedClientId = newId;
+        }
         
         toolResults.push({
           role: "tool",
@@ -685,7 +952,7 @@ RULES:
     // Log without PII
     await supabaseAdmin.from("chatbot_logs").insert({
       session_id: sessionId,
-      user_id: authenticatedUserId,
+      user_id: authenticatedUserId || verifiedClientId,
       is_authenticated: isAuthenticated,
       user_message: "[REDACTED]",
       bot_response: "[REDACTED]",
@@ -697,14 +964,18 @@ RULES:
 
     console.log("[Chatbot] Response sent", { 
       sessionId, 
-      isAuthenticated, 
+      isAuthenticated,
+      isVerified: !!verifiedClientId,
       toolsUsed: toolCalls.map(t => t.function.name),
       messageLength: message.length,
       responseLength: botResponse.length
     });
 
     return new Response(
-      JSON.stringify({ response: botResponse }),
+      JSON.stringify({ 
+        response: botResponse,
+        verifiedClientId: newVerifiedClientId || verifiedClientId
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
