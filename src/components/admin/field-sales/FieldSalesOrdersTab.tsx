@@ -34,19 +34,18 @@ import {
   CheckCircle,
   XCircle,
   Wifi,
-  WifiOff,
   Cloud,
   RefreshCw,
   Eye,
   ArrowUpRight,
   MoreHorizontal,
   FileText,
-  MapPin,
   Phone,
-  Mail,
   Loader2,
   Filter,
+  Receipt,
 } from "lucide-react";
+import { FieldSalesOrderDetailDialog } from "./FieldSalesOrderDetailDialog";
 
 interface FieldSalesOrder {
   id: string;
@@ -59,18 +58,22 @@ interface FieldSalesOrder {
   customer_phone: string;
   customer_address: string;
   service_city: string | null;
+  service_postal_code?: string | null;
   service_type: string;
   plan_name: string;
   monthly_price: number;
   total_amount: number;
   payment_method: string;
   payment_status: string;
+  payment_reference?: string | null;
   sync_status: string;
   synced_at: string | null;
   created_at: string;
   converted_order_id: string | null;
   appointment_date: string | null;
   appointment_notes: string | null;
+  signature_data?: string | null;
+  notes?: string | null;
 }
 
 interface FieldSalesOrdersTabProps {
@@ -85,6 +88,8 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
   const queryClient = useQueryClient();
   const [syncFilter, setSyncFilter] = useState<string>("all");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [selectedOrder, setSelectedOrder] = useState<FieldSalesOrder | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // Fetch orders
   const { data: orders, isLoading, refetch } = useQuery({
@@ -307,7 +312,14 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                 </TableHeader>
                 <TableBody>
                   {orders.map((order) => (
-                    <TableRow key={order.id} className="border-slate-700">
+                    <TableRow 
+                      key={order.id} 
+                      className="border-slate-700 cursor-pointer hover:bg-slate-800/50"
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setDetailDialogOpen(true);
+                      }}
+                    >
                       <TableCell>
                         <div>
                           <p className="text-white font-medium">
@@ -348,7 +360,7 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                       <TableCell>
                         {getSyncStatusBadge(order.sync_status)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
@@ -356,7 +368,13 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-                            <DropdownMenuItem className="text-white hover:bg-slate-700">
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setDetailDialogOpen(true);
+                              }}
+                              className="text-white hover:bg-slate-700"
+                            >
                               <Eye className="h-4 w-4 mr-2" />
                               Voir détails
                             </DropdownMenuItem>
@@ -369,9 +387,86 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                                 Voir commande liée
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem className="text-white hover:bg-slate-700">
+                            <DropdownMenuItem 
+                              onClick={async () => {
+                                setSelectedOrder(order);
+                                // Quick contract generation
+                                try {
+                                  const { generateFieldSalesContractPDF } = await import("@/lib/fieldSalesContractGenerator");
+                                  await generateFieldSalesContractPDF({
+                                    orderNumber: order.order_number || `FS-${order.id.slice(0, 8)}`,
+                                    createdAt: order.created_at,
+                                    customer: {
+                                      name: order.customer_name,
+                                      email: order.customer_email,
+                                      phone: order.customer_phone,
+                                      address: order.customer_address,
+                                      city: order.service_city || "",
+                                      postalCode: order.service_postal_code || "",
+                                    },
+                                    service: {
+                                      type: order.service_type,
+                                      planName: order.plan_name,
+                                      monthlyPrice: order.monthly_price,
+                                    },
+                                    payment: {
+                                      method: order.payment_method,
+                                      status: order.payment_status,
+                                      totalAmount: order.total_amount,
+                                      reference: order.payment_reference || null,
+                                    },
+                                    salespersonName: order.salesperson_name || "Représentant",
+                                    appointmentDate: order.appointment_date,
+                                    appointmentNotes: order.appointment_notes,
+                                    signatureData: order.signature_data,
+                                  });
+                                  toast({ title: "Contrat généré" });
+                                } catch (error: any) {
+                                  toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                                }
+                              }}
+                              className="text-white hover:bg-slate-700"
+                            >
                               <FileText className="h-4 w-4 mr-2" />
                               Générer contrat
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={async () => {
+                                try {
+                                  const { generateFieldSalesInvoicePDF } = await import("@/lib/fieldSalesInvoiceGenerator");
+                                  await generateFieldSalesInvoicePDF({
+                                    invoiceNumber: `INV-FS-${order.id.slice(0, 8).toUpperCase()}`,
+                                    orderNumber: order.order_number || `FS-${order.id.slice(0, 8)}`,
+                                    createdAt: order.created_at,
+                                    customer: {
+                                      name: order.customer_name,
+                                      email: order.customer_email,
+                                      phone: order.customer_phone,
+                                      address: order.customer_address,
+                                      city: order.service_city || "",
+                                      postalCode: order.service_postal_code || "",
+                                    },
+                                    service: {
+                                      type: order.service_type,
+                                      planName: order.plan_name,
+                                      monthlyPrice: order.monthly_price,
+                                    },
+                                    payment: {
+                                      method: order.payment_method,
+                                      status: order.payment_status,
+                                      totalAmount: order.total_amount,
+                                      reference: order.payment_reference || null,
+                                    },
+                                  });
+                                  toast({ title: "Facture générée" });
+                                } catch (error: any) {
+                                  toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                                }
+                              }}
+                              className="text-white hover:bg-slate-700"
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              Générer facture
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="bg-slate-700" />
                             {!order.converted_order_id && order.sync_status === "synced" && (
@@ -395,6 +490,13 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
           )}
         </CardContent>
       </Card>
+
+      {/* Order Detail Dialog */}
+      <FieldSalesOrderDetailDialog
+        order={selectedOrder}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+      />
     </div>
   );
 }
