@@ -43,7 +43,9 @@ interface LegacyInvoice {
   balance_due: number | null;
   status: string;
   due_date: string | null;
-  paid_at: string | null;
+  // Some environments/roles may not have column-level SELECT on paid_at.
+  // Keep optional so we can safely retry the query without it.
+  paid_at?: string | null;
 }
 
 /**
@@ -65,19 +67,28 @@ async function fetchLedgerBalance(
   // ============================================
   
   // Get customer_id from billing_customers (linked to user_id)
-  const { data: customer } = await supabaseClient
+  const { data: customer, error: customerErr } = await supabaseClient
     .from('billing_customers')
     .select('id')
     .eq('user_id', clientId)
     .maybeSingle();
 
+  if (customerErr) {
+    // Don't fail the whole balance if V2 linkage isn't available; legacy billing can still compute the real balance.
+    console.warn('[useLedgerBalance] billing_customers lookup failed (will fallback to legacy):', customerErr);
+  }
+
   if (customer) {
     // Sum all invoice totals (debits) from V2
-    const { data: invoices } = await supabaseClient
+    const { data: invoices, error: invoicesErr } = await supabaseClient
       .from('billing_invoices')
       .select('total, status, balance_due')
       .eq('customer_id', customer.id)
       .not('status', 'in', '("cancelled","refunded")');
+
+    if (invoicesErr) {
+      console.warn('[useLedgerBalance] billing_invoices query failed (skipping V2 invoices):', invoicesErr);
+    }
 
     for (const inv of invoices || []) {
       totalDebits += Number(inv.total) || 0;
@@ -89,12 +100,16 @@ async function fetchLedgerBalance(
     }
 
     // Sum all confirmed payments (credits) from V2
-    const { data: payments } = await supabaseClient
+    const { data: payments, error: paymentsErr } = await supabaseClient
       .from('billing_payments')
       .select('amount, status, method, received_at, created_at')
       .eq('customer_id', customer.id)
       .eq('status', 'confirmed')
       .order('received_at', { ascending: false, nullsFirst: false });
+
+    if (paymentsErr) {
+      console.warn('[useLedgerBalance] billing_payments query failed (skipping V2 payments):', paymentsErr);
+    }
 
     for (const pay of payments || []) {
       totalCredits += Number(pay.amount) || 0;
@@ -112,14 +127,46 @@ async function fetchLedgerBalance(
   // ============================================
   // PART 2: Legacy System (billing table)
   // ============================================
-  
-  const { data: legacyInvoices } = await supabaseClient
-    .from('billing')
-    .select('id, invoice_number, amount, amount_paid, balance_due, status, due_date, paid_at')
-    .eq('user_id', clientId)
-    .not('status', 'in', '("cancelled","voided","refunded")');
 
-  for (const inv of (legacyInvoices || []) as LegacyInvoice[]) {
+  // IMPORTANT: Some roles may not be allowed to SELECT certain legacy columns (ex: paid_at).
+  // We first try the full select, then fallback to a minimal select so balance doesn't incorrectly show 0.
+  let legacyInvoices: LegacyInvoice[] = [];
+
+  const queryLegacy = async (select: string) => {
+    return await supabaseClient
+      .from('billing')
+      .select(select)
+      .eq('user_id', clientId)
+      .not('status', 'in', '("cancelled","voided","refunded")');
+  };
+
+  const { data: legacyInvoicesFull, error: legacyFullErr } = await queryLegacy(
+    'id, invoice_number, amount, amount_paid, balance_due, status, due_date, paid_at'
+  );
+
+  if (!legacyFullErr && legacyInvoicesFull) {
+    // Supabase JS typing can return "GenericStringError[]" when schema typings aren't available.
+    // We validate at runtime by only using expected fields downstream.
+    legacyInvoices = legacyInvoicesFull as unknown as LegacyInvoice[];
+  } else {
+    if (legacyFullErr) {
+      console.warn('[useLedgerBalance] legacy billing query failed with paid_at; retrying minimal select:', legacyFullErr);
+    }
+
+    const { data: legacyInvoicesMin, error: legacyMinErr } = await queryLegacy(
+      'id, invoice_number, amount, amount_paid, balance_due, status, due_date'
+    );
+
+    if (legacyMinErr) {
+      console.error('[useLedgerBalance] legacy billing query failed even after retry:', legacyMinErr);
+      // If we can't read legacy invoices at all, balance will be unreliable; surface a hard error.
+      throw legacyMinErr;
+    }
+
+    legacyInvoices = (legacyInvoicesMin || []) as unknown as LegacyInvoice[];
+  }
+
+  for (const inv of legacyInvoices as LegacyInvoice[]) {
     const invoiceAmount = Number(inv.amount) || 0;
     const amountPaid = Number(inv.amount_paid) || 0;
     
