@@ -103,9 +103,9 @@ export const SEOHead = ({
 // SEO data for each page
 export const SEO_DATA = {
   home: {
-    title: "Nivra Telecom | Télécom prépayée au Québec, sans engagement",
+    title: "Nivra Telecom | Internet, Mobile & TV prépayés au Québec - Sans contrat",
     description:
-      "Services télécom sans contrat au Québec : mobile prépayé, Internet haute vitesse, télévision IPTV et sécurité résidentielle. Activation rapide, prix transparents.",
+      "Nivra Telecom : Internet haute vitesse dès 45$/mois, mobile 5G prépayé dès 50$/mois, TV 200+ chaînes. Sans contrat, activation 24h, support 7j/7 au Québec. Offre 50% premier mois!",
   },
   about: {
     title: "À propos de Nivra Telecom | Notre mission et valeurs",

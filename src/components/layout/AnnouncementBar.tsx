@@ -128,27 +128,28 @@ const AnnouncementBar = () => {
       aria-label="Annonce promotionnelle"
     >
       <div className="relative flex items-center h-10 px-2 sm:px-4">
-        {/* Scrolling content container */}
-        <div className="flex-1 overflow-hidden mr-2">
+        {/* Scrolling content container - fixed width to prevent overflow */}
+        <div className="flex-1 overflow-hidden mr-2 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-180px)]">
           <div
             className={`flex items-center gap-8 whitespace-nowrap ${
               prefersReducedMotion ? "" : "animate-marquee hover:pause-animation"
             }`}
+            aria-hidden="true"
           >
             {/* Repeat content for seamless loop */}
             {[0, 1].map((i) => (
-              <div key={i} className="flex items-center gap-3 text-sm font-medium">
+              <div key={i} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium">
                 <span>50% de rabais sur ton 1er mois</span>
-                <span className="text-accent-foreground/70">—</span>
+                <span className="text-accent-foreground/70 hidden sm:inline">—</span>
                 <span className="flex items-center gap-1.5">
                   code:{" "}
                   <span className="inline-flex items-center px-2 py-0.5 bg-white/20 rounded font-bold tracking-wide">
                     BIENVENUE
                   </span>
                 </span>
-                <span className="text-accent-foreground/70">—</span>
-                <span>+ Tirage 500$ cash le 15 février 2026</span>
-                <span className="text-accent-foreground/40 mx-4">•</span>
+                <span className="text-accent-foreground/70 hidden sm:inline">—</span>
+                <span className="hidden sm:inline">+ Tirage 500$ cash le 15 février 2026</span>
+                <span className="text-accent-foreground/40 mx-2 sm:mx-4">•</span>
               </div>
             ))}
           </div>
@@ -159,16 +160,20 @@ const AnnouncementBar = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2.5 text-xs font-medium bg-white/15 hover:bg-white/25 text-accent-foreground border-0"
+            className="h-7 px-2 sm:px-2.5 text-xs font-medium bg-white/15 hover:bg-white/25 text-accent-foreground border-0"
             asChild
           >
-            <Link to="/concours">Voir les détails</Link>
+            <Link to="/concours" aria-label="Voir les détails du concours et de la promotion">
+              <span className="hidden sm:inline">Voir les détails</span>
+              <span className="sm:hidden">Détails</span>
+            </Link>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             className="hidden sm:inline-flex h-7 px-2.5 text-xs font-medium bg-white/25 hover:bg-white/35 text-accent-foreground border-0"
             onClick={handlePlansClick}
+            aria-label="Voir nos forfaits disponibles"
           >
             Plans
           </Button>

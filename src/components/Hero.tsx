@@ -65,9 +65,12 @@ const Hero = () => {
                 className="group w-full sm:w-auto text-base px-8 h-12"
                 asChild
               >
-                <Link to="/contact">
+                <Link 
+                  to="/contact"
+                  aria-label={isFr ? "Commander un service Nivra" : "Order a Nivra service"}
+                >
                   {t('hero.cta.order')}
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
                 </Link>
               </Button>
               <Button 
@@ -76,7 +79,10 @@ const Hero = () => {
                 className="w-full sm:w-auto text-base h-12"
                 asChild
               >
-                <Link to="/mobile">
+                <Link 
+                  to="/mobile"
+                  aria-label={isFr ? "Découvrir nos forfaits mobile" : "Discover our mobile plans"}
+                >
                   {isFr ? "Voir les forfaits" : "View Plans"}
                 </Link>
               </Button>
