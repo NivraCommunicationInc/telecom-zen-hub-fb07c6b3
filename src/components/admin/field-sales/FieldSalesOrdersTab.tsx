@@ -44,8 +44,10 @@ import {
   Loader2,
   Filter,
   Receipt,
+  Download,
 } from "lucide-react";
 import { FieldSalesOrderDetailDialog } from "./FieldSalesOrderDetailDialog";
+import { exportOrdersToCSV } from "@/lib/fieldSalesExport";
 
 interface FieldSalesOrder {
   id: string;
@@ -279,6 +281,17 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
+              {orders && orders.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportOrdersToCSV(orders)}
+                  className="border-slate-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
