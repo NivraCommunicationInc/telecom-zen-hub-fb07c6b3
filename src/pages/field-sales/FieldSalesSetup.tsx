@@ -1,6 +1,7 @@
 /**
  * FieldSalesSetup - Onboarding flow for new field sales reps
  * 3-step process: Password → PIN → Terms & Conditions
+ * Uses Edge Function for secure PIN storage and role activation
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -14,7 +15,7 @@ import {
   Lock, Key, FileCheck, ArrowRight, Loader2, 
   CheckCircle, Eye, EyeOff, Briefcase
 } from "lucide-react";
-import { hashPin, isValidPin } from "@/lib/pinUtils";
+import { isValidPin } from "@/lib/pinUtils";
 import StaffBackground from "@/components/staff/StaffBackground";
 
 const STEPS = ["Mot de passe", "Code PIN", "Conditions"];
@@ -87,31 +88,8 @@ export default function FieldSalesSetup() {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        toast.error("Session expirée");
-        navigate("/field-sales");
-        return;
-      }
-
-      const pinHash = await hashPin(pin);
-
-      const { error } = await supabase
-        .from("user_roles")
-        .update({ staff_pin_hash: pinHash })
-        .eq("user_id", session.user.id)
-        .eq("role", "field_sales");
-
-      if (error) throw error;
-      setCurrentStep(2);
-    } catch (error: any) {
-      console.error("PIN error:", error);
-      toast.error("Erreur lors de la configuration du PIN");
-    } finally {
-      setIsLoading(false);
-    }
+    // Just move to next step - PIN will be saved with terms
+    setCurrentStep(2);
   };
 
   const handleTermsSubmit = async () => {
@@ -129,26 +107,37 @@ export default function FieldSalesSetup() {
         return;
       }
 
-      const now = new Date().toISOString();
+      // Call Edge Function to complete onboarding securely
+      const { data, error } = await supabase.functions.invoke(
+        "field-sales-complete-onboarding",
+        {
+          body: {
+            pin,
+            terms_accepted: termsAccepted,
+            terms_version: "1.0",
+          },
+        }
+      );
 
-      const { error } = await supabase
-        .from("user_roles")
-        .update({
-          terms_accepted_at: now,
-          onboarding_completed_at: now,
-          is_active: true,
-          status: "active",
-        })
-        .eq("user_id", session.user.id)
-        .eq("role", "field_sales");
+      if (error) {
+        console.error("[FieldSalesSetup] Edge function error:", error);
+        throw new Error(error.message || "Erreur lors de la configuration");
+      }
 
-      if (error) throw error;
+      if (!data?.ok) {
+        if (data?.code === "ALREADY_CONFIGURED") {
+          toast.info("Compte déjà configuré");
+          navigate("/field-sales/dashboard");
+          return;
+        }
+        throw new Error(data?.message || "Erreur lors de la configuration");
+      }
 
       toast.success("Configuration terminée!");
       navigate("/field-sales/dashboard");
     } catch (error: any) {
-      console.error("Terms error:", error);
-      toast.error("Erreur lors de l'activation du compte");
+      console.error("Terms/setup error:", error);
+      toast.error(error.message || "Erreur lors de l'activation du compte");
     } finally {
       setIsLoading(false);
     }

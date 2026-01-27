@@ -161,3 +161,15 @@ verify_jwt = false
 
 [functions.paypal-webhook]
 verify_jwt = false
+
+[functions.staff-complete-onboarding]
+verify_jwt = false
+
+[functions.field-sales-complete-onboarding]
+verify_jwt = false
+
+[functions.field-sales-sync]
+verify_jwt = false
+
+[functions.admin-set-user-password]
+verify_jwt = false
