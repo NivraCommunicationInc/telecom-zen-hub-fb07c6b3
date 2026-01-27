@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { SetPasswordDialog } from "@/components/admin/users/SetPasswordDialog";
 import {
   User,
   Mail,
@@ -40,6 +41,8 @@ import {
   Activity,
   Award,
   Loader2,
+  Lock,
+  Send,
 } from "lucide-react";
 
 interface Representative {
@@ -91,7 +94,7 @@ export function RepresentativeDetailDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
-
+  const [setPasswordDialogOpen, setSetPasswordDialogOpen] = useState(false);
   // Fetch sales history
   const { data: salesHistory, isLoading: salesLoading } = useQuery({
     queryKey: ["rep-sales-history", representative?.user_id],
@@ -170,6 +173,64 @@ export function RepresentativeDetailDialog({
         description: "Le représentant devra configurer un nouveau PIN à la prochaine connexion.",
       });
       queryClient.invalidateQueries({ queryKey: ["admin-field-sales-reps"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Set password mutation
+  const setPasswordMutation = useMutation({
+    mutationFn: async ({ password, forceChange }: { password: string; forceChange: boolean }) => {
+      const { data, error } = await adminSupabase.functions.invoke(
+        "admin-set-user-password",
+        {
+          body: {
+            action: "set_password",
+            target_user_id: representative!.user_id,
+            password,
+            force_change: forceChange,
+          },
+        }
+      );
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mot de passe défini",
+        description: "Le nouveau mot de passe a été configuré avec succès.",
+      });
+      setSetPasswordDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-field-sales-reps"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Send reset link mutation
+  const sendResetLinkMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await adminSupabase.functions.invoke(
+        "admin-set-user-password",
+        {
+          body: {
+            action: "send_reset_link",
+            target_user_id: representative!.user_id,
+          },
+        }
+      );
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Lien envoyé",
+        description: `Un courriel de réinitialisation a été envoyé à ${data?.email || representative?.email}`,
+      });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -528,7 +589,40 @@ export function RepresentativeDetailDialog({
                 </CardContent>
               </Card>
 
+              {/* Password Management Card */}
               <Card className="border-slate-700 bg-slate-800/50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-cyan-400" />
+                    Gestion du mot de passe
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-slate-700"
+                    onClick={() => setSetPasswordDialogOpen(true)}
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    Définir un mot de passe
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-slate-700"
+                    onClick={() => sendResetLinkMutation.mutate()}
+                    disabled={sendResetLinkMutation.isPending}
+                  >
+                    {sendResetLinkMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Envoyer lien de réinitialisation
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-700 bg-slate-800/50 md:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Activity className="h-4 w-4 text-teal-400" />
@@ -563,6 +657,19 @@ export function RepresentativeDetailDialog({
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Set Password Dialog */}
+        <SetPasswordDialog
+          open={setPasswordDialogOpen}
+          onOpenChange={setSetPasswordDialogOpen}
+          userEmail={representative.email}
+          userName={representative.full_name || undefined}
+          isReset={false}
+          isPending={setPasswordMutation.isPending}
+          onSubmit={({ password, forceChange }) => {
+            setPasswordMutation.mutate({ password, forceChange });
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
