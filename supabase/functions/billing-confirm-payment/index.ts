@@ -99,7 +99,18 @@ serve(async (req) => {
       console.error("[billing-confirm-payment] Payment update error:", paymentError);
     }
     
-    // Update invoice status to PAID with exact timestamp
+    // Calculate total confirmed payments for this invoice
+    const { data: payments } = await supabase
+      .from("billing_payments")
+      .select("amount")
+      .eq("invoice_id", body.invoice_id)
+      .eq("status", "confirmed");
+    
+    const totalPaid = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+    const newBalanceDue = Math.max(0, invoice.total - totalPaid);
+    const isFullyPaid = newBalanceDue <= 0;
+    
+    // Update invoice with correct amounts and status
     // The SQL trigger will automatically:
     // 1. Recalculate cycle_start_date = paid_at
     // 2. Recalculate cycle_end_date = paid_at + 30 days
@@ -107,12 +118,16 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from("billing_invoices")
       .update({
-        status: 'paid',
-        paid_at: paidAt
+        status: isFullyPaid ? 'paid' : 'pending',
+        paid_at: isFullyPaid ? paidAt : null,
+        amount_paid: totalPaid,
+        balance_due: newBalanceDue
       })
       .eq("id", body.invoice_id);
     
     if (updateError) throw updateError;
+    
+    console.log(`[billing-confirm-payment] Invoice ${invoice.invoice_number}: total=${invoice.total}, paid=${totalPaid}, balance=${newBalanceDue}, status=${isFullyPaid ? 'paid' : 'pending'}`);
     
     // Fetch updated invoice to get real cycle dates (set by trigger)
     const { data: updatedInvoice } = await supabase
