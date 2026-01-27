@@ -86,6 +86,31 @@ interface SaleRecord {
   created_at: string;
 }
 
+async function extractEdgeFunctionErrorMessage(err: any): Promise<string> {
+  const fallback = err?.message || "Erreur lors de l'exécution de la fonction";
+  const res: Response | undefined = err?.context;
+
+  // Supabase FunctionsError exposes `context` as a Response
+  if (res && typeof (res as any).clone === "function") {
+    try {
+      const json = await res.clone().json();
+      if (json?.error) return String(json.error);
+      if (json?.message) return String(json.message);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const text = await res.clone().text();
+      if (text) return text;
+    } catch {
+      // ignore
+    }
+  }
+
+  return fallback;
+}
+
 export function RepresentativeDetailDialog({
   representative,
   open,
@@ -182,6 +207,10 @@ export function RepresentativeDetailDialog({
   // Set password mutation
   const setPasswordMutation = useMutation({
     mutationFn: async ({ password, forceChange }: { password: string; forceChange: boolean }) => {
+      const {
+        data: { session },
+      } = await adminSupabase.auth.getSession();
+
       const { data, error } = await adminSupabase.functions.invoke(
         "admin-set-user-password",
         {
@@ -191,9 +220,16 @@ export function RepresentativeDetailDialog({
             password,
             force_change: forceChange,
           },
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
         }
       );
-      if (error) throw error;
+
+      if (error) {
+        const message = await extractEdgeFunctionErrorMessage(error);
+        throw new Error(message);
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     },
@@ -213,6 +249,10 @@ export function RepresentativeDetailDialog({
   // Send reset link mutation
   const sendResetLinkMutation = useMutation({
     mutationFn: async () => {
+      const {
+        data: { session },
+      } = await adminSupabase.auth.getSession();
+
       const { data, error } = await adminSupabase.functions.invoke(
         "admin-set-user-password",
         {
@@ -220,9 +260,16 @@ export function RepresentativeDetailDialog({
             action: "send_reset_link",
             target_user_id: representative!.user_id,
           },
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
         }
       );
-      if (error) throw error;
+
+      if (error) {
+        const message = await extractEdgeFunctionErrorMessage(error);
+        throw new Error(message);
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     },
