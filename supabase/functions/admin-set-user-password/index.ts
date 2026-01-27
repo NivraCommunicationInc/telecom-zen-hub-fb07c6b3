@@ -117,6 +117,17 @@ serve(async (req: Request) => {
 
       if (updateError) {
         console.error(`[admin-set-user-password-${requestId}] Update failed:`, updateError);
+        
+        // Handle weak/pwned password error
+        if (updateError.code === "weak_password" || updateError.message?.includes("weak")) {
+          return new Response(
+            JSON.stringify({ 
+              error: "Ce mot de passe est trop commun ou a été compromis. Choisissez un mot de passe plus unique (évitez les mots courants comme 'Canada', 'Password', etc.)." 
+            }),
+            { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
         return new Response(
           JSON.stringify({ error: "Erreur lors du changement de mot de passe" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
