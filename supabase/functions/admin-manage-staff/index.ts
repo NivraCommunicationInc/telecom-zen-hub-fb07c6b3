@@ -147,7 +147,19 @@ interface LinkAuthRequest {
   send_invitation?: boolean;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest | LinkAuthRequest;
+interface CreateFieldSalesRequest {
+  action: "create_field_sales";
+  email: string;
+  full_name: string;
+  phone?: string;
+  territory?: string;
+  address?: string;
+  emergency_contact?: string;
+  notes?: string;
+  commission_rate?: number;
+}
+
+type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest | LinkAuthRequest | CreateFieldSalesRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
@@ -2702,6 +2714,223 @@ serve(async (req: Request) => {
           message: "Compte de connexion créé et lié avec succès",
           user_id: userId,
           sent_invitation: send_invitation && !password,
+        });
+      }
+
+      case "create_field_sales": {
+        const { 
+          email, 
+          full_name, 
+          phone,
+          territory,
+          address,
+          emergency_contact,
+          notes,
+          commission_rate = 0.10,
+        } = body as CreateFieldSalesRequest;
+
+        const stepBase = "create_field_sales";
+        console.log(`[admin-manage-staff] ${stepBase}.start email=${email} request_id=${requestId}`);
+
+        if (!email || !full_name) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "BAD_REQUEST", message: "Email et nom complet requis", step: stepBase } satisfies ApiError,
+          });
+        }
+
+        // Generate temporary password
+        const array = new Uint8Array(20);
+        crypto.getRandomValues(array);
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        let tempPassword = "";
+        for (let i = 0; i < 20; i++) {
+          tempPassword += chars[array[i] % chars.length];
+        }
+
+        // Create or find user
+        let userId: string;
+        let mode: "new_user_created" | "existing_user_promoted" = "new_user_created";
+
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name,
+            require_password_change: true,
+          },
+        });
+
+        if (authError) {
+          const isEmailExists = 
+            authError.message?.toLowerCase().includes("already registered") ||
+            authError.message?.toLowerCase().includes("email_exists") ||
+            (authError as any).code === "email_exists";
+
+          if (isEmailExists) {
+            console.log(`[admin-manage-staff] ${stepBase} email_exists - looking up existing user`);
+            mode = "existing_user_promoted";
+
+            const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({
+              perPage: 1000,
+            });
+
+            if (listError) {
+              return json(500, {
+                ok: false,
+                request_id: requestId,
+                error: { code: "LIST_USERS_FAILED", message: listError.message, step: stepBase } satisfies ApiError,
+              });
+            }
+
+            const existingUser = listData?.users?.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase()
+            );
+
+            if (!existingUser) {
+              return json(500, {
+                ok: false,
+                request_id: requestId,
+                error: { code: "USER_NOT_FOUND", message: "Utilisateur auth introuvable", step: stepBase } satisfies ApiError,
+              });
+            }
+
+            userId = existingUser.id;
+          } else {
+            console.error(`[admin-manage-staff] ${stepBase} auth creation failed:`, authError);
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "AUTH_CREATE_FAILED", message: authError.message, step: stepBase } satisfies ApiError,
+            });
+          }
+        } else {
+          if (!authData.user) {
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "NO_USER_RETURNED", message: "Aucun utilisateur créé", step: stepBase } satisfies ApiError,
+            });
+          }
+          userId = authData.user.id;
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${userId} mode=${mode}`);
+
+        // Create/update profile
+        const { error: profileError } = await adminClient
+          .from("profiles")
+          .upsert({
+            user_id: userId,
+            email: email.toLowerCase(),
+            full_name,
+            phone: phone || null,
+          }, { onConflict: "user_id" });
+
+        if (profileError) {
+          console.error(`[admin-manage-staff] ${stepBase} profile upsert error:`, profileError);
+        }
+
+        // Remove any existing field_sales role for this user
+        await adminClient
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId)
+          .eq("role", "field_sales");
+
+        // Create user_roles entry for field_sales
+        const { error: roleError } = await adminClient
+          .from("user_roles")
+          .insert({
+            user_id: userId,
+            role: "field_sales",
+            is_active: true,
+            status: "pending",
+            require_password_change: true,
+          });
+
+        if (roleError) {
+          console.error(`[admin-manage-staff] ${stepBase} role insert error:`, roleError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "ROLE_INSERT_FAILED", message: roleError.message, step: stepBase } satisfies ApiError,
+          });
+        }
+
+        // Store additional field sales data in user_roles metadata or a separate note
+        // For now, we'll store territory in internal notes if provided
+        if (notes || territory || address || emergency_contact) {
+          try {
+            const noteContent = [
+              territory ? `Territoire: ${territory}` : null,
+              address ? `Adresse: ${address}` : null,
+              emergency_contact ? `Contact d'urgence: ${emergency_contact}` : null,
+              notes ? `Notes: ${notes}` : null,
+            ].filter(Boolean).join("\n");
+
+            if (noteContent) {
+              await adminClient.from("client_internal_notes").insert({
+                client_id: userId,
+                body: noteContent,
+                note_type: "field_sales_info",
+                created_by_user_id: callingUser.id,
+                created_by_role: "admin",
+                created_by_name: callingUser.email,
+              });
+            }
+          } catch (e) {
+            console.warn(`[admin-manage-staff] ${stepBase} failed to save notes:`, e);
+          }
+        }
+
+        // If commission rate is set, create a commission rule for this user
+        if (commission_rate && commission_rate !== 0.10) {
+          try {
+            await adminClient.from("field_sales_commission_rules").insert({
+              salesperson_id: userId,
+              rule_type: "base_percentage",
+              value: commission_rate,
+              is_active: true,
+            });
+          } catch (e) {
+            console.warn(`[admin-manage-staff] ${stepBase} failed to create commission rule:`, e);
+          }
+        }
+
+        // Send password reset email so rep can set their password
+        const appBaseUrl = getAppBaseUrl();
+        const setupUrl = `${appBaseUrl}/field-sales/setup`;
+        console.log(`[admin-manage-staff] ${stepBase} sending setup email to ${email}`);
+        
+        try {
+          await adminClient.auth.resetPasswordForEmail(email, { 
+            redirectTo: setupUrl 
+          });
+        } catch (resetErr) {
+          console.error(`[admin-manage-staff] ${stepBase} reset email error:`, resetErr);
+        }
+
+        await logAction("field_sales_created", {
+          request_id: requestId,
+          user_id: userId,
+          email,
+          territory,
+          commission_rate,
+          mode,
+        }, { type: "user", id: userId, email });
+
+        console.log(`[admin-manage-staff] ${stepBase} SUCCESS user_id=${userId}`);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Représentant terrain créé avec succès",
+          user_id: userId,
+          mode,
         });
       }
 
