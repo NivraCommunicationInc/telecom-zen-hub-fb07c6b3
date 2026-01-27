@@ -18,13 +18,19 @@ import { fr } from "date-fns/locale";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { FieldSalesNav } from "@/components/field-sales/FieldSalesNav";
 import { OfflineSyncIndicator } from "@/components/field-sales/OfflineSyncIndicator";
-
 interface DashboardStats {
   todaySales: number;
   todayRevenue: number;
   weekSales: number;
   weekCommissions: number;
   pendingSales: number;
+}
+
+interface ServiceItem {
+  offer_id: string;
+  name: string;
+  category: string;
+  price_monthly: number;
 }
 
 interface RecentSale {
@@ -34,6 +40,7 @@ interface RecentSale {
   payment_status: string;
   created_at: string;
   sync_status: string;
+  services: ServiceItem[];
 }
 
 export default function FieldSalesDashboard() {
@@ -101,7 +108,7 @@ export default function FieldSalesDashboard() {
         // Recent sales
         supabase
           .from("field_sales_orders")
-          .select("id, customer_name, total_amount, payment_status, created_at, sync_status")
+          .select("id, customer_name, total_amount, payment_status, created_at, sync_status, services")
           .eq("salesperson_id", session.user.id)
           .order("created_at", { ascending: false })
           .limit(5),
@@ -126,7 +133,12 @@ export default function FieldSalesDashboard() {
         pendingSales: pendingRes.count || 0,
       });
 
-      setRecentSales(recentRes.data || []);
+      // Parse services as array
+      const parsedSales = (recentRes.data || []).map(sale => ({
+        ...sale,
+        services: Array.isArray(sale.services) ? sale.services as unknown as ServiceItem[] : [],
+      }));
+      setRecentSales(parsedSales);
     } catch (error) {
       console.error("Error loading dashboard:", error);
       toast.error("Erreur de chargement");
