@@ -421,6 +421,7 @@ export default function FieldSalesPOS() {
                 {/* Products Grid */}
                 <POSProductGrid
                   offers={filteredOffers}
+                  allOffers={offers}
                   selectedServices={selectedServices}
                   onToggleService={toggleService}
                   onQuantityChange={updateQuantity}
