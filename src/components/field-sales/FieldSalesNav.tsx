@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { path: "/field-sales/dashboard", label: "Accueil", icon: Home },
-  { path: "/field-sales/new-sale", label: "POS", icon: ShoppingCart },
+  { path: "/field-sales/pos", label: "POS", icon: ShoppingCart },
   { path: "/field-sales/sales", label: "Ventes", icon: List },
   { path: "/field-sales/commissions", label: "Gains", icon: DollarSign },
   { path: "/field-sales/account", label: "Compte", icon: User },
