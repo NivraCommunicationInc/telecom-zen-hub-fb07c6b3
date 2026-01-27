@@ -239,7 +239,7 @@ export default function FieldSalesDashboard() {
       <main className="p-4 space-y-4 relative z-10 pb-8">
         {/* Main Action Button */}
         <Button
-          onClick={() => navigate("/field-sales/new-sale")}
+          onClick={() => navigate("/field-sales/pos")}
           className="w-full h-16 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-bold text-lg shadow-xl shadow-orange-500/30 group"
         >
           <PlusCircle className="h-6 w-6 mr-3 group-hover:scale-110 transition-transform" />

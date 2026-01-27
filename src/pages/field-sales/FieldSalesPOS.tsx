@@ -1,16 +1,15 @@
 /**
  * FieldSalesPOS - Professional Point of Sale interface for field sales representatives
  * Complete POS experience with product grid, cart, customer info, and payment
+ * Features: Search, filters, offline support, real-time stats
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useFieldSalesOffers, SelectedService, calculateFieldSalesTotals } from "@/hooks/useFieldSalesOffers";
+import { useFieldSalesOffers, FieldSalesOffer, SelectedService, calculateFieldSalesTotals } from "@/hooks/useFieldSalesOffers";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, ShoppingCart, X, Menu } from "lucide-react";
+import { Loader2, ArrowLeft, ShoppingCart, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -18,13 +17,22 @@ import StaffBackground from "@/components/staff/StaffBackground";
 import { POSHeader } from "@/components/field-sales/POSHeader";
 import { POSQuickStats } from "@/components/field-sales/POSQuickStats";
 import { POSCategoryTabs, POSCategory } from "@/components/field-sales/POSCategoryTabs";
-import { POSServiceCard } from "@/components/field-sales/POSServiceCard";
+import { POSSearchBar } from "@/components/field-sales/POSSearchBar";
+import { POSProductGrid } from "@/components/field-sales/POSProductGrid";
 import { POSCart } from "@/components/field-sales/POSCart";
 import { POSCustomerForm, CustomerData } from "@/components/field-sales/POSCustomerForm";
 import { POSPaymentForm, PaymentData } from "@/components/field-sales/POSPaymentForm";
+import { POSOrderSummary } from "@/components/field-sales/POSOrderSummary";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type POSStep = "catalog" | "customer" | "payment" | "confirmation";
+
+const STEP_TITLES: Record<POSStep, string> = {
+  catalog: "Catalogue",
+  customer: "Client",
+  payment: "Paiement",
+  confirmation: "Confirmation",
+};
 
 export default function FieldSalesPOS() {
   const navigate = useNavigate();
@@ -36,9 +44,15 @@ export default function FieldSalesPOS() {
   const [activeCategory, setActiveCategory] = useState<POSCategory>("all");
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [repName, setRepName] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFeatured, setShowFeatured] = useState(false);
+  const [showDiscounted, setShowDiscounted] = useState(false);
   
   // Stats
   const [stats, setStats] = useState({
@@ -46,6 +60,7 @@ export default function FieldSalesPOS() {
     todayRevenue: 0,
     pendingSales: 0,
     weekCommissions: 0,
+    targetProgress: 0,
   });
 
   // Load rep name and stats
@@ -72,7 +87,10 @@ export default function FieldSalesPOS() {
       weekStart.setDate(weekStart.getDate() - 7);
       const weekStartISO = weekStart.toISOString();
 
-      const [todayRes, pendingRes, commissionsRes] = await Promise.all([
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthStartISO = monthStart.toISOString();
+
+      const [todayRes, pendingRes, commissionsRes, monthRes] = await Promise.all([
         supabase
           .from("field_sales_orders")
           .select("id, total_amount")
@@ -89,37 +107,70 @@ export default function FieldSalesPOS() {
           .eq("salesperson_id", session.user.id)
           .gte("created_at", weekStartISO)
           .in("status", ["pending", "validated"]),
+        supabase
+          .from("field_sales_orders")
+          .select("id")
+          .eq("salesperson_id", session.user.id)
+          .gte("created_at", monthStartISO),
       ]);
 
       const todayTotal = (todayRes.data || []).reduce((sum, s) => sum + (s.total_amount || 0), 0);
       const weekCommTotal = (commissionsRes.data || []).reduce((sum, c) => sum + (c.commission_amount || 0), 0);
+      const monthCount = monthRes.data?.length || 0;
+      const monthTarget = 50;
 
       setStats({
         todaySales: todayRes.data?.length || 0,
         todayRevenue: todayTotal,
         pendingSales: pendingRes.count || 0,
         weekCommissions: weekCommTotal,
+        targetProgress: Math.round((monthCount / monthTarget) * 100),
       });
     };
 
     loadData();
   }, []);
 
-  // Filter offers by category
-  const filteredOffers = activeCategory === "all" 
-    ? offers 
-    : offers.filter(o => o.category === activeCategory);
+  // Filter offers
+  const filteredOffers = useMemo(() => {
+    let result = offers;
+
+    // Category filter
+    if (activeCategory !== "all") {
+      result = result.filter(o => o.category === activeCategory);
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(o => 
+        o.name_fr.toLowerCase().includes(query) ||
+        o.description_fr?.toLowerCase().includes(query) ||
+        o.category.toLowerCase().includes(query)
+      );
+    }
+
+    // Featured filter
+    if (showFeatured) {
+      result = result.filter(o => o.is_featured);
+    }
+
+    // Discounted filter
+    if (showDiscounted) {
+      result = result.filter(o => o.discount_percent && o.discount_percent > 0);
+    }
+
+    return result;
+  }, [offers, activeCategory, searchQuery, showFeatured, showDiscounted]);
+
+  // Counts for filter badges
+  const featuredCount = offers.filter(o => o.is_featured).length;
+  const discountedCount = offers.filter(o => o.discount_percent && o.discount_percent > 0).length;
 
   // Selection handlers
-  const isSelected = (offerId: string) => selectedServices.some(s => s.offerId === offerId);
-  
-  const getQuantity = (offerId: string) => {
-    const service = selectedServices.find(s => s.offerId === offerId);
-    return service?.quantity || 0;
-  };
-
-  const toggleService = (offer: typeof offers[0]) => {
-    if (isSelected(offer.id)) {
+  const toggleService = (offer: FieldSalesOffer) => {
+    const exists = selectedServices.find(s => s.offerId === offer.id);
+    if (exists) {
       setSelectedServices(prev => prev.filter(s => s.offerId !== offer.id));
     } else {
       setSelectedServices(prev => [
@@ -176,8 +227,13 @@ export default function FieldSalesPOS() {
     setStep("payment");
   };
 
-  const handlePaymentSubmit = async (paymentData: PaymentData) => {
-    if (!customerData || selectedServices.length === 0) return;
+  const handlePaymentSubmit = async (data: PaymentData) => {
+    setPaymentData(data);
+    setStep("confirmation");
+  };
+
+  const handleConfirmOrder = async () => {
+    if (!customerData || !paymentData || selectedServices.length === 0) return;
 
     setIsSubmitting(true);
     try {
@@ -224,13 +280,14 @@ export default function FieldSalesPOS() {
 
       if (error) throw error;
 
-      toast.success("🎉 Vente enregistrée!", {
-        description: `Total: ${totals.total.toFixed(2)} $`,
+      toast.success("🎉 Vente enregistrée avec succès!", {
+        description: `Total: ${totals.total.toFixed(2)} $ - ${selectedServices.length} service(s)`,
       });
 
       // Reset and go back to catalog
       setSelectedServices([]);
       setCustomerData(null);
+      setPaymentData(null);
       setStep("catalog");
       
       // Refresh stats
@@ -242,7 +299,7 @@ export default function FieldSalesPOS() {
 
     } catch (error: any) {
       console.error("Error saving sale:", error);
-      toast.error("Erreur", { description: error.message });
+      toast.error("Erreur lors de l'enregistrement", { description: error.message });
     } finally {
       setIsSubmitting(false);
     }
@@ -251,6 +308,7 @@ export default function FieldSalesPOS() {
   const goBack = () => {
     if (step === "customer") setStep("catalog");
     else if (step === "payment") setStep("customer");
+    else if (step === "confirmation") setStep("payment");
     else navigate("/field-sales/dashboard");
   };
 
@@ -277,26 +335,61 @@ export default function FieldSalesPOS() {
         {/* POS Header */}
         <POSHeader repName={repName} />
 
-        {/* Stats Bar */}
-        <POSQuickStats
-          todaySales={stats.todaySales}
-          todayRevenue={stats.todayRevenue}
-          pendingSales={stats.pendingSales}
-          weekCommissions={stats.weekCommissions}
-        />
+        {/* Stats Bar (only on catalog) */}
+        {step === "catalog" && (
+          <POSQuickStats
+            todaySales={stats.todaySales}
+            todayRevenue={stats.todayRevenue}
+            pendingSales={stats.pendingSales}
+            weekCommissions={stats.weekCommissions}
+            targetProgress={stats.targetProgress}
+          />
+        )}
 
-        {/* Step Navigation */}
+        {/* Step Progress (not on catalog) */}
         {step !== "catalog" && (
-          <div className="px-4 py-2 border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={goBack}
-              className="text-slate-400 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
-            </Button>
+          <div className="px-4 py-3 border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goBack}
+                className="text-slate-400 hover:text-white shrink-0"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {(["catalog", "customer", "payment", "confirmation"] as POSStep[]).map((s, i) => (
+                    <div key={s} className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+                        step === s 
+                          ? "bg-orange-500 text-white"
+                          : (["catalog", "customer", "payment", "confirmation"].indexOf(step) > i)
+                            ? "bg-emerald-500 text-white"
+                            : "bg-slate-700 text-slate-400"
+                      )}>
+                        {(["catalog", "customer", "payment", "confirmation"].indexOf(step) > i) ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          i + 1
+                        )}
+                      </div>
+                      {i < 3 && (
+                        <div className={cn(
+                          "w-6 h-0.5 rounded-full",
+                          (["catalog", "customer", "payment", "confirmation"].indexOf(step) > i)
+                            ? "bg-emerald-500"
+                            : "bg-slate-700"
+                        )} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-white font-medium mt-1">{STEP_TITLES[step]}</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -313,33 +406,27 @@ export default function FieldSalesPOS() {
                   selectedCounts={selectedCounts}
                 />
 
+                {/* Search & Filters */}
+                <POSSearchBar
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  showFeatured={showFeatured}
+                  onFeaturedToggle={() => setShowFeatured(!showFeatured)}
+                  showDiscounted={showDiscounted}
+                  onDiscountedToggle={() => setShowDiscounted(!showDiscounted)}
+                  featuredCount={featuredCount}
+                  discountedCount={discountedCount}
+                />
+
                 {/* Products Grid */}
-                <ScrollArea className="flex-1">
-                  <div className="p-4">
-                    {filteredOffers.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-slate-400">Aucune offre dans cette catégorie</p>
-                      </div>
-                    ) : (
-                      <div className={cn(
-                        "grid gap-3",
-                        isMobile ? "grid-cols-1" : "grid-cols-2 xl:grid-cols-3"
-                      )}>
-                        {filteredOffers.map(offer => (
-                          <POSServiceCard
-                            key={offer.id}
-                            offer={offer}
-                            isSelected={isSelected(offer.id)}
-                            quantity={getQuantity(offer.id)}
-                            onToggle={() => toggleService(offer)}
-                            onQuantityChange={(delta) => updateQuantity(offer.id, delta)}
-                            compact={isMobile}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
+                <POSProductGrid
+                  offers={filteredOffers}
+                  selectedServices={selectedServices}
+                  onToggleService={toggleService}
+                  onQuantityChange={updateQuantity}
+                  isMobile={isMobile}
+                  emptyMessage={searchQuery ? "Aucun résultat" : "Aucun service dans cette catégorie"}
+                />
 
                 {/* Mobile Cart Button */}
                 {isMobile && selectedServices.length > 0 && (
@@ -382,18 +469,18 @@ export default function FieldSalesPOS() {
           )}
 
           {step === "customer" && (
-            <ScrollArea className="h-full">
+            <div className="h-full overflow-auto">
               <div className="p-4 max-w-lg mx-auto">
                 <POSCustomerForm
                   onSubmit={handleCustomerSubmit}
                   isSubmitting={isSubmitting}
                 />
               </div>
-            </ScrollArea>
+            </div>
           )}
 
           {step === "payment" && (
-            <ScrollArea className="h-full">
+            <div className="h-full overflow-auto">
               <div className="p-4 max-w-lg mx-auto">
                 <POSPaymentForm
                   onSubmit={handlePaymentSubmit}
@@ -401,7 +488,31 @@ export default function FieldSalesPOS() {
                   totalAmount={totals.total}
                 />
               </div>
-            </ScrollArea>
+            </div>
+          )}
+
+          {step === "confirmation" && customerData && paymentData && (
+            <div className="h-full overflow-auto">
+              <div className="p-4 max-w-lg mx-auto space-y-4">
+                <POSOrderSummary
+                  services={selectedServices}
+                  customer={customerData}
+                  payment={paymentData}
+                />
+                <Button
+                  onClick={handleConfirmOrder}
+                  disabled={isSubmitting}
+                  className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  ) : (
+                    <Check className="h-5 w-5 mr-2" />
+                  )}
+                  Confirmer et enregistrer
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
