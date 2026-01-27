@@ -110,12 +110,42 @@ const TrackOrder = () => {
   const printRef = useRef<HTMLDivElement>(null);
   
   const [orderNumber, setOrderNumber] = useState("");
-  const [email, setEmail] = useState("");
+  const [verificationValue, setVerificationValue] = useState("");
+  const [verificationType, setVerificationType] = useState<"phone" | "postal_code">("phone");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [searched, setSearched] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Format phone number as user types
+  const formatPhoneInput = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (digits.length === 0) return "";
+    if (digits.length <= 3) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
+  // Format postal code as user types
+  const formatPostalCodeInput = (value: string) => {
+    const cleaned = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 6);
+    if (cleaned.length <= 3) return cleaned;
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+  };
+
+  const handleVerificationChange = (value: string) => {
+    if (verificationType === "phone") {
+      setVerificationValue(formatPhoneInput(value));
+    } else {
+      setVerificationValue(formatPostalCodeInput(value));
+    }
+  };
+
+  const handleTypeChange = (type: "phone" | "postal_code") => {
+    setVerificationType(type);
+    setVerificationValue("");
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,14 +153,13 @@ const TrackOrder = () => {
     setOrderData(null);
     setSearched(true);
 
-    if (!orderNumber.trim() || !email.trim()) {
+    if (!orderNumber.trim() || !verificationValue.trim()) {
       setError(isFr 
-        ? "Veuillez entrer le numéro de commande et votre courriel." 
-        : "Please enter both order number and your email.");
+        ? "Veuillez entrer le numéro de commande et votre information de vérification." 
+        : "Please enter both order number and your verification information.");
       return;
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
     setIsLoading(true);
 
     try {
@@ -139,7 +168,8 @@ const TrackOrder = () => {
         {
           body: {
             orderNumber: orderNumber.trim(),
-            email: normalizedEmail,
+            verificationValue: verificationValue.trim(),
+            verificationType,
             language: isFr ? "fr" : "en",
           },
         }
@@ -214,7 +244,7 @@ const TrackOrder = () => {
     setSearched(false);
     setError(null);
     setOrderNumber("");
-    setEmail("");
+    setVerificationValue("");
   };
 
   const currentIndex = orderData ? getStatusIndex(orderData.status) : 0;
@@ -299,18 +329,51 @@ const TrackOrder = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      {isFr ? "Courriel" : "Email"}
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                      {isFr ? "Vérification de sécurité" : "Security Verification"}
                     </Label>
+                    
+                    {/* Toggle between phone and postal code */}
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        type="button"
+                        variant={verificationType === "phone" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleTypeChange("phone")}
+                        className="flex-1 gap-1.5"
+                      >
+                        <Phone className="w-4 h-4" />
+                        {isFr ? "Téléphone" : "Phone"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={verificationType === "postal_code" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleTypeChange("postal_code")}
+                        className="flex-1 gap-1.5"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        {isFr ? "Code postal" : "Postal Code"}
+                      </Button>
+                    </div>
+                    
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder={isFr ? "votre@courriel.com" : "your@email.com"}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="verificationValue"
+                      type="tel"
+                      placeholder={verificationType === "phone" 
+                        ? "(514) 555-1234" 
+                        : "H2X 1Y4"}
+                      value={verificationValue}
+                      onChange={(e) => handleVerificationChange(e.target.value)}
                       className="h-12 text-base bg-background/80 border-border/50 focus:border-accent focus:ring-accent/20"
+                      maxLength={verificationType === "phone" ? 14 : 7}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      {verificationType === "phone"
+                        ? (isFr ? "Le téléphone utilisé lors de la commande" : "The phone used when ordering")
+                        : (isFr ? "Le code postal de livraison" : "The delivery postal code")}
+                    </p>
                   </div>
                 </div>
                 
