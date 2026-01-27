@@ -2847,7 +2847,9 @@ serve(async (req: Request) => {
             user_id: userId,
             role: "field_sales",
             is_active: true,
-            status: "pending",
+            // NOTE: user_roles_status_check only allows: active | disabled | hold
+            // We use "hold" as the pre-onboarding state (was previously "pending").
+            status: "hold",
             require_password_change: true,
           });
 
