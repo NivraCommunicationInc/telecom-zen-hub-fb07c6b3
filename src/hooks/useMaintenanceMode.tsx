@@ -23,7 +23,7 @@ export const useMaintenanceMode = () => {
         .from("site_settings")
         .select("value_json")
         .eq("key", "maintenance_mode")
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         return { enabled: false, eta: null, message_fr: "", message_en: "" };
@@ -42,7 +42,7 @@ export const useMaintenanceMode = () => {
         .from("site_settings")
         .select("value_json")
         .eq("key", "maintenance_allowed_routes")
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         return { routes: ["/", "/contact", "/aide", "/portal/auth"] };
