@@ -3695,8 +3695,99 @@ export type Database = {
           },
         ]
       }
+      field_sales_cashout_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string | null
+          destination: string
+          id: string
+          method: string
+          paid_at: string | null
+          request_number: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          salesperson_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string | null
+          destination: string
+          id?: string
+          method: string
+          paid_at?: string | null
+          request_number?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          salesperson_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string | null
+          destination?: string
+          id?: string
+          method?: string
+          paid_at?: string | null
+          request_number?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          salesperson_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      field_sales_commission_rules: {
+        Row: {
+          bonus_amount: number | null
+          bonus_percentage: number | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          max_sales: number | null
+          min_sales: number | null
+          rule_name: string
+          rule_type: string
+          service_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bonus_amount?: number | null
+          bonus_percentage?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_sales?: number | null
+          min_sales?: number | null
+          rule_name: string
+          rule_type: string
+          service_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bonus_amount?: number | null
+          bonus_percentage?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_sales?: number | null
+          min_sales?: number | null
+          rule_name?: string
+          rule_type?: string
+          service_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       field_sales_orders: {
         Row: {
+          additional_photos: Json | null
           appointment_date: string | null
           appointment_notes: string | null
           converted_at: string | null
@@ -3706,12 +3797,18 @@ export type Database = {
           customer_city: string | null
           customer_date_of_birth: string | null
           customer_email: string | null
+          customer_id_photo_url: string | null
           customer_name: string
           customer_phone: string
           customer_postal_code: string | null
+          gps_accuracy: number | null
+          gps_captured_at: string | null
+          gps_latitude: number | null
+          gps_longitude: number | null
           id: string
           internal_notes: string | null
           local_id: string | null
+          location_photo_url: string | null
           payment_method: string | null
           payment_reference: string | null
           payment_status: string | null
@@ -3720,6 +3817,7 @@ export type Database = {
           salesperson_id: string
           selected_channels: Json | null
           services: Json
+          signature_captured_at: string | null
           sync_error: string | null
           sync_status: string | null
           synced_at: string | null
@@ -3727,6 +3825,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          additional_photos?: Json | null
           appointment_date?: string | null
           appointment_notes?: string | null
           converted_at?: string | null
@@ -3736,12 +3835,18 @@ export type Database = {
           customer_city?: string | null
           customer_date_of_birth?: string | null
           customer_email?: string | null
+          customer_id_photo_url?: string | null
           customer_name: string
           customer_phone: string
           customer_postal_code?: string | null
+          gps_accuracy?: number | null
+          gps_captured_at?: string | null
+          gps_latitude?: number | null
+          gps_longitude?: number | null
           id?: string
           internal_notes?: string | null
           local_id?: string | null
+          location_photo_url?: string | null
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
@@ -3750,6 +3855,7 @@ export type Database = {
           salesperson_id: string
           selected_channels?: Json | null
           services?: Json
+          signature_captured_at?: string | null
           sync_error?: string | null
           sync_status?: string | null
           synced_at?: string | null
@@ -3757,6 +3863,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          additional_photos?: Json | null
           appointment_date?: string | null
           appointment_notes?: string | null
           converted_at?: string | null
@@ -3766,12 +3873,18 @@ export type Database = {
           customer_city?: string | null
           customer_date_of_birth?: string | null
           customer_email?: string | null
+          customer_id_photo_url?: string | null
           customer_name?: string
           customer_phone?: string
           customer_postal_code?: string | null
+          gps_accuracy?: number | null
+          gps_captured_at?: string | null
+          gps_latitude?: number | null
+          gps_longitude?: number | null
           id?: string
           internal_notes?: string | null
           local_id?: string | null
+          location_photo_url?: string | null
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
@@ -3780,6 +3893,7 @@ export type Database = {
           salesperson_id?: string
           selected_channels?: Json | null
           services?: Json
+          signature_captured_at?: string | null
           sync_error?: string | null
           sync_status?: string | null
           synced_at?: string | null
@@ -7019,6 +7133,8 @@ export type Database = {
       }
       sales_commissions: {
         Row: {
+          bonus_amount: number | null
+          bonus_type: string | null
           commission_amount: number
           commission_rate: number
           converted_order_id: string | null
@@ -7028,6 +7144,7 @@ export type Database = {
           notes: string | null
           paid_at: string | null
           paid_by: string | null
+          rejection_reason: string | null
           sale_amount: number
           salesperson_id: string
           status: string | null
@@ -7036,6 +7153,8 @@ export type Database = {
           validated_by: string | null
         }
         Insert: {
+          bonus_amount?: number | null
+          bonus_type?: string | null
           commission_amount: number
           commission_rate?: number
           converted_order_id?: string | null
@@ -7045,6 +7164,7 @@ export type Database = {
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          rejection_reason?: string | null
           sale_amount: number
           salesperson_id: string
           status?: string | null
@@ -7053,6 +7173,8 @@ export type Database = {
           validated_by?: string | null
         }
         Update: {
+          bonus_amount?: number | null
+          bonus_type?: string | null
           commission_amount?: number
           commission_rate?: number
           converted_order_id?: string | null
@@ -7062,6 +7184,7 @@ export type Database = {
           notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          rejection_reason?: string | null
           sale_amount?: number
           salesperson_id?: string
           status?: string | null
@@ -9167,6 +9290,21 @@ export type Database = {
           source_table: string | null
           status: string | null
           total: number | null
+        }
+        Relationships: []
+      }
+      field_sales_leaderboard: {
+        Row: {
+          email: string | null
+          full_name: string | null
+          sales_this_month: number | null
+          sales_this_week: number | null
+          sales_today: number | null
+          total_bonuses: number | null
+          total_commissions: number | null
+          total_revenue: number | null
+          total_sales: number | null
+          user_id: string | null
         }
         Relationships: []
       }

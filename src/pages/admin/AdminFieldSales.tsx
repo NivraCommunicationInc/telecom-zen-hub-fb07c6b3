@@ -1,10 +1,11 @@
 /**
  * AdminFieldSales - Professional admin control center for field sales management
  * Features: Rep management, sales tracking, commission control, order integration
+ * Enhanced: Leaderboard, cashout requests, exports
  */
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Briefcase, RefreshCw, UserPlus, Users, Package, DollarSign, Settings } from "lucide-react";
+import { Briefcase, RefreshCw, UserPlus, Users, Package, DollarSign, Trophy, Wallet, Download } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { adminClient as adminSupabase } from "@/integrations/backend/adminClient";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import { RepresentativeDetailDialog } from "@/components/admin/field-sales/Repre
 import { RepresentativesTable } from "@/components/admin/field-sales/RepresentativesTable";
 import { FieldSalesOrdersTab } from "@/components/admin/field-sales/FieldSalesOrdersTab";
 import { CommissionManagementTab } from "@/components/admin/field-sales/CommissionManagementTab";
+import { LeaderboardTab } from "@/components/admin/field-sales/LeaderboardTab";
+import { CashoutRequestsTab } from "@/components/admin/field-sales/CashoutRequestsTab";
 
 interface FieldSalesRep {
   id: string;
@@ -204,7 +207,7 @@ const AdminFieldSales = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-slate-800/50 border border-slate-700">
+          <TabsList className="bg-slate-800/50 border border-slate-700 flex-wrap">
             <TabsTrigger value="reps" className="data-[state=active]:bg-slate-700">
               <Users className="h-4 w-4 mr-2" />
               Représentants
@@ -213,9 +216,17 @@ const AdminFieldSales = () => {
               <Package className="h-4 w-4 mr-2" />
               Commandes
             </TabsTrigger>
+            <TabsTrigger value="leaderboard" className="data-[state=active]:bg-slate-700">
+              <Trophy className="h-4 w-4 mr-2" />
+              Classement
+            </TabsTrigger>
             <TabsTrigger value="commissions" className="data-[state=active]:bg-slate-700">
               <DollarSign className="h-4 w-4 mr-2" />
               Commissions
+            </TabsTrigger>
+            <TabsTrigger value="cashouts" className="data-[state=active]:bg-slate-700">
+              <Wallet className="h-4 w-4 mr-2" />
+              Retraits
             </TabsTrigger>
           </TabsList>
 
@@ -236,8 +247,16 @@ const AdminFieldSales = () => {
             />
           </TabsContent>
 
+          <TabsContent value="leaderboard" className="mt-4">
+            <LeaderboardTab />
+          </TabsContent>
+
           <TabsContent value="commissions" className="mt-4">
             <CommissionManagementTab />
+          </TabsContent>
+
+          <TabsContent value="cashouts" className="mt-4">
+            <CashoutRequestsTab />
           </TabsContent>
         </Tabs>
       </div>
