@@ -1,15 +1,15 @@
 /**
- * FieldSalesNav - Bottom navigation for field sales mobile portal
- * Optimized for one-handed thumb access on mobile devices
+ * FieldSalesNav - Professional bottom navigation for field sales POS portal
  */
 import { Link, useLocation } from "react-router-dom";
-import { Home, PlusCircle, List, DollarSign, User } from "lucide-react";
+import { Home, ShoppingCart, List, DollarSign, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { path: "/field-sales/dashboard", label: "Accueil", icon: Home },
-  { path: "/field-sales/new-sale", label: "Vente", icon: PlusCircle },
-  { path: "/field-sales/sales", label: "Mes ventes", icon: List },
+  { path: "/field-sales/new-sale", label: "POS", icon: ShoppingCart },
+  { path: "/field-sales/sales", label: "Ventes", icon: List },
   { path: "/field-sales/commissions", label: "Gains", icon: DollarSign },
   { path: "/field-sales/account", label: "Compte", icon: User },
 ];
@@ -23,23 +23,32 @@ export function FieldSalesNav() {
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || 
             (item.path !== "/field-sales/dashboard" && location.pathname.startsWith(item.path));
+          const isPOS = item.path === "/field-sales/new-sale";
           
           return (
             <Link
               key={item.path}
               to={item.path}
               className={cn(
-                "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[60px]",
-                isActive
-                  ? "text-orange-400 bg-orange-500/10"
-                  : "text-slate-500 hover:text-slate-300"
+                "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] relative",
+                isPOS 
+                  ? "text-orange-400"
+                  : isActive
+                    ? "text-cyan-400 bg-cyan-500/10"
+                    : "text-slate-500 hover:text-slate-300"
               )}
             >
-              <item.icon className={cn("h-6 w-6", isActive && "scale-110")} />
-              <span className="text-[10px] font-medium">{item.label}</span>
-              {isActive && (
-                <div className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-orange-400" />
+              {isPOS ? (
+                <div className="p-2 -mt-4 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/30">
+                  <item.icon className="h-5 w-5 text-white" />
+                </div>
+              ) : (
+                <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
               )}
+              <span className={cn(
+                "text-[10px] font-medium",
+                isPOS && "-mt-1"
+              )}>{item.label}</span>
             </Link>
           );
         })}
