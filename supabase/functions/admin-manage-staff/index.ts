@@ -2833,25 +2833,48 @@ serve(async (req: Request) => {
           console.error(`[admin-manage-staff] ${stepBase} profile upsert error:`, profileError);
         }
 
-        // Remove any existing field_sales role for this user
-        await adminClient
+        // user_roles has a UNIQUE(user_id) constraint in this project.
+        // So for existing users we must UPDATE the existing role row instead of inserting a new one.
+        const { data: existingRoleRow, error: existingRoleErr } = await adminClient
           .from("user_roles")
-          .delete()
+          .select("id, role")
           .eq("user_id", userId)
-          .eq("role", "field_sales");
+          .maybeSingle();
 
-        // Create user_roles entry for field_sales
-        const { error: roleError } = await adminClient
-          .from("user_roles")
-          .insert({
-            user_id: userId,
-            role: "field_sales",
-            is_active: true,
-            // NOTE: user_roles_status_check only allows: active | disabled | hold
-            // We use "hold" as the pre-onboarding state (was previously "pending").
-            status: "hold",
-            require_password_change: true,
+        if (existingRoleErr) {
+          console.error(`[admin-manage-staff] ${stepBase} existing role lookup error:`, existingRoleErr);
+        }
+
+        // Safety: never auto-convert an admin account into a field sales rep.
+        if (existingRoleRow?.role === "admin") {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: {
+              code: "ROLE_CONFLICT",
+              message: "Ce courriel appartient déjà à un administrateur. Utilise un autre courriel pour le vendeur terrain.",
+              step: stepBase,
+            } satisfies ApiError,
           });
+        }
+
+        const nextRolePayload = {
+          role: "field_sales",
+          is_active: true,
+          // NOTE: user_roles_status_check only allows: active | disabled | hold
+          // We use "hold" as the pre-onboarding state (was previously "pending").
+          status: "hold",
+          require_password_change: true,
+        };
+
+        const { error: roleError } = existingRoleRow
+          ? await adminClient
+              .from("user_roles")
+              .update(nextRolePayload)
+              .eq("user_id", userId)
+          : await adminClient
+              .from("user_roles")
+              .insert({ user_id: userId, ...nextRolePayload });
 
         if (roleError) {
           console.error(`[admin-manage-staff] ${stepBase} role insert error:`, roleError);
