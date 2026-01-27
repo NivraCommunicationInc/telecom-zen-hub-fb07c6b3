@@ -53,12 +53,10 @@ const InfluencerLogin = () => {
         return;
       }
 
-      if (influencer.status === "invited" || influencer.status === "pending") {
+      // Only block "invited" status - "pending" now auto-activates on signup
+      if (influencer.status === "invited") {
         await supabase.auth.signOut();
-        const message = influencer.status === "pending" 
-          ? "Votre demande est en cours de traitement. Vous recevrez un email une fois activé."
-          : "Veuillez compléter votre inscription via le lien d'invitation.";
-        toast.info(message);
+        toast.info("Veuillez compléter votre inscription via le lien d'invitation.");
         setIsLoading(false);
         return;
       }
