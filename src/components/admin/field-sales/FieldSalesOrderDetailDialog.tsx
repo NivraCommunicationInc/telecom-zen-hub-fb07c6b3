@@ -43,7 +43,17 @@ import {
   Eye,
 } from "lucide-react";
 
-interface FieldSalesOrder {
+// Helper to extract service details from JSONB
+function getServiceDetails(services: any[] | null) {
+  const firstService = services?.[0];
+  return {
+    type: firstService?.category || "service",
+    name: firstService?.name || "—",
+    monthlyPrice: firstService?.price_monthly || 0,
+  };
+}
+
+interface FieldSalesOrderRaw {
   id: string;
   order_number: string | null;
   local_id: string | null;
@@ -55,9 +65,7 @@ interface FieldSalesOrder {
   customer_address: string;
   service_city: string | null;
   service_postal_code?: string | null;
-  service_type: string;
-  plan_name: string;
-  monthly_price: number;
+  services: any[] | null;
   total_amount: number;
   payment_method: string;
   payment_status: string;
@@ -71,6 +79,8 @@ interface FieldSalesOrder {
   signature_data?: string | null;
   notes?: string | null;
 }
+
+type FieldSalesOrder = FieldSalesOrderRaw;
 
 interface FieldSalesOrderDetailDialogProps {
   order: FieldSalesOrder | null;
@@ -117,8 +127,9 @@ export function FieldSalesOrderDetailDialog({
   });
 
   // Generate contract PDF
-  const generateContractPDF = async () => {
+  const generateContractPDF = async (order: FieldSalesOrderRaw) => {
     if (!order) return;
+    const serviceDetails = getServiceDetails(order.services);
     
     setIsGeneratingContract(true);
     try {
@@ -136,9 +147,9 @@ export function FieldSalesOrderDetailDialog({
           postalCode: order.service_postal_code || "",
         },
         service: {
-          type: order.service_type,
-          planName: order.plan_name,
-          monthlyPrice: order.monthly_price,
+          type: serviceDetails.type,
+          planName: serviceDetails.name,
+          monthlyPrice: serviceDetails.monthlyPrice,
         },
         payment: {
           method: order.payment_method,
@@ -162,8 +173,9 @@ export function FieldSalesOrderDetailDialog({
   };
 
   // Generate invoice PDF
-  const generateInvoicePDF = async () => {
+  const generateInvoicePDF = async (order: FieldSalesOrderRaw) => {
     if (!order) return;
+    const serviceDetails = getServiceDetails(order.services);
     
     setIsGeneratingInvoice(true);
     try {
@@ -182,9 +194,9 @@ export function FieldSalesOrderDetailDialog({
           postalCode: order.service_postal_code || "",
         },
         service: {
-          type: order.service_type,
-          planName: order.plan_name,
-          monthlyPrice: order.monthly_price,
+          type: serviceDetails.type,
+          planName: serviceDetails.name,
+          monthlyPrice: serviceDetails.monthlyPrice,
         },
         payment: {
           method: order.payment_method,
@@ -204,6 +216,7 @@ export function FieldSalesOrderDetailDialog({
   };
 
   if (!order) return null;
+  const serviceDetails = getServiceDetails(order.services);
 
   const getSyncStatusBadge = (status: string) => {
     switch (status) {
@@ -323,18 +336,18 @@ export function FieldSalesOrderDetailDialog({
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-500">Type de service</p>
-                  <p className="text-white font-medium capitalize">{order.service_type}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Plan</p>
-                  <p className="text-white font-medium">{order.plan_name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Prix mensuel</p>
-                  <p className="text-cyan-400 font-bold text-lg">${order.monthly_price.toFixed(2)}/mois</p>
-                </div>
+                 <div>
+                   <p className="text-xs text-slate-500">Type de service</p>
+                   <p className="text-white font-medium capitalize">{serviceDetails.type}</p>
+                 </div>
+                 <div>
+                   <p className="text-xs text-slate-500">Plan</p>
+                   <p className="text-white font-medium">{serviceDetails.name}</p>
+                 </div>
+                 <div>
+                   <p className="text-xs text-slate-500">Prix mensuel</p>
+                   <p className="text-cyan-400 font-bold text-lg">${serviceDetails.monthlyPrice.toFixed(2)}/mois</p>
+                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Représentant</p>
                   <p className="text-white">{order.salesperson_name || "—"}</p>
@@ -413,7 +426,7 @@ export function FieldSalesOrderDetailDialog({
           <div className="flex flex-wrap gap-3">
             <Button
               variant="outline"
-              onClick={generateContractPDF}
+               onClick={() => generateContractPDF(order)}
               disabled={isGeneratingContract}
               className="border-orange-500/50 text-orange-400 hover:bg-orange-500/20"
             >
@@ -427,7 +440,7 @@ export function FieldSalesOrderDetailDialog({
 
             <Button
               variant="outline"
-              onClick={generateInvoicePDF}
+               onClick={() => generateInvoicePDF(order)}
               disabled={isGeneratingInvoice}
               className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20"
             >

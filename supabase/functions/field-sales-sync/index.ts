@@ -16,7 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
   'Content-Type': 'application/json',
 };
 
@@ -33,7 +33,7 @@ function generateOrderNumber(): string {
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -66,7 +66,9 @@ serve(async (req) => {
     const { action, sale_id } = body;
 
     // Helper function to sync a single field sale to the orders table
-    async function syncSaleToOrders(sale: any): Promise<{ success: boolean; orderId?: string; error?: string }> {
+    async function syncSaleToOrders(
+      sale: any
+    ): Promise<{ success: boolean; orderId?: string; order_number?: string; error?: string }> {
       console.log(`[field-sales-sync] Syncing sale ${sale.id} to orders table`);
 
       try {
@@ -192,7 +194,7 @@ serve(async (req) => {
             });
         }
 
-        return { success: true, orderId: newOrder.id };
+        return { success: true, orderId: newOrder.id, order_number: newOrder.order_number };
 
       } catch (error: any) {
         console.error(`[field-sales-sync] Error syncing sale ${sale.id}:`, error);
@@ -228,13 +230,18 @@ serve(async (req) => {
 
       // Verify the caller is the salesperson or an admin
       const isOwner = sale.salesperson_id === claims.user.id;
-      const { data: adminRole } = await supabaseAdmin
+       const { data: adminRole, error: roleError } = await supabaseAdmin
         .from('user_roles')
         .select('role')
         .eq('user_id', claims.user.id)
-        .in('role', ['admin', 'staff'])
+         // user_roles.role is enum app_role (admin, client, technician, employee, influencer, field_sales)
+         .in('role', ['admin', 'employee'])
         .eq('is_active', true)
         .maybeSingle();
+
+       if (roleError) {
+         console.error('[field-sales-sync] Role check error:', roleError);
+       }
 
       if (!isOwner && !adminRole) {
         console.error('[field-sales-sync] Unauthorized:', claims.user.id);
