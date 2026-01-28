@@ -85,8 +85,8 @@ serve(async (req) => {
         const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
         const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
         
-        // Due date = new cycle end date
-        const dueDate = newCycleEnd.toISOString().split('T')[0];
+        // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
+        const dueDate = sub.cycle_end_date;
         
         // Determine payment method based on subscription
         const hasPayPalSubscription = !!sub.paypal_subscription_id;
