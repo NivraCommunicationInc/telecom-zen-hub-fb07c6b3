@@ -51,7 +51,7 @@ import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSecti
 import { PortalTVChannelSelection } from "@/components/checkout/PortalTVChannelSelection";
 import { PortalStreamingServiceSelection } from "@/components/checkout/PortalStreamingServiceSelection";
 import { StreamingCatalogItem } from "@/hooks/usePortalStreamingCatalog";
-import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone, CheckoutEssentialTerms } from "@/components/checkout";
+import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone, CheckoutEssentialTerms, AutoPayPalOption } from "@/components/checkout";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
@@ -358,6 +358,10 @@ const ClientTVOrder = () => {
   
   // PayPal capture ID when payment is completed via PayPal
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
+  
+  // Auto-billing PayPal option with $5 discount
+  const [enableAutoBilling, setEnableAutoBilling] = useState(false);
+  const AUTO_BILLING_DISCOUNT = 5;
 
   // Security PIN for new accounts
   const [securityPin, setSecurityPin] = useState("");
@@ -1432,6 +1436,18 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                   />
                 </CardContent>
               </Card>
+
+              {/* Auto-Billing PayPal Option */}
+              <AutoPayPalOption
+                isFrench={isFrench}
+                isEnabled={enableAutoBilling}
+                onEnabledChange={(enabled) => {
+                  setEnableAutoBilling(enabled);
+                  if (enabled) setSelectedPaymentMethod("paypal");
+                }}
+                monthlyAmount={selectedPlan?.price || 0}
+                discountAmount={AUTO_BILLING_DISCOUNT}
+              />
 
               {/* Essential Terms - Before Payment */}
               <CheckoutEssentialTerms
