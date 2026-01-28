@@ -28,10 +28,10 @@ export function useFieldSalesOffers(category?: string) {
   return useQuery({
     queryKey: ["field-sales-offers", category],
     queryFn: async () => {
+      // Use secure public view that hides promo codes and internal audit fields
       let query = supabase
-        .from("site_offers")
+        .from("site_offers_public")
         .select("id, offer_type, category, name_fr, description_fr, price_monthly, price_setup, discount_percent, discount_amount, is_featured, features_json, sort_order")
-        .eq("is_active", true)
         .order("sort_order", { ascending: true });
 
       if (category && category !== "all") {

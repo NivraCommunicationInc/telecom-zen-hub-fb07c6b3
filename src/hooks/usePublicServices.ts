@@ -7,7 +7,6 @@ export interface PublicService {
   category: string;
   price: number;
   description: string | null;
-  is_active: boolean;
 }
 
 export interface InternetPlan {
@@ -92,10 +91,10 @@ export function usePublicServices() {
   return useQuery({
     queryKey: ["public-services"],
     queryFn: async () => {
+      // Use secure public view that hides internal metadata
       const { data, error } = await supabase
-        .from("services")
-        .select("id, name, category, price, description, is_active")
-        .eq("is_active", true)
+        .from("services_public")
+        .select("id, name, category, price, description")
         .order("category")
         .order("price");
 

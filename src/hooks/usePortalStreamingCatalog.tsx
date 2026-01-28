@@ -31,10 +31,10 @@ export const usePortalStreamingCatalogActive = () => {
   return useQuery({
     queryKey: ["portal-streaming-catalog-active"],
     queryFn: async () => {
+      // Use secure public view that hides internal business logic fields
       const { data, error } = await portalSupabase
-        .from("streaming_catalog")
+        .from("streaming_catalog_public")
         .select("*")
-        .eq("status", "active")
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return data as StreamingCatalogItem[];
