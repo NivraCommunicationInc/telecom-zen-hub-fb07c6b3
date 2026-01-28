@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -75,11 +76,15 @@ Deno.serve(async (req) => {
     const currentConfig = currentData?.value_json || {};
 
     // Update lockdown status
+    const nextEnabled = enabled ?? !currentConfig.enabled;
+
+    // IMPORTANT: This config must be readable publicly so the LockdownGuard can block the site.
+    // Do NOT expose admin user ids publicly.
     const newConfig = {
       ...currentConfig,
-      enabled: enabled ?? !currentConfig.enabled,
-      activated_at: enabled ? new Date().toISOString() : null,
-      activated_by: enabled ? userId : null,
+      enabled: nextEnabled,
+      activated_at: nextEnabled ? new Date().toISOString() : null,
+      activated_by: null,
       message_fr: message_fr || currentConfig.message_fr || "Site temporairement verrouillé.",
       message_en: message_en || currentConfig.message_en || "Site temporarily locked.",
     };
@@ -89,7 +94,7 @@ Deno.serve(async (req) => {
       .upsert({ 
         key: "total_lockdown", 
         value_json: newConfig,
-        is_public: false 
+        is_public: true 
       }, { onConflict: "key" });
 
     if (updateError) {
