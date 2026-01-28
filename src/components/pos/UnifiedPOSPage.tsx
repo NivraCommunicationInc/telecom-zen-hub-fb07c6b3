@@ -18,13 +18,13 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import StaffBackground from "@/components/staff/StaffBackground";
-import { POSHeader } from "@/components/field-sales/POSHeader";
-import { POSCategoryTabs, POSCategory } from "@/components/field-sales/POSCategoryTabs";
-import { POSSearchBar } from "@/components/field-sales/POSSearchBar";
-import { POSProductGrid } from "@/components/field-sales/POSProductGrid";
-import { POSCustomerForm, CustomerData } from "@/components/field-sales/POSCustomerForm";
-import { POSPaymentForm, PaymentData } from "@/components/field-sales/POSPaymentForm";
-import { POSOrderSummary } from "@/components/field-sales/POSOrderSummary";
+import { POSHeader } from "@/components/pos/POSHeader";
+import { POSCategoryTabs, POSCategory } from "@/components/pos/POSCategoryTabs";
+import { POSSearchBar } from "@/components/pos/POSSearchBar";
+import { POSProductGrid } from "@/components/pos/POSProductGrid";
+import { POSCustomerForm, CustomerData } from "@/components/pos/POSCustomerForm";
+import { POSPaymentForm, PaymentData } from "@/components/pos/POSPaymentForm";
+import { POSOrderSummary } from "@/components/pos/POSOrderSummary";
 import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
@@ -203,16 +203,16 @@ export default function UnifiedPOSPage({
         // For Admin/Staff/Technician - create order directly
         const { data: newOrder, error } = await supabase
           .from("orders")
-          .insert({
+          .insert([{
             user_id: session.user.id,
             service_type: pos.services[0]?.category || "bundle",
             client_email: customerData.email,
-            equipment_details: {
+            equipment_details: JSON.parse(JSON.stringify({
               customer: customerData,
               services: payload.services,
               equipment: payload.equipment,
               adjustments: payload.adjustments,
-            },
+            })),
             subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
             tps_amount: payload.totals.tps,
             tvq_amount: payload.totals.tvq,
@@ -220,7 +220,7 @@ export default function UnifiedPOSPage({
             payment_status: paymentData.payment_method === "deferred" ? "pending" : "confirmed",
             internal_notes: `[POS ${portalType.toUpperCase()}] ${paymentData.notes || ""}`,
             status: "pending",
-          })
+          }])
           .select("id")
           .single();
 
