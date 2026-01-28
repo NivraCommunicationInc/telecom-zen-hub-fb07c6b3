@@ -131,6 +131,7 @@ import FieldSalesPOS from "@/pages/field-sales/FieldSalesPOS";
 import FieldSalesList from "@/pages/field-sales/FieldSalesList";
 import FieldSalesCommissions from "@/pages/field-sales/FieldSalesCommissions";
 import FieldSalesAccount from "@/pages/field-sales/FieldSalesAccount";
+import FieldSalesLeaderboard from "@/pages/field-sales/FieldSalesLeaderboard";
 import FieldSalesLayout from "@/components/field-sales/FieldSalesLayout";
 import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
 import PartnerTermsAcceptanceGuard from "@/components/influencer/PartnerTermsAcceptanceGuard";
@@ -486,6 +487,7 @@ const AppRoutes = () => {
       <Route path="/field-sales/sales" element={<FieldSalesLayout><FieldSalesList /></FieldSalesLayout>} />
       <Route path="/field-sales/sales/:id" element={<FieldSalesLayout><FieldSalesList /></FieldSalesLayout>} />
       <Route path="/field-sales/commissions" element={<FieldSalesLayout><FieldSalesCommissions /></FieldSalesLayout>} />
+      <Route path="/field-sales/leaderboard" element={<FieldSalesLayout><FieldSalesLeaderboard /></FieldSalesLayout>} />
       <Route path="/field-sales/account" element={<FieldSalesLayout><FieldSalesAccount /></FieldSalesLayout>} />
 
       {/* Catch-all 404 */}
