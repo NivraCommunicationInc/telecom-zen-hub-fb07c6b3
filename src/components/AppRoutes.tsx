@@ -183,6 +183,8 @@ import StaffStreaming from "@/pages/staff/StaffStreaming";
 import StaffTvChannels from "@/pages/staff/StaffTvChannels";
 import StaffNotes from "@/pages/staff/StaffNotes";
 import StaffAccount from "@/pages/staff/StaffAccount";
+import StaffPOS from "@/pages/staff/StaffPOS";
+import TechnicianPOS from "@/pages/staff/TechnicianPOS";
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
 import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
@@ -450,6 +452,12 @@ const AppRoutes = () => {
       {/* Staff Notes & Account */}
       <Route path="/staff/notes" element={<StaffLayout requiredRole="employee"><StaffNotes /></StaffLayout>} />
       <Route path="/staff/account" element={<StaffLayout requiredRole="employee"><StaffAccount /></StaffLayout>} />
+
+      {/* Staff POS */}
+      <Route path="/staff/pos" element={<StaffLayout requiredRole="employee"><StaffPOS /></StaffLayout>} />
+
+      {/* Technician POS */}
+      <Route path="/staff/technician/pos" element={<StaffLayout requiredRole="technician"><TechnicianPOS /></StaffLayout>} />
 
       {/* Staff Employee */}
       <Route path="/staff/employee" element={
