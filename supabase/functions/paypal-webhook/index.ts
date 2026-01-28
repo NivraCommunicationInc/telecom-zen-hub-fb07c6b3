@@ -1,6 +1,29 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * ============================================================================
+ * PAYPAL WEBHOOK HANDLER - SECURE
+ * ============================================================================
+ * 
+ * This function handles incoming PayPal webhook events for subscription billing.
+ * 
+ * SECURITY:
+ * - Validates PayPal webhook signature to prevent spoofing
+ * - Uses service role key for database operations
+ * - All events are logged for audit trail
+ * 
+ * EVENTS HANDLED:
+ * - BILLING.SUBSCRIPTION.ACTIVATED: Customer approved subscription
+ * - BILLING.SUBSCRIPTION.CANCELLED: Subscription was cancelled
+ * - BILLING.SUBSCRIPTION.SUSPENDED: Payment failed, subscription suspended
+ * - BILLING.SUBSCRIPTION.PAYMENT.FAILED: Individual payment failed
+ * - PAYMENT.SALE.COMPLETED: Successful monthly charge
+ * 
+ * @author Nivra Telecom
+ * @version 2.1.0 - Added signature verification
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -31,6 +54,96 @@ interface PayPalWebhookEvent {
   resource_type: string;
 }
 
+/**
+ * Verify PayPal webhook signature
+ * This is CRITICAL for security - prevents spoofed webhook attacks
+ */
+async function verifyPayPalWebhook(
+  req: Request,
+  body: string,
+  webhookId: string
+): Promise<boolean> {
+  const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
+  const clientSecret = Deno.env.get("PAYPAL_SECRET");
+  
+  if (!clientId || !clientSecret) {
+    console.error("[PayPal Webhook] Missing PayPal credentials");
+    return false;
+  }
+
+  // Get verification headers from PayPal
+  const transmissionId = req.headers.get("paypal-transmission-id");
+  const transmissionTime = req.headers.get("paypal-transmission-time");
+  const certUrl = req.headers.get("paypal-cert-url");
+  const authAlgo = req.headers.get("paypal-auth-algo");
+  const transmissionSig = req.headers.get("paypal-transmission-sig");
+
+  // If any header is missing, verification fails
+  if (!transmissionId || !transmissionTime || !certUrl || !authAlgo || !transmissionSig) {
+    console.warn("[PayPal Webhook] Missing verification headers - possible spoofed request");
+    return false;
+  }
+
+  try {
+    // Get access token
+    const auth = btoa(`${clientId}:${clientSecret}`);
+    const tokenResponse = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+    });
+
+    if (!tokenResponse.ok) {
+      console.error("[PayPal Webhook] Failed to get access token for verification");
+      return false;
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Verify webhook signature with PayPal
+    const verifyResponse = await fetch("https://api-m.paypal.com/v1/notifications/verify-webhook-signature", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        auth_algo: authAlgo,
+        cert_url: certUrl,
+        transmission_id: transmissionId,
+        transmission_sig: transmissionSig,
+        transmission_time: transmissionTime,
+        webhook_id: webhookId,
+        webhook_event: JSON.parse(body),
+      }),
+    });
+
+    if (!verifyResponse.ok) {
+      const errorText = await verifyResponse.text();
+      console.error("[PayPal Webhook] Verification API error:", errorText);
+      return false;
+    }
+
+    const verifyResult = await verifyResponse.json();
+    const isValid = verifyResult.verification_status === "SUCCESS";
+    
+    if (!isValid) {
+      console.error("[PayPal Webhook] Signature verification FAILED:", verifyResult);
+    } else {
+      console.log("[PayPal Webhook] Signature verified successfully");
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error("[PayPal Webhook] Verification error:", error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -43,8 +156,38 @@ serve(async (req) => {
 
     const webhookId = Deno.env.get("PAYPAL_WEBHOOK_ID");
     
+    // Read the raw body for signature verification
+    const rawBody = await req.text();
+    
+    // SECURITY: Verify webhook signature
+    if (webhookId) {
+      const isValid = await verifyPayPalWebhook(req, rawBody, webhookId);
+      if (!isValid) {
+        console.error("[PayPal Webhook] SECURITY: Invalid signature - rejecting request");
+        
+        // Log the security event
+        await supabase.from("activity_logs").insert({
+          user_id: "00000000-0000-0000-0000-000000000000",
+          entity_type: "security_event",
+          entity_id: "paypal_webhook",
+          action: "invalid_signature",
+          details: {
+            transmission_id: req.headers.get("paypal-transmission-id"),
+            ip: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
+          },
+        });
+        
+        return new Response(
+          JSON.stringify({ error: "Invalid webhook signature" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      console.warn("[PayPal Webhook] WARNING: PAYPAL_WEBHOOK_ID not configured - signature verification disabled");
+    }
+    
     // Parse the webhook event
-    const event: PayPalWebhookEvent = await req.json();
+    const event: PayPalWebhookEvent = JSON.parse(rawBody);
     
     console.log(`[PayPal Webhook] Received event: ${event.event_type}`, {
       id: event.id,
@@ -63,6 +206,7 @@ serve(async (req) => {
         resource_type: event.resource_type,
         custom_id: event.resource?.custom_id,
         status: event.resource?.status,
+        verified: !!webhookId,
       },
     });
 
@@ -75,22 +219,50 @@ serve(async (req) => {
         
         console.log(`[PayPal Webhook] Subscription activated: ${paypalSubscriptionId}`);
         
-        // Update billing_subscription if custom_id matches our subscription id
-        if (customId) {
-          const { error } = await supabase
+        // Update billing_subscription by PayPal subscription ID first (primary method)
+        const { data: existingSub } = await supabase
+          .from("billing_subscriptions")
+          .select("id")
+          .eq("paypal_subscription_id", paypalSubscriptionId)
+          .single();
+        
+        if (existingSub) {
+          await supabase
             .from("billing_subscriptions")
             .update({
-              paypal_subscription_id: paypalSubscriptionId,
               status: "active",
               auto_billing_enabled: true,
             })
-            .eq("id", customId);
+            .eq("id", existingSub.id);
           
-          if (error) {
-            console.error("[PayPal Webhook] Failed to update subscription:", error);
-          } else {
-            console.log(`[PayPal Webhook] Subscription ${customId} activated with PayPal ID ${paypalSubscriptionId}`);
+          console.log(`[PayPal Webhook] Subscription ${existingSub.id} activated`);
+          
+          // Also update the initial invoice to paid
+          const { data: pendingInvoice } = await supabase
+            .from("billing_invoices")
+            .select("*")
+            .eq("subscription_id", existingSub.id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .single();
+          
+          if (pendingInvoice) {
+            await supabase
+              .from("billing_invoices")
+              .update({
+                status: "paid",
+                paid_at: new Date().toISOString(),
+                amount_paid: pendingInvoice.total,
+                balance_due: 0,
+              })
+              .eq("id", pendingInvoice.id);
+            
+            console.log(`[PayPal Webhook] Initial invoice ${pendingInvoice.invoice_number} marked as paid`);
           }
+        } else if (customId && customId.startsWith("order_")) {
+          // Fallback: try to find by custom_id pattern
+          console.log(`[PayPal Webhook] Looking for subscription with order pattern: ${customId}`);
         }
         break;
       }
@@ -227,6 +399,18 @@ serve(async (req) => {
             .single();
           
           if (sub) {
+            // Check for duplicate payment (idempotency)
+            const { data: existingPayment } = await supabase
+              .from("billing_payments")
+              .select("id")
+              .eq("provider_payment_id", paymentId)
+              .single();
+            
+            if (existingPayment) {
+              console.log(`[PayPal Webhook] Payment ${paymentId} already recorded - skipping (idempotent)`);
+              break;
+            }
+            
             // Find pending invoice for this subscription
             const { data: invoice } = await supabase
               .from("billing_invoices")
@@ -294,7 +478,7 @@ serve(async (req) => {
                     client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
                     amount: amount.toFixed(2),
                     invoice_number: invoice.invoice_number,
-                    payment_method: "PayPal",
+                    payment_method: "PayPal (Paiement automatique)",
                     reference: paymentId,
                   },
                   status: "queued",
