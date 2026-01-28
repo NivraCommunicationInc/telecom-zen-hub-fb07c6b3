@@ -106,7 +106,6 @@ import AdminContestedInvoices from "@/pages/admin/AdminContestedInvoices";
 import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
 import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
-import AdminFieldSales from "@/pages/admin/AdminFieldSales";
 import AdminPOS from "@/pages/admin/AdminPOS";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
@@ -122,18 +121,6 @@ import InfluencerCashouts from "@/pages/influencer/InfluencerCashouts";
 import InfluencerSettings from "@/pages/influencer/InfluencerSettings";
 import InfluencerTerms from "@/pages/influencer/InfluencerTerms";
 import { InfluencerAuthProvider } from "@/hooks/useInfluencerAuth";
-
-// Field Sales Portal (Door-to-Door)
-import FieldSalesLogin from "@/pages/field-sales/FieldSalesLogin";
-import FieldSalesSetup from "@/pages/field-sales/FieldSalesSetup";
-import FieldSalesDashboard from "@/pages/field-sales/FieldSalesDashboard";
-import FieldSalesPOS from "@/pages/field-sales/FieldSalesPOS";
-import FieldSalesList from "@/pages/field-sales/FieldSalesList";
-import FieldSalesOrderDetail from "@/pages/field-sales/FieldSalesOrderDetail";
-import FieldSalesCommissions from "@/pages/field-sales/FieldSalesCommissions";
-import FieldSalesAccount from "@/pages/field-sales/FieldSalesAccount";
-import FieldSalesLeaderboard from "@/pages/field-sales/FieldSalesLeaderboard";
-import FieldSalesLayout from "@/components/field-sales/FieldSalesLayout";
 import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
 import PartnerTermsAcceptanceGuard from "@/components/influencer/PartnerTermsAcceptanceGuard";
 
@@ -318,8 +305,8 @@ const AppRoutes = () => {
       {/* Notifications */}
       <Route path="/admin/notifications-settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotificationsSettings /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/notifications" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotifications /></ProtectedRoute></AuthProvider>} />
-      {/* Field Sales Admin */}
-      <Route path="/admin/field-sales" element={<AuthProvider><ProtectedRoute requireAdmin><AdminFieldSales /></ProtectedRoute></AuthProvider>} />
+      {/* Field Sales Admin - Redirect to POS */}
+      <Route path="/admin/field-sales" element={<Navigate to="/admin/pos" replace />} />
       <Route path="/admin/pos" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPOS /></ProtectedRoute></AuthProvider>} />
 
       {/* ============================================ */}
@@ -479,17 +466,8 @@ const AppRoutes = () => {
         </StaffLayout>
       } />
 
-      {/* Field Sales Portal (Door-to-Door) */}
-      <Route path="/field-sales" element={<FieldSalesLogin />} />
-      <Route path="/field-sales/setup" element={<FieldSalesSetup />} />
-      <Route path="/field-sales/dashboard" element={<FieldSalesLayout><FieldSalesDashboard /></FieldSalesLayout>} />
-      <Route path="/field-sales/new-sale" element={<FieldSalesLayout><FieldSalesPOS /></FieldSalesLayout>} />
-      <Route path="/field-sales/pos" element={<FieldSalesLayout><FieldSalesPOS /></FieldSalesLayout>} />
-      <Route path="/field-sales/sales" element={<FieldSalesLayout><FieldSalesList /></FieldSalesLayout>} />
-      <Route path="/field-sales/sales/:id" element={<FieldSalesLayout><FieldSalesOrderDetail /></FieldSalesLayout>} />
-      <Route path="/field-sales/commissions" element={<FieldSalesLayout><FieldSalesCommissions /></FieldSalesLayout>} />
-      <Route path="/field-sales/leaderboard" element={<FieldSalesLayout><FieldSalesLeaderboard /></FieldSalesLayout>} />
-      <Route path="/field-sales/account" element={<FieldSalesLayout><FieldSalesAccount /></FieldSalesLayout>} />
+      {/* Field Sales Portal - Redirect to Admin POS */}
+      <Route path="/field-sales/*" element={<Navigate to="/admin/pos" replace />} />
 
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
