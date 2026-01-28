@@ -13,6 +13,7 @@ import {
   User, Phone, Mail, MapPin, AlertTriangle, CheckCircle,
   XCircle, Clock3, Shield, Eye
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -262,6 +263,7 @@ export default function StaffEmployeeDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <NotificationBell basePath="/staff" />
                 <Button
                   variant="ghost"
                   size="icon"
