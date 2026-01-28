@@ -1,6 +1,7 @@
 /**
  * UnifiedPOSPage - Unified Point of Sale interface for all portals
- * Used by: Field Sales, Admin, Employee, Technician
+ * Used by: Admin, Employee, Technician
+ * Admin portal gets enhanced features (client search, PIN, PayPal)
  */
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -23,7 +24,9 @@ import { POSCategoryTabs, POSCategory } from "@/components/pos/POSCategoryTabs";
 import { POSSearchBar } from "@/components/pos/POSSearchBar";
 import { POSProductGrid } from "@/components/pos/POSProductGrid";
 import { POSCustomerForm, CustomerData } from "@/components/pos/POSCustomerForm";
+import { POSCustomerFormAdmin, AdminCustomerData } from "@/components/pos/POSCustomerFormAdmin";
 import { POSPaymentForm, PaymentData } from "@/components/pos/POSPaymentForm";
+import { POSPaymentFormAdmin, AdminPaymentData } from "@/components/pos/POSPaymentFormAdmin";
 import { POSOrderSummary } from "@/components/pos/POSOrderSummary";
 import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
@@ -41,7 +44,7 @@ const STEP_TITLES: Record<POSStep, string> = {
 };
 
 interface UnifiedPOSPageProps {
-  portalType: "field-sales" | "admin" | "staff" | "technician";
+  portalType: "admin" | "staff" | "technician";
   backPath: string;
   repName?: string;
   onOrderComplete?: (orderId: string) => void;
@@ -64,10 +67,13 @@ export default function UnifiedPOSPage({
   const [step, setStep] = useState<POSStep>("catalog");
   const [catalogTab, setCatalogTab] = useState<CatalogTab>("services");
   const [activeCategory, setActiveCategory] = useState<POSCategory>("all");
-  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [customerData, setCustomerData] = useState<CustomerData | AdminCustomerData | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  
+  // Is this the admin portal with full features?
+  const isAdminPortal = portalType === "admin";
   
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,12 +143,12 @@ export default function UnifiedPOSPage({
     setCartOpen(false);
   };
 
-  const handleCustomerSubmit = (data: CustomerData) => {
+  const handleCustomerSubmit = (data: CustomerData | AdminCustomerData) => {
     setCustomerData(data);
     setStep("payment");
   };
 
-  const handlePaymentSubmit = (data: PaymentData) => {
+  const handlePaymentSubmit = (data: PaymentData | AdminPaymentData) => {
     setPaymentData(data);
     setStep("confirmation");
   };
@@ -160,73 +166,62 @@ export default function UnifiedPOSPage({
       }
 
       const payload = pos.getOrderPayload();
-
-      // Insert into appropriate table based on portal
-      if (portalType === "field-sales") {
-        const { data: newSale, error } = await supabase
-          .from("field_sales_orders")
-          .insert({
-            salesperson_id: session.user.id,
-            customer_name: customerData.full_name,
-            customer_email: customerData.email,
-            customer_phone: customerData.phone,
-            customer_address: customerData.service_address,
-            customer_city: customerData.service_city,
-            customer_postal_code: customerData.service_postal_code,
-            customer_date_of_birth: customerData.date_of_birth || null,
+      
+      // Extract customer info for order
+      const customerInfo = {
+        full_name: customerData.full_name,
+        email: customerData.email,
+        phone: customerData.phone,
+        service_address: customerData.service_address,
+        service_city: customerData.service_city,
+        service_postal_code: customerData.service_postal_code,
+        date_of_birth: customerData.date_of_birth || null,
+      };
+      
+      // Get payment info
+      const paymentMethod = paymentData.payment_method;
+      const paymentReference = 'payment_reference' in paymentData ? paymentData.payment_reference : undefined;
+      const paypalTransactionId = 'paypal_transaction_id' in paymentData ? paymentData.paypal_transaction_id : undefined;
+      
+      // Create order directly
+      const { data: newOrder, error } = await supabase
+        .from("orders")
+        .insert([{
+          user_id: session.user.id,
+          service_type: pos.services[0]?.category || "bundle",
+          client_email: customerInfo.email,
+          equipment_details: JSON.parse(JSON.stringify({
+            customer: customerInfo,
             services: payload.services,
             equipment: payload.equipment,
             adjustments: payload.adjustments,
-            total_amount: payload.totals.first_month_total,
-            payment_method: paymentData.payment_method,
-            payment_reference: paymentData.payment_reference || null,
-            payment_status: paymentData.payment_method === "deferred" ? "pending" : "confirmed",
-            internal_notes: paymentData.notes || null,
-            sync_status: "pending",
-          })
-          .select("id")
-          .single();
+            // Admin-specific data
+            ...((customerData as AdminCustomerData).is_new_client !== undefined && {
+              is_new_client: (customerData as AdminCustomerData).is_new_client,
+              client_id: (customerData as AdminCustomerData).client_id,
+              accept_marketing: (customerData as AdminCustomerData).accept_marketing,
+              accept_sms_notifications: (customerData as AdminCustomerData).accept_sms_notifications,
+            }),
+            // PayPal specific
+            ...(paypalTransactionId && {
+              paypal_transaction_id: paypalTransactionId,
+              paypal_payer_email: (paymentData as AdminPaymentData).paypal_payer_email,
+            }),
+          })),
+          subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
+          tps_amount: payload.totals.tps,
+          tvq_amount: payload.totals.tvq,
+          total_amount: payload.totals.first_month_total,
+          payment_status: paymentMethod === "deferred" ? "pending" : "confirmed",
+          payment_reference: paypalTransactionId || paymentReference || null,
+          internal_notes: `[POS ${portalType.toUpperCase()}] ${paymentData.notes || ""}`,
+          status: "pending",
+        }])
+        .select("id")
+        .single();
 
-        if (error) throw error;
-
-        // Sync to main orders
-        try {
-          await supabase.functions.invoke("field-sales-sync", {
-            body: { action: "sync_single", sale_id: newSale.id },
-          });
-        } catch (syncErr) {
-          console.warn("Sync pending:", syncErr);
-        }
-
-        onOrderComplete?.(newSale.id);
-      } else {
-        // For Admin/Staff/Technician - create order directly
-        const { data: newOrder, error } = await supabase
-          .from("orders")
-          .insert([{
-            user_id: session.user.id,
-            service_type: pos.services[0]?.category || "bundle",
-            client_email: customerData.email,
-            equipment_details: JSON.parse(JSON.stringify({
-              customer: customerData,
-              services: payload.services,
-              equipment: payload.equipment,
-              adjustments: payload.adjustments,
-            })),
-            subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
-            tps_amount: payload.totals.tps,
-            tvq_amount: payload.totals.tvq,
-            total_amount: payload.totals.first_month_total,
-            payment_status: paymentData.payment_method === "deferred" ? "pending" : "confirmed",
-            internal_notes: `[POS ${portalType.toUpperCase()}] ${paymentData.notes || ""}`,
-            status: "pending",
-          }])
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        onOrderComplete?.(newOrder.id);
-      }
+      if (error) throw error;
+      onOrderComplete?.(newOrder.id);
 
       toast.success("🎉 Commande créée avec succès!", {
         description: `Total: ${payload.totals.first_month_total.toFixed(2)} $`,
@@ -453,23 +448,38 @@ export default function UnifiedPOSPage({
 
           {step === "customer" && (
             <div className="h-full overflow-auto">
-              <div className="p-4 max-w-lg mx-auto">
-                <POSCustomerForm
-                  onSubmit={handleCustomerSubmit}
-                  isSubmitting={isSubmitting}
-                />
+              <div className={cn("p-4 mx-auto", isAdminPortal ? "max-w-2xl" : "max-w-lg")}>
+                {isAdminPortal ? (
+                  <POSCustomerFormAdmin
+                    onSubmit={handleCustomerSubmit}
+                    isSubmitting={isSubmitting}
+                  />
+                ) : (
+                  <POSCustomerForm
+                    onSubmit={handleCustomerSubmit}
+                    isSubmitting={isSubmitting}
+                  />
+                )}
               </div>
             </div>
           )}
 
           {step === "payment" && (
             <div className="h-full overflow-auto">
-              <div className="p-4 max-w-lg mx-auto">
-                <POSPaymentForm
-                  onSubmit={handlePaymentSubmit}
-                  isSubmitting={isSubmitting}
-                  totalAmount={pos.totals.firstMonthTotal}
-                />
+              <div className={cn("p-4 mx-auto", isAdminPortal ? "max-w-2xl" : "max-w-lg")}>
+                {isAdminPortal ? (
+                  <POSPaymentFormAdmin
+                    onSubmit={handlePaymentSubmit}
+                    isSubmitting={isSubmitting}
+                    totalAmount={pos.totals.firstMonthTotal}
+                  />
+                ) : (
+                  <POSPaymentForm
+                    onSubmit={handlePaymentSubmit}
+                    isSubmitting={isSubmitting}
+                    totalAmount={pos.totals.firstMonthTotal}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -479,8 +489,8 @@ export default function UnifiedPOSPage({
               <div className="p-4 max-w-lg mx-auto space-y-4">
                 <POSOrderSummary
                   services={pos.services}
-                  customer={customerData}
-                  payment={paymentData}
+                  customer={customerData as CustomerData}
+                  payment={paymentData as PaymentData}
                 />
                 {/* Equipment summary */}
                 {pos.equipment.length > 0 && (
