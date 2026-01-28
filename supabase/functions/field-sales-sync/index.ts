@@ -30,6 +30,42 @@ function generateOrderNumber(): string {
   return `FS${year}${month}${day}-${random}`;
 }
 
+function splitName(fullName?: string | null): { firstName?: string; lastName?: string } {
+  const cleaned = String(fullName || "").trim().replace(/\s+/g, " ");
+  if (!cleaned) return {};
+  const parts = cleaned.split(" ");
+  if (parts.length === 1) return { firstName: parts[0] };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function normalizeServiceTypeLabel(services: any[]): string {
+  const names = (Array.isArray(services) ? services : [])
+    .map((s) => String(s?.name || s?.plan_name || s?.label || s?.category || "").trim())
+    .filter(Boolean);
+
+  const label = names.length > 0 ? names.join(" + ") : "Vente terrain";
+  // Keep it reasonably short for lists/tables
+  return label.slice(0, 120);
+}
+
+function mapLineItemType(raw?: any): string {
+  const v = String(raw || "").toLowerCase();
+  if (v.includes("internet") || v.includes("fibre")) return "internet";
+  if (v.includes("tv") || v.includes("tele") || v.includes("télé")) return "tv";
+  if (v.includes("mobile") || v.includes("cell")) return "mobile";
+  if (v.includes("stream")) return "streaming";
+  if (v.includes("secur")) return "security";
+  return "other";
+}
+
+function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
+  return {
+    line_items: lineItems,
+    generated_at: new Date().toISOString(),
+    version: 2,
+  };
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -85,68 +121,170 @@ serve(async (req) => {
           .eq('user_id', sale.salesperson_id)
           .maybeSingle();
 
-        // Calculate totals from services
-        const services = sale.services || [];
-        let monthlyTotal = 0;
-        let setupTotal = 0;
-        
-        for (const svc of services) {
-          monthlyTotal += (svc.price_monthly || 0) * (svc.quantity || 1);
-          setupTotal += (svc.price_setup || 0) * (svc.quantity || 1);
+        // Resolve / create a real client user_id (orders.user_id is NOT NULL)
+        const customerEmail = String(sale.customer_email || "").trim().toLowerCase();
+        if (!customerEmail) {
+          throw new Error("Email client manquant sur la vente terrain");
         }
 
-        // Calculate taxes (Quebec)
-        const subtotal = monthlyTotal + setupTotal;
-        const tpsAmount = subtotal * 0.05;
-        const tvqAmount = subtotal * 0.09975;
-        const total = subtotal + tpsAmount + tvqAmount;
+        let clientUserId: string | null = null;
+
+        const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+          .from("profiles")
+          .select("user_id, email")
+          .ilike("email", customerEmail)
+          .maybeSingle();
+
+        if (existingProfileError) {
+          console.warn("[field-sales-sync] profile lookup error:", existingProfileError);
+        }
+
+        if (existingProfile?.user_id) {
+          clientUserId = existingProfile.user_id;
+        }
+
+        if (!clientUserId) {
+          console.log("[field-sales-sync] No profile found for email, creating auth user:", customerEmail);
+          const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+            email: customerEmail,
+            email_confirm: true,
+            user_metadata: {
+              full_name: sale.customer_name || null,
+              phone: sale.customer_phone || null,
+              source: "field_sales",
+            },
+          });
+
+          if (createUserError || !createdUser?.user) {
+            console.error("[field-sales-sync] createUser error:", createUserError);
+            throw new Error(createUserError?.message || "Impossible de créer le compte client");
+          }
+
+          clientUserId = createdUser.user.id;
+
+          // Ensure a profile row exists (some projects rely on profile trigger; we enforce it here)
+          const { error: upsertProfileError } = await supabaseAdmin
+            .from("profiles")
+            .upsert(
+              {
+                user_id: clientUserId,
+                email: customerEmail,
+                full_name: sale.customer_name || null,
+                phone: sale.customer_phone || null,
+              } as any,
+              { onConflict: "user_id" }
+            );
+          if (upsertProfileError) {
+            console.warn("[field-sales-sync] profile upsert warning:", upsertProfileError);
+          }
+        }
+
+        // Calculate totals from services
+        const services = Array.isArray(sale.services) ? sale.services : [];
+        let monthlyTotal = 0;
+        let oneTimeFeesTotal = 0;
+
+        const lineItems: any[] = [];
+        for (const svc of services) {
+          const qty = Number(svc?.quantity ?? 1) || 1;
+          const monthly = Number(svc?.price_monthly ?? svc?.monthly_price ?? 0) || 0;
+          const setup = Number(svc?.price_setup ?? svc?.setup_fee ?? 0) || 0;
+
+          const itemName = String(svc?.name || svc?.plan_name || svc?.label || svc?.category || "Service");
+          const itemType = mapLineItemType(svc?.type || svc?.category);
+
+          if (monthly > 0) {
+            monthlyTotal += monthly * qty;
+            lineItems.push({
+              category: "service",
+              type: itemType,
+              name: itemName,
+              qty,
+              unit_price: monthly,
+              period: "monthly",
+              taxable: true,
+            });
+          }
+
+          if (setup > 0) {
+            oneTimeFeesTotal += setup * qty;
+            lineItems.push({
+              category: "fee",
+              type: "activation",
+              name: `Frais de mise en service - ${itemName}`,
+              qty,
+              unit_price: setup,
+              period: "one_time",
+              taxable: true,
+            });
+          }
+        }
+
+        // Base fees model aligned to orders schema
+        const subtotal = monthlyTotal;
+        const activationFee = oneTimeFeesTotal;
+        const deliveryFee = 0;
+        const installationFee = 0;
+
+        // Taxes (Quebec)
+        const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
+        const tpsAmount = baseAmount * 0.05;
+        const tvqAmount = baseAmount * 0.09975;
+        const totalAmount = baseAmount + tpsAmount + tvqAmount;
 
         // Generate order number
         const orderNumber = generateOrderNumber();
 
-        // Build services list for order items
-        const orderItems = services.map((svc: any) => ({
-          type: svc.category || 'service',
-          name: svc.name,
-          price: svc.price_monthly || 0,
-          quantity: svc.quantity || 1,
-          setup_fee: svc.price_setup || 0,
-        }));
+        const serviceTypeLabel = normalizeServiceTypeLabel(services);
+        const { firstName, lastName } = splitName(sale.customer_name);
 
-        // Create order in main orders table
+        // Create order in main orders table (match actual schema)
         const { data: newOrder, error: orderError } = await supabaseAdmin
           .from('orders')
           .insert({
+            user_id: clientUserId,
             order_number: orderNumber,
-            customer_email: sale.customer_email,
-            customer_phone: sale.customer_phone,
-            status: sale.payment_status === 'confirmed' ? 'confirmed' : 'pending',
-            total: total,
+            created_by: 'field_sales',
+
+            client_email: customerEmail,
+            client_phone: sale.customer_phone || null,
+            client_first_name: firstName || null,
+            client_last_name: lastName || null,
+            client_dob: sale.customer_date_of_birth || null,
+
+            service_type: serviceTypeLabel,
+            category: sale.services?.[0]?.category || 'Field Sales',
+
             subtotal: subtotal,
+            activation_fee: activationFee,
+            delivery_fee: deliveryFee,
+            installation_fee: installationFee,
             tps_amount: tpsAmount,
             tvq_amount: tvqAmount,
+            total_amount: totalAmount,
+
+            status: sale.payment_status === 'confirmed' ? 'confirmed' : 'pending',
             payment_status: sale.payment_status || 'pending',
             payment_method: sale.payment_method || 'cash',
-            payment_reference: sale.payment_reference,
-            services: orderItems,
-            source: 'field_sales',
-            source_reference: sale.id,
-            delivery_address: sale.customer_address,
-            delivery_city: sale.customer_city,
-            delivery_postal_code: sale.customer_postal_code,
-            internal_notes: `[VENTE TERRAIN] Par: ${repProfile?.full_name || 'Vendeur'}\n${sale.internal_notes || ''}`,
-            customer_snapshot: {
-              full_name: sale.customer_name,
-              email: sale.customer_email,
-              phone: sale.customer_phone,
-              address: sale.customer_address,
-              city: sale.customer_city,
-              postal_code: sale.customer_postal_code,
-              date_of_birth: sale.customer_date_of_birth,
-              collected_by: repProfile?.full_name || 'Field Sales Rep',
-              source: 'field_sales',
-            },
-            created_at: sale.created_at,
+            payment_reference: sale.payment_reference || null,
+            amount_paid: sale.payment_status === 'confirmed' ? totalAmount : 0,
+
+            appointment_date: sale.appointment_date || null,
+            appointment_notes: sale.appointment_notes || null,
+
+            // Shipping fields used by staff/admin flows
+            shipping_address: sale.customer_address || null,
+            shipping_city: sale.customer_city || null,
+            shipping_postal_code: sale.customer_postal_code || null,
+
+            // Keep original channel selection if TV workflow was used
+            selected_channels: sale.selected_channels || [],
+
+            // Contract/billing engines read structured line_items from equipment_details
+            equipment_details: wrapLineItemsForOrder(lineItems),
+
+            notes: `Vente terrain (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
+            internal_notes: `[VENTE TERRAIN]\nPar: ${repProfile?.full_name || 'Vendeur'} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
           })
           .select('id, order_number')
           .single();
@@ -166,6 +304,7 @@ serve(async (req) => {
             converted_at: new Date().toISOString(),
             sync_status: 'synced',
             synced_at: new Date().toISOString(),
+            sync_error: null,
           })
           .eq('id', sale.id);
 
@@ -202,7 +341,7 @@ serve(async (req) => {
         // Mark as failed
         await supabaseAdmin
           .from('field_sales_orders')
-          .update({ sync_status: 'failed' })
+          .update({ sync_status: 'failed', sync_error: error?.message || String(error) })
           .eq('id', sale.id);
 
         return { success: false, error: error.message };
