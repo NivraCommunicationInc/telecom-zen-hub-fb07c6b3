@@ -8164,6 +8164,13 @@ export type Database = {
             referencedRelation: "streaming_catalog"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "streaming_catalog_audit_logs_catalog_item_id_fkey"
+            columns: ["catalog_item_id"]
+            isOneToOne: false
+            referencedRelation: "streaming_catalog_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       streaming_services: {
@@ -9362,6 +9369,27 @@ export type Database = {
         }
         Relationships: []
       }
+      influencer_invites_public: {
+        Row: {
+          expires_at: string | null
+          id: string | null
+          is_used: boolean | null
+          is_valid: boolean | null
+        }
+        Insert: {
+          expires_at?: string | null
+          id?: string | null
+          is_used?: never
+          is_valid?: never
+        }
+        Update: {
+          expires_at?: string | null
+          id?: string | null
+          is_used?: never
+          is_valid?: never
+        }
+        Relationships: []
+      }
       payment_requests_admin_view: {
         Row: {
           account_id: string | null
@@ -9414,69 +9442,81 @@ export type Database = {
           },
         ]
       }
+      services_public: {
+        Row: {
+          billing_type: string | null
+          category: string | null
+          description: string | null
+          id: string | null
+          name: string | null
+          price: number | null
+        }
+        Insert: {
+          billing_type?: string | null
+          category?: string | null
+          description?: string | null
+          id?: string | null
+          name?: string | null
+          price?: number | null
+        }
+        Update: {
+          billing_type?: string | null
+          category?: string | null
+          description?: string | null
+          id?: string | null
+          name?: string | null
+          price?: number | null
+        }
+        Relationships: []
+      }
       site_offers_public: {
         Row: {
           category: string | null
-          created_at: string | null
           description_en: string | null
           description_fr: string | null
           discount_amount: number | null
           discount_percent: number | null
           features_json: Json | null
           id: string | null
-          is_active: boolean | null
           is_featured: boolean | null
           name_en: string | null
           name_fr: string | null
           offer_type: string | null
           price_monthly: number | null
           price_setup: number | null
-          promo_code: string | null
           sort_order: number | null
-          valid_from: string | null
-          valid_until: string | null
         }
         Insert: {
           category?: string | null
-          created_at?: string | null
           description_en?: string | null
           description_fr?: string | null
           discount_amount?: number | null
           discount_percent?: number | null
           features_json?: Json | null
           id?: string | null
-          is_active?: boolean | null
           is_featured?: boolean | null
           name_en?: string | null
           name_fr?: string | null
           offer_type?: string | null
           price_monthly?: number | null
           price_setup?: number | null
-          promo_code?: string | null
           sort_order?: number | null
-          valid_from?: string | null
-          valid_until?: string | null
         }
         Update: {
           category?: string | null
-          created_at?: string | null
           description_en?: string | null
           description_fr?: string | null
           discount_amount?: number | null
           discount_percent?: number | null
           features_json?: Json | null
           id?: string | null
-          is_active?: boolean | null
           is_featured?: boolean | null
           name_en?: string | null
           name_fr?: string | null
           offer_type?: string | null
           price_monthly?: number | null
           price_setup?: number | null
-          promo_code?: string | null
           sort_order?: number | null
-          valid_from?: string | null
-          valid_until?: string | null
         }
         Relationships: []
       }
@@ -9504,6 +9544,42 @@ export type Database = {
           key?: string | null
           value_json?: Json | null
           value_text?: string | null
+        }
+        Relationships: []
+      }
+      streaming_catalog_public: {
+        Row: {
+          category: string | null
+          currency: string | null
+          description: string | null
+          features: Json | null
+          id: string | null
+          logo_url: string | null
+          name: string | null
+          price_monthly: number | null
+          sort_order: number | null
+        }
+        Insert: {
+          category?: string | null
+          currency?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          price_monthly?: number | null
+          sort_order?: number | null
+        }
+        Update: {
+          category?: string | null
+          currency?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          price_monthly?: number | null
+          sort_order?: number | null
         }
         Relationships: []
       }
