@@ -178,22 +178,22 @@
   /* Client Portal Dark Theme - Premium Telecom ISP */
   .client-portal-dark {
     --background: 220 30% 6%;
-    --foreground: 210 20% 95%;
+    --foreground: 210 20% 98%;
 
     --card: 220 30% 8%;
-    --card-foreground: 210 20% 95%;
+    --card-foreground: 210 20% 98%;
 
     --popover: 220 30% 8%;
-    --popover-foreground: 210 20% 95%;
+    --popover-foreground: 210 20% 98%;
 
     --primary: 187 85% 53%;
     --primary-foreground: 220 30% 6%;
 
     --secondary: 220 25% 12%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary-foreground: 210 20% 92%;
 
     --muted: 220 25% 12%;
-    --muted-foreground: 215 15% 55%;
+    --muted-foreground: 215 15% 65%;
 
     --accent: 170 75% 45%;
     --accent-foreground: 220 30% 6%;
@@ -201,17 +201,17 @@
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 25% 15%;
-    --input: 220 25% 15%;
+    --border: 220 25% 18%;
+    --input: 220 25% 18%;
     --ring: 187 85% 53%;
     
     --sidebar-background: 220 30% 7%;
-    --sidebar-foreground: 210 20% 95%;
+    --sidebar-foreground: 210 20% 98%;
     --sidebar-primary: 187 85% 53%;
     --sidebar-primary-foreground: 220 30% 6%;
-    --sidebar-accent: 220 25% 12%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 220 25% 13%;
+    --sidebar-accent: 220 25% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 220 25% 16%;
     --sidebar-ring: 187 85% 53%;
   }
 }

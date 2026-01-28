@@ -247,7 +247,7 @@ const AdminLogin = () => {
             <Shield className="h-8 w-8 text-slate-900" />
           </div>
           <h1 className="text-3xl font-bold text-white">Administration Nivra</h1>
-          <p className="text-slate-400">
+          <p className="text-slate-300">
             {isForgotPassword 
               ? "Réinitialisation du mot de passe" 
               : "Portail administrateur sécurisé"}
@@ -270,7 +270,7 @@ const AdminLogin = () => {
                 </>
               )}
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-slate-300">
               {isForgotPassword 
                 ? "Entrez votre courriel pour recevoir un lien de réinitialisation" 
                 : "Entrez vos identifiants administrateur"}
@@ -279,8 +279,8 @@ const AdminLogin = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300 flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-slate-500" />
+                <Label htmlFor="email" className="text-slate-200 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-teal-400/70" />
                   Adresse courriel
                 </Label>
                 <Input
@@ -289,7 +289,7 @@ const AdminLogin = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@nivra.ca"
-                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-teal-400/50 focus:ring-teal-400/20"
+                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
                   disabled={isSubmitting}
                 />
                 {errors.email && (
@@ -302,8 +302,8 @@ const AdminLogin = () => {
 
               {!isForgotPassword && (
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-300 flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-slate-500" />
+                  <Label htmlFor="password" className="text-slate-200 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-teal-400/70" />
                     Mot de passe
                   </Label>
                   <div className="relative">
@@ -313,7 +313,7 @@ const AdminLogin = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
                       disabled={isSubmitting}
                     />
                     <button
@@ -355,7 +355,7 @@ const AdminLogin = () => {
                     setIsForgotPassword(!isForgotPassword);
                     setErrors({});
                   }}
-                  className="text-sm text-slate-400 hover:text-teal-400 transition-colors"
+                  className="text-sm text-slate-300 hover:text-teal-400 transition-colors"
                 >
                   {isForgotPassword 
                     ? "← Retour à la connexion" 
@@ -370,14 +370,14 @@ const AdminLogin = () => {
         <div className="text-center">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-slate-500 hover:text-teal-400 transition-colors text-sm"
+            className="inline-flex items-center gap-2 text-slate-400 hover:text-teal-400 transition-colors text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
             Retour au site
           </Link>
         </div>
 
-        <p className="text-center text-slate-500 text-sm">
+        <p className="text-center text-slate-400 text-sm">
           © {new Date().getFullYear()} Nivra Telecom. Accès réservé aux administrateurs.
         </p>
       </div>

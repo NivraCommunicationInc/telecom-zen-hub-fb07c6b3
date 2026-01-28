@@ -125,7 +125,7 @@ export default function FieldSalesLogin() {
             <Briefcase className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white">Ventes Terrain</h1>
-          <p className="text-slate-400 flex items-center justify-center gap-2">
+          <p className="text-slate-300 flex items-center justify-center gap-2">
             <MapPin className="h-4 w-4" />
             Portail porte-à-porte
           </p>
@@ -135,21 +135,21 @@ export default function FieldSalesLogin() {
         <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">Connexion Vendeur</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-slate-300">
               Connectez-vous pour commencer vos ventes
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">Courriel</Label>
+                <Label htmlFor="email" className="text-slate-200">Courriel</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="vendeur@nivra.ca"
-                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:ring-orange-400/20"
+                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-orange-400/50 focus:ring-orange-400/20"
                   disabled={loading}
                 />
                 {errors.email && (
@@ -161,7 +161,7 @@ export default function FieldSalesLogin() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">Mot de passe</Label>
+                <Label htmlFor="password" className="text-slate-200">Mot de passe</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -169,7 +169,7 @@ export default function FieldSalesLogin() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 pr-10 focus:border-orange-400/50 focus:ring-orange-400/20"
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 pr-10 focus:border-orange-400/50 focus:ring-orange-400/20"
                     disabled={loading}
                   />
                   <button
@@ -206,7 +206,7 @@ export default function FieldSalesLogin() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-slate-500 text-sm">
+        <p className="text-center text-slate-400 text-sm">
           © {new Date().getFullYear()} Nivra Telecom. Équipe ventes terrain.
         </p>
       </div>

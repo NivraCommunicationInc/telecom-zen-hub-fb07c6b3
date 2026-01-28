@@ -175,14 +175,14 @@ export default function StaffLogin() {
             <span className="text-slate-900 font-bold text-2xl">N</span>
           </div>
           <h1 className="text-3xl font-bold text-white">Nivra Telecom</h1>
-          <p className="text-slate-400">Portail du personnel</p>
+          <p className="text-slate-300">Portail du personnel</p>
         </div>
 
         {/* Role Selection */}
         <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">Sélectionnez votre rôle</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-slate-300">
               Choisissez le rôle avec lequel vous souhaitez vous connecter
             </CardDescription>
           </CardHeader>
@@ -200,7 +200,7 @@ export default function StaffLogin() {
                   className={`w-full p-4 rounded-xl border-2 transition-all duration-300 flex items-center gap-4 ${
                     isSelected
                       ? `border-teal-400/50 bg-gradient-to-r ${config.color} text-white shadow-lg`
-                      : "border-slate-700/50 bg-slate-800/50 text-slate-300 hover:border-slate-600 hover:bg-slate-800"
+                      : "border-slate-700/50 bg-slate-800/50 text-slate-200 hover:border-slate-600 hover:bg-slate-800"
                   }`}
                 >
                   <div className={`p-3 rounded-xl ${isSelected ? "bg-white/20" : "bg-slate-700/50"}`}>
@@ -208,7 +208,7 @@ export default function StaffLogin() {
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-semibold">{config.label}</div>
-                    <div className={`text-sm ${isSelected ? "text-white/80" : "text-slate-500"}`}>
+                    <div className={`text-sm ${isSelected ? "text-white/80" : "text-slate-300"}`}>
                       {config.description}
                     </div>
                   </div>
@@ -229,7 +229,7 @@ export default function StaffLogin() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">
+                <Label htmlFor="email" className="text-slate-200">
                   Courriel
                 </Label>
                 <Input
@@ -238,7 +238,7 @@ export default function StaffLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom@nivra.ca"
-                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-teal-400/50 focus:ring-teal-400/20"
+                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
                   disabled={loading}
                 />
                 {errors.email && (
@@ -250,7 +250,7 @@ export default function StaffLogin() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">
+                <Label htmlFor="password" className="text-slate-200">
                   Mot de passe
                 </Label>
                 <div className="relative">
@@ -260,7 +260,7 @@ export default function StaffLogin() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
                     disabled={loading}
                   />
                   <button
@@ -297,7 +297,7 @@ export default function StaffLogin() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-slate-500 text-sm">
+        <p className="text-center text-slate-400 text-sm">
           © {new Date().getFullYear()} Nivra Telecom. Réservé au personnel autorisé.
         </p>
       </div>

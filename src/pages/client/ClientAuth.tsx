@@ -380,7 +380,7 @@ const ClientAuth = () => {
       <div className="min-h-screen flex items-center justify-center p-4 relative">
         <ClientPortalBackground />
         <div className="w-full max-w-md relative z-10">
-          <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-slate-300 hover:text-white mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Retour à l'accueil
           </Link>
@@ -393,30 +393,30 @@ const ClientAuth = () => {
                 </div>
               </div>
               <CardTitle className="text-2xl text-white">Nouveau mot de passe</CardTitle>
-              <CardDescription className="text-slate-400">Entrez votre nouveau mot de passe</CardDescription>
+              <CardDescription className="text-slate-300">Entrez votre nouveau mot de passe</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
-                  <Label htmlFor="new-password" className="text-slate-300">Nouveau mot de passe</Label>
+                  <Label htmlFor="new-password" className="text-slate-200">Nouveau mot de passe</Label>
                   <Input
                     id="new-password"
                     type="password"
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirm-new-password" className="text-slate-300">Confirmer le mot de passe</Label>
+                  <Label htmlFor="confirm-new-password" className="text-slate-200">Confirmer le mot de passe</Label>
                   <Input
                     id="confirm-new-password"
                     type="password"
                     placeholder="••••••••"
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
                   />
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
@@ -439,7 +439,7 @@ const ClientAuth = () => {
         <div className="w-full max-w-md relative z-10">
           <button 
             onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }}
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-slate-300 hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour à la connexion
@@ -453,7 +453,7 @@ const ClientAuth = () => {
                 </div>
               </div>
               <CardTitle className="text-2xl text-white">Mot de passe oublié</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-slate-300">
                 {resetEmailSent 
                   ? "Un email vous a été envoyé" 
                   : "Entrez votre email pour réinitialiser votre mot de passe"}
@@ -467,7 +467,7 @@ const ClientAuth = () => {
                   </div>
                   <div className="space-y-2">
                     <p className="text-white font-medium">Email envoyé!</p>
-                    <p className="text-slate-400 text-sm">
+                    <p className="text-slate-300 text-sm">
                       Vérifiez votre boîte de réception et cliquez sur le lien pour réinitialiser votre mot de passe.
                     </p>
                   </div>
@@ -482,14 +482,14 @@ const ClientAuth = () => {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div>
-                    <Label htmlFor="reset-email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="reset-email" className="text-slate-200">Email</Label>
                     <Input
                       id="reset-email"
                       type="email"
                       placeholder="votre@email.com"
                       value={forgotPasswordEmail}
                       onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                   </div>
                   <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
@@ -513,7 +513,7 @@ const ClientAuth = () => {
         <div className="w-full max-w-md relative z-10">
           <button 
             onClick={() => { setAuthStep("credentials"); setPin(""); }}
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-slate-300 hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour à la connexion
@@ -525,17 +525,17 @@ const ClientAuth = () => {
                 <ShieldCheck className="w-10 h-10 text-cyan-400" />
               </div>
               <CardTitle className="text-2xl text-white">Vérification en 2 étapes</CardTitle>
-              <CardDescription className="text-slate-400">Entrez le code à 6 chiffres envoyé par email</CardDescription>
+              <CardDescription className="text-slate-300">Entrez le code à 6 chiffres envoyé par email</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/30 text-center">
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-300">
                   Un code de vérification à 6 chiffres a été envoyé à votre adresse email. Veuillez le saisir pour continuer.
                 </p>
               </div>
               
               <div>
-                <Label htmlFor="pin-input" className="text-slate-300">Code de vérification</Label>
+                <Label htmlFor="pin-input" className="text-slate-200">Code de vérification</Label>
                 <Input
                   id="pin-input"
                   type="text"
@@ -550,7 +550,7 @@ const ClientAuth = () => {
                     const text = e.clipboardData.getData("text");
                     setPin(sanitizePin(text));
                   }}
-                  className="text-center text-3xl tracking-[0.5em] font-mono bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-600 focus:border-cyan-500 focus:ring-cyan-500/20 h-14"
+                  className="text-center text-3xl tracking-[0.5em] font-mono bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-14"
                   aria-label="Code de vérification à 6 chiffres"
                 />
               </div>
@@ -564,7 +564,7 @@ const ClientAuth = () => {
                 Vérifier et continuer
               </Button>
               
-              <p className="text-sm text-slate-500 text-center">
+              <p className="text-sm text-slate-300 text-center">
                 Vous n'avez pas reçu le code? Vérifiez votre dossier spam ou{" "}
                 <button 
                   type="button"
@@ -588,7 +588,7 @@ const ClientAuth = () => {
       <ClientPortalBackground />
       
       <div className="w-full max-w-md relative z-10">
-        <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
+        <Link to="/" className="inline-flex items-center gap-2 text-slate-300 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Retour à l'accueil
         </Link>
@@ -605,7 +605,7 @@ const ClientAuth = () => {
               </div>
             </div>
             <CardTitle className="text-2xl text-white">Espace Client</CardTitle>
-            <CardDescription className="text-slate-400">Connectez-vous pour gérer vos services</CardDescription>
+            <CardDescription className="text-slate-300">Connectez-vous pour gérer vos services</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
@@ -627,8 +627,8 @@ const ClientAuth = () => {
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <Label htmlFor="login-email" className="text-slate-300 flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-slate-500" />
+                    <Label htmlFor="login-email" className="text-slate-200 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-cyan-400/70" />
                       Email
                     </Label>
                     <Input
@@ -637,12 +637,12 @@ const ClientAuth = () => {
                       placeholder="votre@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="login-password" className="text-slate-300 flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-slate-500" />
+                    <Label htmlFor="login-password" className="text-slate-200 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-cyan-400/70" />
                       Mot de passe
                     </Label>
                     <Input
@@ -651,7 +651,7 @@ const ClientAuth = () => {
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
+                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
                     />
                   </div>
                   <div className="text-right">
@@ -682,13 +682,13 @@ const ClientAuth = () => {
         </Card>
         
         {/* Trust badges */}
-        <div className="mt-6 flex items-center justify-center gap-6 text-slate-500 text-xs">
+        <div className="mt-6 flex items-center justify-center gap-6 text-slate-300 text-xs">
           <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-cyan-500/70" /> 
+            <ShieldCheck className="w-4 h-4 text-cyan-400" /> 
             <span>Connexion sécurisée</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <Lock className="w-4 h-4 text-cyan-500/70" /> 
+            <Lock className="w-4 h-4 text-cyan-400" /> 
             <span>Vérification 2FA</span>
           </span>
         </div>
