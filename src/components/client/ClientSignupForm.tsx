@@ -176,9 +176,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       {/* Name Row */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="signup-firstName" className="text-sm font-medium flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-primary" />
-            Prénom <span className="text-destructive">*</span>
+          <Label htmlFor="signup-firstName" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-cyan-400" />
+            Prénom <span className="text-red-400">*</span>
           </Label>
           <Input
             id="signup-firstName"
@@ -195,9 +195,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
         </div>
         
         <div className="space-y-1.5">
-          <Label htmlFor="signup-lastName" className="text-sm font-medium flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-primary" />
-            Nom <span className="text-destructive">*</span>
+          <Label htmlFor="signup-lastName" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-cyan-400" />
+            Nom <span className="text-red-400">*</span>
           </Label>
           <Input
             id="signup-lastName"
@@ -216,9 +216,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-email" className="text-sm font-medium flex items-center gap-1.5">
-          <Mail className="w-3.5 h-3.5 text-primary" />
-          Courriel <span className="text-destructive">*</span>
+        <Label htmlFor="signup-email" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+          <Mail className="w-3.5 h-3.5 text-cyan-400" />
+          Courriel <span className="text-red-400">*</span>
         </Label>
         <Input
           id="signup-email"
@@ -236,9 +236,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Phone */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-phone" className="text-sm font-medium flex items-center gap-1.5">
-          <Phone className="w-3.5 h-3.5 text-primary" />
-          Téléphone <span className="text-destructive">*</span>
+        <Label htmlFor="signup-phone" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+          <Phone className="w-3.5 h-3.5 text-cyan-400" />
+          Téléphone <span className="text-red-400">*</span>
         </Label>
         <Input
           id="signup-phone"
@@ -256,16 +256,16 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       </div>
 
       {/* Service Address Section */}
-      <div className="pt-2 border-t border-border">
+      <div className="pt-2 border-t border-slate-700/50">
         <div className="flex items-center gap-2 mb-3">
-          <MapPin className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium">Adresse de service (Québec seulement)</span>
+          <MapPin className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-medium text-slate-200">Adresse de service (Québec seulement)</span>
         </div>
         
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="signup-serviceAddress" className="text-sm font-medium">
-              Adresse <span className="text-destructive">*</span>
+            <Label htmlFor="signup-serviceAddress" className="text-sm font-medium text-slate-200">
+              Adresse <span className="text-red-400">*</span>
             </Label>
             <Input
               id="signup-serviceAddress"
@@ -283,8 +283,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="signup-serviceCity" className="text-sm font-medium">
-                Ville <span className="text-destructive">*</span>
+              <Label htmlFor="signup-serviceCity" className="text-sm font-medium text-slate-200">
+                Ville <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="signup-serviceCity"
@@ -301,8 +301,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="signup-servicePostalCode" className="text-sm font-medium">
-                Code postal <span className="text-destructive">*</span>
+              <Label htmlFor="signup-servicePostalCode" className="text-sm font-medium text-slate-200">
+                Code postal <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="signup-servicePostalCode"
@@ -324,9 +324,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Password */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-password" className="text-sm font-medium flex items-center gap-1.5">
-          <Lock className="w-3.5 h-3.5 text-primary" />
-          Mot de passe <span className="text-destructive">*</span>
+        <Label htmlFor="signup-password" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+          <Lock className="w-3.5 h-3.5 text-cyan-400" />
+          Mot de passe <span className="text-red-400">*</span>
         </Label>
         <div className="relative">
           <Input
@@ -353,8 +353,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Confirm Password */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-confirmPassword" className="text-sm font-medium">
-          Confirmer le mot de passe <span className="text-destructive">*</span>
+        <Label htmlFor="signup-confirmPassword" className="text-sm font-medium text-slate-200">
+          Confirmer le mot de passe <span className="text-red-400">*</span>
         </Label>
         <Input
           id="signup-confirmPassword"
@@ -371,19 +371,19 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       </div>
 
       {/* PIN Section */}
-      <div className="pt-2 border-t border-border">
+      <div className="pt-2 border-t border-slate-700/50">
         <div className="flex items-center gap-2 mb-3">
-          <Shield className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium">NIP de sécurité (4 chiffres)</span>
+          <Shield className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-medium text-slate-200">NIP de sécurité (4 chiffres)</span>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-xs text-slate-300 mb-3">
           Ce NIP sera utilisé pour valider votre identité lors d'appels au service client.
         </p>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="signup-pin" className="text-sm font-medium">
-              NIP <span className="text-destructive">*</span>
+            <Label htmlFor="signup-pin" className="text-sm font-medium text-slate-200">
+              NIP <span className="text-red-400">*</span>
             </Label>
             <div className="relative">
               <Input
@@ -411,8 +411,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
           </div>
           
           <div className="space-y-1.5">
-            <Label htmlFor="signup-confirmPin" className="text-sm font-medium">
-              Confirmer <span className="text-destructive">*</span>
+            <Label htmlFor="signup-confirmPin" className="text-sm font-medium text-slate-200">
+              Confirmer <span className="text-red-400">*</span>
             </Label>
             <Input
               id="signup-confirmPin"
@@ -444,13 +444,13 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
         Créer mon compte
       </Button>
 
-      <p className="text-xs text-center text-muted-foreground">
+      <p className="text-xs text-center text-slate-300">
         En créant un compte, vous acceptez nos{" "}
-        <a href="/conditions-de-service" className="text-primary hover:underline">
+        <a href="/conditions-de-service" className="text-cyan-400 hover:underline">
           conditions d'utilisation
         </a>{" "}
         et notre{" "}
-        <a href="/politique-de-confidentialite" className="text-primary hover:underline">
+        <a href="/politique-de-confidentialite" className="text-cyan-400 hover:underline">
           politique de confidentialité
         </a>
         .
