@@ -256,8 +256,8 @@ export default function FieldSalesPOS() {
         quantity: s.quantity,
       }));
 
-      // Insert order
-      const { error } = await supabase
+      // Insert order into field_sales_orders
+      const { data: newSale, error } = await supabase
         .from("field_sales_orders")
         .insert({
           salesperson_id: session.user.id,
@@ -274,11 +274,28 @@ export default function FieldSalesPOS() {
           payment_reference: paymentData.payment_reference || null,
           payment_status: paymentData.payment_method === "deferred" ? "pending" : "confirmed",
           internal_notes: paymentData.notes || null,
-          sync_status: "synced",
-          synced_at: new Date().toISOString(),
-        });
+          sync_status: "pending", // Will be synced by edge function
+          synced_at: null,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
+
+      // Immediately sync to main orders table via edge function
+      try {
+        const { error: syncError } = await supabase.functions.invoke("field-sales-sync", {
+          body: { action: "sync_single", sale_id: newSale.id },
+        });
+        
+        if (syncError) {
+          console.warn("Sync warning (order saved locally):", syncError);
+          // Order is saved, sync can happen later - don't fail
+        }
+      } catch (syncErr) {
+        console.warn("Sync failed (will retry):", syncErr);
+        // Non-blocking - order will sync on next batch
+      }
 
       toast.success("🎉 Vente enregistrée avec succès!", {
         description: `Total: ${totals.total.toFixed(2)} $ - ${selectedServices.length} service(s)`,

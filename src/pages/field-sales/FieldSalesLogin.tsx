@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Loader2, Eye, EyeOff, AlertCircle, MapPin } from "lucide-react";
+import { Briefcase, Loader2, Eye, EyeOff, AlertCircle, MapPin, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import StaffBackground from "@/components/staff/StaffBackground";
@@ -205,6 +206,17 @@ export default function FieldSalesLogin() {
             </form>
           </CardContent>
         </Card>
+
+        {/* Back to site link */}
+        <div className="text-center">
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 text-slate-400 hover:text-orange-400 transition-colors text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour au site
+          </Link>
+        </div>
 
         <p className="text-center text-slate-400 text-sm">
           © {new Date().getFullYear()} Nivra Telecom. Équipe ventes terrain.
