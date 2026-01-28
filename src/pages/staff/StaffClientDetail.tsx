@@ -1,6 +1,6 @@
 /**
  * StaffClientDetail - Employee portal client profile view
- * Enhanced with account info, streaming, and billing cycle display
+ * Enhanced with services, equipment, financial adjustments, and internal notes
  */
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
@@ -17,7 +17,7 @@ import {
   FileText, ShoppingCart, DollarSign, Ticket, Play,
   Clock, CheckCircle, XCircle, AlertTriangle, Loader2,
   Building, CreditCard, Hash, RefreshCw, Eye, Shield,
-  Star, Wallet, TrendingUp
+  Star, Wallet, TrendingUp, Settings, Box, MessageSquare
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -25,6 +25,10 @@ import { toast } from "sonner";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { useStaffClientAccess } from "@/components/staff/StaffClientAccessGate";
 import { StaffClientAccessGate } from "@/components/staff/StaffClientAccessGate";
+import StaffClientServicesSection from "@/components/staff/StaffClientServicesSection";
+import StaffClientEquipmentSection from "@/components/staff/StaffClientEquipmentSection";
+import StaffClientFinancialSection from "@/components/staff/StaffClientFinancialSection";
+import StaffClientInternalNotes from "@/components/staff/StaffClientInternalNotes";
 
 const creditClassColors: Record<string, { label: string; className: string; description: string }> = {
   A: { label: "Classe A", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", description: "Excellent - Aucun retard" },
@@ -46,6 +50,26 @@ export default function StaffClientDetail() {
   
   const [showAccessGate, setShowAccessGate] = useState(false);
   const [hasVerifiedAccess, setHasVerifiedAccess] = useState(false);
+
+  // Get current staff user
+  const { data: currentUser } = useQuery({
+    queryKey: ["staff-current-user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      return {
+        id: user.id,
+        name: profile?.full_name || profile?.email || "Employé",
+      };
+    },
+  });
 
   // Check access on mount
   useEffect(() => {
@@ -484,6 +508,45 @@ export default function StaffClientDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Services, Equipment, Financial & Notes Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Services Section */}
+          {clientId && currentUser && (
+            <StaffClientServicesSection
+              clientId={clientId}
+              staffUserId={currentUser.id}
+              staffUserName={currentUser.name}
+            />
+          )}
+
+          {/* Equipment Section */}
+          {clientId && currentUser && (
+            <StaffClientEquipmentSection
+              clientId={clientId}
+              staffUserId={currentUser.id}
+              staffUserName={currentUser.name}
+            />
+          )}
+
+          {/* Financial Adjustments Section */}
+          {clientId && currentUser && (
+            <StaffClientFinancialSection
+              clientId={clientId}
+              staffUserId={currentUser.id}
+              staffUserName={currentUser.name}
+            />
+          )}
+
+          {/* Internal Notes Section */}
+          {clientId && currentUser && (
+            <StaffClientInternalNotes
+              clientId={clientId}
+              staffUserId={currentUser.id}
+              staffUserName={currentUser.name}
+            />
+          )}
+        </div>
 
         {/* Tabs */}
         <Tabs defaultValue="orders" className="w-full">
