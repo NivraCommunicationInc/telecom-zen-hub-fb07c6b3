@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      // IMPORTANT: Never auto-reload the app in production.
+      // Auto-reloads can interrupt critical flows (e.g., PayPal checkout) and force users to restart.
+      // With "prompt", updates are installed on next manual refresh instead of forcibly reloading.
+      registerType: "prompt",
       includeAssets: ["favicon.png", "robots.txt"],
       manifest: {
         name: "Nivra Telecom",
