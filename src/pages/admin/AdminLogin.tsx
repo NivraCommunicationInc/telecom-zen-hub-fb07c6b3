@@ -270,7 +270,7 @@ const AdminLogin = () => {
                 </>
               )}
             </CardTitle>
-            <CardDescription className="text-slate-300">
+            <CardDescription className="text-slate-200">
               {isForgotPassword 
                 ? "Entrez votre courriel pour recevoir un lien de réinitialisation" 
                 : "Entrez vos identifiants administrateur"}
@@ -289,7 +289,7 @@ const AdminLogin = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@nivra.ca"
-                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
+                  className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
                   disabled={isSubmitting}
                 />
                 {errors.email && (
@@ -313,7 +313,7 @@ const AdminLogin = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
+                      className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
                       disabled={isSubmitting}
                     />
                     <button

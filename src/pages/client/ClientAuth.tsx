@@ -405,7 +405,7 @@ const ClientAuth = () => {
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
+                    className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
                   />
                 </div>
                 <div>
@@ -416,7 +416,7 @@ const ClientAuth = () => {
                     placeholder="••••••••"
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
+                    className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
                   />
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
@@ -453,7 +453,7 @@ const ClientAuth = () => {
                 </div>
               </div>
               <CardTitle className="text-2xl text-white">Mot de passe oublié</CardTitle>
-              <CardDescription className="text-slate-300">
+              <CardDescription className="text-slate-200">
                 {resetEmailSent 
                   ? "Un email vous a été envoyé" 
                   : "Entrez votre email pour réinitialiser votre mot de passe"}
@@ -489,7 +489,7 @@ const ClientAuth = () => {
                       placeholder="votre@email.com"
                       value={forgotPasswordEmail}
                       onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
+                      className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                   </div>
                   <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-[#0d1526] font-semibold shadow-lg shadow-cyan-500/25" disabled={isLoading}>
@@ -525,11 +525,11 @@ const ClientAuth = () => {
                 <ShieldCheck className="w-10 h-10 text-cyan-400" />
               </div>
               <CardTitle className="text-2xl text-white">Vérification en 2 étapes</CardTitle>
-              <CardDescription className="text-slate-300">Entrez le code à 6 chiffres envoyé par email</CardDescription>
+              <CardDescription className="text-slate-200">Entrez le code à 6 chiffres envoyé par email</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/30 text-center">
-                <p className="text-sm text-slate-300">
+              <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/30 text-center">
+                <p className="text-sm text-slate-200">
                   Un code de vérification à 6 chiffres a été envoyé à votre adresse email. Veuillez le saisir pour continuer.
                 </p>
               </div>
@@ -550,7 +550,7 @@ const ClientAuth = () => {
                     const text = e.clipboardData.getData("text");
                     setPin(sanitizePin(text));
                   }}
-                  className="text-center text-3xl tracking-[0.5em] font-mono bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-14"
+                  className="text-center text-3xl tracking-[0.5em] font-mono bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-14"
                   aria-label="Code de vérification à 6 chiffres"
                 />
               </div>
@@ -564,7 +564,7 @@ const ClientAuth = () => {
                 Vérifier et continuer
               </Button>
               
-              <p className="text-sm text-slate-300 text-center">
+              <p className="text-sm text-slate-200 text-center">
                 Vous n'avez pas reçu le code? Vérifiez votre dossier spam ou{" "}
                 <button 
                   type="button"
@@ -605,7 +605,7 @@ const ClientAuth = () => {
               </div>
             </div>
             <CardTitle className="text-2xl text-white">Espace Client</CardTitle>
-            <CardDescription className="text-slate-300">Connectez-vous pour gérer vos services</CardDescription>
+            <CardDescription className="text-slate-200">Connectez-vous pour gérer vos services</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
@@ -637,7 +637,7 @@ const ClientAuth = () => {
                       placeholder="votre@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
+                      className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
                     />
                   </div>
                   <div>
@@ -651,7 +651,7 @@ const ClientAuth = () => {
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
+                      className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-cyan-500 focus:ring-cyan-500/20 h-11"
                     />
                   </div>
                   <div className="text-right">
@@ -682,7 +682,7 @@ const ClientAuth = () => {
         </Card>
         
         {/* Trust badges */}
-        <div className="mt-6 flex items-center justify-center gap-6 text-slate-300 text-xs">
+        <div className="mt-6 flex items-center justify-center gap-6 text-slate-200 text-xs">
           <span className="flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-cyan-400" /> 
             <span>Connexion sécurisée</span>
