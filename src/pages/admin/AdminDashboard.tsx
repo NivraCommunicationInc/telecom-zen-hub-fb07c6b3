@@ -14,6 +14,7 @@ import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import PendingTVOrdersNotification from "@/components/admin/PendingTVOrdersNotification";
 import { LiveActivityWidget } from "@/components/admin/live-activity/LiveActivityWidget";
+import { LockdownButton } from "@/components/admin/LockdownButton";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -126,12 +127,15 @@ const AdminDashboard = () => {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Tableau de bord</h1>
-          <p className="text-muted-foreground mt-1">
-            Bienvenue dans l'administration Nivra • {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
-          </p>
+        {/* Header with Lockdown Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-foreground">Tableau de bord</h1>
+            <p className="text-muted-foreground mt-1">
+              Bienvenue dans l'administration Nivra • {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
+            </p>
+          </div>
+          <LockdownButton />
         </div>
 
         {/* Primary Stats Grid */}
