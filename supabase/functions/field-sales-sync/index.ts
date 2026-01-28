@@ -208,15 +208,18 @@ serve(async (req) => {
     }
 
     // ACTION: sync_single - Called immediately after field sale creation
-    if (action === 'sync_single' && sale_id) {
+    // Also handles convert_single for admin conversion
+    const saleIdToSync = sale_id || body.field_order_id;
+    if ((action === 'sync_single' || action === 'convert_single') && saleIdToSync) {
       // Get the sale
       const { data: sale, error: fetchError } = await supabaseAdmin
         .from('field_sales_orders')
         .select('*')
-        .eq('id', sale_id)
+        .eq('id', saleIdToSync)
         .single();
 
       if (fetchError || !sale) {
+        console.error('[field-sales-sync] Sale not found:', saleIdToSync, fetchError);
         return new Response(
           JSON.stringify({ success: false, error: 'Vente non trouvée' }),
           { status: 404, headers: corsHeaders }
@@ -229,17 +232,19 @@ serve(async (req) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', claims.user.id)
-        .eq('role', 'admin')
+        .in('role', ['admin', 'staff'])
         .eq('is_active', true)
         .maybeSingle();
 
       if (!isOwner && !adminRole) {
+        console.error('[field-sales-sync] Unauthorized:', claims.user.id);
         return new Response(
           JSON.stringify({ success: false, error: 'Non autorisé' }),
           { status: 403, headers: corsHeaders }
         );
       }
 
+      console.log('[field-sales-sync] Converting sale:', saleIdToSync, 'by user:', claims.user.id);
       const result = await syncSaleToOrders(sale);
       
       return new Response(
