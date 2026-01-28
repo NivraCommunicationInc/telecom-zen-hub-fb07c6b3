@@ -168,6 +168,7 @@ export default function UnifiedPOSPage({
       const payload = pos.getOrderPayload();
       
       // Extract customer info for order
+      const normalizedDob = (customerData.date_of_birth || "").trim() || null;
       const customerInfo = {
         full_name: customerData.full_name,
         email: customerData.email,
@@ -175,8 +176,30 @@ export default function UnifiedPOSPage({
         service_address: customerData.service_address,
         service_city: customerData.service_city,
         service_postal_code: customerData.service_postal_code,
-        date_of_birth: customerData.date_of_birth || null,
+        date_of_birth: normalizedDob,
       };
+
+      // DB requires client_dob (enforced by trigger/constraint)
+      if (!customerInfo.date_of_birth) {
+        throw new Error("Date de naissance manquante");
+      }
+
+      // IMPORTANT:
+      // In staff/admin POS, the order must be linked to the CLIENT (not the staff user).
+      // If we write user_id=auth.uid() (staff), DB triggers will try to sync from the staff profile
+      // and can overwrite/validate client_dob against the wrong profile → NULL.
+      const adminData = (customerData as unknown as Partial<AdminCustomerData>) || {};
+      const isExistingClient = isAdminPortal && adminData.is_new_client === false && !!adminData.client_id;
+      const orderUserId = isExistingClient ? (adminData.client_id as string) : null;
+
+      const derivedFirstName =
+        (typeof adminData.first_name === "string" && adminData.first_name.trim())
+          ? adminData.first_name.trim()
+          : (customerInfo.full_name.split(" ")[0] || null);
+      const derivedLastName =
+        (typeof adminData.last_name === "string" && adminData.last_name.trim())
+          ? adminData.last_name.trim()
+          : (customerInfo.full_name.split(" ").slice(1).join(" ") || null);
       
       // Get payment info
       const paymentMethod = paymentData.payment_method;
@@ -184,16 +207,16 @@ export default function UnifiedPOSPage({
       const paypalTransactionId = 'paypal_transaction_id' in paymentData ? paymentData.paypal_transaction_id : undefined;
       
       // Create order directly
-      // IMPORTANT: client_dob is REQUIRED by the orders table (NOT NULL constraint)
       const { data: newOrder, error } = await supabase
         .from("orders")
         .insert([{
-          user_id: session.user.id,
+          // Link to client when selected; otherwise leave null and let backend account creation link it.
+          user_id: orderUserId,
           service_type: pos.services[0]?.category || "bundle",
           client_email: customerInfo.email,
           client_dob: customerInfo.date_of_birth, // REQUIRED - must not be null
-          client_first_name: (customerData as AdminCustomerData).first_name || customerInfo.full_name.split(" ")[0] || null,
-          client_last_name: (customerData as AdminCustomerData).last_name || customerInfo.full_name.split(" ").slice(1).join(" ") || null,
+          client_first_name: derivedFirstName,
+          client_last_name: derivedLastName,
           client_phone: customerInfo.phone,
           service_address: customerInfo.service_address,
           service_city: customerInfo.service_city,
@@ -226,10 +249,35 @@ export default function UnifiedPOSPage({
           internal_notes: `[POS ${portalType.toUpperCase()}] ${paymentData.notes || ""}`,
           status: "pending",
         }])
-        .select("id")
+        .select("id, order_number")
         .single();
 
       if (error) throw error;
+
+      // If no client_id was selected, create/link a client account now (non-blocking for order creation).
+      if (!orderUserId) {
+        try {
+          const fallbackFirst = derivedFirstName || "";
+          const fallbackLast = derivedLastName || "";
+          await supabase.functions.invoke("auto-create-client-account", {
+            body: {
+              email: customerInfo.email,
+              first_name: fallbackFirst,
+              last_name: fallbackLast,
+              phone: customerInfo.phone,
+              order_id: newOrder.id,
+              order_number: (newOrder as any).order_number || undefined,
+              service_address: customerInfo.service_address,
+              service_city: customerInfo.service_city,
+              service_postal_code: customerInfo.service_postal_code,
+              date_of_birth: customerInfo.date_of_birth,
+            },
+          });
+        } catch (linkErr) {
+          console.warn("[POS] auto-create-client-account failed (order already created)");
+        }
+      }
+
       onOrderComplete?.(newOrder.id);
 
       toast.success("🎉 Commande créée avec succès!", {
@@ -243,7 +291,8 @@ export default function UnifiedPOSPage({
 
     } catch (error: any) {
       console.error("Order error:", error);
-      toast.error("Erreur", { description: error.message });
+      const description = [error?.message, error?.details, error?.hint].filter(Boolean).join(" • ");
+      toast.error("Erreur", { description: description || "Erreur inconnue" });
     } finally {
       setIsSubmitting(false);
     }
