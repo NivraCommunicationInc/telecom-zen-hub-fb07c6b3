@@ -159,12 +159,22 @@ export function POSCustomerFormAdmin({ onSubmit, initialData, isSubmitting }: PO
     setSearch("");
   };
 
+  const [formError, setFormError] = useState("");
+
   // Validate and submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError("");
     
     // Validate required fields
     if (!form.full_name || !form.email || !form.phone) {
+      setFormError("Nom, courriel et téléphone sont requis");
+      return;
+    }
+    
+    // Date of birth is MANDATORY for orders
+    if (!form.date_of_birth) {
+      setFormError("La date de naissance est obligatoire pour créer une commande");
       return;
     }
     
@@ -254,6 +264,26 @@ export function POSCustomerFormAdmin({ onSubmit, initialData, isSubmitting }: PO
                     <span className="flex items-center gap-2"><MapPin className="w-3 h-3" />{selectedClient.service_address}, {selectedClient.service_city}</span>
                   )}
                 </div>
+                
+                {/* If DOB is missing for existing client, show a field to add it */}
+                {!form.date_of_birth && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-center gap-2 text-amber-400 mb-2">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">Date de naissance manquante</span>
+                    </div>
+                    <div>
+                      <Label className="text-slate-300 text-xs">Date de naissance *</Label>
+                      <Input
+                        type="date"
+                        value={form.date_of_birth || ""}
+                        onChange={(e) => setForm(f => ({ ...f, date_of_birth: e.target.value }))}
+                        className="bg-slate-700/50 border-slate-600 mt-1"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -305,12 +335,20 @@ export function POSCustomerFormAdmin({ onSubmit, initialData, isSubmitting }: PO
               </ScrollArea>
             )}
 
+            {/* Form Error */}
+            {formError && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2 text-red-400">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm">{formError}</span>
+              </div>
+            )}
+
             {selectedClient && (
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="w-full bg-cyan-500 hover:bg-cyan-400 text-white"
+                disabled={isSubmitting || !form.date_of_birth}
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-white disabled:opacity-50"
               >
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Continuer avec ce client
