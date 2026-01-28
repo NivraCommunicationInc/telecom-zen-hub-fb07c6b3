@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Mail, Phone, MapPin, Calendar } from "lucide-react";
+import { User, Loader2 } from "lucide-react";
 
 export interface CustomerData {
   full_name: string;
@@ -18,9 +18,10 @@ export interface CustomerData {
 interface POSCustomerFormProps {
   onSubmit: (data: CustomerData) => void;
   initialData?: CustomerData | null;
+  isSubmitting?: boolean;
 }
 
-export function POSCustomerForm({ onSubmit, initialData }: POSCustomerFormProps) {
+export function POSCustomerForm({ onSubmit, initialData, isSubmitting }: POSCustomerFormProps) {
   const [form, setForm] = useState<CustomerData>(initialData || {
     full_name: "", email: "", phone: "", service_address: "", service_city: "", service_postal_code: ""
   });
@@ -45,7 +46,10 @@ export function POSCustomerForm({ onSubmit, initialData }: POSCustomerFormProps)
             <div><Label className="text-slate-300">Ville</Label><Input value={form.service_city} onChange={e => setForm(f => ({ ...f, service_city: e.target.value }))} className="bg-slate-700/50 border-slate-600" /></div>
             <div><Label className="text-slate-300">Code postal</Label><Input value={form.service_postal_code} onChange={e => setForm(f => ({ ...f, service_postal_code: e.target.value }))} className="bg-slate-700/50 border-slate-600" /></div>
           </div>
-          <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-400 text-white">Continuer au paiement</Button>
+          <Button type="submit" disabled={isSubmitting} className="w-full bg-orange-500 hover:bg-orange-400 text-white">
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Continuer au paiement
+          </Button>
         </form>
       </CardContent>
     </Card>
