@@ -1525,10 +1525,18 @@ const ClientNewOrder = () => {
           console.error("Payment record error:", paymentError);
           postStepErrors.push("payment");
         } else {
-          // Update order with payment reference
-          await supabase.from("orders").update({
-            payment_reference: nivraPaymentRef,
-          }).eq("id", data.id);
+          // Update order with payment reference and status
+          const updatePayload: any = {
+            payment_reference: paymentMethod === "paypal" && paypalCaptureId ? paypalCaptureId : nivraPaymentRef,
+            payment_method: paymentMethod === "paypal" ? "paypal" : paymentMethod === "etransfer" ? "etransfer" : paymentMethod,
+          };
+          
+          // If PayPal payment is complete, mark as captured
+          if (paymentMethod === "paypal" && paypalCaptureId) {
+            updatePayload.payment_status = "captured";
+          }
+          
+          await supabase.from("orders").update(updatePayload).eq("id", data.id);
         }
       } catch (paymentErr) {
         console.error("Payment step failed:", paymentErr);
