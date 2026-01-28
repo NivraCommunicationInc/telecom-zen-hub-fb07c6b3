@@ -14,6 +14,21 @@ function parseJsonSafe(raw: string): any | null {
   }
 }
 
+interface CustomerInfo {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    admin_area_2?: string; // City
+    admin_area_1?: string; // Province/State
+    postal_code?: string;
+    country_code?: string;
+  };
+}
+
 interface CreatePayPalOrderRequest {
   invoice_id?: string;
   amount: number;
@@ -23,6 +38,8 @@ interface CreatePayPalOrderRequest {
   subscription_id?: string;
   // For new orders
   order_id?: string;
+  // Customer info for pre-filling PayPal
+  customer?: CustomerInfo;
 }
 
 async function getPayPalAccessToken(): Promise<string> {
@@ -73,8 +90,56 @@ serve(async (req) => {
     const accessToken = await getPayPalAccessToken();
     const currency = body.currency || "CAD";
 
+    // Build payer info if customer data is provided
+    let payer: Record<string, unknown> | undefined;
+    if (body.customer) {
+      const c = body.customer;
+      payer = {};
+      
+      // Name
+      if (c.first_name || c.last_name) {
+        payer.name = {
+          given_name: c.first_name || "",
+          surname: c.last_name || "",
+        };
+      }
+      
+      // Email
+      if (c.email) {
+        payer.email_address = c.email;
+      }
+      
+      // Phone
+      if (c.phone) {
+        // PayPal expects phone in specific format
+        const cleanPhone = c.phone.replace(/\D/g, "");
+        if (cleanPhone.length >= 10) {
+          payer.phone = {
+            phone_type: "MOBILE",
+            phone_number: {
+              national_number: cleanPhone.slice(-10), // Last 10 digits
+            },
+          };
+        }
+      }
+      
+      // Address
+      if (c.address) {
+        payer.address = {
+          address_line_1: c.address.address_line_1 || "",
+          address_line_2: c.address.address_line_2 || "",
+          admin_area_2: c.address.admin_area_2 || "", // City
+          admin_area_1: c.address.admin_area_1 || "QC", // Province
+          postal_code: c.address.postal_code || "",
+          country_code: c.address.country_code || "CA",
+        };
+      }
+      
+      console.log("[PayPal] Payer info:", JSON.stringify(payer));
+    }
+
     // Create PayPal order
-    const orderPayload = {
+    const orderPayload: Record<string, unknown> = {
       intent: "CAPTURE",
       purchase_units: [{
         amount: {
@@ -83,15 +148,37 @@ serve(async (req) => {
         },
         description: body.description || "Nivra Telecom - Paiement",
         custom_id: body.invoice_id || body.order_id || `order_${Date.now()}`,
+        // Add shipping info if address is provided
+        ...(body.customer?.address ? {
+          shipping: {
+            name: {
+              full_name: `${body.customer.first_name || ""} ${body.customer.last_name || ""}`.trim() || "Client",
+            },
+            address: {
+              address_line_1: body.customer.address.address_line_1 || "",
+              address_line_2: body.customer.address.address_line_2 || "",
+              admin_area_2: body.customer.address.admin_area_2 || "",
+              admin_area_1: body.customer.address.admin_area_1 || "QC",
+              postal_code: body.customer.address.postal_code || "",
+              country_code: body.customer.address.country_code || "CA",
+            },
+          },
+        } : {}),
       }],
       application_context: {
         brand_name: "Nivra Telecom",
         landing_page: "NO_PREFERENCE",
         user_action: "PAY_NOW",
+        shipping_preference: body.customer?.address ? "SET_PROVIDED_ADDRESS" : "NO_SHIPPING",
         return_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.ca"}/portal/payment-success`,
         cancel_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.ca"}/portal/payment-cancelled`,
       },
     };
+    
+    // Add payer info if available
+    if (payer && Object.keys(payer).length > 0) {
+      orderPayload.payer = payer;
+    }
 
     console.log("[PayPal] Order payload:", JSON.stringify(orderPayload));
 

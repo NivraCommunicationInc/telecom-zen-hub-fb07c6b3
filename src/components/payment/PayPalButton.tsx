@@ -5,11 +5,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
+interface CustomerInfo {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    admin_area_2?: string; // City
+    admin_area_1?: string; // Province/State
+    postal_code?: string;
+    country_code?: string;
+  };
+}
+
 interface PayPalButtonProps {
   amount: number;
   invoiceId?: string;
   orderId?: string;
   description?: string;
+  customer?: CustomerInfo;
   onSuccess?: (captureId: string) => void;
   onError?: (error: string) => void;
   onCancel?: () => void;
@@ -32,6 +48,7 @@ export const PayPalButton = ({
   invoiceId,
   orderId,
   description,
+  customer,
   onSuccess,
   onError,
   onCancel,
@@ -93,6 +110,7 @@ export const PayPalButton = ({
               invoice_id: invoiceId,
               order_id: orderId,
               description: description || "Paiement Nivra Telecom",
+              customer: customer,
             },
           });
 
@@ -146,7 +164,7 @@ export const PayPalButton = ({
         onError?.(errorMessage);
       },
     }).render(`#${containerId}`);
-  }, [sdkReady, amount, invoiceId, orderId, description, disabled, containerId, onSuccess, onError, onCancel]);
+  }, [sdkReady, amount, invoiceId, orderId, description, customer, disabled, containerId, onSuccess, onError, onCancel]);
 
   if (!sdkReady) {
     return (
