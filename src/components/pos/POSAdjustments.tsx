@@ -28,17 +28,11 @@ interface AdjustmentPreset {
 }
 
 const PRESET_ADJUSTMENTS: AdjustmentPreset[] = [
-  { type: "delivery", name: "Livraison standard", amount: 15.00, icon: Truck, color: "text-blue-400" },
-  { type: "delivery", name: "Livraison express", amount: 29.99, icon: Truck, color: "text-blue-400" },
-  { type: "delivery", name: "Livraison gratuite", amount: 0, icon: Truck, color: "text-blue-400" },
-  { type: "installation", name: "Installation standard", amount: 49.99, icon: Wrench, color: "text-amber-400" },
-  { type: "installation", name: "Installation pro", amount: 99.99, icon: Wrench, color: "text-amber-400" },
-  { type: "installation", name: "Auto-installation", amount: 0, icon: Wrench, color: "text-amber-400" },
-  { type: "credit", name: "Crédit fidélité", amount: -25.00, icon: CreditCard, color: "text-emerald-400" },
-  { type: "credit", name: "Geste commercial", amount: -10.00, icon: CreditCard, color: "text-emerald-400" },
-  { type: "credit", name: "Crédit parrainage", amount: -50.00, icon: CreditCard, color: "text-emerald-400" },
-  { type: "fee", name: "Frais de dossier", amount: 25.00, icon: FileText, color: "text-red-400" },
-  { type: "fee", name: "Frais de retard", amount: 15.00, icon: FileText, color: "text-red-400" },
+  // IMPORTANT: Keep these aligned with the website checkout (ClientNewOrder)
+  { type: "delivery", name: "Livraison standard", amount: 30.00, icon: Truck, color: "text-blue-400" },
+  { type: "delivery", name: "Livraison Express Uber", amount: 45.00, icon: Truck, color: "text-blue-400" },
+  { type: "delivery", name: "Expédition à domicile", amount: 15.00, icon: Truck, color: "text-blue-400" },
+  { type: "installation", name: "Frais d'installation technicien", amount: 50.00, icon: Wrench, color: "text-amber-400" },
 ];
 
 interface POSAdjustmentsProps {
