@@ -22,6 +22,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
+import { viewContractPDF, viewInvoicePDF } from "@/lib/pdfEngine/legacyWrappers";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -153,8 +154,6 @@ export default function StaffOrderDetail() {
     
     setIsGeneratingPdf("contract");
     try {
-      const { viewContractPDF } = await import("@/lib/pdfEngine/legacyWrappers");
-      
       // Build contract data from order
       const contractData = {
         client: {
@@ -191,8 +190,6 @@ export default function StaffOrderDetail() {
     
     setIsGeneratingPdf("invoice");
     try {
-      const { viewInvoicePDF } = await import("@/lib/pdfEngine/legacyWrappers");
-      
       // Build invoice data from order
       const invoiceData = {
         invoice_number: order.order_number ? `INV-${order.order_number.replace("ORD-", "")}` : "INV-TEMP",

@@ -21,6 +21,7 @@ import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { hashBlobSHA256Hex } from "@/lib/pdfHash";
 import { safePDFDownload } from "@/lib/pdfUtils";
+import { calculateLineItemTotals, extractLineItemsFromOrder } from "@/lib/orderLineItems";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
@@ -174,9 +175,6 @@ const ClientContracts = () => {
           });
         }
 
-      // Import line item utilities
-      const { extractLineItemsFromOrder, calculateLineItemTotals } = await import("@/lib/orderLineItems");
-      
       // Parse service type to determine individual services and prices
       const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
       const subtotal = Number(linkedOrder?.subtotal ?? 0);
