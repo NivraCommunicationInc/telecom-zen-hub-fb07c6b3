@@ -24,31 +24,129 @@ export interface FieldSalesOffer {
   sort_order: number;
 }
 
+type ServiceRow = {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string | null;
+};
+
+function normalizeCategory(category: string): "internet" | "tv" | "mobile" | "bundle" | "other" {
+  const c = (category || "").trim().toLowerCase();
+  if (c === "internet") return "internet";
+  if (c === "tv") return "tv";
+  if (c === "mobile") return "mobile";
+  // Backoffice catalog uses capitalized FR labels
+  if (c.includes("internet") && c.includes("tv")) return "tv";
+  if (c.includes("internet")) return "internet";
+  if (c.includes("tv")) return "tv";
+  if (c.includes("mobile")) return "mobile";
+  return "other";
+}
+
+function extractSpeed(name: string, description: string): string | undefined {
+  const src = `${name} ${description}`;
+  const match = src.match(/(\d+)\s*(mbps|gbps)/i);
+  if (match) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    if (unit === "gbps") return `${value} Gbps`;
+    return `${value} Mbps`;
+  }
+  if (src.toLowerCase().includes("giga")) return "1 Gbps";
+  return undefined;
+}
+
+function splitFeatures(description: string | null): string[] {
+  if (!description) return [];
+  // Most entries are comma-separated on the website catalog
+  return description
+    .split(/,|\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
 export function useFieldSalesOffers(category?: string) {
   return useQuery({
     queryKey: ["field-sales-offers", category],
     queryFn: async () => {
-      // Use secure public view that hides promo codes and internal audit fields
-      let query = supabase
-        .from("site_offers_public")
-        .select("id, offer_type, category, name_fr, description_fr, price_monthly, price_setup, discount_percent, discount_amount, is_featured, features_json, sort_order")
-        .order("sort_order", { ascending: true });
+      // IMPORTANT:
+      // The main website catalog lives in the "services" catalog (via services_public).
+      // site_offers_public currently contains only a few promo/legacy entries.
+      // The POS must show ALL forfaits Internet/TV/Mobile, so we hydrate from services_public
+      // and then merge any site_offers_public rows.
 
-      if (category && category !== "all") {
-        query = query.eq("category", category);
-      }
+      const [servicesRes, siteOffersRes] = await Promise.all([
+        supabase
+          .from("services_public")
+          .select("id, name, category, price, description")
+          .order("category", { ascending: true })
+          .order("price", { ascending: true }),
+        supabase
+          .from("site_offers_public")
+          .select(
+            "id, offer_type, category, name_fr, description_fr, price_monthly, price_setup, discount_percent, discount_amount, is_featured, features_json, sort_order"
+          )
+          .order("sort_order", { ascending: true }),
+      ]);
 
-      // Note: site_offers_public view already filters active offers
-      // No need for valid_from/valid_until filters as those columns don't exist in the view
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Failed to fetch field sales offers:", error);
+      if (servicesRes.error) {
+        console.error("[useFieldSalesOffers] Failed to fetch services_public:", servicesRes.error);
         return [];
       }
+      if (siteOffersRes.error) {
+        console.warn("[useFieldSalesOffers] Failed to fetch site_offers_public:", siteOffersRes.error);
+      }
 
-      return (data || []) as FieldSalesOffer[];
+      const services = (servicesRes.data || []) as ServiceRow[];
+      const siteOffers = ((siteOffersRes.data || []) as FieldSalesOffer[]) || [];
+
+      const mappedFromServices: FieldSalesOffer[] = services
+        .map((s, idx) => {
+          const normalized = normalizeCategory(s.category);
+          const offerType = normalized === "tv" ? "bundle" : "plan";
+          const features = splitFeatures(s.description);
+          const speed = extractSpeed(s.name, s.description || "");
+
+          return {
+            id: s.id,
+            offer_type: offerType,
+            category: normalized === "other" ? "other" : normalized,
+            name_fr: s.name,
+            description_fr: s.description,
+            price_monthly: Number(s.price),
+            price_setup: 0,
+            discount_percent: null,
+            discount_amount: null,
+            is_featured: false,
+            features_json: features.length || speed ? { features, speed } : null,
+            // deterministic order: keeps catalog stable
+            sort_order: 10_000 + idx,
+          };
+        })
+        // Keep POS service catalog focused on forfaits
+        .filter((o) => ["internet", "tv", "mobile"].includes(o.category));
+
+      // Merge (site_offers override same id)
+      const byId = new Map<string, FieldSalesOffer>();
+      for (const o of mappedFromServices) byId.set(o.id, o);
+      for (const o of siteOffers) {
+        // normalize legacy categories if needed
+        const normalized = normalizeCategory(o.category);
+        byId.set(o.id, { ...o, category: normalized === "other" ? o.category : normalized });
+      }
+
+      let all = Array.from(byId.values());
+
+      if (category && category !== "all") {
+        all = all.filter((o) => o.category === category);
+      }
+
+      // Keep site_offers sort_order first if present, then services
+      all.sort((a, b) => (a.sort_order ?? 10_000) - (b.sort_order ?? 10_000));
+      return all;
     },
     staleTime: 30 * 1000,
   });
