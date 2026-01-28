@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,50 @@ export const PayPalButton = ({
   const [sdkReady, setSdkReady] = useState(false);
   const containerId = `paypal-button-container-${invoiceId || orderId || "main"}`;
 
+  // IMPORTANT:
+  // Plusieurs parties du site refetch en arrière-plan (bannières statut, sécurité, etc.).
+  // Si on recrée les boutons PayPal à chaque re-render, PayPal peut fermer la fenêtre
+  // (ou annuler le flux) et l’utilisateur revient au checkout.
+  // => On stabilise les callbacks + on ne re-render les boutons que si les props
+  //    réellement pertinentes changent.
+  const callbacksRef = useRef({ onSuccess, onError, onCancel });
+  useEffect(() => {
+    callbacksRef.current = { onSuccess, onError, onCancel };
+  }, [onSuccess, onError, onCancel]);
+
+  const customerSignature = useMemo(() => {
+    const a = customer?.address;
+    return [
+      customer?.first_name ?? "",
+      customer?.last_name ?? "",
+      customer?.email ?? "",
+      customer?.phone ?? "",
+      a?.address_line_1 ?? "",
+      a?.address_line_2 ?? "",
+      a?.admin_area_2 ?? "",
+      a?.admin_area_1 ?? "",
+      a?.postal_code ?? "",
+      a?.country_code ?? "",
+    ].join("|");
+  }, [
+    customer?.first_name,
+    customer?.last_name,
+    customer?.email,
+    customer?.phone,
+    customer?.address?.address_line_1,
+    customer?.address?.address_line_2,
+    customer?.address?.admin_area_2,
+    customer?.address?.admin_area_1,
+    customer?.address?.postal_code,
+    customer?.address?.country_code,
+  ]);
+
+  const renderKey = useMemo(() => {
+    return [amount, invoiceId ?? "", orderId ?? "", description ?? "", customerSignature].join("::");
+  }, [amount, invoiceId, orderId, description, customerSignature]);
+
+  const lastRenderedKeyRef = useRef<string | null>(null);
+
   // Load PayPal SDK
   useEffect(() => {
     const loadPayPalSdk = async () => {
@@ -89,6 +133,10 @@ export const PayPalButton = ({
 
     const container = document.getElementById(containerId);
     if (!container) return;
+
+    // Prevent tearing down & re-creating PayPal buttons on unrelated re-renders.
+    if (lastRenderedKeyRef.current === renderKey) return;
+    lastRenderedKeyRef.current = renderKey;
 
     // Clear any existing buttons
     container.innerHTML = "";
@@ -122,7 +170,7 @@ export const PayPalButton = ({
           console.error("PayPal create order error:", err);
           const errorMessage = await getInvokeErrorMessage(err);
           toast.error(errorMessage);
-          onError?.(errorMessage);
+          callbacksRef.current.onError?.(errorMessage);
           throw err;
         } finally {
           setIsLoading(false);
@@ -143,28 +191,28 @@ export const PayPalButton = ({
           if (!captureData?.success) throw new Error(captureData?.error || "Capture failed");
 
           toast.success("Paiement réussi!");
-          onSuccess?.(captureData.capture_id);
+          callbacksRef.current.onSuccess?.(captureData.capture_id);
         } catch (err) {
           console.error("PayPal capture error:", err);
           const errorMessage = await getInvokeErrorMessage(err);
           toast.error(errorMessage);
-          onError?.(errorMessage);
+          callbacksRef.current.onError?.(errorMessage);
         } finally {
           setIsLoading(false);
         }
       },
       onCancel: () => {
         toast.info("Paiement annulé");
-        onCancel?.();
+        callbacksRef.current.onCancel?.();
       },
       onError: (err: unknown) => {
         console.error("PayPal error:", err);
         const errorMessage = err instanceof Error ? err.message : "Erreur PayPal";
         toast.error(errorMessage);
-        onError?.(errorMessage);
+        callbacksRef.current.onError?.(errorMessage);
       },
     }).render(`#${containerId}`);
-  }, [sdkReady, amount, invoiceId, orderId, description, customer, disabled, containerId, onSuccess, onError, onCancel]);
+  }, [sdkReady, disabled, containerId, renderKey, amount, invoiceId, orderId, description, customer]);
 
   if (!sdkReady) {
     return (
