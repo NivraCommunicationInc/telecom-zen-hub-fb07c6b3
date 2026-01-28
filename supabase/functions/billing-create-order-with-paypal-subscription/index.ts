@@ -157,31 +157,37 @@ serve(async (req) => {
     // Step 2: Create PayPal billing plan
     const accessToken = await getPayPalAccessToken();
     
-    // Create/get product
-    const productId = `NIVRA_AUTO_${body.services.map(s => s.plan_code).join("_").toUpperCase()}`;
+    // Create product with unique ID based on timestamp to avoid conflicts
+    const productId = `NIVRA_SUB_${Date.now()}`;
     
-    try {
-      await fetch("https://api-m.paypal.com/v1/catalogs/products", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: productId,
-          name: body.services.map(s => s.plan_name).join(" + "),
-          description: `Abonnement mensuel automatique Nivra Telecom`,
-          type: "SERVICE",
-          category: "TELECOM_SERVICES",
-        }),
-      });
-    } catch (e) {
-      console.log("[PayPal] Product may already exist");
+    const productResponse = await fetch("https://api-m.paypal.com/v1/catalogs/products", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": `prod_${Date.now()}`,
+      },
+      body: JSON.stringify({
+        id: productId,
+        name: `Abonnement Nivra - ${body.services.map(s => s.plan_name).join(" + ")}`,
+        description: `Abonnement mensuel automatique Nivra Telecom avec rabais de ${AUTO_BILLING_DISCOUNT}$`,
+        type: "SERVICE",
+        category: "SOFTWARE",
+      }),
+    });
+
+    if (!productResponse.ok) {
+      const prodError = await productResponse.text();
+      console.error("[PayPal] Product creation error:", prodError);
+      throw new Error(`Failed to create product: ${prodError}`);
     }
+
+    const productData = await productResponse.json();
+    console.log(`[billing-create-order-paypal] PayPal product created: ${productData.id}`);
     
     // Create billing plan with discounted price
     const planPayload = {
-      product_id: productId,
+      product_id: productData.id,
       name: `${body.services.map(s => s.plan_name).join(" + ")} - Auto-Paiement`,
       description: `Abonnement mensuel avec rabais de ${AUTO_BILLING_DISCOUNT}$`,
       billing_cycles: [
@@ -330,9 +336,11 @@ serve(async (req) => {
       
       if (subError) throw subError;
       
-      // Generate invoice number
-      const { data: invoiceNumberData } = await supabase.rpc("generate_billing_invoice_number");
-      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}-${i}`;
+      // Generate unique invoice number
+      const now = new Date();
+      const dateStr = `${now.getFullYear().toString().slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      const uniqueSuffix = `${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(-3).toUpperCase()}`;
+      const invoiceNumber = `INV-${dateStr}-${uniqueSuffix}`;
       
       // Calculate amounts with discount
       const invoiceActivationFee = i === 0 ? activationFee : 0;
