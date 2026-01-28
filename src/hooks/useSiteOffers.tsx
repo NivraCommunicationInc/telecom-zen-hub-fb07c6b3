@@ -25,10 +25,10 @@ export function useSiteOffers(options?: { category?: string; featured?: boolean 
   return useQuery({
     queryKey: ["site-offers", options?.category, options?.featured],
     queryFn: async () => {
+      // Use secure public view that hides promo codes and internal audit fields
       let query = backendClient
-        .from("site_offers")
+        .from("site_offers_public")
         .select("*")
-        .eq("is_active", true)
         .order("sort_order", { ascending: true });
 
       if (options?.category) {
