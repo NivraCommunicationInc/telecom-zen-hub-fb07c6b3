@@ -125,8 +125,8 @@ export default function FieldSalesLogin() {
             <Briefcase className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white">Ventes Terrain</h1>
-          <p className="text-slate-300 flex items-center justify-center gap-2">
-            <MapPin className="h-4 w-4" />
+          <p className="text-slate-200 flex items-center justify-center gap-2">
+            <MapPin className="h-4 w-4 text-orange-400" />
             Portail porte-à-porte
           </p>
         </div>
@@ -135,7 +135,7 @@ export default function FieldSalesLogin() {
         <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">Connexion Vendeur</CardTitle>
-            <CardDescription className="text-slate-300">
+            <CardDescription className="text-slate-200">
               Connectez-vous pour commencer vos ventes
             </CardDescription>
           </CardHeader>
@@ -149,7 +149,7 @@ export default function FieldSalesLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="vendeur@nivra.ca"
-                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-orange-400/50 focus:ring-orange-400/20"
+                  className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-orange-400/50 focus:ring-orange-400/20"
                   disabled={loading}
                 />
                 {errors.email && (
@@ -169,7 +169,7 @@ export default function FieldSalesLogin() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 pr-10 focus:border-orange-400/50 focus:ring-orange-400/20"
+                    className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 pr-10 focus:border-orange-400/50 focus:ring-orange-400/20"
                     disabled={loading}
                   />
                   <button

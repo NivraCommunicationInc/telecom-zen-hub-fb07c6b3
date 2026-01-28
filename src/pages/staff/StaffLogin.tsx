@@ -182,7 +182,7 @@ export default function StaffLogin() {
         <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">Sélectionnez votre rôle</CardTitle>
-            <CardDescription className="text-slate-300">
+            <CardDescription className="text-slate-200">
               Choisissez le rôle avec lequel vous souhaitez vous connecter
             </CardDescription>
           </CardHeader>
@@ -207,8 +207,8 @@ export default function StaffLogin() {
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-semibold">{config.label}</div>
-                    <div className={`text-sm ${isSelected ? "text-white/80" : "text-slate-300"}`}>
+                    <div className="font-semibold text-white">{config.label}</div>
+                    <div className={`text-sm ${isSelected ? "text-white/90" : "text-slate-200"}`}>
                       {config.description}
                     </div>
                   </div>
@@ -238,7 +238,7 @@ export default function StaffLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom@nivra.ca"
-                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
+                  className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
                   disabled={loading}
                 />
                 {errors.email && (
@@ -260,7 +260,7 @@ export default function StaffLogin() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
+                    className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 pr-10 focus:border-teal-400/50 focus:ring-teal-400/20"
                     disabled={loading}
                   />
                   <button
