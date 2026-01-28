@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { downloadTelecomContractPDF, viewTelecomContractPDF, type TelecomContractData } from "@/lib/pdfEngine";
+import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -382,9 +383,6 @@ const AdminContracts = () => {
         incompleteData: string[];
         generatedContracts: any[];
       } = { success: [], failed: [], incompleteData: [], generatedContracts: [] };
-      
-      // Dynamically import the contract engine
-      const { ensureOrderContractUpToDate } = await import("@/lib/contractEngine");
       
       for (const serviceId of serviceIds) {
         const service = activeServices?.find(s => s.id === serviceId);

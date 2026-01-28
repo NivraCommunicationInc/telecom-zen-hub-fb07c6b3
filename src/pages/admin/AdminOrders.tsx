@@ -1377,7 +1377,6 @@ const AdminOrders = () => {
     // Log equipment assignment to client activity + create audit note
     if (selectedOrder.user_id) {
       try {
-        const { logClientActivityDirect } = await import("@/hooks/useClientActivityLog");
         const currentUser = (await supabase.auth.getUser()).data.user;
         const { data: profile } = await supabase
           .from("profiles")

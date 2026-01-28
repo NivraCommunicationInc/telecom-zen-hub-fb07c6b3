@@ -4,6 +4,7 @@ import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { hashBlobSHA256Hex } from "@/lib/pdfHash";
 import { hasValidLineItems, backfillOrderLineItems } from "@/lib/orderBackfill";
+import { extractLineItemsFromOrder } from "@/lib/orderLineItems";
 
 const buildContractNumber = () =>
   `CTR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -261,10 +262,7 @@ export const ensureOrderContractUpToDate = async (params: {
   // Parse service type and equipment details to determine individual services and prices
   const serviceType = String((order as any).service_type || "").toLowerCase();
   const subtotal = Number((order as any).subtotal ?? 0);
-  
-  // Import extractLineItemsFromOrder utility
-  const { extractLineItemsFromOrder } = await import("@/lib/orderLineItems");
-  
+
   // Try to extract structured line_items from equipment_details (PRIMARY SOURCE)
   let equipmentDetails = (order as any).equipment_details;
   

@@ -57,6 +57,7 @@ import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
+import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 
 // Channel interface
 interface Channel {
@@ -596,7 +597,6 @@ const ClientTVOrder = () => {
       ];
 
       // Build structured line_items for contract PDF
-      const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
       const lineItems = buildOrderLineItems({
         services: [
           {

@@ -65,6 +65,9 @@ import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
+import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
+import { AuditNotes } from "@/lib/clientAuditNotes";
+import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 
 interface Service {
   id: string;
@@ -1352,7 +1355,6 @@ const ClientNewOrder = () => {
       } : null;
 
       // Build structured line_items for contract PDF
-      const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
       
       // Build services array from selected services
       type ServiceType = "Internet" | "TV" | "Mobile" | "Streaming" | "Security" | "Other";
@@ -1741,7 +1743,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           }
           
           // Create audit note for promo/referral applied
-          const { AuditNotes } = await import("@/lib/clientAuditNotes");
           AuditNotes.promoApplied(
             user.id,
             data.id,
@@ -1807,7 +1808,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       
       // Send admin notification for new order (fire-and-forget)
       try {
-        const { notifyAdmin, getAdminPortalLink } = await import("@/hooks/useAdminNotification");
         const servicesDesc = selectedServices.map(s => s.name).join(", ");
         notifyAdmin({
           event_type: "new_order",

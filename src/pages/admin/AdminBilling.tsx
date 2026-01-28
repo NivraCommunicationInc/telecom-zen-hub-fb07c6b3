@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { AccountingExportDialog } from "@/components/admin/AccountingExportDialog";
+import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-500/20 text-amber-500",
@@ -991,7 +992,6 @@ const AdminBilling = () => {
   const exportInvoicePDF = async (bill: any) => {
     try {
       const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
-      const { safePDFDownload } = await import("@/lib/pdfUtils");
       
       // Fetch related order to get line_items
       const orderData = await fetchRelatedOrderData(bill);
@@ -1085,7 +1085,6 @@ const AdminBilling = () => {
   const viewInvoicePDF = async (bill: any) => {
     try {
       const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
-      const { safePDFOpen } = await import("@/lib/pdfUtils");
       
       // Fetch related order to get line_items
       const orderData = await fetchRelatedOrderData(bill);

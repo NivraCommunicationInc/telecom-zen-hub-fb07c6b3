@@ -65,6 +65,7 @@ import { hashPin } from "@/lib/pinUtils";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
+import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 
 // Internet plan configurations
 const INTERNET_PLANS = [
@@ -496,7 +497,6 @@ const ClientInternetOrder = () => {
       }
 
       // Build structured line_items for contract PDF
-      const { buildOrderLineItems, wrapLineItemsForOrder } = await import("@/lib/orderLineItems");
       const lineItems = buildOrderLineItems({
         services: [
           { type: "Internet", name: selectedPlan.name, price: planPrice, period: "monthly" },
