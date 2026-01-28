@@ -129,6 +129,7 @@ import FieldSalesSetup from "@/pages/field-sales/FieldSalesSetup";
 import FieldSalesDashboard from "@/pages/field-sales/FieldSalesDashboard";
 import FieldSalesPOS from "@/pages/field-sales/FieldSalesPOS";
 import FieldSalesList from "@/pages/field-sales/FieldSalesList";
+import FieldSalesOrderDetail from "@/pages/field-sales/FieldSalesOrderDetail";
 import FieldSalesCommissions from "@/pages/field-sales/FieldSalesCommissions";
 import FieldSalesAccount from "@/pages/field-sales/FieldSalesAccount";
 import FieldSalesLeaderboard from "@/pages/field-sales/FieldSalesLeaderboard";
@@ -485,7 +486,7 @@ const AppRoutes = () => {
       <Route path="/field-sales/new-sale" element={<FieldSalesLayout><FieldSalesPOS /></FieldSalesLayout>} />
       <Route path="/field-sales/pos" element={<FieldSalesLayout><FieldSalesPOS /></FieldSalesLayout>} />
       <Route path="/field-sales/sales" element={<FieldSalesLayout><FieldSalesList /></FieldSalesLayout>} />
-      <Route path="/field-sales/sales/:id" element={<FieldSalesLayout><FieldSalesList /></FieldSalesLayout>} />
+      <Route path="/field-sales/sales/:id" element={<FieldSalesLayout><FieldSalesOrderDetail /></FieldSalesLayout>} />
       <Route path="/field-sales/commissions" element={<FieldSalesLayout><FieldSalesCommissions /></FieldSalesLayout>} />
       <Route path="/field-sales/leaderboard" element={<FieldSalesLayout><FieldSalesLeaderboard /></FieldSalesLayout>} />
       <Route path="/field-sales/account" element={<FieldSalesLayout><FieldSalesAccount /></FieldSalesLayout>} />
