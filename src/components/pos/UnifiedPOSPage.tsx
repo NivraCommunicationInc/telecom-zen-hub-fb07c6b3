@@ -184,12 +184,20 @@ export default function UnifiedPOSPage({
       const paypalTransactionId = 'paypal_transaction_id' in paymentData ? paymentData.paypal_transaction_id : undefined;
       
       // Create order directly
+      // IMPORTANT: client_dob is REQUIRED by the orders table (NOT NULL constraint)
       const { data: newOrder, error } = await supabase
         .from("orders")
         .insert([{
           user_id: session.user.id,
           service_type: pos.services[0]?.category || "bundle",
           client_email: customerInfo.email,
+          client_dob: customerInfo.date_of_birth, // REQUIRED - must not be null
+          client_first_name: (customerData as AdminCustomerData).first_name || customerInfo.full_name.split(" ")[0] || null,
+          client_last_name: (customerData as AdminCustomerData).last_name || customerInfo.full_name.split(" ").slice(1).join(" ") || null,
+          client_phone: customerInfo.phone,
+          service_address: customerInfo.service_address,
+          service_city: customerInfo.service_city,
+          service_postal_code: customerInfo.service_postal_code,
           equipment_details: JSON.parse(JSON.stringify({
             customer: customerInfo,
             services: payload.services,
@@ -201,6 +209,7 @@ export default function UnifiedPOSPage({
               client_id: (customerData as AdminCustomerData).client_id,
               accept_marketing: (customerData as AdminCustomerData).accept_marketing,
               accept_sms_notifications: (customerData as AdminCustomerData).accept_sms_notifications,
+              pin: (customerData as AdminCustomerData).pin || null,
             }),
             // PayPal specific
             ...(paypalTransactionId && {
