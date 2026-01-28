@@ -49,21 +49,29 @@ import {
 import { FieldSalesOrderDetailDialog } from "./FieldSalesOrderDetailDialog";
 import { exportOrdersToCSV } from "@/lib/fieldSalesExport";
 
-interface FieldSalesOrder {
+// Helper to extract first service details from JSONB
+function getServiceDetails(services: any[] | null) {
+  const firstService = services?.[0];
+  return {
+    type: firstService?.category || "service",
+    name: firstService?.name || "—",
+    monthlyPrice: firstService?.price_monthly || 0,
+  };
+}
+
+interface FieldSalesOrderRaw {
   id: string;
   order_number: string | null;
   local_id: string | null;
   salesperson_id: string;
-  salesperson_name?: string;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
   customer_address: string;
-  service_city: string | null;
-  service_postal_code?: string | null;
-  service_type: string;
-  plan_name: string;
-  monthly_price: number;
+  customer_city: string | null;
+  customer_postal_code: string | null;
+  internal_notes?: string | null;
+  services: any[] | null;
   total_amount: number;
   payment_method: string;
   payment_status: string;
@@ -77,6 +85,17 @@ interface FieldSalesOrder {
   signature_data?: string | null;
   notes?: string | null;
 }
+
+// View-model used by UI + export utils (legacy keys expected by components)
+type FieldSalesOrder = FieldSalesOrderRaw & {
+  salesperson_name?: string;
+  service_city: string | null;
+  service_postal_code: string | null;
+  service_type: string;
+  plan_name: string;
+  monthly_price: number;
+  notes?: string | null;
+};
 
 interface FieldSalesOrdersTabProps {
   onForceSync: () => void;
@@ -114,21 +133,29 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
       const { data, error } = await query;
       if (error) throw error;
 
-      // Get salesperson names
-      if (data && data.length > 0) {
-        const salespersonIds = [...new Set(data.map(o => o.salesperson_id))];
-        const { data: profiles } = await adminSupabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", salespersonIds);
+      if (!data || data.length === 0) return [];
 
-        return data.map(order => ({
+      const salespersonIds = [...new Set(data.map((o: any) => o.salesperson_id))];
+      const { data: profiles } = await adminSupabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", salespersonIds);
+
+      const mapped: FieldSalesOrder[] = data.map((order: any) => {
+        const serviceDetails = getServiceDetails(order.services);
+        return {
           ...order,
-          salesperson_name: profiles?.find(p => p.user_id === order.salesperson_id)?.full_name || "—",
-        })) as FieldSalesOrder[];
-      }
+          salesperson_name: profiles?.find((p: any) => p.user_id === order.salesperson_id)?.full_name || "—",
+          service_city: order.customer_city ?? null,
+          service_postal_code: order.customer_postal_code ?? null,
+          service_type: serviceDetails.type,
+          plan_name: serviceDetails.name,
+          monthly_price: serviceDetails.monthlyPrice,
+          notes: order.internal_notes ?? null,
+        };
+      });
 
-      return data as FieldSalesOrder[];
+      return mapped;
     },
   });
 
@@ -356,14 +383,20 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="text-white capitalize">{order.service_type}</p>
-                          <p className="text-xs text-slate-500">{order.plan_name}</p>
+                         <div onClick={(e) => e.stopPropagation()}>
+                           <p className="text-white capitalize">
+                             {getServiceDetails(order.services).type}
+                           </p>
+                           <p className="text-xs text-slate-500">
+                             {getServiceDetails(order.services).name}
+                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-white font-bold">${order.total_amount.toFixed(2)}</p>
+                           <p className="text-white font-bold">
+                             ${(order.total_amount || 0).toFixed(2)}
+                           </p>
                           <p className="text-xs text-slate-500">{getPaymentMethodLabel(order.payment_method)}</p>
                         </div>
                       </TableCell>
