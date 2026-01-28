@@ -134,13 +134,14 @@ serve(async (req) => {
     const orderData = await orderResponse.json();
     console.log("[PayPal] Order created:", orderData.id);
 
-    // Log the PayPal order creation
+    // Log the PayPal order creation (entity_id must be UUID or null, so we store paypal_order_id in details)
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_order",
-      entity_id: orderData.id,
+      entity_id: body.order_id || null, // Use the Nivra order_id if provided (must be UUID)
       action: "created",
       details: {
+        paypal_order_id: orderData.id,
         amount: body.amount,
         currency,
         invoice_id: body.invoice_id,
