@@ -7850,6 +7850,60 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_notifications: {
+        Row: {
+          amount: number | null
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          created_at: string | null
+          entity_id: string | null
+          entity_number: string | null
+          entity_type: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          notification_type: Database["public"]["Enums"]["staff_notification_type"]
+          read_at: string | null
+          read_by: string | null
+          title: string
+        }
+        Insert: {
+          amount?: number | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_number?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          notification_type: Database["public"]["Enums"]["staff_notification_type"]
+          read_at?: string | null
+          read_by?: string | null
+          title: string
+        }
+        Update: {
+          amount?: number | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_number?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          notification_type?: Database["public"]["Enums"]["staff_notification_type"]
+          read_at?: string | null
+          read_by?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       staff_onboarding_tokens: {
         Row: {
           created_at: string | null
@@ -10051,6 +10105,12 @@ export type Database = {
         | "fulfillment_in_progress"
         | "completed"
         | "cancelled"
+      staff_notification_type:
+        | "new_order"
+        | "invoice_created"
+        | "payment_received"
+        | "service_suspended"
+        | "service_cancelled"
       staff_role: "admin" | "employee" | "technician"
       work_order_status:
         | "assigned"
@@ -10360,6 +10420,13 @@ export const Constants = {
         "fulfillment_in_progress",
         "completed",
         "cancelled",
+      ],
+      staff_notification_type: [
+        "new_order",
+        "invoice_created",
+        "payment_received",
+        "service_suspended",
+        "service_cancelled",
       ],
       staff_role: ["admin", "employee", "technician"],
       work_order_status: [

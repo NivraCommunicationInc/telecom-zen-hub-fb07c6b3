@@ -5,7 +5,7 @@ import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemSt
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { NotificationBell } from "@/components/ui/notification-bell";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GlobalSearchTrigger } from "@/components/admin/GlobalSearch";
 import { OnlineUsersIndicator } from "@/components/admin/OnlineUsersIndicator";
 import { usePresence } from "@/hooks/usePresence";
@@ -57,7 +57,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               </Link>
               <div className="flex items-center gap-2">
                 <OnlineUsersIndicator />
-                <NotificationBell />
+                <NotificationBell basePath="/admin" />
               </div>
             </div>
           </div>
@@ -123,7 +123,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               <span className="font-display font-bold text-lg text-white">Nivra Admin</span>
             </Link>
             <div className="flex items-center gap-2">
-              <NotificationBell />
+              <NotificationBell basePath="/admin" />
               <Button
                 variant="ghost"
                 size="icon"

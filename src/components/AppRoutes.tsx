@@ -105,6 +105,7 @@ import AdminDocumentRequests from "@/pages/admin/AdminDocumentRequests";
 import AdminContestedInvoices from "@/pages/admin/AdminContestedInvoices";
 import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
 import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminFieldSales from "@/pages/admin/AdminFieldSales";
 import AdminPOS from "@/pages/admin/AdminPOS";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
@@ -184,6 +185,7 @@ import StaffTvChannels from "@/pages/staff/StaffTvChannels";
 import StaffNotes from "@/pages/staff/StaffNotes";
 import StaffAccount from "@/pages/staff/StaffAccount";
 import StaffPOS from "@/pages/staff/StaffPOS";
+import StaffNotifications from "@/pages/staff/StaffNotifications";
 import TechnicianPOS from "@/pages/staff/TechnicianPOS";
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
@@ -311,8 +313,9 @@ const AppRoutes = () => {
       <Route path="/admin/referrals/terms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPartnerTerms /></ProtectedRoute></AuthProvider>} />
       {/* Document Requests */}
       <Route path="/admin/document-requests" element={<AuthProvider><ProtectedRoute requireAdmin><AdminDocumentRequests /></ProtectedRoute></AuthProvider>} />
-      {/* Notifications Settings */}
+      {/* Notifications */}
       <Route path="/admin/notifications-settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotificationsSettings /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/notifications" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotifications /></ProtectedRoute></AuthProvider>} />
       {/* Field Sales Admin */}
       <Route path="/admin/field-sales" element={<AuthProvider><ProtectedRoute requireAdmin><AdminFieldSales /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/pos" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPOS /></ProtectedRoute></AuthProvider>} />
@@ -449,8 +452,9 @@ const AppRoutes = () => {
       <Route path="/staff/tv-channels" element={<StaffLayout requiredRole="employee"><StaffTvChannels /></StaffLayout>} />
       <Route path="/staff/streaming" element={<StaffLayout requiredRole="employee"><StaffStreaming /></StaffLayout>} />
 
-      {/* Staff Notes & Account */}
+      {/* Staff Notes, Notifications & Account */}
       <Route path="/staff/notes" element={<StaffLayout requiredRole="employee"><StaffNotes /></StaffLayout>} />
+      <Route path="/staff/notifications" element={<StaffLayout requiredRole="employee"><StaffNotifications /></StaffLayout>} />
       <Route path="/staff/account" element={<StaffLayout requiredRole="employee"><StaffAccount /></StaffLayout>} />
 
       {/* Staff POS */}
