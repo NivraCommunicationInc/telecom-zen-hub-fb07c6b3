@@ -2,130 +2,130 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Main Pages -->
   <url>
-    <loc>https://nivratelecom.ca/</loc>
+    <loc>https://nivratelecom.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/about</loc>
+    <loc>https://nivratelecom.com/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/a-propos</loc>
+    <loc>https://nivratelecom.com/a-propos</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/contact</loc>
+    <loc>https://nivratelecom.com/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <!-- Services -->
   <url>
-    <loc>https://nivratelecom.ca/services</loc>
+    <loc>https://nivratelecom.com/services</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/internet</loc>
+    <loc>https://nivratelecom.com/internet</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/tv</loc>
+    <loc>https://nivratelecom.com/tv</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/mobile</loc>
+    <loc>https://nivratelecom.com/mobile</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/streaming</loc>
+    <loc>https://nivratelecom.com/streaming</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <!-- Support -->
   <url>
-    <loc>https://nivratelecom.ca/faq</loc>
+    <loc>https://nivratelecom.com/faq</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/aide</loc>
+    <loc>https://nivratelecom.com/aide</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <!-- Careers -->
   <url>
-    <loc>https://nivratelecom.ca/careers</loc>
+    <loc>https://nivratelecom.com/careers</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <!-- Legal Pages -->
   <url>
-    <loc>https://nivratelecom.ca/privacy</loc>
+    <loc>https://nivratelecom.com/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/terms</loc>
+    <loc>https://nivratelecom.com/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/privacy-policy</loc>
+    <loc>https://nivratelecom.com/privacy-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/terms-and-conditions</loc>
+    <loc>https://nivratelecom.com/terms-and-conditions</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/conditions-de-service</loc>
+    <loc>https://nivratelecom.com/conditions-de-service</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/modalites-paiement</loc>
+    <loc>https://nivratelecom.com/modalites-paiement</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/equipement-garantie</loc>
+    <loc>https://nivratelecom.com/equipement-garantie</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/support-et-plaintes</loc>
+    <loc>https://nivratelecom.com/support-et-plaintes</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/confidentialite-loi25</loc>
+    <loc>https://nivratelecom.com/confidentialite-loi25</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/frais-possibles</loc>
+    <loc>https://nivratelecom.com/frais-possibles</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/refund-policy</loc>
+    <loc>https://nivratelecom.com/refund-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://nivratelecom.ca/installation-rendezvous</loc>
+    <loc>https://nivratelecom.com/installation-rendezvous</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

@@ -29,8 +29,8 @@ export const COMPANY_CONTACT = {
   country: "Canada",
   
   // Website
-  website: "www.nivratelecom.ca",
-  portalUrl: "https://nivratelecom.ca",
+  website: "www.nivratelecom.com",
+  portalUrl: "https://nivratelecom.com",
   
   // Service hours
   supportHours: "Lun–Ven : 9AM – 10PM | Sam–Dim : 9AM – 8PM",
