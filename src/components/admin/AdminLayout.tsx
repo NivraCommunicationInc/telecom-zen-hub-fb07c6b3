@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GlobalSearchTrigger } from "@/components/admin/GlobalSearch";
 import { OnlineUsersIndicator } from "@/components/admin/OnlineUsersIndicator";
+import { LockdownButton } from "@/components/admin/LockdownButton";
 import { usePresence } from "@/hooks/usePresence";
 import AdminSidebarNav from "./AdminSidebarNav";
 import AdminMobileNav from "./AdminMobileNav";
@@ -56,6 +57,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 <span className="font-display font-bold text-lg text-white">Nivra Admin</span>
               </Link>
               <div className="flex items-center gap-2">
+                <LockdownButton compact />
                 <OnlineUsersIndicator />
                 <NotificationBell basePath="/admin" />
               </div>
@@ -123,6 +125,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               <span className="font-display font-bold text-lg text-white">Nivra Admin</span>
             </Link>
             <div className="flex items-center gap-2">
+              <LockdownButton compact />
               <NotificationBell basePath="/admin" />
               <Button
                 variant="ghost"
