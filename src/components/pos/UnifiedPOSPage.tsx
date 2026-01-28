@@ -1,0 +1,530 @@
+/**
+ * UnifiedPOSPage - Unified Point of Sale interface for all portals
+ * Used by: Field Sales, Admin, Employee, Technician
+ */
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useFieldSalesOffers, FieldSalesOffer, SelectedService } from "@/hooks/useFieldSalesOffers";
+import { useUnifiedPOS, calculateUnifiedPOSTotals } from "@/hooks/useUnifiedPOS";
+import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
+import { AdjustmentItem } from "@/components/pos/POSAdjustments";
+import { toast } from "sonner";
+import { Loader2, ChevronLeft, Check, ShoppingCart, Package, Wrench, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+import StaffBackground from "@/components/staff/StaffBackground";
+import { POSHeader } from "@/components/field-sales/POSHeader";
+import { POSCategoryTabs, POSCategory } from "@/components/field-sales/POSCategoryTabs";
+import { POSSearchBar } from "@/components/field-sales/POSSearchBar";
+import { POSProductGrid } from "@/components/field-sales/POSProductGrid";
+import { POSCustomerForm, CustomerData } from "@/components/field-sales/POSCustomerForm";
+import { POSPaymentForm, PaymentData } from "@/components/field-sales/POSPaymentForm";
+import { POSOrderSummary } from "@/components/field-sales/POSOrderSummary";
+import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
+import { POSAdjustments } from "@/components/pos/POSAdjustments";
+import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+type POSStep = "catalog" | "customer" | "payment" | "confirmation";
+type CatalogTab = "services" | "equipment" | "adjustments";
+
+const STEP_TITLES: Record<POSStep, string> = {
+  catalog: "Catalogue",
+  customer: "Client",
+  payment: "Paiement",
+  confirmation: "Confirmation",
+};
+
+interface UnifiedPOSPageProps {
+  portalType: "field-sales" | "admin" | "staff" | "technician";
+  backPath: string;
+  repName?: string;
+  onOrderComplete?: (orderId: string) => void;
+}
+
+export default function UnifiedPOSPage({
+  portalType,
+  backPath,
+  repName = "",
+  onOrderComplete,
+}: UnifiedPOSPageProps) {
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const { data: offers = [], isLoading: offersLoading } = useFieldSalesOffers();
+  
+  // POS State
+  const pos = useUnifiedPOS();
+  
+  // UI State
+  const [step, setStep] = useState<POSStep>("catalog");
+  const [catalogTab, setCatalogTab] = useState<CatalogTab>("services");
+  const [activeCategory, setActiveCategory] = useState<POSCategory>("all");
+  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFeatured, setShowFeatured] = useState(false);
+  const [showDiscounted, setShowDiscounted] = useState(false);
+
+  // Filter offers
+  const filteredOffers = useMemo(() => {
+    let result = offers;
+
+    if (activeCategory !== "all") {
+      result = result.filter(o => o.category === activeCategory);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(o => 
+        o.name_fr.toLowerCase().includes(query) ||
+        o.description_fr?.toLowerCase().includes(query)
+      );
+    }
+
+    if (showFeatured) {
+      result = result.filter(o => o.is_featured);
+    }
+
+    if (showDiscounted) {
+      result = result.filter(o => o.discount_percent && o.discount_percent > 0);
+    }
+
+    return result;
+  }, [offers, activeCategory, searchQuery, showFeatured, showDiscounted]);
+
+  const featuredCount = offers.filter(o => o.is_featured).length;
+  const discountedCount = offers.filter(o => o.discount_percent && o.discount_percent > 0).length;
+
+  // Service toggle
+  const toggleService = (offer: FieldSalesOffer) => {
+    const exists = pos.services.find(s => s.offerId === offer.id);
+    if (exists) {
+      pos.removeService(offer.id);
+    } else {
+      pos.addService({
+        offerId: offer.id,
+        name: offer.name_fr,
+        category: offer.category,
+        priceMonthly: offer.price_monthly || 0,
+        priceSetup: offer.price_setup || 0,
+        quantity: 1,
+      });
+    }
+  };
+
+  // Category counts
+  const selectedCounts = pos.services.reduce((acc, s) => {
+    acc[s.category] = (acc[s.category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Step handlers
+  const handleCheckout = () => {
+    if (pos.isEmpty) {
+      toast.error("Ajoutez au moins un article");
+      return;
+    }
+    setStep("customer");
+    setCartOpen(false);
+  };
+
+  const handleCustomerSubmit = (data: CustomerData) => {
+    setCustomerData(data);
+    setStep("payment");
+  };
+
+  const handlePaymentSubmit = (data: PaymentData) => {
+    setPaymentData(data);
+    setStep("confirmation");
+  };
+
+  const handleConfirmOrder = async () => {
+    if (!customerData || !paymentData || pos.isEmpty) return;
+
+    setIsSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        toast.error("Session expirée");
+        navigate(backPath);
+        return;
+      }
+
+      const payload = pos.getOrderPayload();
+
+      // Insert into appropriate table based on portal
+      if (portalType === "field-sales") {
+        const { data: newSale, error } = await supabase
+          .from("field_sales_orders")
+          .insert({
+            salesperson_id: session.user.id,
+            customer_name: customerData.full_name,
+            customer_email: customerData.email,
+            customer_phone: customerData.phone,
+            customer_address: customerData.service_address,
+            customer_city: customerData.service_city,
+            customer_postal_code: customerData.service_postal_code,
+            customer_date_of_birth: customerData.date_of_birth || null,
+            services: payload.services,
+            equipment: payload.equipment,
+            adjustments: payload.adjustments,
+            total_amount: payload.totals.first_month_total,
+            payment_method: paymentData.payment_method,
+            payment_reference: paymentData.payment_reference || null,
+            payment_status: paymentData.payment_method === "deferred" ? "pending" : "confirmed",
+            internal_notes: paymentData.notes || null,
+            sync_status: "pending",
+          })
+          .select("id")
+          .single();
+
+        if (error) throw error;
+
+        // Sync to main orders
+        try {
+          await supabase.functions.invoke("field-sales-sync", {
+            body: { action: "sync_single", sale_id: newSale.id },
+          });
+        } catch (syncErr) {
+          console.warn("Sync pending:", syncErr);
+        }
+
+        onOrderComplete?.(newSale.id);
+      } else {
+        // For Admin/Staff/Technician - create order directly
+        const { data: newOrder, error } = await supabase
+          .from("orders")
+          .insert({
+            user_id: session.user.id,
+            service_type: pos.services[0]?.category || "bundle",
+            client_email: customerData.email,
+            equipment_details: {
+              customer: customerData,
+              services: payload.services,
+              equipment: payload.equipment,
+              adjustments: payload.adjustments,
+            },
+            subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
+            tps_amount: payload.totals.tps,
+            tvq_amount: payload.totals.tvq,
+            total_amount: payload.totals.first_month_total,
+            payment_status: paymentData.payment_method === "deferred" ? "pending" : "confirmed",
+            internal_notes: `[POS ${portalType.toUpperCase()}] ${paymentData.notes || ""}`,
+            status: "pending",
+          })
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        onOrderComplete?.(newOrder.id);
+      }
+
+      toast.success("🎉 Commande créée avec succès!", {
+        description: `Total: ${payload.totals.first_month_total.toFixed(2)} $`,
+      });
+
+      pos.clearCart();
+      setCustomerData(null);
+      setPaymentData(null);
+      setStep("catalog");
+
+    } catch (error: any) {
+      console.error("Order error:", error);
+      toast.error("Erreur", { description: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const goBack = () => {
+    if (step === "customer") setStep("catalog");
+    else if (step === "payment") setStep("customer");
+    else if (step === "confirmation") setStep("payment");
+    else navigate(backPath);
+  };
+
+  if (offersLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center relative">
+        <StaffBackground />
+        <div className="flex flex-col items-center gap-4 z-10">
+          <Loader2 className="h-10 w-10 animate-spin text-orange-400" />
+          <p className="text-slate-400">Chargement du catalogue...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen relative">
+      <StaffBackground />
+      
+      <div className="relative z-10 flex flex-col h-screen">
+        {/* Header */}
+        <POSHeader repName={repName} />
+
+        {/* Step Progress */}
+        {step !== "catalog" && (
+          <div className="px-4 py-3 border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goBack}
+                className="text-slate-400 hover:text-white shrink-0"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {(["catalog", "customer", "payment", "confirmation"] as POSStep[]).map((s, i) => (
+                    <div key={s} className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+                        step === s 
+                          ? "bg-orange-500 text-white"
+                          : (["catalog", "customer", "payment", "confirmation"].indexOf(step) > i)
+                            ? "bg-emerald-500 text-white"
+                            : "bg-slate-700 text-slate-400"
+                      )}>
+                        {(["catalog", "customer", "payment", "confirmation"].indexOf(step) > i) ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          i + 1
+                        )}
+                      </div>
+                      {i < 3 && (
+                        <div className={cn(
+                          "w-6 h-0.5 rounded-full",
+                          (["catalog", "customer", "payment", "confirmation"].indexOf(step) > i)
+                            ? "bg-emerald-500"
+                            : "bg-slate-700"
+                        )} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-white font-medium mt-1">{STEP_TITLES[step]}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden">
+          {step === "catalog" && (
+            <div className={cn("h-full flex", isMobile ? "flex-col" : "")}>
+              {/* Product Area */}
+              <div className={cn("flex-1 flex flex-col", !isMobile && "border-r border-slate-700/50")}>
+                {/* Catalog Tabs */}
+                <div className="border-b border-slate-700/50 bg-slate-900/30">
+                  <Tabs value={catalogTab} onValueChange={(v) => setCatalogTab(v as CatalogTab)}>
+                    <TabsList className="w-full justify-start bg-transparent h-auto p-2 gap-2">
+                      <TabsTrigger
+                        value="services"
+                        className="data-[state=active]:bg-orange-500 data-[state=active]:text-white bg-slate-800/50 border border-slate-700/50"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Services
+                        {pos.services.length > 0 && (
+                          <Badge className="ml-2 bg-white/20 text-white h-5 px-1.5">{pos.services.length}</Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="equipment"
+                        className="data-[state=active]:bg-cyan-500 data-[state=active]:text-white bg-slate-800/50 border border-slate-700/50"
+                      >
+                        <Wrench className="h-4 w-4 mr-2" />
+                        Équipements
+                        {pos.equipment.length > 0 && (
+                          <Badge className="ml-2 bg-white/20 text-white h-5 px-1.5">{pos.equipment.length}</Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="adjustments"
+                        className="data-[state=active]:bg-purple-500 data-[state=active]:text-white bg-slate-800/50 border border-slate-700/50"
+                      >
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        Ajustements
+                        {pos.adjustments.length > 0 && (
+                          <Badge className="ml-2 bg-white/20 text-white h-5 px-1.5">{pos.adjustments.length}</Badge>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="services" className="mt-0 flex-1 flex flex-col">
+                      <POSCategoryTabs
+                        activeCategory={activeCategory}
+                        onCategoryChange={setActiveCategory}
+                        selectedCounts={selectedCounts}
+                      />
+                      <POSSearchBar
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        showFeatured={showFeatured}
+                        onFeaturedToggle={() => setShowFeatured(!showFeatured)}
+                        showDiscounted={showDiscounted}
+                        onDiscountedToggle={() => setShowDiscounted(!showDiscounted)}
+                        featuredCount={featuredCount}
+                        discountedCount={discountedCount}
+                      />
+                      <POSProductGrid
+                        offers={filteredOffers}
+                        allOffers={offers}
+                        selectedServices={pos.services}
+                        onToggleService={toggleService}
+                        onQuantityChange={(id, delta) => pos.updateServiceQuantity(id, delta)}
+                        isMobile={isMobile}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="equipment" className="mt-0 p-4">
+                      <POSEquipmentSelector
+                        selectedEquipment={pos.equipment}
+                        onEquipmentChange={pos.setEquipment}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="adjustments" className="mt-0 p-4">
+                      <POSAdjustments
+                        adjustments={pos.adjustments}
+                        onAdjustmentsChange={pos.setAdjustments}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+
+                {/* Mobile Cart Button */}
+                {isMobile && !pos.isEmpty && (
+                  <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+                    <SheetTrigger asChild>
+                      <div className="p-4 border-t border-slate-700/50 bg-slate-900/90 backdrop-blur-xl">
+                        <Button className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-bold text-lg shadow-lg">
+                          <ShoppingCart className="h-5 w-5 mr-3" />
+                          Voir panier ({pos.itemCount})
+                          <span className="ml-auto">{pos.totals.firstMonthTotal.toFixed(2)} $</span>
+                        </Button>
+                      </div>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="h-[80vh] p-0 bg-transparent border-0">
+                      <POSUnifiedCart
+                        services={pos.services}
+                        equipment={pos.equipment}
+                        adjustments={pos.adjustments}
+                        totals={pos.totals}
+                        onRemoveService={pos.removeService}
+                        onRemoveEquipment={pos.removeEquipment}
+                        onRemoveAdjustment={pos.removeAdjustment}
+                        onClearCart={pos.clearCart}
+                        onCheckout={handleCheckout}
+                      />
+                    </SheetContent>
+                  </Sheet>
+                )}
+              </div>
+
+              {/* Desktop Cart Sidebar */}
+              {!isMobile && (
+                <div className="w-80 xl:w-96">
+                  <POSUnifiedCart
+                    services={pos.services}
+                    equipment={pos.equipment}
+                    adjustments={pos.adjustments}
+                    totals={pos.totals}
+                    onRemoveService={pos.removeService}
+                    onRemoveEquipment={pos.removeEquipment}
+                    onRemoveAdjustment={pos.removeAdjustment}
+                    onClearCart={pos.clearCart}
+                    onCheckout={handleCheckout}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === "customer" && (
+            <div className="h-full overflow-auto">
+              <div className="p-4 max-w-lg mx-auto">
+                <POSCustomerForm
+                  onSubmit={handleCustomerSubmit}
+                  isSubmitting={isSubmitting}
+                />
+              </div>
+            </div>
+          )}
+
+          {step === "payment" && (
+            <div className="h-full overflow-auto">
+              <div className="p-4 max-w-lg mx-auto">
+                <POSPaymentForm
+                  onSubmit={handlePaymentSubmit}
+                  isSubmitting={isSubmitting}
+                  totalAmount={pos.totals.firstMonthTotal}
+                />
+              </div>
+            </div>
+          )}
+
+          {step === "confirmation" && customerData && paymentData && (
+            <div className="h-full overflow-auto">
+              <div className="p-4 max-w-lg mx-auto space-y-4">
+                <POSOrderSummary
+                  services={pos.services}
+                  customer={customerData}
+                  payment={paymentData}
+                />
+                {/* Equipment summary */}
+                {pos.equipment.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                    <h4 className="text-white font-semibold mb-2">Équipements ({pos.equipment.length})</h4>
+                    {pos.equipment.map(e => (
+                      <div key={e.id} className="flex justify-between text-sm py-1">
+                        <span className="text-slate-300">{e.name} x{e.quantity}</span>
+                        <span className="text-cyan-400">{(e.price * e.quantity).toFixed(2)}$</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Adjustments summary */}
+                {pos.adjustments.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                    <h4 className="text-white font-semibold mb-2">Ajustements ({pos.adjustments.length})</h4>
+                    {pos.adjustments.map(a => (
+                      <div key={a.id} className="flex justify-between text-sm py-1">
+                        <span className="text-slate-300">{a.name}</span>
+                        <span className={a.amount < 0 ? "text-emerald-400" : "text-red-400"}>
+                          {a.amount >= 0 ? "+" : ""}{a.amount.toFixed(2)}$
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Button
+                  onClick={handleConfirmOrder}
+                  disabled={isSubmitting}
+                  className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  ) : (
+                    <Check className="h-5 w-5 mr-2" />
+                  )}
+                  Confirmer et enregistrer
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
