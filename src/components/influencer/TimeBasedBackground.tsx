@@ -55,11 +55,12 @@ const TimeBasedBackground = () => {
     <div className="fixed inset-0 -z-10 overflow-hidden">
       {/* Main gradient background with smooth transition */}
       <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradients[timeOfDay]} transition-all duration-[3000ms] ease-in-out`}
+        className={`absolute inset-0 bg-gradient-to-br ${gradients[timeOfDay]} transition-all ease-in-out`}
+        style={{ transitionDuration: '3000ms' }}
       />
 
       {/* Animated gradient overlay */}
-      <div className={`absolute inset-0 ${overlayColors[timeOfDay]} transition-all duration-[3000ms]`} />
+      <div className={`absolute inset-0 ${overlayColors[timeOfDay]} transition-all`} style={{ transitionDuration: '3000ms' }} />
 
       {/* Animated orbs for depth */}
       <div className="absolute inset-0 overflow-hidden">
@@ -123,7 +124,8 @@ const TimeBasedBackground = () => {
             timeOfDay === "morning" ? "bg-gradient-to-br from-yellow-200 to-orange-300 top-16 right-20" :
             timeOfDay === "afternoon" ? "bg-gradient-to-br from-yellow-100 to-yellow-300 top-12 right-24" :
             "bg-gradient-to-br from-orange-400 to-red-500 top-20 right-16"
-          } opacity-80 transition-all duration-[3000ms]`}
+          } opacity-80 transition-all`}
+          style={{ transitionDuration: '3000ms' }}
         />
       )}
 
