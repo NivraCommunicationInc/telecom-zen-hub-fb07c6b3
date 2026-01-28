@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.admin-set-user-password]
 verify_jwt = false
+
+[functions.billing-create-order-with-paypal-subscription]
+verify_jwt = false

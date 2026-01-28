@@ -57,7 +57,8 @@ import {
   CheckoutPaymentSection,
   CheckoutPhoneField,
   validateCanadianPhone,
-  CheckoutEssentialTerms
+  CheckoutEssentialTerms,
+  AutoPayPalOption
 } from "@/components/checkout";
 import { PortalPinSetupSection } from "@/components/checkout/PortalPinSetupSection";
 import { hashPin } from "@/lib/pinUtils";
@@ -257,6 +258,11 @@ const ClientInternetOrder = () => {
   
   // PayPal capture ID when payment is completed via PayPal
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
+  
+  // Auto-billing PayPal option with $5 discount
+  const [enableAutoBilling, setEnableAutoBilling] = useState(false);
+  const AUTO_BILLING_DISCOUNT = 5; // $5 monthly discount
+
   
   // PIN setup for new clients
   const [clientPin, setClientPin] = useState("");
@@ -1241,6 +1247,20 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
                 onConfirmPinChange={setConfirmClientPin}
                 isFrench={isFrench}
                 checkFirstOrder={true}
+              />
+
+              {/* Auto-Billing PayPal Option - $5/month discount */}
+              <AutoPayPalOption
+                isFrench={isFrench}
+                isEnabled={enableAutoBilling}
+                onEnabledChange={(enabled) => {
+                  setEnableAutoBilling(enabled);
+                  if (enabled) {
+                    setSelectedPaymentMethod("paypal");
+                  }
+                }}
+                monthlyAmount={planPrice}
+                discountAmount={AUTO_BILLING_DISCOUNT}
               />
 
               {/* Essential Terms - Before Payment */}
