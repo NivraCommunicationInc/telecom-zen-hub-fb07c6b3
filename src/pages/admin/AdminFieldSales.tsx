@@ -75,7 +75,7 @@ const AdminFieldSales = () => {
 
       const { data: commissionsData } = await adminSupabase
         .from("sales_commissions")
-        .select("salesperson_id, commission_amount, amount")
+        .select("salesperson_id, commission_amount")
         .in("salesperson_id", userIds);
 
       const reps: FieldSalesRep[] = rolesData.map(role => {
@@ -97,7 +97,7 @@ const AdminFieldSales = () => {
           last_login_at: role.last_login_at,
           created_at: role.created_at,
           total_sales: userSales.length,
-          total_commission: userCommissions.reduce((sum, c) => sum + (c.commission_amount || c.amount || 0), 0),
+          total_commission: userCommissions.reduce((sum, c) => sum + (c.commission_amount || 0), 0),
           pending_sales: userSales.filter(s => s.sync_status === "pending").length,
         };
       });

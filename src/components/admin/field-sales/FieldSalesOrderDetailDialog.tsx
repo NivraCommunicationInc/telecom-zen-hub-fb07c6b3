@@ -39,7 +39,6 @@ import {
   Printer,
   Download,
   CreditCard,
-  AlertTriangle,
   Eye,
 } from "lucide-react";
 
@@ -224,8 +223,10 @@ export function FieldSalesOrderDetailDialog({
         return <Badge className="bg-emerald-500/20 text-emerald-400 border-0"><Wifi className="w-3 h-3 mr-1" />Synchronisée</Badge>;
       case "pending":
         return <Badge className="bg-amber-500/20 text-amber-400 border-0"><Cloud className="w-3 h-3 mr-1" />En attente</Badge>;
-      case "failed":
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Échec</Badge>;
+      case "syncing":
+        return <Badge className="bg-sky-500/20 text-sky-400 border-0"><WifiOff className="w-3 h-3 mr-1" />Sync...</Badge>;
+      case "error":
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Erreur</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -461,10 +462,10 @@ export function FieldSalesOrderDetailDialog({
                 <ArrowUpRight className="h-4 w-4 mr-2" />
                 Voir commande principale
               </Button>
-            ) : order.sync_status === "synced" ? (
+            ) : (
               <Button
                 onClick={() => convertOrderMutation.mutate()}
-                disabled={convertOrderMutation.isPending}
+                disabled={convertOrderMutation.isPending || order.sync_status === "syncing"}
                 className="bg-gradient-to-r from-cyan-500 to-teal-400 text-white"
               >
                 {convertOrderMutation.isPending ? (
@@ -474,11 +475,6 @@ export function FieldSalesOrderDetailDialog({
                 )}
                 Convertir en commande
               </Button>
-            ) : (
-              <div className="flex items-center gap-2 text-amber-400 text-sm">
-                <AlertTriangle className="h-4 w-4" />
-                Synchroniser avant de convertir
-              </div>
             )}
           </div>
         </div>

@@ -191,8 +191,10 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
         return <Badge className="bg-emerald-500/20 text-emerald-400 border-0"><Wifi className="w-3 h-3 mr-1" />Sync</Badge>;
       case "pending":
         return <Badge className="bg-amber-500/20 text-amber-400 border-0"><Cloud className="w-3 h-3 mr-1" />Attente</Badge>;
-      case "failed":
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Échec</Badge>;
+      case "syncing":
+        return <Badge className="bg-sky-500/20 text-sky-400 border-0"><RefreshCw className="w-3 h-3 mr-1" />Sync...</Badge>;
+      case "error":
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Erreur</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -285,7 +287,7 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                   <SelectItem value="all">Tous</SelectItem>
                   <SelectItem value="synced">Synchronisées</SelectItem>
                   <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="failed">Échouées</SelectItem>
+                  <SelectItem value="error">Erreurs</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={paymentFilter} onValueChange={setPaymentFilter}>
@@ -515,10 +517,10 @@ export function FieldSalesOrdersTab({ onForceSync, isSyncing, pendingSyncs }: Fi
                               Générer facture
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="bg-slate-700" />
-                            {!order.converted_order_id && order.sync_status === "synced" && (
+                            {!order.converted_order_id && (
                               <DropdownMenuItem
                                 onClick={() => convertOrderMutation.mutate(order.id)}
-                                disabled={convertOrderMutation.isPending}
+                                disabled={convertOrderMutation.isPending || order.sync_status === "syncing"}
                                 className="text-cyan-400 hover:bg-cyan-500/20"
                               >
                                 <ArrowUpRight className="h-4 w-4 mr-2" />

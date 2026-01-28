@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.89.0";
 
 /**
  * Field Sales Sync Edge Function
@@ -58,6 +57,22 @@ function mapLineItemType(raw?: any): string {
   return "other";
 }
 
+// Orders table allows: card, etransfer, e_transfer, apple_pay, google_pay (or NULL)
+function normalizeOrdersPaymentMethod(raw?: any): string | null {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) return null;
+
+  const allowed = new Set(["card", "etransfer", "e_transfer", "apple_pay", "google_pay"]);
+  if (allowed.has(v)) return v;
+
+  // Field sales payment_method allows: interac, paypal, deferred
+  if (v === "interac") return "e_transfer";
+  if (v === "paypal") return "card";
+  if (v === "deferred") return null;
+
+  return null;
+}
+
 function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
   return {
     line_items: lineItems,
@@ -66,7 +81,7 @@ function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
   };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -265,7 +280,7 @@ serve(async (req) => {
 
             status: sale.payment_status === 'confirmed' ? 'confirmed' : 'pending',
             payment_status: sale.payment_status || 'pending',
-            payment_method: sale.payment_method || 'cash',
+            payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
             payment_reference: sale.payment_reference || null,
             amount_paid: sale.payment_status === 'confirmed' ? totalAmount : 0,
 
@@ -341,7 +356,7 @@ serve(async (req) => {
         // Mark as failed
         await supabaseAdmin
           .from('field_sales_orders')
-          .update({ sync_status: 'failed', sync_error: error?.message || String(error) })
+          .update({ sync_status: 'error', sync_error: error?.message || String(error) })
           .eq('id', sale.id);
 
         return { success: false, error: error.message };
@@ -421,7 +436,7 @@ serve(async (req) => {
       const { data: pendingSales, error: fetchError } = await supabaseAdmin
         .from('field_sales_orders')
         .select('*')
-        .or('sync_status.eq.pending,sync_status.eq.failed,converted_order_id.is.null');
+        .or('sync_status.eq.pending,sync_status.eq.error,converted_order_id.is.null');
 
       if (fetchError) {
         console.error('[field-sales-sync] Error fetching pending sales:', fetchError);
@@ -470,7 +485,7 @@ serve(async (req) => {
 
       const pending = allSales?.filter((d: any) => d.sync_status === 'pending' || !d.converted_order_id).length || 0;
       const synced = allSales?.filter((d: any) => d.sync_status === 'synced' && d.converted_order_id).length || 0;
-      const failed = allSales?.filter((d: any) => d.sync_status === 'failed').length || 0;
+      const failed = allSales?.filter((d: any) => d.sync_status === 'error').length || 0;
 
       return new Response(
         JSON.stringify({ 
