@@ -9,6 +9,7 @@ const corsHeaders = {
 interface CapturePayPalOrderRequest {
   paypal_order_id: string;
   invoice_id?: string;
+  order_id?: string; // Add support for updating orders table
   customer_id?: string;
 }
 
@@ -264,6 +265,41 @@ serve(async (req) => {
       }
     }
 
+    // If order_id is provided, update the orders table directly
+    if (body.order_id) {
+      console.log("[PayPal] Updating order:", body.order_id);
+      const { error: orderUpdateError } = await supabase
+        .from("orders")
+        .update({
+          payment_status: "captured",
+          payment_method: "paypal",
+          payment_reference: captureId,
+        })
+        .eq("id", body.order_id);
+
+      if (orderUpdateError) {
+        console.error("[PayPal] Order update error:", orderUpdateError);
+      } else {
+        console.log("[PayPal] Order updated successfully with payment reference:", captureId);
+      }
+
+      // Also append to notes
+      const { data: existingOrder } = await supabase
+        .from("orders")
+        .select("notes")
+        .eq("id", body.order_id)
+        .single();
+
+      if (existingOrder) {
+        await supabase
+          .from("orders")
+          .update({
+            notes: `${existingOrder.notes || ""}\n\n[PayPal] Paiement capturé: ${amount.toFixed(2)}$ CAD - Réf: ${captureId}`.trim(),
+          })
+          .eq("id", body.order_id);
+      }
+    }
+
     // Log the successful capture
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
@@ -273,6 +309,7 @@ serve(async (req) => {
       details: {
         paypal_order_id: body.paypal_order_id,
         invoice_id: body.invoice_id,
+        order_id: body.order_id,
         amount,
         payer_email: captureData.payer?.email_address,
       },

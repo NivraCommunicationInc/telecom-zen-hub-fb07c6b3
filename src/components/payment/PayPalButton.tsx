@@ -117,6 +117,7 @@ export const PayPalButton = ({
             body: {
               paypal_order_id: data.orderID,
               invoice_id: invoiceId,
+              order_id: orderId, // Pass order_id to update orders table
             },
           });
 
