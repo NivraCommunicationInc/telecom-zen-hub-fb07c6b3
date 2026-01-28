@@ -300,13 +300,14 @@ serve(async (req) => {
       }
     }
 
-    // Log the successful capture
+    // Log the successful capture (entity_id must be UUID or null, so we store capture_id in details)
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_capture",
-      entity_id: captureId,
+      entity_id: body.order_id || body.invoice_id || null, // Use Nivra order/invoice ID if provided
       action: "completed",
       details: {
+        capture_id: captureId,
         paypal_order_id: body.paypal_order_id,
         invoice_id: body.invoice_id,
         order_id: body.order_id,
