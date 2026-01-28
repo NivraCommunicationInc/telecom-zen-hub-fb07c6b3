@@ -148,7 +148,7 @@ const WeatherBackground = () => {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
       {/* Main gradient */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${getGradient()} transition-all duration-[2000ms]`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${getGradient()} transition-all`} style={{ transitionDuration: '2000ms' }} />
 
       {/* Sun (clear day) */}
       {condition === "clear" && isDay && (
