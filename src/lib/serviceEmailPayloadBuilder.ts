@@ -82,7 +82,7 @@ interface ClientContext {
   first_name?: string;
 }
 
-const PORTAL_BASE_URL = 'https://nivratelecom.ca/portal';
+const PORTAL_BASE_URL = 'https://nivratelecom.com/portal';
 
 /**
  * Build base payload shared by all email types

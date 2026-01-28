@@ -21,8 +21,8 @@ const getAllowedOrigins = (): string[] => {
   // Production fallback - include all known domains
   console.log(`[CORS] Using hardcoded fallback origins`);
   return [
-    'https://nivratelecom.ca',
-    'https://www.nivratelecom.ca',
+    'https://nivratelecom.com',
+    'https://www.nivratelecom.com',
     'https://telecom-zen-hub.lovable.app',
     'http://localhost:5173',
     'http://localhost:3000'

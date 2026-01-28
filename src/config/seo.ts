@@ -33,7 +33,7 @@ export const SEO_CONFIG = {
    * Base URL for canonical URLs and sitemaps
    * Must match the production domain exactly
    */
-  baseUrl: "https://nivratelecom.ca",
+  baseUrl: "https://nivratelecom.com",
   
   /**
    * Default Open Graph image (1200x630 recommended)

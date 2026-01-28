@@ -1,5 +1,5 @@
 # Nivra Telecom - robots.txt
-# Site: https://nivratelecom.ca
+# Site: https://nivratelecom.com
 
 User-agent: *
 Allow: /
@@ -15,5 +15,4 @@ Disallow: /checkout/
 Disallow: /qa/
 
 # Sitemap
-Sitemap: https://nivratelecom.ca/sitemap.xml
-
+Sitemap: https://nivratelecom.com/sitemap.xml
