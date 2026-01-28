@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useLockdownMode } from "@/hooks/useLockdownMode";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as adminSupabase } from "@/integrations/backend/adminClient";
 import { toast } from "sonner";
 
 interface LockdownButtonProps {
@@ -33,20 +33,22 @@ export const LockdownButton = ({ compact = false }: LockdownButtonProps) => {
   const handleToggle = async () => {
     setIsToggling(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await adminSupabase.auth.getSession();
       
       if (!session?.access_token) {
-        toast.error("Session expirée. Veuillez vous reconnecter.");
+        toast.error("Session admin expirée. Veuillez vous reconnecter.");
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("toggle-lockdown", {
+      const { data, error } = await adminSupabase.functions.invoke("toggle-lockdown", {
         body: { enabled: !isLockdownActive },
       });
 
       if (error) {
         console.error("Toggle lockdown error:", error);
-        toast.error("Erreur lors du changement de mode");
+        toast.error(error.message || "Erreur lors du changement de mode");
         return;
       }
 
