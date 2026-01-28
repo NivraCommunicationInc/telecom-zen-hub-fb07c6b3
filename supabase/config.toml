@@ -1,5 +1,11 @@
 project_id = "xtgngmtxggascbxnswvb"
 
+[functions.verify-lockdown-password]
+verify_jwt = false
+
+[functions.toggle-lockdown]
+verify_jwt = false
+
 [functions.send-order-confirmation]
 verify_jwt = false
 

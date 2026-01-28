@@ -8,6 +8,7 @@ import AppRoutes from "@/components/AppRoutes";
 import ChatbotWidget from "@/components/chatbot/ChatbotWidget";
 import { DevOverflowDetector } from "@/components/DevOverflowDetector";
 import { AppModeGate, InstallPrompt, NotificationPrompt } from "@/components/pwa";
+import LockdownGuard from "@/components/LockdownGuard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,11 +32,14 @@ const App = () => (
         <BrowserRouter>
           {/* DEV-ONLY: Overflow detector - only active in development */}
           {import.meta.env.DEV && <DevOverflowDetector />}
-          {/* AppModeGate wraps routes to block rendering until PWA mode is determined */}
-          <AppModeGate>
-            <AppRoutes />
-            <ChatbotWidget />
-          </AppModeGate>
+          {/* SECURITY: Total lockdown guard - blocks entire site when activated */}
+          <LockdownGuard>
+            {/* AppModeGate wraps routes to block rendering until PWA mode is determined */}
+            <AppModeGate>
+              <AppRoutes />
+              <ChatbotWidget />
+            </AppModeGate>
+          </LockdownGuard>
           <InstallPrompt />
           <NotificationPrompt />
         </BrowserRouter>

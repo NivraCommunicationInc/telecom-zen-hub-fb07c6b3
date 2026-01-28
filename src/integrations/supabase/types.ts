@@ -9779,6 +9779,7 @@ export type Database = {
         Returns: boolean
       }
       check_and_queue_payment_reminders: { Args: never; Returns: undefined }
+      check_lockdown_status: { Args: never; Returns: Json }
       check_overdue_invoices: { Args: never; Returns: undefined }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
