@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Shield, Lock, AlertCircle, Info, Banknote, Wrench, Mail, Copy, Check as CheckIcon } from "lucide-react";
+import { CreditCard, Shield, Lock, AlertCircle, Info, Banknote, Wrench, Mail, Copy, Check as CheckIcon, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import PayPalButton from "@/components/payment/PayPalButton";
+import PayPalSubscriptionButton from "@/components/payment/PayPalSubscriptionButton";
+
 interface SavedCard {
   id: string;
   card_type: string;
@@ -17,6 +19,13 @@ interface SavedCard {
   expiry_year: number;
   is_default: boolean;
   is_preauthorized?: boolean;
+}
+
+interface ServiceItem {
+  plan_code: string;
+  plan_name: string;
+  plan_price: number;
+  category: string;
 }
 
 interface CheckoutPaymentSectionProps {
@@ -40,6 +49,17 @@ interface CheckoutPaymentSectionProps {
   totalAmount: number;
   cvvError?: string;
   onPayPalSuccess?: (captureId: string) => void;
+  // Auto-billing subscription props
+  enableAutoBilling?: boolean;
+  subscriptionServices?: ServiceItem[];
+  customerInfo?: {
+    user_id?: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+  };
+  discountAmount?: number;
 }
 
 export const CheckoutPaymentSection = ({
@@ -58,6 +78,10 @@ export const CheckoutPaymentSection = ({
   totalAmount,
   cvvError,
   onPayPalSuccess,
+  enableAutoBilling = false,
+  subscriptionServices,
+  customerInfo,
+  discountAmount = 5,
 }: CheckoutPaymentSectionProps) => {
   const [copied, setCopied] = useState(false);
   const hasSavedCards = savedCards && savedCards.length > 0;
@@ -204,23 +228,52 @@ export const CheckoutPaymentSection = ({
 
                 {selectedPaymentMethod === "paypal" && (
                   <div className="space-y-4 pt-2">
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {isFrench 
-                          ? "Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit."
-                          : "Pay securely with your PayPal account or credit/debit card."}
-                      </p>
-                      <PayPalButton
-                        amount={totalAmount}
-                        description={isFrench ? "Commande Nivra Telecom" : "Nivra Telecom Order"}
-                        onSuccess={(captureId) => {
-                          onPayPalSuccess?.(captureId);
-                        }}
-                        onError={(error) => {
-                          console.error("PayPal error:", error);
-                        }}
-                      />
-                    </div>
+                    {enableAutoBilling && subscriptionServices && customerInfo ? (
+                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Gift className="w-5 h-5 text-emerald-500" />
+                          <p className="text-sm font-medium text-emerald-600">
+                            {isFrench 
+                              ? `Paiement automatique activé - ${discountAmount}$/mois de rabais!`
+                              : `Automatic payment enabled - $${discountAmount}/month discount!`}
+                          </p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {isFrench 
+                            ? "Vous serez redirigé vers PayPal pour approuver les prélèvements automatiques mensuels."
+                            : "You will be redirected to PayPal to approve automatic monthly payments."}
+                        </p>
+                        <PayPalSubscriptionButton
+                          services={subscriptionServices}
+                          customerInfo={customerInfo}
+                          isFrench={isFrench}
+                          onSuccess={(result) => {
+                            console.log("Subscription created:", result);
+                          }}
+                          onError={(error) => {
+                            console.error("Subscription error:", error);
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {isFrench 
+                            ? "Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit."
+                            : "Pay securely with your PayPal account or credit/debit card."}
+                        </p>
+                        <PayPalButton
+                          amount={totalAmount}
+                          description={isFrench ? "Commande Nivra Telecom" : "Nivra Telecom Order"}
+                          onSuccess={(captureId) => {
+                            onPayPalSuccess?.(captureId);
+                          }}
+                          onError={(error) => {
+                            console.error("PayPal error:", error);
+                          }}
+                        />
+                      </div>
+                    )}
                     
                     <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
                       <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
