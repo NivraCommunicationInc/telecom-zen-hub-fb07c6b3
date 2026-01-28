@@ -86,8 +86,11 @@ Deno.serve(async (req) => {
 
     const { error: updateError } = await supabaseAdmin
       .from("site_settings")
-      .update({ value_json: newConfig })
-      .eq("key", "total_lockdown");
+      .upsert({ 
+        key: "total_lockdown", 
+        value_json: newConfig,
+        is_public: false 
+      }, { onConflict: "key" });
 
     if (updateError) {
       console.error("[toggle-lockdown] Update error:", updateError);
