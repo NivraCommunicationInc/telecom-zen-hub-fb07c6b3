@@ -41,6 +41,11 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard className="h-4 w-4" />,
   },
   {
+    label: "Point de Vente (POS)",
+    href: "/staff/pos",
+    icon: <ShoppingCart className="h-4 w-4" />,
+  },
+  {
     label: "Clients",
     icon: <Users className="h-4 w-4" />,
     children: [

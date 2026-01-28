@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import StaffBackground from "@/components/staff/StaffBackground";
-import { StaffSidebar } from "@/components/staff/StaffSidebar";
+import { TechnicianSidebar } from "@/components/staff/TechnicianSidebar";
 
 interface Appointment {
   id: string;
@@ -184,7 +184,7 @@ export default function StaffTechnicianDashboard() {
       <StaffBackground />
       
       {/* Sidebar */}
-      <StaffSidebar 
+      <TechnicianSidebar 
         onSignOut={handleLogout}
         userEmail={staffInfo?.email}
         userName={staffInfo?.name}
