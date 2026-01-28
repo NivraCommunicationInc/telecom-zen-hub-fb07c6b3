@@ -38,10 +38,8 @@ export function useFieldSalesOffers(category?: string) {
         query = query.eq("category", category);
       }
 
-      // Filter by valid date range
-      const now = new Date().toISOString();
-      query = query.or(`valid_from.is.null,valid_from.lte.${now}`);
-      query = query.or(`valid_until.is.null,valid_until.gte.${now}`);
+      // Note: site_offers_public view already filters active offers
+      // No need for valid_from/valid_until filters as those columns don't exist in the view
 
       const { data, error } = await query;
 
