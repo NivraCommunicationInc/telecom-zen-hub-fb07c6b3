@@ -163,28 +163,33 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       <div className="border-t border-white/10">
         <div className="container mx-auto px-4 py-6 max-w-6xl">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            {/* Payment Methods */}
+            {/* Payment Methods + PayPal */}
             <div className="flex flex-col items-center md:items-start gap-2">
               <p className="text-white/50 text-xs uppercase tracking-wider font-medium">
                 {isFr ? "Méthodes de paiement acceptées" : "Accepted Payment Methods"}
               </p>
-              <img 
-                src={paymentMethodsImg} 
-                alt={isFr ? "Interac, Cash, Mastercard, PayPal" : "Interac, Cash, Mastercard, PayPal"}
-                className="h-8 object-contain"
-              />
+              <div className="flex items-center gap-3">
+                <img 
+                  src={paymentMethodsImg} 
+                  alt={isFr ? "Interac, Cash, Mastercard" : "Interac, Cash, Mastercard"}
+                  className="h-8 object-contain"
+                />
+                <img 
+                  src={paypalSecureImg} 
+                  alt="PayPal"
+                  className="h-8 object-contain"
+                />
+              </div>
             </div>
 
-            {/* Security Badges */}
-            <div className="flex flex-wrap items-center justify-center gap-4">
+            {/* Security Badge */}
+            <div className="flex flex-col items-center md:items-end gap-2">
+              <p className="text-white/50 text-xs uppercase tracking-wider font-medium">
+                {isFr ? "Sécurité" : "Security"}
+              </p>
               <img 
                 src={googleSafeBrowsingImg} 
                 alt="Google Safe Browsing"
-                className="h-10 object-contain"
-              />
-              <img 
-                src={paypalSecureImg} 
-                alt="PayPal Secure Checkout"
                 className="h-10 object-contain"
               />
             </div>
