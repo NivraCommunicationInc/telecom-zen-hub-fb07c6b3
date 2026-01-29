@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import paymentMethodsImg from "@/assets/payment-methods.png";
+import googleSafeBrowsingImg from "@/assets/google-safe-browsing.png";
+import paypalSecureImg from "@/assets/paypal-secure.png";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   const { language } = useLanguage();
@@ -156,7 +159,40 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
       </div>
 
-      {/* Tier 2: Bottom Bar */}
+      {/* Tier 2: Payment & Security Badges */}
+      <div className="border-t border-white/10">
+        <div className="container mx-auto px-4 py-6 max-w-6xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            {/* Payment Methods */}
+            <div className="flex flex-col items-center md:items-start gap-2">
+              <p className="text-white/50 text-xs uppercase tracking-wider font-medium">
+                {isFr ? "Méthodes de paiement acceptées" : "Accepted Payment Methods"}
+              </p>
+              <img 
+                src={paymentMethodsImg} 
+                alt={isFr ? "Interac, Cash, Mastercard, PayPal" : "Interac, Cash, Mastercard, PayPal"}
+                className="h-8 object-contain"
+              />
+            </div>
+
+            {/* Security Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <img 
+                src={googleSafeBrowsingImg} 
+                alt="Google Safe Browsing"
+                className="h-10 object-contain"
+              />
+              <img 
+                src={paypalSecureImg} 
+                alt="PayPal Secure Checkout"
+                className="h-10 object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tier 3: Bottom Bar */}
       <div className="border-t border-white/10">
         <div className="container mx-auto px-4 py-5 max-w-6xl">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
