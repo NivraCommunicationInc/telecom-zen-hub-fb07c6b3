@@ -93,14 +93,14 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Build absolute onboarding URL
-    const appUrl = Deno.env.get("APP_URL") || "https://nivratelecom.ca";
+    const appUrl = Deno.env.get("APP_URL") || "https://nivratelecom.com";
     const onboardingUrl = `${appUrl}/influencer/onboarding?token=${encodeURIComponent(inviteToken)}`;
 
     console.log("[send-partner-invite] Onboarding URL:", onboardingUrl);
 
     // Send email
     const emailResponse = await resend.emails.send({
-      from: "Nivra Telecom <support@nivratelecom.ca>",
+      from: "Nivra Telecom <support@nivratelecom.com>",
       to: [influencer.email],
       subject: "Bienvenue au programme partenaires Nivra!",
       html: `
@@ -153,7 +153,7 @@ serve(async (req: Request): Promise<Response> => {
       <div style="text-align: center; color: #6b7280; font-size: 14px;">
         <p style="margin: 0 0 8px 0;">Besoin d'aide?</p>
         <p style="margin: 0;">
-          <a href="mailto:Support@NivraTelecom.ca" style="color: #0891b2; text-decoration: none;">Support@NivraTelecom.ca</a>
+          <a href="mailto:Support@NivraTelecom.com" style="color: #0891b2; text-decoration: none;">Support@NivraTelecom.com</a>
         </p>
       </div>
       

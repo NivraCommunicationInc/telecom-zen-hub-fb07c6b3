@@ -205,7 +205,7 @@ serve(async (req) => {
       const html = buildClientEmailHtml(body, deepLink, loginRedirectUrl);
 
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Nivra Télécom <noreply@nivratelecom.ca>",
+        from: "Nivra Télécom <noreply@nivratelecom.com>",
         to: [body.client_email],
         subject: subject,
         html: html,

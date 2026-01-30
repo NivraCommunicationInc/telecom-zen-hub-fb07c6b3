@@ -20,7 +20,7 @@ export const accountBlocked = (params: BaseParams & {
   blockedAt: string;
   contactUrl?: string;
 }): string => {
-  const { clientName, blockReason, blockedAt, contactUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, blockReason, blockedAt, contactUrl = 'https://nivratelecom.com/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -71,7 +71,7 @@ export const accountUnblocked = (params: BaseParams & {
   unblockedAt: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, unblockedAt, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, unblockedAt, portalUrl = 'https://nivratelecom.com/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -117,7 +117,7 @@ export const onlineAccessBlocked = (params: BaseParams & {
   blockedAt: string;
   contactUrl?: string;
 }): string => {
-  const { clientName, blockReason, blockedAt, contactUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, blockReason, blockedAt, contactUrl = 'https://nivratelecom.com/portal', supportEmail } = params;
   
   const content = `
     ${header()}

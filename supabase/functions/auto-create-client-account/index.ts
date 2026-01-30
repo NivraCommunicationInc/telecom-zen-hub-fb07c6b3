@@ -161,7 +161,7 @@ serve(async (req) => {
 
     // Step 6: Send password reset email for new accounts
     if (isNewAccount) {
-      const appUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.ca";
+      const appUrl = Deno.env.get("APP_BASE_URL") || "https://nivratelecom.com";
       const redirectUrl = `${appUrl.split(',')[0]}/portal/auth?type=recovery`;
       
       const { error: resetError } = await supabase.auth.admin.generateLink({

@@ -52,7 +52,7 @@ const ClientAuth = () => {
         console.error("[sendPinEmail] Invocation error:", error);
         return { 
           success: false, 
-          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.com" 
         };
       }
       
@@ -60,7 +60,7 @@ const ClientAuth = () => {
         if (data.reason === "rate_limited") {
           return { success: false, rateLimited: true, error: "Code déjà envoyé récemment" };
         }
-        const errorMsg = data.error || "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca";
+        const errorMsg = data.error || "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.com";
         return { success: false, error: errorMsg };
       }
       
@@ -75,13 +75,13 @@ const ClientAuth = () => {
       console.warn("[sendPinEmail] Unexpected response shape:", data);
       return { 
         success: false, 
-        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.com" 
       };
     } catch (err: any) {
       console.error("[sendPinEmail] Unexpected error:", err);
       return { 
         success: false, 
-        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.com" 
       };
     }
   };

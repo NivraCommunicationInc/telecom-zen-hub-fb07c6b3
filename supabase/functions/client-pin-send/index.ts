@@ -4,8 +4,8 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 
 // Allowed origins whitelist (secure, not "*")
 const ALLOWED_ORIGINS = [
-  "https://nivratelecom.ca",
-  "https://www.nivratelecom.ca",
+  "https://nivratelecom.com",
+  "https://www.nivratelecom.com",
   "https://telecom-zen-hub.lovable.app",
 ];
 
@@ -113,7 +113,7 @@ serve(async (req) => {
         JSON.stringify({ 
           sent: false, 
           reason: "config_error",
-          error: "Email service not configured. Contact Support@nivratelecom.ca" 
+          error: "Email service not configured. Contact Support@nivratelecom.com" 
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -201,7 +201,7 @@ serve(async (req) => {
 
     // Send email with PIN using retry logic - Professional Blue Design
     const emailResult = await sendEmailWithRetry(resend, {
-      from: "Nivra Telecom <noreply@nivratelecom.ca>",
+      from: "Nivra Telecom <noreply@nivratelecom.com>",
       to: [email],
       subject: "Votre code de vérification Nivra",
       html: `
@@ -274,7 +274,7 @@ serve(async (req) => {
                           <td align="center">
                             <h4 style="margin:0; font-size:16px; font-weight:700; color:#ffffff;">Nivra Telecom</h4>
                             <p style="margin:8px 0 0; font-size:12px; color:#D1D5DB;">1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5</p>
-                            <p style="margin:8px 0 0; font-size:12px;"><a href="mailto:Support@nivratelecom.ca" style="color:#9CA3AF; text-decoration:none;">Support@nivratelecom.ca</a></p>
+                            <p style="margin:8px 0 0; font-size:12px;"><a href="mailto:Support@nivratelecom.com" style="color:#9CA3AF; text-decoration:none;">Support@nivratelecom.com</a></p>
                             <p style="margin:12px 0 0; font-size:11px; color:#9CA3AF;">© ${new Date().getFullYear()} Nivra Telecom Inc.</p>
                           </td>
                         </tr>
@@ -299,7 +299,7 @@ serve(async (req) => {
         JSON.stringify({ 
           sent: false, 
           reason: "email_failed",
-          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca" 
+          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.com" 
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -318,7 +318,7 @@ serve(async (req) => {
       JSON.stringify({ 
         sent: false, 
         reason: "server_error", 
-        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.ca",
+        error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivratelecom.com",
         request_id: requestId 
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

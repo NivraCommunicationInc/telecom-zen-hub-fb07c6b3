@@ -359,7 +359,7 @@ serve(async (req: Request) => {
     // Helper to get APP_BASE_URL
     const getAppBaseUrl = (): string => {
       const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-      let appBaseUrl = "https://nivratelecom.ca";
+      let appBaseUrl = "https://nivratelecom.com";
       if (rawAppBaseUrl) {
         if (rawAppBaseUrl.includes(",")) {
           console.error(`[admin-manage-staff] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
@@ -757,8 +757,8 @@ serve(async (req: Request) => {
             // Send professional onboarding email
             const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
             await resend.emails.send({
-              from: "Nivra Telecom <support@nivratelecom.ca>",
-              reply_to: "support@nivratelecom.ca",
+              from: "Nivra Telecom <support@nivratelecom.com>",
+              reply_to: "support@nivratelecom.com",
               to: [email],
               subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
               html: `

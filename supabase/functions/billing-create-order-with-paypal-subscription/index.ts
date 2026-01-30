@@ -85,7 +85,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.ca";
+    const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.com";
 
     const body: CreateOrderRequest = await req.json();
     

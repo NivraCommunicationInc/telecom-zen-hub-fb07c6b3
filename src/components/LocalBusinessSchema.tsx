@@ -18,13 +18,13 @@ export const LocalBusinessSchema = () => {
     const schema = {
       "@context": "https://schema.org",
       "@type": "TelecommunicationsCompany",
-      "@id": "https://nivratelecom.ca/#organization",
+      "@id": "https://nivratelecom.com/#organization",
       name: COMPANY_CONTACT.companyName,
       legalName: COMPANY_CONTACT.legalName,
       alternateName: ["Nivra Communications", "Nivra Communications Inc", "Nivra Télécom"],
-      url: "https://nivratelecom.ca",
-      logo: "https://nivratelecom.ca/favicon.png",
-      image: "https://nivratelecom.ca/og-image.png",
+      url: "https://nivratelecom.com",
+      logo: "https://nivratelecom.com/favicon.png",
+      image: "https://nivratelecom.com/og-image.png",
       description:
         "Nivra Telecom est une entreprise de télécommunications prépayées au Québec. Services mobiles, Internet, télévision et solutions connectées. Sans engagement, sans vérification de crédit. Meilleur prix garanti.",
       // Phone removed - support via chat/tickets only
@@ -70,7 +70,7 @@ export const LocalBusinessSchema = () => {
           contactType: "customer service",
           availableLanguage: ["French", "English"],
           areaServed: "CA",
-          url: "https://nivratelecom.ca/portal/auth",
+          url: "https://nivratelecom.com/portal/auth",
         },
       ],
       sameAs: [
