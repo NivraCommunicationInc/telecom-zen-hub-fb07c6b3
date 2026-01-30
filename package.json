@@ -51,7 +51,7 @@
     "eslint-plugin-security": "^3.0.1",
     "framer-motion": "^12.29.2",
     "input-otp": "^1.4.2",
-    "jspdf": "^3.0.1",
+    "jspdf": "^4.0.0",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
