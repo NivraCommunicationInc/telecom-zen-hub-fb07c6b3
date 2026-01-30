@@ -25,7 +25,7 @@ const corsHeaders = {
 
 // Default params for all templates
 const baseParams = {
-  supportEmail: "support@nivratelecom.ca",
+  supportEmail: "support@nivratelecom.com",
 };
 
 // Sample data for templates
@@ -36,7 +36,7 @@ const sampleData = {
   orderNumber: "CMD-2024-0567",
   invoiceNumber: "FAC-2024-0890",
   phoneNumber: "(514) 555-1234",
-  portalUrl: "https://nivratelecom.ca/portal",
+  portalUrl: "https://nivratelecom.com/portal",
 };
 
 // All email templates to send
@@ -100,8 +100,8 @@ const getTemplates = () => [
       subject: "Nouvelles du mois",
       previewText: "Découvrez nos nouveautés!",
       sections: [
-        { title: "Nouveau: Forfait Illimité+", content: "Nous lançons notre forfait le plus généreux avec données illimitées!", ctaText: "Voir le forfait", ctaUrl: "https://nivratelecom.ca/mobile" },
-        { title: "Couverture étendue", content: "Notre réseau couvre maintenant 99% du territoire québécois.", ctaText: "Voir la carte", ctaUrl: "https://nivratelecom.ca/coverage" },
+        { title: "Nouveau: Forfait Illimité+", content: "Nous lançons notre forfait le plus généreux avec données illimitées!", ctaText: "Voir le forfait", ctaUrl: "https://nivratelecom.com/mobile" },
+        { title: "Couverture étendue", content: "Notre réseau couvre maintenant 99% du territoire québécois.", ctaText: "Voir la carte", ctaUrl: "https://nivratelecom.com/coverage" },
       ],
     }),
   },
@@ -174,7 +174,7 @@ const getTemplates = () => [
     html: onboarding.emailVerificationLink({
       ...baseParams,
       clientName: sampleData.clientName,
-      verificationUrl: "https://nivratelecom.ca/verify?token=abc123def456",
+      verificationUrl: "https://nivratelecom.com/verify?token=abc123def456",
     }),
   },
   {
@@ -575,7 +575,7 @@ const getTemplates = () => [
     html: account.passwordReset({
       ...baseParams,
       clientName: sampleData.clientName,
-      resetUrl: "https://nivratelecom.ca/reset?token=abc123",
+      resetUrl: "https://nivratelecom.com/reset?token=abc123",
       requestedAt: "15 janvier 2025 à 14h30",
       expiresInHours: 24,
     }),
@@ -760,7 +760,7 @@ const getTemplates = () => [
       ticketNumber: "TKT-2025-0790",
       requestReason: "Pour traiter votre demande de portabilité",
       requiredDocuments: ["Copie de votre dernière facture de l'ancien fournisseur", "Pièce d'identité avec photo", "Preuve de résidence récente"],
-      uploadUrl: "https://nivratelecom.ca/portal/upload?token=SAMPLE_TOKEN",
+      uploadUrl: "https://nivratelecom.com/portal/upload?token=SAMPLE_TOKEN",
       deadline: "22 janvier 2025",
     }),
   },
@@ -796,7 +796,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`📧 Sending ${i + 1}/${templates.length}: ${template.category} - ${template.name}`);
         
         const { error } = await resend.emails.send({
-          from: "Nivra Télécom <notification@nivratelecom.ca>",
+          from: "Nivra Télécom <notification@nivratelecom.com>",
           to: [targetEmail],
           subject: `[${i + 1}/${templates.length}] ${template.category} | ${template.name}`,
           html: template.html,

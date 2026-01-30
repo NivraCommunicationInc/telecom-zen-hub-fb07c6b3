@@ -6,8 +6,8 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 // Allowed origins whitelist for staff OTP (secure, not "*")
 const ALLOWED_ORIGINS = [
-  "https://nivratelecom.ca",
-  "https://www.nivratelecom.ca",
+  "https://nivratelecom.com",
+  "https://www.nivratelecom.com",
   "https://telecom-zen-hub.lovable.app",
 ];
 
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Nivra Sécurité <noreply@nivratelecom.ca>",
+            from: "Nivra Sécurité <noreply@nivratelecom.com>",
             to: [user.email],
             subject: "Votre code de vérification Nivra",
             html: `

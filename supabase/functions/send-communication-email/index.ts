@@ -34,7 +34,7 @@ serve(async (req) => {
 
     // Get the authenticated user
     const authHeader = req.headers.get("Authorization");
-    let senderEmail = "admin@nivratelecom.ca";
+    let senderEmail = "admin@nivratelecom.com";
     
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
@@ -158,8 +158,8 @@ serve(async (req) => {
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: "Nivra Télécom <communication@nivratelecom.ca>",
-            reply_to: "support@nivratelecom.ca",
+            from: "Nivra Télécom <communication@nivratelecom.com>",
+            reply_to: "support@nivratelecom.com",
             to: [recipient.email],
             subject,
             html,

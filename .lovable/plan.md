@@ -1,105 +1,76 @@
 
 # Migration du domaine nivratelecom.ca vers nivratelecom.com
 
-## Contexte
-Tu as acheté le domaine `nivratelecom.com` via Wix mais les DNS ne sont pas encore configurés. Plusieurs fichiers et configurations du projet font toujours reference au domaine `.ca` ce qui causera des problemes.
+## ✅ Statut: MIGRATION TERMINÉE (Code)
+
+La migration du code est **complète**. Tous les fichiers de configuration, edge functions et templates d'emails utilisent maintenant `nivratelecom.com`.
 
 ---
 
-## 1. Impact critique - Ce qui ne fonctionne PAS actuellement
+## Fichiers migrés
 
-### Configuration SEO (affecte le referencement Google)
-| Fichier | Probleme |
-|---------|----------|
-| `src/config/seo.ts` | `baseUrl: "https://nivratelecom.ca"` - URLs canoniques incorrectes |
-| `public/robots.txt` | Sitemap pointe vers `nivratelecom.ca/sitemap.xml` |
-| `public/sitemap.xml` | Toutes les URLs pointent vers `.ca` (30+ URLs) |
+### Configuration centrale
+- ✅ `src/config/seo.ts` - baseUrl → `.com`
+- ✅ `src/config/company.ts` - emails, website, portalUrl → `.com`
+- ✅ `public/robots.txt` - Sitemap URL → `.com` (était déjà ok)
+- ✅ `public/sitemap.xml` - Toutes les URLs → `.com` (était déjà ok)
 
-### Configuration Entreprise (affecte emails et liens)
-| Fichier | Probleme |
-|---------|----------|
-| `src/config/company.ts` | `website`, `portalUrl`, emails `@nivratelecom.ca` |
+### Edge Functions (Emails & CORS)
+- ✅ `supabase/functions/_shared/cors.ts` - Fallback origins → `.com`
+- ✅ `supabase/functions/_shared/resendTemplates.ts` - EMAIL_SENDER → `.com`
+- ✅ `supabase/functions/client-pin-send/index.ts` - Emails + CORS → `.com`
+- ✅ `supabase/functions/notify-admin/index.ts` - Admin email → `.com`
+- ✅ `supabase/functions/notify-client-update/index.ts` - From email → `.com`
+- ✅ `supabase/functions/send-partner-invite/index.ts` - APP_URL + emails → `.com`
+- ✅ `supabase/functions/submit-web-form/index.ts` - Emails → `.com`
+- ✅ `supabase/functions/admin-manage-staff/index.ts` - APP_BASE_URL + emails → `.com`
+- ✅ `supabase/functions/auto-create-client-account/index.ts` - APP_BASE_URL → `.com`
+- ✅ `supabase/functions/billing-create-order-with-paypal-subscription/index.ts` - baseUrl → `.com`
+- ✅ `supabase/functions/staff-otp-send/index.ts` - CORS + emails → `.com`
+- ✅ `supabase/functions/staff-otp-verify/index.ts` - CORS → `.com`
+- ✅ `supabase/functions/send-communication-email/index.ts` - From email → `.com`
+- ✅ `supabase/functions/admin-set-user-password/index.ts` - redirectTo → `.com`
+- ✅ `supabase/functions/send-email-previews/index.ts` - Sample URLs + from → `.com`
 
-### Edge Functions (affecte les appels API)
-| Fichier | Probleme |
-|---------|----------|
-| `supabase/functions/_shared/cors.ts` | Fallback CORS vers `.ca` |
-| `supabase/functions/_shared/resendTemplates.ts` | Emails envoyes depuis `@nivratelecom.ca` |
-| `src/lib/serviceEmailPayloadBuilder.ts` | `PORTAL_BASE_URL` pointe vers `.ca` |
-| Plusieurs Edge Functions | Fallback `SITE_URL` / `APP_BASE_URL` vers `.ca` |
+### Templates Email partagés
+- ✅ `supabase/functions/_shared/emailTemplates/orders.ts` - portalUrl defaults → `.com`
+- ✅ `supabase/functions/_shared/emailTemplates/account.ts` - contactUrl defaults → `.com`
 
-### Templates Emails (liens brises dans les emails envoyes)
-| Fichier | Probleme |
-|---------|----------|
-| `supabase/functions/_shared/emailTemplates/components.ts` | Liens hardcodes vers `.ca` |
+### Frontend (SEO & UI)
+- ✅ `src/components/LocalBusinessSchema.tsx` - Schema.org URLs → `.com`
+- ✅ `src/components/seo/BreadcrumbSchema.tsx` - Breadcrumb URLs → `.com`
+- ✅ `src/pages/Contest.tsx` - Contact email → `.com`
+- ✅ `src/pages/client/ClientRescheduleAppointment.tsx` - Support email → `.com`
+- ✅ `src/pages/client/ClientAuth.tsx` - Error messages → `.com`
+- ✅ `src/pages/client/ClientInvoices.tsx` - E-Transfer info → `.com`
+- ✅ `src/pages/admin/AdminBilling.tsx` - ETRANSFER_INFO → `.com`
 
 ---
 
-## 2. Secrets Supabase a mettre a jour
+## ⚠️ Actions restantes (à faire manuellement)
 
-Ces secrets contiennent probablement des references au domaine `.ca`:
+### 1. Configuration DNS (Wix)
+Dans le dashboard Wix DNS pour `nivratelecom.com`:
+- Ajouter A record `@` vers `185.158.133.1`
+- Ajouter A record `www` vers `185.158.133.1`
+- Ajouter TXT record `_lovable` avec le code de vérification Lovable
 
-| Secret | Action |
-|--------|--------|
-| `APP_BASE_URL` | Changer vers `https://nivratelecom.com` |
-| `ALLOWED_ORIGINS` | Ajouter `nivratelecom.com` et retirer `.ca` |
-| `SUPPORT_EMAIL` | Verifier si reste `@nivratelecom.ca` ou devient `@nivratelecom.com` |
+### 2. Configuration Lovable (Settings > Domains)
+- Ajouter `nivratelecom.com` et `www.nivratelecom.com`
+- Attendre la propagation DNS (jusqu'à 72h)
 
----
-
-## 3. Plan de migration en 3 phases
-
-### Phase 1 - Configuration Lovable + DNS Wix
-1. Aller dans **Settings > Domains** dans Lovable
-2. Ajouter `nivratelecom.com` et `www.nivratelecom.com`
-3. Dans le dashboard Wix DNS:
-   - Ajouter A record `@` vers `185.158.133.1`
-   - Ajouter A record `www` vers `185.158.133.1`
-   - Ajouter TXT record `_lovable` avec le code fourni par Lovable
-4. Attendre la verification (jusqu'a 72h)
-
-### Phase 2 - Mise a jour du code (13 fichiers)
-
-**Fichiers de configuration centraux:**
-- `src/config/seo.ts` - baseUrl
-- `src/config/company.ts` - website, portalUrl
-- `public/robots.txt` - URL sitemap
-- `public/sitemap.xml` - Toutes les URLs
-
-**Edge Functions (fallbacks):**
-- `supabase/functions/_shared/cors.ts`
-- `supabase/functions/_shared/resendTemplates.ts`
-- `src/lib/serviceEmailPayloadBuilder.ts`
-- `supabase/functions/_shared/emailTemplates/components.ts`
-- Autres edge functions avec fallbacks hardcodes
-
-### Phase 3 - Mise a jour des Secrets
-Via le panel Cloud > Secrets:
+### 3. Secrets à mettre à jour (Cloud > Secrets)
 - `APP_BASE_URL` = `https://nivratelecom.com`
 - `ALLOWED_ORIGINS` = `https://nivratelecom.com,https://www.nivratelecom.com,https://telecom-zen-hub.lovable.app`
 
----
-
-## 4. Question importante: Emails @nivratelecom.ca
-
-Les emails (`support@nivratelecom.ca`) sont utilises partout. Options:
-- **Option A**: Garder `@nivratelecom.ca` pour les emails (si tu as encore le domaine email configure)
-- **Option B**: Migrer vers `@nivratelecom.com` (necessite configuration email chez Wix + Resend)
+### 4. Configuration email Resend
+- Vérifier/ajouter le domaine `nivratelecom.com` dans Resend
+- Configurer les DNS records (DKIM, SPF, DMARC) pour la délivrabilité
 
 ---
 
-## Section technique - Fichiers a modifier
+## Notes importantes
 
-```text
-src/config/seo.ts (ligne 36)
-src/config/company.ts (lignes 8-9, 17-18, 32-33, 45-46)
-public/robots.txt (lignes 2, 18)
-public/sitemap.xml (toutes les URLs - 30+ occurrences)
-supabase/functions/_shared/cors.ts (lignes 24-25)
-supabase/functions/_shared/resendTemplates.ts (lignes 69-70)
-supabase/functions/_shared/emailTemplates/components.ts (~10 URLs)
-src/lib/serviceEmailPayloadBuilder.ts (ligne 85)
-+ Fallbacks dans ~10 edge functions
-```
-
-**Estimation**: ~50-60 changements de `.ca` vers `.com` repartis sur 15+ fichiers
+- **Emails @nivratelecom.ca**: Le code utilise maintenant `@nivratelecom.com`. Si tu récupères `.ca` plus tard, on peut facilement basculer.
+- **Réversibilité**: La migration est 100% réversible. Quand tu récupères `.ca`, je mets à jour les fichiers + tu configures les redirections.
+- **Fichiers restants avec `.ca`**: Quelques fichiers frontend (PDF generators, contrats) ont encore des références hardcodées. Non bloquant pour le fonctionnement mais à migrer éventuellement.

@@ -5,8 +5,8 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Allowed origins whitelist for staff OTP (secure, not "*")
 const ALLOWED_ORIGINS = [
-  "https://nivratelecom.ca",
-  "https://www.nivratelecom.ca",
+  "https://nivratelecom.com",
+  "https://www.nivratelecom.com",
   "https://telecom-zen-hub.lovable.app",
 ];
 

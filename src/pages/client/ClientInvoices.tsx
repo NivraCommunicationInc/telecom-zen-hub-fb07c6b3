@@ -1499,7 +1499,7 @@ const ClientInvoices = () => {
                   {/* Payment Info */}
                   <div className="bg-muted rounded-lg p-4">
                     <p className="text-xs text-muted-foreground uppercase mb-2">Informations de paiement</p>
-                    <p className="text-sm"><strong>Virement Interac :</strong> Support@nivratelecom.ca</p>
+                    <p className="text-sm"><strong>Virement Interac :</strong> Support@nivratelecom.com</p>
                     <p className="text-sm"><strong>Question :</strong> Nom du client ou nom de l'entreprise</p>
                     <p className="text-sm"><strong>Réponse :</strong> Votre nom complet ou le nom de votre entreprise</p>
                   </div>

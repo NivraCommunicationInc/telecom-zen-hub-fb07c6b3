@@ -214,20 +214,20 @@ serve(async (req) => {
     </div>
     <div class="footer">
       <p>Nivra Télécom<br>
-      support@nivratelecom.ca | 1-888-xxx-xxxx</p>
+      support@nivratelecom.com</p>
     </div>
   </div>
 </body>
 </html>`;
 
-        const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivratelecom.ca";
+        const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivratelecom.com";
 
         await resend.emails.send({
           from: `Nivra Télécom <${supportEmail}>`,
           to: [payload.email],
           subject: `Confirmation — Formulaire Web reçu [${thread.thread_number}]`,
           html: emailHtml,
-          reply_to: `webform+${replyToken}@nivratelecom.ca`,
+          reply_to: `webform+${replyToken}@nivratelecom.com`,
           headers: {
             "X-Thread-ID": thread.id,
             "X-Thread-Number": thread.thread_number,
