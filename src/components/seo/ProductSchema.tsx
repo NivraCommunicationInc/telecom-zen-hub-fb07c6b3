@@ -45,13 +45,13 @@ export const ProductSchema = ({ products, isService = true }: ProductSchemaProps
       "@graph": products.map((product, index) => {
         const baseSchema: Record<string, unknown> = {
           "@type": schemaType,
-          "@id": `https://nivratelecom.ca/#${schemaType.toLowerCase()}-${index}`,
+          "@id": `https://nivratelecom.com/#${schemaType.toLowerCase()}-${index}`,
           name: product.name,
           description: product.description,
           provider: {
             "@type": "Organization",
             name: COMPANY_CONTACT.companyName,
-            url: "https://nivratelecom.ca",
+            url: "https://nivratelecom.com",
           },
           areaServed: {
             "@type": "State",

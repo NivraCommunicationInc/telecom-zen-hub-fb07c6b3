@@ -19,7 +19,7 @@ const baseClient = {
 
 const baseAgent = {
   name: "Marie Lavoie",
-  email: "marie@nivratelecom.ca",
+  email: "marie@nivratelecom.com",
   role: "Conseillère",
 };
 

@@ -73,7 +73,7 @@ const StatusBadge = ({ status }: { status: string | null }) => {
 
 // DNS Checklist component
 const DNSChecklist = () => {
-  const domain = "nivratelecom.ca";
+  const domain = "nivratelecom.com";
   
   const dnsRecords = [
     {
@@ -95,7 +95,7 @@ const DNSChecklist = () => {
       type: "DMARC",
       name: `_dmarc.${domain}`,
       recordType: "TXT",
-      value: "v=DMARC1; p=quarantine; rua=mailto:dmarc@nivratelecom.ca",
+      value: "v=DMARC1; p=quarantine; rua=mailto:dmarc@nivratelecom.com",
       description: "Politique de rejet pour les emails non authentifiés",
       howTo: "Créez un enregistrement _dmarc avec votre politique",
     },

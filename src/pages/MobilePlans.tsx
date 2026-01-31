@@ -35,7 +35,7 @@ const MobilePlans = () => {
       sku: `mobile-${plan.price}`,
       category: "Mobile Prepaid Plans",
       features: plan.features,
-      url: "https://nivratelecom.ca/mobile-plans",
+      url: "https://nivratelecom.com/mobile-plans",
       availability: "InStock",
     })),
     [plans]
@@ -54,8 +54,8 @@ const MobilePlans = () => {
       <SEOHead {...SEO_DATA.mobile} />
       <ProductSchema products={productSchemaItems} isService={true} />
       <BreadcrumbSchema items={[
-        { name: "Accueil", url: "https://nivratelecom.ca/" },
-        { name: "Services", url: "https://nivratelecom.ca/services" },
+        { name: "Accueil", url: "https://nivratelecom.com/" },
+        { name: "Services", url: "https://nivratelecom.com/services" },
         { name: "Forfaits Mobile" }
       ]} />
       <Header />

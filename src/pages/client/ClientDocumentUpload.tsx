@@ -464,7 +464,7 @@ const ClientDocumentUpload = () => {
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
-          <p>Besoin d'aide? Contactez-nous à support@nivratelecom.ca</p>
+          <p>Besoin d'aide? Contactez-nous à support@nivratelecom.com</p>
         </div>
       </div>
     </div>

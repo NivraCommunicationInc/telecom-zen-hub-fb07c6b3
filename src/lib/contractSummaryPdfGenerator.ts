@@ -288,7 +288,7 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primaryNavy);
-  doc.text("Paiement uniquement par virement Interac à Support@nivratelecom.ca", marginLeft + 3, currentY + 6);
+  doc.text("Paiement uniquement par virement Interac à Support@nivratelecom.com", marginLeft + 3, currentY + 6);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...textMuted);
   doc.setFontSize(6);

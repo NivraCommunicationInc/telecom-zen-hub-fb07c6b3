@@ -65,7 +65,7 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.faq} />
-      <FAQSchema faqs={allFaqs} pageUrl="https://nivratelecom.ca/faq" />
+      <FAQSchema faqs={allFaqs} pageUrl="https://nivratelecom.com/faq" />
       <BreadcrumbSchema />
       <Header />
       

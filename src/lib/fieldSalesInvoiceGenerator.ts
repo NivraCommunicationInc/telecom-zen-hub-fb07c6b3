@@ -93,7 +93,7 @@ export async function generateFieldSalesInvoicePDF(data: FieldSalesInvoiceData):
   currentY += 4;
   addText("Tél: 438-544-2233", marginLeft, currentY);
   currentY += 4;
-  addText("support@nivratelecom.ca", marginLeft, currentY);
+  addText("support@nivratelecom.com", marginLeft, currentY);
 
   // ========== CLIENT INFO ==========
   currentY = 55;
@@ -220,7 +220,7 @@ export async function generateFieldSalesInvoicePDF(data: FieldSalesInvoiceData):
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     currentY += 12;
-    addText("Interac e-Transfer: paiement@nivratelecom.ca", marginLeft + 5, currentY + 5);
+    addText("Interac e-Transfer: paiement@nivratelecom.com", marginLeft + 5, currentY + 5);
     addText(`Mot de passe: NIVRA${data.invoiceNumber.slice(-4)}`, marginLeft + 5, currentY + 10);
     addText("Veuillez inclure le numéro de facture dans le message.", marginLeft + 5, currentY + 18);
   }
@@ -235,7 +235,7 @@ export async function generateFieldSalesInvoicePDF(data: FieldSalesInvoiceData):
   doc.setTextColor(150, 150, 150);
   doc.setFont("helvetica", "normal");
   addText("Merci pour votre confiance!", pageWidth / 2, footerY, { align: "center" });
-  addText("Nivra Telecom • 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5 • 438-544-2233 • support@nivratelecom.ca", pageWidth / 2, footerY + 6, { align: "center" });
+  addText("Nivra Telecom • 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5 • 438-544-2233 • support@nivratelecom.com", pageWidth / 2, footerY + 6, { align: "center" });
   addText(`TPS: 123456789 RT0001 • TVQ: 1234567890 TQ0001`, pageWidth / 2, footerY + 12, { align: "center" });
 
   // Download

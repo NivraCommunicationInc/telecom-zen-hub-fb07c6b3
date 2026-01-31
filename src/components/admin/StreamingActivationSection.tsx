@@ -91,7 +91,7 @@ export const StreamingActivationSection = ({
   // Generate and send activation link
   const sendActivationMutation = useMutation({
     mutationFn: async () => {
-      const baseUrl = import.meta.env.VITE_SITE_URL || "https://nivratelecom.ca";
+      const baseUrl = import.meta.env.VITE_SITE_URL || "https://nivratelecom.com";
       
       // Insert token record
       const { data: token, error } = await supabase
@@ -189,7 +189,7 @@ export const StreamingActivationSection = ({
   // Reissue token
   const reissueMutation = useMutation({
     mutationFn: async (tokenId: string) => {
-      const baseUrl = import.meta.env.VITE_SITE_URL || "https://nivratelecom.ca";
+      const baseUrl = import.meta.env.VITE_SITE_URL || "https://nivratelecom.com";
       
       // Mark old token as expired
       await supabase
