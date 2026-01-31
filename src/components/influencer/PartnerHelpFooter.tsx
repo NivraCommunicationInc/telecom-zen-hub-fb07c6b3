@@ -7,7 +7,7 @@ interface PartnerHelpFooterProps {
 
 /**
  * Reusable footer component for all Partner Portal pages
- * Shows ONLY Support@NivraTelecom.ca - no other contact email
+ * Shows ONLY Support@NivraTelecom.com - no other contact email
  */
 const PartnerHelpFooter = ({ className = "" }: PartnerHelpFooterProps) => {
   return (

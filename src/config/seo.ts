@@ -9,7 +9,7 @@
  * 
  * 1. Go to: https://search.google.com/search-console
  * 2. Click "Add property" → Select "URL prefix"
- * 3. Enter: https://nivratelecom.ca
+ * 3. Enter: https://nivratelecom.com
  * 4. Choose "HTML tag" verification method
  * 5. Copy the content value from the meta tag Google provides:
  *    <meta name="google-site-verification" content="COPY_THIS_CODE" />

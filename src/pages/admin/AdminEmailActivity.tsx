@@ -613,7 +613,7 @@ const AdminEmailActivity = () => {
               </div>
               <div>
                 <span className="text-muted-foreground">Email expéditeur:</span>
-                <span className="ml-2 font-medium">notifications@nivratelecom.ca</span>
+                <span className="ml-2 font-medium">notifications@nivratelecom.com</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Tentatives max:</span>
@@ -643,7 +643,7 @@ const AdminEmailActivity = () => {
                     <Badge variant="outline" className="text-xs">DNS TXT</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Autorise les serveurs Resend à envoyer pour nivratelecom.ca
+                    Autorise les serveurs Resend à envoyer pour nivratelecom.com
                   </p>
                   <code className="text-xs bg-muted p-2 rounded block break-all">
                     v=spf1 include:amazonses.com ~all
@@ -670,7 +670,7 @@ const AdminEmailActivity = () => {
                     Politique de rapport et traitement des échecs
                   </p>
                   <code className="text-xs bg-muted p-2 rounded block break-all">
-                    v=DMARC1; p=none; rua=mailto:dmarc@nivratelecom.ca
+                    v=DMARC1; p=none; rua=mailto:dmarc@nivratelecom.com
                   </code>
                 </div>
               </div>

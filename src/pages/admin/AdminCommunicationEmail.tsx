@@ -369,7 +369,7 @@ const AdminCommunicationEmail = () => {
                       <Label htmlFor="message">Message *</Label>
                       <Textarea
                         id="message"
-                        placeholder="Nivra Télécom&#10;1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5&#10;Lun–Ven : 9 h – 22 h · Sam–Dim : 9 h – 20 h&#10;Support : Support@nivratelecom.ca&#10;© 2026 Nivra Télécom&#10;Confidentialité  •  Conditions"
+                        placeholder="Nivra Télécom&#10;1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5&#10;Lun–Ven : 9 h – 22 h · Sam–Dim : 9 h – 20 h&#10;Support : Support@nivratelecom.com&#10;© 2026 Nivra Télécom&#10;Confidentialité  •  Conditions"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         rows={12}
@@ -699,7 +699,7 @@ const AdminCommunicationEmail = () => {
           
           <div className="border rounded-lg p-6 bg-slate-900 border-slate-700 space-y-4">
             <div className="border-b pb-4">
-              <p className="text-sm text-muted-foreground">De: Nivra Télécom &lt;communication@nivratelecom.ca&gt;</p>
+              <p className="text-sm text-muted-foreground">De: Nivra Télécom &lt;communication@nivratelecom.com&gt;</p>
               <p className="text-sm text-muted-foreground">À: {totalRecipients} destinataire(s)</p>
               <p className="font-semibold mt-2">{subject || "(Aucun sujet)"}</p>
             </div>

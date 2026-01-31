@@ -168,7 +168,7 @@ export function CreateEmployeeDialog({
                     <FormItem>
                       <FormLabel>Email *</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" placeholder="employe@nivratelecom.ca" />
+                        <Input {...field} type="email" placeholder="employe@nivratelecom.com" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

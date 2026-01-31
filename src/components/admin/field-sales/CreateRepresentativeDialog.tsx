@@ -232,7 +232,7 @@ export function CreateRepresentativeDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    placeholder="vendeur@nivratelecom.ca"
+                    placeholder="vendeur@nivratelecom.com"
                     className="pl-10 bg-slate-800/50 border-slate-700"
                   />
                 </div>
