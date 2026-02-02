@@ -73,31 +73,45 @@ const StatusBadge = ({ status }: { status: string | null }) => {
 
 // DNS Checklist component
 const DNSChecklist = () => {
-  const domain = "nivratelecom.com";
+  const domain = "nivra-telecom.ca";
+  const sendSubdomain = "send";
   
   const dnsRecords = [
+    {
+      type: "MX",
+      name: `${sendSubdomain}.${domain}`,
+      recordType: "MX",
+      value: "feedback-smtp.us-east-1.amazonses.com (Priority: 10)",
+      description: "Permet la réception des bounces et feedback loops",
+      howTo: "Vérifiez que l'enregistrement MX pointe vers amazonses.com",
+      status: "configured",
+    },
     {
       type: "DKIM",
       name: `resend._domainkey.${domain}`,
       recordType: "TXT",
+      value: "p=MIGfMA0GCS... (clé publique DKIM)",
       description: "Authentifie les emails envoyés via Resend",
-      howTo: "Allez dans Resend Dashboard > Domains > Vérifiez les enregistrements DNS",
+      howTo: "Copiez la valeur exacte depuis Resend Dashboard",
+      status: "configured",
     },
     {
       type: "SPF",
-      name: domain,
+      name: `${sendSubdomain}.${domain}`,
       recordType: "TXT",
-      value: "v=spf1 include:_spf.resend.com ~all",
-      description: "Autorise les serveurs Resend à envoyer pour votre domaine",
-      howTo: "Ajoutez un seul enregistrement SPF qui inclut _spf.resend.com",
+      value: "v=spf1 include:amazonses.com ~all",
+      description: "Autorise Amazon SES à envoyer pour votre sous-domaine",
+      howTo: "L'enregistrement SPF doit être sur le sous-domaine 'send'",
+      status: "configured",
     },
     {
       type: "DMARC",
       name: `_dmarc.${domain}`,
       recordType: "TXT",
-      value: "v=DMARC1; p=quarantine; rua=mailto:dmarc@nivratelecom.com",
-      description: "Politique de rejet pour les emails non authentifiés",
-      howTo: "Créez un enregistrement _dmarc avec votre politique",
+      value: "v=DMARC1; p=none;",
+      description: "Politique de surveillance (mode permissif recommandé au début)",
+      howTo: "Commencez avec p=none puis passez à p=quarantine après validation",
+      status: "configured",
     },
   ];
 
@@ -106,13 +120,27 @@ const DNSChecklist = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5 text-primary" />
-          Checklist DNS — Délivrabilité Email
+          Checklist DNS — {domain}
         </CardTitle>
         <CardDescription>
-          Vérifiez que tous les enregistrements DNS sont correctement configurés pour éviter les problèmes de livraison.
+          Vérifiez que tous les enregistrements DNS sont correctement configurés sur Cloudflare.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Troubleshooting Tips */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2 text-amber-800 font-medium">
+            <AlertTriangle className="w-4 h-4" />
+            Si le statut reste "Pending" sur Resend:
+          </div>
+          <ul className="text-sm text-amber-700 list-disc list-inside space-y-1">
+            <li>La propagation DNS peut prendre <strong>jusqu'à 24-48h</strong></li>
+            <li>Essayez de <strong>supprimer et ré-ajouter</strong> le domaine sur Resend</li>
+            <li>Vérifiez que les valeurs sont <strong>exactement identiques</strong> à celles de Resend</li>
+            <li>Assurez-vous que le proxy Cloudflare est <strong>désactivé</strong> (nuage gris) pour les enregistrements TXT</li>
+          </ul>
+        </div>
+
         {dnsRecords.map((record) => (
           <div key={record.type} className="border rounded-lg p-4 space-y-2">
             <div className="flex items-center justify-between">
@@ -139,11 +167,17 @@ const DNSChecklist = () => {
           </div>
         ))}
         
-        <div className="pt-4 border-t">
+        <div className="pt-4 border-t flex gap-2">
           <Button variant="outline" asChild>
             <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="w-4 h-4 mr-2" />
-              Ouvrir Resend Dashboard
+              Resend Dashboard
+            </a>
+          </Button>
+          <Button variant="outline" asChild>
+            <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Cloudflare DNS
             </a>
           </Button>
         </div>
