@@ -20,7 +20,7 @@ export const accountCreated = (params: BaseParams & {
   accountNumber?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, clientEmail, accountNumber, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, clientEmail, accountNumber, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -153,7 +153,7 @@ export const welcomeToNivra = (params: BaseParams & {
   accountNumber?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, accountNumber, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, accountNumber, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -248,7 +248,7 @@ export const planSummary = (params: BaseParams & {
   startDate?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, planName, planDetails, monthlyPrice, features, startDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, planName, planDetails, monthlyPrice, features, startDate, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const featuresHtml = features.map(f => `
     <tr>
@@ -321,7 +321,7 @@ export const termsAccepted = (params: BaseParams & {
   termsVersion?: string;
   termsUrl?: string;
 }): string => {
-  const { clientName, acceptedAt, termsVersion = '1.0', termsUrl = 'https://nivratelecom.ca/terms', supportEmail } = params;
+  const { clientName, acceptedAt, termsVersion = '1.0', termsUrl = 'https://nivra-telecom.ca/terms', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -369,7 +369,7 @@ export const preauthorizedPaymentConfirmed = (params: BaseParams & {
   monthlyAmount?: number;
   portalUrl?: string;
 }): string => {
-  const { clientName, paymentMethod, lastFourDigits, billingDay, monthlyAmount, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, paymentMethod, lastFourDigits, billingDay, monthlyAmount, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}

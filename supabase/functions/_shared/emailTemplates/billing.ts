@@ -34,7 +34,7 @@ export const monthlyInvoice = (params: BaseParams & {
   paymentUrl?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, invoiceNumber, invoiceDate, dueDate, services, subtotal, tpsAmount, tvqAmount, totalAmount, pdfUrl, paymentUrl, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, invoiceNumber, invoiceDate, dueDate, services, subtotal, tpsAmount, tvqAmount, totalAmount, pdfUrl, paymentUrl, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const servicesHtml = services.map(s => `
     <tr style="border-bottom: 1px solid ${colors.gray200};">
@@ -114,7 +114,7 @@ export const paymentReceipt = (params: BaseParams & {
   transactionId?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, paymentDate, amount, paymentMethod, invoiceNumber, transactionId, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, paymentDate, amount, paymentMethod, invoiceNumber, transactionId, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -170,7 +170,7 @@ export const preauthorizedPaymentSuccess = (params: BaseParams & {
   nextPaymentDate?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, paymentDate, amount, invoiceNumber, nextPaymentDate, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, paymentDate, amount, invoiceNumber, nextPaymentDate, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -221,7 +221,7 @@ export const paymentFailed = (params: BaseParams & {
   invoiceNumber?: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, amount, failureDate, failureReason, retryDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, amount, failureDate, failureReason, retryDate, invoiceNumber, paymentUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -274,7 +274,7 @@ export const paymentRetry = (params: BaseParams & {
   invoiceNumber?: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, amount, retryDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, amount, retryDate, invoiceNumber, paymentUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -320,7 +320,7 @@ export const overdueBalance = (params: BaseParams & {
   dueDate: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, overdueAmount, daysOverdue, invoiceNumber, dueDate, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, overdueAmount, daysOverdue, invoiceNumber, dueDate, paymentUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -375,7 +375,7 @@ export const suspensionWarning = (params: BaseParams & {
   invoiceNumber: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, overdueAmount, suspensionDate, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, overdueAmount, suspensionDate, invoiceNumber, paymentUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
