@@ -41,12 +41,15 @@ const resolveRedirectBaseUrl = (requestedOrigin: string | undefined): string => 
 };
 
 const pickFromEmail = (): { from: string; replyTo: string } => {
-  const supportEmailRaw = (Deno.env.get("SUPPORT_EMAIL") || "support@nivratelecom.ca").trim();
+  // Default to the primary public domain (avoid legacy domains that may not be verified at the sender).
+  const supportEmailRaw = (Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca").trim();
   const supportEmail = supportEmailRaw.toLowerCase();
   const domain = supportEmail.split("@")[1] || "";
 
-  const VERIFIED_DOMAINS = ["nivratelecom.ca", "nivra.ca", "nivra-telecom.ca"];
-  const fallback = "support@nivratelecom.ca";
+  // Only keep domains we actually want to send from.
+  // (If an unverified domain is used in the From header, the sender provider rejects the message.)
+  const VERIFIED_DOMAINS = ["nivra-telecom.ca", "nivra.ca"];
+  const fallback = "support@nivra-telecom.ca";
   const fromEmail = VERIFIED_DOMAINS.some((d) => domain.endsWith(d)) ? supportEmail : fallback;
 
   return {
@@ -392,6 +395,21 @@ serve(async (req: Request): Promise<Response> => {
     });
 
     console.log("[client-password-reset-send] Email send response:", emailResponse);
+
+    // If sender domain isn't verified, Resend rejects with 403.
+    // We keep enumeration-protection behavior (always success) but we retry with a guaranteed sender.
+    if ((emailResponse as any)?.error?.statusCode === 403) {
+      console.warn("[client-password-reset-send] Primary sender rejected, retrying with resend.dev sender");
+      const retry = await resend.emails.send({
+        from: "Nivra Télécom <onboarding@resend.dev>",
+        to: [email],
+        subject,
+        html,
+        text,
+        reply_to: replyTo,
+      });
+      console.log("[client-password-reset-send] Retry send response:", retry);
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
