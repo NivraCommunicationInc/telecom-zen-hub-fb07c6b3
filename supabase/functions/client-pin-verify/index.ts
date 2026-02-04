@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
 
 // Allowed origins whitelist (secure, not "*")
 const ALLOWED_ORIGINS = [
+  "https://nivra-telecom.ca",
+  "https://www.nivra-telecom.ca",
   "https://nivratelecom.ca",
   "https://www.nivratelecom.ca",
   "https://telecom-zen-hub.lovable.app",
