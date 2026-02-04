@@ -66,7 +66,7 @@ export const BreadcrumbSchema = ({ items, autoGenerate = true }: BreadcrumbSchem
       const pathSegments = location.pathname.split("/").filter(Boolean);
       
       // Always start with home
-      breadcrumbs.push({ name: "Accueil", url: "https://nivratelecom.com/" });
+      breadcrumbs.push({ name: "Accueil", url: "https://nivra-telecom.ca/" });
 
       // Build breadcrumb trail
       let currentPath = "";
@@ -78,7 +78,7 @@ export const BreadcrumbSchema = ({ items, autoGenerate = true }: BreadcrumbSchem
         if (index === pathSegments.length - 1) {
           breadcrumbs.push({ name: label });
         } else {
-          breadcrumbs.push({ name: label, url: `https://nivratelecom.com${currentPath}` });
+          breadcrumbs.push({ name: label, url: `https://nivra-telecom.ca${currentPath}` });
         }
       });
     }

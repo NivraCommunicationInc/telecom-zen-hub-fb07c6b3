@@ -21,7 +21,7 @@ export default defineConfig({
     // Enable dev-only E2E bypasses inside the app (never active in production builds)
     // Force a deterministic port that matches baseURL/url.
     // Note: the workflow can override VITE_E2E_TEST_EMAIL via environment variables.
-    command: `VITE_E2E_MODE=true VITE_E2E_TEST_EMAIL=${process.env.VITE_E2E_TEST_EMAIL || 'test@nivratelecom.ca'} npm run dev -- --port 8080`,
+    command: `VITE_E2E_MODE=true VITE_E2E_TEST_EMAIL=${process.env.VITE_E2E_TEST_EMAIL || 'test@nivra-telecom.ca'} npm run dev -- --port 8080`,
     url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
   },

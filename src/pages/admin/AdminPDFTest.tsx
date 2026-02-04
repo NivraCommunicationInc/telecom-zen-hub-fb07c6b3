@@ -103,7 +103,7 @@ const AdminPDFTest = () => {
               <strong>Critères à vérifier :</strong>
               <ul className="list-disc list-inside mt-1 space-y-1">
                 <li>Nom entreprise: "Nivra Telecom"</li>
-                <li>Email: Support@nivratelecom.com</li>
+                <li>Email: support@nivra-telecom.ca</li>
                 <li>Numéro de compte client visible</li>
                 <li>TOUS les services sélectionnés avec prix individuels</li>
                 <li>Rabais détaillés (préauth, promo, multi-lignes, fidélité)</li>

@@ -288,7 +288,7 @@ serve(async (req) => {
         cycle_end: cycleEndStr,
         service_count: serviceCount,
         payment_method: 'Interac e-Transfer',
-        payment_email: 'Support@nivratelecom.ca'
+        payment_email: 'support@nivra-telecom.ca'
       },
       status: "queued",
       attempts: 0,

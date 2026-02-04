@@ -393,8 +393,8 @@ async function handleToolCall(
         if (hoursUntil < 24) {
           return { 
             result: fr 
-              ? "Impossible de modifier un rendez-vous moins de 24h à l'avance. Veuillez nous contacter à support@nivratelecom.ca." 
-              : "Cannot reschedule less than 24h before. Please contact us at support@nivratelecom.ca."
+              ? "Impossible de modifier un rendez-vous moins de 24h à l'avance. Veuillez nous contacter à support@nivra-telecom.ca." 
+              : "Cannot reschedule less than 24h before. Please contact us at support@nivra-telecom.ca."
           };
         }
         
@@ -805,7 +805,7 @@ RÈGLES IMPORTANTES:
 2. Utilise les outils quand pertinent - ne devine JAMAIS les données
 3. Sois professionnel, concis et empathique
 4. Ne révèle jamais de données techniques (IDs, erreurs internes)
-5. Si tu ne peux pas aider, dirige vers support@nivratelecom.ca`
+5. Si tu ne peux pas aider, dirige vers support@nivra-telecom.ca`
       : `You are Nivra, the intelligent virtual assistant for Nivra Telecom, a prepaid telecom company in Quebec.
 
 ${isAuthenticated 
