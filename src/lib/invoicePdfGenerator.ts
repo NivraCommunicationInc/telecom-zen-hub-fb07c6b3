@@ -1029,7 +1029,7 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     doc.text("Courriel:", margin + 6, currentY + 15);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryColor);
-    doc.text("Support@nivratelecom.com", margin + 25, currentY + 15);
+    doc.text("Support@nivra-telecom.ca", margin + 25, currentY + 15);
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...darkColor);

@@ -171,7 +171,7 @@ serve(async (req: Request) => {
         type: "recovery",
         email: targetEmail!,
         options: {
-          redirectTo: `${Deno.env.get("APP_BASE_URL") || "https://nivratelecom.com"}/field-sales/reset-password`,
+          redirectTo: `${Deno.env.get("APP_BASE_URL") || "https://nivra-telecom.ca"}/field-sales/reset-password`,
         },
       });
 

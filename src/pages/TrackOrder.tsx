@@ -728,9 +728,9 @@ const TrackOrder = () => {
                         </a>
                       </Button>
                       <Button variant="outline" size="sm" asChild className="gap-2">
-                        <a href="mailto:support@nivratelecom.com">
+                        <a href="mailto:support@nivra-telecom.ca">
                           <Mail className="w-4 h-4" />
-                          support@nivratelecom.com
+                          support@nivra-telecom.ca
                         </a>
                       </Button>
                     </div>

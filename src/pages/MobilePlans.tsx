@@ -35,7 +35,7 @@ const MobilePlans = () => {
       sku: `mobile-${plan.price}`,
       category: "Mobile Prepaid Plans",
       features: plan.features,
-      url: "https://nivratelecom.com/mobile-plans",
+      url: "https://nivra-telecom.ca/mobile",
       availability: "InStock",
     })),
     [plans]

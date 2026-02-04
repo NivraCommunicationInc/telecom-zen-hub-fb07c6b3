@@ -3,10 +3,10 @@
  * Single source of truth - ONLY ONE EMAIL for partner support
  */
 
-export const PARTNER_SUPPORT_EMAIL = "Support@NivraTelecom.com";
+export const PARTNER_SUPPORT_EMAIL = "Support@nivra-telecom.ca";
 
 // App URL for absolute links
-export const PARTNER_APP_URL = import.meta.env.VITE_APP_URL || "https://nivratelecom.com";
+export const PARTNER_APP_URL = import.meta.env.VITE_APP_URL || "https://nivra-telecom.ca";
 
 // Helper to generate absolute onboarding URL
 export const getPartnerOnboardingUrl = (token: string): string => {

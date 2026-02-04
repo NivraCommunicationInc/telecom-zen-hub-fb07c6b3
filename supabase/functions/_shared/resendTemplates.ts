@@ -66,8 +66,8 @@ export type ResendTemplateKey = keyof typeof RESEND_TEMPLATES;
 
 // Default sender configuration
 export const EMAIL_SENDER = {
-  from: "Nivra Télécom <Support@nivratelecom.com>",
-  replyTo: "Support@nivratelecom.com",
+  from: "Nivra Télécom <Support@nivra-telecom.ca>",
+  replyTo: "Support@nivra-telecom.ca",
 };
 
 /**

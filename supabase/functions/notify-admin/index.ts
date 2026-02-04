@@ -10,7 +10,7 @@ import { EMAIL_SENDER, formatCurrencyForTemplate, formatDateTimeForTemplate } fr
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Admin notification email address
-const ADMIN_NOTIFICATION_EMAIL = "support@nivratelecom.com";
+const ADMIN_NOTIFICATION_EMAIL = "support@nivra-telecom.ca";
 
 // Event types that trigger admin notifications
 type NotificationEventType = 
