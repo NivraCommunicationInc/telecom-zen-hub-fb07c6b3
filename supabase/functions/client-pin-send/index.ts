@@ -21,15 +21,23 @@ function getSupportEmail(): string {
 
 function buildPrimaryFromEmail(): string {
   // Prefer a verified domain derived from SUPPORT_EMAIL.
-  // If SUPPORT_EMAIL isn't configured yet, fall back to the public domain.
+  // IMPORTANT: do NOT force the `send.` subdomain if the verified domain is the root domain.
   const support = getSupportEmail().toLowerCase();
   const supportDomain = support.split("@")[1] || "";
 
-  // Prefer the dedicated sending subdomain by default.
-  // If SUPPORT_EMAIL is already on a verified sending domain, keep it.
-  const fromDomain = supportDomain.endsWith("send.nivra-telecom.ca")
-    ? supportDomain
-    : "send.nivra-telecom.ca";
+  // Keep this list aligned with getSupportEmail()'s allowlist.
+  const VERIFIED_DOMAINS = ["nivra-telecom.ca", "send.nivra-telecom.ca", "nivra.ca"];
+
+  // Pick the best candidate domain in priority order.
+  const candidates = [
+    supportDomain,
+    "nivra-telecom.ca",
+    "send.nivra-telecom.ca",
+  ].filter(Boolean);
+
+  const fromDomain =
+    candidates.find((d) => VERIFIED_DOMAINS.some((v) => d.endsWith(v))) ||
+    "nivra-telecom.ca";
 
   return `Nivra Telecom <noreply@${fromDomain}>`;
 }
@@ -233,8 +241,11 @@ serve(async (req) => {
     }
 
     // Send email with PIN using retry logic - Professional Blue Design
+    const fromEmail = buildPrimaryFromEmail();
+    console.log(`[client-pin-send][${requestId}] Sending email from: ${fromEmail}`);
+
     const emailResult = await sendEmailWithRetry(resend, {
-      from: buildPrimaryFromEmail(),
+      from: fromEmail,
       to: [email],
       subject: "Votre code de vérification Nivra",
       html: `
