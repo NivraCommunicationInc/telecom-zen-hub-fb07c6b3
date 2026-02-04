@@ -201,11 +201,15 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/portal/auth?reset=true`;
-    const { error } = await portalSupabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
+    // IMPORTANT: We do NOT use the default auth email template.
+    // We send a branded email via backend so the client receives a professional message with a proper CTA.
+    const { error } = await portalSupabase.functions.invoke("client-password-reset-send", {
+      body: {
+        email,
+        redirect_origin: window.location.origin,
+      },
     });
-    return { error };
+    return { error: (error as unknown as Error) ?? null };
   };
 
   const updatePassword = async (newPassword: string) => {

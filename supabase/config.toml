@@ -182,3 +182,6 @@ verify_jwt = false
 
 [functions.billing-create-order-with-paypal-subscription]
 verify_jwt = false
+
+[functions.client-password-reset-send]
+verify_jwt = false
