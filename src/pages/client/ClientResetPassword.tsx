@@ -160,6 +160,9 @@ const ClientResetPassword = () => {
         throw new Error("Session expirée. Veuillez rouvrir le lien de réinitialisation depuis l'email.");
       }
 
+      // Best-effort refresh (some clients/browser contexts can end up with a stale access token).
+      await supabase.auth.refreshSession();
+
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -178,9 +181,17 @@ const ClientResetPassword = () => {
       }, 3000);
     } catch (err: any) {
       console.error("Password update error:", err);
+      const message =
+        typeof err?.message === "string" && err.message.trim()
+          ? err.message
+          : typeof err?.error_description === "string" && err.error_description.trim()
+            ? err.error_description
+            : typeof err?.error === "string" && err.error.trim()
+              ? err.error
+              : "Impossible de modifier le mot de passe.";
       toast({
         title: "Erreur",
-        description: err.message || "Impossible de modifier le mot de passe.",
+        description: message,
         variant: "destructive"
       });
     } finally {
