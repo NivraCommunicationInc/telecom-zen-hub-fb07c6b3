@@ -252,7 +252,7 @@ export const footer = (supportEmail: string): string => `
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
               <tr>
                 <td style="padding: 0 12px; white-space: nowrap;">
-                  <a href="https://nivratelecom.com/portal" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">💬&nbsp;Chat / Tickets</a>
+                  <a href="https://nivra-telecom.ca/portal" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">💬&nbsp;Chat / Tickets</a>
                 </td>
                 <td style="padding: 0 12px; white-space: nowrap;">
                   <a href="mailto:${supportEmail}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">✉️&nbsp;${supportEmail}</a>
@@ -265,11 +265,11 @@ export const footer = (supportEmail: string): string => `
           <td style="text-align: center; padding-bottom: 16px;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
               <tr>
-                <td style="padding: 0 8px;"><a href="https://nivratelecom.com" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Site web</a></td>
+                <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Site web</a></td>
                 <td style="color: ${colors.footerText};">|</td>
-                <td style="padding: 0 8px;"><a href="https://nivratelecom.com/privacy" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Confidentialité</a></td>
+                <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca/privacy" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Confidentialité</a></td>
                 <td style="color: ${colors.footerText};">|</td>
-                <td style="padding: 0 8px;"><a href="https://nivratelecom.com/terms" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Conditions</a></td>
+                <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca/terms" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Conditions</a></td>
               </tr>
             </table>
           </td>
@@ -294,7 +294,7 @@ export const helpSection = (supportEmail: string): string => `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
       <tr>
         <td style="padding: 0 8px;">
-          <a href="https://nivratelecom.com/portal" style="display: inline-block; padding: 10px 20px; background-color: ${colors.primary}; color: ${colors.white}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; white-space: nowrap;">
+          <a href="https://nivra-telecom.ca/portal" style="display: inline-block; padding: 10px 20px; background-color: ${colors.primary}; color: ${colors.white}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; white-space: nowrap;">
             💬&nbsp;Chat / Tickets
           </a>
         </td>

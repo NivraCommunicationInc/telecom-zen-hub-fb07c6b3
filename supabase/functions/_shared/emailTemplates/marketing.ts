@@ -90,7 +90,7 @@ export const discoverNivra = (params: BaseParams & {
       </table>
       
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Découvrir nos forfaits →', 'https://nivratelecom.ca/mobile', 'primary')}
+        ${button('Découvrir nos forfaits →', 'https://nivra-telecom.ca/mobile', 'primary')}
       </div>
       
       ${helpSection(supportEmail)}
@@ -133,7 +133,7 @@ export const welcomeOffer = (params: BaseParams & {
       </div>
       
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Profiter de l\'offre →', 'https://nivratelecom.ca/contact', 'success')}
+        ${button('Profiter de l\'offre →', 'https://nivra-telecom.ca/contact', 'success')}
       </div>
       
       <p style="color: ${colors.gray500}; font-size: 13px; text-align: center; margin-top: 24px;">
@@ -168,7 +168,7 @@ export const seasonalCampaign = (params: BaseParams & {
   const { 
     recipientName, campaignTitle, campaignSubtitle, bannerIcon = '🎁',
     offerTitle, offerDescription, promoCode, expiryDate,
-    ctaText = 'Profiter de l\'offre', ctaUrl = 'https://nivratelecom.ca',
+    ctaText = 'Profiter de l\'offre', ctaUrl = 'https://nivra-telecom.ca',
     supportEmail 
   } = params;
   const name = recipientName || 'Cher client';
@@ -220,7 +220,7 @@ export const abandonedCart = (params: BaseParams & {
   cartTotal?: number;
   cartUrl?: string;
 }): string => {
-  const { recipientName, cartItems = [], cartTotal, cartUrl = 'https://nivratelecom.ca/contact', supportEmail } = params;
+  const { recipientName, cartItems = [], cartTotal, cartUrl = 'https://nivra-telecom.ca/contact', supportEmail } = params;
   const name = recipientName || 'Cher client';
   
   const itemsHtml = cartItems.map(item => `
@@ -338,7 +338,7 @@ export const referralInvite = (params: BaseParams & {
   referralBenefit: string;
   referralUrl?: string;
 }): string => {
-  const { referrerName, recipientName, referralCode, referralBenefit, referralUrl = 'https://nivratelecom.ca', supportEmail } = params;
+  const { referrerName, recipientName, referralCode, referralBenefit, referralUrl = 'https://nivra-telecom.ca', supportEmail } = params;
   const name = recipientName || 'Cher ami';
   
   const content = `
@@ -386,7 +386,7 @@ export const personalizedProposal = (params: BaseParams & {
   validUntil?: string;
   portalUrl?: string;
 }): string => {
-  const { recipientName, agentName = 'L\'équipe Nivra', proposalSummary, services, totalMonthly, validUntil, portalUrl = 'https://nivratelecom.ca/contact', supportEmail } = params;
+  const { recipientName, agentName = 'L\'équipe Nivra', proposalSummary, services, totalMonthly, validUntil, portalUrl = 'https://nivra-telecom.ca/contact', supportEmail } = params;
   
   const servicesHtml = services.map(service => `
     <tr style="border-bottom: 1px solid ${colors.gray200};">

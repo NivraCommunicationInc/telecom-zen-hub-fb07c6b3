@@ -41,7 +41,7 @@ export const orderTracking = (params: BaseParams & {
   carrier?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, orderNumber, status, trackingNumber, trackingUrl, estimatedDelivery, carrier, portalUrl = 'https://nivratelecom.com/portal', supportEmail } = params;
+  const { clientName, orderNumber, status, trackingNumber, trackingUrl, estimatedDelivery, carrier, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const statusConfig = {
     processing: { icon: '📋', title: 'Commande en traitement', color: 'info' as const },
@@ -326,7 +326,7 @@ export const activationSuccess = (params: BaseParams & {
   activationDate: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, serviceName, phoneNumber, activationDate, portalUrl = 'https://nivratelecom.com/portal', supportEmail } = params;
+  const { clientName, serviceName, phoneNumber, activationDate, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -377,7 +377,7 @@ export const quickStartGuide = (params: BaseParams & {
   faqUrl?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, serviceName, steps, faqUrl = 'https://nivratelecom.com/faq', portalUrl = 'https://nivratelecom.com/portal', supportEmail } = params;
+  const { clientName, serviceName, steps, faqUrl = 'https://nivra-telecom.ca/faq', portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const stepsHtml = steps.map((step, index) => `
     <tr>

@@ -375,7 +375,7 @@ export const replacementSimShipped = (params: BaseParams & {
   estimatedDelivery?: string;
   activationGuideUrl?: string;
 }): string => {
-  const { clientName, phoneNumber, trackingNumber, carrier, estimatedDelivery, activationGuideUrl = 'https://nivratelecom.ca/activation', supportEmail } = params;
+  const { clientName, phoneNumber, trackingNumber, carrier, estimatedDelivery, activationGuideUrl = 'https://nivra-telecom.ca/activation', supportEmail } = params;
   
   const content = `
     ${header()}
