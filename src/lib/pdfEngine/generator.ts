@@ -570,7 +570,7 @@ export function generateUnifiedPDF(data: UnifiedDocumentData): jsPDF {
       [
         "IMPORTANT — FACTURATION PRÉPAYÉE (INTERAC SEULEMENT)",
         "",
-        "Paiement uniquement par virement Interac à Support@nivratelecom.com.",
+        "Paiement uniquement par virement Interac à Support@nivra-telecom.ca.",
         "Le service est activé dès réception et confirmation du paiement.",
         "",
         "Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac et dure 30 jours.",

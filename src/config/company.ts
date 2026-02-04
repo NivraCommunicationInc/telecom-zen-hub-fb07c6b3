@@ -5,8 +5,8 @@
 
 export const COMPANY_CONTACT = {
   // Support contact details
-  supportEmail: "support@nivratelecom.com",
-  supportEmailDisplay: "Support@nivratelecom.com",
+  supportEmail: "support@nivra-telecom.ca",
+  supportEmailDisplay: "Support@nivra-telecom.ca",
   // Phone removed - all support via chat/tickets
   supportPhoneDisplay: "", // Deprecated - use chat/tickets
   supportPhoneTel: "", // Deprecated - use chat/tickets  
@@ -14,8 +14,8 @@ export const COMPANY_CONTACT = {
   
   
   // E-Transfer payment info (if different from support email)
-  paymentEmail: "support@nivratelecom.com",
-  paymentEmailDisplay: "Support@nivratelecom.com",
+  paymentEmail: "support@nivra-telecom.ca",
+  paymentEmailDisplay: "Support@nivra-telecom.ca",
   
   // Company info
   companyName: "Nivra Telecom",
@@ -29,8 +29,8 @@ export const COMPANY_CONTACT = {
   country: "Canada",
   
   // Website
-  website: "www.nivratelecom.com",
-  portalUrl: "https://nivratelecom.com",
+  website: "www.nivra-telecom.ca",
+  portalUrl: "https://nivra-telecom.ca",
   
   // Service hours
   supportHours: "Lun–Ven : 9AM – 10PM | Sam–Dim : 9AM – 8PM",
@@ -42,8 +42,8 @@ export const COMPANY_CONTACT = {
   serviceTerritory: "Province of Québec only",
   
   // From email for transactional emails
-  fromEmail: "Nivra Telecom <support@nivratelecom.com>",
-  replyToEmail: "support@nivratelecom.com",
+  fromEmail: "Nivra Telecom <support@nivra-telecom.ca>",
+  replyToEmail: "support@nivra-telecom.ca",
 } as const;
 
 // Helper functions for generating links

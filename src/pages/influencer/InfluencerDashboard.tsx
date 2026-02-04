@@ -134,7 +134,7 @@ const InfluencerDashboard = () => {
     toast.success("Copié!");
   };
 
-  const shareLink = primaryCode ? `https://nivratelecom.com/?ref=${primaryCode.code}` : "";
+  const shareLink = primaryCode ? `https://nivra-telecom.ca/?ref=${primaryCode.code}` : "";
 
   const canRequestCashout = (balance?.available || 0) >= (settings?.min_cashout_amount || 50);
 

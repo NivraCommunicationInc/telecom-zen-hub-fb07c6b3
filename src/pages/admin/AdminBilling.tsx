@@ -98,7 +98,7 @@ const generatePaymentReference = () => {
 
 // E-transfer payment info for clients
 const ETRANSFER_INFO = {
-  email: "Support@nivratelecom.com",
+  email: "Support@nivra-telecom.ca",
   question: "Nom du client ou nom de l'entreprise",
   answer: "Le nom complet du client ou le nom de l'entreprise",
 };

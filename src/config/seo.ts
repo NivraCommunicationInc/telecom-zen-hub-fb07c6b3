@@ -9,7 +9,7 @@
  * 
  * 1. Go to: https://search.google.com/search-console
  * 2. Click "Add property" → Select "URL prefix"
- * 3. Enter: https://nivratelecom.com
+ * 3. Enter: https://nivra-telecom.ca
  * 4. Choose "HTML tag" verification method
  * 5. Copy the content value from the meta tag Google provides:
  *    <meta name="google-site-verification" content="COPY_THIS_CODE" />
@@ -33,7 +33,7 @@ export const SEO_CONFIG = {
    * Base URL for canonical URLs and sitemaps
    * Must match the production domain exactly
    */
-  baseUrl: "https://nivratelecom.com",
+  baseUrl: "https://nivra-telecom.ca",
   
   /**
    * Default Open Graph image (1200x630 recommended)
