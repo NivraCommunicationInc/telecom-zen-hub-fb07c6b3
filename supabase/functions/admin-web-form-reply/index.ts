@@ -189,9 +189,9 @@ serve(async (req) => {
 </body>
 </html>`;
 
-          const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivratelecom.ca";
+          const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca";
           const replyTo = replyToken
-            ? `webform+${replyToken}@nivratelecom.ca`
+            ? `webform+${replyToken}@nivra-telecom.ca`
             : supportEmail;
 
           const emailResult = await resend.emails.send({

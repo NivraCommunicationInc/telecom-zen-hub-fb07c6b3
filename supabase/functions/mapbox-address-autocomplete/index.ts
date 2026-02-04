@@ -11,11 +11,11 @@ type MapboxRequestBody = {
 
 const getAllowedOrigin = (origin: string | null): string => {
   const o = origin ?? "";
-  if (!o) return "https://nivratelecom.ca";
+  if (!o) return "https://nivra-telecom.ca";
 
   const allowedExact = new Set([
-    "https://nivratelecom.ca",
-    "https://www.nivratelecom.ca",
+    "https://nivra-telecom.ca",
+    "https://www.nivra-telecom.ca",
   ]);
 
   if (allowedExact.has(o)) return o;
@@ -28,7 +28,7 @@ const getAllowedOrigin = (origin: string | null): string => {
   if (o.startsWith("http://localhost:")) return o;
 
   // Fallback (do NOT reflect unknown origins)
-  return "https://nivratelecom.ca";
+  return "https://nivra-telecom.ca";
 };
 
 const buildCorsHeaders = (origin: string | null): Record<string, string> => {

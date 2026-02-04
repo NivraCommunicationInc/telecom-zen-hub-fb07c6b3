@@ -452,7 +452,7 @@ export const feedbackRequest = (params: BaseParams & {
   clientName: string;
   feedbackUrl?: string;
 }): string => {
-  const { clientName, feedbackUrl = 'https://nivratelecom.ca/feedback', supportEmail } = params;
+  const { clientName, feedbackUrl = 'https://nivra-telecom.ca/feedback', supportEmail } = params;
   
   const content = `
     ${header()}

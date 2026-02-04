@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
  * 
  * Verifies that invoice UI displays correct contact information:
  * - Phone: 438-544-2233
- * - Email: Support@nivratelecom.ca
+ * - Email: Support@nivra-telecom.ca
  * - Address: 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
  * 
  * Also ensures no forbidden contact strings appear (1-800, 1-888).
@@ -32,7 +32,7 @@ test.describe("Invoice Contact Information", () => {
     await expect(footerEmail).toBeVisible();
     // Email should contain either format
     const emailText = await footerEmail.textContent();
-    expect(emailText?.toLowerCase()).toContain("support@nivratelecom.ca");
+    expect(emailText?.toLowerCase()).toContain("support@nivra-telecom.ca");
     
     // Check footer address
     const footerAddress = page.locator('[data-testid="footer-address"]');

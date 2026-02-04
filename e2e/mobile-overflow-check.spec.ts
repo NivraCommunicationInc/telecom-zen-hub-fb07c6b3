@@ -28,7 +28,7 @@ function logLine(line: string) {
 }
 
 // Test user credentials - use environment variables or fallback to test account
-const TEST_EMAIL = process.env.TEST_CLIENT_EMAIL || 'test@nivratelecom.ca';
+const TEST_EMAIL = process.env.TEST_CLIENT_EMAIL || 'test@nivra-telecom.ca';
 const TEST_PASSWORD = process.env.TEST_CLIENT_PASSWORD || 'TestPassword123!';
 
 interface OverflowResult {

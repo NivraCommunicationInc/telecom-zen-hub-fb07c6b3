@@ -491,8 +491,8 @@ async function handleToolCall(
           if (balance < 0) {
             return { 
               result: fr
-                ? `💳 **Solde à payer:** ${Math.abs(balance).toFixed(2)} $\n📄 Factures impayées: ${outstandingInvoices}\n\nPour payer, accédez à votre espace client ou envoyez un virement Interac à support@nivratelecom.ca`
-                : `💳 **Amount Due:** $${Math.abs(balance).toFixed(2)}\n📄 Unpaid invoices: ${outstandingInvoices}\n\nTo pay, access your client portal or send an Interac transfer to support@nivratelecom.ca`
+                ? `💳 **Solde à payer:** ${Math.abs(balance).toFixed(2)} $\n📄 Factures impayées: ${outstandingInvoices}\n\nPour payer, accédez à votre espace client ou envoyez un virement Interac à support@nivra-telecom.ca`
+                : `💳 **Amount Due:** $${Math.abs(balance).toFixed(2)}\n📄 Unpaid invoices: ${outstandingInvoices}\n\nTo pay, access your client portal or send an Interac transfer to support@nivra-telecom.ca`
             };
           } else if (balance > 0) {
             return { 
@@ -837,7 +837,7 @@ IMPORTANT RULES:
 2. Use tools when relevant - NEVER guess data
 3. Be professional, concise and empathetic
 4. Never reveal technical data (IDs, internal errors)
-5. If you can't help, direct to support@nivratelecom.ca`;
+5. If you can't help, direct to support@nivra-telecom.ca`;
 
     // Build messages with conversation history
     const messages: Array<{ role: string; content: string }> = [

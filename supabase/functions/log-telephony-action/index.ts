@@ -1,8 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
-  "https://nivratelecom.ca",
-  "https://www.nivratelecom.ca",
+  "https://nivra-telecom.ca",
+  "https://www.nivra-telecom.ca",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -22,7 +22,7 @@ function isAllowedOrigin(origin: string | null): boolean {
 function corsHeaders(origin: string | null): Record<string, string> {
   const allowed = isAllowedOrigin(origin);
   return {
-    "Access-Control-Allow-Origin": allowed && origin ? origin : "https://nivratelecom.ca",
+    "Access-Control-Allow-Origin": allowed && origin ? origin : "https://nivra-telecom.ca",
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",

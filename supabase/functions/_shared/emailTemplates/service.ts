@@ -23,7 +23,7 @@ export const cancellationRequestReceived = (params: BaseParams & {
   cancellationReason?: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, serviceName, requestDate, effectiveDate, requestNumber, cancellationReason, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, serviceName, requestDate, effectiveDate, requestNumber, cancellationReason, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -80,7 +80,7 @@ export const serviceCancelled = (params: BaseParams & {
   refundAmount?: number;
   feedbackUrl?: string;
 }): string => {
-  const { clientName, serviceName, cancellationDate, finalBillAmount, refundAmount, feedbackUrl = 'https://nivratelecom.ca/feedback', supportEmail } = params;
+  const { clientName, serviceName, cancellationDate, finalBillAmount, refundAmount, feedbackUrl = 'https://nivra-telecom.ca/feedback', supportEmail } = params;
   
   const content = `
     ${header()}

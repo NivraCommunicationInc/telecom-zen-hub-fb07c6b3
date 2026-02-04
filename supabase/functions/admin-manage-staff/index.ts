@@ -802,7 +802,7 @@ serve(async (req: Request) => {
                     <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
                     <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">1799 Av. Pierre-Péladeau, Laval, QC</p>
                     <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
-                      <a href="mailto:support@nivratelecom.ca" style="color: #0d9488; text-decoration: none;">support@nivratelecom.ca</a> | 
+                      <a href="mailto:support@nivra-telecom.ca" style="color: #0d9488; text-decoration: none;">support@nivra-telecom.ca</a> | 
                       <a href="tel:4385442233" style="color: #0d9488; text-decoration: none; white-space: nowrap;">438-544-2233</a>
                     </p>
                   </div>
@@ -1060,8 +1060,8 @@ serve(async (req: Request) => {
           
           const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
           await resend.emails.send({
-            from: "Nivra Telecom <support@nivratelecom.ca>",
-            reply_to: "support@nivratelecom.ca",
+            from: "Nivra Telecom <support@nivra-telecom.ca>",
+            reply_to: "support@nivra-telecom.ca",
             to: [normalizedTargetEmail],
             subject: "Configuration de votre PIN - Nivra",
             html: `
@@ -1141,8 +1141,8 @@ serve(async (req: Request) => {
 
           const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
           const resendResult = await resend.emails.send({
-            from: "Nivra Telecom <support@nivratelecom.ca>",
-            reply_to: "support@nivratelecom.ca",
+            from: "Nivra Telecom <support@nivra-telecom.ca>",
+            reply_to: "support@nivra-telecom.ca",
             to: [email],
             subject: "Réinitialisation de votre mot de passe - Nivra",
             html: `
@@ -1290,8 +1290,8 @@ serve(async (req: Request) => {
         
         const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
         await resend.emails.send({
-          from: "Nivra Telecom <support@nivratelecom.ca>",
-          reply_to: "support@nivratelecom.ca",
+          from: "Nivra Telecom <support@nivra-telecom.ca>",
+          reply_to: "support@nivra-telecom.ca",
           to: [normalizedEmail],
           subject: "Configuration de votre PIN - Nivra",
           html: `
@@ -2468,8 +2468,8 @@ serve(async (req: Request) => {
 
           const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
           await resend.emails.send({
-            from: "Nivra Telecom <support@nivratelecom.ca>",
-            reply_to: "support@nivratelecom.ca",
+            from: "Nivra Telecom <support@nivra-telecom.ca>",
+            reply_to: "support@nivra-telecom.ca",
             to: [normalizedEmail],
             subject: "Réinitialisation de votre mot de passe - Nivra",
             html: `

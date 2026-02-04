@@ -50,7 +50,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.ca";
+    const baseUrl = Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca";
 
     const body: CreateSubscriptionRequest = await req.json();
     console.log("[PayPal] Creating subscription plan for:", body.plan_name);

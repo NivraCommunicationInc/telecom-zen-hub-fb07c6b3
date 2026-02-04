@@ -74,7 +74,7 @@ const joinUrl = (baseUrl: string, path: string): string => {
 
 // Professional email wrapper with header and footer
 const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string) => {
-  const email = supportEmail || "Support@nivratelecom.ca";
+  const email = supportEmail || "Support@nivra-telecom.ca";
   
   
   return `
@@ -1558,7 +1558,7 @@ Deno.serve(async (req) => {
       }
     }
   } else {
-    console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivratelecom.ca");
+    console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivra-telecom.ca");
   }
 
   if (!resendApiKey) {
@@ -1754,7 +1754,7 @@ Deno.serve(async (req) => {
         const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
 
         // DOMAIN VALIDATION: Only allow verified Resend domains
-        const ALLOWED_DOMAINS = ['nivratelecom.ca', 'nivra.ca'];
+        const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca'];
         const fromDomain = emailFromAddress.split('@')[1]?.toLowerCase();
         
         if (!fromDomain || !ALLOWED_DOMAINS.some(d => fromDomain.endsWith(d))) {

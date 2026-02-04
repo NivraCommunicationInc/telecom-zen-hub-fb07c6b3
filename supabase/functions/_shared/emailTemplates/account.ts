@@ -220,7 +220,7 @@ export const passwordChanged = (params: BaseParams & {
   changedAt: string;
   contactUrl?: string;
 }): string => {
-  const { clientName, changedAt, contactUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, changedAt, contactUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}
@@ -270,7 +270,7 @@ export const suspiciousLogin = (params: BaseParams & {
   device?: string;
   secureAccountUrl?: string;
 }): string => {
-  const { clientName, loginTime, ipAddress, location, device, secureAccountUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, loginTime, ipAddress, location, device, secureAccountUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}

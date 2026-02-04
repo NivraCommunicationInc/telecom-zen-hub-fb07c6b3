@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
     console.log(`[${requestId}] Event: ${event_type}, Ticket: ${ticket_number}`);
 
-    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivra-telecom.ca";
     const firstName = client_name?.split(" ")[0] || "Client";
 
     // Map event type to template key

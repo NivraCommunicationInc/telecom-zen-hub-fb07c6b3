@@ -48,7 +48,7 @@ jobs:
           fi
 
           # Generate a unique, disposable test user for this run
-          E2E_EMAIL="e2e+${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@nivratelecom.ca"
+          E2E_EMAIL="e2e+${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@nivra-telecom.ca"
           E2E_PASSWORD="Pw!${GITHUB_RUN_ID}${GITHUB_RUN_ATTEMPT}Aa1"
 
           echo "TEST_CLIENT_EMAIL=$E2E_EMAIL" >> "$GITHUB_ENV"

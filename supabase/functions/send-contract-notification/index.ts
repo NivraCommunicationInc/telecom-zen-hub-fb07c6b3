@@ -42,7 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivra-telecom.ca";
 
     // Queue email for processing by process-email-queue
     const { error: queueError } = await supabase.from("email_queue").insert({
