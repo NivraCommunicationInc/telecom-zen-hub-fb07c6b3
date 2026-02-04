@@ -185,7 +185,7 @@ export async function sendSmsNotification(notification: SmsNotification): Promis
 const SMS_FOOTER = `
 Nivra Telecom
 Laval, QC, Canada
-Support@nivratelecom.ca
+ Support@nivra-telecom.ca
 Vous recevez ce texto suite à une action sur votre compte Nivra Telecom.
 You are receiving this text because of an action on your Nivra Telecom account.`;
 
@@ -238,7 +238,7 @@ Bonjour ${params.clientName},
 Votre installation est terminée avec succès.
 Vos services sont maintenant actifs.
 
-Accédez à votre espace client: nivratelecom.ca/portal
+ Accédez à votre espace client: nivra-telecom.ca/portal
 ${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
@@ -262,7 +262,7 @@ Bonjour ${params.clientName},
 
 Rappel: Un solde de ${params.amount} est dû sur votre compte${params.dueDate ? ` depuis le ${params.dueDate}` : ''}.
 
-Pour éviter une interruption de service, veuillez effectuer votre paiement: nivratelecom.ca/portal
+ Pour éviter une interruption de service, veuillez effectuer votre paiement: nivra-telecom.ca/portal
 ${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
@@ -275,7 +275,7 @@ Bonjour ${params.clientName},
 
 Votre service ${params.serviceName} est maintenant actif.
 
-Gérez votre compte: nivratelecom.ca/portal
+ Gérez votre compte: nivra-telecom.ca/portal
 ${SMS_FOOTER}`,
 
   serviceSuspended: (params: { clientName: string; serviceName: string }) =>
@@ -285,7 +285,7 @@ Bonjour ${params.clientName},
 
 Votre service ${params.serviceName} a été temporairement suspendu.
 
-Contactez-nous pour rétablir votre service: Support@nivratelecom.ca
+ Contactez-nous pour rétablir votre service: Support@nivra-telecom.ca
 ${SMS_FOOTER}`,
 
   // ═══════════════════════════════════════════
@@ -338,7 +338,7 @@ Bonjour ${params.clientName},
 Mise à jour de votre ticket ${params.ticketNumber}.
 Nouveau statut: ${params.statusLabel}
 
-Consultez les détails: nivratelecom.ca/portal
+ Consultez les détails: nivra-telecom.ca/portal
 ${SMS_FOOTER}`,
 
   ticketResolved: (params: { clientName: string; ticketNumber: string }) =>
@@ -383,7 +383,7 @@ Bonjour ${params.clientName},
 Le transfert de ${params.phoneNumber} nécessite votre attention.${params.reason ? `
 Raison: ${params.reason}` : ''}
 
-Contactez-nous: Support@nivratelecom.ca
+ Contactez-nous: Support@nivra-telecom.ca
 ${SMS_FOOTER}`,
 };
 

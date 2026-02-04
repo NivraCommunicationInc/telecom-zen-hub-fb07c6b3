@@ -136,7 +136,7 @@ J+5 après due_date: subscription.status = 'cancelled'
 ## Paiement
 
 **Méthode unique: Interac e-Transfer**
-- Email: `Support@nivratelecom.ca`
+- Email: `Support@nivra-telecom.ca`
 - Aucune carte de crédit
 - Aucun prélèvement automatique
 - Confirmation manuelle par admin requise
@@ -163,4 +163,4 @@ La fonction `billing-migrate-clients` migre les clients existants:
 ## Contact
 
 Nivra Telecom - Support technique
-Email: Support@nivratelecom.ca
+Email: Support@nivra-telecom.ca

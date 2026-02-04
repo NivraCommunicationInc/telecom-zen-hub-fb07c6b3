@@ -7,8 +7,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ALLOWED_ORIGINS = [
   "https://nivra-telecom.ca",
   "https://www.nivra-telecom.ca",
-  "https://nivratelecom.com",
-  "https://www.nivratelecom.com",
   "https://telecom-zen-hub.lovable.app",
 ];
 

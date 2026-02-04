@@ -30,7 +30,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * - Le trigger SQL recalcule automatiquement les vraies dates de cycle
  * 
  * PAIEMENT:
- * - Interac e-Transfer UNIQUEMENT vers Support@nivratelecom.ca
+ * - Interac e-Transfer UNIQUEMENT vers Support@nivra-telecom.ca
  * - Aucune carte de crédit, aucun prélèvement automatique
  * 
  * @author Nivra Telecom

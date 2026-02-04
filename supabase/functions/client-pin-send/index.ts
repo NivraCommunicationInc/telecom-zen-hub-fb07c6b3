@@ -6,8 +6,6 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 const ALLOWED_ORIGINS = [
   "https://nivra-telecom.ca",
   "https://www.nivra-telecom.ca",
-  "https://nivratelecom.com",
-  "https://www.nivratelecom.com",
   "https://telecom-zen-hub.lovable.app",
 ];
 

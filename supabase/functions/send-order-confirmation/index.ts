@@ -558,15 +558,15 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
                     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                       <tr>
                         <td style="padding: 0 8px;">
-                          <a href="https://nivratelecom.ca" style="color: #64748b; font-size: 12px; text-decoration: none;">Site web</a>
+                          <a href="https://nivra-telecom.ca" style="color: #64748b; font-size: 12px; text-decoration: none;">Site web</a>
                         </td>
                         <td style="color: #475569; padding: 0 8px;">|</td>
                         <td style="padding: 0 8px;">
-                          <a href="https://nivratelecom.ca/privacy" style="color: #64748b; font-size: 12px; text-decoration: none;">Confidentialité</a>
+                          <a href="https://nivra-telecom.ca/privacy" style="color: #64748b; font-size: 12px; text-decoration: none;">Confidentialité</a>
                         </td>
                         <td style="color: #475569; padding: 0 8px;">|</td>
                         <td style="padding: 0 8px;">
-                          <a href="https://nivratelecom.ca/terms" style="color: #64748b; font-size: 12px; text-decoration: none;">Conditions</a>
+                          <a href="https://nivra-telecom.ca/terms" style="color: #64748b; font-size: 12px; text-decoration: none;">Conditions</a>
                         </td>
                       </tr>
                     </table>
@@ -576,7 +576,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
                   <td style="border-top: 1px solid #1e293b; padding-top: 20px; text-align: center;">
                     <p style="color: #64748b; font-size: 11px; line-height: 1.6; margin: 0;">
                       © ${new Date().getFullYear()} Nivra Télécom Inc. Tous droits réservés.<br>
-                      Cet email a été envoyé suite à votre commande sur nivratelecom.ca<br>
+                      Cet email a été envoyé suite à votre commande sur nivra-telecom.ca<br>
                       <span style="color: #475569;">NEQ: 1234567890</span>
                     </p>
                   </td>
@@ -721,7 +721,7 @@ Deno.serve(async (req) => {
     const finalTps = providedTps ?? taxes.tps;
     const finalTvq = providedTvq ?? taxes.tvq;
 
-    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivratelecom.ca";
+    const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivra-telecom.ca";
 
     console.log(`[${requestId}] Queueing email via email_queue...`);
 

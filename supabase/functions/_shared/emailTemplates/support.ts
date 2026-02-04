@@ -23,7 +23,7 @@ export const ticketCreated = (params: BaseParams & {
   createdAt: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, ticketNumber, subject, category, priority, createdAt, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, ticketNumber, subject, category, priority, createdAt, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const priorityColors: Record<string, { bg: string; text: string }> = {
     'urgent': { bg: colors.errorBg, text: colors.error },
@@ -93,7 +93,7 @@ export const ticketUpdated = (params: BaseParams & {
   updatedAt: string;
   portalUrl?: string;
 }): string => {
-  const { clientName, ticketNumber, subject, updateMessage, updatedBy, updatedAt, portalUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, ticketNumber, subject, updateMessage, updatedBy, updatedAt, portalUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}

@@ -431,7 +431,7 @@ export const serviceSuspended = (params: BaseParams & {
   invoiceNumber: string;
   paymentUrl?: string;
 }): string => {
-  const { clientName, suspendedDate, overdueAmount, invoiceNumber, paymentUrl = 'https://nivratelecom.ca/portal', supportEmail } = params;
+  const { clientName, suspendedDate, overdueAmount, invoiceNumber, paymentUrl = 'https://nivra-telecom.ca/portal', supportEmail } = params;
   
   const content = `
     ${header()}

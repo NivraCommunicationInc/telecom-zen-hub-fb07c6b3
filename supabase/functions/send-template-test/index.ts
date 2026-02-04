@@ -57,7 +57,7 @@ const joinUrl = (baseUrl: string, path: string): string => {
 };
 
 const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string, supportPhone?: string) => {
-  const email = supportEmail || "Support@nivratelecom.ca";
+  const email = supportEmail || "Support@nivra-telecom.ca";
   const phone = supportPhone || "438-544-2233";
   const phoneDigits = phone.replace(/[^0-9]/g, "");
 
@@ -587,7 +587,7 @@ Deno.serve(async (req) => {
       }
     }
   } else {
-    console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivratelecom.ca");
+    console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivra-telecom.ca");
   }
 
   const emailConfig: EmailConfig = {

@@ -304,8 +304,8 @@ async function sendEmail(apiKey: string, params: { to: string; subject: string; 
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: "Nivra Télécom <marketing@nivratelecom.ca>",
-      reply_to: "support@nivratelecom.ca",
+      from: "Nivra Télécom <marketing@nivra-telecom.ca>",
+      reply_to: "support@nivra-telecom.ca",
       to: [params.to],
       subject: params.subject,
       html: params.html,

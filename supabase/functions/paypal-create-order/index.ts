@@ -170,8 +170,8 @@ serve(async (req) => {
         landing_page: "NO_PREFERENCE",
         user_action: "PAY_NOW",
         shipping_preference: body.customer?.address ? "SET_PROVIDED_ADDRESS" : "NO_SHIPPING",
-        return_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.ca"}/portal/payment-success`,
-        cancel_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivratelecom.ca"}/portal/payment-cancelled`,
+        return_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca"}/portal/payment-success`,
+        cancel_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca"}/portal/payment-cancelled`,
       },
     };
     
