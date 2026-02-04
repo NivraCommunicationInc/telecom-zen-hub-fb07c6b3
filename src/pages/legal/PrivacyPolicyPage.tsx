@@ -29,8 +29,8 @@ const PrivacyPolicyPage = () => {
                   </p>
                   <p>
                     <strong>Responsable de la protection des renseignements personnels :</strong> Nivra Communication –{" "}
-                    <a href="mailto:Support@nivratelecom.com" className="text-primary hover:underline">
-                      Support@nivratelecom.com
+                    <a href="mailto:support@nivra-telecom.ca" className="text-primary hover:underline">
+                      support@nivra-telecom.ca
                     </a>
                   </p>
                 </section>
@@ -104,8 +104,8 @@ const PrivacyPolicyPage = () => {
                   <h2 className="text-2xl font-display font-bold text-foreground">2.9 Tes droits</h2>
                   <p>
                     Tu peux demander l'accès, la correction, et la suppression lorsque applicable. Pour exercer tes droits :{" "}
-                    <a href="mailto:Support@nivratelecom.com" className="text-primary hover:underline">
-                      Support@nivratelecom.com
+                    <a href="mailto:support@nivra-telecom.ca" className="text-primary hover:underline">
+                      support@nivra-telecom.ca
                     </a>.
                   </p>
                 </section>
@@ -125,8 +125,8 @@ const PrivacyPolicyPage = () => {
                   </p>
                   <p>
                     <strong>Personal Information Protection Officer:</strong> Nivra Communication –{" "}
-                    <a href="mailto:Support@nivratelecom.com" className="text-primary hover:underline">
-                      Support@nivratelecom.com
+                    <a href="mailto:support@nivra-telecom.ca" className="text-primary hover:underline">
+                      support@nivra-telecom.ca
                     </a>
                   </p>
                 </section>

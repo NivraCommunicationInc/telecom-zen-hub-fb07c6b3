@@ -544,7 +544,7 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   // Section 1: Parties, portée et définitions
   addSectionHeader("1", "Parties, portée et définitions");
   addParagraph("Le présent contrat est conclu entre Nivra Communications Inc. (« Nivra ») et le client identifié au contrat (« Client »).");
-  addParagraph("Coordonnées support : Support@nivratelecom.com");
+  addParagraph("Coordonnées support : support@nivra-telecom.ca");
 
   addSubHeader("Définitions");
   addParagraph("Services : téléphonie, Internet, télévision, sécurité et services connexes fournis par Nivra.");
@@ -606,11 +606,11 @@ export const generatePrepaidContractPDF = (data: PrepaidContractData): jsPDF => 
   addParagraph("Validation d'identité. Une pièce d'identité valide avec photo peut être exigée (permis de conduire, passeport, carte d'assurance maladie du Québec selon restrictions). Vérification possible via portail sécurisé.");
   addParagraph("NIP. Un NIP de sécurité à 4 chiffres est obligatoire. Le Client peut désigner un utilisateur autorisé. Le Client est responsable de la confidentialité du NIP.");
   addParagraph("Protection des renseignements personnels. Nivra protège les renseignements personnels conformément aux lois applicables (PIPEDA, Loi 25). Les données sont utilisées pour fournir/gérer les services, la facturation, le support et la prévention de fraude.");
-  addParagraph("Avertissement. Nivra ne demandera jamais le NAS ni des informations complètes de carte de crédit par courriel/téléphone. Signalez toute tentative suspecte à Support@nivratelecom.com.");
+  addParagraph("Avertissement. Nivra ne demandera jamais le NAS ni des informations complètes de carte de crédit par courriel/téléphone. Signalez toute tentative suspecte à support@nivra-telecom.ca.");
 
   // Section 10: Plaintes, CRTC et recours externe
   addSectionHeader("10", "Plaintes, CRTC et recours externe");
-  addParagraph("Plainte interne. Le Client doit d'abord contacter Nivra via Support@nivratelecom.com et/ou le portail client.");
+  addParagraph("Plainte interne. Le Client doit d'abord contacter Nivra via support@nivra-telecom.ca et/ou le portail client.");
   addParagraph("Recours externe (CCTS). Si le problème n'est pas résolu avec Nivra, le Client peut déposer une plainte auprès de la Commission for Complaints for Telecom-television Services (CCTS), organisme indépendant de résolution de plaintes pour services télécom/Internet/TV au Canada.");
   addParagraph("Cadre de protection (CRTC). Selon le service, les codes de protection applicables incluent notamment le Wireless Code et l'Internet Code de la CRTC, utilisés dans le traitement des plaintes.");
 

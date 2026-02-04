@@ -54,8 +54,8 @@ const MobilePlans = () => {
       <SEOHead {...SEO_DATA.mobile} />
       <ProductSchema products={productSchemaItems} isService={true} />
       <BreadcrumbSchema items={[
-        { name: "Accueil", url: "https://nivratelecom.com/" },
-        { name: "Services", url: "https://nivratelecom.com/services" },
+        { name: "Accueil", url: "https://nivra-telecom.ca/" },
+        { name: "Services", url: "https://nivra-telecom.ca/services" },
         { name: "Forfaits Mobile" }
       ]} />
       <Header />

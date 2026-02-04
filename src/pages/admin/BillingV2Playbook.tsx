@@ -110,7 +110,7 @@ const BillingV2Playbook = () => {
                   <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
                     <h4 className="font-semibold mb-2">Étapes pour confirmer un paiement:</h4>
                     <ol className="list-decimal list-inside space-y-2">
-                      <li>Vérifier la réception du virement Interac sur <strong>Support@nivratelecom.com</strong></li>
+                      <li>Vérifier la réception du virement Interac sur <strong>support@nivra-telecom.ca</strong></li>
                       <li>Noter le nom de l'expéditeur et le montant reçu</li>
                       <li>Aller dans <strong>/admin/billing-v2</strong> → Onglet "Factures"</li>
                       <li>Rechercher la facture par numéro ou email client</li>
@@ -291,7 +291,7 @@ const BillingV2Playbook = () => {
                     <div>
                       <h4 className="font-semibold">Client dit avoir payé mais facture pending:</h4>
                       <ul className="list-disc list-inside ml-4">
-                        <li>Vérifier la boîte Interac sur Support@nivratelecom.com</li>
+                        <li>Vérifier la boîte Interac sur support@nivra-telecom.ca</li>
                         <li>Vérifier que le montant correspond exactement</li>
                         <li>Demander la preuve de virement au client</li>
                         <li>Marquer manuellement comme payé si confirmé</li>
@@ -335,7 +335,7 @@ const BillingV2Playbook = () => {
             <div className="bg-muted p-4 rounded-lg font-mono text-sm">
               <p className="font-semibold mb-2">Texte standard Interac dans tous les emails:</p>
               <blockquote className="border-l-4 border-primary pl-4 italic">
-                "Veuillez envoyer votre paiement par Interac e-Transfer à <strong>Support@nivratelecom.com</strong>.<br/>
+                "Veuillez envoyer votre paiement par Interac e-Transfer à <strong>support@nivra-telecom.ca</strong>.<br/>
                 Votre service sera activé dès réception et confirmation du paiement."
               </blockquote>
             </div>

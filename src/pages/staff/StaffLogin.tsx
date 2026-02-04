@@ -237,7 +237,7 @@ export default function StaffLogin() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nom@nivra.ca"
+                  placeholder="nom@nivra-telecom.ca"
                   className="bg-slate-800/60 border-slate-600/50 text-white placeholder:text-slate-400 focus:border-teal-400/50 focus:ring-teal-400/20"
                   disabled={loading}
                 />

@@ -757,8 +757,8 @@ serve(async (req: Request) => {
             // Send professional onboarding email
             const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
             await resend.emails.send({
-              from: "Nivra Telecom <support@nivratelecom.com>",
-              reply_to: "support@nivratelecom.com",
+              from: "Nivra Telecom <support@nivra-telecom.ca>",
+              reply_to: "support@nivra-telecom.ca",
               to: [email],
               subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
               html: `

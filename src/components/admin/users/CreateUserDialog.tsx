@@ -146,7 +146,7 @@ export function CreateUserDialog({
                     <FormItem>
                       <FormLabel>Email *</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" placeholder="nom@nivratelecom.com" />
+                        <Input {...field} type="email" placeholder="nom@nivra-telecom.ca" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
