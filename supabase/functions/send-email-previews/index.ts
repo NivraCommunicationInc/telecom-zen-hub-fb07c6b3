@@ -25,7 +25,7 @@ const corsHeaders = {
 
 // Default params for all templates
 const baseParams = {
-  supportEmail: "support@nivratelecom.com",
+  supportEmail: "support@nivra-telecom.ca",
 };
 
 // Sample data for templates
@@ -796,7 +796,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`📧 Sending ${i + 1}/${templates.length}: ${template.category} - ${template.name}`);
         
         const { error } = await resend.emails.send({
-          from: "Nivra Télécom <notification@nivratelecom.com>",
+          from: "Nivra Télécom <support@nivra-telecom.ca>",
           to: [targetEmail],
           subject: `[${i + 1}/${templates.length}] ${template.category} | ${template.name}`,
           html: template.html,

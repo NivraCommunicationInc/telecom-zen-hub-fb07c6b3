@@ -1,76 +1,70 @@
+# Configuration Email Nivra Telecom
 
-# Migration du domaine nivratelecom.ca vers nivratelecom.com
+## ✅ MIGRATION COMPLÈTE vers support@nivra-telecom.ca
 
-## ✅ Statut: MIGRATION TERMINÉE (Code)
-
-La migration du code est **complète**. Tous les fichiers de configuration, edge functions et templates d'emails utilisent maintenant `nivratelecom.com`.
+Toutes les références email dans le code utilisent maintenant `support@nivra-telecom.ca`.
 
 ---
 
 ## Fichiers migrés
 
 ### Configuration centrale
-- ✅ `src/config/seo.ts` - baseUrl → `.com`
-- ✅ `src/config/company.ts` - emails, website, portalUrl → `.com`
-- ✅ `public/robots.txt` - Sitemap URL → `.com` (était déjà ok)
-- ✅ `public/sitemap.xml` - Toutes les URLs → `.com` (était déjà ok)
+- ✅ `src/config/company.ts` - supportEmail, paymentEmail → `support@nivra-telecom.ca`
+- ✅ `src/config/partnerContact.ts` - PARTNER_SUPPORT_EMAIL → `Support@nivra-telecom.ca`
+- ✅ `src/config/seo.ts` - baseUrl → `nivra-telecom.ca`
 
-### Edge Functions (Emails & CORS)
-- ✅ `supabase/functions/_shared/cors.ts` - Fallback origins → `.com`
-- ✅ `supabase/functions/_shared/resendTemplates.ts` - EMAIL_SENDER → `.com`
-- ✅ `supabase/functions/client-pin-send/index.ts` - Emails + CORS → `.com`
-- ✅ `supabase/functions/notify-admin/index.ts` - Admin email → `.com`
-- ✅ `supabase/functions/notify-client-update/index.ts` - From email → `.com`
-- ✅ `supabase/functions/send-partner-invite/index.ts` - APP_URL + emails → `.com`
-- ✅ `supabase/functions/submit-web-form/index.ts` - Emails → `.com`
-- ✅ `supabase/functions/admin-manage-staff/index.ts` - APP_BASE_URL + emails → `.com`
-- ✅ `supabase/functions/auto-create-client-account/index.ts` - APP_BASE_URL → `.com`
-- ✅ `supabase/functions/billing-create-order-with-paypal-subscription/index.ts` - baseUrl → `.com`
-- ✅ `supabase/functions/staff-otp-send/index.ts` - CORS + emails → `.com`
-- ✅ `supabase/functions/staff-otp-verify/index.ts` - CORS → `.com`
-- ✅ `supabase/functions/send-communication-email/index.ts` - From email → `.com`
-- ✅ `supabase/functions/admin-set-user-password/index.ts` - redirectTo → `.com`
-- ✅ `supabase/functions/send-email-previews/index.ts` - Sample URLs + from → `.com`
+### Frontend (SEO, UI, Pages légales)
+- ✅ `src/components/LocalBusinessSchema.tsx` - Schema.org URLs → `nivra-telecom.ca`
+- ✅ `src/components/seo/BreadcrumbSchema.tsx` - URLs → `nivra-telecom.ca`
+- ✅ `src/components/seo/ProductSchema.tsx` - URLs → `nivra-telecom.ca`
+- ✅ `src/components/Footer.tsx` - Email depuis config
+- ✅ `src/pages/legal/PrivacyPolicyPage.tsx` - Email → `support@nivra-telecom.ca`
+- ✅ `src/pages/legal/TermsAndConditions.tsx` - Email → `support@nivra-telecom.ca`
+- ✅ `src/pages/client/ClientRescheduleAppointment.tsx` - Email → `support@nivra-telecom.ca`
+- ✅ `src/pages/client/ClientDocumentUpload.tsx` - Email → `support@nivra-telecom.ca`
+- ✅ `src/pages/admin/AdminAuditLog.tsx` - Placeholder → `admin@nivra-telecom.ca`
+- ✅ `src/pages/admin/AdminPDFTest.tsx` - Email → `support@nivra-telecom.ca`
+- ✅ `src/pages/admin/AdminEmailActivity.tsx` - Emails et DNS config → `nivra-telecom.ca`
+- ✅ `src/components/admin/users/CreateEmployeeDialog.tsx` - Placeholder → `@nivra-telecom.ca`
+- ✅ `src/components/admin/field-sales/CreateRepresentativeDialog.tsx` - Placeholder → `@nivra-telecom.ca`
 
-### Templates Email partagés
-- ✅ `supabase/functions/_shared/emailTemplates/orders.ts` - portalUrl defaults → `.com`
-- ✅ `supabase/functions/_shared/emailTemplates/account.ts` - contactUrl defaults → `.com`
+### PDF Generators
+- ✅ `src/lib/prepaidContractGenerator.ts` - Email → `support@nivra-telecom.ca`
+- ✅ `src/lib/fieldSalesInvoiceGenerator.ts` - Email → `support@nivra-telecom.ca`
+- ✅ `src/lib/pdfEngine/sampleData.ts` - Sample agent email → `@nivra-telecom.ca`
 
-### Frontend (SEO & UI)
-- ✅ `src/components/LocalBusinessSchema.tsx` - Schema.org URLs → `.com`
-- ✅ `src/components/seo/BreadcrumbSchema.tsx` - Breadcrumb URLs → `.com`
-- ✅ `src/pages/Contest.tsx` - Contact email → `.com`
-- ✅ `src/pages/client/ClientRescheduleAppointment.tsx` - Support email → `.com`
-- ✅ `src/pages/client/ClientAuth.tsx` - Error messages → `.com`
-- ✅ `src/pages/client/ClientInvoices.tsx` - E-Transfer info → `.com`
-- ✅ `src/pages/admin/AdminBilling.tsx` - ETRANSFER_INFO → `.com`
+### Edge Functions
+- ✅ `supabase/functions/_shared/cors.ts` - Fallback origins → `nivra-telecom.ca`
+- ✅ `supabase/functions/submit-web-form/index.ts` - Emails → `support@nivra-telecom.ca`
+- ✅ `supabase/functions/send-partner-invite/index.ts` - Emails → `support@nivra-telecom.ca`
+- ✅ `supabase/functions/send-communication-email/index.ts` - From → `communication@nivra-telecom.ca`
+- ✅ `supabase/functions/admin-manage-staff/index.ts` - APP_BASE_URL → `nivra-telecom.ca`
+- ✅ `supabase/functions/staff-otp-send/index.ts` - From → `noreply@nivra-telecom.ca`
+- ✅ `supabase/functions/client-pin-send/index.ts` - Domain → `nivra-telecom.ca`
+- ✅ `supabase/functions/send-email-previews/index.ts` - From → `support@nivra-telecom.ca`
+- ✅ `supabase/functions/process-email-queue/index.ts` - Emails → `support@nivra-telecom.ca`
+- ✅ `supabase/functions/send-template-test/index.ts` - Emails → `support@nivra-telecom.ca`
+- ✅ `supabase/functions/notify-admin-alert/index.ts` - From → `admin@nivra-telecom.ca`
+- ✅ `supabase/functions/billing-create-order/index.ts` - Payment email → `support@nivra-telecom.ca`
+- ✅ `supabase/functions/chatbot-jonathan/index.ts` - Support email → `support@nivra-telecom.ca`
 
----
-
-## ⚠️ Actions restantes (à faire manuellement)
-
-### 1. Configuration DNS (Wix)
-Dans le dashboard Wix DNS pour `nivratelecom.com`:
-- Ajouter A record `@` vers `185.158.133.1`
-- Ajouter A record `www` vers `185.158.133.1`
-- Ajouter TXT record `_lovable` avec le code de vérification Lovable
-
-### 2. Configuration Lovable (Settings > Domains)
-- Ajouter `nivratelecom.com` et `www.nivratelecom.com`
-- Attendre la propagation DNS (jusqu'à 72h)
-
-### 3. Secrets à mettre à jour (Cloud > Secrets)
-- `APP_BASE_URL` = `https://nivratelecom.com`
-- `ALLOWED_ORIGINS` = `https://nivratelecom.com,https://www.nivratelecom.com,https://telecom-zen-hub.lovable.app`
-
-### 4. Configuration email Resend
-- Vérifier/ajouter le domaine `nivratelecom.com` dans Resend
-- Configurer les DNS records (DKIM, SPF, DMARC) pour la délivrabilité
+### Tests E2E
+- ✅ `playwright.config.ts` - Test email → `test@nivra-telecom.ca`
+- ✅ `e2e/support-contact-regression.spec.ts` - Assertion → `nivra-telecom.ca`
 
 ---
 
-## Notes importantes
+## Configuration actuelle
 
-- **Emails @nivratelecom.ca**: Le code utilise maintenant `@nivratelecom.com`. Si tu récupères `.ca` plus tard, on peut facilement basculer.
-- **Réversibilité**: La migration est 100% réversible. Quand tu récupères `.ca`, je mets à jour les fichiers + tu configures les redirections.
-- **Fichiers restants avec `.ca`**: Quelques fichiers frontend (PDF generators, contrats) ont encore des références hardcodées. Non bloquant pour le fonctionnement mais à migrer éventuellement.
+### Domaine primaire
+- **Site web**: `https://nivra-telecom.ca`
+- **Email support**: `support@nivra-telecom.ca`
+
+### Resend (Email)
+- Domaine vérifié: `nivra-telecom.ca`
+- Sous-domaine d'envoi: `send.nivra-telecom.ca`
+
+### Secrets Lovable Cloud
+- `APP_BASE_URL` = `https://nivra-telecom.ca`
+- `ALLOWED_ORIGINS` = `https://nivra-telecom.ca,https://www.nivra-telecom.ca,https://telecom-zen-hub.lovable.app`
+- `SUPPORT_EMAIL` = `support@nivra-telecom.ca`

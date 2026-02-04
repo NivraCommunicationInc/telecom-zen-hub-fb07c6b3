@@ -36,9 +36,9 @@ test.describe('Support Contact Regression', () => {
     // Check footer email
     const footerEmail = page.locator('[data-testid="footer-email"]');
     await expect(footerEmail).toBeVisible();
-    // Email should contain nivratelecom.ca (case-insensitive check)
+    // Email should contain nivra-telecom.ca (case-insensitive check)
     const emailText = await footerEmail.textContent();
-    expect(emailText?.toLowerCase()).toContain('nivratelecom.ca');
+    expect(emailText?.toLowerCase()).toContain('nivra-telecom.ca');
     
     // Check footer address
     const footerAddress = page.locator('[data-testid="footer-address"]');

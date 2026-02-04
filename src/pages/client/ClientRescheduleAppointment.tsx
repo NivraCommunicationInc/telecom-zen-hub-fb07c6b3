@@ -344,7 +344,7 @@ const ClientRescheduleAppointment = () => {
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
-          <p>Besoin d'aide? Contactez-nous à support@nivratelecom.com</p>
+          <p>Besoin d'aide? Contactez-nous à support@nivra-telecom.ca</p>
         </div>
       </div>
     </div>

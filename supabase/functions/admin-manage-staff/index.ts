@@ -359,7 +359,7 @@ serve(async (req: Request) => {
     // Helper to get APP_BASE_URL
     const getAppBaseUrl = (): string => {
       const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-      let appBaseUrl = "https://nivratelecom.com";
+      let appBaseUrl = "https://nivra-telecom.ca";
       if (rawAppBaseUrl) {
         if (rawAppBaseUrl.includes(",")) {
           console.error(`[admin-manage-staff] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);

@@ -200,8 +200,8 @@ const PrivacyPolicyPage = () => {
                   <h2 className="text-2xl font-display font-bold text-foreground">2.9 Your Rights</h2>
                   <p>
                     You may request access, correction, and deletion where applicable. To exercise your rights:{" "}
-                    <a href="mailto:Support@nivratelecom.com" className="text-primary hover:underline">
-                      Support@nivratelecom.com
+                    <a href="mailto:support@nivra-telecom.ca" className="text-primary hover:underline">
+                      support@nivra-telecom.ca
                     </a>.
                   </p>
                 </section>

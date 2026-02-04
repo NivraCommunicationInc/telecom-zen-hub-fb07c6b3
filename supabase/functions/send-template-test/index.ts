@@ -565,14 +565,14 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const emailFromAddress = "Nivra Telecom <support@nivratelecom.ca>";
-  const emailReplyTo = "support@nivratelecom.ca";
-  const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "Support@nivratelecom.ca";
-  const supportPhone = Deno.env.get("SUPPORT_PHONE") || "438-544-2233";
+  const emailFromAddress = "Nivra Telecom <support@nivra-telecom.ca>";
+  const emailReplyTo = "support@nivra-telecom.ca";
+  const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca";
+  const supportPhone = Deno.env.get("SUPPORT_PHONE") || "";
 
   // Validate APP_BASE_URL - must be single valid URL, never ALLOWED_ORIGINS
   const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-  let appBaseUrl = "https://nivratelecom.ca"; // Safe default
+  let appBaseUrl = "https://nivra-telecom.ca"; // Safe default
   
   if (rawAppBaseUrl) {
     // Check for comma (multiple URLs) or invalid URL format
