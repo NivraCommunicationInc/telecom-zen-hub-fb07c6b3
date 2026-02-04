@@ -22,39 +22,98 @@ const ClientResetPassword = () => {
   const [validating, setValidating] = useState(true);
 
   useEffect(() => {
-    // Check if we have a valid session from the reset link
-    const checkSession = async () => {
+    let mounted = true;
+
+    const cleanupUrl = () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        // If there's a hash in the URL, it's a magic link from Supabase
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get("access_token");
-        const type = hashParams.get("type");
-        
-        if (accessToken && type === "recovery") {
-          // Set the session from the recovery token
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: hashParams.get("refresh_token") || ""
-          });
-          
-          if (error) {
-            setError("Le lien de réinitialisation a expiré ou est invalide.");
-          }
-        } else if (!session) {
-          setError("Aucun lien de réinitialisation valide détecté.");
-        }
-      } catch (err) {
-        console.error("Session check error:", err);
-        setError("Une erreur est survenue lors de la vérification du lien.");
-      } finally {
-        setValidating(false);
+        const url = new URL(window.location.href);
+        // Remove sensitive auth params while keeping the path.
+        url.hash = "";
+        url.searchParams.delete("code");
+        url.searchParams.delete("token_hash");
+        url.searchParams.delete("type");
+        url.searchParams.delete("redirect_to");
+        const next = `${url.pathname}${url.searchParams.toString() ? `?${url.searchParams.toString()}` : ""}`;
+        window.history.replaceState({}, document.title, next);
+      } catch {
+        // ignore
       }
     };
 
-    checkSession();
-  }, []);
+    // Listener FIRST (avoid missing PASSWORD_RECOVERY/SIGNED_IN)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session?.user) {
+        setError(null);
+        setValidating(false);
+        cleanupUrl();
+      }
+    });
+
+    const ensureRecoverySession = async () => {
+      try {
+        // 1) PKCE flow: /portal/reset-password?code=...
+        const code = searchParams.get("code");
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          cleanupUrl();
+        }
+
+        // 2) token_hash flow: /portal/reset-password?token_hash=...&type=recovery
+        const tokenHash = searchParams.get("token_hash");
+        const queryType = searchParams.get("type");
+        if (tokenHash && (queryType === "recovery" || !queryType)) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "recovery",
+          });
+          if (error) throw error;
+          cleanupUrl();
+        }
+
+        // 3) Implicit flow: /portal/reset-password#access_token=...&refresh_token=...&type=recovery
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const hashType = hashParams.get("type");
+        if (accessToken && hashType === "recovery") {
+          if (!refreshToken) {
+            throw new Error("Lien incomplet (token manquant). Veuillez rouvrir le lien depuis l'email.");
+          }
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          cleanupUrl();
+        }
+
+        // Finally, confirm we have a session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+          setError("Le lien de réinitialisation a expiré ou est invalide. Veuillez en demander un nouveau.");
+        }
+      } catch {
+        // Avoid leaking technical details; show a clear actionable message.
+        setError("Le lien de réinitialisation a expiré ou est invalide. Veuillez en demander un nouveau.");
+      } finally {
+        if (mounted) setValidating(false);
+      }
+    };
+
+    ensureRecoverySession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [searchParams]);
 
   const validatePassword = (pwd: string) => {
     const checks = {
@@ -94,6 +153,13 @@ const ClientResetPassword = () => {
     setLoading(true);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error("Session expirée. Veuillez rouvrir le lien de réinitialisation depuis l'email.");
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: password
       });
