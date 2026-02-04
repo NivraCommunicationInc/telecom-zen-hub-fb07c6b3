@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Nivra Sécurité <noreply@nivratelecom.com>",
+            from: "Nivra Sécurité <noreply@nivra-telecom.ca>",
             to: [user.email],
             subject: "Votre code de vérification Nivra",
             html: `

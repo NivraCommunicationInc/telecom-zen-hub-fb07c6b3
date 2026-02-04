@@ -99,8 +99,8 @@ const TermsAndConditions = () => {
                   <h2 className="text-2xl font-display font-bold text-foreground">3.10 Plaintes</h2>
                   <p>
                     Contacte-nous d'abord via{" "}
-                    <a href="mailto:Support@nivratelecom.com" className="text-primary hover:underline">
-                      Support@nivratelecom.com
+                    <a href="mailto:support@nivra-telecom.ca" className="text-primary hover:underline">
+                      support@nivra-telecom.ca
                     </a>. Le cas échéant, des recours externes peuvent exister selon le type de service.
                   </p>
                 </section>
@@ -190,8 +190,8 @@ const TermsAndConditions = () => {
                   <h2 className="text-2xl font-display font-bold text-foreground">3.10 Complaints</h2>
                   <p>
                     Contact us first at{" "}
-                    <a href="mailto:Support@nivratelecom.com" className="text-primary hover:underline">
-                      Support@nivratelecom.com
+                    <a href="mailto:support@nivra-telecom.ca" className="text-primary hover:underline">
+                      support@nivra-telecom.ca
                     </a>. Where applicable, external remedies may exist depending on the type of service.
                   </p>
                 </section>
