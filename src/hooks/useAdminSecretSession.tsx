@@ -71,44 +71,59 @@ export function useAdminSecretSession() {
   // Verify session with backend
   const verifySession = useCallback(async (): Promise<boolean> => {
     const stored = getStoredSession();
-    
+
     if (!stored) {
       setIsValidSession(false);
       setIsChecking(false);
       return false;
     }
 
+    // Default to local validity (token exists + not expired) and only hard-fail if backend confirms invalid.
     try {
+      setIsChecking(true);
       console.log("[useAdminSecretSession] Verifying session with backend...");
-      
+
+      // Ensure auth session is hydrated before invoking protected functions.
+      // If auth isn't ready yet (route remount), don't nuke the secret session.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn("[useAdminSecretSession] No auth session yet; accepting local secret session and will re-check later");
+        setSessionExpiresAt(new Date(stored.expiresAt));
+        setIsValidSession(true);
+        return true;
+      }
+
       const { data, error } = await supabase.functions.invoke("admin-session-check", {
-        body: { 
-          admin_user_id: stored.adminUserId, 
-          session_token: stored.token 
+        body: {
+          admin_user_id: stored.adminUserId,
+          session_token: stored.token,
         },
       });
 
       if (error) {
-        console.error("[useAdminSecretSession] Session check error:", error);
-        clearSession();
-        return false;
+        // Network/CORS/temporary backend errors must NOT log the admin out.
+        console.error("[useAdminSecretSession] Session check error (soft):", error);
+        setSessionExpiresAt(new Date(stored.expiresAt));
+        setIsValidSession(true);
+        return true;
       }
 
       if (!data?.valid) {
-        console.log("[useAdminSecretSession] Session invalid");
+        console.log("[useAdminSecretSession] Session invalid (backend confirmed)");
         clearSession();
         return false;
       }
 
       console.log("[useAdminSecretSession] Session valid, expires at:", data.expires_at);
-      setSessionExpiresAt(new Date(data.expires_at));
+      setSessionExpiresAt(new Date(data.expires_at || stored.expiresAt));
       setIsValidSession(true);
       return true;
-
     } catch (err) {
-      console.error("[useAdminSecretSession] Verify error:", err);
-      clearSession();
-      return false;
+      // Same rule: never clear on unexpected errors; keep local session and retry later.
+      console.error("[useAdminSecretSession] Verify error (soft):", err);
+      setSessionExpiresAt(new Date(stored.expiresAt));
+      setIsValidSession(true);
+      return true;
     } finally {
       setIsChecking(false);
     }
@@ -118,6 +133,24 @@ export function useAdminSecretSession() {
   useEffect(() => {
     verifySession();
   }, [verifySession]);
+
+  // Re-check when auth session becomes available (prevents /admin/login -> /admin remount race)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        clearSession();
+        return;
+      }
+
+      if (session && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        setTimeout(() => {
+          verifySession();
+        }, 0);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [verifySession, clearSession]);
 
   // Periodically check session validity (every 5 minutes)
   useEffect(() => {
