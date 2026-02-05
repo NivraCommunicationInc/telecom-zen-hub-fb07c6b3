@@ -16,6 +16,90 @@ interface SendInvoiceRequest {
   subject?: string;
 }
 
+function buildEmailHtml(): string {
+  // Keep this email template extremely compatible (inline styles, simple layout).
+  // Note: We intentionally avoid external assets/fonts for deliverability.
+  return `
+    <!DOCTYPE html>
+    <html lang="fr">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Nivra Telecom</title>
+      </head>
+      <body style="margin:0;padding:0;background:#F6F8FB;color:#0F172A;font-family:Arial,Helvetica,sans-serif;">
+        <!-- Preheader (hidden) -->
+        <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+          Votre document PDF Nivra est prêt.
+        </div>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F8FB;padding:24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:92vw;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E6EBF2;">
+                <tr>
+                  <td style="background:#0066CC;padding:18px 22px;">
+                    <div style="font-size:18px;font-weight:700;letter-spacing:0.4px;color:#ffffff;">Nivra Telecom</div>
+                    <div style="font-size:12px;opacity:0.9;color:#ffffff; margin-top:4px;">Télécom prépayée au Québec — simple, rapide, sans engagement</div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:22px;">
+                    <h1 style="margin:0 0 10px 0;font-size:18px;line-height:1.3;color:#0F172A;">Votre document PDF est joint</h1>
+                    <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#334155;">
+                      Bonjour,<br />
+                      Veuillez trouver en pièce jointe votre document au format PDF.
+                    </p>
+
+                    <div style="margin:16px 0;padding:14px 14px;border:1px solid #E6EBF2;border-radius:12px;background:#F8FAFC;">
+                      <div style="font-size:12px;color:#64748B;margin-bottom:6px;">Besoin d’aide?</div>
+                      <div style="font-size:14px;color:#0F172A;line-height:1.6;">
+                        Répondez à ce courriel ou contactez-nous à
+                        <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;text-decoration:none;font-weight:700;">support@nivra-telecom.ca</a>.
+                      </div>
+                    </div>
+
+                    <p style="margin:0;font-size:12px;line-height:1.6;color:#64748B;">
+                      Merci,<br />
+                      <strong style="color:#0F172A;">L’équipe Nivra Telecom</strong>
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:16px 22px;border-top:1px solid #E6EBF2;background:#FBFCFE;">
+                    <div style="font-size:12px;line-height:1.6;color:#64748B;">
+                      Nivra Telecom · 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5<br />
+                      <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;text-decoration:none;">support@nivra-telecom.ca</a>
+                      · <a href="https://nivra-telecom.ca" style="color:#0066CC;text-decoration:none;">nivra-telecom.ca</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+}
+
+function buildEmailText(): string {
+  return [
+    "Bonjour,",
+    "",
+    "Veuillez trouver en pièce jointe votre document au format PDF.",
+    "",
+    "Besoin d’aide? Répondez à ce courriel ou écrivez à support@nivra-telecom.ca.",
+    "",
+    "Merci,",
+    "L’équipe Nivra Telecom",
+    "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
+    "nivra-telecom.ca",
+  ].join("\n");
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("[send-invoice-preview] Request received");
 
@@ -34,54 +118,30 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Basic sanity check to avoid sending corrupted/empty attachments
+    const cleanedBase64 = String(pdfBase64).trim();
+    if (cleanedBase64.length < 1000) {
+      console.error("[send-invoice-preview] PDF base64 too small — likely corrupted");
+      return new Response(
+        JSON.stringify({ error: "PDF invalide ou corrompu (base64 trop court)." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     console.log(`[send-invoice-preview] Sending invoice to: ${to}`);
 
     const emailResponse = await resend.emails.send({
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [to],
-      subject: subject || "Nivra Telecom - Aperçu Facture V2",
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .header { background: #0066CC; color: white; padding: 20px; text-align: center; }
-            .content { padding: 30px; }
-            .footer { background: #f5f5f5; padding: 20px; text-align: center; font-size: 12px; color: #666; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 style="margin: 0;">Nivra Telecom</h1>
-          </div>
-          <div class="content">
-            <h2>Aperçu du nouveau template de facture V2</h2>
-            <p>Bonjour,</p>
-            <p>Veuillez trouver ci-joint l'aperçu du nouveau template de facture mensuelle inspiré du design professionnel Rogers.</p>
-            <p>Ce template inclut :</p>
-            <ul>
-              <li>En-tête horizontal avec logo et coordonnées</li>
-              <li>Mise en page deux colonnes (Frais totaux / Sommaire)</li>
-              <li>Tableau détaillé des services</li>
-              <li>Section signature (manuscrite ou texte)</li>
-              <li>Pied de page avec informations légales</li>
-            </ul>
-            <p>Merci de votre confiance.</p>
-            <p><strong>L'équipe Nivra Telecom</strong></p>
-          </div>
-          <div class="footer">
-            <p>Nivra Telecom | 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5</p>
-            <p>438-544-2233 | support@nivra-telecom.ca</p>
-          </div>
-        </body>
-        </html>
-      `,
+      subject: subject || "Nivra Telecom — Document PDF",
+      replyTo: "support@nivra-telecom.ca",
+      html: buildEmailHtml(),
+      text: buildEmailText(),
       attachments: [
         {
-          filename: filename || "Nivra-Facture-V2-Preview.pdf",
-          content: pdfBase64,
+          filename: filename || "Nivra-Document.pdf",
+          content: cleanedBase64,
+          contentType: "application/pdf",
         },
       ],
     });

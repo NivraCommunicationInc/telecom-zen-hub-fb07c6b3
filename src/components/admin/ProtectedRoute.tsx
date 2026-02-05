@@ -20,6 +20,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAdminVerified, setIsAdminVerified] = useState(false);
+  const [requiresCredentialUpdate, setRequiresCredentialUpdate] = useState(false);
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
 
@@ -143,7 +144,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         console.log("[AdminGuard] Checking role for user:", user.id);
         const { data: roleData, error } = await supabase
           .from("user_roles")
-          .select("role, status")
+          .select("role, status, require_password_change, require_pin_change")
           .eq("user_id", user.id)
           .eq("role", "admin")
           .maybeSingle();
@@ -155,6 +156,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           // Don't signOut on query error - might be transient
           setIsVerifying(false);
           setIsAdminVerified(false);
+          setRequiresCredentialUpdate(false);
           return;
         }
 
@@ -189,6 +191,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           // The user might have a valid session but wrong role
           setIsVerifying(false);
           setIsAdminVerified(false);
+          setRequiresCredentialUpdate(false);
           return;
         }
 
@@ -197,11 +200,15 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           console.warn("[AdminGuard] Admin account not active:", roleData.status);
           setIsVerifying(false);
           setIsAdminVerified(false);
+          setRequiresCredentialUpdate(false);
           return;
         }
 
         console.log("[AdminGuard] Role verified successfully:", roleData.role);
         setIsAdminVerified(true);
+        setRequiresCredentialUpdate(
+          !!roleData.require_password_change || !!roleData.require_pin_change
+        );
       } catch (err) {
         console.error("[AdminGuard] Admin verification error:", err);
         setIsVerifying(false);
@@ -251,6 +258,16 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   if (isSecretSessionValid === false) {
     console.log("[AdminGuard] Secret code session invalid, redirecting to login");
     return <Navigate to="/admin/login" replace />;
+  }
+
+  // If admin is verified but forced to update credentials, trap on the change screen
+  if (
+    requireAdmin &&
+    isAdminVerified &&
+    requiresCredentialUpdate &&
+    location.pathname !== "/admin/change-credentials"
+  ) {
+    return <Navigate to="/admin/change-credentials" replace />;
   }
 
   // SECURITY: Not verified as admin - show access denied + redirect away
