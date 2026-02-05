@@ -12,10 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, FileText, Eye, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, FileText, Eye, Sparkles, Mail, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { downloadInvoiceV2PDF, type InvoiceV2Data } from "@/lib/pdfEngine/invoiceTemplateV2";
+import { downloadInvoiceV2PDF, generateInvoiceV2PDF, type InvoiceV2Data } from "@/lib/pdfEngine/invoiceTemplateV2";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Sample data for preview
 const getSampleInvoiceData = (): InvoiceV2Data => ({
@@ -92,6 +93,63 @@ const AdminInvoiceV2Preview = () => {
   const [showSignatures, setShowSignatures] = useState(false);
   const [clientSignatureText, setClientSignatureText] = useState("");
   const [agentSignatureText, setAgentSignatureText] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+
+  const handleSendEmail = async (toEmail: string) => {
+    if (!toEmail) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer une adresse email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const dataToDownload: InvoiceV2Data = {
+        ...invoiceData,
+        isPaid,
+        clientSignature: showSignatures && clientSignatureText ? clientSignatureText : undefined,
+        clientSignatureType: showSignatures && clientSignatureText ? "text" : undefined,
+        clientSignedAt: showSignatures && clientSignatureText ? new Date().toISOString() : undefined,
+        agentSignature: showSignatures && agentSignatureText ? agentSignatureText : undefined,
+        agentName: showSignatures && agentSignatureText ? agentSignatureText : undefined,
+        agentSignedAt: showSignatures && agentSignatureText ? new Date().toISOString() : undefined,
+      };
+
+      // Generate PDF and get base64
+      const pdfDoc = generateInvoiceV2PDF(dataToDownload);
+      const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
+
+      // Send via edge function
+      const { data, error } = await supabase.functions.invoke('send-invoice-preview', {
+        body: {
+          to: toEmail,
+          pdfBase64,
+          filename: `Nivra-Facture-V2-${invoiceData.invoiceNumber}.pdf`,
+          subject: `Nivra Telecom - Aperçu Facture V2 (${invoiceData.invoiceNumber})`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email envoyé!",
+        description: `La facture a été envoyée à ${toEmail}`,
+      });
+    } catch (error: any) {
+      console.error("Email send error:", error);
+      toast({
+        title: "Erreur d'envoi",
+        description: error.message || "Impossible d'envoyer l'email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   const handleDownload = () => {
     try {
@@ -146,7 +204,7 @@ const AdminInvoiceV2Preview = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <Link to="/admin/pdf-test">
               <Button variant="ghost" size="icon">
@@ -164,10 +222,36 @@ const AdminInvoiceV2Preview = () => {
             </div>
           </div>
           
-          <Button onClick={handleDownload} className="gap-2">
-            <Download className="h-4 w-4" />
-            Télécharger PDF
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Email send section */}
+            <div className="flex items-center gap-2">
+              <Input
+                type="email"
+                placeholder="email@exemple.com"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+                className="w-48"
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => handleSendEmail(emailAddress)}
+                disabled={isSendingEmail}
+                className="gap-2"
+              >
+                {isSendingEmail ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
+                Envoyer
+              </Button>
+            </div>
+            
+            <Button onClick={handleDownload} className="gap-2">
+              <Download className="h-4 w-4" />
+              Télécharger PDF
+            </Button>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
