@@ -61,7 +61,7 @@
  // Type for unified payment record
  interface UnifiedPayment {
    id: string;
-  source_table: "billing_payments" | "payments" | "orders";
+  source_table: "billing_payments" | "payments" | "orders" | "activity_logs";
    method: string;
    amount: number;
    status: string;
@@ -167,10 +167,31 @@
         .from("orders")
         .select(`
           id, order_number, total_amount, payment_reference, payment_status, payment_method, 
-          status, created_at, client_email, client_name, client_phone,
+          status, created_at, client_email, client_first_name, client_last_name, client_phone,
           billing:billing(invoice_number)
         `)
         .not("payment_reference", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fallback: captures PayPal enregistrées sans lien explicite à une commande/facture
+  // (ex: le front n'a pas passé invoice_id/order_id au moment de la capture).
+  const {
+    data: paypalCaptureLogs,
+    isLoading: capturesLoading,
+    refetch: refetchCaptures,
+  } = useQuery({
+    queryKey: ["admin-paypal-capture-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("id, created_at, entity_id, details")
+        .eq("entity_type", "paypal_capture")
         .order("created_at", { ascending: false })
         .limit(500);
 
@@ -248,7 +269,8 @@
       let method = p.payment_method || "unknown";
       if (!method || method === "unknown") {
         if (p.payment_reference?.startsWith("PAYID-")) method = "paypal";
-        else if (p.payment_reference?.startsWith("NIVRA-PAY-")) method = "etransfer";
+        else if (p.payment_reference?.startsWith("NIVRA-PAY-")) method = "interac";
+        else method = "paypal";
       }
       
       // Map payment_status to unified status
@@ -258,6 +280,8 @@
       else if (p.payment_status === "refunded") status = "refunded";
       else if (p.payment_status) status = p.payment_status;
       
+      if (p.payment_reference) seenRefs.add(p.payment_reference);
+
       payments.push({
         id: p.id,
         source_table: "orders",
@@ -272,7 +296,7 @@
         invoice_number: p.billing?.[0]?.invoice_number || null,
         order_number: p.order_number,
         order_id: p.id,
-        customer_name: p.client_name,
+        customer_name: [p.client_first_name, p.client_last_name].filter(Boolean).join(" ") || null,
         customer_email: p.client_email,
         customer_id: null,
         notes: null,
@@ -281,8 +305,46 @@
       });
     });
 
-     return payments;
-  }, [billingPayments, legacyPayments, orderPayments]);
+    // Process PayPal capture logs (unlinked captures)
+    paypalCaptureLogs?.forEach((log: any) => {
+      const details = (log?.details || {}) as any;
+      const captureId = details?.capture_id ? String(details.capture_id) : null;
+      const paypalOrderId = details?.paypal_order_id ? String(details.paypal_order_id) : null;
+      const payerEmail = details?.payer_email ? String(details.payer_email) : null;
+      const amount = Number(details?.amount ?? 0);
+
+      // Dedup si déjà présent via orders/payments/billing_payments
+      if (captureId && seenRefs.has(captureId)) return;
+      if (paypalOrderId && seenRefs.has(paypalOrderId)) return;
+
+      if (captureId) seenRefs.add(captureId);
+      if (paypalOrderId) seenRefs.add(paypalOrderId);
+
+      payments.push({
+        id: log.id,
+        source_table: "activity_logs",
+        method: "paypal",
+        amount,
+        status: "confirmed",
+        reference: paypalOrderId,
+        provider: "paypal",
+        provider_payment_id: captureId,
+        source: "paypal_capture",
+        created_at: log.created_at,
+        invoice_number: null,
+        order_number: null,
+        order_id: (log.entity_id as string | null) || null,
+        customer_name: null,
+        customer_email: payerEmail,
+        customer_id: null,
+        notes: "Capture PayPal (non liée à une commande/facture)",
+        created_by_name: null,
+        error_reason: null,
+      });
+    });
+
+    return payments;
+  }, [billingPayments, legacyPayments, orderPayments, paypalCaptureLogs]);
  
    // Filter and sort
    const filteredPayments = useMemo(() => {
@@ -350,12 +412,13 @@
      };
    }, [unifiedPayments]);
  
-  const isLoading = billingLoading || legacyLoading || ordersLoading;
+  const isLoading = billingLoading || legacyLoading || ordersLoading || capturesLoading;
  
    const handleRefresh = () => {
      refetchBilling();
      refetchLegacy();
     refetchOrders();
+    refetchCaptures();
    };
  
    const toggleSort = (field: "created_at" | "amount") => {
