@@ -61,7 +61,7 @@
  // Type for unified payment record
  interface UnifiedPayment {
    id: string;
-   source_table: "billing_payments" | "payments";
+  source_table: "billing_payments" | "payments" | "orders";
    method: string;
    amount: number;
    status: string;
@@ -159,12 +159,35 @@
      },
    });
  
+  // Fetch PayPal/card payments from orders table (captured payments not in other tables)
+  const { data: orderPayments, isLoading: ordersLoading, refetch: refetchOrders } = useQuery({
+    queryKey: ["admin-order-payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          id, order_number, total_amount, payment_reference, payment_status, payment_method, 
+          status, created_at, client_email, client_name, client_phone,
+          billing:billing(invoice_number)
+        `)
+        .not("payment_reference", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
    // Unify payment data
    const unifiedPayments = useMemo<UnifiedPayment[]>(() => {
      const payments: UnifiedPayment[] = [];
+    const seenRefs = new Set<string>();
  
      // Process billing_payments
      billingPayments?.forEach((p: any) => {
+      if (p.reference) seenRefs.add(p.reference);
+      if (p.provider_payment_id) seenRefs.add(p.provider_payment_id);
        payments.push({
          id: p.id,
          source_table: "billing_payments",
@@ -190,6 +213,9 @@
  
      // Process legacy payments
      legacyPayments?.forEach((p: any) => {
+      const ref = p.reference_number || p.payment_reference;
+      if (ref) seenRefs.add(ref);
+      if (p.provider_payment_id) seenRefs.add(p.provider_payment_id);
        payments.push({
          id: p.id,
          source_table: "payments",
@@ -213,8 +239,50 @@
        });
      });
  
+    // Process order payments (PayPal, card captures not in other tables)
+    orderPayments?.forEach((p: any) => {
+      // Skip if already tracked in payments tables
+      if (p.payment_reference && seenRefs.has(p.payment_reference)) return;
+      
+      // Determine method from payment_method or payment_reference pattern
+      let method = p.payment_method || "unknown";
+      if (!method || method === "unknown") {
+        if (p.payment_reference?.startsWith("PAYID-")) method = "paypal";
+        else if (p.payment_reference?.startsWith("NIVRA-PAY-")) method = "etransfer";
+      }
+      
+      // Map payment_status to unified status
+      let status = "pending";
+      if (p.payment_status === "captured" || p.payment_status === "completed") status = "confirmed";
+      else if (p.payment_status === "failed") status = "failed";
+      else if (p.payment_status === "refunded") status = "refunded";
+      else if (p.payment_status) status = p.payment_status;
+      
+      payments.push({
+        id: p.id,
+        source_table: "orders",
+        method,
+        amount: p.total_amount || 0,
+        status,
+        reference: p.payment_reference,
+        provider: method === "paypal" ? "paypal" : null,
+        provider_payment_id: p.payment_reference,
+        source: "order_checkout",
+        created_at: p.created_at,
+        invoice_number: p.billing?.[0]?.invoice_number || null,
+        order_number: p.order_number,
+        order_id: p.id,
+        customer_name: p.client_name,
+        customer_email: p.client_email,
+        customer_id: null,
+        notes: null,
+        created_by_name: null,
+        error_reason: null,
+      });
+    });
+
      return payments;
-   }, [billingPayments, legacyPayments]);
+  }, [billingPayments, legacyPayments, orderPayments]);
  
    // Filter and sort
    const filteredPayments = useMemo(() => {
@@ -282,11 +350,12 @@
      };
    }, [unifiedPayments]);
  
-   const isLoading = billingLoading || legacyLoading;
+  const isLoading = billingLoading || legacyLoading || ordersLoading;
  
    const handleRefresh = () => {
      refetchBilling();
      refetchLegacy();
+    refetchOrders();
    };
  
    const toggleSort = (field: "created_at" | "amount") => {
