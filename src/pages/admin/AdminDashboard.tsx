@@ -5,7 +5,7 @@ import {
   Package, Users, CreditCard, TrendingUp, MessageSquare, Calendar, 
   AlertTriangle, Activity, Smartphone, Plus, FileText, UserPlus, 
   Building2, Tag, FileSignature, CalendarPlus, Briefcase, Wrench, 
-  UserCog, Megaphone, Settings
+  UserCog, Megaphone, Settings, DollarSign, Wallet
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
@@ -33,6 +33,7 @@ const AdminDashboard = () => {
         appointmentsRes,
         activityRes,
         analyticsRes,
+        paymentsRes,
       ] = await Promise.all([
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -42,6 +43,7 @@ const AdminDashboard = () => {
         supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "scheduled"),
         supabase.from("activity_logs").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
         supabase.from("telecom_analytics").select("activations_count, contract_savings"),
+        supabase.from("billing_payments").select("*", { count: "exact", head: true }).eq("status", "pending"),
       ]);
 
       const totalRevenue = billingRes.data?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
@@ -58,6 +60,7 @@ const AdminDashboard = () => {
         activity: activityRes.count || 0,
         activations: totalActivations,
         savings: totalSavings,
+        pendingPayments: paymentsRes.count || 0,
       };
     },
   });
@@ -90,6 +93,13 @@ const AdminDashboard = () => {
       icon: MessageSquare,
       color: "from-amber-500 to-amber-400",
       href: "/admin/requests",
+    },
+    {
+      title: "Paiements",
+      value: stats?.pendingPayments ? `${stats.pendingPayments} en attente` : "0",
+      icon: Wallet,
+      color: "from-teal-500 to-teal-400",
+      href: "/admin/payments",
     },
   ];
 
@@ -353,6 +363,14 @@ const AdminDashboard = () => {
                 <Users className="w-6 h-6 text-violet-400 mb-2" />
                 <h3 className="font-medium text-foreground">Gérer les clients</h3>
                 <p className="text-sm text-muted-foreground">Voir les profils et historiques clients</p>
+              </Link>
+              <Link
+                to="/admin/payments"
+                className="p-4 rounded-lg border border-border hover:border-cyan-400/50 hover:bg-accent/50 transition-all"
+              >
+                <Wallet className="w-6 h-6 text-teal-400 mb-2" />
+                <h3 className="font-medium text-foreground">Paiements</h3>
+                <p className="text-sm text-muted-foreground">Voir tous les paiements (PayPal, Interac, Carte)</p>
               </Link>
             </div>
           </CardContent>
