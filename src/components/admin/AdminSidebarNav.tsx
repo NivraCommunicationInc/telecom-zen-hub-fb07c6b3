@@ -43,6 +43,7 @@ import {
   X,
   Gavel,
   Bell,
+  DollarSign,
   LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -121,6 +122,7 @@ const navGroups: NavGroup[] = [
     icon: Receipt,
     items: [
       { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
+      { icon: DollarSign, label: "Paiements", href: "/admin/payments" },
       { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
       { icon: FileText, label: "Factures contestées", href: "/admin/contested-invoices" },
       { icon: Gavel, label: "Paiements contestés", href: "/admin/contested-payments" },

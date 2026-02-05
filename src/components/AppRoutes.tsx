@@ -81,6 +81,7 @@ import AdminPDFTest from "@/pages/admin/AdminPDFTest";
 import AdminQA from "@/pages/admin/AdminQA";
 import AdminRecouvrement from "@/pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "@/pages/admin/AdminPaymentDisputes";
+import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminSite from "@/pages/admin/AdminSite";
 import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
 import AdminMaintenance from "@/pages/admin/AdminMaintenance";
@@ -308,6 +309,7 @@ const AppRoutes = () => {
       {/* Field Sales Admin - Redirect to POS */}
       <Route path="/admin/field-sales" element={<Navigate to="/admin/pos" replace />} />
       <Route path="/admin/pos" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPOS /></ProtectedRoute></AuthProvider>} />
+      <Route path="/admin/payments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPayments /></ProtectedRoute></AuthProvider>} />
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
