@@ -246,6 +246,22 @@ interface OrderDraft {
   serviceAddressCity: string;
   serviceAddressProvince: string;
   serviceAddressPostalCode: string;
+  // Promo code details (persisted to survive PayPal redirect)
+  appliedPromo: {
+    id: string;
+    code: string;
+    name: string;
+    discount_type: string;
+    discount_value: number;
+    discount_amount: number;
+    is_referral_code?: boolean;
+    referral_code_id?: string;
+    influencer_id?: string;
+  } | null;
+  // PayPal payment state (persisted to avoid double-charging after redirect)
+  paypalCaptureId: string;
+  paymentComplete: boolean;
+  paymentMethod: "credit_card" | "etransfer" | "paypal" | null;
 }
 
 // Streaming+ Add-ons Section Component
@@ -485,6 +501,21 @@ const ClientNewOrder = () => {
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [notes, setNotes] = useState("");
   const [discountCode, setDiscountCode] = useState("");
+  // Promo state for database-validated promos (including referral codes)
+  // IMPORTANT: Must be declared before the hydration useEffect that references it
+  const [appliedPromo, setAppliedPromo] = useState<{
+    id: string;
+    code: string;
+    name: string;
+    discount_type: string;
+    discount_value: number;
+    discount_amount: number;
+    // Referral code specific fields
+    is_referral_code?: boolean;
+    referral_code_id?: string;
+    influencer_id?: string;
+  } | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   
@@ -634,6 +665,15 @@ const ClientNewOrder = () => {
         if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
         if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
         if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
+        // Promo code details
+        if (draft.appliedPromo) {
+          setAppliedPromo(draft.appliedPromo);
+          console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
+        }
+        // Payment state (critical for PayPal redirect)
+        if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
+        if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
+        if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
       }
     } catch (e) {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
@@ -685,9 +725,15 @@ const ClientNewOrder = () => {
       serviceAddressCity,
       serviceAddressProvince,
       serviceAddressPostalCode,
+      // Promo code details (persisted to survive PayPal redirect)
+      appliedPromo,
+      // PayPal payment state
+      paypalCaptureId,
+      paymentComplete,
+      paymentMethod,
     };
     
-    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "streaming:", selectedStreamingServices.length);
+    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "paymentComplete:", paymentComplete);
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
     isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
@@ -696,7 +742,8 @@ const ClientNewOrder = () => {
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
     selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
-    checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode
+    checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
+    appliedPromo, paypalCaptureId, paymentComplete, paymentMethod
   ]);
 
   // Clear draft when order is completed (called after successful order creation)
@@ -982,21 +1029,6 @@ const ClientNewOrder = () => {
     }
     return false;
   };
-
-  // Promo state for database-validated promos (including referral codes)
-  const [appliedPromo, setAppliedPromo] = useState<{
-    id: string;
-    code: string;
-    name: string;
-    discount_type: string;
-    discount_value: number;
-    discount_amount: number;
-    // Referral code specific fields
-    is_referral_code?: boolean;
-    referral_code_id?: string;
-    influencer_id?: string;
-  } | null>(null);
-  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   // Apply discount code using validate-promo edge function
   const applyDiscountCode = async () => {
