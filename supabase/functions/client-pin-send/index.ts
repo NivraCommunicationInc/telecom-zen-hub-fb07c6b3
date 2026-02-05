@@ -89,7 +89,7 @@ function maskEmail(email: string): string {
 // Retry with exponential backoff
 async function sendEmailWithRetry(
   resend: InstanceType<typeof Resend>,
-  emailConfig: { from: string; to: string[]; subject: string; html: string },
+  emailConfig: { from: string; to: string[]; subject: string; html: string; text?: string; reply_to?: string },
   maxRetries = 3
 ): Promise<{ success: boolean; error?: string; statusCode?: number; name?: string }> {
   const delays = [500, 2000, 5000]; // 0.5s, 2s, 5s
@@ -211,6 +211,21 @@ serve(async (req) => {
       );
     }
 
+    // Invalidate any previous active codes for this email.
+    // This prevents confusion (old email arrives late/spam) and avoids verifying against the wrong "latest" record.
+    const nowIso = new Date().toISOString();
+    const { error: invalidateError } = await supabase
+      .from("client_login_pins")
+      .update({ used: true })
+      .eq("email", email.toLowerCase())
+      .eq("used", false)
+      .gt("expires_at", nowIso);
+
+    if (invalidateError) {
+      console.error(`[client-pin-send][${requestId}] Failed to invalidate previous pins:`, invalidateError);
+      // Non-bloquant: on continue à générer/envoyer le nouveau code.
+    }
+
     // Generate PIN and hash it
     const pin = generatePin();
     const pinHash = await hashPin(pin);
@@ -246,6 +261,8 @@ serve(async (req) => {
       from: fromEmail,
       to: [email],
       subject: "Votre code de vérification Nivra",
+      reply_to: getSupportEmail(),
+      text: `Votre code de vérification Nivra: ${pin}\n\nCe code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.\n\nSupport: ${getSupportEmail()}`,
       html: `
         <!DOCTYPE html>
         <html lang="fr">
@@ -344,6 +361,8 @@ serve(async (req) => {
           from: "Nivra Telecom <onboarding@resend.dev>",
           to: [email],
           subject: "Votre code de vérification Nivra",
+          reply_to: getSupportEmail(),
+          text: `Votre code de vérification Nivra: ${pin}\n\nCe code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.\n\nSupport: ${getSupportEmail()}`,
           html: `
         <!DOCTYPE html>
         <html lang="fr">
