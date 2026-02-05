@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { backendClient as supabase } from "@/integrations/backend/client";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { ClientSignupForm } from "@/components/client/ClientSignupForm";
 import ClientPortalBackground from "@/components/client/ClientPortalBackground";
+import { COMPANY_CONTACT } from "@/config/company";
 
 type AuthStep = "credentials" | "pin";
 
@@ -36,6 +37,9 @@ const ClientAuth = () => {
   const [isSendingPin, setIsSendingPin] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingUserId, setPendingUserId] = useState("");
+
+  const verifyInFlightRef = useRef(false);
+  const supportEmailDisplay = COMPANY_CONTACT.supportEmailDisplay;
   
   const pinIsValid = useMemo(() => /^\d{6}$/.test(pin), [pin]);
   
@@ -52,7 +56,7 @@ const ClientAuth = () => {
         console.error("[sendPinEmail] Invocation error:", error);
         return { 
           success: false, 
-            error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivra-telecom.ca" 
+          error: `Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez ${supportEmailDisplay}`
         };
       }
       
@@ -60,7 +64,7 @@ const ClientAuth = () => {
         if (data.reason === "rate_limited") {
           return { success: false, rateLimited: true, error: "Code déjà envoyé récemment" };
         }
-          const errorMsg = data.error || "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivra-telecom.ca";
+        const errorMsg = data.error || `Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez ${supportEmailDisplay}`;
         return { success: false, error: errorMsg };
       }
       
@@ -75,13 +79,13 @@ const ClientAuth = () => {
       console.warn("[sendPinEmail] Unexpected response shape:", data);
       return { 
         success: false, 
-          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivra-telecom.ca" 
+        error: `Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez ${supportEmailDisplay}`
       };
     } catch (err: any) {
       console.error("[sendPinEmail] Unexpected error:", err);
       return { 
         success: false, 
-          error: "Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez Support@nivra-telecom.ca" 
+        error: `Impossible d'envoyer le code pour le moment. Réessayez dans 1 minute ou contactez ${supportEmailDisplay}`
       };
     }
   };
@@ -209,25 +213,42 @@ const ClientAuth = () => {
     const pinResult = await sendPinEmail(userEmail, userId);
     setIsSendingPin(false);
     setIsLoading(false);
-    
+
+    // IMPORTANT: Ne jamais forcer l'étape PIN si l'envoi a réellement échoué.
+    // Sinon l'utilisateur est bloqué sur un écran "code" sans code valide.
+    if (!pinResult.success && !pinResult.rateLimited) {
+      // Nettoyer l'état de vérification PIN
+      sessionStorage.removeItem("client_pin_pending_email");
+      sessionStorage.removeItem("client_pin_pending_user_id");
+      sessionStorage.removeItem("client_pin_verified");
+      setPendingEmail("");
+      setPendingUserId("");
+
+      // Se déconnecter: on ne veut pas laisser une session ouverte sans 2FA.
+      try {
+        await portalSupabase.auth.signOut();
+      } catch (signOutErr) {
+        console.warn("[handleLogin] signOut failed:", signOutErr);
+      }
+
+      toast({
+        title: "Erreur d'envoi du code",
+        description: pinResult.error || "Impossible d'envoyer le code de vérification",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setAuthStep("pin");
     setPin("");
-    
-    if (!pinResult.success) {
-      if (pinResult.rateLimited) {
-        toast({ 
-          title: "Code déjà envoyé récemment", 
-          description: "Veuillez patienter 60 secondes avant de redemander un code.", 
-        });
-      } else {
-        toast({ 
-          title: "Erreur d'envoi du code", 
-          description: pinResult.error || "Impossible d'envoyer le code de vérification", 
-          variant: "destructive" 
-        });
-      }
+
+    if (pinResult.rateLimited) {
+      toast({
+        title: "Code déjà envoyé récemment",
+        description: "Utilisez le dernier code reçu (vérifiez aussi le dossier spam).",
+      });
     } else {
-      toast({ title: "Code envoyé", description: "Vérifiez votre boîte de réception" });
+      toast({ title: "Code envoyé", description: "Vérifiez votre boîte de réception (et le dossier spam)." });
     }
   };
 
@@ -261,6 +282,7 @@ const ClientAuth = () => {
   };
 
   const handleVerifyPin = async () => {
+    if (verifyInFlightRef.current) return;
     if (!pinIsValid) {
       toast({ title: "Veuillez entrer un NIP valide de 6 chiffres", variant: "destructive" });
       return;
@@ -272,14 +294,29 @@ const ClientAuth = () => {
       return;
     }
 
+    verifyInFlightRef.current = true;
     setIsVerifyingPin(true);
     const result = await verifyPin(pendingEmail, pin);
     setIsVerifyingPin(false);
+    verifyInFlightRef.current = false;
     
     if (!result.valid) {
+      const fallbackMessage = (() => {
+        switch (result.reason) {
+          case "no_valid_pin":
+            return "Aucun code valide trouvé. Cliquez sur « renvoyer le code » pour en obtenir un nouveau.";
+          case "too_many_attempts":
+            return "Trop de tentatives. Cliquez sur « renvoyer le code » pour obtenir un nouveau code.";
+          case "invalid_pin":
+            return "Code invalide. Vérifiez que vous utilisez le dernier code reçu.";
+          default:
+            return "Veuillez réessayer.";
+        }
+      })();
+
       toast({ 
         title: "NIP invalide", 
-        description: result.error || result.reason || "Veuillez réessayer", 
+        description: result.error || fallbackMessage,
         variant: "destructive" 
       });
       return;
