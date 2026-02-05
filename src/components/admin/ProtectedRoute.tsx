@@ -82,15 +82,12 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
       // CRITICAL: Check secret code session validity
       if (isSecretSessionValid === false) {
-        console.log("[AdminGuard] Secret code session invalid or missing - blocking access");
+        console.log("[AdminGuard] Secret code session invalid or missing - redirecting to login");
         setIsVerifying(false);
         setIsAdminVerified(false);
         
-        // Redirect to login for secret code
-        toast.warning("Code secret requis", {
-          description: "Veuillez vous reconnecter et entrer votre code secret.",
-        });
-        await signOut();
+        // IMPORTANT: Don't sign out here - just redirect to login page
+        // The login page will handle showing the secret code dialog if auth is valid
         navigate("/admin/login", { replace: true });
         return;
       }

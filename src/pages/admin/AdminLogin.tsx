@@ -51,6 +51,13 @@ const AdminLogin = () => {
       console.log("[AdminLogin] Already authenticated with valid secret session, redirecting to /admin");
       navigate("/admin", { replace: true });
     }
+    // If user is authenticated but secret session is invalid, show secret code dialog
+    if (!isLoading && !isChecking && user && session && isValidSession === false) {
+      console.log("[AdminLogin] User authenticated but secret session expired, showing dialog");
+      setPendingUserId(user.id);
+      setPendingUserEmail(user.email || "");
+      setShowSecretDialog(true);
+    }
   }, [user, session, isLoading, isChecking, isValidSession, navigate]);
 
   // Add noindex meta tag for SEO protection
