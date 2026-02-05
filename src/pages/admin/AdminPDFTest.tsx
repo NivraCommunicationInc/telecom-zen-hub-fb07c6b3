@@ -6,7 +6,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { 
   downloadUnifiedPDF,
@@ -42,11 +43,19 @@ const AdminPDFTest = () => {
   return (
     <AdminLayout>
       <div className="container mx-auto py-6 px-4 max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">PDF Engine Test</h1>
-          <p className="text-muted-foreground">
-            Outil temporaire QA — Télécharger les PDFs pour vérifier le layout, l'espacement, et le contenu dynamique.
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">PDF Engine Test</h1>
+            <p className="text-muted-foreground">
+              Outil temporaire QA — Télécharger les PDFs pour vérifier le layout, l'espacement, et le contenu dynamique.
+            </p>
+          </div>
+          <Link to="/admin/invoice-v2-preview">
+            <Button className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Nouveau Template V2
+            </Button>
+          </Link>
         </div>
 
         {/* Contracts Section */}
