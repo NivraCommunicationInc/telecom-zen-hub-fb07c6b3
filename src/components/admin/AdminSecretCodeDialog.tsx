@@ -120,6 +120,7 @@ export function AdminSecretCodeDialog({
   }, [code, isVerifying, isLocked, verifyCode]);
 
   const handleCancel = async () => {
+    // Only sign out when the user explicitly cancels.
     try {
       await supabase.auth.signOut();
     } catch {
@@ -129,11 +130,16 @@ export function AdminSecretCodeDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) {
-        handleCancel();
-      }
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        // IMPORTANT: Never sign out just because the dialog closes.
+        // Closing can happen on success (we close it programmatically).
+        if (!isOpen) {
+          onCancel();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
