@@ -80,6 +80,7 @@ import AdminResetPassword from "@/pages/admin/AdminResetPassword";
 import AdminChangeCredentials from "@/pages/admin/AdminChangeCredentials";
 import AdminPDFTest from "@/pages/admin/AdminPDFTest";
 import AdminInvoiceV2Preview from "@/pages/admin/AdminInvoiceV2Preview";
+import AdminPDFTemplatesV2 from "@/pages/admin/AdminPDFTemplatesV2";
 import AdminQA from "@/pages/admin/AdminQA";
 import AdminRecouvrement from "@/pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "@/pages/admin/AdminPaymentDisputes";
@@ -246,6 +247,7 @@ const AppRoutes = () => {
       <Route path="/admin/reset-password" element={<AuthProvider><AdminResetPassword /></AuthProvider>} />
       <Route path="/admin/change-credentials" element={<AuthProvider><ProtectedRoute requireAdmin><AdminChangeCredentials /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/bootstrap" element={<AuthProvider><AdminBootstrap /></AuthProvider>} />
+      <Route path="/admin" element={<AuthProvider><ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/orders" element={<AuthProvider><ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/clients" element={<AuthProvider><ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/services" element={<AuthProvider><ProtectedRoute requireAdmin><AdminServices /></ProtectedRoute></AuthProvider>} />
