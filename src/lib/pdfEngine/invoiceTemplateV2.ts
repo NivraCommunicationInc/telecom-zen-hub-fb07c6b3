@@ -163,6 +163,12 @@ export function generateInvoiceV2PDF(data: InvoiceV2Data): jsPDF {
   const { marginLeft, marginRight, contentWidth } = LAYOUT;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+
+  // IMPORTANT: Force a white page background.
+  // Some PDF viewers (or corrupted streams) can render an unexpected dark canvas.
+  // Painting the full page white up-front guarantees readable output.
+  doc.setFillColor(...COLORS.white);
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
   
   let currentY = LAYOUT.marginTop;
   let pageNumber = 1;

@@ -155,7 +155,7 @@ const AdminLogin = () => {
 
         const { data: roleData, error: roleError } = await adminClient
           .from("user_roles")
-          .select("role, status")
+          .select("role, status, require_password_change, require_pin_change")
           .eq("user_id", authUser.id)
           .eq("role", "admin")
           .maybeSingle();
@@ -182,6 +182,20 @@ const AdminLogin = () => {
           return;
         }
 
+        // Persist flags for the forced change screen (best-effort)
+        try {
+          sessionStorage.setItem(
+            "admin_require_password_change",
+            String(!!roleData.require_password_change)
+          );
+          sessionStorage.setItem(
+            "admin_require_pin_change",
+            String(!!roleData.require_pin_change)
+          );
+        } catch {
+          // ignore
+        }
+
         // Credentials OK - Show secret code dialog
         console.log("[AdminLogin] Credentials verified, showing secret code dialog");
         setPendingUserId(authUser.id);
@@ -203,15 +217,15 @@ const AdminLogin = () => {
 
   const handleSecretSuccess = (sessionToken: string, expiresAt: string, usingDefaultCode: boolean) => {
     console.log("[AdminLogin] Secret code verified successfully");
-    
+
     // Store the session
     if (pendingUserId) {
       storeSession(sessionToken, expiresAt, pendingUserId, usingDefaultCode);
     }
-    
+
     setShowSecretDialog(false);
     setPendingUserId(null);
-    
+
     if (usingDefaultCode) {
       toast({
         title: "Connexion réussie",
@@ -224,7 +238,20 @@ const AdminLogin = () => {
         description: "Bienvenue dans le portail administrateur.",
       });
     }
-    
+
+    // If a forced credential change is required, redirect there first.
+    // (We also keep the redirect in ProtectedRoute as a failsafe.)
+    try {
+      const mustPw = sessionStorage.getItem("admin_require_password_change") === "true";
+      const mustPin = sessionStorage.getItem("admin_require_pin_change") === "true";
+      if (mustPw || mustPin) {
+        navigate("/admin/change-credentials", { replace: true });
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
     navigate("/admin", { replace: true });
   };
 

@@ -47,9 +47,21 @@ const AdminChangeCredentials = () => {
         return;
       }
 
-      // Read flags from sessionStorage (set by AdminLogin)
-      const pwChange = sessionStorage.getItem("admin_require_password_change") === "true";
-      const pinChange = sessionStorage.getItem("admin_require_pin_change") === "true";
+      // Read flags from database (single source of truth)
+      const { data: roleData, error: roleError } = await supabase
+        .from("user_roles")
+        .select("require_password_change, require_pin_change")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (roleError || !roleData) {
+        navigate("/admin/login", { replace: true });
+        return;
+      }
+
+      const pwChange = !!roleData.require_password_change;
+      const pinChange = !!roleData.require_pin_change;
 
       if (!pwChange && !pinChange) {
         // No change required, go to admin
