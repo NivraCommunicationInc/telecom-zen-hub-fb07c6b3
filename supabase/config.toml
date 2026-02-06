@@ -185,3 +185,6 @@ verify_jwt = false
 
 [functions.client-password-reset-send]
 verify_jwt = false
+
+[functions.paypal-reconcile]
+verify_jwt = false

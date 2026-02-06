@@ -6,7 +6,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { backendClient } from "@/integrations/backend/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getPaymentStatusInfo, getPaymentMethodLabel } from "@/lib/paymentStatusUtils";
 
 interface PaymentHistoryV2Props {
   userId: string;
@@ -34,51 +34,6 @@ interface LedgerEntry {
   status: string;
   method?: string;
 }
-
-const methodLabels: Record<string, string> = {
-  interac: "Interac",
-  e_transfer: "Interac",
-  paypal: "PayPal",
-  cash: "Comptant",
-  credit_card: "Carte",
-  card: "Carte",
-  bank_transfer: "Virement",
-};
-
-// Status labels and colors based on payment method context
-const getPaymentStatusInfo = (status: string, method?: string): { label: string; color: string } => {
-  // PayPal: confirmed/captured = "Payé"
-  if (method === "paypal") {
-    if (status === "confirmed" || status === "completed" || status === "captured") {
-      return { label: "Payé", color: "text-emerald-500" };
-    }
-    if (status === "pending") return { label: "En cours", color: "text-amber-500" };
-    if (status === "failed") return { label: "Échoué", color: "text-red-500" };
-  }
-  
-  // Interac: pending = "En attente", confirmed = "Reçu"
-  if (method === "interac" || method === "e_transfer") {
-    if (status === "pending") return { label: "En attente", color: "text-amber-500" };
-    if (status === "confirmed" || status === "completed") return { label: "Reçu", color: "text-emerald-500" };
-  }
-  
-  // Credit card: captured/confirmed = "Autorisé" ou "Payé"
-  if (method === "credit_card" || method === "card") {
-    if (status === "pre_authorized") return { label: "Autorisé", color: "text-purple-500" };
-    if (status === "captured" || status === "confirmed" || status === "completed") {
-      return { label: "Payé", color: "text-emerald-500" };
-    }
-  }
-  
-  // Default fallback
-  if (status === "confirmed" || status === "completed" || status === "captured") {
-    return { label: "Confirmé", color: "text-emerald-500" };
-  }
-  if (status === "pending") return { label: "En attente", color: "text-amber-500" };
-  if (status === "failed") return { label: "Échoué", color: "text-red-500" };
-  
-  return { label: status, color: "text-muted-foreground" };
-};
 
 export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
   const { data: entries, isLoading } = useQuery({
@@ -194,7 +149,7 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
             <div className="flex items-center gap-2">
               <p className="font-medium text-sm truncate">{entry.description}</p>
               {statusInfo && (
-                <span className={`text-xs font-medium ${statusInfo.color}`}>
+                <span className={`text-xs font-medium ${statusInfo.textClass}`}>
                   • {statusInfo.label}
                 </span>
               )}
@@ -205,7 +160,7 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
               {entry.method && (
                 <>
                   <span className="hidden sm:inline">•</span>
-                  <span className="whitespace-nowrap">{methodLabels[entry.method] || entry.method}</span>
+                  <span className="whitespace-nowrap">{getPaymentMethodLabel(entry.method)}</span>
                 </>
               )}
             </div>

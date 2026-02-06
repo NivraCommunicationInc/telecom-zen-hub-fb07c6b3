@@ -1,97 +1,98 @@
- /**
-  * Admin Payments - Vue consolidée de tous les paiements
-  * Supporte: PayPal, Interac, Carte, Manuel, etc.
-  */
- 
- import { useState, useMemo } from "react";
- import { useQuery } from "@tanstack/react-query";
- import AdminLayout from "@/components/admin/AdminLayout";
- import { adminClient as supabase } from "@/integrations/backend/adminClient";
- import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
- import { Badge } from "@/components/ui/badge";
- import { Button } from "@/components/ui/button";
- import { Input } from "@/components/ui/input";
- import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
- } from "@/components/ui/select";
- import {
-   Table,
-   TableBody,
-   TableCell,
-   TableHead,
-   TableHeader,
-   TableRow,
- } from "@/components/ui/table";
- import {
-   Dialog,
-   DialogContent,
-   DialogHeader,
-   DialogTitle,
-   DialogDescription,
- } from "@/components/ui/dialog";
- import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
- import { ScrollArea } from "@/components/ui/scroll-area";
- import {
-   CreditCard,
-   Search,
-   RefreshCw,
-   Eye,
-   DollarSign,
-   Calendar,
-   Loader2,
-   TrendingUp,
-   Clock,
-   CheckCircle2,
-   XCircle,
-   AlertTriangle,
-   Wallet,
-   Banknote,
-   ArrowUpDown,
-   FileText,
-   User,
-   ExternalLink,
- } from "lucide-react";
- import { format } from "date-fns";
- import { fr } from "date-fns/locale";
- 
- // Type for unified payment record
- interface UnifiedPayment {
-   id: string;
+/**
+ * Admin Payments - Vue consolidée de tous les paiements
+ * Supporte: PayPal, Interac, Carte, Manuel, etc.
+ */
+
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { adminClient as supabase } from "@/integrations/backend/adminClient";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  CreditCard,
+  Search,
+  RefreshCw,
+  Eye,
+  DollarSign,
+  Calendar,
+  Loader2,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Wallet,
+  Banknote,
+  ArrowUpDown,
+  FileText,
+  User,
+  ExternalLink,
+} from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { getPaymentStatusInfo, getPaymentMethodLabel } from "@/lib/paymentStatusUtils";
+
+// Type for unified payment record
+interface UnifiedPayment {
+  id: string;
   source_table: "billing_payments" | "payments" | "orders" | "activity_logs";
-   method: string;
-   amount: number;
-   status: string;
-   reference: string | null;
-   provider: string | null;
-   provider_payment_id: string | null;
-   source: string | null;
-   created_at: string;
-   invoice_number: string | null;
-   order_number: string | null;
-   order_id: string | null;
-   customer_name: string | null;
-   customer_email: string | null;
-   customer_id: string | null;
-   notes: string | null;
-   created_by_name: string | null;
-   error_reason: string | null;
- }
- 
- // Method display config
- const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-   paypal: { label: "PayPal", icon: <Wallet className="h-4 w-4" />, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
-   interac: { label: "Interac", icon: <Banknote className="h-4 w-4" />, color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
-   e_transfer: { label: "Interac", icon: <Banknote className="h-4 w-4" />, color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
-   card: { label: "Carte", icon: <CreditCard className="h-4 w-4" />, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
-   credit_card: { label: "Carte", icon: <CreditCard className="h-4 w-4" />, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
-   manual: { label: "Manuel", icon: <DollarSign className="h-4 w-4" />, color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
-   cash: { label: "Espèces", icon: <Banknote className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
- };
- 
+  method: string;
+  amount: number;
+  status: string;
+  reference: string | null;
+  provider: string | null;
+  provider_payment_id: string | null;
+  source: string | null;
+  created_at: string;
+  invoice_number: string | null;
+  order_number: string | null;
+  order_id: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_id: string | null;
+  notes: string | null;
+  created_by_name: string | null;
+  error_reason: string | null;
+}
+
+// Method display config
+const PAYMENT_METHOD_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  paypal: { label: "PayPal", icon: <Wallet className="h-4 w-4" />, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+  interac: { label: "Interac", icon: <Banknote className="h-4 w-4" />, color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+  e_transfer: { label: "Interac", icon: <Banknote className="h-4 w-4" />, color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+  card: { label: "Carte", icon: <CreditCard className="h-4 w-4" />, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+  credit_card: { label: "Carte", icon: <CreditCard className="h-4 w-4" />, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+  manual: { label: "Manuel", icon: <DollarSign className="h-4 w-4" />, color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
+  cash: { label: "Espèces", icon: <Banknote className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+};
+
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   confirmed: { label: "Confirmé", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
   completed: { label: "Complété", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
@@ -103,30 +104,9 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; colo
   error_captured: { label: "Erreur", icon: <AlertTriangle className="h-4 w-4" />, color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
 };
 
-// Get contextual status label based on payment method
+// Get contextual status label based on payment method (uses shared utility)
 const getMethodAwareStatusLabel = (status: string, method: string): string => {
-  const normalizedMethod = method?.toLowerCase() || "";
-  
-  // PayPal: confirmed/captured/completed = "Payé"
-  if (normalizedMethod === "paypal") {
-    if (["confirmed", "completed", "captured"].includes(status)) return "Payé";
-    if (status === "pending") return "En cours";
-  }
-  
-  // Interac: pending = "En attente", confirmed = "Reçu"
-  if (normalizedMethod === "interac" || normalizedMethod === "e_transfer") {
-    if (status === "pending") return "En attente";
-    if (["confirmed", "completed"].includes(status)) return "Reçu";
-  }
-  
-  // Credit Card: pre_authorized = "Autorisé", captured = "Payé"
-  if (normalizedMethod === "card" || normalizedMethod === "credit_card") {
-    if (status === "pre_authorized") return "Autorisé";
-    if (["confirmed", "completed", "captured"].includes(status)) return "Payé";
-  }
-  
-  // Fallback to default config
-  return STATUS_CONFIG[status]?.label || status;
+  return getPaymentStatusInfo(status, method).label;
 };
  
  const formatCurrency = (amount: number) =>
