@@ -1,6 +1,7 @@
 /**
  * Nivra PDF Templates - React Hooks
  * Easy-to-use hooks for generating and downloading billing documents
+ * V2.4: Added hooks for standardized templates
  */
 
 import { useState, useCallback } from "react";
@@ -13,12 +14,15 @@ import {
   generateContractPDF,
   generateDocument,
   detectDocumentType,
+  generateInvoiceMonthlyV2PDF,
+  generateInvoiceOneTimeV2PDF,
   type DocumentType,
   type InvoiceMonthlyData,
   type InvoiceOneTimeData,
   type OrderSummaryData,
   type ContractData,
   type PDFGenerationResult,
+  type InvoiceDataV2,
 } from "@/lib/pdf";
 
 // ============================================================================
@@ -182,10 +186,90 @@ export function useContractPDF() {
 }
 
 // ============================================================================
+// HOOK: useInvoiceMonthlyV2PDF (NEW V2.4 Template)
+// ============================================================================
+
+export function useInvoiceMonthlyV2PDF() {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generate = useCallback(async (data: InvoiceDataV2): Promise<PDFGenerationResult> => {
+    setIsGenerating(true);
+    try {
+      const result = generateInvoiceMonthlyV2PDF(data);
+      if (!result.success) {
+        toast.error(result.error || "Erreur lors de la génération");
+      }
+      return result;
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
+
+  const download = useCallback(async (data: InvoiceDataV2) => {
+    const result = await generate(data);
+    if (result.success && result.blob && result.filename) {
+      safePDFDownload(result.blob, result.filename);
+      toast.success("Facture mensuelle V2 téléchargée");
+    }
+    return result;
+  }, [generate]);
+
+  const open = useCallback(async (data: InvoiceDataV2) => {
+    const result = await generate(data);
+    if (result.success && result.blob && result.filename) {
+      safePDFOpen(result.blob, result.filename);
+    }
+    return result;
+  }, [generate]);
+
+  return { generate, download, open, isGenerating };
+}
+
+// ============================================================================
+// HOOK: useInvoiceOneTimeV2PDF (NEW V2.4 Template)
+// ============================================================================
+
+export function useInvoiceOneTimeV2PDF() {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generate = useCallback(async (data: InvoiceDataV2): Promise<PDFGenerationResult> => {
+    setIsGenerating(true);
+    try {
+      const result = generateInvoiceOneTimeV2PDF(data);
+      if (!result.success) {
+        toast.error(result.error || "Erreur lors de la génération");
+      }
+      return result;
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
+
+  const download = useCallback(async (data: InvoiceDataV2) => {
+    const result = await generate(data);
+    if (result.success && result.blob && result.filename) {
+      safePDFDownload(result.blob, result.filename);
+      toast.success("Facture unique V2 téléchargée");
+    }
+    return result;
+  }, [generate]);
+
+  const open = useCallback(async (data: InvoiceDataV2) => {
+    const result = await generate(data);
+    if (result.success && result.blob && result.filename) {
+      safePDFOpen(result.blob, result.filename);
+    }
+    return result;
+  }, [generate]);
+
+  return { generate, download, open, isGenerating };
+}
+
+// ============================================================================
 // HOOK: useDocumentPDF (Unified)
 // ============================================================================
 
-type AnyDocumentData = InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData;
+type AnyDocumentData = InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData | InvoiceDataV2;
 
 export function useDocumentPDF() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -225,7 +309,7 @@ export function useDocumentPDF() {
 
   const autoGenerate = useCallback(async (
     data: AnyDocumentData,
-    hints?: { hasRecurringServices?: boolean; hasEquipment?: boolean; isOrderConfirmation?: boolean; isContract?: boolean }
+    hints?: { hasRecurringServices?: boolean; hasEquipment?: boolean; isOrderConfirmation?: boolean; isContract?: boolean; useV2?: boolean }
   ) => {
     const type = detectDocumentType(hints || {});
     return generate(type, data);

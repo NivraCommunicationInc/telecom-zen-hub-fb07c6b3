@@ -260,6 +260,7 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
         .select(`
           id, order_number, total_amount, payment_reference, payment_status, payment_method, 
           status, created_at, client_email, client_first_name, client_last_name, client_phone,
+          equipment_details, provider_payment_id,
           billing:billing(invoice_number)
         `)
         .not("payment_reference", "is", null)
@@ -356,11 +357,13 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
     orderPayments?.forEach((p: any) => {
       // Skip if already tracked in payments tables
       if (p.payment_reference && seenRefs.has(p.payment_reference)) return;
+      if (p.provider_payment_id && seenRefs.has(p.provider_payment_id)) return;
       
       // Determine method from payment_method or payment_reference pattern
       let method = p.payment_method || "unknown";
       if (!method || method === "unknown") {
         if (p.payment_reference?.startsWith("PAYID-")) method = "paypal";
+        else if (p.provider_payment_id?.match(/^[A-Z0-9]{17}$/)) method = "paypal";
         else if (p.payment_reference?.startsWith("NIVRA-PAY-")) method = "interac";
         else method = "paypal";
       }
@@ -373,16 +376,21 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
       else if (p.payment_status) status = p.payment_status;
       
       if (p.payment_reference) seenRefs.add(p.payment_reference);
+      if (p.provider_payment_id) seenRefs.add(p.provider_payment_id);
+
+      // Use billing_totals snapshot if available, fallback to total_amount
+      const snapshotTotal = p.equipment_details?.billing_totals?.total;
+      const amount = snapshotTotal ? Number(snapshotTotal) : (p.total_amount || 0);
 
       payments.push({
         id: p.id,
         source_table: "orders",
         method,
-        amount: p.total_amount || 0,
+        amount,
         status,
         reference: p.payment_reference,
         provider: method === "paypal" ? "paypal" : null,
-        provider_payment_id: p.payment_reference,
+        provider_payment_id: p.provider_payment_id || p.payment_reference,
         source: "order_checkout",
         created_at: p.created_at,
         invoice_number: p.billing?.[0]?.invoice_number || null,
