@@ -14,8 +14,8 @@ const corsHeaders = {
 // Version: 2026-02-06
 // ============================================================================
 
-// URL du PDF officiel hébergé dans le projet
-const TERMS_PDF_URL = "https://telecom-zen-hub.lovable.app/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
+// URL du PDF officiel hébergé dans Supabase Storage
+const TERMS_PDF_URL = "https://xtgngmtxggascbxnswvb.supabase.co/storage/v1/object/public/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
 const TERMS_PDF_FILENAME = "Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
 
 interface EmailRequest {
