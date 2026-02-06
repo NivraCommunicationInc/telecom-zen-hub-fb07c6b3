@@ -397,9 +397,10 @@ const ClientProfile = () => {
         </div>
 
         {/* Client Number Display - Prominent for support */}
-        {profile?.client_number && (
+        {(profile?.client_number || profile?.account_number) && (
           <ClientNumberDisplay 
             clientNumber={profile.client_number} 
+            accountNumber={profile.account_number}
             clientName={profile.full_name || formData.full_name}
           />
         )}

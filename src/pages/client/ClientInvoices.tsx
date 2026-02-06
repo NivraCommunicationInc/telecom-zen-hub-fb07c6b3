@@ -82,7 +82,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       const { data, error } = await portalSupabase
         .from("profiles")
-        .select("balance, store_credit, account_status, full_name, email, phone, client_number, service_address, service_city")
+        .select("balance, store_credit, account_status, full_name, email, phone, client_number, account_number, service_address, service_city")
         .eq("user_id", user?.id)
         .maybeSingle();
       if (error) throw error;
@@ -627,6 +627,40 @@ const ClientInvoices = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Account Number Display */}
+        {profile?.account_number && (
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/5 border-emerald-500/20">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <Banknote className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Numéro de compte</p>
+                    <p className="text-2xl font-mono font-bold text-emerald-400 tracking-wider">
+                      {profile.account_number}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Référence pour vos paiements et factures</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(profile.account_number);
+                    toast.success("Numéro de compte copié");
+                  }}
+                  className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                >
+                  <Copy className="w-4 h-4 mr-1" />
+                  Copier
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Balance Summary - Derived from Invoices */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
