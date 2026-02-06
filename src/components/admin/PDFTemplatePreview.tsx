@@ -1,6 +1,6 @@
 /**
  * PDF Template Preview Component
- * Admin tool to preview and test the 3 billing templates
+ * Admin tool to preview and test the 4 billing templates
  */
 
 import { useState } from "react";
@@ -8,16 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Eye, Receipt, ShoppingBag } from "lucide-react";
+import { FileText, Download, Eye, Receipt, ShoppingBag, FileSignature } from "lucide-react";
 import { 
   useInvoiceMonthlyPDF, 
   useInvoiceOneTimePDF, 
-  useOrderSummaryPDF 
+  useOrderSummaryPDF,
+  useContractPDF,
 } from "@/hooks/usePDFTemplates";
 import type { 
   InvoiceMonthlyData, 
   InvoiceOneTimeData, 
-  OrderSummaryData 
+  OrderSummaryData,
+  ContractData,
 } from "@/lib/pdf";
 import { format } from "date-fns";
 
@@ -167,16 +169,93 @@ const SAMPLE_ORDER: OrderSummaryData = {
   first_billing_date: cycleEnd,
 };
 
+const SAMPLE_CONTRACT: ContractData = {
+  contract_number: "NVR-PREP-QC-2026-00001",
+  contract_date: today,
+  contract_version: "v2.0-PREP-QC-2026",
+  client_name: "Sophie Lavoie",
+  client_email: "slavoie@example.com",
+  client_phone: "514-555-7890",
+  client_dob: "1985-03-15",
+  service_address: "4567 Avenue des Pins, Montréal, QC H2W 1R7",
+  billing_address: "4567 Avenue des Pins, Montréal, QC H2W 1R7",
+  account_number: "ACC-2026-0003",
+  order_number: "CMD-2026-0999",
+  order_date: today,
+  services: [
+    {
+      service_type: "Internet",
+      service_description: "Fibre 1 Gbps Illimité",
+      service_period: "/mois",
+      service_price: 99.99,
+      service_total: 99.99,
+    },
+    {
+      service_type: "TV",
+      service_description: "Forfait Premium 120+ chaînes",
+      service_period: "/mois",
+      service_price: 59.99,
+      service_total: 59.99,
+    },
+  ],
+  equipment: [
+    {
+      item_name: "Routeur Wi-Fi 6 Nivra",
+      item_description: "Routeur haute performance",
+      qty: 1,
+      unit_price: 60.00,
+      line_total: 60.00,
+      serial_number: "RTR-NVR-2026-001",
+    },
+    {
+      item_name: "Terminal 4K Nivra",
+      item_description: "Décodeur TV 4K HDR",
+      qty: 2,
+      unit_price: 50.00,
+      line_total: 100.00,
+      serial_number: "TV4K-NVR-2026-001",
+    },
+  ],
+  one_time_fees: [
+    { label: "Frais d'activation (bundle)", amount: 45.00 },
+    { label: "Frais de livraison", amount: 30.00 },
+  ],
+  subtotal_monthly: 159.98,
+  subtotal_equipment: 160.00,
+  subtotal_one_time_fees: 75.00,
+  total_discounts: 20.00,
+  subtotal_before_tax: 374.98,
+  tax_gst: 18.75,
+  tax_qst: 37.41,
+  total_due_today: 431.14,
+  monthly_recurring: 159.98,
+  promo_code: "BIENVENUE20",
+  promo_description: "20$ de rabais sur la première commande",
+  installation_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+  installation_time_slot: "10h00 - 12h00",
+  installation_type: "standard",
+  activation_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+  first_billing_date: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+  bill_cycle_day: 15,
+  payment_method: "interac",
+  payment_reference: "CA9876543210",
+  signature_name: "Sophie Lavoie",
+  signature_date: today,
+  signature_ip: "192.168.1.100",
+  is_signed: true,
+};
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export function PDFTemplatePreview() {
-  const [activeTab, setActiveTab] = useState("monthly");
+  const [activeTab, setActiveTab] = useState("contract");
   
   const monthlyPDF = useInvoiceMonthlyPDF();
   const oneTimePDF = useInvoiceOneTimePDF();
   const orderPDF = useOrderSummaryPDF();
+  const contractPDF = useContractPDF();
 
   return (
     <Card className="border-border">
@@ -189,7 +268,11 @@ export function PDFTemplatePreview() {
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="contract" className="flex items-center gap-2">
+              <FileSignature className="w-4 h-4" />
+              Contrat
+            </TabsTrigger>
             <TabsTrigger value="monthly" className="flex items-center gap-2">
               <Receipt className="w-4 h-4" />
               Facture Mensuelle
@@ -203,6 +286,40 @@ export function PDFTemplatePreview() {
               Résumé Commande
             </TabsTrigger>
           </TabsList>
+
+          {/* Contract */}
+          <TabsContent value="contract" className="space-y-4">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="font-semibold mb-2">Contrat de Service Complet (8+ pages)</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Contrat professionnel incluant résumé exécutif, services/équipements, 
+                grille tarifaire, et les 5 annexes légales (A-E): Termes et conditions, 
+                Conditions par service, Installation, Paiement, Support/SLA.
+                Signature électronique conforme à la loi québécoise.
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => contractPDF.open(SAMPLE_CONTRACT)}
+                  disabled={contractPDF.isGenerating}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Aperçu
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => contractPDF.download(SAMPLE_CONTRACT)}
+                  disabled={contractPDF.isGenerating}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Télécharger
+                </Button>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <strong>Contenu:</strong> Résumé exécutif, Services souscrits, Équipements, 
+              Frais uniques, Totaux, Dates clés, Annexes A-E, Signature électronique
+            </div>
+          </TabsContent>
 
           {/* Monthly Invoice */}
           <TabsContent value="monthly" className="space-y-4">

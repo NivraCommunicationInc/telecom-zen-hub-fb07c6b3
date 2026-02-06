@@ -10,12 +10,14 @@ import {
   generateInvoiceMonthlyPDF,
   generateInvoiceOneTimePDF,
   generateOrderSummaryPDF,
+  generateContractPDF,
   generateDocument,
   detectDocumentType,
   type DocumentType,
   type InvoiceMonthlyData,
   type InvoiceOneTimeData,
   type OrderSummaryData,
+  type ContractData,
   type PDFGenerationResult,
 } from "@/lib/pdf";
 
@@ -140,10 +142,50 @@ export function useOrderSummaryPDF() {
 }
 
 // ============================================================================
+// HOOK: useContractPDF
+// ============================================================================
+
+export function useContractPDF() {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generate = useCallback(async (data: ContractData): Promise<PDFGenerationResult> => {
+    setIsGenerating(true);
+    try {
+      const result = generateContractPDF(data);
+      if (!result.success) {
+        toast.error(result.error || "Erreur lors de la génération du contrat");
+      }
+      return result;
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
+
+  const download = useCallback(async (data: ContractData) => {
+    const result = await generate(data);
+    if (result.success && result.blob && result.filename) {
+      safePDFDownload(result.blob, result.filename);
+      toast.success("Contrat téléchargé");
+    }
+    return result;
+  }, [generate]);
+
+  const open = useCallback(async (data: ContractData) => {
+    const result = await generate(data);
+    if (result.success && result.blob && result.filename) {
+      safePDFOpen(result.blob, result.filename);
+    }
+    return result;
+  }, [generate]);
+
+  return { generate, download, open, isGenerating };
+}
+
+// ============================================================================
 // HOOK: useDocumentPDF (Unified)
 // ============================================================================
 
-type AnyDocumentData = InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData;
+type AnyDocumentData = InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData;
 
 export function useDocumentPDF() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -183,7 +225,7 @@ export function useDocumentPDF() {
 
   const autoGenerate = useCallback(async (
     data: AnyDocumentData,
-    hints?: { hasRecurringServices?: boolean; hasEquipment?: boolean; isOrderConfirmation?: boolean }
+    hints?: { hasRecurringServices?: boolean; hasEquipment?: boolean; isOrderConfirmation?: boolean; isContract?: boolean }
   ) => {
     const type = detectDocumentType(hints || {});
     return generate(type, data);
