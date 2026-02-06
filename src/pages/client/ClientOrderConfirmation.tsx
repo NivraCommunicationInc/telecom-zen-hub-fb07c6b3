@@ -35,7 +35,8 @@ import {
   KeyRound,
   RefreshCw,
   Router,
-  Download
+  Download,
+  ScrollText
 } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { COMPANY_CONTACT } from "@/config/company";
@@ -44,6 +45,8 @@ import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
+import { generateTermsModalitesPDF, getTermsModalitesFilename } from "@/lib/pdfEngine";
+import { safePDFDownload } from "@/lib/pdfUtils";
 
 interface OrderData {
   id: string;
@@ -874,6 +877,98 @@ END:VCALENDAR`;
             </Card>
           </div>
         </div>
+
+        {/* ===== DOCUMENTS SECTION ===== */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ScrollText className="w-4 h-4 text-purple-500" />
+              Documents de commande
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Terms/Modalités PDF */}
+              <div className="p-4 bg-muted/50 rounded-lg border border-border hover:border-purple-500/50 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                    <ScrollText className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">Modalités de service</p>
+                    <p className="text-xs text-muted-foreground">Version 2026-02-05</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 gap-1.5 w-full"
+                      onClick={() => {
+                        const doc = generateTermsModalitesPDF({
+                          orderId: order.id,
+                          orderNumber: order.order_number,
+                          accountId: order.account_id,
+                          accountNumber: account?.account_number || profile?.client_number,
+                          issuedDate: new Date(order.created_at),
+                          clientName: profile?.full_name,
+                          clientEmail: profile?.email,
+                        });
+                        const blob = doc.output("blob");
+                        safePDFDownload(blob, getTermsModalitesFilename(order.order_number));
+                        toast.success("Modalités de service téléchargées");
+                      }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Télécharger PDF
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contract PDF link */}
+              <div className="p-4 bg-muted/50 rounded-lg border border-border hover:border-cyan-500/50 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">Contrat de services</p>
+                    <p className="text-xs text-muted-foreground">Accord client</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 gap-1.5 w-full"
+                      onClick={() => navigate("/portal/contracts")}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Voir mes contrats
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice link */}
+              <div className="p-4 bg-muted/50 rounded-lg border border-border hover:border-emerald-500/50 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                    <Receipt className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">Factures</p>
+                    <p className="text-xs text-muted-foreground">Historique de paiements</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 gap-1.5 w-full"
+                      onClick={() => navigate("/portal/invoices")}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Voir mes factures
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ===== ACTION BUTTONS ===== */}
         <Card className="bg-muted/30">

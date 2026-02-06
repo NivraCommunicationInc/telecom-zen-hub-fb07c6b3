@@ -79,3 +79,12 @@ export {
   type TelecomContractData,
   type InvoiceData,
 } from "./legacyWrappers";
+
+// Terms/Modalités de service PDF generator
+export {
+  generateTermsModalitesPDF,
+  generateTermsModalitesPDFBlob,
+  getTermsModalitesFilename,
+  TERMS_DOCUMENT_INFO,
+  type TermsModalitesData,
+} from "./termsModalitesPdfGenerator";
