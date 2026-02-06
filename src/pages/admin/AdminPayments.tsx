@@ -92,15 +92,42 @@
    cash: { label: "Espèces", icon: <Banknote className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
  };
  
- const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-   confirmed: { label: "Confirmé", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
-   completed: { label: "Complété", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
-   captured: { label: "Capturé", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
-   pending: { label: "En attente", icon: <Clock className="h-4 w-4" />, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
-   failed: { label: "Échoué", icon: <XCircle className="h-4 w-4" />, color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
-   refunded: { label: "Remboursé", icon: <RefreshCw className="h-4 w-4" />, color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
-   error_captured: { label: "Erreur", icon: <AlertTriangle className="h-4 w-4" />, color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
- };
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  confirmed: { label: "Confirmé", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  completed: { label: "Complété", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  captured: { label: "Capturé", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  pending: { label: "En attente", icon: <Clock className="h-4 w-4" />, color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
+  pre_authorized: { label: "Autorisé", icon: <CheckCircle2 className="h-4 w-4" />, color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+  failed: { label: "Échoué", icon: <XCircle className="h-4 w-4" />, color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
+  refunded: { label: "Remboursé", icon: <RefreshCw className="h-4 w-4" />, color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
+  error_captured: { label: "Erreur", icon: <AlertTriangle className="h-4 w-4" />, color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
+};
+
+// Get contextual status label based on payment method
+const getMethodAwareStatusLabel = (status: string, method: string): string => {
+  const normalizedMethod = method?.toLowerCase() || "";
+  
+  // PayPal: confirmed/captured/completed = "Payé"
+  if (normalizedMethod === "paypal") {
+    if (["confirmed", "completed", "captured"].includes(status)) return "Payé";
+    if (status === "pending") return "En cours";
+  }
+  
+  // Interac: pending = "En attente", confirmed = "Reçu"
+  if (normalizedMethod === "interac" || normalizedMethod === "e_transfer") {
+    if (status === "pending") return "En attente";
+    if (["confirmed", "completed"].includes(status)) return "Reçu";
+  }
+  
+  // Credit Card: pre_authorized = "Autorisé", captured = "Payé"
+  if (normalizedMethod === "card" || normalizedMethod === "credit_card") {
+    if (status === "pre_authorized") return "Autorisé";
+    if (["confirmed", "completed", "captured"].includes(status)) return "Payé";
+  }
+  
+  // Fallback to default config
+  return STATUS_CONFIG[status]?.label || status;
+};
  
  const formatCurrency = (amount: number) =>
    new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
@@ -439,13 +466,23 @@
      };
    };
  
-   const getStatusConfig = (status: string) => {
-     return STATUS_CONFIG[status] || {
-       label: status,
-       icon: <Clock className="h-4 w-4" />,
-       color: "bg-gray-100 text-gray-800",
-     };
-   };
+  const getStatusConfig = (status: string, method?: string) => {
+    const baseConfig = STATUS_CONFIG[status] || {
+      label: status,
+      icon: <Clock className="h-4 w-4" />,
+      color: "bg-gray-100 text-gray-800",
+    };
+    
+    // Override label with method-aware version
+    const contextualLabel = method 
+      ? getMethodAwareStatusLabel(status, method)
+      : baseConfig.label;
+    
+    return {
+      ...baseConfig,
+      label: contextualLabel,
+    };
+  };
  
    const openDetails = (payment: UnifiedPayment) => {
      setSelectedPayment(payment);
@@ -631,7 +668,7 @@
                      ) : (
                        filteredPayments.map((payment) => {
                          const methodConfig = getMethodConfig(payment.method);
-                         const statusConfig = getStatusConfig(payment.status);
+                         const statusConfig = getStatusConfig(payment.status, payment.method);
  
                          return (
                            <TableRow key={`${payment.source_table}-${payment.id}`}>
@@ -677,12 +714,12 @@
                              <TableCell className="text-right font-semibold">
                                {formatCurrency(payment.amount)}
                              </TableCell>
-                             <TableCell>
-                               <Badge className={`${statusConfig.color} gap-1`}>
-                                 {statusConfig.icon}
-                                 {statusConfig.label}
-                               </Badge>
-                             </TableCell>
+                            <TableCell>
+                              <Badge className={`${getStatusConfig(payment.status, payment.method).color} gap-1`}>
+                                {getStatusConfig(payment.status, payment.method).icon}
+                                {getStatusConfig(payment.status, payment.method).label}
+                              </Badge>
+                            </TableCell>
                              <TableCell>
                                <div className="max-w-[150px] truncate text-xs font-mono">
                                  {payment.provider_payment_id || payment.reference || "—"}
@@ -732,10 +769,10 @@
                      </div>
                      <div className="space-y-1">
                        <p className="text-xs text-muted-foreground uppercase">Statut</p>
-                       <Badge className={`${getStatusConfig(selectedPayment.status).color} gap-1`}>
-                         {getStatusConfig(selectedPayment.status).icon}
-                         {getStatusConfig(selectedPayment.status).label}
-                       </Badge>
+                      <Badge className={`${getStatusConfig(selectedPayment.status, selectedPayment.method).color} gap-1`}>
+                        {getStatusConfig(selectedPayment.status, selectedPayment.method).icon}
+                        {getStatusConfig(selectedPayment.status, selectedPayment.method).label}
+                      </Badge>
                      </div>
                    </div>
  

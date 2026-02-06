@@ -2166,8 +2166,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // Check if ID details are complete
   const isIdComplete = idType && idNumber && idExpiration && idProvince;
   
-  // Check if payment is complete
-  const isPaymentComplete = paymentComplete && paymentConfirmationNumber;
+  // Check if payment is complete (including PayPal captures from redirect)
+  const isPaymentComplete = (paymentComplete && paymentConfirmationNumber) || 
+    (paymentMethod === "paypal" && paypalCaptureId);
   
   // Validate credit card format
   const isCardValid = cardNumber.replace(/\s/g, '').length >= 15 && 
@@ -4776,8 +4777,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   )}
 
-                  {/* PayPal Form */}
-                  {paymentMethod === "paypal" && !paymentComplete && (
+                  {/* PayPal Form - Only show if not already paid via PayPal */}
+                  {paymentMethod === "paypal" && !paymentComplete && !paypalCaptureId && (
                     <div className="space-y-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
                       <p className="text-sm text-muted-foreground mb-4">
                         Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
@@ -4811,7 +4812,43 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   )}
 
-                  {/* Payment Confirmed */}
+                  {/* PayPal Already Captured (from redirect/session restore) - Allow proceeding without repaying */}
+                  {paymentMethod === "paypal" && !paymentComplete && paypalCaptureId && (
+                    <div className="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <CheckCircle2 className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-emerald-500">Paiement PayPal confirmé!</p>
+                          <p className="text-sm text-muted-foreground">
+                            Réf. PayPal: <span className="font-mono font-bold text-foreground">{paypalCaptureId}</span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                          </p>
+                          <p className="text-xs text-emerald-600 mt-1">
+                            ✓ Votre paiement a été capturé. Vous pouvez soumettre votre commande.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full"
+                        onClick={() => {
+                          // Mark payment as complete to proceed
+                          setPaymentComplete(true);
+                          setPaymentConfirmationNumber(paypalCaptureId);
+                        }}
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        Continuer avec ce paiement
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Payment Confirmed (any method) */}
                   {paymentComplete && (
                     <div className="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg">
                       <div className="flex items-center gap-3">
@@ -4826,6 +4863,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           <p className="text-sm text-muted-foreground">
                             Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                           </p>
+                          {paymentMethod === "paypal" && (
+                            <Badge className="mt-2 bg-blue-500/20 text-blue-600 border-0">
+                              PayPal — Payé
+                            </Badge>
+                          )}
+                          {paymentMethod === "etransfer" && (
+                            <Badge className="mt-2 bg-amber-500/20 text-amber-600 border-0">
+                              Interac — En attente de confirmation
+                            </Badge>
+                          )}
+                          {paymentMethod === "credit_card" && (
+                            <Badge className="mt-2 bg-purple-500/20 text-purple-600 border-0">
+                              Carte — Autorisé
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
