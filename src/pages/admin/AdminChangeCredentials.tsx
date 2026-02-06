@@ -137,10 +137,10 @@ const AdminChangeCredentials = () => {
       // Update PIN if required
       if (requirePinChange) {
         const pinHash = await hashPin(newPin);
-        
+
         const { error: roleError } = await supabase
           .from("user_roles")
-          .update({ 
+          .update({
             admin_pin_hash: pinHash,
             require_pin_change: false,
           })
@@ -179,6 +179,60 @@ const AdminChangeCredentials = () => {
       // Navigate to admin dashboard
       navigate("/admin", { replace: true });
 
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err.message || "Une erreur est survenue",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKeepCredentials = async () => {
+    const ok = window.confirm(
+      "Continuer sans changer le mot de passe / PIN ?\n\nCela désactive l'étape 'Changement requis' pour ton compte."
+    );
+    if (!ok) return;
+
+    setIsSubmitting(true);
+    setErrors({});
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/admin/login", { replace: true });
+        return;
+      }
+
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .update({
+          require_password_change: false,
+          require_pin_change: false,
+        })
+        .eq("user_id", session.user.id)
+        .eq("role", "admin");
+
+      if (roleError) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de désactiver l'étape de changement.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      sessionStorage.removeItem("admin_require_password_change");
+      sessionStorage.removeItem("admin_require_pin_change");
+
+      toast({
+        title: "OK",
+        description: "Identifiants conservés. Accès admin débloqué.",
+      });
+
+      navigate("/admin", { replace: true });
     } catch (err: any) {
       toast({
         title: "Erreur",
@@ -339,6 +393,19 @@ const AdminChangeCredentials = () => {
             >
               {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
             </Button>
+
+            {(requirePasswordChange || requirePinChange) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={handleKeepCredentials}
+              >
+                Conserver mes identifiants
+              </Button>
+            )}
           </div>
         </form>
       </div>
