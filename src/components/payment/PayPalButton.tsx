@@ -62,7 +62,7 @@ export const PayPalButton = ({
   // IMPORTANT:
   // Plusieurs parties du site refetch en arrière-plan (bannières statut, sécurité, etc.).
   // Si on recrée les boutons PayPal à chaque re-render, PayPal peut fermer la fenêtre
-  // (ou annuler le flux) et l’utilisateur revient au checkout.
+  // (ou annuler le flux) et l'utilisateur revient au checkout.
   // => On stabilise les callbacks + on ne re-render les boutons que si les props
   //    réellement pertinentes changent.
   const callbacksRef = useRef({ onSuccess, onError, onCancel });
@@ -189,5 +189,76 @@ export const PayPalButton = ({
           setIsLoading(false);
         }
       },
+
+      onApprove: async (data: { orderID: string }) => {
+        setIsLoading(true);
+        try {
+          const { data: captureData, error } = await supabase.functions.invoke("paypal-capture-order", {
+            body: {
+              paypal_order_id: data.orderID,
+              invoice_id: invoiceId,
+              order_id: orderId,
+            },
+          });
+
+          if (error) throw error;
+          if (!captureData?.capture_id) throw new Error("No capture ID returned");
+
+          toast.success("Paiement PayPal réussi!");
+          callbacksRef.current.onSuccess?.(captureData.capture_id);
+        } catch (err) {
+          console.error("PayPal capture error:", err);
+          const errorMessage = await getInvokeErrorMessage(err);
+          toast.error(errorMessage);
+          callbacksRef.current.onError?.(errorMessage);
+        } finally {
+          setIsLoading(false);
+        }
+      },
+
+      onCancel: () => {
+        toast.info("Paiement PayPal annulé");
+        callbacksRef.current.onCancel?.();
+      },
+
+      onError: (err: Error) => {
+        console.error("PayPal error:", err);
+        toast.error("Erreur PayPal. Veuillez réessayer.");
+        callbacksRef.current.onError?.(err.message || "Unknown PayPal error");
+      },
+    }).render(`#${containerId}`);
+  }, [sdkReady, containerId, disabled, renderKey, normalizedAmount, invoiceId, orderId, description, customer]);
+
+  if (!import.meta.env.VITE_PAYPAL_CLIENT_ID) {
+    return (
+      <div className="text-sm text-destructive">
+        Configuration PayPal manquante
+      </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      {isLoading && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">
+            Traitement en cours...
+          </span>
+        </div>
+      )}
+      <div 
+        id={containerId} 
+        className={isLoading ? "opacity-50 pointer-events-none" : ""}
+      />
+      {!sdkReady && !isLoading && (
+        <Button disabled className="w-full">
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          Chargement PayPal...
+        </Button>
+      )}
+    </div>
+  );
+};
 
 export default PayPalButton;
