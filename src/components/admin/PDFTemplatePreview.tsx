@@ -3,12 +3,12 @@
  * Admin tool to preview and test the 4 billing templates
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Eye, Receipt, ShoppingBag, FileSignature } from "lucide-react";
+import { FileText, Download, Eye, Receipt, ShoppingBag, FileSignature, RefreshCw } from "lucide-react";
 import { 
   useInvoiceMonthlyPDF, 
   useInvoiceOneTimePDF, 
@@ -22,18 +22,39 @@ import type {
   ContractData,
 } from "@/lib/pdf";
 import { format } from "date-fns";
+import {
+  generateAccountNumber,
+  generateOrderNumber,
+  generateInvoiceNumber,
+  generateContractNumber,
+  generatePaymentConfirmation,
+  generatePaymentReference,
+} from "@/lib/secureIdGenerator";
 
 // ============================================================================
-// SAMPLE DATA
+// SAMPLE DATA GENERATOR (using secure IDs: 2-9 first digit)
 // ============================================================================
+
+const generateSampleIds = () => {
+  const invoiceNum = generateInvoiceNumber();
+  return {
+    account_number: generateAccountNumber(),
+    order_number: generateOrderNumber(),
+    invoice_number: invoiceNum,
+    invoice_number_2: generateInvoiceNumber(),
+    contract_number: generateContractNumber(),
+    payment_confirmation: generatePaymentConfirmation(),
+    payment_reference: generatePaymentReference(invoiceNum),
+  };
+};
 
 const today = new Date().toISOString().split("T")[0];
 const cycleStart = today;
 const cycleEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-const SAMPLE_MONTHLY: InvoiceMonthlyData = {
-  account_number: "ACC-2026-0001",
-  invoice_number: "INV-2026-0123",
+const createSampleMonthly = (ids: ReturnType<typeof generateSampleIds>): InvoiceMonthlyData => ({
+  account_number: ids.account_number,
+  invoice_number: ids.invoice_number,
   invoice_date: today,
   bill_cycle_date: 1,
   cycle_start: cycleStart,
@@ -49,6 +70,7 @@ const SAMPLE_MONTHLY: InvoiceMonthlyData = {
   client_email: "jptremblay@example.com",
   client_phone: "514-555-1234",
   client_address: "1234 Rue Principale, Montréal, QC H2X 1Y4",
+  payment_reference: ids.payment_reference,
   invoice_lines: [
     {
       service_type: "Internet",
@@ -67,11 +89,11 @@ const SAMPLE_MONTHLY: InvoiceMonthlyData = {
       service_total: 34.99,
     },
   ],
-};
+});
 
-const SAMPLE_ONETIME: InvoiceOneTimeData = {
-  account_number: "ACC-2026-0001",
-  invoice_number: "INV-2026-0124",
+const createSampleOneTime = (ids: ReturnType<typeof generateSampleIds>): InvoiceOneTimeData => ({
+  account_number: ids.account_number,
+  invoice_number: ids.invoice_number_2,
   invoice_date: today,
   bill_cycle_date: 1,
   cycle_start: cycleStart,
@@ -83,12 +105,12 @@ const SAMPLE_ONETIME: InvoiceOneTimeData = {
   tax_gst: 10.00,
   tax_qst: 19.95,
   total_due: 229.93,
-  payment_reference: "PP-8MC585209K746631H",
+  payment_reference: ids.payment_confirmation,
   client_name: "Marie-Claire Dubois",
   client_email: "mcdubois@example.com",
   client_phone: "438-555-9876",
   client_address: "5678 Boulevard Saint-Laurent, Laval, QC H7T 2Y5",
-  order_number: "CMD-2026-0456",
+  order_number: ids.order_number,
   paid_at: today,
   payment_method: "paypal",
   items: [
@@ -108,12 +130,12 @@ const SAMPLE_ONETIME: InvoiceOneTimeData = {
       line_total: 49.99,
     },
   ],
-};
+});
 
-const SAMPLE_ORDER: OrderSummaryData = {
-  order_number: "CMD-2026-0789",
+const createSampleOrder = (ids: ReturnType<typeof generateSampleIds>): OrderSummaryData => ({
+  order_number: ids.order_number,
   order_date: today,
-  account_number: "ACC-2026-0002",
+  account_number: ids.account_number,
   client_name: "André Gagnon",
   client_email: "agagnon@example.com",
   client_phone: "450-555-4321",
@@ -161,16 +183,16 @@ const SAMPLE_ORDER: OrderSummaryData = {
   total_due: 385.14,
   payment_status: "paid",
   payment_method: "interac",
-  payment_reference: "CA1234567890",
+  payment_reference: ids.payment_reference,
   paid_at: today,
   promo_code: "BIENVENUE20",
   promo_description: "20$ de rabais",
   estimated_activation: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
   first_billing_date: cycleEnd,
-};
+});
 
-const SAMPLE_CONTRACT: ContractData = {
-  contract_number: "NVR-PREP-QC-2026-00001",
+const createSampleContract = (ids: ReturnType<typeof generateSampleIds>): ContractData => ({
+  contract_number: ids.contract_number,
   contract_date: today,
   contract_version: "v2.0-PREP-QC-2026",
   client_name: "Sophie Lavoie",
@@ -179,8 +201,8 @@ const SAMPLE_CONTRACT: ContractData = {
   client_dob: "1985-03-15",
   service_address: "4567 Avenue des Pins, Montréal, QC H2W 1R7",
   billing_address: "4567 Avenue des Pins, Montréal, QC H2W 1R7",
-  account_number: "ACC-2026-0003",
-  order_number: "CMD-2026-0999",
+  account_number: ids.account_number,
+  order_number: ids.order_number,
   order_date: today,
   services: [
     {
@@ -238,12 +260,12 @@ const SAMPLE_CONTRACT: ContractData = {
   first_billing_date: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
   bill_cycle_day: 15,
   payment_method: "interac",
-  payment_reference: "CA9876543210",
+  payment_reference: ids.payment_reference,
   signature_name: "Sophie Lavoie",
   signature_date: today,
   signature_ip: "192.168.1.100",
   is_signed: true,
-};
+});
 
 // ============================================================================
 // COMPONENT
@@ -251,11 +273,28 @@ const SAMPLE_CONTRACT: ContractData = {
 
 export function PDFTemplatePreview() {
   const [activeTab, setActiveTab] = useState("contract");
+  const [idSeed, setIdSeed] = useState(0);
   
   const monthlyPDF = useInvoiceMonthlyPDF();
   const oneTimePDF = useInvoiceOneTimePDF();
   const orderPDF = useOrderSummaryPDF();
   const contractPDF = useContractPDF();
+
+  // Generate sample data with secure IDs (regenerates when idSeed changes)
+  const sampleData = useMemo(() => {
+    const ids = generateSampleIds();
+    return {
+      ids,
+      monthly: createSampleMonthly(ids),
+      oneTime: createSampleOneTime(ids),
+      order: createSampleOrder(ids),
+      contract: createSampleContract(ids),
+    };
+  }, [idSeed]);
+
+  const handleRegenerateIds = () => {
+    setIdSeed(prev => prev + 1);
+  };
 
   return (
     <Card className="border-border">
@@ -263,10 +302,33 @@ export function PDFTemplatePreview() {
         <CardTitle className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-primary" />
           Aperçu des Templates PDF
-          <Badge variant="outline" className="ml-2">V2</Badge>
+          <Badge variant="outline" className="ml-2">V2.4</Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRegenerateIds}
+            className="ml-auto"
+            title="Régénérer les IDs (2-9)"
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Nouveaux IDs
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Current IDs display */}
+        <div className="mb-4 p-3 bg-muted/30 rounded-lg text-xs font-mono space-y-1">
+          <div className="text-muted-foreground mb-2 font-sans font-semibold">IDs générés (règle 2-9):</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <span><strong>Compte:</strong> {sampleData.ids.account_number}</span>
+            <span><strong>Commande:</strong> {sampleData.ids.order_number}</span>
+            <span><strong>Facture:</strong> {sampleData.ids.invoice_number}</span>
+            <span><strong>Contrat:</strong> {sampleData.ids.contract_number}</span>
+            <span><strong>Confirmation:</strong> {sampleData.ids.payment_confirmation}</span>
+            <span><strong>Réf. paiement:</strong> {sampleData.ids.payment_reference}</span>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="contract" className="flex items-center gap-2">
@@ -299,7 +361,7 @@ export function PDFTemplatePreview() {
               </p>
               <div className="flex gap-2">
                 <Button 
-                  onClick={() => contractPDF.open(SAMPLE_CONTRACT)}
+                  onClick={() => contractPDF.open(sampleData.contract)}
                   disabled={contractPDF.isGenerating}
                 >
                   <Eye className="w-4 h-4 mr-2" />
@@ -307,7 +369,7 @@ export function PDFTemplatePreview() {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={() => contractPDF.download(SAMPLE_CONTRACT)}
+                  onClick={() => contractPDF.download(sampleData.contract)}
                   disabled={contractPDF.isGenerating}
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -331,7 +393,7 @@ export function PDFTemplatePreview() {
               </p>
               <div className="flex gap-2">
                 <Button 
-                  onClick={() => monthlyPDF.open(SAMPLE_MONTHLY)}
+                  onClick={() => monthlyPDF.open(sampleData.monthly)}
                   disabled={monthlyPDF.isGenerating}
                 >
                   <Eye className="w-4 h-4 mr-2" />
@@ -339,7 +401,7 @@ export function PDFTemplatePreview() {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={() => monthlyPDF.download(SAMPLE_MONTHLY)}
+                  onClick={() => monthlyPDF.download(sampleData.monthly)}
                   disabled={monthlyPDF.isGenerating}
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -363,7 +425,7 @@ export function PDFTemplatePreview() {
               </p>
               <div className="flex gap-2">
                 <Button 
-                  onClick={() => oneTimePDF.open(SAMPLE_ONETIME)}
+                  onClick={() => oneTimePDF.open(sampleData.oneTime)}
                   disabled={oneTimePDF.isGenerating}
                 >
                   <Eye className="w-4 h-4 mr-2" />
@@ -371,7 +433,7 @@ export function PDFTemplatePreview() {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={() => oneTimePDF.download(SAMPLE_ONETIME)}
+                  onClick={() => oneTimePDF.download(sampleData.oneTime)}
                   disabled={oneTimePDF.isGenerating}
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -395,7 +457,7 @@ export function PDFTemplatePreview() {
               </p>
               <div className="flex gap-2">
                 <Button 
-                  onClick={() => orderPDF.open(SAMPLE_ORDER)}
+                  onClick={() => orderPDF.open(sampleData.order)}
                   disabled={orderPDF.isGenerating}
                 >
                   <Eye className="w-4 h-4 mr-2" />
@@ -403,7 +465,7 @@ export function PDFTemplatePreview() {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={() => orderPDF.download(SAMPLE_ORDER)}
+                  onClick={() => orderPDF.download(sampleData.order)}
                   disabled={orderPDF.isGenerating}
                 >
                   <Download className="w-4 h-4 mr-2" />
