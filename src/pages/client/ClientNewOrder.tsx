@@ -486,14 +486,17 @@ const ClientNewOrder = () => {
   // Using useRef ensures it's stable across re-renders and never regenerates
   const clientRequestIdRef = useRef(crypto.randomUUID());
   const clientRequestId = clientRequestIdRef.current;
-  
+
   // Synchronous guard to prevent double-click race conditions
   const submittingRef = useRef(false);
-  
+
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
   const isInitialMount = useRef(true);
-  
+
+  // Promo: track last validated cart signature to prevent loops on silent revalidation
+  const promoCartSignatureRef = useRef<string>("");
+
   // Detail breakdown visibility state
   const [showFeeDetails, setShowFeeDetails] = useState(false);
   
@@ -1030,114 +1033,170 @@ const ClientNewOrder = () => {
     return false;
   };
 
-  // Apply discount code using validate-promo edge function
-  const applyDiscountCode = async () => {
-    if (!discountCode.trim()) {
-      toast.error("Veuillez entrer un code promo");
-      return;
-    }
+  // Promo validation helpers
+  type PromoCartItemType = "service" | "one_time_fee" | "equipment" | "delivery" | "installation";
+  type PromoCartItem = { type: PromoCartItemType; amount: number; name: string };
 
-    // Build cart items for promo validation
-    type CartItemType = 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation';
-    const cartItems: Array<{ type: CartItemType; amount: number; name: string }> = [];
-    
-    // Services
-    selectedServices.forEach(s => {
+  const buildPromoValidationPayload = (code: string) => {
+    // Normalize: trim, uppercase, remove trailing punctuation (accepts "Bienvenue." etc.)
+    const normalizedCode = code.trim().toUpperCase().replace(/[.,;:!?]+$/, "");
+
+    const cartItems: PromoCartItem[] = [];
+
+    // Services (include mobile quantities; avoid double-counting if a service exists in both arrays)
+    const selectedMobileIds = new Set(selectedMobileServices.map((s) => s.id));
+
+    selectedServices.forEach((s) => {
+      if (selectedMobileIds.has(s.id)) return;
+      const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
+      const amount = Number(s.price) * qty;
       cartItems.push({
-        type: 'service',
-        amount: Number(s.price),
-        name: s.name,
+        type: "service",
+        amount,
+        name: qty > 1 ? `${s.name} x${qty}` : s.name,
       });
     });
-    
-    // Paid channels
-    selectedPaidChannels.forEach(ch => {
+
+    selectedMobileServices.forEach((s) => {
+      const qty = mobileLineQuantities[s.id] || 1;
+      const amount = Number(s.price) * qty;
       cartItems.push({
-        type: 'service',
+        type: "service",
+        amount,
+        name: qty > 1 ? `${s.name} x${qty}` : s.name,
+      });
+    });
+
+    // Paid channels
+    selectedPaidChannels.forEach((ch) => {
+      cartItems.push({
+        type: "service",
         amount: Number(ch.price),
         name: ch.name,
       });
     });
 
-    // Add equipment fees
+    // Streaming+ add-ons (monthly)
+    selectedStreamingServices.forEach((s) => {
+      cartItems.push({
+        type: "service",
+        amount: Number(s.monthly_price),
+        name: `Streaming+ — ${s.name}`,
+      });
+    });
+
+    // Equipment fees
     if (hasTVService && terminalQuantity > 0) {
       cartItems.push({
-        type: 'equipment',
+        type: "equipment",
         amount: terminalQuantity * TERMINAL_CONFIG.price,
         name: `${TERMINAL_CONFIG.name} x${terminalQuantity}`,
       });
     }
     if (hasInternetService || hasTVService) {
       cartItems.push({
-        type: 'equipment',
+        type: "equipment",
         amount: ROUTER_CONFIG_DYNAMIC.price,
         name: ROUTER_CONFIG_DYNAMIC.name,
       });
     }
     if (hasMobileService) {
       cartItems.push({
-        type: 'equipment',
+        type: "equipment",
         amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity,
         name: `${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLineQuantity}`,
       });
     }
 
-    // Add activation fee
-    cartItems.push({
-      type: 'one_time_fee',
-      amount: 25,
-      name: 'Frais d\'activation',
-    });
-
-    // Add delivery fee if applicable
-    if (isDeliveryOnlyOrder && deliveryChoice) {
-      const deliveryFee = deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
-                          deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
-                          DELIVERY_CONFIG.standard.fee;
+    // Activation fee (matches checkout logic)
+    const activationFeeForPromo = calculateActivationFee();
+    if (activationFeeForPromo > 0) {
       cartItems.push({
-        type: 'delivery',
-        amount: deliveryFee,
-        name: 'Frais de livraison',
+        type: "one_time_fee",
+        amount: activationFeeForPromo,
+        name: "Frais d'activation",
+      });
+    }
+
+    // Delivery fee if applicable
+    if (isDeliveryOnlyOrder && deliveryChoice) {
+      const deliveryFeeAmount =
+        deliveryChoice === "uber"
+          ? DELIVERY_CONFIG.uber.fee
+          : deliveryChoice === "shipHome"
+            ? DELIVERY_CONFIG.shipHome.fee
+            : DELIVERY_CONFIG.standard.fee;
+
+      cartItems.push({
+        type: "delivery",
+        amount: deliveryFeeAmount,
+        name: "Frais de livraison",
       });
     } else if (!isDeliveryOnlyOrder && installationChoice === "auto") {
       cartItems.push({
-        type: 'delivery',
+        type: "delivery",
         amount: 30,
-        name: 'Frais de livraison',
+        name: "Frais de livraison",
       });
     }
 
-    // Add installation fee if technician
+    // Installation fee if technician
     if (!isDeliveryOnlyOrder && installationChoice === "technician") {
       cartItems.push({
-        type: 'installation',
+        type: "installation",
         amount: 50,
-        name: 'Frais d\'installation technicien',
+        name: "Frais d'installation technicien",
       });
     }
 
-    const subtotalBeforeDiscount = cartItems.reduce((sum, item) => sum + item.amount, 0);
+    const subtotalBeforeDiscount = cartItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const signature = JSON.stringify({ normalizedCode, subtotalBeforeDiscount, cartItems });
+
+    return { normalizedCode, cartItems, subtotalBeforeDiscount, signature };
+  };
+
+  const validateAndApplyPromo = async (
+    code: string,
+    options?: { silent?: boolean }
+  ): Promise<boolean> => {
+    const silent = options?.silent === true;
+
+    if (!code || !code.trim()) {
+      if (!silent) toast.error("Veuillez entrer un code promo");
+      return false;
+    }
+
+    const payload = buildPromoValidationPayload(code);
+
+    // Mark signature as the last validated cart to prevent immediate revalidation loops
+    promoCartSignatureRef.current = payload.signature;
 
     setIsValidatingPromo(true);
     try {
       const { data, error: invokeError } = await supabase.functions.invoke("validate-promo", {
         body: {
-          code: discountCode.trim(),
-          client_email: profile?.email || '',
+          code: payload.normalizedCode,
+          client_email: profile?.email || "",
           client_id: user?.id,
-          cart_items: cartItems,
-          subtotal_before_discount: subtotalBeforeDiscount,
+          cart_items: payload.cartItems,
+          subtotal_before_discount: payload.subtotalBeforeDiscount,
         },
       });
 
       if (invokeError) throw invokeError;
 
-      if (!data.valid) {
-        toast.error(data.error || "Code promo invalide");
-        return;
+      if (!data?.valid) {
+        // If silent revalidation fails, remove the promo (it no longer applies)
+        if (silent) {
+          setAppliedPromo(null);
+          setInstallationCredit(0);
+          toast.error(data?.error || "Ce code promo ne s'applique plus à cette commande");
+        } else {
+          toast.error(data?.error || "Code promo invalide");
+        }
+        return false;
       }
 
-      // Apply the promo (capture referral code fields if present)
       setAppliedPromo({
         id: data.promo.id,
         code: data.promo.code,
@@ -1151,19 +1210,29 @@ const ClientNewOrder = () => {
         influencer_id: data.influencer_id,
       });
 
-      // If it applies to installation, set installation credit
-      if (data.promo.applies_to?.installation) {
-        const installCredit = Math.min(data.discount_amount, 50);
-        setInstallationCredit(installCredit);
+      // IMPORTANT: Do not apply a separate installationCredit discount.
+      // The promo is applied once via promoDiscount (discount_amount) in totals.
+      setInstallationCredit(0);
+
+      if (!silent) {
+        toast.success(
+          `Code promo "${data.promo.code}" appliqué! Réduction de ${Number(data.discount_amount).toFixed(2)} $`
+        );
       }
 
-      toast.success(`Code promo "${data.promo.code}" appliqué! Réduction de ${data.discount_amount.toFixed(2)} $`);
+      return true;
     } catch (err: any) {
       console.error("Error validating promo:", err);
-      toast.error("Erreur lors de la validation du code promo");
+      if (!silent) toast.error("Erreur lors de la validation du code promo");
+      return false;
     } finally {
       setIsValidatingPromo(false);
     }
+  };
+
+  // Apply discount code using validate-promo edge function
+  const applyDiscountCode = async () => {
+    await validateAndApplyPromo(discountCode, { silent: false });
   };
 
   // Remove promo
@@ -2076,7 +2145,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const deliveryFee = calculateDeliveryFee();
   // Activation fee: $25 for 1 service type, $45 for 2+ service types
   const activationFee = calculateActivationFee();
-  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? Math.max(0, 50 - installationCredit) : 0;
+  // IMPORTANT: Promo discounts are applied via promoDiscount (discount_amount) below.
+  // Do not also subtract an installationCredit here, otherwise the promo is applied twice.
+  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0;
   
   // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
   const oneTimeFeesGross = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
@@ -2090,27 +2161,56 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const oneTimeFees = oneTimeFeesGross;
   
   // Apply promo discount to base amount
-  // IMPORTANT: Promo discount is calculated at validation time on eligible items.
-  // For percent-based promos, we need to recalculate based on current cart to avoid
-  // stale discount_amount values when cart changes after promo application.
-  const rawPromoDiscount = appliedPromo?.discount_amount || 0;
-  const grossTotal = monthlyRecurring + oneTimeFees;
-  
-  // Recalculate percent-based discounts to ensure accuracy with current cart
-  let promoDiscount = rawPromoDiscount;
-  if (appliedPromo?.discount_type === 'percent' && appliedPromo.discount_value > 0) {
-    // Calculate discount as percentage of current cart total
-    // This ensures 97% discount = 97% of current total, not stale amount
-    promoDiscount = Math.round(grossTotal * (appliedPromo.discount_value / 100) * 100) / 100;
-  }
-  
+  // IMPORTANT: discount_amount is computed server-side on eligible items.
+  // To avoid stale discounts when the cart changes, we revalidate the promo (see useEffect below)
+  // instead of guessing the discount client-side.
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+  const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
+  const grossTotal = round2(monthlyRecurring + oneTimeFees);
+
   // Cap discount to never exceed the cart total (prevents negative amounts)
-  promoDiscount = Math.min(promoDiscount, grossTotal);
-  
-  const baseAmount = Math.max(0, grossTotal - promoDiscount);
-  const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
-  const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
-  const totalAmount = baseAmount + tpsAmount + tvqAmount;
+  const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
+
+  const baseAmount = round2(Math.max(0, grossTotal - promoDiscount));
+  const tpsAmount = round2(baseAmount * 0.05);
+  const tvqAmount = round2(baseAmount * 0.09975);
+  const totalAmount = round2(baseAmount + tpsAmount + tvqAmount);
+
+  // Keep promo discount accurate when the cart changes (prevents “97% => 0$” stale/cap bugs)
+  useEffect(() => {
+    if (!appliedPromo?.code) return;
+    if (isValidatingPromo) return;
+
+    const payload = buildPromoValidationPayload(appliedPromo.code);
+    if (!payload) return;
+
+    // If cart signature hasn't changed since last validation, skip
+    if (payload.signature === promoCartSignatureRef.current) return;
+
+    // Silent revalidation (no success toast)
+    void validateAndApplyPromo(appliedPromo.code, { silent: true });
+  }, [
+    appliedPromo?.code,
+    isValidatingPromo,
+    selectedServices,
+    selectedMobileServices,
+    selectedPaidChannels,
+    selectedStreamingServices,
+    mobileLineQuantities,
+    terminalQuantity,
+    deliveryChoice,
+    installationChoice,
+    installationCredit,
+    isDeliveryOnlyOrder,
+    isEquipmentOnlyOrder,
+    hasTVService,
+    hasInternetService,
+    hasMobileService,
+    totalMobileLineQuantity,
+    profile?.email,
+    user?.id,
+  ]);
 
   // Separate tax calculations for bill preview
   const oneTimeFeesWithTax = oneTimeFees + Math.round(oneTimeFees * 0.14975 * 100) / 100;
