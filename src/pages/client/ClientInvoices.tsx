@@ -198,11 +198,13 @@ const ClientInvoices = () => {
       if (!user?.id) return [];
       
       const allPayments: any[] = [];
+      const seenIds = new Set<string>(); // Prevent duplicates
       
-      // 1. LEGACY: payments table
+      // 1. LEGACY: payments table - MUST filter by user_id for RLS
       const { data: legacyData, error: legacyError } = await portalSupabase
         .from("payments")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       
       if (legacyError) {
@@ -211,10 +213,13 @@ const ClientInvoices = () => {
       
       if (legacyData) {
         for (const pay of legacyData) {
-          allPayments.push({
-            ...pay,
-            _source: "legacy",
-          });
+          if (!seenIds.has(pay.id)) {
+            seenIds.add(pay.id);
+            allPayments.push({
+              ...pay,
+              _source: "legacy",
+            });
+          }
         }
       }
       
@@ -239,20 +244,25 @@ const ClientInvoices = () => {
         // Map V2 payments to match legacy structure
         if (v2Data) {
           for (const pay of v2Data) {
-            allPayments.push({
-              id: pay.id,
-              user_id: user.id,
-              billing_id: pay.invoice_id,
-              amount: Number(pay.amount) || 0,
-              payment_method: pay.method || pay.provider,
-              reference_number: pay.reference || pay.provider_payment_id,
-              provider_payment_id: pay.provider_payment_id,
-              status: pay.status === "confirmed" ? "completed" : pay.status,
-              created_at: pay.created_at,
-              notes: pay.notes,
-              // V2 source marker
-              _source: "v2",
-            });
+            if (!seenIds.has(pay.id)) {
+              seenIds.add(pay.id);
+              // Map status: V2 'confirmed' = legacy 'completed', V2 'pending' stays 'pending'
+              const mappedStatus = pay.status === "confirmed" ? "completed" : pay.status;
+              allPayments.push({
+                id: pay.id,
+                user_id: user.id,
+                billing_id: pay.invoice_id,
+                amount: Number(pay.amount) || 0,
+                payment_method: pay.method || pay.provider,
+                reference_number: pay.reference || pay.provider_payment_id,
+                provider_payment_id: pay.provider_payment_id,
+                status: mappedStatus,
+                created_at: pay.created_at,
+                notes: pay.notes,
+                // V2 source marker
+                _source: "v2",
+              });
+            }
           }
         }
       }
