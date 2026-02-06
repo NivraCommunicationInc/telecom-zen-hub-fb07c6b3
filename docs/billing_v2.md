@@ -432,7 +432,100 @@ await download(invoiceData);
 
 ### Preview Admin
 
-Composant `<PDFTemplatePreview />` disponible pour tester les 3 templates avec données exemple.
+Composant `<PDFTemplatePreview />` disponible pour tester les 4 templates avec données exemple.
+
+---
+
+## Convention des Identifiants Numériques (v2.4)
+
+### Règle Globale (Obligatoire)
+
+**Tous les identifiants visibles dans les PDFs doivent :**
+
+| Règle | Description |
+|-------|-------------|
+| ❌ Premier chiffre | Ne JAMAIS commencer par 0 ou 1 |
+| ✅ Premier chiffre | Toujours commencer par 2–9 |
+| 📏 Longueur | Fixe selon le type de document |
+| 🔢 Format | 100% numérique, unique |
+
+### Longueurs par Type d'Identifiant
+
+| Type | Longueur | Exemple | Placeholder |
+|------|----------|---------|-------------|
+| **Numéro de compte** | 6 chiffres | `234567` | `{{account_number}}` |
+| **Numéro de commande** | 5 chiffres | `23456` | `{{order_number}}` |
+| **Numéro de facture** | 7 chiffres | `2345678` | `{{invoice_number}}` |
+| **Numéro de contrat** | 9 chiffres | `234567890` | `{{contract_number}}` |
+| **Confirmation paiement** | 10 chiffres | `2345678901` | `{{payment_confirmation}}` |
+| **Référence paiement** | 8 chiffres | `23456789` | `{{payment_reference}}` |
+
+### Génération Sécurisée
+
+```typescript
+import { 
+  generateAccountNumber,
+  generateOrderNumber,
+  generateInvoiceNumber,
+  generateContractNumber,
+  generatePaymentConfirmation,
+  generatePaymentReference,
+  generateDocumentIdSet,
+} from "@/lib/secureIdGenerator";
+
+// Génération individuelle
+const accountNumber = generateAccountNumber();     // "234567"
+const invoiceNumber = generateInvoiceNumber();     // "2345678"
+
+// Génération d'un ensemble complet
+const idSet = generateDocumentIdSet();
+// { account_number, order_number, invoice_number, contract_number, 
+//   payment_confirmation, payment_reference }
+
+// Référence paiement dérivée de la facture
+const payRef = generatePaymentReference(invoiceNumber);  // "5234567x"
+```
+
+### Logique Interne
+
+```
+function generateNumber(length):
+  first_digit = random(2..9)       // JAMAIS 0 ou 1
+  remaining = random_digits(length - 1)
+  return concat(first_digit, remaining)
+```
+
+### Garde-fou Automatique
+
+Le module `secureIdGenerator.ts` inclut une validation automatique :
+
+```typescript
+// Validation
+isValidSecureId("234567", 6)  // true
+isValidSecureId("034567", 6)  // false (commence par 0)
+isValidSecureId("134567", 6)  // false (commence par 1)
+
+// Auto-régénération si invalide
+const safeId = ensureValidSecureId(maybeInvalidId, 'account');
+```
+
+### Règles d'Affichage PDF (Anti-erreurs)
+
+| Règle | Description |
+|-------|-------------|
+| Wrap/Clamp | Jamais de texte qui dépasse |
+| Sections visibles | Rabais / Promotions / Taxes toujours affichés si > 0 |
+| Services non souscrits | Non affichés |
+| Pagination auto | Si tables longues |
+| Zones fixes | Aucune superposition autorisée |
+
+### Tests de Validation (Checklist)
+
+- [ ] Tous les numéros commencent par 2–9
+- [ ] Internet seul (mensuelle) → OK
+- [ ] Internet + Mobile + TV → OK
+- [ ] Vente équipement (unique) → OK
+- [ ] Rabais + promo + TPS/TVQ → OK
 
 ---
 
@@ -446,3 +539,4 @@ Composant `<PDFTemplatePreview />` disponible pour tester les 3 templates avec d
 | 2026-01-24 | Lovable AI | Ajout Release Checklist — Validation Post-Update |
 | 2026-02-06 | Lovable AI | v2.2: Ajout Snapshot Checkout comme source de vérité pour PDFs |
 | 2026-02-06 | Lovable AI | v2.3: Ajout 3 Templates PDF (Monthly, One-Time, Order Summary) |
+| 2026-02-06 | Lovable AI | v2.4: Convention des Identifiants Numériques (2-9, longueurs fixes) |
