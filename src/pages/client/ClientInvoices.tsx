@@ -91,13 +91,16 @@ const ClientInvoices = () => {
     enabled: !!user?.id,
   });
 
+  // UNIFIED QUERY: Fetch from BOTH legacy "billing" AND V2 "billing_invoices"
   const { data: invoices, isLoading: invoicesLoading, refetch: refetchInvoices } = useQuery({
     queryKey: ["client-invoices-all", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      // Join with orders to get equipment_details.line_items for multi-service support
-      const { data, error } = await portalSupabase
+      
+      const allInvoices: any[] = [];
+      
+      // 1. LEGACY: billing table
+      const { data: legacyData, error: legacyError } = await portalSupabase
         .from("billing")
         .select(`
           *,
@@ -109,31 +112,155 @@ const ClientInvoices = () => {
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
       
-      // Check for overdue invoices and apply late fees
-      const now = new Date();
-      const processedData = data?.map((inv: any) => {
-        if (inv.status === "pending" && inv.due_date && isPast(parseISO(inv.due_date)) && !inv.late_fee_applied) {
-          return { ...inv, needsLateFee: true };
+      if (legacyError) {
+        console.error("[ClientInvoices] Legacy billing query error:", legacyError);
+      }
+      
+      // Process legacy invoices
+      if (legacyData) {
+        for (const inv of legacyData) {
+          const isOverdue = inv.status === "pending" && inv.due_date && isPast(parseISO(inv.due_date)) && !inv.late_fee_applied;
+          allInvoices.push({
+            ...inv,
+            _source: "legacy",
+            needsLateFee: isOverdue,
+          });
         }
-        return inv;
-      });
+      }
       
-      return processedData || [];
+      // 2. V2: billing_invoices table (via billing_customers)
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (customer) {
+        const { data: v2Data, error: v2Error } = await portalSupabase
+          .from("billing_invoices")
+          .select(`
+            *,
+            billing_customers!inner (
+              user_id,
+              email,
+              first_name,
+              last_name
+            )
+          `)
+          .eq("customer_id", customer.id)
+          .order("created_at", { ascending: false });
+        
+        if (v2Error) {
+          console.error("[ClientInvoices] V2 billing_invoices query error:", v2Error);
+        }
+        
+        // Map V2 invoices to match legacy structure
+        if (v2Data) {
+          for (const inv of v2Data) {
+            const isOverdue = inv.status !== "paid" && inv.due_date && isPast(parseISO(inv.due_date));
+            allInvoices.push({
+              id: inv.id,
+              user_id: user.id,
+              invoice_number: inv.invoice_number,
+              amount: Number(inv.total) || 0,
+              subtotal: Number(inv.total) || 0,
+              fees: Number(inv.fees) || 0,
+              credits: 0,
+              amount_paid: Number(inv.amount_paid) || 0,
+              balance_due: Number(inv.balance_due) || 0,
+              status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
+              due_date: inv.due_date,
+              paid_at: inv.paid_at,
+              created_at: inv.created_at,
+              notes: inv.notes,
+              related_order_number: inv.related_order_number,
+              // V2 source marker
+              _source: "v2",
+              needsLateFee: isOverdue && !inv.late_fee_applied,
+            });
+          }
+        }
+      }
+      
+      // Sort all by created_at descending
+      allInvoices.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      return allInvoices;
     },
     enabled: !!user?.id,
   });
 
+  // UNIFIED QUERY: Fetch from BOTH legacy "payments" AND V2 "billing_payments"
   const { data: payments, isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
     queryKey: ["client-payments", user?.id],
     queryFn: async () => {
-      const { data, error } = await portalSupabase
+      if (!user?.id) return [];
+      
+      const allPayments: any[] = [];
+      
+      // 1. LEGACY: payments table
+      const { data: legacyData, error: legacyError } = await portalSupabase
         .from("payments")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      
+      if (legacyError) {
+        console.error("[ClientInvoices] Legacy payments query error:", legacyError);
+      }
+      
+      if (legacyData) {
+        for (const pay of legacyData) {
+          allPayments.push({
+            ...pay,
+            _source: "legacy",
+          });
+        }
+      }
+      
+      // 2. V2: billing_payments table (via billing_customers)
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (customer) {
+        const { data: v2Data, error: v2Error } = await portalSupabase
+          .from("billing_payments")
+          .select("*")
+          .eq("customer_id", customer.id)
+          .order("created_at", { ascending: false });
+        
+        if (v2Error) {
+          console.error("[ClientInvoices] V2 billing_payments query error:", v2Error);
+        }
+        
+        // Map V2 payments to match legacy structure
+        if (v2Data) {
+          for (const pay of v2Data) {
+            allPayments.push({
+              id: pay.id,
+              user_id: user.id,
+              billing_id: pay.invoice_id,
+              amount: Number(pay.amount) || 0,
+              payment_method: pay.method || pay.provider,
+              reference_number: pay.reference || pay.provider_payment_id,
+              provider_payment_id: pay.provider_payment_id,
+              status: pay.status === "confirmed" ? "completed" : pay.status,
+              created_at: pay.created_at,
+              notes: pay.notes,
+              // V2 source marker
+              _source: "v2",
+            });
+          }
+        }
+      }
+      
+      // Sort all by created_at descending
+      allPayments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      return allPayments;
     },
     enabled: !!user?.id,
   });

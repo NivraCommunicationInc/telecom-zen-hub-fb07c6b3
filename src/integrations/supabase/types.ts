@@ -1185,6 +1185,9 @@ export type Database = {
           amount: number
           confirmed_by: string | null
           created_at: string | null
+          created_by_id: string | null
+          created_by_name: string | null
+          created_by_role: string | null
           customer_id: string
           id: string
           invoice_id: string
@@ -1201,6 +1204,9 @@ export type Database = {
           amount: number
           confirmed_by?: string | null
           created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
           customer_id: string
           id?: string
           invoice_id: string
@@ -1217,6 +1223,9 @@ export type Database = {
           amount?: number
           confirmed_by?: string | null
           created_at?: string | null
+          created_by_id?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
           customer_id?: string
           id?: string
           invoice_id?: string

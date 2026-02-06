@@ -1556,9 +1556,10 @@ const ClientNewOrder = () => {
         installation_credit: installationCredit,
         installation_type: orderInstallationType,
         discount_code: appliedPromo?.code || discountCode || null,
-        discount_amount: appliedPromo?.discount_amount || 0,
+        // Cap discount to never exceed gross total (prevents negative amounts in DB)
+        discount_amount: Math.min(appliedPromo?.discount_amount || 0, subtotal + paidChannelTotal + equipmentSubtotal + orderDeliveryFee + orderActivationFee),
         promo_code: appliedPromo?.code || null,
-        promo_discount_amount: appliedPromo?.discount_amount || 0,
+        promo_discount_amount: Math.min(appliedPromo?.discount_amount || 0, subtotal + paidChannelTotal + equipmentSubtotal + orderDeliveryFee + orderActivationFee),
         promo_details: appliedPromo ? {
           id: appliedPromo.id,
           code: appliedPromo.code,
@@ -1856,6 +1857,85 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
+      // CREATE ORDER SNAPSHOT for contract generation and admin visibility
+      try {
+        const snapshotData = {
+          order_id: data.id,
+          version: 1,
+          client_snapshot: {
+            first_name: firstName || profile?.first_name || null,
+            last_name: lastName || profile?.last_name || null,
+            full_name: `${firstName || ''} ${lastName || ''}`.trim() || profile?.full_name || null,
+            email: profile?.email || user?.email || null,
+            phone: checkoutPhone || profile?.phone || null,
+            date_of_birth: dateOfBirth || profile?.date_of_birth || null,
+            id_type: idType || null,
+            id_number: idNumber || null,
+            id_expiration: idExpiration || null,
+            id_province: idProvince || null,
+            service_address: serviceAddressStreet || null,
+            service_city: serviceAddressCity || null,
+            service_province: serviceAddressProvince || null,
+            service_postal_code: serviceAddressPostalCode || null,
+            service_apartment: serviceAddressApartment || null,
+          },
+          services_snapshot: selectedServices.map(s => ({
+            id: s.id,
+            name: s.name,
+            category: s.category,
+            price: Number(s.price),
+            quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
+          })),
+          equipment_snapshot: {
+            terminal: hasTVService ? { name: TERMINAL_CONFIG.name, quantity: terminalQuantity, unit_price: TERMINAL_CONFIG.price } : null,
+            router: (hasInternetService || hasTVService) ? { name: ROUTER_CONFIG_DYNAMIC.name, quantity: 1, unit_price: ROUTER_CONFIG_DYNAMIC.price } : null,
+            sim: hasMobileService ? { name: SIM_CONFIG_DYNAMIC.physical.name, quantity: totalMobileLineQuantity, unit_price: SIM_CONFIG_DYNAMIC.physical.price } : null,
+          },
+          fees_snapshot: {
+            activation: activationFee,
+            delivery: deliveryFee,
+            installation: installationFee,
+            promo_discount: appliedPromo?.discount_amount || 0,
+            promo_code: appliedPromo?.code || null,
+          },
+          billing_snapshot: {
+            subtotal: subtotal + paidChannelTotal,
+            one_time_fees: oneTimeFees,
+            tps: tpsAmount,
+            tvq: tvqAmount,
+            total: totalAmount,
+            payment_method: paymentMethod || null,
+            payment_reference: paymentConfirmationNumber || nivraPaymentRef || null,
+          },
+          selected_channels_snapshot: hasTVService ? {
+            base_channels: baseChannels.map(ch => ch.name),
+            free_channels: selectedFreeChannels.map(ch => ch.name),
+            paid_channels: selectedPaidChannels.map(ch => ({ name: ch.name, price: ch.price })),
+          } : null,
+          payment_method_snapshot: {
+            method: paymentMethod,
+            reference: paymentConfirmationNumber || nivraPaymentRef,
+            paypal_capture_id: paypalCaptureId || null,
+          },
+          accepted_at: new Date().toISOString(),
+          accepted_method: 'web_checkout',
+        };
+
+        const { error: snapshotError } = await supabase
+          .from("order_snapshots")
+          .insert(snapshotData);
+
+        if (snapshotError) {
+          console.error("[OrderSnapshot] Failed to create snapshot:", snapshotError);
+          postStepErrors.push("snapshot");
+        } else {
+          console.log("[OrderSnapshot] Snapshot created for order:", data.order_number);
+        }
+      } catch (snapshotErr) {
+        console.error("[OrderSnapshot] Error creating snapshot (non-blocking):", snapshotErr);
+        postStepErrors.push("snapshot");
+      }
+
       // Log any post-step errors but don't block order success
       if (postStepErrors.length > 0) {
         console.warn("Order created but some post-steps failed:", postStepErrors);
@@ -1889,17 +1969,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           period: s.category === "Mobile" ? "30 jours" : "mois",
         }));
         
+        // Map payment method to human-readable label
+        const paymentMethodLabel = paymentMethod === "paypal" 
+          ? "PayPal" 
+          : paymentMethod === "etransfer" 
+            ? "Virement Interac" 
+            : paymentMethod === "credit_card" 
+              ? "Carte de crédit"
+              : paymentMethod === "promo_free"
+                ? "Gratuit (promo)"
+                : "Non spécifié";
+        
         await supabase.functions.invoke("send-order-confirmation", {
           body: {
             order_id: orderData.id,
             client_email: profile?.email || user?.email,
             client_first_name: profile?.full_name?.split(" ")[0] || firstName || "Client",
+            client_phone: checkoutPhone || profile?.phone,
             order_number: orderData.order_number,
             services: servicesForEmail,
             monthly_total_tax_in: monthlyRecurringWithTax,
             one_time_total: oneTimeFeesWithTax,
             delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
             payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
+            payment_method: paymentMethodLabel,
           },
         });
         console.log("[OrderConfirmation] Email request sent for order:", orderData.order_number);
@@ -1921,7 +2014,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           details: {
             "Services": servicesDesc,
             "Total": `$${totalAmount.toFixed(2)}`,
-            "Méthode paiement": paymentMethod === "credit_card" ? "Carte de crédit" : "Virement Interac",
+            "Méthode paiement": paymentMethod === "paypal" ? "PayPal" : paymentMethod === "etransfer" ? "Virement Interac" : paymentMethod === "credit_card" ? "Carte de crédit" : paymentMethod || "Non spécifié",
           },
           priority: "normal",
           admin_portal_link: getAdminPortalLink(`/admin/orders?order=${orderData.order_number}`),
