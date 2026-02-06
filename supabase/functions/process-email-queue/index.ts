@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { generatePDFAttachment, type PDFAttachment, type InvoiceData, type ContractData, type SummaryData } from "../_shared/pdfGenerator.ts";
 
 interface EmailQueueItem {
   id: string;
@@ -10,6 +11,103 @@ interface EmailQueueItem {
   status: string;
   attempts: number;
   max_attempts: number;
+}
+
+// Templates that should include PDF attachments
+const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'contract' | 'summary'> = {
+  'invoice_created': 'invoice',
+  'billing_new_invoice': 'invoice',
+  'payment_confirmed': 'invoice',
+  'payment_received': 'invoice',
+  'contract_ready': 'contract',
+  'contract_signed': 'contract',
+  'order_submitted': 'summary',
+  'order_confirmation': 'summary',
+};
+
+// Generate PDF attachment from template vars
+function generateEmailPDFAttachment(templateKey: string, vars: Record<string, any>): PDFAttachment | null {
+  const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
+  if (!pdfType) return null;
+
+  try {
+    switch (pdfType) {
+      case 'invoice': {
+        const invoiceData: InvoiceData = {
+          invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
+          invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
+          due_date: vars.due_date || vars.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+          account_number: vars.account_number || vars.client_number || '',
+          period_start: vars.period_start || '',
+          period_end: vars.period_end || '',
+          client_name: vars.client_name || vars.name || 'Client',
+          client_email: vars.client_email || vars.email || '',
+          client_phone: vars.client_phone || vars.phone || '',
+          client_address: vars.client_address || vars.address || '',
+          services: vars.services || [
+            { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: vars.amount || 0 }
+          ],
+          subtotal: vars.subtotal || vars.amount || 0,
+          tps: vars.tps || (vars.amount || 0) * 0.05,
+          tvq: vars.tvq || (vars.amount || 0) * 0.09975,
+          total: vars.total || (vars.amount || 0) * 1.14975,
+          previous_balance: vars.previous_balance || 0,
+          payments: vars.payments || [],
+          balance_due: vars.balance_due || vars.amount || 0,
+        };
+        return generatePDFAttachment('invoice', invoiceData);
+      }
+      
+      case 'contract': {
+        const contractData: ContractData = {
+          contract_number: vars.contract_number || `CTR-${Date.now()}`,
+          effective_date: vars.effective_date || vars.created_at || new Date().toISOString(),
+          client_name: vars.client_name || vars.name || 'Client',
+          client_email: vars.client_email || vars.email || '',
+          client_phone: vars.client_phone || vars.phone || '',
+          client_address: vars.client_address || vars.address || '',
+          client_dob: vars.client_dob || '',
+          services: vars.services || [
+            { name: vars.service_type || 'Service Nivra', description: '', monthly_price: vars.monthly_amount || 0 }
+          ],
+          equipment: vars.equipment || [],
+          total_monthly: vars.total_monthly || vars.monthly_amount || 0,
+          total_one_time: vars.total_one_time || 0,
+          agent_name: vars.agent_name || '',
+          agent_code: vars.agent_code || '',
+        };
+        return generatePDFAttachment('contract', contractData);
+      }
+      
+      case 'summary': {
+        const summaryData: SummaryData = {
+          order_number: vars.order_number || vars.order_id?.substring(0, 8) || `CMD-${Date.now()}`,
+          order_date: vars.order_date || vars.created_at || new Date().toISOString(),
+          status: vars.status || 'En traitement',
+          client_name: vars.client_name || vars.name || 'Client',
+          client_email: vars.client_email || vars.email || '',
+          client_phone: vars.client_phone || vars.phone || '',
+          client_address: vars.client_address || vars.service_address || '',
+          services: vars.services || [
+            { name: vars.service_type || 'Service Nivra', price: vars.total_amount || 0, is_recurring: true }
+          ],
+          subtotal_recurring: vars.subtotal_recurring || vars.monthly_amount || 0,
+          subtotal_one_time: vars.subtotal_one_time || vars.one_time_amount || 0,
+          tps: vars.tps || (vars.total_amount || 0) * 0.05,
+          tvq: vars.tvq || (vars.total_amount || 0) * 0.09975,
+          total: vars.total || vars.total_amount || 0,
+          installation_date: vars.installation_date || vars.scheduled_at || '',
+        };
+        return generatePDFAttachment('summary', summaryData);
+      }
+      
+      default:
+        return null;
+    }
+  } catch (error) {
+    console.error(`[PDF Generation] Error for template ${templateKey}:`, error);
+    return null;
+  }
 }
 
 // =============================================
@@ -1776,20 +1874,38 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Generate PDF attachment if applicable
+        let attachments: Array<{ filename: string; content: string }> | undefined;
+        const pdfAttachment = generateEmailPDFAttachment(templateKey, templateVars);
+        if (pdfAttachment) {
+          attachments = [{
+            filename: pdfAttachment.filename,
+            content: pdfAttachment.content,
+          }];
+          console.log(`[PDF ATTACHED] email_id=${email.id} file=${pdfAttachment.filename}`);
+        }
+
+        const emailPayload: Record<string, any> = {
+          from: emailFromAddress,
+          reply_to: emailReplyTo,
+          to: [email.to_email],
+          subject,
+          html,
+          text: plainText,
+        };
+        
+        // Add attachments if we have any
+        if (attachments && attachments.length > 0) {
+          emailPayload.attachments = attachments;
+        }
+
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${resendApiKey}`,
           },
-          body: JSON.stringify({
-            from: emailFromAddress,
-            reply_to: emailReplyTo,
-            to: [email.to_email],
-            subject,
-            html,
-            text: plainText,
-          }),
+          body: JSON.stringify(emailPayload),
         });
 
         const result = await emailResponse.json();
