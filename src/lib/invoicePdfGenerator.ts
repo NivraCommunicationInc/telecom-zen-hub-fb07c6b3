@@ -72,6 +72,21 @@ export interface InvoiceData {
   // Structured line items from order (equipment_details.line_items)
   orderLineItems?: any[];
   
+  // V2.2: Billing totals snapshot from checkout (source of truth when present)
+  billingTotalsSnapshot?: {
+    subtotal: number;
+    discount_amount: number;
+    base_amount: number;
+    tps_amount: number;
+    tvq_amount: number;
+    total: number;
+    promo_code?: string | null;
+    promo_name?: string | null;
+    payment_method?: string | null;
+    monthly_recurring?: number;
+    one_time_fees?: number;
+  };
+  
   // Legacy fields for backward compatibility
   subtotal: number;
   fees?: number;
@@ -457,15 +472,41 @@ export const generateInvoicePDF = (data: InvoiceData): jsPDF => {
     console.error("[Invoice PDF] Billing invariant violation:", calculatedBilling.validationError);
   }
   
-  // Use calculated values OR provided values (for backward compatibility)
-  const tpsAmount = data.tpsAmount ?? calculatedBilling.tps;
-  const tvqAmount = data.tvqAmount ?? calculatedBilling.tvq;
+  // V2.2: Use billing_totals snapshot as SOURCE OF TRUTH when available
+  // This ensures PDF matches exactly what client saw at checkout
+  const hasBillingSnapshot = data.billingTotalsSnapshot && 
+    typeof data.billingTotalsSnapshot.total === 'number' && 
+    data.billingTotalsSnapshot.total >= 0;
+  
+  let tpsAmount: number;
+  let tvqAmount: number;
+  let total: number;
+  let taxableSubtotal: number;
+  
+  if (hasBillingSnapshot) {
+    // USE CHECKOUT SNAPSHOT AS SOURCE OF TRUTH
+    const snapshot = data.billingTotalsSnapshot!;
+    tpsAmount = snapshot.tps_amount;
+    tvqAmount = snapshot.tvq_amount;
+    total = snapshot.total;
+    taxableSubtotal = snapshot.base_amount;
+    console.log("[Invoice PDF] Using billing_totals snapshot as source of truth:", {
+      tpsAmount, tvqAmount, total, taxableSubtotal
+    });
+  } else {
+    // FALLBACK: Use calculated values OR provided values (for backward compatibility)
+    tpsAmount = data.tpsAmount ?? calculatedBilling.tps;
+    tvqAmount = data.tvqAmount ?? calculatedBilling.tvq;
+    const lateFeeAmount = data.lateFeeAmount || 0;
+    const credits = data.credits || 0;
+    
+    // Calculate total using invariant: taxable = recurring + oneTime - discounts
+    taxableSubtotal = calculatedBilling.taxableSubtotal;
+    total = taxableSubtotal + tpsAmount + tvqAmount + lateFeeAmount - credits;
+  }
+  
   const lateFeeAmount = data.lateFeeAmount || 0;
   const credits = data.credits || 0;
-  
-  // Calculate total using invariant: taxable = recurring + oneTime - discounts
-  const taxableSubtotal = calculatedBilling.taxableSubtotal;
-  const total = taxableSubtotal + tpsAmount + tvqAmount + lateFeeAmount - credits;
 
   // ============ HEADER SECTION - Always Nivra's address ============
   doc.setFillColor(...navyColor);

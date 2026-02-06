@@ -258,13 +258,35 @@ export function buildOrderLineItems(params: {
 }
 
 /**
- * Wraps line_items into an equipment_details JSON structure
+ * Billing totals snapshot - source of truth from checkout
  */
-export function wrapLineItemsForOrder(lineItems: OrderLineItem[]): Record<string, any> {
+export interface BillingTotalsSnapshot {
+  subtotal: number;
+  discount_amount: number;
+  base_amount: number;
+  tps_amount: number;
+  tvq_amount: number;
+  total: number;
+  promo_code?: string | null;
+  promo_name?: string | null;
+  payment_method?: string | null;
+  monthly_recurring?: number;
+  one_time_fees?: number;
+}
+
+/**
+ * Wraps line_items into an equipment_details JSON structure
+ * V2.2: Now includes billing_totals for source-of-truth synchronization
+ */
+export function wrapLineItemsForOrder(
+  lineItems: OrderLineItem[], 
+  billingTotals?: BillingTotalsSnapshot
+): Record<string, any> {
   return {
     line_items: lineItems,
+    billing_totals: billingTotals || null, // V2.2: Checkout totals as source of truth
     generated_at: new Date().toISOString(),
-    version: 2, // Version 2 = new format with period/taxable
+    version: 3, // Version 3 = includes billing_totals snapshot
   };
 }
 

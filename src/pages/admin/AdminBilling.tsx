@@ -993,10 +993,11 @@ const AdminBilling = () => {
     try {
       const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
       
-      // Fetch related order to get line_items
+      // Fetch related order to get line_items and billing_totals snapshot
       const orderData = await fetchRelatedOrderData(bill);
       const equipmentDetails = orderData?.equipment_details;
       const lineItems = equipmentDetails?.line_items || [];
+      const billingTotalsSnapshot = equipmentDetails?.billing_totals || null;
       
       // CRITICAL: Fetch account number with robust fallback
       const clientAccountNumber = bill.user_id 
@@ -1068,6 +1069,8 @@ const AdminBilling = () => {
         cardLast4,
         // CRITICAL: Pass order line items for multi-service support
         orderLineItems: lineItems.length > 0 ? lineItems : undefined,
+        // V2.2: Pass billing_totals snapshot as source of truth from checkout
+        billingTotalsSnapshot: billingTotalsSnapshot || undefined,
       };
       
       const doc = generateInvoicePDF(invoiceData);
@@ -1086,10 +1089,11 @@ const AdminBilling = () => {
     try {
       const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
       
-      // Fetch related order to get line_items
+      // Fetch related order to get line_items and billing_totals snapshot
       const orderData = await fetchRelatedOrderData(bill);
       const equipmentDetails = orderData?.equipment_details;
       const lineItems = equipmentDetails?.line_items || [];
+      const billingTotalsSnapshot = equipmentDetails?.billing_totals || null;
       
       // CRITICAL: Fetch account number with robust fallback
       const clientAccountNumber = bill.user_id 
@@ -1149,6 +1153,8 @@ const AdminBilling = () => {
         promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
         // CRITICAL: Pass order line items for multi-service support
         orderLineItems: lineItems.length > 0 ? lineItems : undefined,
+        // V2.2: Pass billing_totals snapshot as source of truth from checkout
+        billingTotalsSnapshot: billingTotalsSnapshot || undefined,
       };
       
       const doc = generateInvoicePDF(invoiceData);

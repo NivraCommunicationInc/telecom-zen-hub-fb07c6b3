@@ -1595,7 +1595,20 @@ const ClientNewOrder = () => {
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
-        equipment_details: wrapLineItemsForOrder(lineItems),
+        // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
+        equipment_details: wrapLineItemsForOrder(lineItems, {
+          subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
+          discount_amount: cappedDiscount,
+          base_amount: baseAmount,
+          tps_amount: tpsAmount,
+          tvq_amount: tvqAmount,
+          total: totalAmount,
+          promo_code: appliedPromo?.code || null,
+          promo_name: appliedPromo?.name || null,
+          payment_method: paymentMethodValue,
+          monthly_recurring: monthlyRecurring,
+          one_time_fees: oneTimeFees,
+        }),
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         preauth_card_id: savedPaymentMethodId,
@@ -1695,6 +1708,21 @@ const ClientNewOrder = () => {
           
           const isPayPalPaid = actualPaymentMethod === "paypal" && !!paypalCaptureId;
           
+          // V2.2: Build billing_totals snapshot from checkout for source of truth
+          const billingTotalsSnapshot = {
+            subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
+            discount_amount: cappedDiscount,
+            base_amount: baseAmount,
+            tps_amount: tpsAmount,
+            tvq_amount: tvqAmount,
+            total: totalAmount,
+            promo_code: appliedPromo?.code || null,
+            promo_name: appliedPromo?.name || null,
+            payment_method: actualPaymentMethod,
+            monthly_recurring: monthlyRecurring,
+            one_time_fees: oneTimeFees,
+          };
+          
           const { data: billingResult, error: billingV2Error } = await supabase.functions.invoke("billing-create-order", {
             body: {
               user_id: user.id,
@@ -1710,6 +1738,8 @@ const ClientNewOrder = () => {
               payment_status: isPayPalPaid ? 'paid' : 'pending',
               payment_reference: isPayPalPaid ? paypalCaptureId : null,
               total_amount: isPayPalPaid ? totalAmount : null,
+              // BILLING TOTALS (v2.2) - Source of truth from checkout
+              billing_totals: billingTotalsSnapshot,
             },
           });
 

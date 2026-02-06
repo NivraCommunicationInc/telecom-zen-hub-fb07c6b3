@@ -298,6 +298,43 @@ Les couleurs **amber** sont utilisées intentionnellement pour distinguer un **w
 
 ---
 
+## Snapshot Checkout — Source de Vérité (v2.2)
+
+### Principe
+
+Le **snapshot checkout** (`billing_totals`) est la source unique de vérité pour tous les montants financiers.
+
+| Composant | Source de données |
+|-----------|-------------------|
+| `billing-create-order` Edge Function | `body.billing_totals` (reçu du frontend) |
+| `orders.equipment_details` | Contient `billing_totals` + `line_items` |
+| Facture PDF | `billingTotalsSnapshot` (extrait de `equipment_details.billing_totals`) |
+| Contrat PDF | `equipment_details.billing_totals` |
+
+### Structure `billing_totals`
+
+```typescript
+interface BillingTotals {
+  subtotal: number;           // Sous-total brut avant taxes/rabais
+  discount_amount: number;    // Montant du rabais appliqué
+  base_amount: number;        // Montant taxable (subtotal - discount)
+  tps_amount: number;         // TPS (5%)
+  tvq_amount: number;         // TVQ (9.975%)
+  total: number;              // Total final à payer
+  promo_code?: string;        // Code promo appliqué
+  promo_name?: string;        // Description du promo
+  payment_method?: string;    // Méthode de paiement
+  monthly_recurring?: number; // Montant mensuel récurrent
+  one_time_fees?: number;     // Frais uniques
+}
+```
+
+### Règle d'or
+
+> **Les PDFs doivent TOUJOURS afficher les mêmes montants que le client a vus au checkout.**
+
+---
+
 ## Historique
 
 | Date | Auteur | Description |
@@ -306,3 +343,4 @@ Les couleurs **amber** sont utilisées intentionnellement pour distinguer un **w
 | 2026-01-24 | Lovable AI | Ajout Policy Paiements & Corrections (Admin) |
 | 2026-01-24 | Lovable AI | Ajout Actions Admin + Exemples formats valides |
 | 2026-01-24 | Lovable AI | Ajout Release Checklist — Validation Post-Update |
+| 2026-02-06 | Lovable AI | v2.2: Ajout Snapshot Checkout comme source de vérité pour PDFs |
