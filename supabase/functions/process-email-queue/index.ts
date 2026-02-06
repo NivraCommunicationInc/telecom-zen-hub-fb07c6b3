@@ -1853,7 +1853,10 @@ Deno.serve(async (req) => {
 
         // DOMAIN VALIDATION: Only allow verified Resend domains
         const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca'];
-        const fromDomain = emailFromAddress.split('@')[1]?.toLowerCase();
+        // Extract actual email address from "Name <email@domain.com>" format
+        const emailMatch = emailFromAddress.match(/<([^>]+)>/) || [null, emailFromAddress];
+        const actualEmail = emailMatch[1] || emailFromAddress;
+        const fromDomain = actualEmail.split('@')[1]?.toLowerCase().replace(/[>]/g, '');
         
         if (!fromDomain || !ALLOWED_DOMAINS.some(d => fromDomain.endsWith(d))) {
           const domainError = `BLOQUÉ: Domaine From non vérifié (${fromDomain}). Domaines autorisés: ${ALLOWED_DOMAINS.join(', ')}`;

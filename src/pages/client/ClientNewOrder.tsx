@@ -1533,6 +1533,20 @@ const ClientNewOrder = () => {
       });
 
       // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
+      // Calculate gross total for discount capping (before taxes)
+      const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+      const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
+      
+      // Cap discount to never exceed gross total (prevents negative amounts)
+      const cappedDiscount = Math.min(appliedPromo?.discount_amount || 0, grossTotal);
+      
+      // Determine payment method value NOW (before insert) to avoid null
+      const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
+        : paymentMethod === "etransfer" ? "etransfer"
+        : paymentMethod === "credit_card" ? "credit_card"
+        : paymentMethod === "promo_free" ? "promo_free"
+        : "etransfer"; // Default fallback
+      
       const { data, error } = await supabase.from("orders").upsert({
         client_request_id: clientRequestId,
         user_id: user.id,
@@ -1549,32 +1563,35 @@ const ClientNewOrder = () => {
         shipping_postal_code: serviceAddressPostalCode || null,
         service_type: serviceNames,
         category: isDeliveryOnlyOrder ? "Delivery" : categories,
-        subtotal: subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0),
+        subtotal: grossSubtotal,
         delivery_fee: orderDeliveryFee,
         activation_fee: orderActivationFee,
         installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
         installation_credit: installationCredit,
         installation_type: orderInstallationType,
         discount_code: appliedPromo?.code || discountCode || null,
-        // Cap discount to never exceed gross total (prevents negative amounts in DB)
-        discount_amount: Math.min(appliedPromo?.discount_amount || 0, subtotal + paidChannelTotal + equipmentSubtotal + orderDeliveryFee + orderActivationFee),
+        // Capped discount amount to prevent negative totals
+        discount_amount: cappedDiscount,
         promo_code: appliedPromo?.code || null,
-        promo_discount_amount: Math.min(appliedPromo?.discount_amount || 0, subtotal + paidChannelTotal + equipmentSubtotal + orderDeliveryFee + orderActivationFee),
+        promo_discount_amount: cappedDiscount,
         promo_details: appliedPromo ? {
           id: appliedPromo.id,
           code: appliedPromo.code,
           name: appliedPromo.name,
           discount_type: appliedPromo.discount_type,
           discount_value: appliedPromo.discount_value,
-          discount_amount: appliedPromo.discount_amount,
+          discount_amount: cappedDiscount,
         } : null,
         status: "pending",
-        payment_status: "pre_authorized",
-        amount_paid: 0,
+        // FIX: Set payment_method AND payment_status at creation time
+        payment_method: paymentMethodValue,
+        payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
+        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? totalAmount : 0,
+        payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
           (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : '') +
-          (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${appliedPromo.discount_amount.toFixed(2)}$` : ''),
+          (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${cappedDiscount.toFixed(2)}$` : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
@@ -1584,6 +1601,14 @@ const ClientNewOrder = () => {
         preauth_card_id: savedPaymentMethodId,
         port_request: portRequestData,
         identity_snapshot: identitySnapshotData,
+        // Store terminal and router fees for admin visibility
+        terminal_fee: terminalFee,
+        terminal_count: terminalQuantity,
+        router_fee: routerFee,
+        // Correct total amount (capped discount)
+        total_amount: Math.max(0, totalAmount),
+        tps_amount: tpsAmount,
+        tvq_amount: tvqAmount,
       } as any, {
         onConflict: 'client_request_id',
         ignoreDuplicates: false,
@@ -1605,42 +1630,44 @@ const ClientNewOrder = () => {
         const random = Math.floor(10000 + Math.random() * 90000);
         nivraPaymentRef = `NIVRA-PAY-QC-${year}-${random}`;
 
-        // Create payment record with pending/pre-authorized status
+        // Create payment record with correct status based on method
         const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
-        const paymentMethodValue = paymentMethod === "credit_card" ? "credit_card" : paymentMethod === "paypal" ? "paypal" : "etransfer";
+        const actualPaymentMethod = paymentMethod === "paypal" ? "paypal" 
+          : paymentMethod === "etransfer" ? "etransfer" 
+          : paymentMethod === "credit_card" ? "credit_card"
+          : "etransfer";
+        
+        // PayPal completed = confirmed, everything else = pending (awaiting admin confirmation)
+        const paymentStatus = actualPaymentMethod === "paypal" && paypalCaptureId ? "completed" : "pending";
+        
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
-          amount: totalAmount,
-          payment_method: paymentMethodValue,
+          amount: Math.max(0, totalAmount), // Ensure non-negative
+          payment_method: actualPaymentMethod,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
-          status: paymentMethod === "paypal" && paypalCaptureId ? "completed" : "pending",
-          card_type: paymentMethod === "credit_card" ? "Visa/Mastercard" : null,
-          card_last_four: paymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-          etransfer_amount: paymentMethod === "etransfer" ? totalAmount : null,
-          etransfer_sender_name: paymentMethod === "etransfer" ? etransferSenderName : null,
-          provider_payment_id: paymentMethod === "paypal" ? paypalCaptureId : null,
-          captured_at: paymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
+          status: paymentStatus,
+          card_type: actualPaymentMethod === "credit_card" ? "Visa/Mastercard" : null,
+          card_last_four: actualPaymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
+          etransfer_amount: actualPaymentMethod === "etransfer" ? Math.max(0, totalAmount) : null,
+          etransfer_sender_name: actualPaymentMethod === "etransfer" ? etransferSenderName : null,
+          provider_payment_id: actualPaymentMethod === "paypal" ? paypalCaptureId : null,
+          captured_at: actualPaymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
           source: "portal",
-          notes: `Pré-autorisation pour commande ${data.order_number}${paymentMethod === "paypal" ? " - Payé via PayPal" : " - En attente de validation admin"}`,
+          notes: `Paiement pour commande ${data.order_number}${actualPaymentMethod === "paypal" ? " - Payé via PayPal" : actualPaymentMethod === "etransfer" ? " - Virement Interac en attente" : ""}`,
         });
 
         if (paymentError) {
           console.error("Payment record error:", paymentError);
           postStepErrors.push("payment");
         } else {
-          // Update order with payment reference and status
-          const updatePayload: any = {
-            payment_reference: paymentMethod === "paypal" && paypalCaptureId ? paypalCaptureId : nivraPaymentRef,
-            payment_method: paymentMethod === "paypal" ? "paypal" : paymentMethod === "etransfer" ? "etransfer" : paymentMethod,
-          };
-          
-          // If PayPal payment is complete, mark as captured
-          if (paymentMethod === "paypal" && paypalCaptureId) {
-            updatePayload.payment_status = "captured";
+          // Update order with payment reference if not already set in initial insert
+          if (!data.payment_reference) {
+            const updatePayload: any = {
+              payment_reference: actualPaymentMethod === "paypal" && paypalCaptureId ? paypalCaptureId : nivraPaymentRef,
+            };
+            await supabase.from("orders").update(updatePayload).eq("id", data.id);
           }
-          
-          await supabase.from("orders").update(updatePayload).eq("id", data.id);
         }
       } catch (paymentErr) {
         console.error("Payment step failed:", paymentErr);
