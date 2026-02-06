@@ -157,6 +157,10 @@ export interface TelecomContractData {
   signTime?: string;
   signatureMethod?: string; // "Electronic" | "Manual"
   
+  // Client signature (typed or canvas)
+  clientSignature?: string;
+  clientSignatureType?: "canvas" | "text";
+  
   // Provider Representatives
   providerRepName?: string;
   providerRepSignature?: string;
@@ -706,8 +710,14 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   const sigBoxHeight = 45;
   
   // Client signature box (LEFT)
-  doc.setFillColor(...bgLight);
-  doc.setDrawColor(...borderLight);
+  // Different background if signed
+  if (data.clientSignature) {
+    doc.setFillColor(240, 253, 244); // Light green bg
+    doc.setDrawColor(34, 197, 94);    // Green border
+  } else {
+    doc.setFillColor(...bgLight);
+    doc.setDrawColor(...borderLight);
+  }
   doc.setLineWidth(0.5);
   doc.roundedRect(marginLeft, currentY, sigBoxWidth, sigBoxHeight, 2, 2, "FD");
   
@@ -723,7 +733,32 @@ export const generateTelecomContractPDF = (data: TelecomContractData): jsPDF => 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...textDark);
   doc.text(`Client Name: ${data.clientName || `${data.clientFirstName} ${data.clientLastName}`}`, marginLeft + 8, currentY + 16);
-  doc.text(`Client Signature: ____________________`, marginLeft + 8, currentY + 24);
+  
+  // Display signature - either typed (cursive style) or blank line
+  if (data.clientSignature) {
+    // Typed signature - render in italic style to simulate cursive
+    doc.setFont("times", "bolditalic");
+    doc.setFontSize(14);
+    doc.setTextColor(30, 58, 138); // Dark blue for signature
+    doc.text(data.clientSignature, marginLeft + 8, currentY + 28);
+    
+    // Signature line underneath
+    doc.setDrawColor(30, 58, 138);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft + 8, currentY + 30, marginLeft + sigBoxWidth - 5, currentY + 30);
+    doc.setLineWidth(0.2);
+    
+    // Date if signed
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6);
+    doc.setTextColor(...textDark);
+    if (data.signedAt) {
+      const signedDate = format(new Date(data.signedAt), "d MMMM yyyy", { locale: fr });
+      doc.text(`Date: ${signedDate}`, marginLeft + 8, currentY + 38);
+    }
+  } else {
+    doc.text(`Client Signature: ____________________`, marginLeft + 8, currentY + 24);
+  }
   
   // Provider signature box (RIGHT)
   const provSigX = marginLeft + sigBoxWidth + 10;

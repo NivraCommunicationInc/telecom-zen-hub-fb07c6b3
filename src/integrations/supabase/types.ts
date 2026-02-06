@@ -2348,6 +2348,8 @@ export type Database = {
       }
       contracts: {
         Row: {
+          client_signature: string | null
+          client_signature_type: string | null
           contract_name: string
           contract_number: string | null
           contract_url: string
@@ -2363,6 +2365,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          client_signature?: string | null
+          client_signature_type?: string | null
           contract_name: string
           contract_number?: string | null
           contract_url: string
@@ -2378,6 +2382,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          client_signature?: string | null
+          client_signature_type?: string | null
           contract_name?: string
           contract_number?: string | null
           contract_url?: string
