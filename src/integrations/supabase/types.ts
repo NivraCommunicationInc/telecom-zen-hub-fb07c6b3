@@ -2365,13 +2365,16 @@ export type Database = {
           created_at: string
           id: string
           is_signed: boolean | null
+          order_id: string | null
           owner_user_id: string
           pdf_generated_at: string | null
           pdf_hash: string | null
           signed_at: string | null
+          status: string | null
           template_id: string
           template_version: string
           user_id: string
+          version: number | null
         }
         Insert: {
           client_signature?: string | null
@@ -2382,13 +2385,16 @@ export type Database = {
           created_at?: string
           id?: string
           is_signed?: boolean | null
+          order_id?: string | null
           owner_user_id: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           signed_at?: string | null
+          status?: string | null
           template_id?: string
           template_version?: string
           user_id: string
+          version?: number | null
         }
         Update: {
           client_signature?: string | null
@@ -2399,15 +2405,26 @@ export type Database = {
           created_at?: string
           id?: string
           is_signed?: boolean | null
+          order_id?: string | null
           owner_user_id?: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           signed_at?: string | null
+          status?: string | null
           template_id?: string
           template_version?: string
           user_id?: string
+          version?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contracts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crypto_ipn_logs: {
         Row: {
@@ -10056,6 +10073,10 @@ export type Database = {
           first_name: string
           last_name: string
         }[]
+      }
+      supersede_contract_version: {
+        Args: { p_order_id: string }
+        Returns: string
       }
       validate_referral_code: {
         Args: { p_code: string }
