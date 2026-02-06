@@ -75,7 +75,8 @@ interface UnifiedPayment {
   id: string;
   source_table: "billing_payments" | "payments" | "orders" | "activity_logs";
   method: string;
-  amount: number;
+  amount: number;              // Montant PAYÉ (capturé/confirmé) - source provider
+  invoice_total: number | null; // Montant FACTURE (billing_totals.total) - distinct
   status: string;
   reference: string | null;
   provider: string | null;
@@ -298,7 +299,7 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
      const payments: UnifiedPayment[] = [];
     const seenRefs = new Set<string>();
  
-     // Process billing_payments
+     // Process billing_payments - AUTHORITATIVE source for paid_amount
      billingPayments?.forEach((p: any) => {
       if (p.reference) seenRefs.add(p.reference);
       if (p.provider_payment_id) seenRefs.add(p.provider_payment_id);
@@ -306,7 +307,8 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
          id: p.id,
          source_table: "billing_payments",
          method: p.method || "unknown",
-         amount: p.amount,
+         amount: p.amount, // PAID amount from provider (capture/confirmed)
+         invoice_total: null, // Not available here, would need invoice join
          status: p.status || "pending",
          reference: p.reference,
          provider: p.provider,
@@ -334,7 +336,8 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
          id: p.id,
          source_table: "payments",
          method: p.payment_method || "unknown",
-         amount: p.amount,
+         amount: p.amount, // PAID amount
+         invoice_total: null,
          status: p.status || "pending",
          reference: p.reference_number || p.payment_reference,
          provider: null,
@@ -354,6 +357,8 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
      });
  
     // Process order payments (PayPal, card captures not in other tables)
+    // IMPORTANT: For orders, we use billing_totals.total as invoice_total
+    // The actual paid_amount should come from activity_logs capture or billing_payments
     orderPayments?.forEach((p: any) => {
       // Skip if already tracked in payments tables
       if (p.payment_reference && seenRefs.has(p.payment_reference)) return;
@@ -378,15 +383,22 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
       if (p.payment_reference) seenRefs.add(p.payment_reference);
       if (p.provider_payment_id) seenRefs.add(p.provider_payment_id);
 
-      // Use billing_totals snapshot if available, fallback to total_amount
-      const snapshotTotal = p.equipment_details?.billing_totals?.total;
-      const amount = snapshotTotal ? Number(snapshotTotal) : (p.total_amount || 0);
+      // CRITICAL FIX: Separate invoice_total (snapshot) from paid amount
+      // For orders, billing_totals.total is the INVOICE total, not the captured amount
+      const invoiceTotal = p.equipment_details?.billing_totals?.total 
+        ? Number(p.equipment_details.billing_totals.total) 
+        : (p.total_amount || 0);
+      
+      // paid_amount: Use invoiceTotal as estimate when status=confirmed (PayPal captured full amount)
+      // In a perfect world, this would come from paypal-capture-order response stored in a column
+      const paidAmount = status === "confirmed" ? invoiceTotal : 0;
 
       payments.push({
         id: p.id,
         source_table: "orders",
         method,
-        amount,
+        amount: paidAmount, // Montant réellement payé (capturé)
+        invoice_total: invoiceTotal, // Montant de la facture
         status,
         reference: p.payment_reference,
         provider: method === "paypal" ? "paypal" : null,
@@ -424,7 +436,8 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
         id: log.id,
         source_table: "activity_logs",
         method: "paypal",
-        amount,
+        amount, // Montant capturé (from PayPal API response)
+        invoice_total: null, // Unknown from activity logs alone
         status: "confirmed",
         reference: paypalOrderId,
         provider: "paypal",
@@ -714,41 +727,42 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
              ) : (
                <div className="overflow-x-auto">
                  <Table>
-                   <TableHeader>
-                     <TableRow>
-                       <TableHead
-                         className="cursor-pointer hover:bg-muted/50"
-                         onClick={() => toggleSort("created_at")}
-                       >
-                         <div className="flex items-center gap-1">
-                           Date
-                           <ArrowUpDown className="h-3 w-3" />
-                         </div>
-                       </TableHead>
-                       <TableHead>Méthode</TableHead>
-                       <TableHead>Client</TableHead>
-                       <TableHead>Facture/Commande</TableHead>
-                       <TableHead
-                         className="cursor-pointer hover:bg-muted/50 text-right"
-                         onClick={() => toggleSort("amount")}
-                       >
-                         <div className="flex items-center gap-1 justify-end">
-                           Montant
-                           <ArrowUpDown className="h-3 w-3" />
-                         </div>
-                       </TableHead>
-                       <TableHead>Statut</TableHead>
-                       <TableHead>Référence</TableHead>
-                       <TableHead className="text-right">Actions</TableHead>
-                     </TableRow>
-                   </TableHeader>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => toggleSort("created_at")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Date
+                            <ArrowUpDown className="h-3 w-3" />
+                          </div>
+                        </TableHead>
+                        <TableHead>Méthode</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Facture/Commande</TableHead>
+                        <TableHead
+                          className="cursor-pointer hover:bg-muted/50 text-right"
+                          onClick={() => toggleSort("amount")}
+                        >
+                          <div className="flex items-center gap-1 justify-end">
+                            Payé
+                            <ArrowUpDown className="h-3 w-3" />
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-right">Facture</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Référence</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                    <TableBody>
-                     {filteredPayments.length === 0 ? (
-                       <TableRow>
-                         <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
-                           Aucun paiement trouvé
-                         </TableCell>
-                       </TableRow>
+                      {filteredPayments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                            Aucun paiement trouvé
+                          </TableCell>
+                        </TableRow>
                      ) : (
                        filteredPayments.map((payment) => {
                          const methodConfig = getMethodConfig(payment.method);
@@ -795,9 +809,12 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
                                  <span className="text-muted-foreground">—</span>
                                )}
                              </TableCell>
-                             <TableCell className="text-right font-semibold">
-                               {formatCurrency(payment.amount)}
-                             </TableCell>
+                              <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                                {formatCurrency(payment.amount)}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground text-sm">
+                                {payment.invoice_total !== null ? formatCurrency(payment.invoice_total) : "—"}
+                              </TableCell>
                             <TableCell>
                               <Badge className={`${getStatusConfig(payment.status, payment.method).color} gap-1`}>
                                 {getStatusConfig(payment.status, payment.method).icon}

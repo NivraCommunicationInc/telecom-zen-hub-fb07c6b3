@@ -1610,8 +1610,14 @@ const AdminOrders = () => {
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <p className="text-sm text-foreground">{order.profiles?.full_name || `${order.client_first_name || ""} ${order.client_last_name || ""}`.trim() || "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">{order.profiles?.email || order.client_email}</p>
+                          <p className="text-sm text-foreground">
+                            {order.profiles?.full_name?.trim() || 
+                             [order.client_first_name, order.client_last_name].filter(Boolean).join(" ").trim() || 
+                             "Client inconnu"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {order.profiles?.email || order.client_email || "—"}
+                          </p>
                         </td>
                         <td className="py-3 px-4 text-sm text-foreground">{order.service_type}</td>
                         <td className="py-3 px-4 text-sm text-foreground font-medium">
