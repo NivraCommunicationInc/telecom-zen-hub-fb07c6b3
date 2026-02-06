@@ -1,20 +1,25 @@
 /**
- * Nivra Contract Template V2 - Professional Design
+ * Nivra Contract Template V2 - PROFESSIONAL MULTI-PAGE CONTRACT
  * Inspired by Rogers service agreement layout
  * 
+ * Structure:
+ * - Page 1: Executive Summary (Client info, Services, Totals, First payment)
+ * - Pages 2+: Full Legal Annexes A-E (from annexes.ts)
+ * - Final Page: Dual Signature Block (Client + Agent)
+ * 
  * Features:
- * - Clean header with contract identifiers
- * - Client and service information boxes
- * - Detailed service table with pricing
- * - Terms and conditions section
- * - Dual signature fields (client + agent)
- * - Professional footer with contact info
+ * - Multi-page support with proper page breaks
+ * - Complete legal annexes (A → E)
+ * - Professional header/footer on every page
+ * - Visible dual signature fields
+ * - Rogers-style clean tables and layout
  */
 
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { COMPANY_CONTACT } from "@/config/company";
+import { ALL_ANNEXES, AnnexeSection } from "./annexes";
 
 // =============================================================================
 // TYPES
@@ -89,547 +94,755 @@ export interface ContractV2Data {
 // =============================================================================
 
 const COLORS = {
-  primary: [0, 102, 204] as [number, number, number],      // #0066CC - Nivra blue
-  secondary: [0, 51, 102] as [number, number, number],     // #003366 - Dark blue
-  accent: [52, 211, 153] as [number, number, number],      // #34D399 - Teal accent
-  text: [33, 33, 33] as [number, number, number],          // #212121
-  textLight: [117, 117, 117] as [number, number, number],  // #757575
-  border: [224, 224, 224] as [number, number, number],     // #E0E0E0
-  background: [250, 250, 250] as [number, number, number], // #FAFAFA
+  primary: [0, 51, 102] as [number, number, number],        // #003366 - Navy
+  primaryLight: [0, 102, 204] as [number, number, number],  // #0066CC - Blue
+  accent: [52, 211, 153] as [number, number, number],       // #34D399 - Teal
+  text: [33, 33, 33] as [number, number, number],           // #212121
+  textLight: [100, 100, 100] as [number, number, number],   // #646464
+  textMuted: [150, 150, 150] as [number, number, number],   // #969696
+  border: [200, 200, 200] as [number, number, number],      // #C8C8C8
+  borderLight: [230, 230, 230] as [number, number, number], // #E6E6E6
+  background: [248, 248, 248] as [number, number, number],  // #F8F8F8
   white: [255, 255, 255] as [number, number, number],
-  success: [16, 185, 129] as [number, number, number],     // #10B981
+  success: [16, 185, 129] as [number, number, number],      // #10B981
+  warning: [245, 158, 11] as [number, number, number],      // #F59E0B
 };
 
-const PAGE_CONFIG = {
+const PAGE = {
+  width: 210,
+  height: 297,
   marginLeft: 15,
   marginRight: 15,
-  marginTop: 15,
-  marginBottom: 20,
-  pageWidth: 210,
-  pageHeight: 297,
+  marginTop: 20,
+  marginBottom: 25,
+  get contentWidth() { return this.width - this.marginLeft - this.marginRight; },
+  get safeBottom() { return this.height - this.marginBottom; },
 };
 
 // =============================================================================
-// HELPER FUNCTIONS
+// HELPERS
 // =============================================================================
 
 function formatDate(dateStr: string): string {
   try {
-    const date = new Date(dateStr);
-    return format(date, "d MMMM yyyy", { locale: fr });
+    return format(new Date(dateStr), "d MMMM yyyy", { locale: fr });
   } catch {
     return dateStr;
   }
 }
 
 function formatCurrency(amount: number): string {
-  return `${amount.toFixed(2)} $`;
-}
-
-function drawRoundedRect(
-  doc: jsPDF,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-  style: "S" | "F" | "FD" = "S"
-): void {
-  doc.roundedRect(x, y, w, h, r, r, style);
+  return new Intl.NumberFormat("fr-CA", { 
+    style: "currency", 
+    currency: "CAD",
+    minimumFractionDigits: 2,
+  }).format(amount);
 }
 
 // =============================================================================
-// MAIN GENERATOR
+// PDF GENERATOR CLASS (for multi-page state management)
+// =============================================================================
+
+class ContractPDFBuilder {
+  private doc: jsPDF;
+  private y: number;
+  private pageNum: number;
+  private data: ContractV2Data;
+  
+  constructor(data: ContractV2Data) {
+    this.doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    this.data = data;
+    this.y = PAGE.marginTop;
+    this.pageNum = 1;
+    
+    // White background for all pages
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.rect(0, 0, PAGE.width, PAGE.height, "F");
+  }
+  
+  // Check if we need a page break and add new page if needed
+  private checkPageBreak(neededSpace: number): void {
+    if (this.y + neededSpace > PAGE.safeBottom) {
+      this.addNewPage();
+    }
+  }
+  
+  // Add a new page with header
+  private addNewPage(): void {
+    this.doc.addPage();
+    this.pageNum++;
+    
+    // White background
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.rect(0, 0, PAGE.width, PAGE.height, "F");
+    
+    // Top accent line
+    this.doc.setFillColor(...COLORS.accent);
+    this.doc.rect(0, 0, PAGE.width, 2, "F");
+    
+    // Continuation header
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text(`ENTENTE DE SERVICE — ${this.data.contractNumber}`, PAGE.marginLeft, 10);
+    this.doc.text(`Page ${this.pageNum}`, PAGE.width - PAGE.marginRight, 10, { align: "right" });
+    
+    this.y = 18;
+  }
+  
+  // Add footer to all pages at the end
+  private addFooters(): void {
+    const totalPages = this.doc.getNumberOfPages();
+    
+    for (let i = 1; i <= totalPages; i++) {
+      this.doc.setPage(i);
+      
+      const footerY = PAGE.height - 15;
+      
+      // Footer line
+      this.doc.setDrawColor(...COLORS.borderLight);
+      this.doc.line(PAGE.marginLeft, footerY - 3, PAGE.width - PAGE.marginRight, footerY - 3);
+      
+      // Footer text
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.textMuted);
+      
+      this.doc.text(
+        `${COMPANY_CONTACT.legalName} — ${COMPANY_CONTACT.fullAddress}`,
+        PAGE.width / 2,
+        footerY,
+        { align: "center" }
+      );
+      this.doc.text(
+        `${COMPANY_CONTACT.supportEmailDisplay} — nivra-telecom.ca`,
+        PAGE.width / 2,
+        footerY + 4,
+        { align: "center" }
+      );
+      
+      // Page number (except page 1 which has it in header)
+      if (i > 1) {
+        this.doc.text(`${i} / ${totalPages}`, PAGE.width - PAGE.marginRight, footerY + 4, { align: "right" });
+      }
+    }
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // PAGE 1: EXECUTIVE SUMMARY
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  private buildPage1Summary(): void {
+    const { data } = this;
+    
+    // === TOP HEADER BAR ===
+    // Accent line
+    this.doc.setFillColor(...COLORS.accent);
+    this.doc.rect(0, 0, PAGE.width, 3, "F");
+    
+    // Navy header
+    this.doc.setFillColor(...COLORS.primary);
+    this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 28, "F");
+    
+    // Company name
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(20);
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text("NIVRA TELECOM", PAGE.marginLeft + 8, this.y + 12);
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(9);
+    this.doc.text("Télécom prépayée au Québec", PAGE.marginLeft + 8, this.y + 18);
+    
+    // Contract title (right side)
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(12);
+    this.doc.text("ENTENTE DE SERVICE", PAGE.width - PAGE.marginRight - 8, this.y + 10, { align: "right" });
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(9);
+    this.doc.text(data.contractNumber, PAGE.width - PAGE.marginRight - 8, this.y + 16, { align: "right" });
+    this.doc.setFontSize(8);
+    this.doc.text(`Page 1`, PAGE.width - PAGE.marginRight - 8, this.y + 22, { align: "right" });
+    
+    this.y += 33;
+    
+    // === DOCUMENT INFO BAR ===
+    this.doc.setFillColor(...COLORS.background);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 14, "FD");
+    
+    const infoY = this.y + 5;
+    const cols = [
+      { label: "Numéro de compte", value: data.accountNumber, x: PAGE.marginLeft + 5 },
+      { label: "Date du contrat", value: formatDate(data.contractDate), x: PAGE.marginLeft + 50 },
+      { label: "Date d'activation", value: data.activationDate ? formatDate(data.activationDate) : "À confirmer", x: PAGE.marginLeft + 100 },
+    ];
+    
+    if (data.orderNumber) {
+      cols.push({ label: "Commande", value: data.orderNumber, x: PAGE.marginLeft + 145 });
+    }
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    cols.forEach(col => {
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text(col.label, col.x, infoY);
+      this.doc.setTextColor(...COLORS.text);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(col.value, col.x, infoY + 5);
+      this.doc.setFont("helvetica", "normal");
+    });
+    
+    this.y += 20;
+    
+    // === CLIENT INFORMATION ===
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.primaryLight);
+    this.doc.text("INFORMATIONS DU CLIENT", PAGE.marginLeft, this.y);
+    
+    this.y += 5;
+    
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 28, 2, 2, "FD");
+    
+    const clientY = this.y + 6;
+    const halfWidth = PAGE.contentWidth / 2;
+    
+    // Left column
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Nom complet", PAGE.marginLeft + 5, clientY);
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(data.clientName, PAGE.marginLeft + 5, clientY + 5);
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Courriel / Téléphone", PAGE.marginLeft + 5, clientY + 12);
+    
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.text);
+    const contact = [data.clientEmail, data.clientPhone].filter(Boolean).join(" • ");
+    this.doc.text(contact, PAGE.marginLeft + 5, clientY + 17);
+    
+    // Right column
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Adresse de service", PAGE.marginLeft + halfWidth + 5, clientY);
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(data.serviceAddress, PAGE.marginLeft + halfWidth + 5, clientY + 5);
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.text(
+      `${data.serviceCity}, ${data.serviceProvince} ${data.servicePostalCode}`,
+      PAGE.marginLeft + halfWidth + 5,
+      clientY + 10
+    );
+    
+    if (data.clientDateOfBirth) {
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text("Date de naissance", PAGE.marginLeft + halfWidth + 5, clientY + 16);
+      this.doc.setTextColor(...COLORS.text);
+      this.doc.text(formatDate(data.clientDateOfBirth), PAGE.marginLeft + halfWidth + 50, clientY + 16);
+    }
+    
+    this.y += 34;
+    
+    // === SERVICES TABLE ===
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.primaryLight);
+    this.doc.text("SERVICES SOUSCRITS", PAGE.marginLeft, this.y);
+    
+    this.y += 5;
+    
+    // Table header
+    this.doc.setFillColor(...COLORS.primary);
+    this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 8, "F");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.white);
+    
+    const colType = PAGE.marginLeft + 3;
+    const colName = PAGE.marginLeft + 28;
+    const colDesc = PAGE.marginLeft + 95;
+    const colPrice = PAGE.width - PAGE.marginRight - 5;
+    
+    this.doc.text("TYPE", colType, this.y + 5.5);
+    this.doc.text("SERVICE", colName, this.y + 5.5);
+    this.doc.text("DESCRIPTION", colDesc, this.y + 5.5);
+    this.doc.text("PRIX/MOIS", colPrice, this.y + 5.5, { align: "right" });
+    
+    this.y += 8;
+    
+    // Service rows
+    data.services.forEach((service, idx) => {
+      const rowH = 10;
+      
+      if (idx % 2 === 0) {
+        this.doc.setFillColor(...COLORS.background);
+        this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, rowH, "F");
+      }
+      
+      this.doc.setDrawColor(...COLORS.borderLight);
+      this.doc.line(PAGE.marginLeft, this.y + rowH, PAGE.width - PAGE.marginRight, this.y + rowH);
+      
+      // Type badge
+      this.doc.setFillColor(...COLORS.accent);
+      this.doc.roundedRect(colType, this.y + 2, 22, 6, 1, 1, "F");
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(6);
+      this.doc.setTextColor(...COLORS.white);
+      this.doc.text(service.type.toUpperCase(), colType + 11, this.y + 6, { align: "center" });
+      
+      // Service name
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(9);
+      this.doc.setTextColor(...COLORS.text);
+      this.doc.text(service.name, colName, this.y + 6);
+      
+      // Description
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.textLight);
+      const desc = service.description || "";
+      const truncDesc = desc.length > 45 ? desc.substring(0, 42) + "..." : desc;
+      this.doc.text(truncDesc, colDesc, this.y + 6);
+      
+      // Price
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(9);
+      this.doc.setTextColor(...COLORS.text);
+      this.doc.text(formatCurrency(service.monthlyPrice), colPrice, this.y + 6, { align: "right" });
+      
+      this.y += rowH;
+    });
+    
+    // One-time fees
+    if (data.oneTimeFees && data.oneTimeFees.length > 0) {
+      this.y += 3;
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text("FRAIS UNIQUES", PAGE.marginLeft, this.y);
+      this.y += 5;
+      
+      data.oneTimeFees.forEach(fee => {
+        this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(8);
+        this.doc.setTextColor(...COLORS.text);
+        this.doc.text(fee.label, colName, this.y);
+        this.doc.text(formatCurrency(fee.amount), colPrice, this.y, { align: "right" });
+        this.y += 5;
+      });
+    }
+    
+    // Discounts
+    if (data.discounts && data.discounts.length > 0) {
+      this.y += 2;
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(...COLORS.success);
+      this.doc.text("RABAIS APPLIQUÉS", PAGE.marginLeft, this.y);
+      this.y += 5;
+      
+      data.discounts.forEach(d => {
+        this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(8);
+        this.doc.setTextColor(...COLORS.success);
+        this.doc.text(d.label, colName, this.y);
+        this.doc.text(`-${formatCurrency(d.amount)}`, colPrice, this.y, { align: "right" });
+        this.y += 5;
+      });
+    }
+    
+    this.y += 8;
+    
+    // === TOTALS BOX ===
+    const totalsW = 85;
+    const totalsX = PAGE.width - PAGE.marginRight - totalsW;
+    
+    this.doc.setFillColor(...COLORS.background);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.roundedRect(totalsX, this.y, totalsW, 45, 2, 2, "FD");
+    
+    let tY = this.y + 7;
+    const labelX = totalsX + 5;
+    const valueX = totalsX + totalsW - 5;
+    
+    const addTotalRow = (label: string, value: number, isBold = false, isHighlight = false) => {
+      this.doc.setFont("helvetica", isBold ? "bold" : "normal");
+      this.doc.setFontSize(isBold ? 9 : 8);
+      this.doc.setTextColor(...(isHighlight ? COLORS.primaryLight : COLORS.text));
+      this.doc.text(label, labelX, tY);
+      this.doc.text(formatCurrency(value), valueX, tY, { align: "right" });
+      tY += 6;
+    };
+    
+    addTotalRow("Sous-total mensuel", data.monthlySubtotal);
+    if (data.oneTimeSubtotal && data.oneTimeSubtotal > 0) {
+      addTotalRow("Frais uniques", data.oneTimeSubtotal);
+    }
+    addTotalRow("TPS (5%)", data.tps);
+    addTotalRow("TVQ (9.975%)", data.tvq);
+    
+    // Separator line
+    this.doc.setDrawColor(...COLORS.primaryLight);
+    this.doc.line(labelX, tY - 2, valueX, tY - 2);
+    tY += 3;
+    
+    // First payment (highlighted)
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.primaryLight);
+    this.doc.text("Premier paiement", labelX, tY);
+    this.doc.setFontSize(12);
+    this.doc.text(formatCurrency(data.totalFirstPayment), valueX, tY, { align: "right" });
+    
+    this.y += 52;
+    
+    // Monthly note
+    this.doc.setFont("helvetica", "italic");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.textLight);
+    this.doc.text(
+      `Paiement mensuel récurrent: ${formatCurrency(data.monthlyTotal)} (taxes incluses)`,
+      totalsX,
+      this.y
+    );
+    
+    this.y += 10;
+    
+    // === PAYMENT TERMS BOX ===
+    this.doc.setFillColor(255, 248, 225);
+    this.doc.setDrawColor(255, 193, 7);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 20, 2, 2, "FD");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text("MODALITÉS DE PAIEMENT — INTERAC UNIQUEMENT", PAGE.marginLeft + 5, this.y + 7);
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.text(`Envoyer le paiement à: ${COMPANY_CONTACT.supportEmailDisplay}`, PAGE.marginLeft + 5, this.y + 12);
+    this.doc.text("Le cycle de facturation de 30 jours débute uniquement après confirmation du paiement.", PAGE.marginLeft + 5, this.y + 17);
+    
+    this.y += 28;
+    
+    // === ANNEXES REFERENCE ===
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.primaryLight);
+    this.doc.text("DOCUMENTS INCLUS", PAGE.marginLeft, this.y);
+    
+    this.y += 5;
+    
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 28, 2, 2, "FD");
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.text);
+    
+    const annexeList = [
+      "Annexe A — Termes et conditions générales",
+      "Annexe B — Conditions spécifiques par service",
+      "Annexe C — Politique d'installation et rendez-vous",
+      "Annexe D — Modalités de paiement (incluant e-Transfer)",
+      "Annexe E — Support, tickets, SLA et clauses avancées",
+    ];
+    
+    let aY = this.y + 5;
+    const half = Math.ceil(annexeList.length / 2);
+    annexeList.forEach((ann, i) => {
+      const xPos = i < half ? PAGE.marginLeft + 5 : PAGE.marginLeft + PAGE.contentWidth / 2 + 5;
+      const yPos = aY + (i % half) * 5;
+      this.doc.text(`• ${ann}`, xPos, yPos);
+    });
+    
+    this.y += 35;
+    
+    // === ACCEPTANCE NOTE ===
+    this.doc.setFont("helvetica", "italic");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.textLight);
+    const acceptText = "En signant ce contrat, le client reconnaît avoir lu et accepté les termes et conditions " +
+      "incluant les Annexes A à E ci-jointes. Les signatures apparaissent à la dernière page du document.";
+    const acceptLines = this.doc.splitTextToSize(acceptText, PAGE.contentWidth - 10);
+    this.doc.text(acceptLines, PAGE.marginLeft + 5, this.y);
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // PAGES 2+: LEGAL ANNEXES
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  private buildAnnexes(): void {
+    ALL_ANNEXES.forEach(annexe => {
+      this.addNewPage();
+      this.renderAnnexe(annexe);
+    });
+  }
+  
+  private renderAnnexe(annexe: AnnexeSection): void {
+    // Annexe title header
+    this.doc.setFillColor(...COLORS.primary);
+    this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 10, "F");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(11);
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text(annexe.title, PAGE.marginLeft + 5, this.y + 7);
+    
+    this.y += 15;
+    
+    // Render each section
+    annexe.sections.forEach(section => {
+      this.checkPageBreak(20);
+      
+      // Section number + title
+      const sectionTitle = section.number 
+        ? `${section.number}. ${section.title}` 
+        : section.title;
+      
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(9);
+      this.doc.setTextColor(...COLORS.primaryLight);
+      this.doc.text(sectionTitle, PAGE.marginLeft, this.y);
+      
+      this.y += 5;
+      
+      // Paragraphs
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(...COLORS.text);
+      
+      section.paragraphs.forEach(para => {
+        const lines = this.doc.splitTextToSize(para, PAGE.contentWidth - 5);
+        const lineHeight = 3.5;
+        const neededSpace = lines.length * lineHeight + 3;
+        
+        this.checkPageBreak(neededSpace);
+        
+        this.doc.text(lines, PAGE.marginLeft + 3, this.y);
+        this.y += neededSpace;
+      });
+      
+      this.y += 3;
+    });
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // FINAL PAGE: SIGNATURES
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  private buildSignaturePage(): void {
+    // Ensure we have enough space, otherwise new page
+    this.checkPageBreak(100);
+    
+    // If we're near top of a new page, that's fine
+    // If not, add separator
+    if (this.y > 50) {
+      this.y += 10;
+      this.doc.setDrawColor(...COLORS.border);
+      this.doc.line(PAGE.marginLeft, this.y, PAGE.width - PAGE.marginRight, this.y);
+      this.y += 10;
+    }
+    
+    // Signature section header
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(12);
+    this.doc.setTextColor(...COLORS.primary);
+    this.doc.text("SIGNATURES", PAGE.marginLeft, this.y);
+    
+    this.y += 3;
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.textLight);
+    this.doc.text(
+      "Les parties ci-dessous reconnaissent avoir lu et accepté les termes de la présente entente de service.",
+      PAGE.marginLeft,
+      this.y + 5
+    );
+    
+    this.y += 15;
+    
+    const sigBoxW = (PAGE.contentWidth - 10) / 2;
+    const sigBoxH = 55;
+    const leftX = PAGE.marginLeft;
+    const rightX = PAGE.marginLeft + sigBoxW + 10;
+    
+    // === CLIENT SIGNATURE BOX ===
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.roundedRect(leftX, this.y, sigBoxW, sigBoxH, 3, 3, "FD");
+    
+    // Header
+    this.doc.setFillColor(...COLORS.primaryLight);
+    this.doc.roundedRect(leftX, this.y, sigBoxW, 10, 3, 3, "F");
+    this.doc.rect(leftX, this.y + 5, sigBoxW, 5, "F"); // square off bottom corners
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text("SIGNATURE DU CLIENT", leftX + 5, this.y + 7);
+    
+    // Signature area
+    const clientSigY = this.y + 15;
+    
+    if (this.data.clientSignature) {
+      if (this.data.clientSignatureType === "canvas") {
+        try {
+          this.doc.addImage(this.data.clientSignature, "PNG", leftX + 10, clientSigY, sigBoxW - 20, 20);
+        } catch {
+          // Fallback to text
+          this.doc.setFont("helvetica", "italic");
+          this.doc.setFontSize(14);
+          this.doc.setTextColor(...COLORS.text);
+          this.doc.text(this.data.clientName, leftX + sigBoxW / 2, clientSigY + 10, { align: "center" });
+        }
+      } else {
+        this.doc.setFont("helvetica", "italic");
+        this.doc.setFontSize(14);
+        this.doc.setTextColor(...COLORS.text);
+        this.doc.text(this.data.clientSignature, leftX + sigBoxW / 2, clientSigY + 10, { align: "center" });
+      }
+    } else {
+      // Empty signature line
+      this.doc.setDrawColor(...COLORS.border);
+      this.doc.line(leftX + 10, clientSigY + 20, leftX + sigBoxW - 10, clientSigY + 20);
+      
+      this.doc.setFont("helvetica", "italic");
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text("Signature du client", leftX + sigBoxW / 2, clientSigY + 25, { align: "center" });
+    }
+    
+    // Client info below signature
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(`Nom: ${this.data.clientName}`, leftX + 5, this.y + sigBoxH - 10);
+    this.doc.text(`Date: ${this.data.clientSignedAt ? formatDate(this.data.clientSignedAt) : "____/____/________"}`, leftX + 5, this.y + sigBoxH - 5);
+    
+    // === AGENT SIGNATURE BOX ===
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.roundedRect(rightX, this.y, sigBoxW, sigBoxH, 3, 3, "FD");
+    
+    // Header
+    this.doc.setFillColor(...COLORS.accent);
+    this.doc.roundedRect(rightX, this.y, sigBoxW, 10, 3, 3, "F");
+    this.doc.rect(rightX, this.y + 5, sigBoxW, 5, "F");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text("REPRÉSENTANT NIVRA", rightX + 5, this.y + 7);
+    
+    // Agent signature area
+    const agentSigY = this.y + 15;
+    
+    if (this.data.agentSignature) {
+      this.doc.setFont("helvetica", "italic");
+      this.doc.setFontSize(14);
+      this.doc.setTextColor(...COLORS.text);
+      this.doc.text(this.data.agentSignature, rightX + sigBoxW / 2, agentSigY + 10, { align: "center" });
+    } else {
+      this.doc.setDrawColor(...COLORS.border);
+      this.doc.line(rightX + 10, agentSigY + 20, rightX + sigBoxW - 10, agentSigY + 20);
+      
+      this.doc.setFont("helvetica", "italic");
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text("Signature du représentant", rightX + sigBoxW / 2, agentSigY + 25, { align: "center" });
+    }
+    
+    // Agent info
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(`Nom: ${this.data.agentName || "____________________"}`, rightX + 5, this.y + sigBoxH - 10);
+    this.doc.text(`Date: ${this.data.agentSignedAt ? formatDate(this.data.agentSignedAt) : "____/____/________"}`, rightX + 5, this.y + sigBoxH - 5);
+    
+    this.y += sigBoxH + 15;
+    
+    // === LEGAL NOTICE ===
+    this.checkPageBreak(25);
+    
+    this.doc.setFillColor(248, 250, 252);
+    this.doc.setDrawColor(...COLORS.border);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 22, 2, 2, "FD");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text("AVIS IMPORTANT", PAGE.marginLeft + 5, this.y + 6);
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textLight);
+    
+    const notice = "Ce contrat, incluant les Annexes A à E, constitue l'entente complète entre les parties. " +
+      "Conservez ce document pour vos dossiers. Pour toute question, contactez-nous à " + 
+      COMPANY_CONTACT.supportEmailDisplay + " ou 438-544-2233.";
+    const noticeLines = this.doc.splitTextToSize(notice, PAGE.contentWidth - 10);
+    this.doc.text(noticeLines, PAGE.marginLeft + 5, this.y + 11);
+    
+    this.y += 30;
+    
+    // Contract reference at bottom
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text(`Contrat: ${this.data.contractNumber}`, PAGE.marginLeft, this.y);
+    this.doc.text(`Compte: ${this.data.accountNumber}`, PAGE.marginLeft + 80, this.y);
+    this.doc.text(`Émis le: ${formatDate(this.data.contractDate)}`, PAGE.width - PAGE.marginRight, this.y, { align: "right" });
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // BUILD & RETURN
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  public build(): jsPDF {
+    // Page 1: Summary
+    this.buildPage1Summary();
+    
+    // Pages 2+: Annexes A-E
+    this.buildAnnexes();
+    
+    // Final section: Signatures
+    this.buildSignaturePage();
+    
+    // Add footers to all pages
+    this.addFooters();
+    
+    return this.doc;
+  }
+}
+
+// =============================================================================
+// EXPORT FUNCTION
 // =============================================================================
 
 export function generateContractV2PDF(data: ContractV2Data): jsPDF {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const { marginLeft, marginRight, marginTop, pageWidth, pageHeight } = PAGE_CONFIG;
-  const contentWidth = pageWidth - marginLeft - marginRight;
-  
-  let y = marginTop;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // HEADER BAR
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  // Top accent line
-  doc.setFillColor(...COLORS.accent);
-  doc.rect(0, 0, pageWidth, 3, "F");
-  
-  // Header background
-  doc.setFillColor(...COLORS.primary);
-  doc.rect(marginLeft, y, contentWidth, 25, "F");
-  
-  // Logo/Company name
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(...COLORS.white);
-  doc.text("NIVRA TELECOM", marginLeft + 8, y + 12);
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text("Télécom prépayée au Québec", marginLeft + 8, y + 18);
-  
-  // Contract number on right
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("ENTENTE DE SERVICE", pageWidth - marginRight - 8, y + 10, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(data.contractNumber, pageWidth - marginRight - 8, y + 16, { align: "right" });
-  
-  y += 30;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // DOCUMENT INFO BAR
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  doc.setFillColor(...COLORS.background);
-  doc.rect(marginLeft, y, contentWidth, 12, "F");
-  doc.setDrawColor(...COLORS.border);
-  doc.rect(marginLeft, y, contentWidth, 12, "S");
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.textLight);
-  
-  const infoY = y + 5;
-  doc.text("Numéro de compte", marginLeft + 5, infoY);
-  doc.text("Date du contrat", marginLeft + 55, infoY);
-  doc.text("Date d'activation", marginLeft + 105, infoY);
-  if (data.orderNumber) {
-    doc.text("Numéro de commande", marginLeft + 150, infoY);
-  }
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.text);
-  
-  doc.text(data.accountNumber, marginLeft + 5, infoY + 5);
-  doc.text(formatDate(data.contractDate), marginLeft + 55, infoY + 5);
-  doc.text(data.activationDate ? formatDate(data.activationDate) : "À confirmer", marginLeft + 105, infoY + 5);
-  if (data.orderNumber) {
-    doc.text(data.orderNumber, marginLeft + 150, infoY + 5);
-  }
-  
-  y += 18;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // CLIENT INFORMATION
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("INFORMATIONS DU CLIENT", marginLeft, y);
-  
-  y += 5;
-  
-  // Client info box
-  doc.setFillColor(...COLORS.white);
-  doc.setDrawColor(...COLORS.border);
-  drawRoundedRect(doc, marginLeft, y, contentWidth, 28, 2, "FD");
-  
-  const clientBoxY = y + 5;
-  const col1X = marginLeft + 5;
-  const col2X = marginLeft + contentWidth / 2 + 5;
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.textLight);
-  doc.text("Nom complet", col1X, clientBoxY);
-  doc.text("Adresse de service", col2X, clientBoxY);
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...COLORS.text);
-  doc.text(data.clientName, col1X, clientBoxY + 5);
-  doc.text(`${data.serviceAddress}`, col2X, clientBoxY + 5);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(`${data.serviceCity}, ${data.serviceProvince} ${data.servicePostalCode}`, col2X, clientBoxY + 10);
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.textLight);
-  doc.text("Courriel / Téléphone", col1X, clientBoxY + 14);
-  
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.text);
-  const contactLine = [data.clientEmail, data.clientPhone].filter(Boolean).join(" • ");
-  doc.text(contactLine, col1X, clientBoxY + 19);
-  
-  y += 35;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // SERVICES TABLE
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("SERVICES SOUSCRITS", marginLeft, y);
-  
-  y += 5;
-  
-  // Table header
-  doc.setFillColor(...COLORS.primary);
-  doc.rect(marginLeft, y, contentWidth, 8, "F");
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.white);
-  
-  const colType = marginLeft + 3;
-  const colName = marginLeft + 28;
-  const colDesc = marginLeft + 90;
-  const colPrice = pageWidth - marginRight - 25;
-  
-  doc.text("TYPE", colType, y + 5.5);
-  doc.text("SERVICE", colName, y + 5.5);
-  doc.text("DESCRIPTION", colDesc, y + 5.5);
-  doc.text("PRIX/MOIS", colPrice, y + 5.5, { align: "right" });
-  
-  y += 8;
-  
-  // Service rows
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.text);
-  
-  data.services.forEach((service, index) => {
-    const isEven = index % 2 === 0;
-    
-    if (isEven) {
-      doc.setFillColor(...COLORS.background);
-      doc.rect(marginLeft, y, contentWidth, 10, "F");
-    }
-    
-    doc.setDrawColor(...COLORS.border);
-    doc.line(marginLeft, y + 10, pageWidth - marginRight, y + 10);
-    
-    // Type badge
-    doc.setFillColor(...COLORS.accent);
-    doc.roundedRect(colType, y + 2, 22, 6, 1, 1, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(...COLORS.white);
-    doc.text(service.type.toUpperCase(), colType + 11, y + 6, { align: "center" });
-    
-    // Service name
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...COLORS.text);
-    doc.text(service.name, colName, y + 6);
-    
-    // Description
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...COLORS.textLight);
-    const desc = service.description || "";
-    const truncDesc = desc.length > 40 ? desc.substring(0, 37) + "..." : desc;
-    doc.text(truncDesc, colDesc, y + 6);
-    
-    // Price
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...COLORS.text);
-    doc.text(formatCurrency(service.monthlyPrice), colPrice, y + 6, { align: "right" });
-    
-    y += 10;
-  });
-  
-  // One-time fees
-  if (data.oneTimeFees && data.oneTimeFees.length > 0) {
-    y += 3;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...COLORS.textLight);
-    doc.text("FRAIS UNIQUES", marginLeft, y);
-    y += 5;
-    
-    data.oneTimeFees.forEach((fee) => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...COLORS.text);
-      doc.text(fee.label, colName, y);
-      doc.text(formatCurrency(fee.amount), colPrice, y, { align: "right" });
-      y += 5;
-    });
-  }
-  
-  // Discounts
-  if (data.discounts && data.discounts.length > 0) {
-    y += 3;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...COLORS.success);
-    doc.text("RABAIS APPLIQUÉS", marginLeft, y);
-    y += 5;
-    
-    data.discounts.forEach((discount) => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...COLORS.success);
-      doc.text(discount.label, colName, y);
-      doc.text(`-${formatCurrency(discount.amount)}`, colPrice, y, { align: "right" });
-      y += 5;
-    });
-  }
-  
-  y += 5;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // TOTALS BOX
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  const totalsBoxWidth = 80;
-  const totalsBoxX = pageWidth - marginRight - totalsBoxWidth;
-  
-  doc.setFillColor(...COLORS.background);
-  doc.setDrawColor(...COLORS.border);
-  drawRoundedRect(doc, totalsBoxX, y, totalsBoxWidth, 40, 2, "FD");
-  
-  const totalsY = y + 6;
-  const labelX = totalsBoxX + 5;
-  const valueX = totalsBoxX + totalsBoxWidth - 5;
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.textLight);
-  
-  doc.text("Sous-total mensuel", labelX, totalsY);
-  doc.setTextColor(...COLORS.text);
-  doc.text(formatCurrency(data.monthlySubtotal), valueX, totalsY, { align: "right" });
-  
-  if (data.oneTimeSubtotal && data.oneTimeSubtotal > 0) {
-    doc.setTextColor(...COLORS.textLight);
-    doc.text("Frais uniques", labelX, totalsY + 6);
-    doc.setTextColor(...COLORS.text);
-    doc.text(formatCurrency(data.oneTimeSubtotal), valueX, totalsY + 6, { align: "right" });
-  }
-  
-  doc.setTextColor(...COLORS.textLight);
-  doc.text("TPS (5%)", labelX, totalsY + 12);
-  doc.setTextColor(...COLORS.text);
-  doc.text(formatCurrency(data.tps), valueX, totalsY + 12, { align: "right" });
-  
-  doc.setTextColor(...COLORS.textLight);
-  doc.text("TVQ (9.975%)", labelX, totalsY + 18);
-  doc.setTextColor(...COLORS.text);
-  doc.text(formatCurrency(data.tvq), valueX, totalsY + 18, { align: "right" });
-  
-  // Total line
-  doc.setDrawColor(...COLORS.primary);
-  doc.line(labelX, totalsY + 23, valueX, totalsY + 23);
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("Premier paiement", labelX, totalsY + 30);
-  doc.setFontSize(12);
-  doc.text(formatCurrency(data.totalFirstPayment), valueX, totalsY + 30, { align: "right" });
-  
-  y += 48;
-  
-  // Monthly total note
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.textLight);
-  doc.text(
-    `Paiement mensuel récurrent: ${formatCurrency(data.monthlyTotal)} (taxes incluses)`,
-    totalsBoxX,
-    y
-  );
-  
-  y += 10;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // PAYMENT TERMS
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("MODALITÉS DE PAIEMENT", marginLeft, y);
-  
-  y += 5;
-  
-  doc.setFillColor(255, 248, 225); // Light yellow
-  doc.setDrawColor(255, 193, 7);   // Yellow border
-  drawRoundedRect(doc, marginLeft, y, contentWidth, 18, 2, "FD");
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.text);
-  doc.text("Paiement par Interac uniquement", marginLeft + 5, y + 6);
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(`Envoyer à: ${COMPANY_CONTACT.supportEmailDisplay}`, marginLeft + 5, y + 11);
-  doc.text("Le cycle de facturation débute uniquement après confirmation du paiement.", marginLeft + 5, y + 15);
-  
-  y += 25;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // TERMS & CONDITIONS (brief)
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("CONDITIONS GÉNÉRALES", marginLeft, y);
-  
-  y += 5;
-  
-  const terms = [
-    "Le client reconnaît avoir pris connaissance des modalités de service de Nivra Telecom.",
-    "Les services sont prépayés et sans engagement. Le cycle de 30 jours débute après paiement.",
-    "Le client est responsable de l'équipement fourni jusqu'à sa restitution.",
-    "Des frais peuvent s'appliquer en cas de non-retour d'équipement (voir Modalités).",
-    "Le client consent à recevoir des communications par courriel concernant son compte.",
-  ];
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.text);
-  
-  terms.forEach((term) => {
-    doc.text(`• ${term}`, marginLeft, y, { maxWidth: contentWidth - 5 });
-    y += 6;
-  });
-  
-  y += 5;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // SIGNATURES
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  // Check if we need a new page
-  if (y > pageHeight - 70) {
-    doc.addPage();
-    y = marginTop;
-    
-    // Re-add header accent on new page
-    doc.setFillColor(...COLORS.accent);
-    doc.rect(0, 0, pageWidth, 3, "F");
-  }
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("SIGNATURES", marginLeft, y);
-  
-  y += 5;
-  
-  const signatureWidth = (contentWidth - 10) / 2;
-  
-  // Client signature box
-  doc.setFillColor(...COLORS.white);
-  doc.setDrawColor(...COLORS.border);
-  drawRoundedRect(doc, marginLeft, y, signatureWidth, 35, 2, "FD");
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.text);
-  doc.text("Signature du client", marginLeft + 5, y + 6);
-  
-  if (data.clientSignature) {
-    if (data.clientSignatureType === "canvas") {
-      // Draw canvas signature image
-      try {
-        doc.addImage(data.clientSignature, "PNG", marginLeft + 5, y + 10, signatureWidth - 10, 15);
-      } catch {
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(12);
-        doc.text(data.clientName, marginLeft + 10, y + 20);
-      }
-    } else {
-      // Text signature
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(14);
-      doc.setTextColor(...COLORS.text);
-      doc.text(data.clientSignature, marginLeft + 10, y + 22);
-    }
-    
-    if (data.clientSignedAt) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(...COLORS.textLight);
-      doc.text(`Signé le ${formatDate(data.clientSignedAt)}`, marginLeft + 5, y + 32);
-    }
-  } else {
-    // Empty signature line
-    doc.setDrawColor(...COLORS.textLight);
-    doc.line(marginLeft + 10, y + 25, marginLeft + signatureWidth - 10, y + 25);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(...COLORS.textLight);
-    doc.text("Signature requise", marginLeft + 5, y + 32);
-  }
-  
-  // Agent signature box
-  const agentBoxX = marginLeft + signatureWidth + 10;
-  doc.setFillColor(...COLORS.primary);
-  drawRoundedRect(doc, agentBoxX, y, signatureWidth, 35, 2, "F");
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.white);
-  doc.text("Signature Nivra Telecom", agentBoxX + 5, y + 6);
-  
-  if (data.agentSignature || data.agentName) {
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(14);
-    doc.text(data.agentSignature || data.agentName || "", agentBoxX + 10, y + 22);
-    
-    if (data.agentSignedAt) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.text(`Signé le ${formatDate(data.agentSignedAt)}`, agentBoxX + 5, y + 32);
-    }
-  } else {
-    doc.setDrawColor(...COLORS.white);
-    doc.line(agentBoxX + 10, y + 25, agentBoxX + signatureWidth - 10, y + 25);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text("Signature agent", agentBoxX + 5, y + 32);
-  }
-  
-  y += 45;
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // FOOTER
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  const footerY = pageHeight - 15;
-  
-  doc.setDrawColor(...COLORS.border);
-  doc.line(marginLeft, footerY - 5, pageWidth - marginRight, footerY - 5);
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...COLORS.textLight);
-  
-  doc.text(
-    `${COMPANY_CONTACT.legalName} — ${COMPANY_CONTACT.fullAddress}`,
-    pageWidth / 2,
-    footerY,
-    { align: "center" }
-  );
-  doc.text(
-    `${COMPANY_CONTACT.supportEmailDisplay} — 438-544-2233 — nivra-telecom.ca`,
-    pageWidth / 2,
-    footerY + 4,
-    { align: "center" }
-  );
-  
-  // Document ID
-  doc.setFont("helvetica", "bold");
-  doc.text(data.contractNumber, pageWidth - marginRight, footerY + 2, { align: "right" });
-
-  return doc;
+  const builder = new ContractPDFBuilder(data);
+  return builder.build();
 }
 
 /**
@@ -637,7 +850,7 @@ export function generateContractV2PDF(data: ContractV2Data): jsPDF {
  */
 export function downloadContractV2PDF(data: ContractV2Data): void {
   const doc = generateContractV2PDF(data);
-  const fileName = `Entente_${data.contractNumber}_${data.clientName.replace(/\s+/g, "_")}.pdf`;
+  const fileName = `Contrat_${data.contractNumber}_${data.clientName.replace(/\s+/g, "_")}.pdf`;
   doc.save(fileName);
 }
 
