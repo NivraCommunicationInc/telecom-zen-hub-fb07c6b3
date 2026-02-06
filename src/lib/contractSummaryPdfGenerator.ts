@@ -1,16 +1,61 @@
 /**
- * Generate a standalone PDF for Contract Summary (Résumé du contrat)
+ * Nivra Contract Summary PDF Generator
+ * Design exactement comme le PDF fourni "Resume_Contrat_CTR-QC-ORD-2026-1108.pdf"
+ * 
+ * Structure:
+ * - Header: Teal bar + Navy header avec "NIVRA COMMUNICATIONS INC." + "RÉSUMÉ DU CONTRAT"
+ * - Document reference box avec CTR#, ORD#, INV#, Compte#
+ * - CLIENT section (fond navy)
+ * - SERVICES SOUSCRITS section (fond navy)
+ * - DATES ET CYCLE section (fond navy)
+ * - BLOC B — FRAIS UNIQUES section (fond navy)
+ * - PAIEMENT — INTERAC section (fond navy) avec notice importante
+ * - ACCEPTATION section (fond navy)
+ * - Signatures (Client + Nivra)
  */
 
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { ContractSummaryData } from "@/components/contract/ContractSummaryView";
-import { BUSINESS_INFO } from "./contractPolicies";
+import { COMPANY_CONTACT } from "@/config/company";
+
+// =============================================================================
+// COLORS - Matching the provided PDF exactly
+// =============================================================================
+
+const COLORS = {
+  headerBg: [15, 23, 42] as [number, number, number],        // #0F172A - Slate 900
+  accentTeal: [20, 184, 166] as [number, number, number],    // #14B8A6 - Teal
+  sectionHeader: [30, 41, 59] as [number, number, number],   // #1E293B - Slate 800 (pour les titres de section)
+  text: [30, 41, 59] as [number, number, number],            // #1E293B
+  textLight: [100, 116, 139] as [number, number, number],    // #64748B
+  textMuted: [148, 163, 184] as [number, number, number],    // #94A3B8
+  white: [255, 255, 255] as [number, number, number],
+  background: [248, 250, 252] as [number, number, number],   // #F8FAFC
+  border: [203, 213, 225] as [number, number, number],       // #CBD5E1
+};
+
+const PAGE = {
+  width: 210,
+  height: 297,
+  marginLeft: 15,
+  marginRight: 15,
+  marginTop: 15,
+  marginBottom: 15,
+  get contentWidth() { return this.width - this.marginLeft - this.marginRight; },
+};
+
+// =============================================================================
+// HELPERS
+// =============================================================================
 
 const formatCurrency = (amount: number | undefined) => {
   if (amount === undefined || amount === null) return "—";
-  return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount);
+  return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" })
+    .format(amount)
+    .replace("CA", "")
+    .trim();
 };
 
 const formatDate = (dateStr: string | undefined) => {
@@ -22,18 +67,18 @@ const formatDate = (dateStr: string | undefined) => {
   }
 };
 
+// =============================================================================
+// MAIN GENERATOR
+// =============================================================================
+
 export async function generateContractSummaryPDF(data: ContractSummaryData): Promise<void> {
-  // ================================================================================
-  // VALIDATION: Block if required client fields missing (per Nivra standard)
-  // Required: legalName, email, phone, serviceAddress, billingAddress (fallback to serviceAddress OK)
-  // ================================================================================
+  // Validation
   const requiredFields = ["legalName", "email", "phone", "serviceAddress"];
   const missingFields = requiredFields.filter(field => {
     const value = (data.client as any)[field];
     return !value || String(value).trim() === "";
   });
   
-  // billing_address check: fallback to service_address is allowed
   const hasBillingAddress = (data.client as any).billingAddress || (data.client as any).serviceAddress;
   if (!hasBillingAddress) {
     missingFields.push("billingAddress");
@@ -46,181 +91,193 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   }
 
   const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const marginLeft = 15;
-  const marginRight = 15;
-  const contentWidth = pageWidth - marginLeft - marginRight;
-  let currentY = 15;
+  let y = PAGE.marginTop;
 
-  // Colors
-  const primaryNavy: [number, number, number] = [15, 23, 42];
-  const accentTeal: [number, number, number] = [20, 184, 166];
-  const textDark: [number, number, number] = [30, 41, 59];
-  const textMuted: [number, number, number] = [100, 116, 139];
-  const borderLight: [number, number, number] = [203, 213, 225];
-  const bgLight: [number, number, number] = [248, 250, 252];
-  const white: [number, number, number] = [255, 255, 255];
-
-  // Helper to add section title
-  const addSectionTitle = (title: string) => {
-    currentY += 4;
-    doc.setFillColor(...primaryNavy);
-    doc.rect(marginLeft, currentY - 3, contentWidth, 6, "F");
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...white);
-    doc.text(title.toUpperCase(), marginLeft + 2, currentY + 1);
-    currentY += 8;
-  };
-
-  const addLabelValue = (label: string, value: string) => {
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...textMuted);
-    doc.text(`${label}:`, marginLeft, currentY);
-    doc.setTextColor(...textDark);
-    doc.text(value || "À confirmer", marginLeft + 50, currentY);
-    currentY += 4.5;
-  };
-
-  // ========== HEADER — NIVRA OFFICIAL INFO ==========
-  doc.setFillColor(...accentTeal);
-  doc.rect(0, 0, pageWidth, 3, "F");
-  doc.setFillColor(...primaryNavy);
-  doc.rect(0, 3, pageWidth, 22, "F");
-
-  doc.setFontSize(14);
+  // ==========================================================================
+  // HEADER - Matching the PDF exactly
+  // ==========================================================================
+  
+  // Top teal bar
+  doc.setFillColor(...COLORS.accentTeal);
+  doc.rect(0, 0, PAGE.width, 3, "F");
+  
+  // Main navy header
+  doc.setFillColor(...COLORS.headerBg);
+  doc.rect(0, 3, PAGE.width, 28, "F");
+  
+  // Company name
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...white);
-  doc.text("NIVRA COMMUNICATIONS INC.", pageWidth / 2, 12, { align: "center" });
-
-  doc.setFontSize(10);
-  doc.setTextColor(...accentTeal);
-  doc.text("RÉSUMÉ DU CONTRAT", pageWidth / 2, 20, { align: "center" });
-
-  currentY = 32;
-
-  // Contract reference box - ALL required numbers (CTR#, ORD#, INV#, Compte#)
-  doc.setFillColor(...bgLight);
-  doc.setDrawColor(...borderLight);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 20, 1, 1, "FD");
-  doc.setFontSize(7);
+  doc.setFontSize(20);
+  doc.setTextColor(...COLORS.white);
+  doc.text("NIVRA COMMUNICATIONS INC.", PAGE.width / 2, 17, { align: "center" });
+  
+  // Document type
+  doc.setFontSize(12);
+  doc.setTextColor(...COLORS.accentTeal);
+  doc.text("RÉSUMÉ DU CONTRAT", PAGE.width / 2, 26, { align: "center" });
+  
+  y = 38;
+  
+  // ==========================================================================
+  // DOCUMENT REFERENCE BOX
+  // ==========================================================================
+  
+  doc.setFillColor(...COLORS.background);
+  doc.setDrawColor(...COLORS.border);
+  doc.roundedRect(PAGE.marginLeft, y, PAGE.contentWidth, 22, 1, 1, "FD");
+  
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...textDark);
-  // Row 1: CTR# and ORD#
-  doc.text(`Contrat #: ${data.contractNumber || "CTR-" + (data.orderId.slice(0, 8))}`, marginLeft + 3, currentY + 5);
-  doc.text(`Commande #: ${data.orderNumber || "ORD-" + (data.orderId.slice(0, 8))}`, marginLeft + 65, currentY + 5);
-  doc.text(`Date: ${formatDate(data.snapshotCreatedAt)}`, marginLeft + 130, currentY + 5);
-  // Row 2: INV# (if exists), Compte#, Version
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.text);
+  
+  // Row 1: CTR#, ORD#, Date
+  const contractNum = data.contractNumber || `CTR-${data.orderId?.slice(0, 8) || "UNKNOWN"}`;
+  const orderNum = data.orderNumber || `ORD-${data.orderId?.slice(0, 8) || "UNKNOWN"}`;
+  
+  doc.text(`Contrat #: ${contractNum}`, PAGE.marginLeft + 5, y + 6);
+  doc.text(`Commande #: ${orderNum}`, PAGE.marginLeft + 70, y + 6);
+  doc.text(`Date: ${formatDate(data.snapshotCreatedAt)}`, PAGE.marginLeft + 140, y + 6);
+  
+  // Row 2: INV#, Compte#, Version
   doc.setFont("helvetica", "normal");
-  const invoiceNumber = (data as any).invoiceNumber || "INV-" + (data.orderId.slice(0, 8));
-  doc.text(`Facture #: ${invoiceNumber}`, marginLeft + 3, currentY + 12);
-  doc.text(`Compte #: ${data.accountNumber || data.client.accountId || "À confirmer"}`, marginLeft + 65, currentY + 12);
-  doc.text(`Version: ${data.agreementVersion || 1}`, marginLeft + 130, currentY + 12);
-  currentY += 26;
-
-  // ========== CLIENT SECTION ==========
-  addSectionTitle("Client");
+  const invoiceNum = (data as any).invoiceNumber || `INV-${data.orderId?.slice(0, 8) || "UNKNOWN"}`;
+  const accountNum = data.accountNumber || data.client.accountId || "À confirmer";
+  
+  doc.text(`Facture #: ${invoiceNum}`, PAGE.marginLeft + 5, y + 14);
+  doc.text(`Compte #: ${accountNum}`, PAGE.marginLeft + 70, y + 14);
+  doc.text(`Version: ${data.agreementVersion || 1}`, PAGE.marginLeft + 140, y + 14);
+  
+  y += 28;
+  
+  // ==========================================================================
+  // HELPER: Section Title (navy background like in the PDF)
+  // ==========================================================================
+  
+  const addSectionTitle = (title: string) => {
+    y += 3;
+    doc.setFillColor(...COLORS.sectionHeader);
+    doc.rect(PAGE.marginLeft, y, PAGE.contentWidth, 7, "F");
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...COLORS.white);
+    doc.text(title, PAGE.marginLeft + 3, y + 5);
+    
+    y += 10;
+  };
+  
+  const addLabelValue = (label: string, value: string, labelWidth = 50) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...COLORS.textLight);
+    doc.text(`${label}:`, PAGE.marginLeft + 3, y);
+    
+    doc.setTextColor(...COLORS.text);
+    doc.text(value || "À confirmer", PAGE.marginLeft + labelWidth, y);
+    y += 5;
+  };
+  
+  // ==========================================================================
+  // CLIENT SECTION
+  // ==========================================================================
+  
+  addSectionTitle("CLIENT");
+  
   addLabelValue("Nom légal", data.client.legalName);
   addLabelValue("Téléphone", data.client.phone);
   addLabelValue("Courriel", data.client.email);
-  addLabelValue("Adresse de service", `${data.client.serviceAddress || ""}, ${data.client.serviceCity || ""} ${data.client.serviceProvince || "QC"} ${data.client.servicePostalCode || ""}`);
-  if (data.client.billingAddress && data.client.billingAddress !== data.client.serviceAddress) {
-    addLabelValue("Adresse de facturation", data.client.billingAddress);
-  }
-  addLabelValue("ID compte client", data.accountNumber || data.client.accountId || "À confirmer");
-  currentY += 2;
-
-  // ========== SERVICES SECTION — ONE LINE PER SERVICE (MANDATORY) ==========
-  addSectionTitle("Services souscrits (détail ligne par ligne)");
   
-  // Calculate totals for monthly services
+  const fullAddress = `${data.client.serviceAddress || ""}, ${data.client.serviceCity || ""} ${data.client.serviceProvince || "QC"} ${data.client.servicePostalCode || ""}`;
+  addLabelValue("Adresse de service", fullAddress);
+  addLabelValue("ID compte client", accountNum);
+  
+  // ==========================================================================
+  // SERVICES SOUSCRITS
+  // ==========================================================================
+  
+  addSectionTitle("SERVICES SOUSCRITS (DÉTAIL LIGNE PAR LIGNE)");
+  
+  // Calculate totals
   const totalMonthly = data.services.reduce((sum, s) => sum + (s.monthlyPrice || 0), 0) + 
     (data.tvChannels?.premiumTotal || 0);
-
-  // Render EACH service on its OWN row - never combine
-  data.services.forEach(service => {
-    doc.setFontSize(7);
-    
-    // Service type badge
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...accentTeal);
-    doc.text(service.type.toUpperCase(), marginLeft, currentY);
-    
-    // Service name
-    doc.setTextColor(...textDark);
-    doc.text(service.planName || service.type, marginLeft + 22, currentY);
-    
-    // Speed if applicable
-    if (service.speed) {
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...textMuted);
-      doc.text(`Vitesse: ${service.speed}`, marginLeft + 85, currentY);
-    }
-    
-    // Price - always on its own column
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...textDark);
-    doc.text(formatCurrency(service.monthlyPrice) + "/mois", marginLeft + 135, currentY);
-    currentY += 5;
-
-    // Portability info on separate line
-    if (service.portability) {
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...textMuted);
-      doc.setFontSize(6);
-      doc.text(`   → Portabilité: Oui | Numéro: ${service.numberToPort || "À confirmer"}`, marginLeft + 5, currentY);
-      currentY += 4;
-    }
-  });
-
-  // TV Channels summary (counts only, never individual channels)
-  if (data.tvChannels) {
-    currentY += 2;
-    doc.setTextColor(...textMuted);
-    doc.setFontSize(6);
-    doc.text(`Chaînes de base: ${data.tvChannels.baseChannels || 25}/26 | Au choix: ${data.tvChannels.freeChoiceCount || 0} | Premium: ${data.tvChannels.premiumCount || 0} (${formatCurrency(data.tvChannels.premiumTotal || 0)})`, marginLeft + 5, currentY);
-    currentY += 4;
-  }
-
-  // Subtotal monthly
-  doc.setDrawColor(...borderLight);
-  doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
-  currentY += 4;
+  
+  // Service types badge
+  const serviceTypes = [...new Set(data.services.map(s => s.type.toUpperCase()))];
+  
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
   doc.setFontSize(8);
-  doc.text(`Sous-total mensuel (avant taxes): ${formatCurrency(totalMonthly)}/mois`, marginLeft, currentY);
-  currentY += 6;
-
-  // ========== DATES & BILLING CYCLE (PREPAID) ==========
-  addSectionTitle("Dates et cycle de facturation");
+  doc.setTextColor(...COLORS.accentTeal);
+  doc.text(serviceTypes.join(", "), PAGE.marginLeft + 3, y);
+  
+  // Service names + price
+  const serviceNames = data.services.map(s => s.planName || s.type).join(", ");
+  doc.setTextColor(...COLORS.text);
+  doc.text(serviceNames, PAGE.marginLeft + 28, y);
+  
+  doc.text(`${formatCurrency(totalMonthly)}/mois`, PAGE.width - PAGE.marginRight - 3, y, { align: "right" });
+  y += 6;
+  
+  // TV Channels info if applicable
+  if (data.tvChannels) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.textMuted);
+    doc.text(
+      `Chaînes de base: ${data.tvChannels.baseChannels || 25}/26 | Au choix: ${data.tvChannels.freeChoiceCount || 0} | Premium: ${data.tvChannels.premiumCount || 0} (${formatCurrency(data.tvChannels.premiumTotal || 0)})`,
+      PAGE.marginLeft + 10,
+      y
+    );
+    y += 5;
+  }
+  
+  // Subtotal
+  doc.setDrawColor(...COLORS.border);
+  doc.line(PAGE.marginLeft, y, PAGE.width - PAGE.marginRight, y);
+  y += 5;
+  
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.text);
+  doc.text(`Sous-total mensuel (avant taxes): ${formatCurrency(totalMonthly)}/mois`, PAGE.marginLeft + 3, y);
+  y += 8;
+  
+  // ==========================================================================
+  // DATES ET CYCLE DE FACTURATION
+  // ==========================================================================
+  
+  addSectionTitle("DATES ET CYCLE DE FACTURATION");
+  
   addLabelValue("Date création compte", formatDate(data.dates.accountCreated));
   addLabelValue("Jour du cycle (Bill Cycle)", data.dates.billCycleDay ? String(data.dates.billCycleDay) : "À confirmer après paiement");
   addLabelValue("Date d'activation prévue", formatDate(data.dates.activationDate));
   addLabelValue("Prochaine facture", formatDate(data.dates.nextInvoiceDate));
-  if (data.dates.dueDate) {
-    addLabelValue("Échéance", formatDate(data.dates.dueDate));
-  }
   
-  // CRITICAL: Prepaid cycle notice
-  currentY += 2;
-  doc.setFillColor(...bgLight);
-  doc.setDrawColor(...accentTeal);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 12, 1, 1, "FD");
-  doc.setFontSize(6);
+  y += 2;
+  
+  // IMPORTANT notice box
+  doc.setFillColor(...COLORS.background);
+  doc.setDrawColor(...COLORS.accentTeal);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(PAGE.marginLeft, y, PAGE.contentWidth, 14, 1, 1, "FD");
+  doc.setLineWidth(0.2);
+  
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("IMPORTANT: Le cycle de facturation commence uniquement après confirmation du paiement Interac.", marginLeft + 3, currentY + 5);
+  doc.setFontSize(7);
+  doc.setTextColor(...COLORS.text);
+  doc.text("IMPORTANT: Le cycle de facturation commence uniquement après confirmation du paiement Interac.", PAGE.marginLeft + 3, y + 5);
+  
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...textMuted);
-  doc.text("Les dates ci-dessus sont provisoires et seront confirmées à la réception du paiement.", marginLeft + 3, currentY + 9);
-  currentY += 16;
-
-  // ========== ONE-TIME FEES (BLOC B) ==========
-  addSectionTitle("BLOC B — Frais uniques (une seule fois)");
-
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text("Les dates ci-dessus sont provisoires et seront confirmées à la réception du paiement.", PAGE.marginLeft + 3, y + 10);
+  
+  y += 18;
+  
+  // ==========================================================================
+  // BLOC B — FRAIS UNIQUES
+  // ==========================================================================
+  
+  addSectionTitle("BLOC B — FRAIS UNIQUES (UNE SEULE FOIS)");
+  
   const fees = data.oneTimeFees;
   let oneTimeFeeTotal = 0;
   
@@ -228,143 +285,136 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   if (fees.activationFee && fees.activationFee > 0) {
     const serviceCount = data.services.length;
     const feeLabel = serviceCount >= 2 ? "Frais d'activation (forfait groupé 2+ services)" : "Frais d'activation (1 service)";
-    addLabelValue(feeLabel, formatCurrency(fees.activationFee));
+    addLabelValue(feeLabel, formatCurrency(fees.activationFee), 90);
     oneTimeFeeTotal += fees.activationFee;
   }
+  if (fees.deliveryFee && fees.deliveryFee > 0) {
+    addLabelValue("Livraison standard Québec", formatCurrency(fees.deliveryFee), 90);
+    oneTimeFeeTotal += fees.deliveryFee;
+  }
   if (fees.router && fees.router > 0) {
-    addLabelValue("Routeur Nivra Born WiFi", formatCurrency(fees.router));
+    addLabelValue("Routeur Nivra Born WiFi", formatCurrency(fees.router), 90);
     oneTimeFeeTotal += fees.router;
   }
   if (fees.terminal4k && fees.terminal4k > 0) {
-    addLabelValue("Terminal TV 4K", formatCurrency(fees.terminal4k));
+    addLabelValue("Terminal TV 4K", formatCurrency(fees.terminal4k), 90);
     oneTimeFeeTotal += fees.terminal4k;
   }
   if (fees.installationFee && fees.installationFee > 0) {
-    addLabelValue("Installation standard", formatCurrency(fees.installationFee));
+    addLabelValue("Installation standard", formatCurrency(fees.installationFee), 90);
     oneTimeFeeTotal += fees.installationFee;
   }
-  if (fees.installationComplex && fees.installationComplex > 0) {
-    addLabelValue("Installation complexe", formatCurrency(fees.installationComplex));
-    oneTimeFeeTotal += fees.installationComplex;
-  }
-  if (fees.deliveryFee && fees.deliveryFee > 0) {
-    addLabelValue("Livraison standard Québec", formatCurrency(fees.deliveryFee));
-    oneTimeFeeTotal += fees.deliveryFee;
-  }
   
-  // One-time subtotal with taxes
+  // Totals
   const oneTimeTps = Math.round(oneTimeFeeTotal * 0.05 * 100) / 100;
   const oneTimeTvq = Math.round(oneTimeFeeTotal * 0.09975 * 100) / 100;
   const oneTimeTotalWithTax = oneTimeFeeTotal + oneTimeTps + oneTimeTvq;
   
-  doc.setDrawColor(...borderLight);
-  doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
-  currentY += 3;
-  doc.setFontSize(6);
-  doc.setTextColor(...textMuted);
-  doc.text(`Sous-total unique: ${formatCurrency(oneTimeFeeTotal)} | TPS: ${formatCurrency(oneTimeTps)} | TVQ: ${formatCurrency(oneTimeTvq)}`, marginLeft, currentY);
-  currentY += 3;
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.setFontSize(7);
-  doc.text(`Total frais uniques avec taxes: ${formatCurrency(oneTimeTotalWithTax)}`, marginLeft, currentY);
-  currentY += 6;
+  doc.setDrawColor(...COLORS.border);
+  doc.line(PAGE.marginLeft, y, PAGE.width - PAGE.marginRight, y);
+  y += 4;
   
-  // Reactivation fee notice
-  doc.setTextColor(...textMuted);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5);
-  doc.text("Frais de réactivation (si applicable après suspension): 15 $", marginLeft, currentY);
-  currentY += 6;
-
-  // ========== PAYMENT SECTION — INTERAC ONLY (MANDATORY) ==========
-  addSectionTitle("Paiement — Interac seulement");
+  doc.setFontSize(6);
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text(`Sous-total unique: ${formatCurrency(oneTimeFeeTotal)} | TPS: ${formatCurrency(oneTimeTps)} | TVQ: ${formatCurrency(oneTimeTvq)}`, PAGE.marginLeft + 3, y);
+  y += 4;
   
-  // CRITICAL: Interac-only payment notice (per Billing V2 requirements)
-  doc.setFillColor(...bgLight);
-  doc.setDrawColor(...accentTeal);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.text);
+  doc.text(`Total frais uniques avec taxes: ${formatCurrency(oneTimeTotalWithTax)}`, PAGE.marginLeft + 3, y);
+  y += 5;
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6);
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text("Frais de réactivation (si applicable après suspension): 15 $", PAGE.marginLeft + 3, y);
+  y += 6;
+  
+  // ==========================================================================
+  // PAIEMENT — INTERAC SEULEMENT
+  // ==========================================================================
+  
+  addSectionTitle("PAIEMENT — INTERAC SEULEMENT");
+  
+  // Payment notice box
+  doc.setFillColor(...COLORS.background);
+  doc.setDrawColor(...COLORS.accentTeal);
   doc.setLineWidth(0.8);
-  doc.roundedRect(marginLeft, currentY, contentWidth, 22, 1, 1, "FD");
-  doc.setFontSize(7);
+  doc.roundedRect(PAGE.marginLeft, y, PAGE.contentWidth, 22, 1, 1, "FD");
+  doc.setLineWidth(0.2);
+  
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryNavy);
-  doc.text("Paiement uniquement par virement Interac à Support@nivra-telecom.ca", marginLeft + 3, currentY + 6);
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.text);
+  doc.text(`Paiement uniquement par virement Interac à ${COMPANY_CONTACT.supportEmailDisplay}`, PAGE.marginLeft + 3, y + 6);
+  
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...textMuted);
-  doc.setFontSize(6);
-  doc.text("Le service est activé dès réception et confirmation du paiement. Aucun paiement par carte n'est accepté.", marginLeft + 3, currentY + 12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...accentTeal);
-  doc.text("Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac.", marginLeft + 3, currentY + 18);
-  currentY += 26;
+  doc.setFontSize(7);
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text("Le service est activé dès réception et confirmation du paiement. Aucun paiement par carte n'est accepté.", PAGE.marginLeft + 3, y + 12);
+  
+  doc.setTextColor(...COLORS.accentTeal);
+  doc.text("Le cycle de facturation commence uniquement à la date de confirmation du paiement Interac.", PAGE.marginLeft + 3, y + 18);
+  
+  y += 26;
   
   const methodLabel = data.payment.method === "card" ? "Carte (non disponible)" : 
                       data.payment.method === "etransfer" ? "Virement Interac ✓" : 
                       `Autre: ${data.payment.method}`;
-  addLabelValue("Mode sélectionné", methodLabel);
-  if (data.payment.method === "etransfer" && data.payment.etransferRule) {
-    const ruleLabel = data.payment.etransferRule === "after_receipt" 
-      ? "Après réception" 
-      : "Après réception et vérification";
-    addLabelValue("Règle activation", ruleLabel);
-  }
-  if (data.payment.deposit && data.payment.deposit > 0) {
-    addLabelValue("Dépôt", formatCurrency(data.payment.deposit));
-    if (data.payment.depositConditions) {
-      addLabelValue("Conditions dépôt", data.payment.depositConditions);
-    }
-  }
-  currentY += 4;
-
-  // ========== ACCEPTANCE SECTION ==========
-  addSectionTitle("Acceptation");
-  doc.setFontSize(6);
-  doc.setTextColor(...textDark);
+  addLabelValue("Mode sélectionné", methodLabel, 50);
+  
+  // ==========================================================================
+  // ACCEPTATION
+  // ==========================================================================
+  
+  addSectionTitle("ACCEPTATION");
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...COLORS.text);
   const acceptanceText = "Le Client déclare avoir lu et accepté : Annexe A — Termes & Conditions, Annexe B — Conditions spécifiques, Annexe C — Installation, Annexe D — Paiements, Annexe E — Support/SLA (si applicable).";
-  const lines = doc.splitTextToSize(acceptanceText, contentWidth);
-  doc.text(lines, marginLeft, currentY);
-  currentY += lines.length * 3.5 + 6;
-
-  // Signature boxes
-  const sigBoxWidth = (contentWidth - 10) / 2;
-  const sigBoxHeight = 25;
-
-  // Client signature
-  doc.setDrawColor(...borderLight);
-  doc.setFillColor(...bgLight);
-  doc.roundedRect(marginLeft, currentY, sigBoxWidth, sigBoxHeight, 1, 1, "FD");
+  const acceptLines = doc.splitTextToSize(acceptanceText, PAGE.contentWidth - 6);
+  doc.text(acceptLines, PAGE.marginLeft + 3, y);
+  y += acceptLines.length * 4 + 6;
+  
+  // ==========================================================================
+  // FOOTER - Company info
+  // ==========================================================================
+  
+  const footerY = PAGE.height - 35;
+  
+  // Company info centered
+  doc.setFillColor(...COLORS.headerBg);
+  doc.rect(PAGE.marginLeft, footerY, PAGE.contentWidth, 12, "F");
+  
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
-  doc.setTextColor(...textMuted);
-  doc.text("Signature Client: _________________", marginLeft + 3, currentY + 10);
-  doc.text("Date: ___/___/______", marginLeft + 3, currentY + 18);
-
-  // Nivra signature
-  doc.setFillColor(...primaryNavy);
-  doc.roundedRect(marginLeft + sigBoxWidth + 10, currentY, sigBoxWidth, sigBoxHeight, 1, 1, "F");
-  doc.setTextColor(...white);
-  doc.text("Signature Nivra: _________________", marginLeft + sigBoxWidth + 13, currentY + 10);
-  doc.text("Date: ___/___/______", marginLeft + sigBoxWidth + 13, currentY + 18);
-
-  // Footer — NIVRA OFFICIAL INFO (ALWAYS PRESENT)
-  // MANDATORY: Nivra Communications Inc., 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFontSize(5);
-  doc.setTextColor(...textMuted);
+  doc.setTextColor(...COLORS.white);
   doc.text(
-    `${BUSINESS_INFO.legalName} — ${BUSINESS_INFO.address}`,
-    pageWidth / 2,
-    pageHeight - 10,
+    `${COMPANY_CONTACT.legalName} — ${COMPANY_CONTACT.fullAddress}`,
+    PAGE.width / 2,
+    footerY + 5,
     { align: "center" }
   );
   doc.text(
-    `${BUSINESS_INFO.email} — ${BUSINESS_INFO.phone}`,
-    pageWidth / 2,
-    pageHeight - 6,
+    `${COMPANY_CONTACT.supportEmailDisplay} —`,
+    PAGE.width / 2,
+    footerY + 9,
     { align: "center" }
   );
-
+  
+  // Signatures
+  const sigY = footerY + 15;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...COLORS.text);
+  doc.text("Signature Client: _________________", PAGE.marginLeft + 5, sigY);
+  doc.text("Signature Nivra: _________________", PAGE.marginLeft + PAGE.contentWidth / 2 + 5, sigY);
+  
   // Download
-  const fileName = `Resume_Contrat_${data.contractNumber || data.orderNumber || data.orderId.slice(0, 8)}.pdf`;
+  const fileName = `Resume_Contrat_${data.contractNumber || data.orderNumber || data.orderId?.slice(0, 8) || "UNKNOWN"}.pdf`;
   doc.save(fileName);
 }
 
