@@ -58,6 +58,17 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getPaymentStatusInfo, getPaymentMethodLabel } from "@/lib/paymentStatusUtils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Type for unified payment record
 interface UnifiedPayment {
@@ -137,15 +148,89 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
            invoice:billing_invoices(invoice_number),
            customer:billing_customers(id, first_name, last_name, email)
          `)
-         .order("created_at", { ascending: false })
-         .limit(500);
- 
-       if (error) throw error;
-       return data;
-     },
-   });
- 
-   // Fetch all payments from legacy payments table
+        .order("created_at", { ascending: false })
+          .limit(500);
+
+        if (error) throw error;
+        return data;
+      },
+    });
+
+    const { toast } = useToast();
+    const [reconcileOpen, setReconcileOpen] = useState(false);
+    const [isReconciling, setIsReconciling] = useState(false);
+    const [reconcileResult, setReconcileResult] = useState<{
+      total_checked: number;
+      new_payments_found: number;
+      already_recorded: number;
+      errors: string[];
+    } | null>(null);
+
+    // PayPal reconciliation function
+    const handleReconcilePayPal = async (dryRun: boolean = false) => {
+      setIsReconciling(true);
+      setReconcileResult(null);
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast({
+            title: "Erreur",
+            description: "Session expirée. Veuillez vous reconnecter.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/paypal-reconcile`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`,
+              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              days_back: 7,
+              dry_run: dryRun,
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Erreur lors de la réconciliation");
+        }
+
+        setReconcileResult(data.result);
+        
+        if (!dryRun && data.result.new_payments_found > 0) {
+          toast({
+            title: "Réconciliation terminée",
+            description: `${data.result.new_payments_found} nouveau(x) paiement(s) trouvé(s) et enregistré(s).`,
+          });
+          handleRefresh();
+        } else if (data.result.new_payments_found === 0) {
+          toast({
+            title: "Aucun paiement manquant",
+            description: "Tous les paiements PayPal sont déjà enregistrés.",
+          });
+        }
+      } catch (error) {
+        console.error("Reconciliation error:", error);
+        toast({
+          title: "Erreur",
+          description: error instanceof Error ? error.message : "Erreur inconnue",
+          variant: "destructive",
+        });
+      } finally {
+        setIsReconciling(false);
+      }
+    };
+
+    // Fetch all payments from legacy payments table
    const { data: legacyPayments, isLoading: legacyLoading, refetch: refetchLegacy } = useQuery({
      queryKey: ["admin-legacy-payments"],
      queryFn: async () => {
@@ -473,18 +558,29 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
      <AdminLayout>
        <div className="p-6 space-y-6">
          {/* Header */}
-         <div className="flex items-center justify-between flex-wrap gap-4">
-           <div>
-             <h1 className="text-2xl font-bold">Paiements</h1>
-             <p className="text-muted-foreground">
-               Vue consolidée de tous les paiements (PayPal, Interac, Carte, Manuel)
-             </p>
-           </div>
-           <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-             Rafraîchir
-           </Button>
-         </div>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">Paiements</h1>
+              <p className="text-muted-foreground">
+                Vue consolidée de tous les paiements (PayPal, Interac, Carte, Manuel)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setReconcileOpen(true)} 
+                disabled={isReconciling}
+                className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950"
+              >
+                <Wallet className={`h-4 w-4 mr-2 ${isReconciling ? "animate-pulse" : ""}`} />
+                Réconcilier PayPal
+              </Button>
+              <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+                Rafraîchir
+              </Button>
+            </div>
+          </div>
  
          {/* Stats Cards */}
          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -898,10 +994,83 @@ const getMethodAwareStatusLabel = (status: string, method: string): string => {
                </ScrollArea>
              )}
            </DialogContent>
-         </Dialog>
-       </div>
-     </AdminLayout>
-   );
+          </Dialog>
+
+          {/* PayPal Reconciliation Dialog */}
+          <AlertDialog open={reconcileOpen} onOpenChange={setReconcileOpen}>
+            <AlertDialogContent className="max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-blue-600" />
+                  Réconciliation PayPal
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette fonction compare les transactions PayPal des 7 derniers jours avec votre base de données et enregistre les paiements manquants.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              {reconcileResult && (
+                <div className="space-y-3 py-2">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-muted/50 p-2 rounded">
+                      <p className="text-muted-foreground text-xs">Vérifiés</p>
+                      <p className="font-bold">{reconcileResult.total_checked}</p>
+                    </div>
+                    <div className="bg-muted/50 p-2 rounded">
+                      <p className="text-muted-foreground text-xs">Déjà enregistrés</p>
+                      <p className="font-bold">{reconcileResult.already_recorded}</p>
+                    </div>
+                    <div className="bg-emerald-50 dark:bg-emerald-950/30 p-2 rounded">
+                      <p className="text-emerald-600 dark:text-emerald-400 text-xs">Nouveaux trouvés</p>
+                      <p className="font-bold text-emerald-700 dark:text-emerald-300">{reconcileResult.new_payments_found}</p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-950/30 p-2 rounded">
+                      <p className="text-red-600 dark:text-red-400 text-xs">Erreurs</p>
+                      <p className="font-bold text-red-700 dark:text-red-300">{reconcileResult.errors.length}</p>
+                    </div>
+                  </div>
+                  {reconcileResult.errors.length > 0 && (
+                    <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded text-xs text-red-600 dark:text-red-400 max-h-24 overflow-y-auto">
+                      {reconcileResult.errors.map((err, i) => (
+                        <p key={i}>• {err}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                <AlertDialogCancel disabled={isReconciling}>Fermer</AlertDialogCancel>
+                <Button
+                  variant="outline"
+                  onClick={() => handleReconcilePayPal(true)}
+                  disabled={isReconciling}
+                >
+                  {isReconciling ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Eye className="h-4 w-4 mr-2" />
+                  )}
+                  Aperçu (dry run)
+                </Button>
+                <Button
+                  onClick={() => handleReconcilePayPal(false)}
+                  disabled={isReconciling}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isReconciling ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Exécuter
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </AdminLayout>
+    );
  };
  
  export default AdminPayments;
