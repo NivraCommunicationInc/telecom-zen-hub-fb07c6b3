@@ -35,6 +35,25 @@ interface ServiceItem {
   category: string;
 }
 
+/**
+ * BILLING TOTALS - Source of Truth from Checkout Snapshot (v2.2)
+ * These values come directly from the client's checkout and MUST be used as-is
+ * to ensure PDF invoices match exactly what the client saw.
+ */
+interface BillingTotals {
+  subtotal: number;           // Gross subtotal before taxes and discounts
+  discount_amount: number;    // Applied promo/preauth discount
+  base_amount: number;        // Taxable amount (subtotal - discount)
+  tps_amount: number;         // TPS (5%)
+  tvq_amount: number;         // TVQ (9.975%)
+  total: number;              // Final total to pay
+  promo_code?: string;        // Applied promo code
+  promo_name?: string;        // Promo description
+  payment_method?: string;    // Payment method used
+  monthly_recurring?: number; // Monthly recurring amount
+  one_time_fees?: number;     // One-time fees
+}
+
 interface CreateOrderRequest {
   // Customer info
   user_id?: string;
@@ -52,6 +71,8 @@ interface CreateOrderRequest {
   payment_status?: 'paid' | 'captured' | 'pending' | 'pre_authorized';
   payment_reference?: string; // PayPal capture_id or Interac reference
   total_amount?: number; // Total amount paid (for PayPal)
+  // BILLING TOTALS (v2.2) - Snapshot from checkout as source of truth
+  billing_totals?: BillingTotals;
 }
 
 serve(async (req) => {
@@ -106,7 +127,17 @@ serve(async (req) => {
     const TPS_RATE = 0.05;
     const TVQ_RATE = 0.09975;
     
-    // Calculate activation fee based on service count
+    // BILLING TOTALS V2.2 - Use checkout snapshot as source of truth when provided
+    const hasBillingTotals = body.billing_totals && 
+      typeof body.billing_totals.total === 'number' && 
+      body.billing_totals.total >= 0;
+    
+    console.log("[billing-create-order] Billing totals detection:", {
+      hasBillingTotals,
+      billing_totals: body.billing_totals,
+    });
+    
+    // Calculate activation fee based on service count (fallback if not in billing_totals)
     const serviceCount = body.services.length;
     const activationFee = serviceCount === 1 ? 25.00 : 45.00;
     const activationFeePerInvoice = serviceCount > 0 ? activationFee : 0;
@@ -202,12 +233,34 @@ serve(async (req) => {
       
       const invoiceNumber = invoiceNumberData || `INV-${Date.now()}-${i}`;
       
-      // Calculate amounts
-      const invoiceActivationFee = i === 0 ? activationFeePerInvoice : 0;
-      const subtotal = service.plan_price + invoiceActivationFee;
-      const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-      const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-      const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+      // V2.2: Use billing_totals from checkout when available (first invoice only)
+      // This ensures PDF matches exactly what client saw at checkout
+      let subtotal: number;
+      let tpsAmount: number;
+      let tvqAmount: number;
+      let total: number;
+      let discountAmount = 0;
+      let invoiceActivationFee = i === 0 ? activationFeePerInvoice : 0;
+      
+      if (hasBillingTotals && i === 0) {
+        // USE CHECKOUT SNAPSHOT AS SOURCE OF TRUTH
+        const bt = body.billing_totals!;
+        subtotal = bt.subtotal;
+        tpsAmount = bt.tps_amount;
+        tvqAmount = bt.tvq_amount;
+        total = bt.total;
+        discountAmount = bt.discount_amount || 0;
+        
+        console.log("[billing-create-order] Using checkout billing_totals:", {
+          subtotal, tpsAmount, tvqAmount, total, discountAmount
+        });
+      } else {
+        // FALLBACK: Calculate amounts (legacy behavior)
+        subtotal = service.plan_price + invoiceActivationFee;
+        tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
+        tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
+        total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+      }
       
       // Create invoice with SMART status
       const invoiceData: Record<string, any> = {
@@ -226,7 +279,9 @@ serve(async (req) => {
         cycle_start_date: cycleStartStr,
         cycle_end_date: cycleEndStr,
         due_date: dueDate,
-        notes: body.order_number ? `Commande: ${body.order_number}` : null,
+        notes: body.order_number 
+          ? `Commande: ${body.order_number}${discountAmount > 0 ? ` | Rabais: -${discountAmount.toFixed(2)}$` : ''}${body.billing_totals?.promo_code ? ` (${body.billing_totals.promo_code})` : ''}`
+          : null,
       };
       
       // If PayPal paid, set amount_paid and balance_due
