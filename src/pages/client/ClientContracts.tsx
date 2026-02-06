@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Download, CheckCircle, Eye, Pen } from "lucide-react";
+import { FileText, Download, CheckCircle, Eye, Pen, AlertTriangle } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
@@ -25,6 +25,8 @@ import { calculateLineItemTotals, extractLineItemsFromOrder } from "@/lib/orderL
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
+import { TypedSignatureInput } from "@/components/client/TypedSignatureInput";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ClientContracts = () => {
   const { user } = useClientAuth();
@@ -34,6 +36,8 @@ const ClientContracts = () => {
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [typedSignature, setTypedSignature] = useState("");
+  const [signatureError, setSignatureError] = useState<string | null>(null);
   const pdfViewer = usePDFViewer();
 
   // Fetch contracts for current user - SECURITY: Filter by owner_user_id for RLS compliance
@@ -70,21 +74,23 @@ const ClientContracts = () => {
 
   // Sign contract mutation with activity logging
   const signContractMutation = useMutation({
-    mutationFn: async (contractId: string) => {
+    mutationFn: async ({ contractId, signature }: { contractId: string; signature: string }) => {
       const signedAt = new Date().toISOString();
       const { error } = await portalSupabase
         .from("contracts")
         .update({
           is_signed: true,
           signed_at: signedAt,
-        })
+          client_signature: signature,
+          client_signature_type: "text",
+        } as any)
         .eq("id", contractId)
         .eq("user_id", user?.id);
 
       if (error) throw error;
       
       // Return data for logging
-      return { contractId, signedAt };
+      return { contractId, signedAt, signature };
     },
     onSuccess: async (data) => {
       // Log the signature activity
@@ -95,6 +101,7 @@ const ClientContracts = () => {
         {
           signedAt: data.signedAt,
           signatureActor: "Client",
+          signatureType: "typed",
           clientName: profile?.full_name || user?.email,
           clientEmail: profile?.email || user?.email,
           contractName: selectedContract?.contract_name,
@@ -109,10 +116,15 @@ const ClientContracts = () => {
       
       // Invalidate with exact key used in query
       queryClient.invalidateQueries({ queryKey: ["client-contracts", user?.id] });
-      toast({ title: "Contrat signé avec succès", description: "Vous pouvez maintenant télécharger votre contrat signé." });
+      toast({ 
+        title: "Contrat signé avec succès", 
+        description: "Votre signature a été enregistrée. Vous pouvez télécharger le contrat signé." 
+      });
       setSignDialogOpen(false);
       setSelectedContract(null);
       setIsAgreed(false);
+      setTypedSignature("");
+      setSignatureError(null);
     },
     onError: (error) => {
       console.error("Contract sign error:", error);
@@ -300,6 +312,8 @@ const ClientContracts = () => {
 
         isSigned: Boolean(contract.is_signed),
         signedAt: contract.signed_at || undefined,
+        clientSignature: contract.client_signature || undefined,
+        clientSignatureType: contract.client_signature_type || undefined,
         
         // CRITICAL: Pass structured line_items for dynamic PDF generation
         equipmentDetails: equipmentDetails as { [key: string]: any; line_items?: any[] } | undefined,
@@ -487,6 +501,8 @@ const ClientContracts = () => {
 
         isSigned: Boolean(contract.is_signed),
         signedAt: contract.signed_at || undefined,
+        clientSignature: contract.client_signature || undefined,
+        clientSignatureType: contract.client_signature_type || undefined,
       };
 
       const filename = `TSA-${contract.id}-${templateVersion}.pdf`;
@@ -536,7 +552,27 @@ const ClientContracts = () => {
   const openSignDialog = (contract: any) => {
     setSelectedContract(contract);
     setIsAgreed(false);
+    setTypedSignature("");
+    setSignatureError(null);
     setSignDialogOpen(true);
+  };
+
+  const handleSign = () => {
+    // Validate signature
+    if (!typedSignature.trim()) {
+      setSignatureError("Veuillez taper votre nom pour signer");
+      return;
+    }
+    if (typedSignature.trim().length < 3) {
+      setSignatureError("Le nom doit contenir au moins 3 caractères");
+      return;
+    }
+    
+    setSignatureError(null);
+    signContractMutation.mutate({ 
+      contractId: selectedContract.id, 
+      signature: typedSignature.trim() 
+    });
   };
 
   return (
@@ -712,14 +748,31 @@ const ClientContracts = () => {
                   </div>
 
                   {/* Dispute/Chargeback Warning */}
-                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                    <h3 className="font-bold text-amber-600 dark:text-amber-400 mb-2">
-                      CONTESTATION BANCAIRE / CHARGEBACK
-                    </h3>
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Un intérêt de {CONTRACT_TERMS.disputeChargeback.interestRate}% par mois + frais de réactivation de {CONTRACT_TERMS.disputeChargeback.reactivationFee}$ s'appliquent UNIQUEMENT en cas de contestation bancaire ou chargeback confirmé contre le client.
-                    </p>
-                  </div>
+                  <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription>
+                      <strong className="text-amber-600 dark:text-amber-400">CONTESTATION BANCAIRE / CHARGEBACK</strong>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                        Un intérêt de {CONTRACT_TERMS.disputeChargeback.interestRate}% par mois + frais de réactivation de {CONTRACT_TERMS.disputeChargeback.reactivationFee}$ s'appliquent UNIQUEMENT en cas de contestation bancaire ou chargeback confirmé contre le client.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+
+                {/* Typed Signature Section */}
+                <div className="border-t pt-6">
+                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <Pen className="w-5 h-5 text-primary" />
+                    Votre signature
+                  </h3>
+                  <TypedSignatureInput
+                    value={typedSignature}
+                    onChange={setTypedSignature}
+                    placeholder="Tapez votre nom complet"
+                    label="Signez en tapant votre nom"
+                    required
+                    error={signatureError || undefined}
+                  />
                 </div>
 
                 {/* Agreement Checkbox */}
@@ -729,10 +782,10 @@ const ClientContracts = () => {
                     id="agreement"
                     checked={isAgreed}
                     onChange={(e) => setIsAgreed(e.target.checked)}
-                    className="mt-1"
+                    className="mt-1 h-5 w-5 rounded border-border"
                   />
                   <label htmlFor="agreement" className="text-sm text-foreground">
-                    J'ai lu et j'accepte les termes et conditions de ce contrat. Je comprends que cette signature électronique a la même valeur juridique qu'une signature manuscrite.
+                    J'ai lu et j'accepte les termes et conditions de ce contrat. Je comprends que cette signature électronique a la même valeur juridique qu'une signature manuscrite conformément à la Loi concernant le cadre juridique des technologies de l'information (L.R.Q., c. C-1.1).
                   </label>
                 </div>
 
@@ -743,11 +796,11 @@ const ClientContracts = () => {
                   </Button>
                   <Button
                     variant="hero"
-                    onClick={() => signContractMutation.mutate(selectedContract.id)}
-                    disabled={!isAgreed || signContractMutation.isPending}
+                    onClick={handleSign}
+                    disabled={!isAgreed || !typedSignature.trim() || signContractMutation.isPending}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Signer le contrat
+                    {signContractMutation.isPending ? "Signature en cours..." : "Signer le contrat"}
                   </Button>
                 </div>
               </div>

@@ -584,8 +584,14 @@ class ContractPDFBuilder {
     // === POUR LE CLIENT ===
     const clientBoxX = PAGE.marginLeft + sigBoxW + 10;
     
-    this.doc.setFillColor(...COLORS.white);
-    this.doc.setDrawColor(...COLORS.border);
+    // Different background if signed
+    if (data.clientSignature) {
+      this.doc.setFillColor(240, 253, 244); // Light green bg
+      this.doc.setDrawColor(34, 197, 94);    // Green border
+    } else {
+      this.doc.setFillColor(...COLORS.white);
+      this.doc.setDrawColor(...COLORS.border);
+    }
     this.doc.roundedRect(clientBoxX, this.y, sigBoxW, sigBoxH, 2, 2, "FD");
     
     this.doc.setFont("helvetica", "bold");
@@ -596,26 +602,76 @@ class ContractPDFBuilder {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
     this.doc.setTextColor(...COLORS.text);
-    this.doc.text(`Nom: ${data.clientName}`, clientBoxX + 5, this.y + 25);
-    this.doc.text("Signature: _______________________", clientBoxX + 5, this.y + 35);
-    this.doc.text("Date: _______________________", clientBoxX + 5, this.y + 45);
+    this.doc.text(`Nom: ${data.clientName}`, clientBoxX + 5, this.y + 20);
+    
+    // Display signature - either typed (cursive style) or blank line
+    if (data.clientSignature) {
+      // Typed signature - render in italic style to simulate cursive
+      this.doc.setFont("times", "bolditalic");
+      this.doc.setFontSize(16);
+      this.doc.setTextColor(30, 58, 138); // Dark blue for signature
+      
+      // Center the signature in the box
+      const sigWidth = this.doc.getStringUnitWidth(data.clientSignature) * 16 / this.doc.internal.scaleFactor;
+      const sigX = clientBoxX + (sigBoxW - sigWidth) / 2;
+      this.doc.text(data.clientSignature, sigX, this.y + 35);
+      
+      // Signature line underneath
+      this.doc.setDrawColor(30, 58, 138);
+      this.doc.setLineWidth(0.3);
+      this.doc.line(clientBoxX + 10, this.y + 38, clientBoxX + sigBoxW - 10, this.y + 38);
+      this.doc.setLineWidth(0.2);
+      
+      // Reset font
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(...COLORS.text);
+      
+      // Date of signature
+      if (data.clientSignedAt) {
+        const signedDate = format(new Date(data.clientSignedAt), "d MMMM yyyy", { locale: fr });
+        this.doc.text(`Date: ${signedDate}`, clientBoxX + 5, this.y + 48);
+      }
+    } else {
+      // Blank signature line
+      this.doc.text("Signature: _______________________", clientBoxX + 5, this.y + 35);
+      this.doc.text("Date: _______________________", clientBoxX + 5, this.y + 45);
+    }
     
     this.y += sigBoxH + 15;
     
     // === SIGNÉ ÉLECTRONIQUEMENT ===
-    if (data.clientSignedAt) {
+    if (data.clientSignedAt && data.clientSignature) {
       this.doc.setFillColor(...COLORS.accentTeal);
-      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 25, 3, 3, "F");
+      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 30, 3, 3, "F");
+      
+      // Checkmark icon area
+      this.doc.setFillColor(255, 255, 255);
+      this.doc.circle(PAGE.marginLeft + 15, this.y + 15, 8, "F");
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(14);
+      this.doc.setTextColor(20, 184, 166);
+      this.doc.text("✓", PAGE.marginLeft + 12, this.y + 19);
       
       this.doc.setFont("helvetica", "bold");
-      this.doc.setFontSize(11);
+      this.doc.setFontSize(12);
       this.doc.setTextColor(...COLORS.white);
-      this.doc.text("' S I G N É   É L E C T R O N I Q U E M E N T", PAGE.width / 2, this.y + 10, { align: "center" });
+      this.doc.text("CONTRAT SIGNÉ ÉLECTRONIQUEMENT", PAGE.marginLeft + 30, this.y + 12);
       
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(9);
       const signedDate = format(new Date(data.clientSignedAt), "d MMMM yyyy 'à' HH 'h' mm", { locale: fr });
-      this.doc.text(`Signé le ${signedDate}`, PAGE.width / 2, this.y + 18, { align: "center" });
+      this.doc.text(`Signé par ${data.clientName} le ${signedDate}`, PAGE.marginLeft + 30, this.y + 22);
+      
+      this.y += 35;
+      
+      // Legal text about electronic signature
+      this.doc.setFont("helvetica", "italic");
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.textMuted);
+      const legalText = "Cette signature électronique est juridiquement valide conformément à la Loi concernant le cadre juridique des technologies de l'information (L.R.Q., c. C-1.1) du Québec.";
+      const legalLines = this.doc.splitTextToSize(legalText, PAGE.contentWidth);
+      this.doc.text(legalLines, PAGE.marginLeft, this.y);
     }
   }
   

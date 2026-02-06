@@ -120,6 +120,8 @@ export interface LegacyTelecomContractData {
   isSigned: boolean;
   signedAt?: string;
   signatureMethod?: string;
+  clientSignature?: string;
+  clientSignatureType?: "canvas" | "text";
   
   // Admin
   employeeName?: string;
