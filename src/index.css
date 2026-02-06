@@ -175,44 +175,52 @@
     --sidebar-ring: 168 76% 42%;
   }
 
-  /* Client Portal Dark Theme - Premium Telecom ISP */
+  /* Client Portal Light Theme - Professional Clean ISP */
   .client-portal-dark {
-    --background: 220 30% 6%;
-    --foreground: 210 20% 98%;
+    /* Clean white background */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
 
-    --card: 220 30% 8%;
-    --card-foreground: 210 20% 98%;
+    /* Cards - pure white with subtle depth */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 220 30% 8%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 187 85% 53%;
-    --primary-foreground: 220 30% 6%;
+    /* Primary - Professional Teal (brand color) */
+    --primary: 168 76% 36%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 25% 12%;
-    --secondary-foreground: 210 20% 92%;
+    /* Secondary - Light Gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 25% 12%;
-    --muted-foreground: 215 15% 65%;
+    /* Muted - Soft Gray */
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 9% 40%;
 
-    --accent: 170 75% 45%;
-    --accent-foreground: 220 30% 6%;
+    /* Accent - Teal for highlights */
+    --accent: 168 76% 42%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 25% 18%;
-    --input: 220 25% 18%;
-    --ring: 187 85% 53%;
+    /* Borders - Visible for structure */
+    --border: 220 13% 87%;
+    --input: 220 13% 87%;
+    --ring: 168 76% 42%;
     
-    --sidebar-background: 220 30% 7%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 187 85% 53%;
-    --sidebar-primary-foreground: 220 30% 6%;
-    --sidebar-accent: 220 25% 14%;
-    --sidebar-accent-foreground: 210 20% 92%;
-    --sidebar-border: 220 25% 16%;
-    --sidebar-ring: 187 85% 53%;
+    /* Sidebar - Soft white/gray for navigation */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 168 76% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 168 76% 42%;
   }
 }
 

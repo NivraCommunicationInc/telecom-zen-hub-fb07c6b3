@@ -1,6 +1,6 @@
 /**
- * ClientLayout - Premium professional telecom client portal layout
- * Dark navy theme with cyan accents and glassmorphism
+ * ClientLayout - Professional clean telecom client portal layout
+ * Light theme with teal accents for excellent readability
  */
 import { ReactNode, useCallback, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -23,8 +23,6 @@ import {
   ChevronRight,
   Wifi,
   Shield,
-  Bell,
-  Settings,
   HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -117,25 +115,25 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         className={cn(
           "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative",
           isActive
-            ? "bg-gradient-to-r from-cyan-500/20 via-cyan-500/15 to-teal-500/10 text-cyan-400 shadow-lg shadow-cyan-500/5 border border-cyan-500/20"
-            : "text-slate-400 hover:text-white hover:bg-white/5"
+            ? "bg-gradient-to-r from-teal-500/15 via-teal-500/10 to-teal-400/5 text-teal-700 shadow-sm border border-teal-500/20"
+            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
         )}
       >
-        <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-cyan-400" : "group-hover:text-cyan-400")} />
+        <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-teal-600" : "group-hover:text-teal-600")} />
         <span className="flex-1 font-medium">{item.label}</span>
         {showBadge && (
           <Badge className="bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] flex items-center justify-center">
             {overdueCount}
           </Badge>
         )}
-        {isActive && !showBadge && <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
+        {isActive && !showBadge && <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />}
       </Link>
     );
   };
 
   const NavSection = ({ title, items, onClick }: { title: string; items: typeof mainNavItems; onClick?: () => void }) => (
     <div className="space-y-1">
-      <p className="px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{title}</p>
+      <p className="px-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{title}</p>
       {items.map((item) => (
         <NavLink key={item.path} item={item} onClick={onClick} />
       ))}
@@ -157,13 +155,13 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       
       <div className="flex-1 flex relative z-10">
         {/* Mobile Header */}
-        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0d1526]/95 backdrop-blur-xl border-b border-slate-800/50 z-50 flex items-center justify-between px-4">
+        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-xl border-b border-slate-200 z-50 flex items-center justify-between px-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/25">
-              <span className="font-display font-bold text-[#0d1526] text-lg">N</span>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/25">
+              <span className="font-display font-bold text-white text-lg">N</span>
             </div>
             <div>
-              <span className="font-display font-bold text-white text-lg">Nivra</span>
+              <span className="font-display font-bold text-slate-900 text-lg">Nivra</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -172,7 +170,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               variant="ghost" 
               size="icon" 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-slate-400 hover:text-white hover:bg-white/5"
+              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -182,19 +180,19 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         {/* Sidebar */}
         <aside
           className={cn(
-            "fixed top-0 left-0 h-full w-72 bg-[#0d1526]/98 backdrop-blur-2xl border-r border-slate-800/50 z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col",
+            "fixed top-0 left-0 h-full w-72 bg-white/98 backdrop-blur-2xl border-r border-slate-200 z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col shadow-xl shadow-slate-900/5",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
           {/* Logo Header */}
-          <div className="p-5 border-b border-slate-800/50 hidden lg:flex items-center justify-between">
+          <div className="p-5 border-b border-slate-200 hidden lg:flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/25 group-hover:shadow-cyan-500/40 transition-shadow">
-                <span className="font-display font-bold text-[#0d1526] text-xl">N</span>
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/25 group-hover:shadow-teal-500/40 transition-shadow">
+                <span className="font-display font-bold text-white text-xl">N</span>
               </div>
               <div>
-                <span className="font-display font-bold text-xl text-white block">Nivra</span>
-                <span className="text-[10px] text-cyan-400/80 font-medium tracking-wider uppercase">Espace Client</span>
+                <span className="font-display font-bold text-xl text-slate-900 block">Nivra</span>
+                <span className="text-[10px] text-teal-600 font-medium tracking-wider uppercase">Espace Client</span>
               </div>
             </Link>
             <PortalNotificationBell />
@@ -206,46 +204,46 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               {/* Return to site */}
               <Link
                 to="/"
-                className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/5 transition-all group"
+                className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all group"
               >
                 <Home className="w-5 h-5" />
                 <span className="flex-1 font-medium">Retour au site</span>
                 <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
               </Link>
               
-              <Separator className="bg-slate-800/50" />
+              <Separator className="bg-slate-200" />
 
               <NavSection title="Principal" items={mainNavItems} onClick={() => setSidebarOpen(false)} />
               
-              <Separator className="bg-slate-800/50" />
+              <Separator className="bg-slate-200" />
               
               <NavSection title="Services" items={serviceNavItems} onClick={() => setSidebarOpen(false)} />
               
-              <Separator className="bg-slate-800/50" />
+              <Separator className="bg-slate-200" />
               
               <NavSection title="Compte" items={supportNavItems} onClick={() => setSidebarOpen(false)} />
             </nav>
           </ScrollArea>
 
           {/* User Footer */}
-          <div className="p-4 border-t border-slate-800/50 bg-[#0a0f1a]/50">
+          <div className="p-4 border-t border-slate-200 bg-slate-50/80">
             <div className="flex items-center gap-3 mb-4 px-2">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500/20 to-teal-500/10 border border-cyan-500/30 flex items-center justify-center">
-                <User className="w-5 h-5 text-cyan-400" />
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500/20 to-teal-400/10 border border-teal-500/30 flex items-center justify-center">
+                <User className="w-5 h-5 text-teal-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
+                <p className="text-sm font-semibold text-slate-900 truncate">
                   {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Client"}
                 </p>
                 <p className="text-xs text-slate-500 truncate">{user?.email}</p>
               </div>
               <div className="flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-emerald-500" />
+                <Shield className="w-4 h-4 text-emerald-600" />
               </div>
             </div>
             <Button
               variant="outline"
-              className="w-full justify-start border-slate-700/50 bg-slate-800/30 text-slate-300 hover:text-white hover:bg-slate-700/50 hover:border-slate-600"
+              className="w-full justify-start border-slate-300 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-400"
               onClick={handleSignOut}
             >
               <LogOut className="w-4 h-4 mr-2" />
@@ -257,7 +255,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         {/* Overlay */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-[#0a0f1a]/90 backdrop-blur-sm z-30 lg:hidden"
+            className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}

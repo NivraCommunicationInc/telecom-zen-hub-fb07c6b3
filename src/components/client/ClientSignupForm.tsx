@@ -176,9 +176,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       {/* Name Row */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="signup-firstName" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-cyan-400" />
-            Prénom <span className="text-red-400">*</span>
+          <Label htmlFor="signup-firstName" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-teal-600" />
+            Prénom <span className="text-red-500">*</span>
           </Label>
           <Input
             id="signup-firstName"
@@ -186,7 +186,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
             placeholder="Jean"
             value={formData.firstName}
             onChange={(e) => handleChange("firstName", e.target.value)}
-            className={errors.firstName ? "border-destructive" : ""}
+            className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.firstName ? "border-destructive" : ""}`}
             autoComplete="given-name"
           />
           {errors.firstName && (
@@ -195,9 +195,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
         </div>
         
         <div className="space-y-1.5">
-          <Label htmlFor="signup-lastName" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-cyan-400" />
-            Nom <span className="text-red-400">*</span>
+          <Label htmlFor="signup-lastName" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-teal-600" />
+            Nom <span className="text-red-500">*</span>
           </Label>
           <Input
             id="signup-lastName"
@@ -205,7 +205,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
             placeholder="Dupont"
             value={formData.lastName}
             onChange={(e) => handleChange("lastName", e.target.value)}
-            className={errors.lastName ? "border-destructive" : ""}
+            className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.lastName ? "border-destructive" : ""}`}
             autoComplete="family-name"
           />
           {errors.lastName && (
@@ -216,9 +216,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-email" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-          <Mail className="w-3.5 h-3.5 text-cyan-400" />
-          Courriel <span className="text-red-400">*</span>
+        <Label htmlFor="signup-email" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <Mail className="w-3.5 h-3.5 text-teal-600" />
+          Courriel <span className="text-red-500">*</span>
         </Label>
         <Input
           id="signup-email"
@@ -226,7 +226,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
           placeholder="jean.dupont@exemple.com"
           value={formData.email}
           onChange={(e) => handleChange("email", e.target.value)}
-          className={errors.email ? "border-destructive" : ""}
+          className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.email ? "border-destructive" : ""}`}
           autoComplete="email"
         />
         {errors.email && (
@@ -236,9 +236,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Phone */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-phone" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-          <Phone className="w-3.5 h-3.5 text-cyan-400" />
-          Téléphone <span className="text-red-400">*</span>
+        <Label htmlFor="signup-phone" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <Phone className="w-3.5 h-3.5 text-teal-600" />
+          Téléphone <span className="text-red-500">*</span>
         </Label>
         <Input
           id="signup-phone"
@@ -246,7 +246,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
           placeholder="(514) 555-1234"
           value={formData.phone}
           onChange={(e) => handleChange("phone", e.target.value)}
-          className={errors.phone ? "border-destructive" : ""}
+          className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.phone ? "border-destructive" : ""}`}
           maxLength={14}
           autoComplete="tel"
         />
@@ -256,16 +256,16 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       </div>
 
       {/* Service Address Section */}
-      <div className="pt-2 border-t border-slate-700/50">
+      <div className="pt-2 border-t border-slate-200">
         <div className="flex items-center gap-2 mb-3">
-          <MapPin className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-medium text-slate-200">Adresse de service (Québec seulement)</span>
+          <MapPin className="w-4 h-4 text-teal-600" />
+          <span className="text-sm font-medium text-slate-700">Adresse de service (Québec seulement)</span>
         </div>
         
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="signup-serviceAddress" className="text-sm font-medium text-slate-200">
-              Adresse <span className="text-red-400">*</span>
+            <Label htmlFor="signup-serviceAddress" className="text-sm font-medium text-slate-700">
+              Adresse <span className="text-red-500">*</span>
             </Label>
             <Input
               id="signup-serviceAddress"
@@ -273,7 +273,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
               placeholder="123 rue Principale"
               value={formData.serviceAddress}
               onChange={(e) => handleChange("serviceAddress", e.target.value)}
-              className={errors.serviceAddress ? "border-destructive" : ""}
+              className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.serviceAddress ? "border-destructive" : ""}`}
               autoComplete="street-address"
             />
             {errors.serviceAddress && (
@@ -283,8 +283,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="signup-serviceCity" className="text-sm font-medium text-slate-200">
-                Ville <span className="text-red-400">*</span>
+              <Label htmlFor="signup-serviceCity" className="text-sm font-medium text-slate-700">
+                Ville <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="signup-serviceCity"
@@ -292,7 +292,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
                 placeholder="Montréal"
                 value={formData.serviceCity}
                 onChange={(e) => handleChange("serviceCity", e.target.value)}
-                className={errors.serviceCity ? "border-destructive" : ""}
+                className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.serviceCity ? "border-destructive" : ""}`}
                 autoComplete="address-level2"
               />
               {errors.serviceCity && (
@@ -301,8 +301,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="signup-servicePostalCode" className="text-sm font-medium text-slate-200">
-                Code postal <span className="text-red-400">*</span>
+              <Label htmlFor="signup-servicePostalCode" className="text-sm font-medium text-slate-700">
+                Code postal <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="signup-servicePostalCode"
@@ -310,7 +310,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
                 placeholder="H2X 1Y4"
                 value={formData.servicePostalCode}
                 onChange={(e) => handleChange("servicePostalCode", e.target.value)}
-                className={errors.servicePostalCode ? "border-destructive" : ""}
+                className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.servicePostalCode ? "border-destructive" : ""}`}
                 maxLength={7}
                 autoComplete="postal-code"
               />
@@ -324,9 +324,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Password */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-password" className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-          <Lock className="w-3.5 h-3.5 text-cyan-400" />
-          Mot de passe <span className="text-red-400">*</span>
+        <Label htmlFor="signup-password" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <Lock className="w-3.5 h-3.5 text-teal-600" />
+          Mot de passe <span className="text-red-500">*</span>
         </Label>
         <div className="relative">
           <Input
@@ -335,13 +335,13 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
             placeholder="Minimum 8 caractères"
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
-            className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
+            className={`pr-10 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.password ? "border-destructive" : ""}`}
             autoComplete="new-password"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
           >
             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
@@ -353,8 +353,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
       {/* Confirm Password */}
       <div className="space-y-1.5">
-        <Label htmlFor="signup-confirmPassword" className="text-sm font-medium text-slate-200">
-          Confirmer le mot de passe <span className="text-red-400">*</span>
+        <Label htmlFor="signup-confirmPassword" className="text-sm font-medium text-slate-700">
+          Confirmer le mot de passe <span className="text-red-500">*</span>
         </Label>
         <Input
           id="signup-confirmPassword"
@@ -362,7 +362,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
           placeholder="••••••••"
           value={formData.confirmPassword}
           onChange={(e) => handleChange("confirmPassword", e.target.value)}
-          className={errors.confirmPassword ? "border-destructive" : ""}
+          className={`bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.confirmPassword ? "border-destructive" : ""}`}
           autoComplete="new-password"
         />
         {errors.confirmPassword && (
@@ -371,19 +371,19 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       </div>
 
       {/* PIN Section */}
-      <div className="pt-2 border-t border-slate-700/50">
+      <div className="pt-2 border-t border-slate-200">
         <div className="flex items-center gap-2 mb-3">
-          <Shield className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-medium text-slate-200">NIP de sécurité (4 chiffres)</span>
+          <Shield className="w-4 h-4 text-teal-600" />
+          <span className="text-sm font-medium text-slate-700">NIP de sécurité (4 chiffres)</span>
         </div>
-        <p className="text-xs text-slate-300 mb-3">
+        <p className="text-xs text-slate-500 mb-3">
           Ce NIP sera utilisé pour valider votre identité lors d'appels au service client.
         </p>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="signup-pin" className="text-sm font-medium text-slate-200">
-              NIP <span className="text-red-400">*</span>
+            <Label htmlFor="signup-pin" className="text-sm font-medium text-slate-700">
+              NIP <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               <Input
@@ -392,7 +392,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
                 placeholder="••••"
                 value={formData.pin}
                 onChange={(e) => handleChange("pin", e.target.value)}
-                className={`text-center tracking-widest ${errors.pin ? "border-destructive" : ""}`}
+                className={`text-center tracking-widest bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.pin ? "border-destructive" : ""}`}
                 maxLength={4}
                 inputMode="numeric"
                 pattern="\d{4}"
@@ -400,7 +400,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
               <button
                 type="button"
                 onClick={() => setShowPin(!showPin)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 {showPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
@@ -411,8 +411,8 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
           </div>
           
           <div className="space-y-1.5">
-            <Label htmlFor="signup-confirmPin" className="text-sm font-medium text-slate-200">
-              Confirmer <span className="text-red-400">*</span>
+            <Label htmlFor="signup-confirmPin" className="text-sm font-medium text-slate-700">
+              Confirmer <span className="text-red-500">*</span>
             </Label>
             <Input
               id="signup-confirmPin"
@@ -420,7 +420,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
               placeholder="••••"
               value={formData.confirmPin}
               onChange={(e) => handleChange("confirmPin", e.target.value)}
-              className={`text-center tracking-widest ${errors.confirmPin ? "border-destructive" : ""}`}
+              className={`text-center tracking-widest bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 ${errors.confirmPin ? "border-destructive" : ""}`}
               maxLength={4}
               inputMode="numeric"
               pattern="\d{4}"
@@ -435,8 +435,7 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
       {/* Submit Button */}
       <Button 
         type="submit" 
-        className="w-full mt-6" 
-        variant="hero" 
+        className="w-full mt-6 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-teal-500/25" 
         disabled={isLoading}
         size="lg"
       >
@@ -444,13 +443,13 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
         Créer mon compte
       </Button>
 
-      <p className="text-xs text-center text-slate-300">
+      <p className="text-xs text-center text-slate-500">
         En créant un compte, vous acceptez nos{" "}
-        <a href="/conditions-de-service" className="text-cyan-400 hover:underline">
+        <a href="/conditions-de-service" className="text-teal-600 hover:underline">
           conditions d'utilisation
         </a>{" "}
         et notre{" "}
-        <a href="/politique-de-confidentialite" className="text-cyan-400 hover:underline">
+        <a href="/politique-de-confidentialite" className="text-teal-600 hover:underline">
           politique de confidentialité
         </a>
         .
