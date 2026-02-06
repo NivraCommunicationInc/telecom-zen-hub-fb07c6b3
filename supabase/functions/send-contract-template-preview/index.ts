@@ -580,7 +580,13 @@ function generateContractPDF(data: typeof SAMPLE_CONTRACT): Uint8Array {
   });
   y += 5;
   
-  // TOTALS
+  // TOTALS - Check if we need a page break before totals section
+  const totalsHeight = 80; // Height needed for full totals section
+  if (y + totalsHeight > pageHeight - 55) {
+    doc.addPage();
+    y = 25;
+  }
+  
   const totalsX = margin + contentWidth - 120;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
