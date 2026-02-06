@@ -5175,6 +5175,7 @@ export type Database = {
           promo_code: string | null
           promo_details: Json | null
           promo_discount_amount: number | null
+          provider_payment_id: string | null
           related_contract_id: string | null
           related_ticket_id: string | null
           risk_flags: Json | null
@@ -5191,6 +5192,7 @@ export type Database = {
           shipping_province: string | null
           sim_number: string | null
           sim_type: string | null
+          snapshot_total: number | null
           status: string
           subtotal: number | null
           technician_id: string | null
@@ -5265,6 +5267,7 @@ export type Database = {
           promo_code?: string | null
           promo_details?: Json | null
           promo_discount_amount?: number | null
+          provider_payment_id?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
           risk_flags?: Json | null
@@ -5281,6 +5284,7 @@ export type Database = {
           shipping_province?: string | null
           sim_number?: string | null
           sim_type?: string | null
+          snapshot_total?: number | null
           status?: string
           subtotal?: number | null
           technician_id?: string | null
@@ -5355,6 +5359,7 @@ export type Database = {
           promo_code?: string | null
           promo_details?: Json | null
           promo_discount_amount?: number | null
+          provider_payment_id?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
           risk_flags?: Json | null
@@ -5371,6 +5376,7 @@ export type Database = {
           shipping_province?: string | null
           sim_number?: string | null
           sim_type?: string | null
+          snapshot_total?: number | null
           status?: string
           subtotal?: number | null
           technician_id?: string | null
