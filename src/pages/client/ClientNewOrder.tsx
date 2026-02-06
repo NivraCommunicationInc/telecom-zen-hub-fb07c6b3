@@ -261,7 +261,7 @@ interface OrderDraft {
   // PayPal payment state (persisted to avoid double-charging after redirect)
   paypalCaptureId: string;
   paymentComplete: boolean;
-  paymentMethod: "credit_card" | "etransfer" | "paypal" | null;
+  paymentMethod: "credit_card" | "etransfer" | "paypal" | "promo_free" | null;
 }
 
 // Streaming+ Add-ons Section Component
@@ -575,7 +575,7 @@ const ClientNewOrder = () => {
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
-  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | null>("etransfer"); // Default to Interac (credit card in maintenance)
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | "promo_free" | null>("etransfer"); // Default to Interac (credit card in maintenance)
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
@@ -4185,9 +4185,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    
-                    {/* Promo discount line */}
-                    {appliedPromo && appliedPromo.discount_amount > 0 && (
+                  </div>
+                  
+                  {/* One-Time Fees Subtotal - NEVER show negative */}
+                  <div className="border-t border-border pt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-foreground">Frais uniques estimés</span>
+                      <span className="font-bold text-foreground">
+                        {oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Équipements, livraison, activation</p>
+                  </div>
+
+                  {/* Promo discount line - AFTER one-time fees, applies to total */}
+                  {appliedPromo && appliedPromo.discount_amount > 0 && (
+                    <div className="border-t border-emerald-500/30 pt-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-emerald-500 flex items-center gap-1">
                           <Check className="w-3 h-3" />
@@ -4197,30 +4210,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           -{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </span>
                       </div>
-                    )}
-                  </div>
-                  
-                  {/* One-Time Fees Subtotal */}
-                  <div className="border-t border-border pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-foreground">Frais uniques estimés</span>
-                      <span className="font-bold text-foreground">
-                        {(() => {
-                          let oneTimeFees = activationFee + routerFee + terminalFee + simFee;
-                          if (isDeliveryOnlyOrder) {
-                            oneTimeFees += deliveryFee;
-                          } else if (installationChoice === "auto") {
-                            oneTimeFees += deliveryFee;
-                          } else if (installationChoice === "technician") {
-                            oneTimeFees += installationFee;
-                          }
-                          const promoDiscount = appliedPromo?.discount_amount || 0;
-                          return (oneTimeFees - promoDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
-                        })()}
-                      </span>
+                      <p className="text-xs text-emerald-600/70 mt-1">Appliqué sur le total de la commande</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Équipements, livraison, activation</p>
-                  </div>
+                  )}
 
                   {/* Taxes */}
                   <div className="border-t border-border pt-3 space-y-2">
@@ -4610,7 +4602,42 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 Montants estimatifs, taxes applicables selon votre adresse au Québec (TPS 5% + TVQ 9.975%).
               </p>
 
+              {/* FREE ORDER - No payment required when total is 0 */}
+              {totalAmount <= 0 && (
+                <Card className="bg-emerald-500/10 border-emerald-500/50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-emerald-600">
+                      <CheckCircle2 className="w-5 h-5" />
+                      Aucun paiement requis
+                    </CardTitle>
+                    <CardDescription>
+                      Grâce à votre code promotionnel, cette commande est entièrement couverte!
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="p-4 bg-emerald-500/20 rounded-lg text-center">
+                      <p className="text-lg font-bold text-emerald-600">Total: 0,00 $</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Le rabais promotionnel couvre l'intégralité de votre commande.
+                      </p>
+                    </div>
+                    <Button
+                      className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white"
+                      onClick={() => {
+                        setPaymentMethod("promo_free");
+                        setPaymentComplete(true);
+                        setPaymentConfirmationNumber("PROMO-FREE-" + Date.now());
+                      }}
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Confirmer la commande gratuite
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Payment Section - Required before order submission */}
+              {totalAmount > 0 && (
               <Card className="bg-card border-emerald-500/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -4891,6 +4918,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   )}
                 </CardContent>
               </Card>
+              )}
 
               {/* Terms and Conditions Acceptance */}
               <Card className="bg-card border-border">
