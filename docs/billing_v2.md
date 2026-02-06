@@ -335,6 +335,107 @@ interface BillingTotals {
 
 ---
 
+## Templates PDF V2 (v2.3)
+
+### Vue d'ensemble
+
+Trois templates professionnels pour la facturation, tous avec layout A4/Letter printable:
+
+| Template | Usage | Fichier |
+|----------|-------|---------|
+| **Invoice Monthly** | Factures mensuelles récurrentes (prépayé style postpayé) | `src/lib/pdf/invoiceMonthlyTemplate.ts` |
+| **Invoice One-Time** | Équipements et frais ponctuels | `src/lib/pdf/invoiceOneTimeTemplate.ts` |
+| **Order Summary** | Résumé de commande après paiement | `src/lib/pdf/orderSummaryTemplate.ts` |
+
+### Header Standard
+
+Tous les documents utilisent un header centré identique:
+
+```
+NIVRA COMMUNICATIONS INC.
+Billing Division
+Québec
+1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
+Support@nivra-telecom.ca
+```
+
+### Variables Communes
+
+| Variable | Description |
+|----------|-------------|
+| `account_number` | Numéro de compte client |
+| `invoice_number` | Numéro de facture unique |
+| `invoice_date` | Date d'émission |
+| `bill_cycle_date` | Jour du cycle (1-28) |
+| `cycle_start` / `cycle_end` | Période de service |
+| `status` | pending / paid / overdue / cancelled |
+| `subtotal_before_discounts` | Sous-total brut |
+| `total_discounts` | Rabais appliqués |
+| `subtotal_after_discounts` | Sous-total net |
+| `tax_gst` | TPS (5%) |
+| `tax_qst` | TVQ (9.975%) |
+| `total_due` | Total à payer |
+| `payment_reference` | Référence PayPal/Interac |
+
+### Structure `invoice_lines[]` (Monthly)
+
+```typescript
+{
+  service_type: "Internet" | "TV" | "Mobile" | "Security" | "Streaming";
+  service_description: string;
+  service_period: string;
+  service_price: number;
+  service_promo?: string;
+  service_total: number;
+}
+```
+
+### Structure `items[]` (One-Time)
+
+```typescript
+{
+  item_name: string;
+  item_description?: string;
+  qty: number;
+  unit_price: number;
+  line_total: number;
+  serial_number?: string;
+}
+```
+
+### Logique Automatique
+
+1. **Commande payée** → Créer Order + générer Order Summary + générer facture
+2. **Type de facture** → One-Time si équipement/frais uniquement, sinon Monthly si cycle
+3. **J-5 du cycle** → Générer facture mensuelle "à payer" et notifier
+4. **Paiement confirmé** → Marquer Paid, démarrer cycle à la date/heure de confirmation
+
+### Règles d'affichage
+
+- **Ne jamais afficher** TV/Mobile/Internet si non souscrit
+- **Toujours calculer** rabais/promos et taxes avec sections dédiées
+- **Footer légal** prépayé obligatoire en bas de chaque page
+
+### Hooks React
+
+```typescript
+import { 
+  useInvoiceMonthlyPDF, 
+  useInvoiceOneTimePDF, 
+  useOrderSummaryPDF 
+} from "@/hooks/usePDFTemplates";
+
+// Usage
+const { download, open, isGenerating } = useInvoiceMonthlyPDF();
+await download(invoiceData);
+```
+
+### Preview Admin
+
+Composant `<PDFTemplatePreview />` disponible pour tester les 3 templates avec données exemple.
+
+---
+
 ## Historique
 
 | Date | Auteur | Description |
@@ -344,3 +445,4 @@ interface BillingTotals {
 | 2026-01-24 | Lovable AI | Ajout Actions Admin + Exemples formats valides |
 | 2026-01-24 | Lovable AI | Ajout Release Checklist — Validation Post-Update |
 | 2026-02-06 | Lovable AI | v2.2: Ajout Snapshot Checkout comme source de vérité pour PDFs |
+| 2026-02-06 | Lovable AI | v2.3: Ajout 3 Templates PDF (Monthly, One-Time, Order Summary) |
