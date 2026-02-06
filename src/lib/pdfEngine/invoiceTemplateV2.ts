@@ -1,19 +1,20 @@
 /**
  * Nivra Invoice Template V2 - PROFESSIONAL MULTI-PAGE INVOICE
- * Inspired by Rogers invoice layout with clean tables, clear totals, and proper signatures
+ * Enterprise-grade telecom invoice (Rogers-style)
  * 
- * Structure:
- * - Page 1: Summary page (account overview, total due, payment slip)
- * - Page 2+: Detailed breakdown by service category
- * - Payment history and notes (if applicable)
+ * Structure (4+ pages):
+ * - Page 1: Summary page with total, account overview, payment instructions
+ * - Page 2: Detailed breakdown by service category
+ * - Page 3: Taxes, adjustments, payment history
+ * - Page 4: Terms reminder, payment slip, signature (if applicable)
  * 
  * Features:
- * - Multi-page support for long service lists
  * - Rogers-style horizontal header bar
  * - Two-column summary layout
- * - Detailed itemized breakdown
- * - Payment slip at bottom
- * - Visible signature fields
+ * - Detailed itemized breakdown by category
+ * - Payment slip with tear-off section
+ * - Multi-page support for long invoices
+ * - Previous balance and payment history
  */
 
 import jsPDF from "jspdf";
@@ -33,6 +34,14 @@ export interface InvoiceV2ServiceItem {
   monthlyPrice: number;
   period?: string;
   detailsPage?: number;
+  usageDetails?: { label: string; value: string }[];
+}
+
+export interface InvoiceV2PaymentRecord {
+  date: string;
+  method: string;
+  reference?: string;
+  amount: number;
 }
 
 export interface InvoiceV2Data {
@@ -44,6 +53,7 @@ export interface InvoiceV2Data {
   dueDate: string;
   billingPeriodStart?: string;
   billingPeriodEnd?: string;
+  billingCycleDay?: number;
   
   // Client info
   clientName: string;
@@ -54,8 +64,9 @@ export interface InvoiceV2Data {
   clientProvince: string;
   clientPostalCode: string;
   
-  // Previous balance
+  // Balance info
   previousBalance?: number;
+  previousPayments?: InvoiceV2PaymentRecord[];
   carriedBalance?: number;
   
   // Services (recurring)
@@ -77,10 +88,12 @@ export interface InvoiceV2Data {
   // Payment status
   isPaid?: boolean;
   paidAt?: string;
-  paymentMethod?: "etransfer" | "card" | "cash";
+  paymentMethod?: "etransfer" | "card" | "cash" | "paypal";
   paymentReference?: string;
+  amountPaid?: number;
+  balanceDue?: number;
   
-  // Signatures
+  // Signatures (for receipts)
   clientSignature?: string;
   clientSignatureType?: "canvas" | "text";
   clientSignedAt?: string;
@@ -92,6 +105,9 @@ export interface InvoiceV2Data {
   welcomeMessage?: string;
   importantNotice?: string;
   notes?: string;
+  
+  // Store credit
+  storeCredit?: number;
 }
 
 // =============================================================================
@@ -99,23 +115,29 @@ export interface InvoiceV2Data {
 // =============================================================================
 
 const COLORS = {
-  primary: [15, 23, 42] as [number, number, number],        // Navy
-  primaryLight: [30, 58, 138] as [number, number, number],  // Lighter navy
-  accent: [20, 184, 166] as [number, number, number],       // Teal
-  accentDark: [13, 148, 136] as [number, number, number],
+  primary: [15, 23, 42] as [number, number, number],        // Slate 900
+  primaryLight: [30, 58, 138] as [number, number, number],  // Blue 800
+  accent: [20, 184, 166] as [number, number, number],       // Teal 500
+  accentDark: [13, 148, 136] as [number, number, number],   // Teal 600
   
-  text: [30, 41, 59] as [number, number, number],
-  textMuted: [100, 116, 139] as [number, number, number],
-  textLight: [148, 163, 184] as [number, number, number],
+  text: [30, 41, 59] as [number, number, number],           // Slate 800
+  textMuted: [100, 116, 139] as [number, number, number],   // Slate 500
+  textLight: [148, 163, 184] as [number, number, number],   // Slate 400
   
   white: [255, 255, 255] as [number, number, number],
-  bgLight: [248, 250, 252] as [number, number, number],
-  border: [226, 232, 240] as [number, number, number],
-  borderDark: [203, 213, 225] as [number, number, number],
+  bgLight: [248, 250, 252] as [number, number, number],     // Slate 50
+  border: [226, 232, 240] as [number, number, number],      // Slate 200
+  borderDark: [203, 213, 225] as [number, number, number],  // Slate 300
   
-  success: [34, 197, 94] as [number, number, number],
-  warning: [234, 179, 8] as [number, number, number],
-  error: [239, 68, 68] as [number, number, number],
+  success: [34, 197, 94] as [number, number, number],       // Green 500
+  successLight: [220, 252, 231] as [number, number, number],// Green 100
+  warning: [234, 179, 8] as [number, number, number],       // Yellow 500
+  warningLight: [254, 243, 199] as [number, number, number],// Yellow 100
+  error: [239, 68, 68] as [number, number, number],         // Red 500
+  errorLight: [254, 226, 226] as [number, number, number],  // Red 100
+  
+  info: [59, 130, 246] as [number, number, number],         // Blue 500
+  infoLight: [219, 234, 254] as [number, number, number],   // Blue 100
 };
 
 const PAGE = {
@@ -174,10 +196,6 @@ class InvoicePDFBuilder {
     this.data = data;
     this.y = PAGE.marginTop;
     this.pageNum = 1;
-    
-    // White background
-    this.doc.setFillColor(...COLORS.white);
-    this.doc.rect(0, 0, PAGE.width, PAGE.height, "F");
   }
   
   private checkPageBreak(neededSpace: number): void {
@@ -196,16 +214,24 @@ class InvoicePDFBuilder {
     
     // Top accent
     this.doc.setFillColor(...COLORS.accent);
-    this.doc.rect(0, 0, PAGE.width, 2, "F");
+    this.doc.rect(0, 0, PAGE.width, 3, "F");
     
-    // Continuation header
+    // Header bar
+    this.doc.setFillColor(...COLORS.bgLight);
+    this.doc.rect(0, 3, PAGE.width, 12, "F");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.accent);
+    this.doc.text("NIVRA", PAGE.marginLeft, 10);
+    
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
     this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text(`FACTURE — ${this.data.invoiceNumber}`, PAGE.marginLeft, 10);
+    this.doc.text(`FACTURE — ${this.data.invoiceNumber}`, PAGE.width / 2, 10, { align: "center" });
     this.doc.text(`Page ${this.pageNum}`, PAGE.width - PAGE.marginRight, 10, { align: "right" });
     
-    this.y = 18;
+    this.y = 20;
   }
   
   private addFooters(): void {
@@ -214,7 +240,7 @@ class InvoicePDFBuilder {
     for (let i = 1; i <= totalPages; i++) {
       this.doc.setPage(i);
       
-      const footerY = PAGE.height - 12;
+      const footerY = PAGE.height - 15;
       
       this.doc.setDrawColor(...COLORS.border);
       this.doc.line(PAGE.marginLeft, footerY - 3, PAGE.width - PAGE.marginRight, footerY - 3);
@@ -224,20 +250,26 @@ class InvoicePDFBuilder {
       this.doc.setTextColor(...COLORS.textMuted);
       
       this.doc.text(
-        `${COMPANY_CONTACT.legalName} — ${COMPANY_CONTACT.fullAddress}`,
-        PAGE.width / 2,
-        footerY,
-        { align: "center" }
+        `${COMPANY_CONTACT.legalName} | ${COMPANY_CONTACT.fullAddress}`,
+        PAGE.marginLeft,
+        footerY
       );
+      
       this.doc.text(
-        `${COMPANY_CONTACT.supportEmailDisplay} — nivra-telecom.ca`,
+        `${COMPANY_CONTACT.supportEmailDisplay} | nivra-telecom.ca`,
+        PAGE.marginLeft,
+        footerY + 4
+      );
+      
+      this.doc.text(
+        `Facture: ${this.data.invoiceNumber} | Compte: ${this.data.accountNumber}`,
         PAGE.width / 2,
-        footerY + 4,
+        footerY + 2,
         { align: "center" }
       );
       
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${i} / ${totalPages}`, PAGE.width - PAGE.marginRight, footerY + 2, { align: "right" });
+      this.doc.text(`${i}/${totalPages}`, PAGE.width - PAGE.marginRight, footerY + 2, { align: "right" });
     }
   }
   
@@ -248,73 +280,49 @@ class InvoicePDFBuilder {
   private buildPage1Summary(): void {
     const { data } = this;
     
-    // === TOP ACCENT ===
+    // === TOP HEADER ===
     this.doc.setFillColor(...COLORS.accent);
-    this.doc.rect(0, 0, PAGE.width, 3, "F");
+    this.doc.rect(0, 0, PAGE.width, 4, "F");
     
-    // === HEADER INFO BAR ===
+    // Info bar
     this.doc.setFillColor(...COLORS.bgLight);
     this.doc.setDrawColor(...COLORS.border);
-    this.doc.rect(0, 3, PAGE.width, 18, "FD");
+    this.doc.rect(0, 4, PAGE.width, 20, "FD");
     
-    const headerY = 10;
-    const headerY2 = 16;
+    const headerY = 11;
+    const headerY2 = 18;
     
-    this.doc.setFontSize(6);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
+    // Column data
+    const cols = [
+      { label: "N° COMPTE", value: data.accountNumber, x: PAGE.marginLeft },
+      { label: "N° FACTURE", value: data.invoiceNumber, x: PAGE.marginLeft + 40 },
+      { label: "DATE D'ÉMISSION", value: formatDate(data.billingDate), x: PAGE.marginLeft + 85 },
+      { label: "DATE D'EXIGIBILITÉ", value: formatDate(data.dueDate), x: PAGE.marginLeft + 130 },
+    ];
     
-    // Column 1
-    this.doc.text("Numéro de compte", PAGE.marginLeft, headerY);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(data.accountNumber || "—", PAGE.marginLeft, headerY2);
-    
-    // Column 2
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Numéro de facture", PAGE.marginLeft + 40, headerY);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(data.invoiceNumber || "—", PAGE.marginLeft + 40, headerY2);
-    
-    // Column 3
-    if (data.paymentBankNumber) {
+    cols.forEach(col => {
       this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(6);
       this.doc.setTextColor(...COLORS.textMuted);
-      this.doc.text("Nº paiement Interac", PAGE.marginLeft + 80, headerY);
+      this.doc.text(col.label, col.x, headerY);
+      
       this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(9);
       this.doc.setTextColor(...COLORS.text);
-      this.doc.text(data.paymentBankNumber, PAGE.marginLeft + 80, headerY2);
-    }
+      this.doc.text(col.value, col.x, headerY2);
+    });
     
-    // Column 4
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Date de facturation", PAGE.marginLeft + 120, headerY);
+    // Logo
     this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(formatDate(data.billingDate), PAGE.marginLeft + 120, headerY2);
-    
-    // Page + Logo
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Page", PAGE.marginLeft + 155, headerY);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(`1`, PAGE.marginLeft + 155, headerY2);
-    
-    // NIVRA Logo
-    this.doc.setFontSize(14);
-    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(16);
     this.doc.setTextColor(...COLORS.accent);
-    this.doc.text("NIVRA", PAGE.width - PAGE.marginRight - 5, 14, { align: "right" });
+    this.doc.text("NIVRA", PAGE.width - PAGE.marginRight, 16, { align: "right" });
     
-    this.y = 28;
+    this.y = 30;
     
     // === WELCOME MESSAGE ===
-    this.doc.setFontSize(11);
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(12);
     this.doc.setTextColor(...COLORS.text);
     
     const welcomeText = data.welcomeMessage || `Bonjour ${data.clientName.toUpperCase()}, voici votre facture Nivra.`;
@@ -322,10 +330,9 @@ class InvoicePDFBuilder {
     
     this.y += 6;
     
-    // Billing period
     if (data.billingPeriodStart && data.billingPeriodEnd) {
-      this.doc.setFontSize(7);
       this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
       this.doc.setTextColor(...COLORS.textMuted);
       this.doc.text(
         `Période de facturation: ${formatDate(data.billingPeriodStart)} au ${formatDate(data.billingPeriodEnd)}`,
@@ -336,96 +343,105 @@ class InvoicePDFBuilder {
     }
     
     this.doc.setFontSize(7);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Vous trouverez le détail des frais et crédits (le cas échéant) aux pages suivantes.", PAGE.marginLeft, this.y);
+    this.doc.text("Vous trouverez le détail complet des frais aux pages suivantes.", PAGE.marginLeft, this.y);
     
     this.y += 10;
     
-    // === TWO-COLUMN SUMMARY ===
-    const leftColW = 85;
+    // === TWO-COLUMN LAYOUT ===
+    const leftColW = 90;
     const rightColW = 85;
-    const gutter = 10;
+    const gutter = 5;
     const boxStartY = this.y;
     
-    // LEFT: Total Summary
+    // --- LEFT: TOTAL DUE ---
     this.doc.setFillColor(...COLORS.white);
     this.doc.setDrawColor(...COLORS.border);
-    this.doc.roundedRect(PAGE.marginLeft, boxStartY, leftColW, 55, 2, 2, "FD");
+    this.doc.roundedRect(PAGE.marginLeft, boxStartY, leftColW, 65, 2, 2, "FD");
     
     // Accent bar
     this.doc.setFillColor(...COLORS.accent);
-    this.doc.rect(PAGE.marginLeft, boxStartY, 3, 55, "F");
+    this.doc.rect(PAGE.marginLeft, boxStartY, 4, 65, "F");
     
     // Title
-    this.doc.setFontSize(9);
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
     this.doc.setTextColor(...COLORS.text);
-    this.doc.text("Quels sont les frais totaux?", PAGE.marginLeft + 8, boxStartY + 8);
+    this.doc.text("Montant total à payer", PAGE.marginLeft + 10, boxStartY + 10);
     
-    // Total amount
-    this.doc.setFontSize(22);
+    // Big total
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(28);
     this.doc.setTextColor(...COLORS.primary);
-    this.doc.text(formatCurrency(data.total), PAGE.marginLeft + 8, boxStartY + 24);
     
-    // Payment status
+    const balanceDue = data.balanceDue !== undefined ? data.balanceDue : data.total;
+    this.doc.text(formatCurrency(balanceDue), PAGE.marginLeft + 10, boxStartY + 28);
+    
+    // Status badge
     if (data.isPaid) {
       this.doc.setFillColor(...COLORS.success);
-      this.doc.roundedRect(PAGE.marginLeft + 8, boxStartY + 30, 22, 6, 1, 1, "F");
-      this.doc.setFontSize(6);
+      this.doc.roundedRect(PAGE.marginLeft + 10, boxStartY + 33, 30, 8, 2, 2, "F");
       this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(7);
       this.doc.setTextColor(...COLORS.white);
-      this.doc.text("PAYÉ", PAGE.marginLeft + 12, boxStartY + 34);
+      this.doc.text("✓ PAYÉ", PAGE.marginLeft + 25, boxStartY + 38, { align: "center" });
       
       if (data.paidAt) {
-        this.doc.setFontSize(7);
         this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(7);
         this.doc.setTextColor(...COLORS.textMuted);
-        this.doc.text(`Payé le: ${formatDate(data.paidAt)}`, PAGE.marginLeft + 8, boxStartY + 42);
+        this.doc.text(`Payé le ${formatDate(data.paidAt)}`, PAGE.marginLeft + 10, boxStartY + 46);
       }
     } else {
+      this.doc.setFillColor(...COLORS.warningLight);
+      this.doc.roundedRect(PAGE.marginLeft + 10, boxStartY + 33, 50, 8, 2, 2, "F");
+      this.doc.setFont("helvetica", "bold");
       this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.warning);
+      this.doc.text("⏰ À PAYER", PAGE.marginLeft + 35, boxStartY + 38, { align: "center" });
+      
       this.doc.setFont("helvetica", "normal");
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.doc.text(`Date d'exigibilité: ${formatDateLong(data.dueDate)}`, PAGE.marginLeft + 8, boxStartY + 34);
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(...COLORS.text);
+      this.doc.text(`Avant le ${formatDateLong(data.dueDate)}`, PAGE.marginLeft + 10, boxStartY + 48);
     }
     
     // Savings
     const totalDiscounts = (data.discounts || []).reduce((sum, d) => sum + d.amount, 0) + (data.credits || 0);
     if (totalDiscounts > 0) {
-      this.doc.setFontSize(7);
       this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(8);
       this.doc.setTextColor(...COLORS.success);
-      this.doc.text(`✓ Économisé: ${formatCurrency(totalDiscounts)}`, PAGE.marginLeft + 8, boxStartY + 50);
+      this.doc.text(`✓ Économisé ce mois: ${formatCurrency(totalDiscounts)}`, PAGE.marginLeft + 10, boxStartY + 58);
     }
     
-    // RIGHT: Account Summary
+    // --- RIGHT: ACCOUNT SUMMARY ---
     const rightX = PAGE.marginLeft + leftColW + gutter;
+    
     this.doc.setFillColor(...COLORS.white);
     this.doc.setDrawColor(...COLORS.border);
-    this.doc.roundedRect(rightX, boxStartY, rightColW, 55, 2, 2, "FD");
+    this.doc.roundedRect(rightX, boxStartY, rightColW, 65, 2, 2, "FD");
     
     // Title
-    this.doc.setFontSize(9);
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
     this.doc.setTextColor(...COLORS.text);
     this.doc.text("Sommaire du compte", rightX + 5, boxStartY + 8);
     
-    // Summary table header
+    // Table header
     this.doc.setFillColor(...COLORS.bgLight);
-    this.doc.rect(rightX + 2, boxStartY + 11, rightColW - 4, 6, "F");
-    this.doc.setFontSize(6);
+    this.doc.rect(rightX + 2, boxStartY + 11, rightColW - 4, 7, "F");
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(6);
     this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Description", rightX + 5, boxStartY + 15);
-    this.doc.text("Montant", rightX + rightColW - 10, boxStartY + 15, { align: "right" });
+    this.doc.text("Description", rightX + 5, boxStartY + 15.5);
+    this.doc.text("Montant", rightX + rightColW - 10, boxStartY + 15.5, { align: "right" });
     
-    let summaryY = boxStartY + 22;
-    const addSummaryRow = (label: string, amount: number, isBold = false) => {
+    let summaryY = boxStartY + 23;
+    
+    const addSummaryRow = (label: string, amount: number, opts: { bold?: boolean; color?: [number, number, number] } = {}) => {
+      this.doc.setFont("helvetica", opts.bold ? "bold" : "normal");
       this.doc.setFontSize(7);
-      this.doc.setFont("helvetica", isBold ? "bold" : "normal");
-      this.doc.setTextColor(...COLORS.text);
+      this.doc.setTextColor(...(opts.color || COLORS.text));
       this.doc.text(label, rightX + 5, summaryY);
       this.doc.text(formatCurrency(amount), rightX + rightColW - 10, summaryY, { align: "right" });
       summaryY += 5;
@@ -446,7 +462,7 @@ class InvoicePDFBuilder {
       addSummaryRow(label, typeTotal);
     });
     
-    // One-time fees total
+    // One-time fees
     if (data.oneTimeFees && data.oneTimeFees.length > 0) {
       const onetimeTotal = data.oneTimeFees.reduce((sum, f) => sum + f.amount, 0);
       addSummaryRow("Frais uniques", onetimeTotal);
@@ -455,133 +471,117 @@ class InvoicePDFBuilder {
     // Discounts
     if (data.discounts && data.discounts.length > 0) {
       const discTotal = data.discounts.reduce((sum, d) => sum + d.amount, 0);
-      this.doc.setTextColor(...COLORS.success);
-      addSummaryRow("Rabais", -discTotal);
-      this.doc.setTextColor(...COLORS.text);
+      addSummaryRow("Rabais", -discTotal, { color: COLORS.success });
     }
     
-    // Separator + Total
+    // Separator
     this.doc.setDrawColor(...COLORS.border);
     this.doc.line(rightX + 5, summaryY - 2, rightX + rightColW - 5, summaryY - 2);
     summaryY += 2;
     
-    this.doc.setFontSize(6);
+    // Taxes
     this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(6);
     this.doc.setTextColor(...COLORS.textMuted);
     this.doc.text(`TPS: ${formatCurrency(data.tps)} | TVQ: ${formatCurrency(data.tvq)}`, rightX + 5, summaryY);
-    summaryY += 4;
+    summaryY += 5;
     
-    this.doc.setFontSize(8);
+    // Total
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
     this.doc.setTextColor(...COLORS.primary);
-    this.doc.text("TOTAL À PAYER", rightX + 5, summaryY);
+    this.doc.text("TOTAL", rightX + 5, summaryY);
     this.doc.text(formatCurrency(data.total), rightX + rightColW - 10, summaryY, { align: "right" });
     
-    this.y = boxStartY + 62;
+    this.y = boxStartY + 72;
     
     // === IMPORTANT NOTICE ===
     if (data.importantNotice) {
-      this.doc.setFillColor(...COLORS.bgLight);
-      this.doc.setDrawColor(...COLORS.border);
-      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 15, 2, 2, "FD");
+      this.doc.setFillColor(...COLORS.infoLight);
+      this.doc.setDrawColor(...COLORS.info);
+      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 18, 2, 2, "FD");
       
-      this.doc.setFontSize(8);
       this.doc.setFont("helvetica", "bold");
-      this.doc.setTextColor(...COLORS.primary);
-      this.doc.text("ℹ️ Avis", PAGE.marginLeft + 5, this.y + 6);
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(...COLORS.info);
+      this.doc.text("ℹ️ Avis important", PAGE.marginLeft + 5, this.y + 6);
       
-      this.doc.setFontSize(7);
       this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(7);
       this.doc.setTextColor(...COLORS.text);
-      const noticeLines = this.doc.splitTextToSize(data.importantNotice, PAGE.contentWidth - 20);
-      this.doc.text(noticeLines, PAGE.marginLeft + 18, this.y + 6);
+      const noticeLines = this.doc.splitTextToSize(data.importantNotice, PAGE.contentWidth - 30);
+      this.doc.text(noticeLines, PAGE.marginLeft + 25, this.y + 6);
       
-      this.y += 20;
+      this.y += 22;
     }
     
-    // === PAYMENT SLIP ===
-    this.y += 5;
+    // === PAYMENT INSTRUCTIONS ===
+    this.doc.setFillColor(...COLORS.warningLight);
+    this.doc.setDrawColor(...COLORS.warning);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 28, 2, 2, "FD");
     
-    // Dashed separator
-    this.doc.setDrawColor(...COLORS.textMuted);
-    this.doc.setLineDashPattern([2, 2], 0);
-    this.doc.line(PAGE.marginLeft, this.y, PAGE.width - PAGE.marginRight, this.y);
-    this.doc.setLineDashPattern([], 0);
-    
-    this.y += 8;
-    
-    // Payment instructions
-    this.doc.setFontSize(10);
     this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.accent);
-    this.doc.text("TALON DE PAIEMENT", PAGE.marginLeft, this.y);
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text("💳 COMMENT PAYER — VIREMENT INTERAC UNIQUEMENT", PAGE.marginLeft + 5, this.y + 8);
     
-    this.y += 6;
-    
-    const paymentInstructions = data.isPaid 
-      ? "✓ Votre compte a été réglé. Merci!"
-      : `Paiement par virement Interac à: ${COMPANY_CONTACT.supportEmailDisplay}`;
-    
+    this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
-    this.doc.setFont("helvetica", "bold");
     this.doc.setTextColor(...COLORS.text);
-    this.doc.text(paymentInstructions, PAGE.marginLeft, this.y);
+    this.doc.text(`1. Envoyez votre paiement par Interac e-Transfer à: ${COMPANY_CONTACT.supportEmailDisplay}`, PAGE.marginLeft + 5, this.y + 15);
+    this.doc.text(`2. Utilisez votre numéro de compte (${data.accountNumber}) comme référence.`, PAGE.marginLeft + 5, this.y + 21);
+    this.doc.text("3. Votre service sera renouvelé dès réception et confirmation du paiement.", PAGE.marginLeft + 5, this.y + 27);
+    
+    this.y += 35;
+    
+    // === CLIENT INFO BLOCK ===
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text("ADRESSE DE FACTURATION", PAGE.marginLeft, this.y);
     
     this.y += 5;
     
-    if (!data.isPaid) {
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(7);
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.doc.text("Utilisez votre numéro de compte comme référence. Le cycle démarre après confirmation du paiement.", PAGE.marginLeft, this.y);
-    }
-    
-    // Payment summary box (right)
-    const payBoxX = PAGE.width - PAGE.marginRight - 65;
-    this.doc.setFillColor(...COLORS.bgLight);
-    this.doc.setDrawColor(...COLORS.border);
-    this.doc.roundedRect(payBoxX, this.y - 10, 65, 28, 2, 2, "FD");
-    
-    this.doc.setFontSize(6);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Compte:", payBoxX + 3, this.y - 5);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(data.accountNumber, payBoxX + 22, this.y - 5);
-    
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Total dû:", payBoxX + 3, this.y + 2);
-    this.doc.setFontSize(10);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.primary);
-    this.doc.text(formatCurrency(data.total), payBoxX + 22, this.y + 3);
-    
-    this.doc.setFontSize(6);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Échéance:", payBoxX + 3, this.y + 12);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(formatDate(data.dueDate), payBoxX + 22, this.y + 12);
-    
-    this.y += 25;
-    
-    // Client address block
     this.doc.setFillColor(...COLORS.white);
     this.doc.setDrawColor(...COLORS.border);
-    this.doc.roundedRect(PAGE.marginLeft + 40, this.y, 70, 22, 1, 1, "FD");
+    this.doc.roundedRect(PAGE.marginLeft, this.y, 90, 22, 2, 2, "FD");
     
-    this.doc.setFontSize(8);
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
     this.doc.setTextColor(...COLORS.text);
-    this.doc.text(data.clientName, PAGE.marginLeft + 45, this.y + 6);
+    this.doc.text(data.clientName, PAGE.marginLeft + 5, this.y + 7);
     
     this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.text(data.clientAddress, PAGE.marginLeft + 5, this.y + 13);
+    this.doc.text(`${data.clientCity}, ${data.clientProvince} ${data.clientPostalCode}`, PAGE.marginLeft + 5, this.y + 18);
+    
+    // Contact on the right
+    this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(7);
-    this.doc.text(data.clientAddress, PAGE.marginLeft + 45, this.y + 11);
-    this.doc.text(`${data.clientCity}, ${data.clientProvince} ${data.clientPostalCode}`, PAGE.marginLeft + 45, this.y + 16);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Courriel:", PAGE.marginLeft + 100, this.y + 7);
+    this.doc.text("Téléphone:", PAGE.marginLeft + 100, this.y + 13);
+    
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(data.clientEmail, PAGE.marginLeft + 120, this.y + 7);
+    this.doc.text(data.clientPhone || "—", PAGE.marginLeft + 120, this.y + 13);
+    
+    this.y += 28;
+    
+    // === STORE CREDIT ===
+    if (data.storeCredit && data.storeCredit > 0) {
+      this.doc.setFillColor(...COLORS.successLight);
+      this.doc.setDrawColor(...COLORS.success);
+      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 12, 2, 2, "FD");
+      
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(9);
+      this.doc.setTextColor(...COLORS.success);
+      this.doc.text(`💰 Crédit en magasin disponible: ${formatCurrency(data.storeCredit)}`, PAGE.marginLeft + 5, this.y + 8);
+      
+      this.y += 18;
+    }
   }
   
   // ─────────────────────────────────────────────────────────────────────────
@@ -593,13 +593,13 @@ class InvoicePDFBuilder {
     
     const { data } = this;
     
-    // === HEADER ===
+    // Title
     this.doc.setFont("helvetica", "bold");
-    this.doc.setFontSize(12);
+    this.doc.setFontSize(14);
     this.doc.setTextColor(...COLORS.primary);
-    this.doc.text("DÉTAIL DE LA FACTURE", PAGE.marginLeft, this.y);
+    this.doc.text("DÉTAIL COMPLET DE LA FACTURE", PAGE.marginLeft, this.y);
     
-    this.y += 8;
+    this.y += 10;
     
     // Group services by type
     const servicesByType = data.services.reduce((acc, s) => {
@@ -608,32 +608,54 @@ class InvoicePDFBuilder {
       return acc;
     }, {} as Record<string, InvoiceV2ServiceItem[]>);
     
-    // Render each service category
+    // Render each category
     Object.entries(servicesByType).forEach(([type, services]) => {
-      this.checkPageBreak(30);
+      this.checkPageBreak(35);
+      
+      const typeTotal = services.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
       
       // Category header
       this.doc.setFillColor(...COLORS.primary);
-      this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 8, "F");
+      this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 10, "F");
       
       this.doc.setFont("helvetica", "bold");
-      this.doc.setFontSize(9);
+      this.doc.setFontSize(10);
       this.doc.setTextColor(...COLORS.white);
       
-      const typeLabel = type === "Mobile" ? "SERVICES SANS-FIL" : `SERVICES ${type.toUpperCase()}`;
-      this.doc.text(typeLabel, PAGE.marginLeft + 5, this.y + 5.5);
+      const typeLabel = type === "Mobile" ? "📱 SERVICES SANS-FIL" :
+                        type === "Internet" ? "🌐 SERVICES INTERNET" :
+                        type === "TV" ? "📺 SERVICES TÉLÉVISION" :
+                        type === "Security" ? "🔒 SERVICES SÉCURITÉ" :
+                        type === "Streaming" ? "🎬 SERVICES STREAMING" :
+                        `📦 ${type.toUpperCase()}`;
       
-      const typeTotal = services.reduce((sum, s) => sum + (s.monthlyPrice * (s.quantity || 1)), 0);
-      this.doc.text(formatCurrency(typeTotal), PAGE.width - PAGE.marginRight - 5, this.y + 5.5, { align: "right" });
+      this.doc.text(typeLabel, PAGE.marginLeft + 5, this.y + 7);
+      this.doc.text(formatCurrency(typeTotal), PAGE.width - PAGE.marginRight - 5, this.y + 7, { align: "right" });
       
-      this.y += 10;
+      this.y += 12;
       
-      // Services table
+      // Table header
+      this.doc.setFillColor(...COLORS.bgLight);
+      this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 6, "F");
+      
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(6);
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text("SERVICE", PAGE.marginLeft + 3, this.y + 4);
+      this.doc.text("DESCRIPTION", PAGE.marginLeft + 70, this.y + 4);
+      this.doc.text("QTÉ", PAGE.marginLeft + 140, this.y + 4);
+      this.doc.text("PRIX", PAGE.width - PAGE.marginRight - 3, this.y + 4, { align: "right" });
+      
+      this.y += 6;
+      
+      // Service rows
       services.forEach((service, idx) => {
-        this.checkPageBreak(15);
+        const hasUsage = service.usageDetails && service.usageDetails.length > 0;
+        const rowH = hasUsage ? 14 + (service.usageDetails!.length * 4) : 14;
         
-        const rowH = 12;
+        this.checkPageBreak(rowH + 2);
         
+        // Background
         if (idx % 2 === 0) {
           this.doc.setFillColor(...COLORS.bgLight);
           this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, rowH, "F");
@@ -643,37 +665,48 @@ class InvoicePDFBuilder {
         this.doc.setFont("helvetica", "bold");
         this.doc.setFontSize(9);
         this.doc.setTextColor(...COLORS.text);
-        this.doc.text(service.name, PAGE.marginLeft + 5, this.y + 5);
+        this.doc.text(service.name, PAGE.marginLeft + 3, this.y + 6);
         
         // Description
-        if (service.description) {
-          this.doc.setFont("helvetica", "normal");
-          this.doc.setFontSize(7);
-          this.doc.setTextColor(...COLORS.textMuted);
-          const desc = service.description.length > 60 ? service.description.substring(0, 57) + "..." : service.description;
-          this.doc.text(desc, PAGE.marginLeft + 5, this.y + 10);
-        }
+        this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(7);
+        this.doc.setTextColor(...COLORS.textMuted);
+        const desc = service.description || "";
+        const truncDesc = desc.length > 45 ? desc.substring(0, 42) + "..." : desc;
+        this.doc.text(truncDesc, PAGE.marginLeft + 70, this.y + 6);
         
         // Quantity
-        if (service.quantity && service.quantity > 1) {
-          this.doc.setFontSize(7);
-          this.doc.setTextColor(...COLORS.textMuted);
-          this.doc.text(`x${service.quantity}`, PAGE.marginLeft + 130, this.y + 5);
-        }
+        this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(8);
+        this.doc.setTextColor(...COLORS.text);
+        this.doc.text(String(service.quantity || 1), PAGE.marginLeft + 143, this.y + 6);
         
         // Price
         this.doc.setFont("helvetica", "bold");
         this.doc.setFontSize(9);
-        this.doc.setTextColor(...COLORS.text);
         const price = service.monthlyPrice * (service.quantity || 1);
-        this.doc.text(formatCurrency(price), PAGE.width - PAGE.marginRight - 5, this.y + 5, { align: "right" });
+        this.doc.text(formatCurrency(price), PAGE.width - PAGE.marginRight - 3, this.y + 6, { align: "right" });
         
+        // Period
         this.doc.setFont("helvetica", "normal");
         this.doc.setFontSize(6);
         this.doc.setTextColor(...COLORS.textMuted);
-        this.doc.text(service.period || "/mois", PAGE.width - PAGE.marginRight - 5, this.y + 10, { align: "right" });
+        this.doc.text(service.period || "/mois", PAGE.width - PAGE.marginRight - 3, this.y + 11, { align: "right" });
         
-        // Border
+        // Usage details
+        if (hasUsage) {
+          let usageY = this.y + 11;
+          this.doc.setFont("helvetica", "normal");
+          this.doc.setFontSize(6);
+          this.doc.setTextColor(...COLORS.textLight);
+          
+          service.usageDetails!.forEach(usage => {
+            this.doc.text(`${usage.label}: ${usage.value}`, PAGE.marginLeft + 8, usageY);
+            usageY += 4;
+          });
+        }
+        
+        // Row border
         this.doc.setDrawColor(...COLORS.border);
         this.doc.line(PAGE.marginLeft, this.y + rowH, PAGE.width - PAGE.marginRight, this.y + rowH);
         
@@ -685,7 +718,7 @@ class InvoicePDFBuilder {
     
     // === ONE-TIME FEES ===
     if (data.oneTimeFees && data.oneTimeFees.length > 0) {
-      this.checkPageBreak(25);
+      this.checkPageBreak(30);
       
       this.doc.setFillColor(...COLORS.warning);
       this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 8, "F");
@@ -693,7 +726,7 @@ class InvoicePDFBuilder {
       this.doc.setFont("helvetica", "bold");
       this.doc.setFontSize(9);
       this.doc.setTextColor(...COLORS.white);
-      this.doc.text("FRAIS UNIQUES", PAGE.marginLeft + 5, this.y + 5.5);
+      this.doc.text("💰 FRAIS UNIQUES", PAGE.marginLeft + 5, this.y + 5.5);
       
       const onetimeTotal = data.oneTimeFees.reduce((sum, f) => sum + f.amount, 0);
       this.doc.text(formatCurrency(onetimeTotal), PAGE.width - PAGE.marginRight - 5, this.y + 5.5, { align: "right" });
@@ -701,28 +734,29 @@ class InvoicePDFBuilder {
       this.y += 10;
       
       data.oneTimeFees.forEach((fee, idx) => {
-        const rowH = 8;
+        const rowH = 10;
         
         if (idx % 2 === 0) {
           this.doc.setFillColor(...COLORS.bgLight);
           this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, rowH, "F");
         }
         
-        this.doc.setFont("helvetica", "normal");
-        this.doc.setFontSize(8);
-        this.doc.setTextColor(...COLORS.text);
-        this.doc.text(fee.label, PAGE.marginLeft + 5, this.y + 5);
-        
-        if (fee.description) {
-          this.doc.setFontSize(6);
-          this.doc.setTextColor(...COLORS.textMuted);
-          this.doc.text(fee.description, PAGE.marginLeft + 80, this.y + 5);
-        }
-        
         this.doc.setFont("helvetica", "bold");
         this.doc.setFontSize(8);
         this.doc.setTextColor(...COLORS.text);
-        this.doc.text(formatCurrency(fee.amount), PAGE.width - PAGE.marginRight - 5, this.y + 5, { align: "right" });
+        this.doc.text(fee.label, PAGE.marginLeft + 5, this.y + 6);
+        
+        if (fee.description) {
+          this.doc.setFont("helvetica", "normal");
+          this.doc.setFontSize(7);
+          this.doc.setTextColor(...COLORS.textMuted);
+          this.doc.text(fee.description, PAGE.marginLeft + 80, this.y + 6);
+        }
+        
+        this.doc.setFont("helvetica", "bold");
+        this.doc.setFontSize(9);
+        this.doc.setTextColor(...COLORS.text);
+        this.doc.text(formatCurrency(fee.amount), PAGE.width - PAGE.marginRight - 5, this.y + 6, { align: "right" });
         
         this.doc.setDrawColor(...COLORS.border);
         this.doc.line(PAGE.marginLeft, this.y + rowH, PAGE.width - PAGE.marginRight, this.y + rowH);
@@ -735,7 +769,7 @@ class InvoicePDFBuilder {
     
     // === DISCOUNTS ===
     if (data.discounts && data.discounts.length > 0) {
-      this.checkPageBreak(25);
+      this.checkPageBreak(30);
       
       this.doc.setFillColor(...COLORS.success);
       this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 8, "F");
@@ -743,7 +777,7 @@ class InvoicePDFBuilder {
       this.doc.setFont("helvetica", "bold");
       this.doc.setFontSize(9);
       this.doc.setTextColor(...COLORS.white);
-      this.doc.text("RABAIS ET CRÉDITS", PAGE.marginLeft + 5, this.y + 5.5);
+      this.doc.text("🎉 RABAIS ET CRÉDITS", PAGE.marginLeft + 5, this.y + 5.5);
       
       const discTotal = data.discounts.reduce((sum, d) => sum + d.amount, 0);
       this.doc.text(`-${formatCurrency(discTotal)}`, PAGE.width - PAGE.marginRight - 5, this.y + 5.5, { align: "right" });
@@ -751,20 +785,20 @@ class InvoicePDFBuilder {
       this.y += 10;
       
       data.discounts.forEach((disc, idx) => {
-        const rowH = 8;
+        const rowH = 10;
         
         if (idx % 2 === 0) {
-          this.doc.setFillColor(...COLORS.bgLight);
+          this.doc.setFillColor(...COLORS.successLight);
           this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, rowH, "F");
         }
         
         this.doc.setFont("helvetica", "normal");
         this.doc.setFontSize(8);
         this.doc.setTextColor(...COLORS.success);
-        this.doc.text(disc.label, PAGE.marginLeft + 5, this.y + 5);
+        this.doc.text(disc.label, PAGE.marginLeft + 5, this.y + 6);
         
         this.doc.setFont("helvetica", "bold");
-        this.doc.text(`-${formatCurrency(disc.amount)}`, PAGE.width - PAGE.marginRight - 5, this.y + 5, { align: "right" });
+        this.doc.text(`-${formatCurrency(disc.amount)}`, PAGE.width - PAGE.marginRight - 5, this.y + 6, { align: "right" });
         
         this.doc.setDrawColor(...COLORS.border);
         this.doc.line(PAGE.marginLeft, this.y + rowH, PAGE.width - PAGE.marginRight, this.y + rowH);
@@ -775,70 +809,113 @@ class InvoicePDFBuilder {
       this.y += 8;
     }
     
-    // === TAXES & GRAND TOTAL ===
-    this.checkPageBreak(35);
+    // === GRAND TOTAL BOX ===
+    this.checkPageBreak(50);
     
-    this.y += 5;
+    const totalBoxW = 100;
+    const totalBoxX = PAGE.width - PAGE.marginRight - totalBoxW;
     
-    const totalsX = PAGE.width - PAGE.marginRight - 80;
+    this.doc.setFillColor(...COLORS.primary);
+    this.doc.roundedRect(totalBoxX, this.y, totalBoxW, 50, 3, 3, "F");
     
-    this.doc.setFillColor(...COLORS.bgLight);
-    this.doc.setDrawColor(...COLORS.border);
-    this.doc.roundedRect(totalsX, this.y, 80, 35, 2, 2, "FD");
-    
-    let tY = this.y + 7;
+    let totY = this.y + 10;
     
     // Subtotal
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("Sous-total", totalsX + 5, tY);
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(formatCurrency(data.subtotal), totalsX + 75, tY, { align: "right" });
-    tY += 6;
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text("Sous-total services", totalBoxX + 5, totY);
+    this.doc.text(formatCurrency(data.subtotal), totalBoxX + totalBoxW - 5, totY, { align: "right" });
+    totY += 7;
     
     // TPS
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("TPS (5%)", totalsX + 5, tY);
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(formatCurrency(data.tps), totalsX + 75, tY, { align: "right" });
-    tY += 6;
+    this.doc.text("TPS (5%)", totalBoxX + 5, totY);
+    this.doc.text(formatCurrency(data.tps), totalBoxX + totalBoxW - 5, totY, { align: "right" });
+    totY += 7;
     
     // TVQ
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text("TVQ (9.975%)", totalsX + 5, tY);
-    this.doc.setTextColor(...COLORS.text);
-    this.doc.text(formatCurrency(data.tvq), totalsX + 75, tY, { align: "right" });
-    tY += 4;
+    this.doc.text("TVQ (9.975%)", totalBoxX + 5, totY);
+    this.doc.text(formatCurrency(data.tvq), totalBoxX + totalBoxW - 5, totY, { align: "right" });
+    totY += 5;
     
     // Separator
     this.doc.setDrawColor(...COLORS.accent);
-    this.doc.line(totalsX + 5, tY, totalsX + 75, tY);
-    tY += 5;
+    this.doc.line(totalBoxX + 5, totY, totalBoxX + totalBoxW - 5, totY);
+    totY += 8;
     
     // Grand total
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(10);
-    this.doc.setTextColor(...COLORS.primary);
-    this.doc.text("TOTAL", totalsX + 5, tY);
-    this.doc.setFontSize(12);
-    this.doc.text(formatCurrency(data.total), totalsX + 75, tY, { align: "right" });
+    this.doc.setTextColor(...COLORS.accent);
+    this.doc.text("TOTAL À PAYER", totalBoxX + 5, totY);
+    this.doc.setFontSize(16);
+    this.doc.text(formatCurrency(data.total), totalBoxX + totalBoxW - 5, totY, { align: "right" });
     
-    this.y += 45;
+    this.y += 60;
+    
+    // === PREVIOUS PAYMENTS ===
+    if (data.previousPayments && data.previousPayments.length > 0) {
+      this.checkPageBreak(30);
+      
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(10);
+      this.doc.setTextColor(...COLORS.primary);
+      this.doc.text("HISTORIQUE DES PAIEMENTS RÉCENTS", PAGE.marginLeft, this.y);
+      
+      this.y += 6;
+      
+      // Table header
+      this.doc.setFillColor(...COLORS.bgLight);
+      this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 6, "F");
+      
+      this.doc.setFont("helvetica", "bold");
+      this.doc.setFontSize(6);
+      this.doc.setTextColor(...COLORS.textMuted);
+      this.doc.text("DATE", PAGE.marginLeft + 5, this.y + 4);
+      this.doc.text("MÉTHODE", PAGE.marginLeft + 40, this.y + 4);
+      this.doc.text("RÉFÉRENCE", PAGE.marginLeft + 90, this.y + 4);
+      this.doc.text("MONTANT", PAGE.width - PAGE.marginRight - 5, this.y + 4, { align: "right" });
+      
+      this.y += 6;
+      
+      data.previousPayments.slice(0, 5).forEach((payment, idx) => {
+        const rowH = 8;
+        
+        if (idx % 2 === 0) {
+          this.doc.setFillColor(...COLORS.bgLight);
+          this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, rowH, "F");
+        }
+        
+        this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(8);
+        this.doc.setTextColor(...COLORS.text);
+        this.doc.text(formatDate(payment.date), PAGE.marginLeft + 5, this.y + 5.5);
+        this.doc.text(payment.method, PAGE.marginLeft + 40, this.y + 5.5);
+        this.doc.text(payment.reference || "—", PAGE.marginLeft + 90, this.y + 5.5);
+        
+        this.doc.setFont("helvetica", "bold");
+        this.doc.setTextColor(...COLORS.success);
+        this.doc.text(formatCurrency(payment.amount), PAGE.width - PAGE.marginRight - 5, this.y + 5.5, { align: "right" });
+        
+        this.y += rowH;
+      });
+    }
     
     // === NOTES ===
     if (data.notes) {
       this.checkPageBreak(25);
       
+      this.y += 10;
+      
       this.doc.setFont("helvetica", "bold");
       this.doc.setFontSize(9);
       this.doc.setTextColor(...COLORS.primary);
-      this.doc.text("NOTES", PAGE.marginLeft, this.y);
+      this.doc.text("📝 NOTES", PAGE.marginLeft, this.y);
       
       this.y += 5;
       
       this.doc.setFillColor(...COLORS.bgLight);
-      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 20, 2, 2, "F");
+      this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 18, 2, 2, "F");
       
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
@@ -846,6 +923,167 @@ class InvoicePDFBuilder {
       const noteLines = this.doc.splitTextToSize(data.notes, PAGE.contentWidth - 10);
       this.doc.text(noteLines, PAGE.marginLeft + 5, this.y + 6);
     }
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // FINAL PAGE: PAYMENT SLIP
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  private buildPaymentSlip(): void {
+    this.addNewPage();
+    
+    const { data } = this;
+    
+    // Title
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(14);
+    this.doc.setTextColor(...COLORS.primary);
+    this.doc.text("TALON DE PAIEMENT", PAGE.marginLeft, this.y);
+    
+    this.y += 6;
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Conservez ce talon comme preuve de paiement. Détachez-le de la facture si désiré.", PAGE.marginLeft, this.y);
+    
+    this.y += 8;
+    
+    // Dashed line (tear-off)
+    this.doc.setDrawColor(...COLORS.textMuted);
+    this.doc.setLineDashPattern([3, 3], 0);
+    this.doc.line(PAGE.marginLeft, this.y, PAGE.width - PAGE.marginRight, this.y);
+    this.doc.setLineDashPattern([], 0);
+    
+    this.y += 10;
+    
+    // Payment slip content
+    this.doc.setFillColor(...COLORS.white);
+    this.doc.setDrawColor(...COLORS.primary);
+    this.doc.setLineWidth(1);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 80, 3, 3, "FD");
+    this.doc.setLineWidth(0.2);
+    
+    // Header
+    this.doc.setFillColor(...COLORS.primary);
+    this.doc.rect(PAGE.marginLeft, this.y, PAGE.contentWidth, 12, "F");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(11);
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text("NIVRA TELECOM — TALON DE PAIEMENT", PAGE.marginLeft + 5, this.y + 8);
+    
+    let slipY = this.y + 20;
+    
+    // Left column
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Numéro de compte", PAGE.marginLeft + 5, slipY);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(12);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(data.accountNumber, PAGE.marginLeft + 5, slipY + 7);
+    
+    slipY += 16;
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Numéro de facture", PAGE.marginLeft + 5, slipY);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(data.invoiceNumber, PAGE.marginLeft + 5, slipY + 6);
+    
+    slipY += 14;
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Nom du client", PAGE.marginLeft + 5, slipY);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(data.clientName, PAGE.marginLeft + 5, slipY + 6);
+    
+    // Right column - Total
+    const rightX = PAGE.marginLeft + PAGE.contentWidth / 2;
+    slipY = this.y + 20;
+    
+    this.doc.setFillColor(...COLORS.bgLight);
+    this.doc.roundedRect(rightX, slipY - 5, PAGE.contentWidth / 2 - 10, 45, 2, 2, "F");
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Date d'exigibilité", rightX + 5, slipY);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(...COLORS.text);
+    this.doc.text(formatDateLong(data.dueDate), rightX + 5, slipY + 6);
+    
+    slipY += 15;
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.textMuted);
+    this.doc.text("Montant à payer", rightX + 5, slipY);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(18);
+    this.doc.setTextColor(...COLORS.primary);
+    this.doc.text(formatCurrency(data.balanceDue || data.total), rightX + 5, slipY + 10);
+    
+    // Payment method
+    slipY = this.y + 62;
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(...COLORS.accent);
+    this.doc.text("Paiement par Interac e-Transfer à:", PAGE.marginLeft + 5, slipY);
+    this.doc.setFontSize(10);
+    this.doc.text(COMPANY_CONTACT.supportEmailDisplay, PAGE.marginLeft + 5, slipY + 7);
+    
+    this.y += 95;
+    
+    // Terms reminder
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(...COLORS.primary);
+    this.doc.text("RAPPEL DES CONDITIONS", PAGE.marginLeft, this.y);
+    
+    this.y += 6;
+    
+    const terms = [
+      "• Tous les services sont prépayés. Le renouvellement nécessite le paiement avant la date d'échéance.",
+      "• Le cycle de facturation de 30 jours débute uniquement après confirmation du paiement.",
+      "• En cas de retard, le service sera suspendu. Des frais de réactivation peuvent s'appliquer.",
+      "• Vous pouvez contester une facture dans les 30 jours en contactant support@nivra-telecom.ca",
+      "• Pour toute question, visitez le portail client ou contactez-nous à support@nivra-telecom.ca",
+    ];
+    
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...COLORS.text);
+    
+    terms.forEach(term => {
+      const lines = this.doc.splitTextToSize(term, PAGE.contentWidth - 5);
+      lines.forEach((line: string) => {
+        this.doc.text(line, PAGE.marginLeft + 3, this.y);
+        this.y += 4;
+      });
+    });
+    
+    // Thank you message
+    this.y += 10;
+    
+    this.doc.setFillColor(...COLORS.accent);
+    this.doc.roundedRect(PAGE.marginLeft, this.y, PAGE.contentWidth, 15, 2, 2, "F");
+    
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(11);
+    this.doc.setTextColor(...COLORS.white);
+    this.doc.text("Merci d'être client Nivra Telecom!", PAGE.width / 2, this.y + 10, { align: "center" });
   }
   
   // ─────────────────────────────────────────────────────────────────────────
@@ -858,6 +1096,9 @@ class InvoicePDFBuilder {
     
     // Page 2+: Detailed breakdown
     this.buildDetailedBreakdown();
+    
+    // Final page: Payment slip
+    this.buildPaymentSlip();
     
     // Add footers
     this.addFooters();
