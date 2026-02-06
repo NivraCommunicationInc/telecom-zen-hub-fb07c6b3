@@ -32,7 +32,7 @@ export const PDF_COLORS = {
 export const PAGE_CONFIG = {
   margin: 15,
   topMargin: 15,
-  bottomMargin: 40,
+  bottomMargin: 55,  // Increased to prevent content overlapping footer
   headerHeight: 45,
   footerHeight: 35,
 };
@@ -274,12 +274,19 @@ export const renderTotalsSection = (
 ): void => {
   const { doc, margin, contentWidth } = ctx;
   
-  checkPageBreak(ctx, totals.length * 7 + 5);
+  // Calculate total height needed for all rows + extra safety margin for footer
+  const totalHeight = totals.reduce((sum, row) => sum + (row.isHighlight ? 10 : 7), 0) + 20;
+  
+  // Force page break if totals section would overlap with footer
+  checkPageBreak(ctx, totalHeight);
   
   const totalsWidth = 120;
   const startX = margin + contentWidth - totalsWidth;
   
   for (const row of totals) {
+    // Check each row individually to prevent overflow
+    checkPageBreak(ctx, row.isHighlight ? 12 : 9);
+    
     if (row.isHighlight) {
       doc.setFillColor(...PDF_COLORS.navy);
       doc.rect(startX, ctx.currentY - 1, totalsWidth, 8, "F");
