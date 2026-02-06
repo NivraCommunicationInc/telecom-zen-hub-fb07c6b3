@@ -41,18 +41,29 @@ interface OrderClientInfoBlockProps {
 const REQUIRED_FIELDS = ["full_name", "email", "phone", "service_address", "billing_address"] as const;
 
 /**
- * Resolves client data with priority: snapshot → profile → fallback
- * v2.1: Now checks for full_service_address in snapshot for complete addresses
+ * Resolves client data with priority: snapshot → order direct fields → profile → fallback
+ * v2.2: Now also reads from order direct fields (client_email, client_full_address, etc.)
  */
 const resolveClientData = (
   snapshot: Record<string, any> | null,
-  profile: Record<string, any> | null
+  profile: Record<string, any> | null,
+  orderDirect?: Record<string, any> | null
 ): ClientInfo => {
   const resolve = (fields: string[], fallback = ""): string => {
+    // Priority 1: Snapshot
     for (const field of fields) {
       if (snapshot?.[field] && String(snapshot[field]).trim()) {
         return String(snapshot[field]).trim();
       }
+    }
+    // Priority 2: Order direct fields
+    for (const field of fields) {
+      if (orderDirect?.[field] && String(orderDirect[field]).trim()) {
+        return String(orderDirect[field]).trim();
+      }
+    }
+    // Priority 3: Profile
+    for (const field of fields) {
       if (profile?.[field] && String(profile[field]).trim()) {
         return String(profile[field]).trim();
       }
@@ -75,18 +86,45 @@ const resolveClientData = (
     }
     return '';
   };
+  
+  // Build address from order direct fields
+  const buildAddressFromOrderDirect = (): string => {
+    if (orderDirect?.client_full_address) {
+      return String(orderDirect.client_full_address).trim();
+    }
+    const components = [
+      orderDirect?.shipping_address,
+      orderDirect?.shipping_city,
+      orderDirect?.shipping_province,
+      orderDirect?.shipping_postal_code,
+    ].filter(Boolean);
+    
+    if (components.length >= 2) {
+      return components.join(', ').trim();
+    }
+    return '';
+  };
 
-  // Priority: full_service_address → built from components → individual field → profile
+  // Build full name from order direct fields
+  const buildNameFromOrderDirect = (): string => {
+    if (orderDirect?.client_first_name || orderDirect?.client_last_name) {
+      return `${orderDirect.client_first_name || ''} ${orderDirect.client_last_name || ''}`.trim();
+    }
+    return '';
+  };
+
+  // Priority: full_service_address → built from components → order direct → profile
   const serviceAddress = 
     resolve(["full_service_address", "fullServiceAddress"]) ||
     buildAddressFromComponents() ||
+    buildAddressFromOrderDirect() ||
     resolve(["serviceAddress", "service_address", "address"]);
   
   return {
-    full_name: resolve(["legalName", "full_name", "fullName"]),
-    email: resolve(["email"]),
-    phone: resolve(["phone", "telephone"]),
-    date_of_birth: resolve(["dateOfBirth", "date_of_birth", "birthDate"]),
+    full_name: resolve(["legalName", "full_name", "fullName"]) || buildNameFromOrderDirect(),
+    email: resolve(["email", "client_email"]),
+    phone: resolve(["phone", "telephone", "client_phone"]),
+    date_of_birth: resolve(["dateOfBirth", "date_of_birth", "birthDate", "client_dob"]),
     service_address: serviceAddress,
     billing_address: resolve(["billingAddress", "billing_address"]) || serviceAddress,
   };
@@ -153,6 +191,21 @@ export const OrderClientInfoBlock = ({
     },
   });
 
+  // Fetch order direct fields (v2.2 - fallback when snapshot missing)
+  const { data: orderDirect, refetch: refetchOrderDirect } = useQuery({
+    queryKey: ["order-direct-fields", orderId],
+    enabled: !!orderId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("client_first_name, client_last_name, client_dob, client_phone, client_email, client_full_address, shipping_address, shipping_city, shipping_province, shipping_postal_code")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch live profile as fallback
   const { data: liveProfile, refetch: refetchProfile } = useQuery({
     queryKey: ["client-profile-for-order", userId],
@@ -168,10 +221,10 @@ export const OrderClientInfoBlock = ({
     },
   });
 
-  // Resolve client info with priority
+  // Resolve client info with priority: snapshot → order direct → profile
   const clientSnapshot = (orderSnapshot?.client_snapshot || {}) as Record<string, any>;
   const profile = liveProfile || orderProfile || {};
-  const clientInfo = resolveClientData(clientSnapshot, profile as Record<string, any>);
+  const clientInfo = resolveClientData(clientSnapshot, profile as Record<string, any>, orderDirect as Record<string, any> | null);
   const validation = validateClientInfo(clientInfo);
 
   // Initialize edit form when opening dialog
@@ -252,8 +305,10 @@ export const OrderClientInfoBlock = ({
       setEditDialogOpen(false);
       refetchSnapshot();
       refetchProfile();
+      refetchOrderDirect();
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-details", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-direct-fields", orderId] });
       onInfoUpdated?.();
     },
     onError: (error: any) => {

@@ -5131,6 +5131,7 @@ export type Database = {
           client_dob: string | null
           client_email: string | null
           client_first_name: string | null
+          client_full_address: string | null
           client_last_name: string | null
           client_phone: string | null
           client_request_id: string
@@ -5220,6 +5221,7 @@ export type Database = {
           client_dob?: string | null
           client_email?: string | null
           client_first_name?: string | null
+          client_full_address?: string | null
           client_last_name?: string | null
           client_phone?: string | null
           client_request_id?: string
@@ -5309,6 +5311,7 @@ export type Database = {
           client_dob?: string | null
           client_email?: string | null
           client_first_name?: string | null
+          client_full_address?: string | null
           client_last_name?: string | null
           client_phone?: string | null
           client_request_id?: string
@@ -9819,6 +9822,19 @@ export type Database = {
           p_type: string
           p_user_id: string
           p_user_role: string
+        }
+        Returns: string
+      }
+      create_order_snapshot: {
+        Args: {
+          p_billing_snapshot?: Json
+          p_client_snapshot: Json
+          p_equipment_snapshot?: Json
+          p_fees_snapshot?: Json
+          p_order_id: string
+          p_payment_method_snapshot?: Json
+          p_selected_channels_snapshot?: Json
+          p_services_snapshot?: Json
         }
         Returns: string
       }

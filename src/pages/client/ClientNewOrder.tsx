@@ -1979,15 +1979,24 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           accepted_method: 'web_checkout',
         };
 
-        const { error: snapshotError } = await supabase
-          .from("order_snapshots")
-          .insert(snapshotData);
+        // USE GUARANTEED RPC FUNCTION (bypasses RLS issues)
+        const { data: snapshotId, error: snapshotError } = await supabase
+          .rpc("create_order_snapshot", {
+            p_order_id: data.id,
+            p_client_snapshot: snapshotData.client_snapshot,
+            p_services_snapshot: snapshotData.services_snapshot,
+            p_equipment_snapshot: snapshotData.equipment_snapshot,
+            p_fees_snapshot: snapshotData.fees_snapshot,
+            p_billing_snapshot: snapshotData.billing_snapshot,
+            p_selected_channels_snapshot: snapshotData.selected_channels_snapshot,
+            p_payment_method_snapshot: snapshotData.payment_method_snapshot,
+          });
 
         if (snapshotError) {
-          console.error("[OrderSnapshot] Failed to create snapshot:", snapshotError);
+          console.error("[OrderSnapshot] RPC failed to create snapshot:", snapshotError);
           postStepErrors.push("snapshot");
         } else {
-          console.log("[OrderSnapshot] Snapshot created for order:", data.order_number);
+          console.log("[OrderSnapshot] Snapshot created via RPC for order:", data.order_number, "snapshot_id:", snapshotId);
         }
       } catch (snapshotErr) {
         console.error("[OrderSnapshot] Error creating snapshot (non-blocking):", snapshotErr);
