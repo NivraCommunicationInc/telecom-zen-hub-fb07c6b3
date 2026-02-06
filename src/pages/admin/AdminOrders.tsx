@@ -1610,12 +1610,12 @@ const AdminOrders = () => {
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <p className="text-sm text-foreground">{order.profiles?.full_name || "N/A"}</p>
-                          <p className="text-xs text-muted-foreground">{order.profiles?.email}</p>
+                          <p className="text-sm text-foreground">{order.profiles?.full_name || `${order.client_first_name || ""} ${order.client_last_name || ""}`.trim() || "N/A"}</p>
+                          <p className="text-xs text-muted-foreground">{order.profiles?.email || order.client_email}</p>
                         </td>
                         <td className="py-3 px-4 text-sm text-foreground">{order.service_type}</td>
                         <td className="py-3 px-4 text-sm text-foreground font-medium">
-                          {order.total_amount ? `${Number(order.total_amount).toFixed(2)} $` : "—"}
+                          {(order.equipment_details?.billing_totals?.total ? Number(order.equipment_details.billing_totals.total).toFixed(2) : order.total_amount ? Number(order.total_amount).toFixed(2) : "0.00")} $
                         </td>
                         <td className="py-3 px-4">
                           <Badge className={orderStatusConfig[order.status]?.color || "bg-muted"}>
@@ -2064,7 +2064,11 @@ const AdminOrders = () => {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-2xl font-bold">{Number(selectedOrder.total_amount || 0).toFixed(2)} $</p>
+                          <p className="text-2xl font-bold">
+                            {selectedOrder.equipment_details?.billing_totals?.total 
+                              ? Number(selectedOrder.equipment_details.billing_totals.total).toFixed(2) 
+                              : Number(selectedOrder.total_amount || 0).toFixed(2)} $
+                          </p>
                         </CardContent>
                       </Card>
                     </div>
