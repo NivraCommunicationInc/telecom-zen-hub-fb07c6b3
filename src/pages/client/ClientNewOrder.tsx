@@ -2090,8 +2090,24 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const oneTimeFees = oneTimeFeesGross;
   
   // Apply promo discount to base amount
-  const promoDiscount = appliedPromo?.discount_amount || 0;
-  const baseAmount = Math.max(0, monthlyRecurring + oneTimeFees - promoDiscount);
+  // IMPORTANT: Promo discount is calculated at validation time on eligible items.
+  // For percent-based promos, we need to recalculate based on current cart to avoid
+  // stale discount_amount values when cart changes after promo application.
+  const rawPromoDiscount = appliedPromo?.discount_amount || 0;
+  const grossTotal = monthlyRecurring + oneTimeFees;
+  
+  // Recalculate percent-based discounts to ensure accuracy with current cart
+  let promoDiscount = rawPromoDiscount;
+  if (appliedPromo?.discount_type === 'percent' && appliedPromo.discount_value > 0) {
+    // Calculate discount as percentage of current cart total
+    // This ensures 97% discount = 97% of current total, not stale amount
+    promoDiscount = Math.round(grossTotal * (appliedPromo.discount_value / 100) * 100) / 100;
+  }
+  
+  // Cap discount to never exceed the cart total (prevents negative amounts)
+  promoDiscount = Math.min(promoDiscount, grossTotal);
+  
+  const baseAmount = Math.max(0, grossTotal - promoDiscount);
   const tpsAmount = Math.round(baseAmount * 0.05 * 100) / 100;
   const tvqAmount = Math.round(baseAmount * 0.09975 * 100) / 100;
   const totalAmount = baseAmount + tpsAmount + tvqAmount;
@@ -4512,13 +4528,32 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-muted-foreground">Sous-total frais uniques</span>
                       <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
+                    
+                    {/* Show promo discount in first bill preview */}
+                    {appliedPromo && promoDiscount > 0 && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Mensuel (1er mois)</span>
+                          <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                        <div className="flex justify-between text-emerald-500 font-medium">
+                          <span>Rabais promo ({appliedPromo.code})</span>
+                          <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                        <div className="flex justify-between font-medium">
+                          <span className="text-muted-foreground">Sous-total après rabais</span>
+                          <span>{baseAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                      </>
+                    )}
+                    
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{(Math.round(oneTimeFees * 0.14975 * 100) / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{(tpsAmount + tvqAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-cyan-500/50">
                       <span className="font-bold text-cyan-500 text-base">Total à payer aujourd'hui</span>
-                      <span className="font-bold text-cyan-500 text-lg">{oneTimeFeesWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="font-bold text-cyan-500 text-lg">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </CardContent>
                 </Card>
