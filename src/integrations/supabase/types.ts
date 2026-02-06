@@ -9877,6 +9877,10 @@ export type Database = {
       generate_replacement_ticket_number: { Args: never; Returns: string }
       generate_request_number: { Args: never; Returns: string }
       generate_secure_account_number: { Args: never; Returns: string }
+      generate_secure_numeric_id: {
+        Args: { p_length: number }
+        Returns: string
+      }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
