@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 function parseJsonSafe(raw: string): any | null {
@@ -31,7 +32,7 @@ interface CustomerInfo {
 
 interface CreatePayPalOrderRequest {
   invoice_id?: string;
-  amount: number;
+  amount: number | string;
   currency?: string;
   description?: string;
   // For subscription payments
@@ -45,7 +46,7 @@ interface CreatePayPalOrderRequest {
 async function getPayPalAccessToken(): Promise<string> {
   const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
   const clientSecret = Deno.env.get("PAYPAL_SECRET");
-  
+
   if (!clientId || !clientSecret) {
     throw new Error("PayPal credentials not configured");
   }
@@ -81,10 +82,30 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: CreatePayPalOrderRequest = await req.json();
-    console.log("[PayPal] Creating order:", body);
+    console.log("[PayPal] Creating order:", {
+      invoice_id: body.invoice_id,
+      order_id: body.order_id,
+      currency: body.currency,
+      description: body.description,
+      subscription_id: body.subscription_id,
+      amount: body.amount,
+      amount_type: typeof body.amount,
+    });
 
-    if (!body.amount || body.amount <= 0) {
-      throw new Error("Invalid amount");
+    const rawAmount = (body as any).amount;
+    const parsedAmount =
+      typeof rawAmount === "number"
+        ? rawAmount
+        : typeof rawAmount === "string"
+          ? Number(rawAmount.replace(",", "."))
+          : NaN;
+
+    // PayPal expects a 2-decimal currency value; normalize first, then validate.
+    const amount = Number.isFinite(parsedAmount) ? Number(parsedAmount.toFixed(2)) : NaN;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      console.warn("[PayPal] Invalid amount received:", { rawAmount, parsedAmount, amount });
+      throw new Error("Montant invalide. Vérifiez le total à payer.");
     }
 
     const accessToken = await getPayPalAccessToken();
@@ -95,7 +116,7 @@ serve(async (req) => {
     if (body.customer) {
       const c = body.customer;
       payer = {};
-      
+
       // Name
       if (c.first_name || c.last_name) {
         payer.name = {
@@ -103,12 +124,12 @@ serve(async (req) => {
           surname: c.last_name || "",
         };
       }
-      
+
       // Email
       if (c.email) {
         payer.email_address = c.email;
       }
-      
+
       // Phone
       if (c.phone) {
         // PayPal expects phone in specific format
@@ -122,7 +143,7 @@ serve(async (req) => {
           };
         }
       }
-      
+
       // Address
       if (c.address) {
         payer.address = {
@@ -134,7 +155,7 @@ serve(async (req) => {
           country_code: c.address.country_code || "CA",
         };
       }
-      
+
       console.log("[PayPal] Payer info:", JSON.stringify(payer));
     }
 
@@ -144,7 +165,7 @@ serve(async (req) => {
       purchase_units: [{
         amount: {
           currency_code: currency,
-          value: body.amount.toFixed(2),
+          value: amount.toFixed(2),
         },
         description: body.description || "Nivra Telecom - Paiement",
         custom_id: body.invoice_id || body.order_id || `order_${Date.now()}`,
@@ -174,7 +195,7 @@ serve(async (req) => {
         cancel_url: `${Deno.env.get("APP_BASE_URL")?.split(",")[0] || "https://nivra-telecom.ca"}/portal/payment-cancelled`,
       },
     };
-    
+
     // Add payer info if available
     if (payer && Object.keys(payer).length > 0) {
       orderPayload.payer = payer;
@@ -229,7 +250,7 @@ serve(async (req) => {
       action: "created",
       details: {
         paypal_order_id: orderData.id,
-        amount: body.amount,
+        amount,
         currency,
         invoice_id: body.invoice_id,
         order_id: body.order_id,

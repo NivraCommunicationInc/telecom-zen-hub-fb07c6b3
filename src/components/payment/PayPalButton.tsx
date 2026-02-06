@@ -97,9 +97,15 @@ export const PayPalButton = ({
     customer?.address?.country_code,
   ]);
 
+  const normalizedAmount = useMemo(() => {
+    if (!Number.isFinite(amount)) return NaN;
+    // Keep PayPal values stable and strictly 2-decimal compatible.
+    return Math.round(amount * 100) / 100;
+  }, [amount]);
+
   const renderKey = useMemo(() => {
-    return [amount, invoiceId ?? "", orderId ?? "", description ?? "", customerSignature].join("::");
-  }, [amount, invoiceId, orderId, description, customerSignature]);
+    return [normalizedAmount, invoiceId ?? "", orderId ?? "", description ?? "", customerSignature].join("::");
+  }, [normalizedAmount, invoiceId, orderId, description, customerSignature]);
 
   const lastRenderedKeyRef = useRef<string | null>(null);
 
@@ -152,9 +158,16 @@ export const PayPalButton = ({
       createOrder: async () => {
         setIsLoading(true);
         try {
+          if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+            const msg = "Montant PayPal invalide. Vérifiez le total à payer.";
+            toast.error(msg);
+            callbacksRef.current.onError?.(msg);
+            throw new Error(msg);
+          }
+
           const { data, error } = await supabase.functions.invoke("paypal-create-order", {
             body: {
-              amount,
+              amount: normalizedAmount,
               invoice_id: invoiceId,
               order_id: orderId,
               description: description || "Paiement Nivra Telecom",
@@ -176,64 +189,5 @@ export const PayPalButton = ({
           setIsLoading(false);
         }
       },
-      onApprove: async (data: { orderID: string }) => {
-        setIsLoading(true);
-        try {
-          const { data: captureData, error } = await supabase.functions.invoke("paypal-capture-order", {
-            body: {
-              paypal_order_id: data.orderID,
-              invoice_id: invoiceId,
-              order_id: orderId, // Pass order_id to update orders table
-            },
-          });
-
-          if (error) throw error;
-          if (!captureData?.success) throw new Error(captureData?.error || "Capture failed");
-
-          toast.success("Paiement réussi!");
-          callbacksRef.current.onSuccess?.(captureData.capture_id);
-        } catch (err) {
-          console.error("PayPal capture error:", err);
-          const errorMessage = await getInvokeErrorMessage(err);
-          toast.error(errorMessage);
-          callbacksRef.current.onError?.(errorMessage);
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      onCancel: () => {
-        toast.info("Paiement annulé");
-        callbacksRef.current.onCancel?.();
-      },
-      onError: (err: unknown) => {
-        console.error("PayPal error:", err);
-        const errorMessage = err instanceof Error ? err.message : "Erreur PayPal";
-        toast.error(errorMessage);
-        callbacksRef.current.onError?.(errorMessage);
-      },
-    }).render(`#${containerId}`);
-  }, [sdkReady, disabled, containerId, renderKey, amount, invoiceId, orderId, description, customer]);
-
-  if (!sdkReady) {
-    return (
-      <Button disabled className={className}>
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        Chargement PayPal...
-      </Button>
-    );
-  }
-
-  return (
-    <div className={className}>
-      {isLoading && (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          <span className="ml-2 text-sm text-muted-foreground">Traitement en cours...</span>
-        </div>
-      )}
-      <div id={containerId} className={isLoading ? "hidden" : ""} />
-    </div>
-  );
-};
 
 export default PayPalButton;
