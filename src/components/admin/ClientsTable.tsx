@@ -17,6 +17,8 @@ interface Client {
   balance?: number;
   store_credit?: number;
   account_status?: string;
+  account_number?: string;
+  client_number?: string;
   created_at: string;
   [key: string]: any;
 }
@@ -73,6 +75,7 @@ export function ClientsTable({ clients, isLoading, searchQuery, onViewDetails }:
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Compte</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nom</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Courriel</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde</th>
@@ -87,6 +90,9 @@ export function ClientsTable({ clients, isLoading, searchQuery, onViewDetails }:
                   const statusConfig = getStatusConfig(client.account_status);
                   return (
                     <tr key={client.id} className="border-b border-border/50 hover:bg-accent/50">
+                      <td className="py-3 px-4 text-sm font-mono text-cyan-400 font-medium">
+                        {client.account_number || "—"}
+                      </td>
                       <td className="py-3 px-4 text-sm text-foreground font-medium">
                         {client.full_name || "—"}
                       </td>

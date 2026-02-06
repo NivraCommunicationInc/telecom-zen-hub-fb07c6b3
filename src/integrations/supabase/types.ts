@@ -5934,6 +5934,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_number: string | null
           account_status: string | null
           avatar_url: string | null
           balance: number | null
@@ -5990,6 +5991,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_number?: string | null
           account_status?: string | null
           avatar_url?: string | null
           balance?: number | null
@@ -6046,6 +6048,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_number?: string | null
           account_status?: string | null
           avatar_url?: string | null
           balance?: number | null
@@ -9873,6 +9876,7 @@ export type Database = {
       }
       generate_replacement_ticket_number: { Args: never; Returns: string }
       generate_request_number: { Args: never; Returns: string }
+      generate_secure_account_number: { Args: never; Returns: string }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
