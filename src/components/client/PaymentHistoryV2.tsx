@@ -37,10 +37,47 @@ interface LedgerEntry {
 
 const methodLabels: Record<string, string> = {
   interac: "Interac",
+  e_transfer: "Interac",
   paypal: "PayPal",
   cash: "Comptant",
   credit_card: "Carte",
+  card: "Carte",
   bank_transfer: "Virement",
+};
+
+// Status labels and colors based on payment method context
+const getPaymentStatusInfo = (status: string, method?: string): { label: string; color: string } => {
+  // PayPal: confirmed/captured = "Payé"
+  if (method === "paypal") {
+    if (status === "confirmed" || status === "completed" || status === "captured") {
+      return { label: "Payé", color: "text-emerald-500" };
+    }
+    if (status === "pending") return { label: "En cours", color: "text-amber-500" };
+    if (status === "failed") return { label: "Échoué", color: "text-red-500" };
+  }
+  
+  // Interac: pending = "En attente", confirmed = "Reçu"
+  if (method === "interac" || method === "e_transfer") {
+    if (status === "pending") return { label: "En attente", color: "text-amber-500" };
+    if (status === "confirmed" || status === "completed") return { label: "Reçu", color: "text-emerald-500" };
+  }
+  
+  // Credit card: captured/confirmed = "Autorisé" ou "Payé"
+  if (method === "credit_card" || method === "card") {
+    if (status === "pre_authorized") return { label: "Autorisé", color: "text-purple-500" };
+    if (status === "captured" || status === "confirmed" || status === "completed") {
+      return { label: "Payé", color: "text-emerald-500" };
+    }
+  }
+  
+  // Default fallback
+  if (status === "confirmed" || status === "completed" || status === "captured") {
+    return { label: "Confirmé", color: "text-emerald-500" };
+  }
+  if (status === "pending") return { label: "En attente", color: "text-amber-500" };
+  if (status === "failed") return { label: "Échoué", color: "text-red-500" };
+  
+  return { label: status, color: "text-muted-foreground" };
 };
 
 export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
@@ -133,51 +170,62 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
     );
   }
 
-  const EntryRow = ({ entry }: { entry: LedgerEntry }) => (
-    <div className={`p-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 ${
-      entry.type === 'credit' 
-        ? 'bg-emerald-500/5 border border-emerald-500/20' 
-        : 'bg-amber-500/5 border border-amber-500/20'
-    }`}>
-      {/* Left side: Icon + Description */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-          entry.type === 'credit' ? 'bg-emerald-500/20' : 'bg-amber-500/20'
-        }`}>
-          {entry.type === 'credit' ? (
-            <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
-          ) : (
-            <ArrowUpCircle className="w-5 h-5 text-amber-500" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate">{entry.description}</p>
-          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3 flex-shrink-0" />
-            <span className="whitespace-nowrap">{format(new Date(entry.date), "d MMM yyyy", { locale: fr })}</span>
-            {entry.method && (
-              <>
-                <span className="hidden sm:inline">•</span>
-                <span className="whitespace-nowrap">{methodLabels[entry.method] || entry.method}</span>
-              </>
+  const EntryRow = ({ entry }: { entry: LedgerEntry }) => {
+    const statusInfo = entry.type === 'credit' ? getPaymentStatusInfo(entry.status, entry.method) : null;
+    
+    return (
+      <div className={`p-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 ${
+        entry.type === 'credit' 
+          ? 'bg-emerald-500/5 border border-emerald-500/20' 
+          : 'bg-amber-500/5 border border-amber-500/20'
+      }`}>
+        {/* Left side: Icon + Description */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
+            entry.type === 'credit' ? 'bg-emerald-500/20' : 'bg-amber-500/20'
+          }`}>
+            {entry.type === 'credit' ? (
+              <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
+            ) : (
+              <ArrowUpCircle className="w-5 h-5 text-amber-500" />
             )}
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-sm truncate">{entry.description}</p>
+              {statusInfo && (
+                <span className={`text-xs font-medium ${statusInfo.color}`}>
+                  • {statusInfo.label}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="w-3 h-3 flex-shrink-0" />
+              <span className="whitespace-nowrap">{format(new Date(entry.date), "d MMM yyyy", { locale: fr })}</span>
+              {entry.method && (
+                <>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="whitespace-nowrap">{methodLabels[entry.method] || entry.method}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* Right side: Amount */}
+        <div className="text-right flex-shrink-0 pl-[52px] sm:pl-0">
+          <p className={`font-bold text-base sm:text-sm ${
+            entry.type === 'credit' ? 'text-emerald-500' : 'text-amber-500'
+          }`}>
+            {entry.type === 'credit' ? '+' : '-'}
+            {entry.amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+          </p>
+          {entry.reference && (
+            <p className="text-xs text-muted-foreground font-mono truncate max-w-[120px] sm:max-w-none">{entry.reference}</p>
+          )}
         </div>
       </div>
-      {/* Right side: Amount */}
-      <div className="text-right flex-shrink-0 pl-[52px] sm:pl-0">
-        <p className={`font-bold text-base sm:text-sm ${
-          entry.type === 'credit' ? 'text-emerald-500' : 'text-amber-500'
-        }`}>
-          {entry.type === 'credit' ? '+' : '-'}
-          {entry.amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-        </p>
-        {entry.reference && (
-          <p className="text-xs text-muted-foreground font-mono truncate max-w-[120px] sm:max-w-none">{entry.reference}</p>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Card className="bg-card border-border">
