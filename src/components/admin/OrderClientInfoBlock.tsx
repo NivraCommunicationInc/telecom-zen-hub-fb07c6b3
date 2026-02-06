@@ -42,6 +42,7 @@ const REQUIRED_FIELDS = ["full_name", "email", "phone", "service_address", "bill
 
 /**
  * Resolves client data with priority: snapshot → profile → fallback
+ * v2.1: Now checks for full_service_address in snapshot for complete addresses
  */
 const resolveClientData = (
   snapshot: Record<string, any> | null,
@@ -59,7 +60,27 @@ const resolveClientData = (
     return fallback;
   };
 
-  const serviceAddress = resolve(["serviceAddress", "service_address", "address"]);
+  // Build composite address from snapshot components if full_service_address is not available
+  const buildAddressFromComponents = (): string => {
+    const components = [
+      snapshot?.service_apartment ? `${snapshot.service_apartment} - ` : '',
+      snapshot?.service_address || snapshot?.serviceAddress || '',
+      snapshot?.service_city || snapshot?.serviceCity || '',
+      snapshot?.service_province || snapshot?.serviceProvince || '',
+      snapshot?.service_postal_code || snapshot?.servicePostalCode || '',
+    ].filter(Boolean);
+    
+    if (components.length >= 2) {
+      return components.join(', ').replace(', ,', ',').trim();
+    }
+    return '';
+  };
+
+  // Priority: full_service_address → built from components → individual field → profile
+  const serviceAddress = 
+    resolve(["full_service_address", "fullServiceAddress"]) ||
+    buildAddressFromComponents() ||
+    resolve(["serviceAddress", "service_address", "address"]);
   
   return {
     full_name: resolve(["legalName", "full_name", "fullName"]),

@@ -1853,12 +1853,34 @@ Deno.serve(async (req) => {
 
         // DOMAIN VALIDATION: Only allow verified Resend domains
         const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca'];
-        // Extract actual email address from "Name <email@domain.com>" format
-        const emailMatch = emailFromAddress.match(/<([^>]+)>/) || [null, emailFromAddress];
-        const actualEmail = emailMatch[1] || emailFromAddress;
-        const fromDomain = actualEmail.split('@')[1]?.toLowerCase().replace(/[>]/g, '');
         
-        if (!fromDomain || !ALLOWED_DOMAINS.some(d => fromDomain.endsWith(d))) {
+        // ROBUST EMAIL EXTRACTION: Handle various formats
+        // - "Nivra Telecom <support@nivra-telecom.ca>"
+        // - "support@nivra-telecom.ca"
+        // - "Nivra <support@nivra-telecom.ca>" (with trailing chars)
+        let actualEmail = emailFromAddress.trim();
+        
+        // Extract email from angle brackets if present
+        const emailMatch = emailFromAddress.match(/<([^>]+)>/);
+        if (emailMatch && emailMatch[1]) {
+          actualEmail = emailMatch[1].trim();
+        }
+        
+        // Clean any remaining special characters from the email
+        actualEmail = actualEmail.replace(/[<>]/g, '').trim();
+        
+        // Extract domain (everything after the @ sign)
+        const atIndex = actualEmail.lastIndexOf('@');
+        let fromDomain = '';
+        if (atIndex !== -1 && atIndex < actualEmail.length - 1) {
+          fromDomain = actualEmail.substring(atIndex + 1).toLowerCase().trim();
+          // Remove any trailing characters that might have slipped through
+          fromDomain = fromDomain.replace(/[^a-z0-9.-]/g, '');
+        }
+        
+        console.log(`[DOMAIN CHECK] From: "${emailFromAddress}" → Email: "${actualEmail}" → Domain: "${fromDomain}"`);
+        
+        if (!fromDomain || !ALLOWED_DOMAINS.some(d => fromDomain === d || fromDomain.endsWith('.' + d))) {
           const domainError = `BLOQUÉ: Domaine From non vérifié (${fromDomain}). Domaines autorisés: ${ALLOWED_DOMAINS.join(', ')}`;
           console.error(domainError);
           

@@ -1674,8 +1674,9 @@ const ClientNewOrder = () => {
         postStepErrors.push("payment");
       }
 
-      // === BILLING V2 INTEGRATION ===
+      // === BILLING V2 INTEGRATION (v2.1 - Smart Payment Detection) ===
       // Create billing_customer, billing_subscriptions, and billing_invoices via edge function
+      // NOW PASSES payment_method, payment_status, and payment_reference for proper sync
       try {
         // Build services array from selectedServices for Billing V2
         const billingServices = selectedServices.map(s => ({
@@ -1686,6 +1687,14 @@ const ClientNewOrder = () => {
         }));
 
         if (billingServices.length > 0) {
+          // SMART PAYMENT DETECTION: Pass actual payment info to billing function
+          const actualPaymentMethod = paymentMethod === "paypal" ? "paypal" 
+            : paymentMethod === "etransfer" ? "etransfer"
+            : paymentMethod === "credit_card" ? "credit_card"
+            : "interac";
+          
+          const isPayPalPaid = actualPaymentMethod === "paypal" && !!paypalCaptureId;
+          
           const { data: billingResult, error: billingV2Error } = await supabase.functions.invoke("billing-create-order", {
             body: {
               user_id: user.id,
@@ -1696,6 +1705,11 @@ const ClientNewOrder = () => {
               services: billingServices,
               order_id: data.id,
               order_number: data.order_number,
+              // PAYMENT INFO (v2.1) - Critical for correct invoice status
+              payment_method: actualPaymentMethod,
+              payment_status: isPayPalPaid ? 'paid' : 'pending',
+              payment_reference: isPayPalPaid ? paypalCaptureId : null,
+              total_amount: isPayPalPaid ? totalAmount : null,
             },
           });
 
@@ -1900,11 +1914,28 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             id_number: idNumber || null,
             id_expiration: idExpiration || null,
             id_province: idProvince || null,
+            // Individual address components
             service_address: serviceAddressStreet || null,
             service_city: serviceAddressCity || null,
             service_province: serviceAddressProvince || null,
             service_postal_code: serviceAddressPostalCode || null,
             service_apartment: serviceAddressApartment || null,
+            // FULL FORMATTED ADDRESS for Admin/Contracts (v2.1)
+            full_service_address: [
+              serviceAddressApartment ? `${serviceAddressApartment} - ` : '',
+              serviceAddressStreet,
+              serviceAddressCity,
+              serviceAddressProvince,
+              serviceAddressPostalCode
+            ].filter(Boolean).join(', ').replace(', ,', ',').trim() || profile?.service_address || null,
+            // Also include billing address (fallback to service)
+            billing_address: [
+              serviceAddressApartment ? `${serviceAddressApartment} - ` : '',
+              serviceAddressStreet,
+              serviceAddressCity,
+              serviceAddressProvince,
+              serviceAddressPostalCode
+            ].filter(Boolean).join(', ').replace(', ,', ',').trim() || profile?.billing_address || profile?.service_address || null,
           },
           services_snapshot: selectedServices.map(s => ({
             id: s.id,
