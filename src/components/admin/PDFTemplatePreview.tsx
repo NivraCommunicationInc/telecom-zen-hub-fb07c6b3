@@ -1,6 +1,6 @@
 /**
  * PDF Template Preview Component
- * Admin tool to preview and test the 4 billing templates
+ * Admin tool to preview and test the V2.4 billing templates
  */
 
 import { useState, useMemo } from "react";
@@ -14,12 +14,15 @@ import {
   useInvoiceOneTimePDF, 
   useOrderSummaryPDF,
   useContractPDF,
+  useInvoiceMonthlyV2PDF,
+  useInvoiceOneTimeV2PDF,
 } from "@/hooks/usePDFTemplates";
 import type { 
   InvoiceMonthlyData, 
   InvoiceOneTimeData, 
   OrderSummaryData,
   ContractData,
+  InvoiceDataV2,
 } from "@/lib/pdf";
 import { format } from "date-fns";
 import {
@@ -267,6 +270,132 @@ const createSampleContract = (ids: ReturnType<typeof generateSampleIds>): Contra
   is_signed: true,
 });
 
+// V2.4 Sample Data (standardized format)
+const createSampleMonthlyV2 = (ids: ReturnType<typeof generateSampleIds>): InvoiceDataV2 => ({
+  invoice_type: "MONTHLY",
+  invoice_number: ids.invoice_number,
+  invoice_date: today,
+  due_date: cycleEnd,
+  account_number: ids.account_number,
+  billing_period_start: cycleStart,
+  billing_period_end: cycleEnd,
+  currency: "CAD",
+  status: "Pending",
+  
+  customer: {
+    full_name: "Jean-Pierre Tremblay",
+    email: "jptremblay@example.com",
+    phone: "514-555-1234",
+    address_line1: "1234 Rue Principale",
+    city: "Montréal",
+    province: "QC",
+    postal_code: "H2X 1Y4",
+  },
+  
+  items: [
+    {
+      category: "Internet",
+      description: "Fibre 500 Mbps Illimité",
+      period: `${format(new Date(cycleStart), "dd/MM")} - ${format(new Date(cycleEnd), "dd/MM/yyyy")}`,
+      qty: 1,
+      unit_price: 79.99,
+      amount: 74.99,
+      is_recurring: true,
+    },
+    {
+      category: "TV",
+      description: "Forfait Essentiel 60+ chaînes",
+      period: `${format(new Date(cycleStart), "dd/MM")} - ${format(new Date(cycleEnd), "dd/MM/yyyy")}`,
+      qty: 1,
+      unit_price: 39.99,
+      amount: 34.99,
+      is_recurring: true,
+    },
+  ],
+  
+  discounts: [
+    { label: "Promo -$5/mois (Internet)", amount: 5.00 },
+    { label: "Promo -$5/mois (TV)", amount: 5.00 },
+  ],
+  
+  subtotal: 119.98,
+  taxes: {
+    gst_rate: 0.05,
+    gst_amount: 5.50,
+    qst_rate: 0.09975,
+    qst_amount: 10.97,
+  },
+  total: 126.45,
+  balance_due: 126.45,
+  
+  payments: [],
+  payments_total: 0,
+});
+
+const createSampleOneTimeV2 = (ids: ReturnType<typeof generateSampleIds>): InvoiceDataV2 => ({
+  invoice_type: "ONETIME",
+  invoice_number: ids.invoice_number_2,
+  invoice_date: today,
+  due_date: today,
+  account_number: ids.account_number,
+  currency: "CAD",
+  status: "Paid",
+  
+  customer: {
+    full_name: "Marie-Claire Dubois",
+    email: "mcdubois@example.com",
+    phone: "438-555-9876",
+    address_line1: "5678 Boulevard Saint-Laurent",
+    city: "Laval",
+    province: "QC",
+    postal_code: "H7T 2Y5",
+  },
+  
+  items: [
+    {
+      category: "Equipment",
+      description: "Routeur Wi-Fi 6 Haute Performance",
+      qty: 1,
+      unit_price: 149.99,
+      amount: 149.99,
+      is_recurring: false,
+      reference: "RTR-ABC123456",
+    },
+    {
+      category: "Fees",
+      description: "Frais d'installation standard",
+      qty: 1,
+      unit_price: 49.99,
+      amount: 49.99,
+      is_recurring: false,
+    },
+  ],
+  
+  discounts: [],
+  
+  subtotal: 199.98,
+  taxes: {
+    gst_rate: 0.05,
+    gst_amount: 10.00,
+    qst_rate: 0.09975,
+    qst_amount: 19.95,
+  },
+  total: 229.93,
+  balance_due: 0,
+  
+  payments: [
+    {
+      method: "PayPal",
+      status: "Captured",
+      paid_amount: 229.93,
+      paid_at: today,
+      payment_reference: ids.payment_reference,
+      processor_txn_id: "7CM57665872843846",
+    },
+  ],
+  payments_total: 229.93,
+});
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -279,6 +408,8 @@ export function PDFTemplatePreview() {
   const oneTimePDF = useInvoiceOneTimePDF();
   const orderPDF = useOrderSummaryPDF();
   const contractPDF = useContractPDF();
+  const monthlyV2PDF = useInvoiceMonthlyV2PDF();
+  const oneTimeV2PDF = useInvoiceOneTimeV2PDF();
 
   // Generate sample data with secure IDs (regenerates when idSeed changes)
   const sampleData = useMemo(() => {
@@ -289,6 +420,8 @@ export function PDFTemplatePreview() {
       oneTime: createSampleOneTime(ids),
       order: createSampleOrder(ids),
       contract: createSampleContract(ids),
+      monthlyV2: createSampleMonthlyV2(ids),
+      oneTimeV2: createSampleOneTimeV2(ids),
     };
   }, [idSeed]);
 
