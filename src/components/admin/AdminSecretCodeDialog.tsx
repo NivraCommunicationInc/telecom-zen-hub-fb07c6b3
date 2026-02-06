@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Shield, AlertTriangle, Lock, CheckCircle2, Info } from "lucide-react";
+import { Shield, AlertTriangle, Lock, Info } from "lucide-react";
 import { adminClient as supabase } from "@/integrations/backend";
 
 interface AdminSecretCodeDialogProps {
@@ -46,6 +46,9 @@ export function AdminSecretCodeDialog({
   const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
   const [sessionId] = useState(() => crypto.randomUUID());
 
+  // CRITICAL: Track if verification succeeded to prevent onCancel from firing on dialog close
+  const verificationSucceededRef = useRef(false);
+
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
@@ -56,6 +59,7 @@ export function AdminSecretCodeDialog({
       setIsLocked(false);
       setLockedUntil(null);
       setRemainingMinutes(null);
+      verificationSucceededRef.current = false;
     }
   }, [open]);
 
@@ -89,6 +93,8 @@ export function AdminSecretCodeDialog({
 
       if (data.ok && data.session_token) {
         console.log("[AdminSecretCode] Verification successful");
+        // CRITICAL: Mark success BEFORE calling onSuccess to prevent onCancel from firing
+        verificationSucceededRef.current = true;
         onSuccess(data.session_token, data.session_expires_at!, data.using_default_code || false);
       } else {
         // Handle errors
@@ -119,8 +125,9 @@ export function AdminSecretCodeDialog({
     }
   }, [code, isVerifying, isLocked, verifyCode]);
 
-  const handleCancel = async () => {
-    // Only sign out when the user explicitly cancels.
+  const handleExplicitCancel = async () => {
+    // Only sign out when the user explicitly clicks "Annuler"
+    console.log("[AdminSecretCode] User explicitly cancelled - signing out");
     try {
       await supabase.auth.signOut();
     } catch {
@@ -129,18 +136,38 @@ export function AdminSecretCodeDialog({
     onCancel();
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // Dialog is closing
+      if (verificationSucceededRef.current) {
+        // SUCCESS PATH: Don't call onCancel, just let it close
+        console.log("[AdminSecretCode] Dialog closing after success - NOT calling onCancel");
+        onOpenChange(false);
+        return;
+      }
+      // CANCEL PATH: User closed without success (e.g., clicked outside, pressed Escape)
+      // But we've disabled pointer-down-outside, so this is only Escape key
+      console.log("[AdminSecretCode] Dialog closing without success - calling onCancel");
+      onCancel();
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
     <Dialog
       open={open}
-      onOpenChange={(isOpen) => {
-        // IMPORTANT: Never sign out just because the dialog closes.
-        // Closing can happen on success (we close it programmatically).
-        if (!isOpen) {
-          onCancel();
-        }
-      }}
+      onOpenChange={handleOpenChange}
     >
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent 
+        className="sm:max-w-md" 
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          // Prevent escape from closing if verification is in progress
+          if (isVerifying) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
@@ -149,21 +176,12 @@ export function AdminSecretCodeDialog({
           <DialogDescription>
             Entrez votre code secret à 6 chiffres pour accéder au portail admin.
             <span className="block mt-1 text-xs text-muted-foreground">
-              Ce code n’est pas envoyé par courriel.
+              Ce code n'est pas envoyé par courriel.
             </span>
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* DEBUG: Auth gate info - TEMPORARY */}
-          <div className="bg-muted/50 border border-border/50 rounded-md p-3 text-xs font-mono text-foreground">
-            <div className="font-semibold mb-1">DEBUG — Auth Gate Info</div>
-            <div><strong>Auth gate:</strong> SECRET_CODE</div>
-            <div><strong>Session checker endpoint:</strong> admin-session-check</div>
-            <div><strong>Verify endpoint:</strong> admin-secret-verify</div>
-            <div className="mt-1 text-muted-foreground">No email OTP is used or sent for admin login.</div>
-          </div>
-
           {/* Info about user */}
           <Alert variant="default" className="bg-muted/50">
             <Info className="h-4 w-4" />
@@ -235,7 +253,7 @@ export function AdminSecretCodeDialog({
 
           {/* Actions */}
           <div className="flex justify-between pt-2">
-            <Button variant="ghost" onClick={handleCancel}>
+            <Button variant="ghost" onClick={handleExplicitCancel}>
               Annuler
             </Button>
             <Button
