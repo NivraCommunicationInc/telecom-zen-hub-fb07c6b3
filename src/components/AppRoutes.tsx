@@ -82,6 +82,7 @@ import AdminPDFTest from "@/pages/admin/AdminPDFTest";
 import AdminInvoiceV2Preview from "@/pages/admin/AdminInvoiceV2Preview";
 import AdminPDFTemplatesV2 from "@/pages/admin/AdminPDFTemplatesV2";
 import AdminQA from "@/pages/admin/AdminQA";
+import AdminSystemAudit from "@/pages/admin/AdminSystemAudit";
 import AdminRecouvrement from "@/pages/admin/AdminRecouvrement";
 import AdminPaymentDisputes from "@/pages/admin/AdminPaymentDisputes";
 import AdminPayments from "@/pages/admin/AdminPayments";
@@ -317,6 +318,8 @@ const AppRoutes = () => {
       <Route path="/admin/field-sales" element={<Navigate to="/admin/pos" replace />} />
       <Route path="/admin/pos" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPOS /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/payments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPayments /></ProtectedRoute></AuthProvider>} />
+      {/* System Audit - READ-ONLY */}
+      <Route path="/admin/system-audit" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSystemAudit /></ProtectedRoute></AuthProvider>} />
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
