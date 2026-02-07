@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, 
-  CheckCircle, RotateCw, Wifi, Tv, Smartphone, Shield, Play, Clock, 
-  MoreHorizontal, Pen, Mail, UserCheck, Settings2 
+  CheckCircle, Wifi, Tv, Smartphone, Shield, Play, Clock,
+  MoreHorizontal, Pen, Mail, UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +23,7 @@ import { downloadTelecomContractPDF, viewTelecomContractPDF, type TelecomContrac
 import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
-import { Checkbox } from "@/components/ui/checkbox";
+// Checkbox removed - no longer needed for manual selection
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import {
@@ -32,7 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
 // Contract status labels and colors for V2.5 workflow
@@ -84,9 +83,11 @@ const AdminContracts = () => {
   const { logActivity } = useActivityLog();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
-  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [backfillStatus, setBackfillStatus] = useState<{
+    running: boolean;
+    lastResult?: { created: number; skipped: number; errors: string[] };
+  }>({ running: false });
   const [formData, setFormData] = useState<ContractFormData>({
     user_id: "",
     contract_name: "",
@@ -306,6 +307,40 @@ const AdminContracts = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+  }, [refetchContracts]);
+
+  // AUTO-BACKFILL: Run on page load to generate missing contracts
+  useEffect(() => {
+    const runAutoBackfill = async () => {
+      setBackfillStatus({ running: true });
+      try {
+        const { data, error } = await supabase.functions.invoke("contracts-backfill-missing");
+        
+        if (error) {
+          console.error("[AutoBackfill] Error:", error);
+          setBackfillStatus({ running: false });
+          return;
+        }
+        
+        console.log("[AutoBackfill] Result:", data);
+        setBackfillStatus({
+          running: false,
+          lastResult: data ? { created: data.created || 0, skipped: data.skipped || 0, errors: data.errors || [] } : undefined,
+        });
+        
+        // If contracts were created, show toast and refresh
+        if (data?.created > 0) {
+          toast.success(`${data.created} contrat(s) généré(s) automatiquement`);
+          refetchContracts();
+        }
+      } catch (err) {
+        console.error("[AutoBackfill] Error:", err);
+        setBackfillStatus({ running: false });
+      }
+    };
+
+    // Run backfill on mount
+    runAutoBackfill();
   }, [refetchContracts]);
 
   // Auto-generate contract for an order
@@ -529,9 +564,6 @@ const AdminContracts = () => {
       queryClient.invalidateQueries({ queryKey: ["client-documents"] });
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["order-details"] });
-      
-      setIsRegenerateDialogOpen(false);
-      setSelectedServices([]);
     },
     onError: (error: any) => {
       console.error("[RegenerateContracts] Critical error:", error);
@@ -796,30 +828,7 @@ const AdminContracts = () => {
     }
   };
 
-  const toggleServiceSelection = (serviceId: string) => {
-    setSelectedServices(prev => 
-      prev.includes(serviceId)
-        ? prev.filter(id => id !== serviceId)
-        : [...prev, serviceId]
-    );
-  };
-
-  const selectAllServices = () => {
-    const servicesWithoutContract = activeServices?.filter(s => !s.hasContract) || [];
-    setSelectedServices(servicesWithoutContract.map(s => s.id));
-  };
-
-  const deselectAllServices = () => {
-    setSelectedServices([]);
-  };
-
-  const handleRegenerateContracts = () => {
-    if (selectedServices.length === 0) {
-      toast.error("Veuillez sélectionner au moins un service");
-      return;
-    }
-    regenerateContractsMutation.mutate(selectedServices);
-  };
+  // REMOVED: Manual selection functions - backfill is now automatic
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -849,29 +858,19 @@ const AdminContracts = () => {
               Actualiser
             </Button>
             
-            {/* Advanced Actions Dropdown - Regenerate moved here */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Settings2 className="w-4 h-4 mr-2" />
-                  Actions avancées
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Outils administrateur</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => {
-                    refetchActiveServices();
-                    setIsRegenerateDialogOpen(true);
-                  }}
-                  className="text-amber-500"
-                >
-                  <RotateCw className="w-4 h-4 mr-2" />
-                  Régénérer contrats (debug)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Auto-backfill status indicator */}
+            {backfillStatus.running && (
+              <Badge variant="outline" className="animate-pulse">
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                Vérification auto...
+              </Badge>
+            )}
+            {backfillStatus.lastResult?.created !== undefined && backfillStatus.lastResult.created > 0 && (
+              <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-500">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                {backfillStatus.lastResult.created} contrat(s) auto-généré(s)
+              </Badge>
+            )}
             
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
@@ -1546,160 +1545,7 @@ const AdminContracts = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Contract Regeneration Dialog */}
-        <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
-          <DialogContent 
-            className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <RotateCw className="w-5 h-5 text-amber-500" />
-                Régénérer contrats pour services actifs
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="text-sm text-muted-foreground mb-4">
-              Sélectionnez les services pour lesquels vous souhaitez générer des contrats. Les contrats seront créés et liés aux profils clients.
-            </div>
-
-            <ScrollArea className="flex-1 max-h-[60vh]">
-              <div className="space-y-6 pr-4">
-                {/* Services without contracts */}
-                {servicesWithoutContract.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-foreground flex items-center gap-2">
-                        <Package className="w-4 h-4 text-amber-500" />
-                        Services sans contrat ({servicesWithoutContract.length})
-                      </h3>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={selectAllServices}>
-                          Tout sélectionner
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={deselectAllServices}>
-                          Désélectionner
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {servicesWithoutContract.map(service => (
-                        <div
-                          key={service.id}
-                          className={`flex items-center gap-3 p-3 border rounded-lg transition-colors cursor-pointer ${
-                            selectedServices.includes(service.id)
-                              ? "border-cyan-500 bg-cyan-500/5"
-                              : "border-border hover:bg-muted/30"
-                          }`}
-                          onClick={() => toggleServiceSelection(service.id)}
-                        >
-                          <Checkbox
-                            checked={selectedServices.includes(service.id)}
-                            onCheckedChange={() => toggleServiceSelection(service.id)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <div className="flex items-center gap-2">
-                            {getCategoryIcon(service.category)}
-                            <Badge variant="outline" className="text-xs">
-                              {service.category}
-                            </Badge>
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{service.serviceName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {service.clientName}
-                              {service.clientNumber && ` (${service.clientNumber})`}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-sm">${service.amount.toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {service.type === 'subscription' ? 'Abonnement' : 'Commande'} • {service.status}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {servicesWithoutContract.length === 0 && (
-                  <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-                    <p className="text-muted-foreground">Tous les services actifs ont déjà un contrat</p>
-                  </div>
-                )}
-
-                {/* Services with contracts (for reference) */}
-                {servicesWithContract.length > 0 && (
-                  <div className="space-y-3 border-t pt-4">
-                    <h3 className="font-semibold text-muted-foreground flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-500" />
-                      Services avec contrat existant ({servicesWithContract.length})
-                    </h3>
-                    
-                    <div className="space-y-2 opacity-60">
-                      {servicesWithContract.slice(0, 5).map(service => (
-                        <div
-                          key={service.id}
-                          className="flex items-center gap-3 p-3 border border-border/50 rounded-lg bg-muted/20"
-                        >
-                          <CheckCircle className="w-4 h-4 text-emerald-500" />
-                          <div className="flex items-center gap-2">
-                            {getCategoryIcon(service.category)}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{service.serviceName}</p>
-                            <p className="text-xs text-muted-foreground">{service.clientName}</p>
-                          </div>
-                          <Badge className="bg-emerald-500/20 text-emerald-500">Contrat existant</Badge>
-                        </div>
-                      ))}
-                      {servicesWithContract.length > 5 && (
-                        <p className="text-xs text-muted-foreground text-center">
-                          +{servicesWithContract.length - 5} autres services avec contrat
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-
-            <DialogFooter className="border-t pt-4">
-              <div className="flex items-center justify-between w-full">
-                <p className="text-sm text-muted-foreground">
-                  {selectedServices.length} service(s) sélectionné(s)
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(false)}>
-                    Annuler
-                  </Button>
-                  <Button
-                    onClick={handleRegenerateContracts}
-                    disabled={selectedServices.length === 0 || regenerateContractsMutation.isPending}
-                    className="bg-amber-500 hover:bg-amber-600 text-white"
-                  >
-                    {regenerateContractsMutation.isPending ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Génération...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Générer {selectedServices.length} contrat(s)
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* REMOVED: Manual Contract Regeneration Dialog - backfill is now automatic */}
       </div>
     </AdminLayout>
   );
