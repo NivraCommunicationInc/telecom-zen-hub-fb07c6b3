@@ -744,20 +744,58 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
     `, joinUrl(config.baseUrl, vars.portal_path || "/portal/appointments"), "Reprogrammer / Reschedule", config.supportEmail),
   },
 
-  // CONTRACT READY
+  // CONTRACT READY (Legacy - kept for compatibility)
   contract_ready: {
     subject: "Nivra — Contrat prêt à signer",
     getHtml: (vars, config) => wrapEmail(`
-      ${greeting(vars.client_name)}
+      ${greeting(vars.client_name || vars.clientName)}
       ${statusBadge('info', '📝', 'Contrat disponible', 'Contract ready',
         'Votre contrat est prêt à être signé. Veuillez le consulter dans votre portail.',
         'Your contract is ready to be signed. Please review it in your portal.'
       )}
       ${detailsCard([
-        { label: 'Nº contrat / Contract #', value: vars.contract_number || 'N/A' },
-        { label: 'Nom / Name', value: vars.contract_name || 'N/A' },
+        { label: 'Nº contrat / Contract #', value: vars.contract_number || vars.contractNumber || 'N/A' },
+        { label: 'Commande / Order', value: vars.order_number || vars.orderNumber || 'N/A' },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir le contrat / View contract", config.supportEmail),
+    `, joinUrl(config.baseUrl, vars.signatureUrl || vars.portal_path || "/portal/contracts"), "Signer le contrat / Sign contract", config.supportEmail),
+  },
+
+  // CONTRACT READY FOR SIGNATURE (V2.5 - Auto-generated on payment)
+  contract_ready_for_signature: {
+    subject: "Nivra — Votre contrat est prêt à signer (#{{contractNumber}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.clientName)}
+      ${statusBadge('info', '📝', 'Action requise: Signature', 'Action required: Signature',
+        'Votre paiement a été confirmé! Veuillez maintenant signer votre contrat de service.',
+        'Your payment has been confirmed! Please now sign your service contract.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contrat / Contract #', value: vars.contractNumber || 'N/A' },
+        { label: 'Commande / Order', value: vars.orderNumber || 'N/A' },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        La signature électronique est rapide et sécurisée. Une fois signé, vous recevrez une copie de votre contrat.<br>
+        <em style="color:${emailStyles.textMuted};">Electronic signature is quick and secure. Once signed, you will receive a copy of your contract.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.signatureUrl || "/portal/contracts"), "Signer mon contrat / Sign my contract", config.supportEmail),
+  },
+
+  // CONTRACT SENT TO CLIENT (Admin notification)
+  contract_sent_to_client: {
+    subject: "Nivra — Contrat envoyé au client (#{{contract_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.admin_name || 'Admin')}
+      ${statusBadge('success', '📨', 'Contrat envoyé', 'Contract sent',
+        'Le contrat a été envoyé au client pour signature.',
+        'The contract has been sent to the client for signature.'
+      )}
+      ${detailsCard([
+        { label: 'Nº contrat / Contract #', value: vars.contract_number || 'N/A' },
+        { label: 'Client', value: vars.client_name || 'N/A' },
+        { label: 'Email', value: vars.client_email || 'N/A' },
+        { label: 'Envois / Sent count', value: vars.sent_count || '1' },
+      ])}
+    `, joinUrl(config.baseUrl, "/admin/contracts"), "Voir les contrats / View contracts", config.supportEmail),
   },
 
   // CONTRACT SIGNED
