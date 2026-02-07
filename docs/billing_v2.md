@@ -529,6 +529,310 @@ const safeId = ensureValidSecureId(maybeInvalidId, 'account');
 
 ---
 
+## Règles de Facturation, Non-Renouvellement et Litiges (v2.5)
+
+### Principe Fondamental — Modèle Prépayé
+
+Nivra Telecom opère **exclusivement** selon un modèle prépayé.
+Aucun service n'est fourni sans paiement confirmé pour le cycle correspondant.
+
+| Règle | Description |
+|-------|-------------|
+| ❌ Aucune dette | Jamais créée automatiquement en cas de non-renouvellement normal |
+| ✅ Expérience postpayée | Factures mensuelles, dates d'échéance visibles |
+| ✅ Logique prépayée | Strictement appliquée côté financier |
+
+---
+
+### Scénario A — Non-Renouvellement Normal (Prépayé)
+
+Ce scénario s'applique lorsque le client ne paie pas volontairement son renouvellement mensuel **sans contestation bancaire**.
+
+#### Chronologie
+
+| Jour | Action | Résultat |
+|------|--------|----------|
+| **J-3** | Facture mensuelle générée | `status = 'pending'` + Email rappel |
+| **J0** | Date de cycle, paiement non reçu | Service **non renouvelé** |
+| **J0 immédiat** | Accès interrompu | `service_status = 'expired'` |
+
+#### Conséquences Financières
+
+| Élément | Appliqué? |
+|---------|-----------|
+| Frais de retard | ❌ NON |
+| Intérêts | ❌ NON |
+| Pénalité | ❌ NON |
+| Création de dette | ❌ NON |
+
+> **Interprétation** : Le non-renouvellement est une interruption volontaire du service, **non** un défaut de paiement postpayé.
+
+---
+
+### Scénario B — Paiement Contesté / Frauduleux / Rétrofacturation
+
+Ce scénario s'applique **uniquement** lorsqu'un paiement :
+- Est contesté auprès de l'institution bancaire
+- Fait l'objet d'un chargeback
+- Est identifié comme frauduleux
+
+#### Déclenchement
+
+```
+Webhook PayPal/Stripe → payment_status IN ('disputed', 'chargeback', 'fraud')
+OU
+Confirmation manuelle Admin (Interac annulé / fraude détectée)
+```
+
+#### Chronologie Spécifique
+
+| Jour | Action | Résultat |
+|------|--------|----------|
+| **Immédiat** | Compte gelé | `account_status = 'hold'` ou `'frozen'` |
+| **Immédiat** | Service suspendu | Accès coupé |
+| **J+2** | Frais administratifs | +5% appliqués |
+| **J+5** | Expiration définitive | `service_status = 'expired'` |
+
+#### Conséquences Financières (Litige UNIQUEMENT)
+
+| Élément | Appliqué? |
+|---------|-----------|
+| Frais administratifs 5% | ✅ OUI |
+| Intérêts possibles | ✅ OUI (selon type de litige) |
+| Frais de réactivation | ✅ OUI (requis pour rétablir) |
+
+> ⚠️ **Ces frais ne s'appliquent JAMAIS dans un non-renouvellement normal.**
+
+---
+
+### Réactivation du Service
+
+#### Après Non-Renouvellement Normal
+
+| Étape | Action |
+|-------|--------|
+| 1 | Paiement du cycle requis |
+| 2 | Service réactivé **automatiquement** |
+| — | ❌ Aucun frais de réactivation |
+
+#### Après Litige / Fraude
+
+| Étape | Action |
+|-------|--------|
+| 1 | Paiement du solde contesté (si applicable) |
+| 2 | Paiement des frais administratifs 5% |
+| 3 | Frais de réactivation fixes (ex. 15$) |
+| 4 | Validation manuelle possible par admin |
+
+---
+
+### Conservation du Numéro / Service
+
+| Période | État |
+|---------|------|
+| **J0 → J+90** | Service récupérable, numéro conservé |
+| **Après 90 jours** | Service annulé, numéro potentiellement perdu |
+
+---
+
+### Terminologie Officielle (Obligatoire)
+
+| ✅ Terme Autorisé | Utilisation |
+|-------------------|-------------|
+| Non-renouvellement | Prépayé normal |
+| Renouvellement non confirmé | Facture non payée (prépayé) |
+| Paiement contesté | Litige bancaire |
+| Service expiré | Accès coupé |
+
+| ❌ Terme Interdit | Raison |
+|-------------------|--------|
+| Impayé | Vocabulaire postpayé |
+| Dette client | Interdit en prépayé |
+| Overdue (ambigu) | Confusion avec postpayé |
+
+---
+
+### Pseudo-Code Opérateur (Logique Métier Exacte)
+
+#### Paiement Confirmé
+
+```sql
+IF payment.status IN ('confirmed', 'captured') THEN
+  -- Mise à jour statuts
+  orders.payment_status = 'confirmed';
+  billing_payments.amount = provider_amount;
+  billing_invoices.amount_paid += provider_amount;
+  billing_invoices.balance_due = 0;
+  billing_invoices.status = 'paid';
+
+  -- Générations automatiques (Rule 2-9)
+  generate_confirmation_number(10);  -- Ex: 2195393431
+  generate_payment_reference(8);     -- Ex: 81143403
+  generate_invoice_number(7);        -- Ex: 3916061
+  generate_contract_number(9);       -- Ex: 200885783
+
+  -- Contrat automatique
+  INSERT INTO contracts (order_id, version, status)
+  VALUES (order_id, 1, 'sent');
+
+  -- Service actif
+  subscriptions.status = 'active';
+  subscriptions.current_period_start = now();
+  subscriptions.current_period_end = now() + INTERVAL '30 days';
+
+  -- Envoi emails + PDFs
+  CALL send_email_with_pdfs();
+END IF;
+```
+
+#### Non-Renouvellement Normal
+
+```sql
+IF today = bill_cycle_date AND payment_not_received THEN
+  -- ⚠️ AUCUNE dette créée
+  billing_invoices.status = 'void';
+  orders.payment_status = 'not_renewed';
+
+  subscriptions.status = 'expired';  -- ou 'suspended'
+  CALL disable_service_access();
+
+  -- ❌ Aucun frais
+  -- ❌ Aucun intérêt
+END IF;
+```
+
+#### Paiement Contesté / Frauduleux
+
+```sql
+IF payment.status IN ('disputed', 'chargeback', 'fraud') THEN
+  orders.payment_status = payment.status;
+  account_status = 'hold';
+
+  subscriptions.status = 'suspended';
+  CALL disable_service_access();
+
+  -- Tâches planifiées
+  CALL schedule_task('J+2', 'apply_admin_fee(5%)');
+  CALL schedule_task('J+5', 'mark_service_expired()');
+END IF;
+```
+
+#### Réactivation
+
+```sql
+-- Après non-renouvellement normal
+IF scenario = 'non_renewal' AND payment_received THEN
+  subscriptions.status = 'active';
+  -- ❌ Aucun frais supplémentaire
+END IF;
+
+-- Après litige
+IF scenario = 'dispute' AND admin_approved THEN
+  -- Requiert: paiement + admin_fee + reactivation_fee
+  subscriptions.status = 'active';
+END IF;
+```
+
+---
+
+### Structure Admin Opérateur (Obligatoire)
+
+#### Admin Orders — Visible Sans Cliquer
+
+| Colonne | Source | Obligatoire |
+|---------|--------|-------------|
+| Client | `profiles.full_name` | ✅ |
+| Numéro compte | `profiles.account_number` | ✅ |
+| Numéro commande | `orders.order_number` | ✅ |
+| Total facture | `billing_totals.total` (snapshot) | ✅ |
+| Payé | `SUM(billing_payments.amount WHERE confirmed)` | ✅ |
+| Payment status | `orders.payment_status` | ✅ |
+| Service status | `subscriptions.status` | ✅ |
+
+#### Admin Payments — Réconciliation Bancaire
+
+| Colonne | Règle |
+|---------|-------|
+| **Payé** | TOUJOURS `billing_payments.amount` |
+| **Facture** | TOUJOURS `billing_invoices.total` |
+| **Écart** | `payé − facture` |
+| **Provider ID** | PayPal capture_id / référence banque |
+| **Statut** | `confirmed` / `disputed` / `chargeback` |
+
+> ⚠️ **INTERDIT** : Recalculer depuis items ou UI.
+
+#### Admin Contracts
+
+| Règle | Description |
+|-------|-------------|
+| ❌ Génération manuelle | Jamais autorisée |
+| ✅ Génération auto | Au paiement confirmé |
+| ✅ Versioning | v1, v2, v3... obligatoire |
+| ✅ Modification commande | → `superseded` + nouvelle version |
+
+---
+
+### Ce Que le Client Voit (Exactement)
+
+#### Portail Client — Facturation
+
+**Toujours visible :**
+- Numéro de compte (6 chiffres, 2–9)
+- Facture mensuelle (PDF)
+- Statut service
+- Date de cycle
+- Bouton Payer / Renouveler
+
+**Jamais visible :**
+- ❌ "Dette"
+- ❌ "Intérêt" (sauf litige)
+- ❌ "Overdue" ambigu
+
+#### PDFs Envoyés
+
+| Document | Quand |
+|----------|-------|
+| Résumé commande | Après checkout |
+| Facture | À chaque cycle / paiement |
+| Reçu | Paiement confirmé |
+| Contrat | Paiement confirmé |
+
+**Tous contiennent :**
+- Numéro de compte
+- Numéro facture
+- Référence paiement
+- Confirmation paiement
+
+---
+
+### Erreurs à Ne Plus Jamais Faire
+
+| ❌ Erreur | Impact |
+|-----------|--------|
+| Mélanger non-renouvellement et litige | Frais injustifiés |
+| Utiliser "impayé" pour prépayé | Confusion client |
+| Générer contrats manuellement | Incohérence versions |
+| Montrer 0$ payé quand paiement existe | Réconciliation impossible |
+| Cacher le numéro de compte au client | Non-conformité opérateur |
+
+---
+
+### Checklist Finale (GO / NO-GO)
+
+Avant mise en production, **tout doit être OUI** :
+
+| Check | Requis |
+|-------|--------|
+| Numéro de compte visible portail + PDFs | ✅ |
+| Paiement confirmé ≠ non-renouvellement | ✅ |
+| Contrat auto-généré | ✅ |
+| Admin voit client + montant sans cliquer | ✅ |
+| Payé ≠ Facture bien séparés | ✅ |
+| Aucun frais hors litige | ✅ |
+| Service suspendu automatiquement si non payé | ✅ |
+
+---
+
 ## Historique
 
 | Date | Auteur | Description |
@@ -540,3 +844,4 @@ const safeId = ensureValidSecureId(maybeInvalidId, 'account');
 | 2026-02-06 | Lovable AI | v2.2: Ajout Snapshot Checkout comme source de vérité pour PDFs |
 | 2026-02-06 | Lovable AI | v2.3: Ajout 3 Templates PDF (Monthly, One-Time, Order Summary) |
 | 2026-02-06 | Lovable AI | v2.4: Convention des Identifiants Numériques (2-9, longueurs fixes) |
+| 2026-02-07 | Lovable AI | v2.5: Règles Non-Renouvellement vs Litige, Pseudo-Code Opérateur, Checklist GO/NO-GO |
