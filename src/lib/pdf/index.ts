@@ -149,6 +149,150 @@ export function viewTelecomContractPDF(data: any): void {
 /** @deprecated Use hooks from usePDFTemplates instead */
 export type InvoiceData = InvoiceDataV2;
 
+/**
+ * Legacy adapter: converts old invoice format to InvoiceDataV2
+ * Used by AdminBilling and other legacy code
+ */
+export function convertLegacyInvoiceData(legacyData: {
+  invoiceNumber?: string;
+  orderNumber?: string;
+  paymentReference?: string;
+  clientNumber?: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  subtotal?: number;
+  fees?: number;
+  credits?: number;
+  deliveryFee?: number;
+  activationFee?: number;
+  installationFee?: number;
+  discountAmount?: number;
+  preauthDiscount?: number;
+  tpsAmount?: number;
+  tvqAmount?: number;
+  lateFeeAmount?: number;
+  dueDate?: string;
+  createdAt?: string;
+  status?: string;
+  paidAt?: string;
+  notes?: string;
+  servicePlan?: string;
+  promoCode?: string;
+  promoDescription?: string;
+  paymentMethod?: string;
+  cardLast4?: string;
+  orderLineItems?: any[];
+  billingTotalsSnapshot?: any;
+}): InvoiceDataV2 {
+  const now = new Date().toISOString().split("T")[0];
+  const subtotal = Number(legacyData.subtotal) || 0;
+  const tps = Number(legacyData.tpsAmount) || subtotal * 0.05;
+  const tvq = Number(legacyData.tvqAmount) || subtotal * 0.09975;
+  const total = subtotal + tps + tvq;
+  
+  // Build items from legacy format
+  const items: import("./types").InvoiceItem[] = [];
+  
+  // Add service as item
+  if (legacyData.servicePlan) {
+    items.push({
+      category: "Other" as const,
+      description: legacyData.servicePlan,
+      qty: 1,
+      unit_price: subtotal,
+      amount: subtotal,
+      is_recurring: true,
+    });
+  }
+  
+  // Add equipment from orderLineItems
+  if (legacyData.orderLineItems) {
+    for (const li of legacyData.orderLineItems) {
+      items.push({
+        category: (li.category as import("./types").ItemCategory) || "Equipment",
+        description: li.name || li.description || "Article",
+        qty: li.qty || 1,
+        unit_price: Number(li.unit_price) || Number(li.price) || 0,
+        amount: Number(li.line_total) || Number(li.amount) || 0,
+        is_recurring: li.is_recurring || false,
+      });
+    }
+  }
+  
+  // If no items, add placeholder
+  if (items.length === 0) {
+    items.push({
+      category: "Other",
+      description: "Services télécom",
+      qty: 1,
+      unit_price: subtotal,
+      amount: subtotal,
+    });
+  }
+  
+  return {
+    invoice_type: "ONETIME",
+    invoice_number: legacyData.invoiceNumber || `INV-${Date.now().toString(36).toUpperCase()}`,
+    invoice_date: legacyData.createdAt?.split("T")[0] || now,
+    due_date: legacyData.dueDate?.split("T")[0] || now,
+    account_number: legacyData.clientNumber || "000000",
+    currency: "CAD",
+    status: legacyData.status === "paid" ? "Paid" : "Pending",
+    customer: {
+      full_name: legacyData.clientName || "Client",
+      email: legacyData.clientEmail || "",
+      phone: legacyData.clientPhone,
+      address_line1: "",
+      city: "",
+      province: "QC",
+      postal_code: "",
+    },
+    items,
+    discounts: legacyData.discountAmount ? [{
+      label: legacyData.promoDescription || `Rabais ${legacyData.promoCode || ""}`,
+      amount: Number(legacyData.discountAmount),
+    }] : undefined,
+    subtotal,
+    taxes: {
+      gst_rate: 0.05,
+      gst_amount: tps,
+      qst_rate: 0.09975,
+      qst_amount: tvq,
+    },
+    total,
+    balance_due: legacyData.status === "paid" ? 0 : total,
+    payments: legacyData.paidAt ? [{
+      method: (legacyData.paymentMethod as import("./types").PaymentMethod) || "Manual",
+      status: "Captured",
+      paid_amount: total,
+      paid_at: legacyData.paidAt,
+      payment_reference: legacyData.paymentReference || "00000000",
+    }] : undefined,
+    payments_total: legacyData.paidAt ? total : 0,
+  };
+}
+
+/**
+ * Legacy invoice generator wrapper for AdminBilling
+ * @deprecated Use generateInvoicePDF from invoiceEngine with InvoiceDataV2
+ */
+export async function generateLegacyInvoicePDF(legacyData: any): Promise<{ blob: Blob; filename: string }> {
+  const { generateInvoicePDF } = await import("./invoiceEngine");
+  const v2Data = convertLegacyInvoiceData(legacyData);
+  
+  const result = await generateInvoicePDF(v2Data);
+  
+  if (!result.success || !result.blob) {
+    throw new Error(result.error || "Failed to generate PDF");
+  }
+  
+  return {
+    blob: result.blob,
+    filename: `Facture_${v2Data.invoice_number}.pdf`,
+  };
+}
+
 /** @deprecated Use generateInvoicePDF from invoiceEngine instead */
 export function downloadInvoicePDF(data: any): void {
   console.warn("[DEPRECATED] downloadInvoicePDF - use useInvoicePDF hook");

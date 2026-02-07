@@ -38,7 +38,7 @@ const ROUTE_SOURCES: RouteSourceInfo[] = [
   // Client Portal
   { route: "/portal/invoices", pageName: "Factures client", primarySource: "billing_invoices", secondarySource: "billing (legacy)", notes: "V2 active" },
   { route: "/portal/monthly-invoices", pageName: "Factures mensuelles client", primarySource: "billing_invoices (type=recurring)", notes: "V2 uniquement" },
-  { route: "/portal/contracts", pageName: "Contrats client", primarySource: "contracts", notes: "Génération via pdfEngine V2" },
+  { route: "/portal/contracts", pageName: "Contrats client", primarySource: "contracts", notes: "Génération via invoiceEngine V2.5" },
   { route: "/portal/orders", pageName: "Commandes client", primarySource: "orders", notes: "Avec equipment_details.line_items" },
   { route: "/portal/services", pageName: "Services actifs", primarySource: "subscriptions", secondarySource: "billing_subscriptions (V2)", notes: "Migration en cours" },
   
@@ -70,61 +70,36 @@ interface PDFTemplateInfo {
 
 const PDF_TEMPLATES: PDFTemplateInfo[] = [
   {
-    type: "Modalités de service",
-    templateId: "modalites-v2",
+    type: "Facture mensuelle (renouvellement)",
+    templateId: "invoice-monthly-v2",
     templateVersion: "V2.5",
-    fileName: "src/lib/pdfEngine/modalitesTemplateV2.ts",
+    fileName: "src/lib/pdf/invoiceMonthlyTemplateV2.ts",
     status: "ACTIVE",
-    description: "8 pages, watermark PRÉPAYÉ, clauses CRTC",
+    description: "Renouvellement abonnement via invoiceEngine.ts",
   },
   {
-    type: "Résumé de commande",
-    templateId: "summary-v2",
+    type: "Facture unique (équipements)",
+    templateId: "invoice-onetime-v2",
     templateVersion: "V2.5",
-    fileName: "src/lib/pdfEngine/summaryTemplateV2.ts",
+    fileName: "src/lib/pdf/invoiceOneTimeTemplateV2.ts",
     status: "ACTIVE",
-    description: "Document informatif post-paiement",
+    description: "Équipements + frais activation via invoiceEngine.ts",
   },
   {
     type: "Contrat de service",
     templateId: "contract-v2",
     templateVersion: "V2.5",
-    fileName: "src/lib/pdfEngine/contractTemplateV2.ts",
+    fileName: "src/lib/pdf/contractTemplate.ts",
     status: "ACTIVE",
     description: "Contrat légal avec signature électronique",
   },
   {
-    type: "Facture unique",
-    templateId: "invoice-onetime-v2",
+    type: "Résumé de commande",
+    templateId: "summary-v2",
     templateVersion: "V2.5",
-    fileName: "src/lib/pdfEngine/invoiceTemplateV2.ts (oneTime)",
+    fileName: "src/lib/pdf/orderSummaryTemplate.ts",
     status: "ACTIVE",
-    description: "Équipements + frais activation",
-  },
-  {
-    type: "Facture mensuelle",
-    templateId: "invoice-monthly-v2",
-    templateVersion: "V2.5",
-    fileName: "src/lib/pdfEngine/invoiceTemplateV2.ts (monthly)",
-    status: "ACTIVE",
-    description: "Renouvellement abonnement",
-  },
-  // Legacy templates (for reference)
-  {
-    type: "Facture (legacy)",
-    templateId: "invoice-v1",
-    templateVersion: "V1.0",
-    fileName: "src/lib/pdf/invoicePdfGenerator.ts",
-    status: "LEGACY",
-    description: "Ancien générateur - NE PLUS UTILISER",
-  },
-  {
-    type: "Contrat (legacy)",
-    templateId: "contract-v1",
-    templateVersion: "V1.0",
-    fileName: "src/lib/pdf/telecomContractGenerator.ts",
-    status: "LEGACY",
-    description: "Ancien générateur - NE PLUS UTILISER",
+    description: "Document informatif post-paiement",
   },
 ];
 

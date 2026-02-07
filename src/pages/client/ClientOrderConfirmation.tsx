@@ -45,7 +45,7 @@ import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
-import { generateTermsModalitesPDF, getTermsModalitesFilename } from "@/lib/pdfEngine";
+import { generateTermsModalitesPDF, getTermsModalitesFilename } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
 
 interface OrderData {

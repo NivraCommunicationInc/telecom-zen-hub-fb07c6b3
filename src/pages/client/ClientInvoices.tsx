@@ -14,7 +14,7 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { downloadInvoicePDF, getInvoicePDFBlob, type InvoiceData } from "@/lib/pdfEngine";
+import { downloadInvoicePDF, getInvoicePDFBlob, type InvoiceData } from "@/lib/pdf";
 import { safePDFPrint } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";

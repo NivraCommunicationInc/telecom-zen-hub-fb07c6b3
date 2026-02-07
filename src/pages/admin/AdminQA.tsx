@@ -159,6 +159,31 @@ const AdminQA = () => {
     queryClient.invalidateQueries({ queryKey: ["qa-cron-jobs"] });
   };
 
+  // Detect mismatch between config runtime and actual logs
+  const detectMismatches = (): { template: string; configPath: string; logPath: string }[] => {
+    if (!templates || !logs) return [];
+    const mismatches: { template: string; configPath: string; logPath: string }[] = [];
+    
+    for (const template of templates.filter(t => t.is_active)) {
+      const recentLogs = logs.filter(l => 
+        l.doc_type.includes(template.template_type.toLowerCase().replace(' ', '_'))
+      );
+      
+      for (const log of recentLogs) {
+        if (log.template_path && log.template_path !== template.template_path) {
+          mismatches.push({
+            template: template.template_type,
+            configPath: template.template_path,
+            logPath: log.template_path,
+          });
+        }
+      }
+    }
+    return mismatches;
+  };
+  
+  const mismatches = detectMismatches();
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -166,13 +191,45 @@ const AdminQA = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">QA — Données brutes</h1>
-            <p className="text-muted-foreground text-sm">Lecture seule — SELECT uniquement — Auto-refresh 5s</p>
+            <p className="text-muted-foreground text-sm">Lecture seule — SELECT uniquement — Refresh manuel</p>
           </div>
           <Button onClick={handleRefresh} variant="outline" size="sm" className="gap-2">
             <RefreshCw className="w-4 h-4" />
             Rafraîchir
           </Button>
         </div>
+
+        {/* MISMATCH ALERT - Config vs Real Logs */}
+        {mismatches.length > 0 && (
+          <Card className="border-destructive bg-destructive/10">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+                <AlertTriangle className="w-5 h-5" />
+                MISMATCH DÉTECTÉ — Config runtime ≠ Logs réels
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 pr-4">template</th>
+                    <th className="pb-2 pr-4">config_path (runtime)</th>
+                    <th className="pb-2">log_path (réel)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mismatches.map((m, idx) => (
+                    <tr key={idx} className="border-b border-destructive/30">
+                      <td className="py-2 pr-4 font-mono text-xs font-semibold text-destructive">{m.template}</td>
+                      <td className="py-2 pr-4 font-mono text-xs">{m.configPath}</td>
+                      <td className="py-2 font-mono text-xs text-destructive">{m.logPath}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* SECTION 1: Templates PDF actifs */}
         <Card>

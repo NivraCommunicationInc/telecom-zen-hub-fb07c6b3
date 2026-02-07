@@ -32,7 +32,7 @@ import {
   generateTermsModalitesPDF, 
   getTermsModalitesFilename,
   TERMS_DOCUMENT_INFO 
-} from "@/lib/pdfEngine";
+} from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
 
 const ClientDocuments = () => {

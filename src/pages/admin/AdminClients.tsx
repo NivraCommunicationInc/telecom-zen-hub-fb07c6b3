@@ -38,7 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { downloadInvoicePDF, viewInvoicePDF, downloadContractPDF, viewContractPDF } from "@/lib/pdfEngine";
+import { downloadInvoicePDF, viewInvoicePDF, downloadContractPDF, viewContractPDF } from "@/lib/pdf";
 import { AdminPinManagementCard } from "@/components/admin/AdminPinManagementCard";
 import SecurityAlertBanner from "@/components/admin/SecurityAlertBanner";
 import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
