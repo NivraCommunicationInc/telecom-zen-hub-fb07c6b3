@@ -1,528 +1,501 @@
-import { useState, useEffect } from "react";
+/**
+ * AdminQA - Page d'audit READ-ONLY
+ * 
+ * Affiche l'état actuel du système sans aucune action de modification.
+ * - Templates PDF actifs et legacy
+ * - Sources de données par document
+ * - Jobs automatiques
+ * 
+ * AUCUN bouton d'action, AUCUNE modification.
+ */
+
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
+import { 
+  FileSearch, 
+  FileText, 
   CheckCircle2,
   XCircle,
-  AlertTriangle,
-  RefreshCw,
-  Shield,
-  FileText,
-  Receipt,
-  Tags,
-  Package,
-  Users,
-  Activity,
-  Tv,
-  ClipboardCheck,
+  Database,
+  Clock,
+  Folder,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 
-interface QACheckResult {
-  id: string;
-  category: string;
-  name: string;
+// ============================================
+// SECTION 1: Templates PDF en production
+// ============================================
+
+interface PDFTemplateInfo {
+  type: string;
+  fileName: string;
+  filePath: string;
+  lastUsedAt: string | null;
+  active: boolean;
+  version: string;
   description: string;
-  status: "pass" | "fail" | "warning" | "pending";
-  reason?: string;
-  details?: string;
 }
 
+const PDF_TEMPLATES_ACTIVE: PDFTemplateInfo[] = [
+  {
+    type: "Facture mensuelle",
+    fileName: "invoiceMonthlyTemplateV2.ts",
+    filePath: "src/lib/pdf/invoiceMonthlyTemplateV2.ts",
+    lastUsedAt: null, // Will be fetched from DB
+    active: true,
+    version: "V2.4",
+    description: "Renouvellement abonnement - Template principal",
+  },
+  {
+    type: "Facture unique",
+    fileName: "invoiceOneTimeTemplateV2.ts",
+    filePath: "src/lib/pdf/invoiceOneTimeTemplateV2.ts",
+    lastUsedAt: null,
+    active: true,
+    version: "V2.4",
+    description: "Équipements + frais activation",
+  },
+  {
+    type: "Contrat de service",
+    fileName: "contractTemplate.ts",
+    filePath: "src/lib/pdf/contractTemplate.ts",
+    lastUsedAt: null,
+    active: true,
+    version: "V2.5",
+    description: "Contrat légal avec annexes A-E et signature électronique",
+  },
+  {
+    type: "Résumé de commande",
+    fileName: "orderSummaryTemplate.ts",
+    filePath: "src/lib/pdf/orderSummaryTemplate.ts",
+    lastUsedAt: null,
+    active: true,
+    version: "V2.4",
+    description: "Confirmation post-paiement checkout",
+  },
+  {
+    type: "Modalités de service",
+    fileName: "termsModalitesPdfGenerator.ts",
+    filePath: "src/lib/pdfEngine/termsModalitesPdfGenerator.ts",
+    lastUsedAt: null,
+    active: true,
+    version: "V2.5",
+    description: "8 pages, watermark PRÉPAYÉ, clauses CRTC",
+  },
+];
+
+const PDF_TEMPLATES_LEGACY: PDFTemplateInfo[] = [
+  {
+    type: "Facture (legacy V1)",
+    fileName: "invoicePdfGenerator.ts",
+    filePath: "src/lib/pdf/invoicePdfGenerator.ts",
+    lastUsedAt: null,
+    active: false,
+    version: "V1.0",
+    description: "DÉSACTIVÉ - Ancien générateur",
+  },
+  {
+    type: "Contrat télécom (legacy)",
+    fileName: "telecomContractGenerator.ts",
+    filePath: "src/lib/pdf/telecomContractGenerator.ts",
+    lastUsedAt: null,
+    active: false,
+    version: "V1.0",
+    description: "DÉSACTIVÉ - Ancien format",
+  },
+  {
+    type: "Invoice Monthly V1",
+    fileName: "invoiceMonthlyTemplate.ts",
+    filePath: "src/lib/pdf/invoiceMonthlyTemplate.ts",
+    lastUsedAt: null,
+    active: false,
+    version: "V1.0",
+    description: "DÉSACTIVÉ - Remplacé par V2.4",
+  },
+  {
+    type: "Invoice OneTime V1",
+    fileName: "invoiceOneTimeTemplate.ts",
+    filePath: "src/lib/pdf/invoiceOneTimeTemplate.ts",
+    lastUsedAt: null,
+    active: false,
+    version: "V1.0",
+    description: "DÉSACTIVÉ - Remplacé par V2.4",
+  },
+];
+
+// ============================================
+// SECTION 3: Sources par document
+// ============================================
+
+interface DocumentSourceInfo {
+  documentType: string;
+  primarySource: string;
+  primaryTable: string;
+  secondarySource?: string;
+  secondaryTable?: string;
+  notes: string;
+}
+
+const DOCUMENT_SOURCES: DocumentSourceInfo[] = [
+  {
+    documentType: "Factures client (portail)",
+    primarySource: "billing_invoices",
+    primaryTable: "billing_invoices",
+    secondarySource: "billing (legacy)",
+    secondaryTable: "billing",
+    notes: "V2 active, legacy en lecture seule pour historique",
+  },
+  {
+    documentType: "Factures mensuelles",
+    primarySource: "billing_invoices (type=recurring)",
+    primaryTable: "billing_invoices",
+    notes: "Générées automatiquement J-5 via pg_cron",
+  },
+  {
+    documentType: "Factures uniques",
+    primarySource: "billing_invoices (type=one_time)",
+    primaryTable: "billing_invoices",
+    notes: "Créées au checkout avec equipment_details.line_items",
+  },
+  {
+    documentType: "Contrats",
+    primarySource: "contracts",
+    primaryTable: "contracts",
+    notes: "Génération via trg_auto_generate_contract_on_payment",
+  },
+  {
+    documentType: "Résumés de commande",
+    primarySource: "orders + equipment_details",
+    primaryTable: "orders",
+    notes: "Généré immédiatement après paiement confirmé",
+  },
+];
+
+// ============================================
+// SECTION 4: Jobs automatiques
+// ============================================
+
+interface AutomationJobInfo {
+  jobName: string;
+  description: string;
+  schedule: string;
+  sourceTable: string;
+  lastRun: string | null;
+  status: "running" | "idle" | "error" | "unknown";
+}
+
+const AUTOMATION_JOBS: AutomationJobInfo[] = [
+  {
+    jobName: "billing-generate-renewals-hourly",
+    description: "Génération factures renouvellement J-5",
+    schedule: "Toutes les heures (pg_cron)",
+    sourceTable: "billing_invoices",
+    lastRun: null,
+    status: "unknown",
+  },
+  {
+    jobName: "process-email-queue",
+    description: "Envoi des emails en file d'attente",
+    schedule: "Toutes les minutes (pg_cron)",
+    sourceTable: "email_queue",
+    lastRun: null,
+    status: "unknown",
+  },
+  {
+    jobName: "billing-payment-reminders",
+    description: "Rappels paiement J-7, J-3, J-1, J0, J+1",
+    schedule: "Toutes les heures (pg_cron)",
+    sourceTable: "email_queue",
+    lastRun: null,
+    status: "unknown",
+  },
+  {
+    jobName: "billing-expiration-check",
+    description: "Vérification expiration abonnements",
+    schedule: "Quotidien 00:05 (pg_cron)",
+    sourceTable: "billing_subscriptions",
+    lastRun: null,
+    status: "unknown",
+  },
+];
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 const AdminQA = () => {
-  const [results, setResults] = useState<QACheckResult[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
+  // Fetch last invoice created (READ-ONLY) to estimate template usage
+  const { data: lastInvoice } = useQuery({
+    queryKey: ["qa-last-invoice"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("billing_invoices")
+        .select("created_at, type")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+  });
 
-  // Helper to add/update a result
-  const updateResult = (result: QACheckResult) => {
-    setResults((prev) => {
-      const existing = prev.findIndex((r) => r.id === result.id);
-      if (existing >= 0) {
-        const newResults = [...prev];
-        newResults[existing] = result;
-        return newResults;
-      }
-      return [...prev, result];
-    });
-  };
+  // Fetch last contract created (READ-ONLY)
+  const { data: lastContract } = useQuery({
+    queryKey: ["qa-last-contract"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("contracts")
+        .select("created_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+  });
 
-  // Run all QA checks
-  const runAllChecks = async () => {
-    setIsRunning(true);
-    setResults([]);
+  // Fetch email queue stats (READ-ONLY)
+  const { data: emailQueueStats } = useQuery({
+    queryKey: ["qa-email-queue-stats"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("email_queue")
+        .select("status, sent_at")
+        .order("sent_at", { ascending: false })
+        .limit(50);
+      
+      const lastSent = data?.find(e => e.sent_at)?.sent_at;
+      const pending = data?.filter(e => e.status === "pending").length || 0;
+      const sent = data?.filter(e => e.status === "sent").length || 0;
+      
+      return { lastSent, pending, sent };
+    },
+  });
 
-    // === SECURITY CHECKS ===
-    
-    // Check 1: Portal pages don't import admin hooks
-    updateResult({
-      id: "security-1",
-      category: "Security",
-      name: "Portal pages isolation",
-      description: "Portal pages should not import admin/global auth hooks",
-      status: "pass",
-      reason: "ClientAuthProvider and useClientAuth are used in portal routes",
-      details: "Verified in App.tsx - portal routes use ClientAuthProvider, admin routes use AuthProvider",
-    });
-
-    // Check 2: Idle timeout configured
-    updateResult({
-      id: "security-2",
-      category: "Security",
-      name: "Idle timeout",
-      description: "Client and admin sessions have idle timeout",
-      status: "pass",
-      reason: "useIdleTimeout hook is implemented",
-      details: "Idle timeout configured via useIdleTimeout hook in both portals",
-    });
-
-    // Check 3: Session isolation
-    updateResult({
-      id: "security-3",
-      category: "Security",
-      name: "Session isolation",
-      description: "Portal client session should not switch when admin logs in another tab",
-      status: "pass",
-      reason: "Separate storage keys used",
-      details: "Admin uses 'nivra-admin-session', Portal uses 'nivra-portal-session'",
-    });
-
-    // === PDF CHECKS ===
-
-    // Check 4: Invoice PDF download - using safePDFDownload
-    updateResult({
-      id: "pdf-1",
-      category: "PDF",
-      name: "Invoice download (no blank tab)",
-      description: "Invoice PDF download should not open blank tab",
-      status: "pass",
-      reason: "safePDFDownload and safePDFOpen functions used in AdminBilling.tsx",
-      details: "exportInvoicePDF and viewInvoicePDF use blob pattern with safePDFDownload/safePDFOpen",
-    });
-
-    // Check 5: Contract PDF - services from line_items only
-    const { data: orderWithLineItems } = await supabase
-      .from("orders")
-      .select("order_number, equipment_details, service_type")
-      .not("equipment_details", "is", null)
-      .limit(1)
-      .single();
-
-    const equipDetails = orderWithLineItems?.equipment_details as Record<string, any> | null;
-    const lineItems = equipDetails?.line_items as any[] | undefined;
-    const serviceItems = lineItems?.filter((item: any) => item.category === "service") || [];
-    const hasValidPrices = serviceItems.some((item: any) => 
-      typeof item.unit_price === "number" && item.unit_price >= 0
-    );
-
-    updateResult({
-      id: "pdf-2",
-      category: "PDF",
-      name: "Contract shows ONLY selected services",
-      description: "Contract PDF should show only services from line_items, no fallback",
-      status: hasValidPrices && serviceItems.length > 0 ? "pass" : lineItems && lineItems.length > 0 ? "warning" : "warning",
-      reason: serviceItems.length > 0 
-        ? `Found ${serviceItems.length} service(s) in line_items with valid prices` 
-        : lineItems && lineItems.length > 0
-        ? `Found ${lineItems.length} line_items but no services`
-        : "No orders with line_items found (create an order to test)",
-      details: serviceItems.length > 0 
-        ? `Services: ${serviceItems.map((s: any) => `${s.name} ($${s.unit_price})`).join(", ")}`
-        : "Create an order via checkout to populate line_items",
-    });
-
-    // Check 6: Contract PDF - no "Prix à confirmer"
-    updateResult({
-      id: "pdf-3",
-      category: "PDF",
-      name: "No 'Prix à confirmer' in Contract",
-      description: "Contract should never show 'Prix à confirmer' if price exists",
-      status: "pass",
-      reason: "formatCurrency() always returns numeric value, never 'Prix à confirmer'",
-      details: "pdfEngine/helpers.ts formatCurrency returns formatted price or 0.00$ for invalid values",
-    });
-
-    // Check 7: Contract PDF - Frais uniques section
-    updateResult({
-      id: "pdf-4",
-      category: "PDF",
-      name: "Contract 'Frais uniques' section",
-      description: "Contract should show one-time fees section before total",
-      status: "pass",
-      reason: "oneTimeFees array built from line_items with category='fee'",
-      details: "Fees render in 'Frais uniques' section via generator.ts addSectionTitle",
-    });
-
-    // Check 8: Contract PDF - Total mensuel estimé visible
-    updateResult({
-      id: "pdf-5",
-      category: "PDF",
-      name: "Total mensuel estimé (prominent)",
-      description: "Monthly estimate should be large and prominent",
-      status: "pass",
-      reason: "Enhanced display in generator.ts with highlighted box, bold text, larger font",
-      details: "Box with accent border, 14pt bold primary color, subtitle explaining 'avant taxes, services récurrents'",
-    });
-
-    // Check 9: Invoice PDF - services section
-    updateResult({
-      id: "pdf-6",
-      category: "PDF",
-      name: "Invoice shows services + fees + promo",
-      description: "Invoice PDF should show services, one-time fees, and promos",
-      status: "pass",
-      reason: "invoicePdfGenerator includes SERVICES BILLED and ONE-TIME FEES sections",
-      details: "AdminBilling fetchRelatedOrderData() retrieves line_items from linked order",
-    });
-
-    // === PROMO CHECKS ===
-
-    // Check 10: Promo in checkout summary
-    updateResult({
-      id: "promo-1",
-      category: "Promos",
-      name: "Promo in checkout summary",
-      description: "Applied promo code should appear in checkout summary",
-      status: "pass",
-      reason: "PromoCodeInput component shows applied promo with code and discount amount",
-      details: "Green badge shows code + '-X.XX $ de réduction' when promo applied",
-    });
-
-    // Check 11: Promo stored with order
-    const { data: orderWithPromo } = await supabase
-      .from("orders")
-      .select("order_number, promo_code, promo_discount_amount, promo_details")
-      .not("promo_code", "is", null)
-      .limit(1)
-      .single();
-
-    updateResult({
-      id: "promo-2",
-      category: "Promos",
-      name: "Promo stored with order",
-      description: "Promo data should be persisted in orders table",
-      status: orderWithPromo ? "pass" : "warning",
-      reason: orderWithPromo 
-        ? `Found order ${orderWithPromo.order_number} with promo: ${orderWithPromo.promo_code}` 
-        : "No orders with promo codes found (apply a promo at checkout to test)",
-      details: orderWithPromo 
-        ? `Discount: $${orderWithPromo.promo_discount_amount}` 
-        : "Fields: promo_code, promo_discount_amount, promo_details",
-    });
-
-    // Check 12: Promo in Contract PDF
-    updateResult({
-      id: "promo-3",
-      category: "Promos",
-      name: "Promo in Contract PDF",
-      description: "Promo discount should appear in contract PDF 'Rabais / Promotions' section",
-      status: "pass",
-      reason: "Discounts extracted from line_items category='discount' in legacyWrappers.ts",
-      details: "lineItemToDiscount() maps to DiscountItem, renders in 'Rabais / Promotions' section",
-    });
-
-    // Check 13: Promo in Invoice PDF
-    updateResult({
-      id: "promo-4",
-      category: "Promos",
-      name: "Promo in Invoice PDF",
-      description: "Promo discount should appear in invoice PDF",
-      status: "pass",
-      reason: "exportInvoicePDF fetches promo_code from linked order, passes to invoiceData",
-      details: "promoCode and promoDescription fields render in discount section of invoice",
-    });
-
-    // === ADMIN ORDERS CHECKS ===
-
-    // Check 14: Tracking tab simplified
-    updateResult({
-      id: "orders-1",
-      category: "Admin Orders",
-      name: "Tracking tab simplified",
-      description: "Tracking tab should only show shipping/installation tracking",
-      status: "pass",
-      reason: "SIM, IMEI, serial number moved to Equipment tab",
-      details: "Shows: carrier, tracking number, delivery status OR technician assignment",
-    });
-
-    // Check 15: Equipment serial/inventory fields
-    updateResult({
-      id: "orders-2",
-      category: "Admin Orders",
-      name: "Equipment serial/inventory fields",
-      description: "Equipment tab should support serial number + inventory reference per item",
-      status: "pass",
-      reason: "equipment_line_details column supports serial_number and inventory_ref per line",
-      details: "AdminOrders Equipment tab renders fields per equipment item",
-    });
-
-    // === AUDIT CHECKS ===
-
-    // Check 16: Audit logs display
-    const { data: activityLogs, error: logsError } = await supabase
-      .from("activity_logs")
-      .select("id, action, actor_name, actor_role, created_at, entity_type")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    updateResult({
-      id: "audit-1",
-      category: "Audit / Logs",
-      name: "Audit logs display",
-      description: "Audit section should show logs with actor/action/date/details",
-      status: !logsError && activityLogs && activityLogs.length > 0 ? "pass" : "warning",
-      reason: !logsError && activityLogs && activityLogs.length > 0
-        ? `Found ${activityLogs.length} activity logs`
-        : "No activity logs found (perform actions to generate logs)",
-      details: activityLogs && activityLogs.length > 0 
-        ? `Latest: ${activityLogs[0].action} by ${activityLogs[0].actor_name || 'System'} on ${activityLogs[0].entity_type}`
-        : "Create orders, update statuses, etc. to generate logs",
-    });
-
-    // === CLIENT PROFILE CHECKS ===
-
-    // Check 17: Services display in client profile
-    updateResult({
-      id: "profile-1",
-      category: "Client Profile",
-      name: "Services display",
-      description: "Client profile should show all services (Mobile/Internet/TV/Streaming+)",
-      status: "pass",
-      reason: "Services tab in AdminClients queries subscriptions, streaming subs, and orders",
-      details: "Displays active services with status badges and 'View in Streaming+' link",
-    });
-
-    // Check 18: Profile fields persistence
-    updateResult({
-      id: "profile-2",
-      category: "Client Profile",
-      name: "Profile fields persistence",
-      description: "Profile fields (name, DOB, phone, address) should persist",
-      status: "pass",
-      reason: "updateClientMutation saves all profile fields to profiles table",
-      details: "Fields: first_name, last_name, date_of_birth, phone, service_address, service_city, service_province, service_postal_code",
-    });
-
-    // === STREAMING+ CHECKS ===
-
-    // Check 19: Streaming+ admin view with full details
-    const { data: streamingSubs } = await supabase
-      .from("client_streaming_subscriptions")
-      .select("id, status, monthly_price, promo_code, discount_amount, internal_notes, start_date, updated_at")
-      .limit(5);
-
-    updateResult({
-      id: "streaming-1",
-      category: "Streaming+",
-      name: "Streaming+ admin view (full details)",
-      description: "Admin view should show client info, plan, price, status, dates, promo, notes",
-      status: "pass",
-      reason: "AdminStreaming.tsx fetches profiles, accounts, payment_methods for each subscription",
-      details: `Found ${streamingSubs?.length || 0} subscriptions. View shows: name, email, phone, account#, plan, price, status, dates, promo, payment method`,
-    });
-
-    // Check 20: Streaming+ search/filters
-    updateResult({
-      id: "streaming-2",
-      category: "Streaming+",
-      name: "Streaming+ search/filters",
-      description: "Should support search by client name/email/account# and filter by status/plan",
-      status: "pass",
-      reason: "AdminStreaming has searchQuery, statusFilter, planFilter, sortBy state",
-      details: "Filters: status (all/active/paused/cancelled), plan (all services), sort (newest/oldest/price/next_billing)",
-    });
-
-    // Check 21: Streaming+ actions with audit logging
-    updateResult({
-      id: "streaming-3",
-      category: "Streaming+",
-      name: "Streaming+ actions + audit logging",
-      description: "Status changes and notes should be logged to activity_logs",
-      status: "pass",
-      reason: "updateSubscriptionMutation inserts to activity_logs on status/note changes",
-      details: "Logs: subscription_id, new_status, note_added, actor info",
-    });
-
-    setIsRunning(false);
-  };
-
-  // Run checks on mount
-  useEffect(() => {
-    runAllChecks();
-  }, []);
-
-  // Group results by category
-  const groupedResults = results.reduce((acc, result) => {
-    if (!acc[result.category]) acc[result.category] = [];
-    acc[result.category].push(result);
-    return acc;
-  }, {} as Record<string, QACheckResult[]>);
-
-  const categoryIcons: Record<string, any> = {
-    Security: Shield,
-    PDF: FileText,
-    Promos: Tags,
-    "Admin Orders": Package,
-    "Audit / Logs": Activity,
-    "Client Profile": Users,
-    "Streaming+": Tv,
-  };
-
-  const getStatusIcon = (status: QACheckResult["status"]) => {
-    switch (status) {
-      case "pass":
-        return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
-      case "fail":
-        return <XCircle className="w-5 h-5 text-destructive" />;
-      case "warning":
-        return <AlertTriangle className="w-5 h-5 text-amber-500" />;
-      default:
-        return <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />;
+  // Compute template last used dates based on DB
+  const getTemplateLastUsed = (type: string): string | null => {
+    if (type.includes("mensuelle") && lastInvoice?.type === "recurring") {
+      return lastInvoice.created_at;
     }
-  };
-
-  const getStatusBadge = (status: QACheckResult["status"]) => {
-    switch (status) {
-      case "pass":
-        return <Badge className="bg-emerald-500">PASS</Badge>;
-      case "fail":
-        return <Badge variant="destructive">FAIL</Badge>;
-      case "warning":
-        return <Badge className="bg-amber-500">WARNING</Badge>;
-      default:
-        return <Badge variant="secondary">PENDING</Badge>;
+    if (type.includes("unique") && lastInvoice?.type === "one_time") {
+      return lastInvoice.created_at;
     }
+    if (type.includes("Contrat") && lastContract) {
+      return lastContract.created_at;
+    }
+    return null;
   };
 
-  const passCount = results.filter((r) => r.status === "pass").length;
-  const failCount = results.filter((r) => r.status === "fail").length;
-  const warningCount = results.filter((r) => r.status === "warning").length;
+  const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleString("fr-CA", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <ClipboardCheck className="w-8 h-8 text-primary" />
-              QA Test Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Validation de toutes les fonctionnalités critiques
-            </p>
-          </div>
-          <Button onClick={runAllChecks} disabled={isRunning}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRunning ? "animate-spin" : ""}`} />
-            {isRunning ? "Exécution..." : "Relancer les tests"}
-          </Button>
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+            <FileSearch className="w-8 h-8 text-primary" />
+            QA — Audit Système
+          </h1>
+          <p className="text-muted-foreground">
+            Lecture seule — Aucune action disponible
+          </p>
         </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Tests</p>
-                  <p className="text-2xl font-bold">{results.length}</p>
-                </div>
-                <ClipboardCheck className="w-8 h-8 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-emerald-500/50">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Passed</p>
-                  <p className="text-2xl font-bold text-emerald-500">{passCount}</p>
-                </div>
-                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-destructive/50">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Failed</p>
-                  <p className="text-2xl font-bold text-destructive">{failCount}</p>
-                </div>
-                <XCircle className="w-8 h-8 text-destructive" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-amber-500/50">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Warnings</p>
-                  <p className="text-2xl font-bold text-amber-500">{warningCount}</p>
-                </div>
-                <AlertTriangle className="w-8 h-8 text-amber-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Results by Category */}
-        <ScrollArea className="h-[calc(100vh-320px)]">
-          <div className="space-y-6 pr-4">
-            {Object.entries(groupedResults).map(([category, checks]) => {
-              const CategoryIcon = categoryIcons[category] || ClipboardCheck;
-              const categoryPass = checks.filter((c) => c.status === "pass").length;
-              const categoryTotal = checks.length;
-
-              return (
-                <Card key={category}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CategoryIcon className="w-5 h-5 text-primary" />
-                        {category}
-                      </div>
-                      <Badge variant={categoryPass === categoryTotal ? "default" : "secondary"}>
-                        {categoryPass}/{categoryTotal} passed
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {checks.map((check) => (
-                      <div
-                        key={check.id}
-                        className="flex items-start gap-4 p-4 border rounded-lg bg-accent/20"
-                      >
-                        <div className="mt-0.5">{getStatusIcon(check.status)}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{check.name}</span>
-                            {getStatusBadge(check.status)}
+        {/* SECTION 1: Templates PDF actifs */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-emerald-500" />
+              Templates PDF en production (ACTIFS)
+            </CardTitle>
+            <CardDescription>
+              Fichiers réellement utilisés pour générer les documents
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[300px]">
+              <div className="space-y-3">
+                {PDF_TEMPLATES_ACTIVE.map((template, idx) => (
+                  <div key={idx} className="p-4 border rounded-lg bg-card">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium">{template.type}</span>
+                          <Badge className="bg-emerald-500 text-white">
+                            {template.version}
+                          </Badge>
+                          <Badge variant="outline" className="text-emerald-600 border-emerald-500">
+                            ACTIF
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Folder className="w-3 h-3" />
+                            <code className="text-xs bg-muted px-1 rounded">{template.filePath}</code>
                           </div>
-                          <p className="text-sm text-muted-foreground mb-2">
-                            {check.description}
-                          </p>
-                          {check.reason && (
-                            <p className="text-sm">
-                              <span className="font-medium">Reason:</span> {check.reason}
-                            </p>
-                          )}
-                          {check.details && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {check.details}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            <span>Dernière utilisation: {formatDate(getTemplateLastUsed(template.type))}</span>
+                          </div>
+                          <p className="text-xs">{template.description}</p>
                         </div>
                       </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 2: Templates PDF legacy (désactivés) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-muted-foreground" />
+              Templates PDF legacy (DÉSACTIVÉS)
+            </CardTitle>
+            <CardDescription>
+              Fichiers obsolètes — NE SONT PLUS UTILISÉS
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[200px]">
+              <div className="space-y-3">
+                {PDF_TEMPLATES_LEGACY.map((template, idx) => (
+                  <div key={idx} className="p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-muted-foreground">{template.type}</span>
+                          <Badge variant="secondary">{template.version}</Badge>
+                          <Badge variant="outline" className="text-destructive border-destructive">
+                            DÉSACTIVÉ
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Folder className="w-3 h-3" />
+                            <code className="text-xs bg-muted px-1 rounded">{template.filePath}</code>
+                          </div>
+                          <p className="text-xs">{template.description}</p>
+                        </div>
+                      </div>
+                      <XCircle className="w-5 h-5 text-muted-foreground shrink-0" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 3: Sources par document */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-primary" />
+              Sources de données par document
+            </CardTitle>
+            <CardDescription>
+              Tables utilisées pour générer chaque type de document
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {DOCUMENT_SOURCES.map((source, idx) => (
+                <div key={idx} className="p-4 border rounded-lg">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <span className="font-medium">{source.documentType}</span>
+                      <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            Source principale
+                          </Badge>
+                          <code className="text-xs bg-muted px-1 rounded">{source.primaryTable}</code>
+                        </div>
+                        {source.secondaryTable && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              Source secondaire
+                            </Badge>
+                            <code className="text-xs bg-muted px-1 rounded">{source.secondaryTable}</code>
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">{source.notes}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 4: Jobs automatiques */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              Jobs automatiques
+            </CardTitle>
+            <CardDescription>
+              Tâches planifiées via pg_cron
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {AUTOMATION_JOBS.map((job, idx) => (
+                <div key={idx} className="p-4 border rounded-lg">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{job.jobName}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {job.schedule}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p>{job.description}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">Table:</span>
+                          <code className="text-xs bg-muted px-1 rounded">{job.sourceTable}</code>
+                        </div>
+                        {job.jobName === "process-email-queue" && emailQueueStats?.lastSent && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <Clock className="w-3 h-3" />
+                            <span>Dernier envoi: {formatDate(emailQueueStats.lastSent)}</span>
+                            <span className="text-muted-foreground">
+                              ({emailQueueStats.pending} en attente, {emailQueueStats.sent} envoyés)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Separator />
+
+        {/* Footer */}
+        <div className="text-center text-xs text-muted-foreground py-4">
+          Page en lecture seule — Aucune action disponible — Données en temps réel
+        </div>
       </div>
     </AdminLayout>
   );
