@@ -423,13 +423,14 @@ const AdminRecouvrement = () => {
       return <Badge className="bg-red-600/20 text-red-600">Numéro à risque (90+ jours)</Badge>;
     }
     
+    // PREPAID MODEL: "Renouvellement non confirmé" instead of "En retard"
     switch (account.status) {
       case "suspended":
-        return <Badge className="bg-red-500/20 text-red-500">Service en suspension</Badge>;
+        return <Badge className="bg-red-500/20 text-red-500">Suspendu (litige)</Badge>;
       case "overdue":
-        return <Badge className="bg-amber-500/20 text-amber-500">Paiement en retard</Badge>;
+        return <Badge className="bg-amber-500/20 text-amber-500">Renouvellement non confirmé</Badge>;
       case "expired":
-        return <Badge className="bg-red-600/20 text-red-600">Expiré</Badge>;
+        return <Badge className="bg-red-600/20 text-red-600">Expiré (non renouvelé)</Badge>;
       default:
         return <Badge className="bg-gray-500/20 text-gray-500">{account.status || "—"}</Badge>;
     }
@@ -449,7 +450,7 @@ const AdminRecouvrement = () => {
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground">Recouvrement</h1>
             <p className="text-muted-foreground mt-1">
-              Comptes avec paiements en retard et services suspendus
+              Comptes avec services non renouvelés et litiges
             </p>
           </div>
           <Button onClick={() => refetch()} variant="outline">
@@ -513,7 +514,7 @@ const AdminRecouvrement = () => {
                   <Clock className="w-5 h-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">En retard</p>
+                  <p className="text-xs text-muted-foreground">Non renouvelés</p>
                   <p className="text-2xl font-bold text-amber-500">{stats.overdue}</p>
                 </div>
               </div>
@@ -589,8 +590,8 @@ const AdminRecouvrement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous statuts</SelectItem>
-                  <SelectItem value="suspended">Suspendu</SelectItem>
-                  <SelectItem value="overdue">En retard</SelectItem>
+                  <SelectItem value="suspended">Suspendu (litige)</SelectItem>
+                  <SelectItem value="overdue">Non renouvelé</SelectItem>
                   <SelectItem value="expired">Expiré</SelectItem>
                   <SelectItem value="number_lost">Numéro perdu</SelectItem>
                 </SelectContent>

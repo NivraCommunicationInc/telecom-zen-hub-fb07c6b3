@@ -473,14 +473,17 @@ export function orderToDocumentData(
     billingAddress: order.billing_address,
   };
   
-  // Payment status mapping
-  const paymentStatusMap: Record<string, "pending" | "paid" | "overdue" | "cancelled"> = {
+  // Payment status mapping - PREPAID MODEL: "renewal_required" replaces "overdue"
+  const paymentStatusMap: Record<string, "pending" | "paid" | "renewal_required" | "void" | "cancelled"> = {
     pending: "pending",
     unpaid: "pending",
     pre_authorized: "pending",
     paid: "paid",
     completed: "paid",
-    overdue: "overdue",
+    overdue: "renewal_required",
+    renewal_required: "renewal_required",
+    void: "void",
+    not_renewed: "void",
     cancelled: "cancelled",
   };
   
@@ -663,8 +666,10 @@ export function billingToInvoiceData(
       balance: billing.amount - (billing.amount_paid || 0),
     },
     payment: {
+      // PREPAID MODEL: Map legacy statuses to new terminology
       status: billing.status === "paid" ? "paid" : 
-              billing.status === "overdue" ? "overdue" :
+              billing.status === "overdue" ? "renewal_required" :
+              billing.status === "void" ? "void" :
               billing.status === "cancelled" ? "cancelled" : "pending",
       reference: billing.payment_reference,
       paidAt: billing.paid_at,

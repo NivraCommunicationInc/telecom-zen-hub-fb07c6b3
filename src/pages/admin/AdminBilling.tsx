@@ -33,24 +33,30 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { AccountingExportDialog } from "@/components/admin/AccountingExportDialog";
 import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
 
+// Status colors - PREPAID MODEL: "renewal_required" replaces "overdue"
 const statusColors: Record<string, string> = {
   pending: "bg-amber-500/20 text-amber-500",
   paid: "bg-emerald-500/20 text-emerald-500",
-  overdue: "bg-red-500/20 text-red-500",
+  renewal_required: "bg-red-500/20 text-red-500",
+  void: "bg-muted text-muted-foreground",
   cancelled: "bg-muted text-muted-foreground",
   disputed: "bg-orange-500/20 text-orange-500",
   refunded: "bg-purple-500/20 text-purple-500",
   partial: "bg-blue-500/20 text-blue-500",
+  expired: "bg-slate-500/20 text-slate-500",
 };
 
+// Status labels - PREPAID MODEL: No debt terminology
 const statusLabels: Record<string, string> = {
   pending: "En attente",
   paid: "Payé",
-  overdue: "En retard",
+  renewal_required: "Renouvellement requis",
+  void: "Annulé (non-renouvellement)",
   cancelled: "Annulé",
-  disputed: "Contesté",
+  disputed: "Contesté (litige)",
   refunded: "Remboursé",
   partial: "Partiel",
+  expired: "Expiré (non renouvelé)",
 };
 
 const paymentStatusLabels: Record<string, string> = {
@@ -234,6 +240,8 @@ const AdminBilling = () => {
     },
   });
 
+  // LEGACY BILLING: Apply late fee (only for disputed/chargeback cases - Scenario B)
+  // NOTE: For prepaid non-renewal (Scenario A), NO fees are applied
   const applyLateFeeMutation = useMutation({
     mutationFn: async (bill: any) => {
       const lateFee = Number(bill.amount) * 0.05;
@@ -242,7 +250,7 @@ const AdminBilling = () => {
         .update({
           fees: (Number(bill.fees) || 0) + lateFee,
           late_fee_applied: true,
-          status: "overdue",
+          status: "disputed", // Only for disputes, NOT normal non-renewal
         })
         .eq("id", bill.id);
 
@@ -271,14 +279,15 @@ const AdminBilling = () => {
 
   // Filter billing by tab and search query
   const filteredBilling = billing?.filter((bill: any) => {
-    // Tab filter
+    // Tab filter - PREPAID MODEL: "renewal_required" replaces "overdue"
     let matchesTab = true;
-    if (activeTab === "overdue") matchesTab = bill.status === "overdue";
+    if (activeTab === "renewal_required") matchesTab = bill.status === "renewal_required" || bill.status === "overdue";
     else if (activeTab === "pending") matchesTab = bill.status === "pending";
     else if (activeTab === "paid") matchesTab = bill.status === "paid";
     else if (activeTab === "disputed") matchesTab = bill.status === "disputed";
     else if (activeTab === "refunded") matchesTab = bill.status === "refunded";
     else if (activeTab === "partial") matchesTab = bill.status === "partial";
+    else if (activeTab === "void") matchesTab = bill.status === "void" || bill.status === "cancelled";
     
     // Search filter
     let matchesSearch = true;
@@ -293,10 +302,11 @@ const AdminBilling = () => {
     return matchesTab && matchesSearch;
   });
 
+  // Notification types - PREPAID: "renewal_reminder" replaces "invoice_overdue"
   const sendBillingNotification = async (
     email: string,
     name: string,
-    type: "invoice_created" | "payment_received" | "payment_failed" | "invoice_overdue",
+    type: "invoice_created" | "payment_received" | "payment_failed" | "renewal_reminder",
     data: { invoiceNumber?: string; amount: number; dueDate?: string; paidAt?: string; paymentMethod?: string; notes?: string }
   ) => {
     try {
@@ -319,10 +329,11 @@ const AdminBilling = () => {
 
     setIsResendingNotification(true);
     try {
+      // PREPAID MODEL: "renewal_reminder" instead of "invoice_overdue"
       const notificationType = bill.status === "paid" 
         ? "payment_received" 
-        : bill.status === "overdue" 
-          ? "invoice_overdue" 
+        : (bill.status === "renewal_required" || bill.status === "overdue")
+          ? "renewal_reminder" 
           : "invoice_created";
 
       await sendBillingNotification(
@@ -690,7 +701,8 @@ const AdminBilling = () => {
     },
   });
 
-  // Manual late fee application
+  // Manual late fee application - ONLY for disputes/chargeback (Scenario B)
+  // PREPAID MODEL: No late fees for normal non-renewal (Scenario A)
   const applyManualLateFee = async (bill: any) => {
     const lateFee = Number(bill.amount) * 0.05;
     const currentFees = Number(bill.fees) || 0;
@@ -700,7 +712,7 @@ const AdminBilling = () => {
         fees: currentFees + lateFee,
         late_fee_applied: true,
         late_fee_amount: lateFee,
-        status: "overdue",
+        status: "disputed", // Changed from "overdue" - fees only apply to disputes
       })
       .eq("id", bill.id);
     
@@ -711,7 +723,7 @@ const AdminBilling = () => {
     
     queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
     logActivity("apply_late_fee", "invoice", bill.id, { amount: lateFee });
-    toast({ title: "Frais de retard appliqué (5%)", description: `+${lateFee.toFixed(2)} $` });
+    toast({ title: "Frais administratifs appliqué (5%)", description: `+${lateFee.toFixed(2)} $ (litige/chargeback)` });
   };
 
   const openPaymentDialog = (bill: any) => {
@@ -1316,8 +1328,8 @@ const AdminBilling = () => {
                 <AlertTriangle className="w-6 h-6 text-red-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">En retard</p>
-                <p className="text-2xl font-bold text-foreground">{billing?.filter((b: any) => b.status === "overdue").length || 0}</p>
+                <p className="text-sm text-muted-foreground">Renouvellement requis</p>
+                <p className="text-2xl font-bold text-foreground">{billing?.filter((b: any) => b.status === "overdue" || b.status === "renewal_required").length || 0}</p>
               </div>
             </CardContent>
           </Card>
@@ -1372,10 +1384,11 @@ const AdminBilling = () => {
                   <TabsList className="flex-wrap h-auto">
                     <TabsTrigger value="all" className="text-xs">Toutes</TabsTrigger>
                     <TabsTrigger value="pending" className="text-xs">En attente</TabsTrigger>
-                    <TabsTrigger value="overdue" className="text-xs">En retard</TabsTrigger>
+                    <TabsTrigger value="renewal_required" className="text-xs">Renouvellement</TabsTrigger>
                     <TabsTrigger value="paid" className="text-xs">Payées</TabsTrigger>
                     <TabsTrigger value="partial" className="text-xs">Partiel</TabsTrigger>
                     <TabsTrigger value="disputed" className="text-xs">Contesté</TabsTrigger>
+                    <TabsTrigger value="void" className="text-xs">Annulé</TabsTrigger>
                     <TabsTrigger value="refunded" className="text-xs">Remboursé</TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -1537,11 +1550,11 @@ const AdminBilling = () => {
                       <SelectContent>
                         <SelectItem value="pending">En attente</SelectItem>
                         <SelectItem value="paid">Payé</SelectItem>
-                        <SelectItem value="overdue">En retard</SelectItem>
+                        <SelectItem value="renewal_required">Renouvellement requis</SelectItem>
                         <SelectItem value="partial">Partiel</SelectItem>
-                        <SelectItem value="disputed">Contesté</SelectItem>
+                        <SelectItem value="disputed">Contesté (litige)</SelectItem>
+                        <SelectItem value="void">Annulé (non-renouvellement)</SelectItem>
                         <SelectItem value="refunded">Remboursé</SelectItem>
-                        <SelectItem value="cancelled">Annulé</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

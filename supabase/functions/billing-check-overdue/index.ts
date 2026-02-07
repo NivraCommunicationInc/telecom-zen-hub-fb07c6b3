@@ -166,18 +166,27 @@ serve(async (req) => {
         const cycleEndDate = new Date(invoice.cycle_end_date);
         const daysPastDue = Math.floor((today.getTime() - cycleEndDate.getTime()) / (1000 * 60 * 60 * 24));
         
-        console.log(`[billing-check-overdue] Invoice ${invoice.invoice_number}: ${daysPastDue} days past due`);
+        console.log(`[billing-check-overdue] Invoice ${invoice.invoice_number}: ${daysPastDue} days past cycle end`);
         
-        // ⚠️ PREPAID MODEL: NO DEBT, NO LATE FEES FOR NORMAL NON-RENEWAL
-        // J0 immediate: Service expires (not "suspended with debt")
+        // =========================================================================
+        // PREPAID MODEL LOGIC - SCENARIO A (NO DEBT)
+        // =========================================================================
+        // daysPastDue >= 0 means: J0 (day of cycle end) AND any day after
+        // This is INTENTIONAL for prepaid: service expires immediately at J0 and
+        // continues to be marked expired on subsequent runs (idempotent)
+        // 
+        // J0+ Logic:
+        // - At J0: invoice → void, subscription → expired (first run)
+        // - At J+1, J+2...: No change if already processed (idempotent)
+        // =========================================================================
         
         if (daysPastDue >= 0 && invoice.subscription?.status === 'active') {
-          // IMMEDIATE: Mark invoice as void (not overdue - prepaid terminology)
+          // IMMEDIATE at J0+: Mark invoice as void (NOT overdue - prepaid terminology)
           await supabase
             .from("billing_invoices")
             .update({ 
               status: 'void',
-              notes: `[NON-RENOUVELLEMENT] Service non renouvelé à J0 (modèle prépayé - aucune dette créée)`,
+              notes: `[NON-RENOUVELLEMENT J${daysPastDue}] Service expiré - modèle prépayé (aucune dette créée)`,
               updated_at: new Date().toISOString()
             })
             .eq("id", invoice.id);
@@ -201,6 +210,7 @@ serve(async (req) => {
                 clientName: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
                 planName: invoice.subscription?.plan_name || 'Service',
                 invoiceNumber: invoice.invoice_number,
+                daysPastCycle: daysPastDue,
                 // NO amount owed - prepaid model, just explain renewal is needed
               },
               priority: "high"
@@ -208,7 +218,7 @@ serve(async (req) => {
           }
           
           results.cancelled.push(invoice.invoice_number);
-          console.log(`[billing-check-overdue] Non-renewal: subscription expired for invoice ${invoice.invoice_number} (no debt)`);
+          console.log(`[billing-check-overdue] SCENARIO A: Subscription expired for invoice ${invoice.invoice_number} at J+${daysPastDue} (no debt)`);
         }
         
       } catch (err: unknown) {
