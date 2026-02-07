@@ -14,8 +14,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 30000,
-      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 10, // 10 minutes - prevent unnecessary refetches
+      gcTime: 1000 * 60 * 30, // 30 minutes cache time
+      refetchOnWindowFocus: false, // CRITICAL: Disable auto-refresh on tab switch
+      refetchOnReconnect: false, // Disable refetch on network reconnect
+      refetchInterval: false, // No polling
     },
     mutations: {
       retry: 1,

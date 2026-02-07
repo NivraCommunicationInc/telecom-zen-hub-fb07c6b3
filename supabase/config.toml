@@ -188,3 +188,6 @@ verify_jwt = false
 
 [functions.paypal-reconcile]
 verify_jwt = false
+
+[functions.contracts-backfill-missing]
+verify_jwt = true
