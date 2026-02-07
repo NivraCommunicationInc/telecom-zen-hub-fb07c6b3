@@ -492,6 +492,168 @@ serve(async (req) => {
         break;
       }
 
+      // =========================================================================
+      // DISPUTE & CHARGEBACK HANDLERS (V2.5 - Billing Rules)
+      // =========================================================================
+      case "CUSTOMER.DISPUTE.CREATED":
+      case "RISK.DISPUTE.CREATED":
+      case "PAYMENT.CAPTURE.DENIED":
+      case "PAYMENT.CAPTURE.REVERSED": {
+        // A dispute/chargeback was initiated
+        const disputeId = event.resource.id;
+        const paymentId = (event.resource as any).disputed_transactions?.[0]?.seller_transaction_id || 
+                          (event.resource as any).seller_transaction_id ||
+                          disputeId;
+        
+        console.log(`[PayPal Webhook] Dispute/Chargeback detected: ${event.event_type}`, { disputeId, paymentId });
+        
+        // Determine dispute type
+        const disputeType = event.event_type.includes("DISPUTE") ? "disputed" : 
+                           event.event_type.includes("REVERSED") ? "chargeback" : "fraud";
+        
+        // Try to find the payment by provider_payment_id
+        const { data: payment } = await supabase
+          .from("billing_payments")
+          .select("*, invoice:billing_invoices(*, subscription:billing_subscriptions(*, customer:billing_customers(*)))")
+          .or(`provider_payment_id.eq.${paymentId},provider_payment_id.eq.${disputeId}`)
+          .maybeSingle();
+        
+        if (payment) {
+          // 1. Update payment status
+          await supabase
+            .from("billing_payments")
+            .update({
+              status: disputeType,
+              notes: `[${new Date().toISOString()}] PayPal ${event.event_type}: ${disputeId}`,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", payment.id);
+          
+          // 2. Update invoice status if exists
+          if (payment.invoice_id) {
+            await supabase
+              .from("billing_invoices")
+              .update({
+                status: disputeType,
+                notes: `[LITIGE] ${event.event_type} - ID: ${disputeId}`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", payment.invoice_id);
+          }
+          
+          // 3. Suspend the subscription immediately
+          if (payment.invoice?.subscription_id) {
+            await supabase
+              .from("billing_subscriptions")
+              .update({
+                status: "suspended",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", payment.invoice.subscription_id);
+          }
+          
+          // 4. Update order payment_status if linked
+          if (payment.invoice?.order_id) {
+            await supabase
+              .from("orders")
+              .update({
+                payment_status: disputeType,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", payment.invoice.order_id);
+          }
+          
+          // 5. Create dispute record for J+2/J+5 processing
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "dispute_created",
+            entity_type: "billing_payments",
+            entity_id: payment.id,
+            severity: "critical",
+            details: {
+              dispute_type: disputeType,
+              paypal_dispute_id: disputeId,
+              paypal_event: event.event_type,
+              payment_id: paymentId,
+              amount: payment.amount,
+              invoice_id: payment.invoice_id,
+              subscription_id: payment.invoice?.subscription_id,
+              created_at: new Date().toISOString(),
+              // Schedule J+2 (admin fee) and J+5 (expiration)
+              scheduled_fee_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+              scheduled_expiry_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            resolved: false,
+          });
+          
+          // 6. Notify customer
+          if (payment.invoice?.subscription?.customer) {
+            const customer = payment.invoice.subscription.customer;
+            await supabase.from("email_queue").insert({
+              event_key: `dispute_${disputeId}`,
+              to_email: customer.email,
+              template_key: "payment_disputed",
+              template_vars: {
+                client_name: `${customer.first_name} ${customer.last_name}`,
+                amount: payment.amount?.toFixed(2),
+                dispute_type: disputeType === "disputed" ? "contestation" : 
+                             disputeType === "chargeback" ? "rétrofacturation" : "fraude",
+                payment_reference: payment.provider_payment_id,
+              },
+              status: "queued",
+              priority: "urgent",
+              attempts: 0,
+              max_attempts: 5,
+            });
+          }
+          
+          console.log(`[PayPal Webhook] Dispute processed: payment ${payment.id} marked as ${disputeType}`);
+        } else {
+          // Log orphan dispute for manual review
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "orphan_dispute",
+            entity_type: "paypal_webhook",
+            entity_id: disputeId,
+            severity: "high",
+            details: {
+              event_type: event.event_type,
+              payment_id: paymentId,
+              dispute_id: disputeId,
+              resource: event.resource,
+            },
+            resolved: false,
+          });
+          console.warn(`[PayPal Webhook] Orphan dispute - no matching payment found: ${paymentId}`);
+        }
+        break;
+      }
+
+      case "CUSTOMER.DISPUTE.RESOLVED": {
+        // Dispute was resolved (won or lost)
+        const disputeId = event.resource.id;
+        const outcome = (event.resource as any).dispute_outcome?.outcome_code;
+        
+        console.log(`[PayPal Webhook] Dispute resolved: ${disputeId}, outcome: ${outcome}`);
+        
+        // Mark alert as resolved
+        await supabase
+          .from("billing_system_alerts")
+          .update({ resolved: true, resolved_at: new Date().toISOString() })
+          .eq("entity_id", disputeId);
+        
+        // If we won the dispute, we could reactivate - but typically requires manual review
+        await supabase.from("activity_logs").insert({
+          user_id: "00000000-0000-0000-0000-000000000000",
+          entity_type: "dispute_resolution",
+          entity_id: disputeId,
+          action: "dispute_resolved",
+          details: {
+            outcome,
+            event: event.event_type,
+          },
+        });
+        break;
+      }
+
       default:
         console.log(`[PayPal Webhook] Unhandled event type: ${event.event_type}`);
     }

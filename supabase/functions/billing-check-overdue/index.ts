@@ -43,9 +43,109 @@ serve(async (req) => {
       suspended: [] as string[],
       cancelled: [] as string[],
       reminders_sent: 0,
+      disputes_processed: 0,
+      dispute_fees_applied: 0,
+      dispute_expirations: 0,
       errors: [] as string[]
     };
     
+    // =========================================================================
+    // PART 1: DISPUTE/CHARGEBACK J+2 and J+5 PROCESSING (Scenario B)
+    // =========================================================================
+    const { data: activeDisputes, error: disputeError } = await supabase
+      .from("billing_system_alerts")
+      .select("*")
+      .eq("alert_type", "dispute_created")
+      .eq("resolved", false);
+    
+    if (disputeError) {
+      console.error("[billing-check-overdue] Failed to fetch disputes:", disputeError);
+    } else if (activeDisputes && activeDisputes.length > 0) {
+      console.log(`[billing-check-overdue] Processing ${activeDisputes.length} active disputes`);
+      
+      for (const dispute of activeDisputes) {
+        try {
+          const details = dispute.details as any;
+          const createdAt = new Date(details.created_at || dispute.created_at);
+          const daysSinceDispute = Math.floor((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // J+2: Apply 5% administrative fee
+          if (daysSinceDispute >= 2 && !details.fee_applied) {
+            const invoiceId = details.invoice_id;
+            if (invoiceId) {
+              // Get current invoice
+              const { data: invoice } = await supabase
+                .from("billing_invoices")
+                .select("total, fees")
+                .eq("id", invoiceId)
+                .single();
+              
+              if (invoice) {
+                const adminFee = Number(invoice.total) * 0.05;
+                const newFees = Number(invoice.fees || 0) + adminFee;
+                
+                await supabase
+                  .from("billing_invoices")
+                  .update({
+                    fees: newFees,
+                    notes: `[J+2 LITIGE] Frais administratifs 5%: ${adminFee.toFixed(2)}$`,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", invoiceId);
+                
+                // Mark fee as applied
+                await supabase
+                  .from("billing_system_alerts")
+                  .update({
+                    details: { ...details, fee_applied: true, fee_amount: adminFee },
+                  })
+                  .eq("id", dispute.id);
+                
+                results.dispute_fees_applied++;
+                console.log(`[billing-check-overdue] Applied 5% admin fee ($${adminFee.toFixed(2)}) to invoice ${invoiceId}`);
+              }
+            }
+          }
+          
+          // J+5: Force expire the subscription
+          if (daysSinceDispute >= 5 && !details.expired) {
+            const subscriptionId = details.subscription_id;
+            if (subscriptionId) {
+              await supabase
+                .from("billing_subscriptions")
+                .update({
+                  status: "expired",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", subscriptionId);
+              
+              // Mark as expired in alert
+              await supabase
+                .from("billing_system_alerts")
+                .update({
+                  details: { ...details, expired: true, expired_at: new Date().toISOString() },
+                  resolved: true,
+                  resolved_at: new Date().toISOString(),
+                })
+                .eq("id", dispute.id);
+              
+              results.dispute_expirations++;
+              console.log(`[billing-check-overdue] Expired subscription ${subscriptionId} due to J+5 dispute rule`);
+            }
+          }
+          
+          results.disputes_processed++;
+        } catch (err: unknown) {
+          const errorMsg = `Failed to process dispute ${dispute.id}: ${err instanceof Error ? err.message : String(err)}`;
+          console.error(`[billing-check-overdue] ${errorMsg}`);
+          results.errors.push(errorMsg);
+        }
+      }
+    }
+    
+    // =========================================================================
+    // PART 2: NORMAL NON-RENEWAL PROCESSING (Scenario A - NO DEBT)
+    // =========================================================================
     // Find pending invoices past due date
     const { data: overdueInvoices, error: fetchError } = await supabase
       .from("billing_invoices")
@@ -68,89 +168,47 @@ serve(async (req) => {
         
         console.log(`[billing-check-overdue] Invoice ${invoice.invoice_number}: ${daysPastDue} days past due`);
         
-        // 5+ days: Cancel subscription
-        if (daysPastDue >= 5 && invoice.subscription?.status !== 'cancelled') {
-          // Update invoice to failed
+        // ⚠️ PREPAID MODEL: NO DEBT, NO LATE FEES FOR NORMAL NON-RENEWAL
+        // J0 immediate: Service expires (not "suspended with debt")
+        
+        if (daysPastDue >= 0 && invoice.subscription?.status === 'active') {
+          // IMMEDIATE: Mark invoice as void (not overdue - prepaid terminology)
           await supabase
             .from("billing_invoices")
-            .update({ status: 'failed' })
+            .update({ 
+              status: 'void',
+              notes: `[NON-RENOUVELLEMENT] Service non renouvelé à J0 (modèle prépayé - aucune dette créée)`,
+              updated_at: new Date().toISOString()
+            })
             .eq("id", invoice.id);
           
-          // Cancel subscription
+          // Mark subscription as expired
           await supabase
             .from("billing_subscriptions")
             .update({ 
-              status: 'cancelled',
+              status: 'expired',
               updated_at: new Date().toISOString()
             })
             .eq("id", invoice.subscription_id);
           
-          // Send cancellation email
+          // Send non-renewal email (NOT overdue/debt language)
           if (invoice.customer) {
             await supabase.from("email_queue").insert({
               to_email: invoice.customer.email,
               to_name: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
-              template_type: "billing_service_cancelled",
+              template_type: "billing_service_not_renewed",
               template_data: {
                 clientName: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
                 planName: invoice.subscription?.plan_name || 'Service',
                 invoiceNumber: invoice.invoice_number,
-                amountOwed: invoice.total.toFixed(2)
+                // NO amount owed - prepaid model, just explain renewal is needed
               },
               priority: "high"
             });
           }
           
           results.cancelled.push(invoice.invoice_number);
-          console.log(`[billing-check-overdue] Cancelled subscription for invoice ${invoice.invoice_number}`);
-          
-        // 2-4 days: Suspend subscription
-        } else if (daysPastDue >= 2 && invoice.subscription?.status === 'active') {
-          // Suspend subscription
-          await supabase
-            .from("billing_subscriptions")
-            .update({ 
-              status: 'suspended',
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", invoice.subscription_id);
-          
-          // Send suspension email/SMS
-          if (invoice.customer) {
-            await supabase.from("email_queue").insert({
-              to_email: invoice.customer.email,
-              to_name: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
-              template_type: "billing_service_suspended",
-              template_data: {
-                clientName: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
-                planName: invoice.subscription?.plan_name || 'Service',
-                invoiceNumber: invoice.invoice_number,
-                amountOwed: invoice.total.toFixed(2),
-                daysUntilCancellation: 5 - daysPastDue
-              },
-              priority: "urgent"
-            });
-          }
-          
-          results.suspended.push(invoice.invoice_number);
-          console.log(`[billing-check-overdue] Suspended subscription for invoice ${invoice.invoice_number}`);
-          
-        // 1 day: Send reminder
-        } else if (daysPastDue === 1 && invoice.customer) {
-          await supabase.from("email_queue").insert({
-            to_email: invoice.customer.email,
-            to_name: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
-            template_type: "billing_payment_overdue",
-            template_data: {
-              clientName: `${invoice.customer.first_name} ${invoice.customer.last_name}`,
-              invoiceNumber: invoice.invoice_number,
-              amountOwed: invoice.total.toFixed(2),
-              daysOverdue: 1
-            },
-            priority: "high"
-          });
-          
-          results.reminders_sent++;
+          console.log(`[billing-check-overdue] Non-renewal: subscription expired for invoice ${invoice.invoice_number} (no debt)`);
         }
         
       } catch (err: unknown) {

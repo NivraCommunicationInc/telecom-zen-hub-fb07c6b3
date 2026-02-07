@@ -112,9 +112,13 @@ const paymentStatusConfig: Record<string, { color: string; label: string }> = {
   pre_authorized: { color: "bg-blue-400/20 text-blue-400", label: "Pré-autorisé" },
   authorized: { color: "bg-blue-500/20 text-blue-500", label: "Autorisé" },
   captured: { color: "bg-emerald-500/20 text-emerald-500", label: "Capturé" },
+  confirmed: { color: "bg-emerald-500/20 text-emerald-500", label: "Confirmé" },
   refunded: { color: "bg-red-500/20 text-red-500", label: "Remboursé" },
-  disputed: { color: "bg-purple-500/20 text-purple-500", label: "Contesté" },
+  disputed: { color: "bg-purple-500/20 text-purple-500", label: "Contesté (litige)" },
+  chargeback: { color: "bg-red-600/20 text-red-600", label: "Rétrofacturation" },
+  fraud: { color: "bg-red-600/30 text-red-600", label: "Fraude" },
   failed: { color: "bg-red-500/20 text-red-500", label: "Échoué" },
+  not_renewed: { color: "bg-muted text-muted-foreground", label: "Non renouvelé" },
 };
 
 const idVerificationConfig: Record<string, { color: string; label: string }> = {
@@ -239,7 +243,7 @@ const AdminOrders = () => {
         const userIds = [...new Set(ordersData.map((o: any) => o.user_id))];
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, email, full_name, phone, service_address, service_city, service_province, service_postal_code, id_type, id_number, id_expiration, id_province, date_of_birth, first_name, last_name")
+          .select("user_id, email, full_name, phone, service_address, service_city, service_province, service_postal_code, id_type, id_number, id_expiration, id_province, date_of_birth, first_name, last_name, account_number")
           .in("user_id", userIds);
 
         return ordersData.map((order: any) => ({
@@ -1583,9 +1587,11 @@ const AdminOrders = () => {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Commande</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Compte</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Client</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Service</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Montant</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Facture</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Payé</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Paiement</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
@@ -1605,9 +1611,15 @@ const AdminOrders = () => {
                               </Badge>
                             )}
                           </div>
-                          {order.risk_flags && order.risk_flags.length > 0 && (
+                        {order.risk_flags && order.risk_flags.length > 0 && (
                             <AlertTriangle className="w-4 h-4 text-amber-500 inline ml-1" />
                           )}
+                        </td>
+                        {/* ACCOUNT NUMBER (6 digits) - V2.4 Rule */}
+                        <td className="py-3 px-4">
+                          <p className="text-sm font-mono text-muted-foreground">
+                            {order.profiles?.account_number || "—"}
+                          </p>
                         </td>
                         <td className="py-3 px-4">
                           <p className="text-sm text-foreground">
@@ -1620,8 +1632,15 @@ const AdminOrders = () => {
                           </p>
                         </td>
                         <td className="py-3 px-4 text-sm text-foreground">{order.service_type}</td>
-                        <td className="py-3 px-4 text-sm text-foreground font-medium">
+                        {/* FACTURE - from snapshot billing_totals.total */}
+                        <td className="py-3 px-4 text-sm text-foreground">
                           {(order.equipment_details?.billing_totals?.total ? Number(order.equipment_details.billing_totals.total).toFixed(2) : order.total_amount ? Number(order.total_amount).toFixed(2) : "0.00")} $
+                        </td>
+                        {/* PAYÉ - from amount_paid field (provider confirmed) */}
+                        <td className="py-3 px-4 text-sm font-medium">
+                          <span className={order.amount_paid > 0 ? "text-emerald-500" : "text-muted-foreground"}>
+                            {Number(order.amount_paid || 0).toFixed(2)} $
+                          </span>
                         </td>
                         <td className="py-3 px-4">
                           <Badge className={orderStatusConfig[order.status]?.color || "bg-muted"}>

@@ -741,7 +741,7 @@ const ClientContracts = () => {
                     <h3 className="font-bold text-cyan-500">CONDITIONS</h3>
                     <ul className="text-sm space-y-1 text-muted-foreground">
                       <li>• Service prépayé — paiement requis avant Bill Cycle pour renouveler</li>
-                      <li>• Non-renouvellement au Bill Cycle si impayé (aucun intérêt/frais pour non-paiement normal)</li>
+                      <li>• Non-renouvellement au Bill Cycle si non payé (aucun intérêt/frais pour non-renouvellement normal)</li>
                       <li>• Préavis de résiliation de {CONTRACT_TERMS.cancellation.noticeDays} jours</li>
                       <li>• Frais après livraison: {CONTRACT_TERMS.cancellation.afterDeliveryCharge}</li>
                     </ul>

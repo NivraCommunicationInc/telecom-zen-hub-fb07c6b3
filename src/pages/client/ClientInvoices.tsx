@@ -432,16 +432,19 @@ const ClientInvoices = () => {
     partial: "bg-orange-500/20 text-orange-500",
   };
 
+  // Using centralized billing labels - prepaid terminology
   const statusLabels: Record<string, string> = {
     pending: "En attente",
     paid: "Payé",
-    overdue: "Paiement en retard (Overdue)",
+    overdue: "Renouvellement requis", // PREPAID: no debt terminology
     pre_authorized: "Pré-autorisé",
     renewal_due: "Renouvellement dû",
     in_verification: "En vérification (grâce 24h)",
-    expired: "Expiré (non-renouvelé)",
-    suspended: "Service en suspension",
+    expired: "Expiré (non renouvelé)",
+    suspended: "Suspendu (litige)", // Only for dispute cases
     partial: "Paiement partiel",
+    void: "Annulé (non-renouvellement)",
+    not_renewed: "Non renouvelé",
   };
 
   const calculateTotal = (inv: any) => {
@@ -736,7 +739,7 @@ const ClientInvoices = () => {
                       <TabsTrigger value="all" className="text-xs sm:text-sm">Toutes</TabsTrigger>
                       <TabsTrigger value="pending" className="text-xs sm:text-sm">En attente</TabsTrigger>
                       <TabsTrigger value="paid" className="text-xs sm:text-sm">Payées</TabsTrigger>
-                      <TabsTrigger value="overdue" className="text-xs sm:text-sm">En retard</TabsTrigger>
+                      <TabsTrigger value="overdue" className="text-xs sm:text-sm">À renouveler</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -858,7 +861,7 @@ const ClientInvoices = () => {
                                 <td className="py-3 px-4">
                                   <div className="flex flex-wrap gap-1">
                                     <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-muted"}>
-                                      {isOverdue && inv.status !== "paid" ? "En retard" : statusLabels[inv.status] || inv.status}
+                                      {isOverdue && inv.status !== "paid" ? statusLabels.overdue : statusLabels[inv.status] || inv.status}
                                     </Badge>
                                     {inv.preauth_discount_applied && (
                                       <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
@@ -1501,7 +1504,7 @@ const ClientInvoices = () => {
                           ? "bg-emerald-500/20 text-emerald-500" 
                           : "bg-amber-500/20 text-amber-500"
                     } text-sm px-3 py-1`}>
-                      {isOverdue && previewInvoice.status !== "paid" ? "En retard" : 
+                      {isOverdue && previewInvoice.status !== "paid" ? statusLabels.overdue : 
                        previewInvoice.status === "paid" ? "Payée" : "En attente"}
                     </Badge>
                   </div>
