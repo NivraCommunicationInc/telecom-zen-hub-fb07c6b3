@@ -5970,6 +5970,69 @@ export type Database = {
           },
         ]
       }
+      pdf_generation_logs: {
+        Row: {
+          customer_email: string | null
+          doc_type: string
+          engine_version: string
+          entity_id: string | null
+          error_message: string | null
+          generated_at: string
+          generated_by: string | null
+          id: string
+          invoice_id: string | null
+          invoice_number: string | null
+          order_id: string | null
+          order_number: string | null
+          payment_provider: string | null
+          provider_payment_id: string | null
+          success: boolean
+          template_path: string
+          template_version: string
+          user_id: string | null
+        }
+        Insert: {
+          customer_email?: string | null
+          doc_type: string
+          engine_version?: string
+          entity_id?: string | null
+          error_message?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          order_id?: string | null
+          order_number?: string | null
+          payment_provider?: string | null
+          provider_payment_id?: string | null
+          success?: boolean
+          template_path: string
+          template_version: string
+          user_id?: string | null
+        }
+        Update: {
+          customer_email?: string | null
+          doc_type?: string
+          engine_version?: string
+          entity_id?: string | null
+          error_message?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          order_id?: string | null
+          order_number?: string | null
+          payment_provider?: string | null
+          provider_payment_id?: string | null
+          success?: boolean
+          template_path?: string
+          template_version?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       pdf_template_config: {
         Row: {
           created_at: string
@@ -9591,9 +9654,27 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_pdf_generation_logs: {
+        Row: {
+          customer_email: string | null
+          doc_type: string | null
+          engine_version: string | null
+          error_message: string | null
+          generated_at: string | null
+          id: string | null
+          invoice_number: string | null
+          order_number: string | null
+          payment_provider: string | null
+          success: boolean | null
+          template_path: string | null
+          template_version: string | null
+        }
+        Relationships: []
+      }
       qa_pdf_templates_runtime: {
         Row: {
           created_at: string | null
+          generation_count: number | null
           is_active: boolean | null
           last_used_at: string | null
           template_key: string | null
@@ -9604,8 +9685,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          generation_count?: never
           is_active?: boolean | null
-          last_used_at?: string | null
+          last_used_at?: never
           template_key?: string | null
           template_path?: string | null
           template_type?: string | null
@@ -9614,8 +9696,9 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          generation_count?: never
           is_active?: boolean | null
-          last_used_at?: string | null
+          last_used_at?: never
           template_key?: string | null
           template_path?: string | null
           template_type?: string | null
@@ -10179,6 +10262,26 @@ export type Database = {
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
+      }
+      log_pdf_generation: {
+        Args: {
+          p_customer_email?: string
+          p_doc_type: string
+          p_engine_version?: string
+          p_entity_id?: string
+          p_error_message?: string
+          p_invoice_id?: string
+          p_invoice_number?: string
+          p_order_id?: string
+          p_order_number?: string
+          p_payment_provider?: string
+          p_provider_payment_id?: string
+          p_success?: boolean
+          p_template_path?: string
+          p_template_version?: string
+          p_user_id?: string
+        }
+        Returns: string
       }
       mark_billing_as_paid: {
         Args: {

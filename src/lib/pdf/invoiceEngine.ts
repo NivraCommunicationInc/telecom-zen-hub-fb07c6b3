@@ -5,6 +5,8 @@
  * Ce moteur utilise UNIQUEMENT les templates V2.5 actifs définis dans pdf_template_config.
  * Les templates legacy (V1.0) ne sont PLUS appelés.
  * 
+ * AUDIT: Chaque génération est loggée dans pdf_generation_logs (append-only).
+ * 
  * Usage:
  *   import { generateInvoicePDF } from "@/lib/pdf/invoiceEngine";
  *   const result = await generateInvoicePDF(invoiceData);
@@ -16,6 +18,12 @@ import { generateInvoiceOneTimeV2PDF } from "./invoiceOneTimeTemplateV2";
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceType } from "./types";
 import { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER } from "./types";
 import { createBlankInvoiceDataV2, TEMPLATE_WATERMARK } from "./blankTemplateData";
+
+// ============================================================================
+// ENGINE VERSION - MUST MATCH DATABASE
+// ============================================================================
+
+const ENGINE_VERSION = "V2.5";
 
 // ============================================================================
 // FORBIDDEN TERMS (Prépayé - aucune dette)
@@ -50,8 +58,16 @@ function validateDate(dateStr: string | undefined, fieldName: string): void {
   
   const parsed = new Date(dateStr);
   if (isNaN(parsed.getTime())) {
-    const error = `[InvoiceEngine] Date invalide détectée: ${fieldName} = "${dateStr}"`;
+    const error = `[InvoiceEngine] ERREUR CRITIQUE: Date invalide détectée: ${fieldName} = "${dateStr}"`;
     console.error(error);
+    // Log l'erreur dans la base
+    logPDFGeneration({
+      doc_type: "invoice_error",
+      template_path: "validation_failed",
+      template_version: ENGINE_VERSION,
+      success: false,
+      error_message: error,
+    }).catch(() => {}); // Fire and forget
     throw new Error(error);
   }
 }
@@ -161,6 +177,51 @@ function sanitizeInvoiceData(data: InvoiceDataV2): InvoiceDataV2 {
 }
 
 // ============================================================================
+// REQUIRED FIELDS VALIDATION
+// ============================================================================
+
+/**
+ * Valide que les champs obligatoires sont présents
+ * Throw + log si des champs critiques manquent
+ */
+function validateRequiredFields(data: InvoiceDataV2): void {
+  const errors: string[] = [];
+  
+  // Client obligatoire
+  if (!data.customer?.full_name || data.customer.full_name.trim() === "") {
+    errors.push("customer.full_name manquant");
+  }
+  if (!data.customer?.email || data.customer.email.trim() === "") {
+    errors.push("customer.email manquant");
+  }
+  
+  // Numéro de facture obligatoire
+  if (!data.invoice_number || data.invoice_number.trim() === "") {
+    errors.push("invoice_number manquant");
+  }
+  
+  // Au moins un item
+  if (!data.items || data.items.length === 0) {
+    errors.push("items[] vide - au moins une ligne requise");
+  }
+  
+  if (errors.length > 0) {
+    const errorMsg = `[InvoiceEngine] ERREUR: Champs obligatoires manquants: ${errors.join(", ")}`;
+    console.error(errorMsg);
+    logPDFGeneration({
+      doc_type: "invoice_error",
+      template_path: "validation_failed",
+      template_version: ENGINE_VERSION,
+      invoice_number: data.invoice_number,
+      customer_email: data.customer?.email,
+      success: false,
+      error_message: errorMsg,
+    }).catch(() => {});
+    throw new Error(errorMsg);
+  }
+}
+
+// ============================================================================
 // FORBIDDEN TERMS CHECK
 // ============================================================================
 
@@ -230,27 +291,84 @@ function getTemplateKeyFromType(invoiceType: InvoiceType): string {
 }
 
 /**
- * Met à jour le timestamp last_used_at après génération
+ * Détermine le chemin du template à partir du type de facture
  */
-async function updateTemplateLastUsed(templateKey: string): Promise<void> {
-  console.log(`[InvoiceEngine] Mise à jour last_used_at pour: ${templateKey}`);
-  
+function getTemplatePathFromType(invoiceType: InvoiceType): string {
+  return invoiceType === "MONTHLY" 
+    ? "src/lib/pdf/invoiceMonthlyTemplateV2.ts" 
+    : "src/lib/pdf/invoiceOneTimeTemplateV2.ts";
+}
+
+// ============================================================================
+// AUDIT LOGGING (APPEND-ONLY)
+// ============================================================================
+
+interface PDFGenerationLogParams {
+  doc_type: string;
+  entity_id?: string;
+  template_path: string;
+  template_version: string;
+  invoice_id?: string;
+  order_id?: string;
+  user_id?: string;
+  payment_provider?: string;
+  provider_payment_id?: string;
+  invoice_number?: string;
+  order_number?: string;
+  customer_email?: string;
+  success: boolean;
+  error_message?: string;
+}
+
+/**
+ * Log une génération PDF dans la table d'audit (append-only)
+ */
+async function logPDFGeneration(params: PDFGenerationLogParams): Promise<string | null> {
   try {
-    const { error } = await supabase.rpc("update_template_last_used_at", { p_template_key: templateKey });
+    const { data, error } = await supabase.rpc("log_pdf_generation", {
+      p_doc_type: params.doc_type,
+      p_entity_id: params.entity_id || null,
+      p_template_path: params.template_path,
+      p_template_version: params.template_version,
+      p_engine_version: ENGINE_VERSION,
+      p_invoice_id: params.invoice_id || null,
+      p_order_id: params.order_id || null,
+      p_user_id: params.user_id || null,
+      p_payment_provider: params.payment_provider || null,
+      p_provider_payment_id: params.provider_payment_id || null,
+      p_invoice_number: params.invoice_number || null,
+      p_order_number: params.order_number || null,
+      p_customer_email: params.customer_email || null,
+      p_success: params.success,
+      p_error_message: params.error_message || null,
+    });
     
     if (error) {
-      console.error(`[InvoiceEngine] Erreur RPC last_used_at:`, error);
-    } else {
-      console.log(`[InvoiceEngine] ✅ last_used_at mis à jour pour ${templateKey}`);
+      console.error("[InvoiceEngine] Erreur log PDF generation:", error);
+      return null;
     }
-  } catch (error) {
-    console.error("[InvoiceEngine] Exception mise à jour last_used_at:", error);
+    
+    console.log(`[InvoiceEngine] ✅ PDF generation loggée: ${data}`);
+    return data as string;
+  } catch (err) {
+    console.error("[InvoiceEngine] Exception log PDF generation:", err);
+    return null;
   }
 }
 
 // ============================================================================
 // MAIN ENTRY POINT: generateInvoicePDF
 // ============================================================================
+
+export interface GenerateInvoicePDFOptions {
+  skipValidation?: boolean;
+  updateLastUsed?: boolean;
+  invoice_id?: string;
+  order_id?: string;
+  user_id?: string;
+  payment_provider?: string;
+  provider_payment_id?: string;
+}
 
 /**
  * POINT D'ENTRÉE UNIQUE pour générer une facture PDF
@@ -274,17 +392,36 @@ async function updateTemplateLastUsed(templateKey: string): Promise<void> {
  */
 export async function generateInvoicePDF(
   data: InvoiceDataV2,
-  options: {
-    skipValidation?: boolean;
-    updateLastUsed?: boolean;
-  } = {}
+  options: GenerateInvoicePDFOptions = {}
 ): Promise<PDFGenerationResult> {
-  const { skipValidation = false, updateLastUsed = true } = options;
+  const { 
+    skipValidation = false, 
+    updateLastUsed = true,
+    invoice_id,
+    order_id,
+    user_id,
+    payment_provider,
+    provider_payment_id,
+  } = options;
   
+  console.log(`[InvoiceEngine] ========================================`);
   console.log(`[InvoiceEngine] Génération facture ${data.invoice_type}: ${data.invoice_number}`);
+  console.log(`[InvoiceEngine] Engine version: ${ENGINE_VERSION}`);
+  console.log(`[InvoiceEngine] ========================================`);
+  
+  // Récupérer la config du template actif AVANT validation pour le logging
+  const templateConfig = await getActiveTemplateConfig(data.invoice_type);
+  const templatePath = templateConfig?.template_path || getTemplatePathFromType(data.invoice_type);
+  const templateVersion = templateConfig?.version || ENGINE_VERSION;
+  const templateKey = templateConfig?.template_key || getTemplateKeyFromType(data.invoice_type);
   
   try {
-    // 1. Valider les dates (sauf si skip ou template vierge)
+    // 1. Valider les champs obligatoires (sauf template vierge)
+    if (!skipValidation) {
+      validateRequiredFields(data);
+    }
+    
+    // 2. Valider les dates (sauf si skip ou template vierge)
     if (!skipValidation) {
       validateDate(data.invoice_date, "invoice_date");
       validateDate(data.due_date, "due_date");
@@ -292,17 +429,11 @@ export async function generateInvoicePDF(
       validateDate(data.billing_period_end, "billing_period_end");
     }
     
-    // 2. Sanitize les données (encodage)
+    // 3. Sanitize les données (encodage)
     const sanitizedData = sanitizeInvoiceData(data);
     
-    // 3. Vérifier les termes interdits (factures de renouvellement)
+    // 4. Vérifier les termes interdits (factures de renouvellement)
     checkForbiddenTerms(sanitizedData);
-    
-    // 4. Récupérer la config du template actif
-    const templateConfig = await getActiveTemplateConfig(sanitizedData.invoice_type);
-    
-    // Déterminer la clé du template (config trouvée ou fallback)
-    const templateKey = templateConfig?.template_key || getTemplateKeyFromType(sanitizedData.invoice_type);
     
     if (!templateConfig) {
       console.warn(`[InvoiceEngine] Aucun template actif trouvé, utilisation du template par défaut: ${templateKey}`);
@@ -317,19 +448,46 @@ export async function generateInvoicePDF(
       result = generateInvoiceOneTimeV2PDF(sanitizedData);
     }
     
-    // 6. Mettre à jour last_used_at si succès (TOUJOURS, même sans config)
-    if (result.success && updateLastUsed) {
-      await updateTemplateLastUsed(templateKey);
-    }
+    // 6. Logger la génération dans l'audit trail (APPEND-ONLY)
+    await logPDFGeneration({
+      doc_type: data.invoice_type === "MONTHLY" ? "invoice_renewal" : "invoice_initial",
+      template_path: templatePath,
+      template_version: templateVersion,
+      invoice_id,
+      order_id,
+      user_id,
+      payment_provider,
+      provider_payment_id,
+      invoice_number: data.invoice_number,
+      customer_email: data.customer?.email,
+      success: result.success,
+      error_message: result.success ? undefined : result.error,
+    });
     
-    console.log(`[InvoiceEngine] Génération ${result.success ? "réussie" : "échouée"}: ${data.invoice_number} (template: ${templateKey})`);
+    console.log(`[InvoiceEngine] Génération ${result.success ? "✅ RÉUSSIE" : "❌ ÉCHOUÉE"}: ${data.invoice_number} (template: ${templateKey})`);
     
     return result;
   } catch (error) {
-    console.error("[InvoiceEngine] Erreur génération:", error);
+    const errorMsg = error instanceof Error ? error.message : "Erreur inconnue lors de la génération";
+    console.error("[InvoiceEngine] ❌ Erreur génération:", errorMsg);
+    
+    // Logger l'échec
+    await logPDFGeneration({
+      doc_type: data.invoice_type === "MONTHLY" ? "invoice_renewal" : "invoice_initial",
+      template_path: templatePath,
+      template_version: templateVersion,
+      invoice_id,
+      order_id,
+      user_id,
+      invoice_number: data.invoice_number,
+      customer_email: data.customer?.email,
+      success: false,
+      error_message: errorMsg,
+    });
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erreur inconnue lors de la génération",
+      error: errorMsg,
     };
   }
 }
@@ -357,5 +515,5 @@ export async function generateBlankInvoicePDF(
 // EXPORTS
 // ============================================================================
 
-export { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER };
+export { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER, ENGINE_VERSION };
 export type { InvoiceDataV2, PDFGenerationResult, InvoiceType };
