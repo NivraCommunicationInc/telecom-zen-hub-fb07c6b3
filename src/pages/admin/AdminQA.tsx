@@ -75,7 +75,7 @@ const usePDFTemplates = () =>
       if (error) throw error;
       return (data as PDFTemplateRow[]) || [];
     },
-    refetchInterval: 5000, // Auto-refresh every 5 seconds
+    // NO auto-refresh - manual only
   });
 
 const usePDFGenerationLogs = () =>
@@ -88,7 +88,7 @@ const usePDFGenerationLogs = () =>
       if (error) throw error;
       return (data as PDFGenerationLogRow[]) || [];
     },
-    refetchInterval: 5000, // Auto-refresh every 5 seconds
+    // NO auto-refresh - manual only
   });
 
 const useDocumentSources = () =>
