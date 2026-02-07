@@ -1,29 +1,50 @@
 /**
- * Nivra PDF Templates - Main Export V2.5
+ * Nivra PDF Templates - V2.5 UNIFIED ENGINE
  * 
- * UNIFIED ENGINE - All documents generated through this module.
+ * MAIN ENTRY POINT: generateInvoicePDF from invoiceEngine
  * 
  * Templates:
- * - Invoice Monthly V2.5 - Professional layout with Navy/Teal design
- * - Invoice One-Time V2.5 - Equipment and one-time fees
+ * - Invoice V2.5 (via invoiceEngine) - Automatic routing to Monthly/OneTime
  * - Order Summary - Order confirmation after payment
  * - Contract V2.5 - Full prepaid service agreement
- * 
- * IMPORTANT: Pour les factures, utiliser generateInvoicePDF() du invoiceEngine.ts
- * C'est le SEUL point d'entrée recommandé.
  */
 
-// Types
-export * from "./types";
+// ============================================================================
+// TYPES - Core exports
+// ============================================================================
+export type {
+  InvoiceDataV2,
+  InvoiceType,
+  InvoiceItem,
+  ItemCategory,
+  PaymentMethod,
+  Payment,
+  PDFGenerationResult,
+  OrderSummaryData,
+  Customer,
+  Discount,
+  InvoiceMonthlyData,
+  InvoiceOneTimeData,
+  InvoiceLine,
+  OneTimeItem,
+  Taxes,
+} from "./types";
+export { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER, NIVRA_HEADER } from "./types";
 
-// Helpers
+// Legacy type aliases
+export type InvoiceData = import("./types").InvoiceDataV2;
+export type DocumentType = "invoice_monthly" | "invoice_onetime" | "order_summary" | "contract" | "invoice_monthly_v2" | "invoice_onetime_v2";
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+export { formatCurrencyCAD, formatDateFR, formatDateShort, sanitizeLegalText } from "./helpers";
 export * from "./pdfHelpers";
-export * from "./helpers";
 export * from "./billingCalculator";
 export * from "./annexes";
 
 // ============================================================================
-// INVOICE ENGINE - POINT D'ENTRÉE UNIQUE POUR LES FACTURES
+// INVOICE ENGINE V2.5 - SINGLE ENTRY POINT FOR ALL INVOICES
 // ============================================================================
 export { 
   generateInvoicePDF, 
@@ -31,37 +52,37 @@ export {
   safeFormatDate,
   safeFormatDateShort,
   sanitizeText,
+  ENGINE_VERSION,
 } from "./invoiceEngine";
 
 // ============================================================================
-// V2.5 Templates (Active - utilisés par le moteur)
+// OTHER DOCUMENT TEMPLATES (Non-invoice)
 // ============================================================================
-export { generateInvoiceMonthlyV2PDF, generateInvoiceMonthlyPDFFromLegacy } from "./invoiceMonthlyTemplateV2";
-export { generateInvoiceOneTimeV2PDF, generateInvoiceOneTimePDFFromLegacy } from "./invoiceOneTimeTemplateV2";
 export { generateOrderSummaryPDF, default as OrderSummaryPDF } from "./orderSummaryTemplate";
 export { generateContractPDF, default as ContractPDF, type ContractData } from "./contractTemplate";
 
 // ============================================================================
+// V2.5 TEMPLATES - Direct exports (used internally by invoiceEngine)
+// ============================================================================
+export { generateInvoiceMonthlyV2PDF, generateInvoiceMonthlyPDFFromLegacy } from "./invoiceMonthlyTemplateV2";
+export { generateInvoiceOneTimeV2PDF, generateInvoiceOneTimePDFFromLegacy } from "./invoiceOneTimeTemplateV2";
+
+// ============================================================================
 // LEGACY COMPATIBILITY LAYER
-// These exports are provided for backward compatibility.
+// These exports are DEPRECATED but maintained for backward compatibility.
 // All new code should use generateInvoicePDF() from invoiceEngine.
 // ============================================================================
 
 import type { 
-  InvoiceMonthlyData, 
-  InvoiceOneTimeData, 
+  InvoiceDataV2,
   OrderSummaryData,
   PDFGenerationResult,
-  InvoiceDataV2,
 } from "./types";
 import type { ContractData } from "./contractTemplate";
 import { generateInvoiceMonthlyV2PDF } from "./invoiceMonthlyTemplateV2";
 import { generateInvoiceOneTimeV2PDF } from "./invoiceOneTimeTemplateV2";
 import { generateOrderSummaryPDF } from "./orderSummaryTemplate";
 import { generateContractPDF } from "./contractTemplate";
-import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
-
-export type DocumentType = "invoice_monthly" | "invoice_onetime" | "order_summary" | "contract" | "invoice_monthly_v2" | "invoice_onetime_v2";
 
 // Legacy aliases for backward compatibility
 /** @deprecated Use generateInvoicePDF() from invoiceEngine instead */
@@ -75,12 +96,11 @@ export const InvoiceOneTimePDF = generateInvoiceOneTimeV2PDF;
 
 /**
  * Unified document generator
- * IMPORTANT: Pour les factures, préférer generateInvoicePDF() du invoiceEngine.ts
- * qui gère la validation des dates, l'encodage et le tracking des templates.
+ * @deprecated Use generateInvoicePDF from invoiceEngine for invoices
  */
 export function generateDocument(
   type: DocumentType,
-  data: InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData | InvoiceDataV2
+  data: any
 ): PDFGenerationResult {
   switch (type) {
     case "invoice_monthly":
@@ -109,17 +129,10 @@ export function detectDocumentType(data: {
   invoiceType?: string;
   useV2?: boolean;
 }): DocumentType {
-  if (data.isContract) {
-    return "contract";
-  }
-  
-  if (data.isOrderConfirmation) {
-    return "order_summary";
-  }
-  
+  if (data.isContract) return "contract";
+  if (data.isOrderConfirmation) return "order_summary";
   const isOneTime = data.invoiceType === "one_time" || data.invoiceType === "ONETIME" || 
                     (!data.hasRecurringServices && data.hasEquipment);
-  
   return isOneTime ? "invoice_onetime_v2" : "invoice_monthly_v2";
 }
 
@@ -127,7 +140,7 @@ export function detectDocumentType(data: {
 // LEGACY WRAPPERS - For backward compatibility with old imports
 // ============================================================================
 
-/** @deprecated Use @/lib/pdf directly instead of @/lib/pdfEngine */
+/** @deprecated Use ContractData from @/lib/pdf instead */
 export interface TelecomContractData extends ContractData {}
 
 /** @deprecated Use generateContractPDF from @/lib/pdf instead */
@@ -146,55 +159,19 @@ export function viewTelecomContractPDF(data: any): void {
   console.warn("[DEPRECATED] viewTelecomContractPDF - use useContractPDF hook");
 }
 
-/** @deprecated Use hooks from usePDFTemplates instead */
-export type InvoiceData = InvoiceDataV2;
-
 /**
  * Legacy adapter: converts old invoice format to InvoiceDataV2
- * Used by AdminBilling and other legacy code
+ * @deprecated Use InvoiceDataV2 directly
  */
-export function convertLegacyInvoiceData(legacyData: {
-  invoiceNumber?: string;
-  orderNumber?: string;
-  paymentReference?: string;
-  clientNumber?: string;
-  clientName?: string;
-  clientEmail?: string;
-  clientPhone?: string;
-  subtotal?: number;
-  fees?: number;
-  credits?: number;
-  deliveryFee?: number;
-  activationFee?: number;
-  installationFee?: number;
-  discountAmount?: number;
-  preauthDiscount?: number;
-  tpsAmount?: number;
-  tvqAmount?: number;
-  lateFeeAmount?: number;
-  dueDate?: string;
-  createdAt?: string;
-  status?: string;
-  paidAt?: string;
-  notes?: string;
-  servicePlan?: string;
-  promoCode?: string;
-  promoDescription?: string;
-  paymentMethod?: string;
-  cardLast4?: string;
-  orderLineItems?: any[];
-  billingTotalsSnapshot?: any;
-}): InvoiceDataV2 {
+export function convertLegacyInvoiceData(legacyData: any): InvoiceDataV2 {
   const now = new Date().toISOString().split("T")[0];
   const subtotal = Number(legacyData.subtotal) || 0;
   const tps = Number(legacyData.tpsAmount) || subtotal * 0.05;
   const tvq = Number(legacyData.tvqAmount) || subtotal * 0.09975;
   const total = subtotal + tps + tvq;
   
-  // Build items from legacy format
   const items: import("./types").InvoiceItem[] = [];
   
-  // Add service as item
   if (legacyData.servicePlan) {
     items.push({
       category: "Other" as const,
@@ -206,7 +183,6 @@ export function convertLegacyInvoiceData(legacyData: {
     });
   }
   
-  // Add equipment from orderLineItems
   if (legacyData.orderLineItems) {
     for (const li of legacyData.orderLineItems) {
       items.push({
@@ -220,7 +196,6 @@ export function convertLegacyInvoiceData(legacyData: {
     }
   }
   
-  // If no items, add placeholder
   if (items.length === 0) {
     items.push({
       category: "Other",
@@ -326,7 +301,7 @@ export interface TermsModalitesData {
   orderId?: string;
   orderNumber?: string;
   accountId?: string;
-  [key: string]: any; // Allow any additional properties
+  [key: string]: any;
 }
 
 /** @deprecated Terms are now static files in public/documents */
