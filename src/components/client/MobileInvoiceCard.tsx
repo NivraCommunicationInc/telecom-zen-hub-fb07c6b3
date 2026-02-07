@@ -42,14 +42,19 @@ export function MobileInvoiceCard({
   onPay,
   onDispute
 }: MobileInvoiceCardProps) {
-  const isOverdue = invoice.due_date && isPast(parseISO(invoice.due_date)) && invoice.status !== "paid";
+  // Check if invoice needs renewal (past due but not paid)
+  const needsRenewal = invoice.due_date && isPast(parseISO(invoice.due_date)) && invoice.status !== "paid";
   const total = calculateTotal(invoice);
-  const lateFeeAmount = isOverdue && !invoice.late_fee_applied ? Number(invoice.amount) * 0.05 : 0;
+  const lateFeeAmount = needsRenewal && !invoice.late_fee_applied ? Number(invoice.amount) * 0.05 : 0;
   const balanceDue = Number(invoice.balance_due);
   const isPaid = invoice.status === "paid" || (balanceDue <= 0 && invoice.balance_due !== null);
 
+  // PREPAID TERMINOLOGY: Use "Renouvellement requis" instead of "En retard"
+  const displayStatus = needsRenewal && invoice.status !== "paid" ? "overdue" : invoice.status;
+  const displayLabel = needsRenewal && invoice.status !== "paid" ? "Renouvellement requis" : statusLabels[invoice.status] || invoice.status;
+
   return (
-    <Card className={`bg-card border-border overflow-hidden ${isOverdue ? 'border-l-4 border-l-red-500' : ''}`}>
+    <Card className={`bg-card border-border overflow-hidden ${needsRenewal ? 'border-l-4 border-l-red-500' : ''}`}>
       <CardContent className="p-4 space-y-3">
         {/* Header: Invoice number + Status */}
         <div className="flex items-start justify-between gap-2">
@@ -63,8 +68,8 @@ export function MobileInvoiceCard({
             </div>
           </div>
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <Badge className={statusColors[isOverdue && invoice.status !== "paid" ? "overdue" : invoice.status] || "bg-muted"}>
-              {isOverdue && invoice.status !== "paid" ? "En retard" : statusLabels[invoice.status] || invoice.status}
+            <Badge className={statusColors[displayStatus] || "bg-muted"}>
+              {displayLabel}
             </Badge>
             {invoice.preauth_discount_applied && (
               <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
@@ -113,10 +118,10 @@ export function MobileInvoiceCard({
         {/* Due Date & Balance */}
         <div className="flex items-center justify-between p-2 bg-muted/20 rounded-lg">
           <div className="flex items-center gap-2">
-            <Clock className={`w-4 h-4 ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`} />
+            <Clock className={`w-4 h-4 ${needsRenewal ? 'text-red-500' : 'text-muted-foreground'}`} />
             <div className="text-sm">
               <span className="text-muted-foreground">Échéance: </span>
-              <span className={isOverdue ? "text-red-500 font-medium" : ""}>
+              <span className={needsRenewal ? "text-red-500 font-medium" : ""}>
                 {invoice.due_date ? format(new Date(invoice.due_date), "d MMM yyyy", { locale: fr }) : "—"}
               </span>
             </div>
