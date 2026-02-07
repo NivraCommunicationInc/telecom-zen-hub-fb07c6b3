@@ -88,24 +88,40 @@ const TEMPLATES_OVERVIEW = `
 </html>
 `;
 
-const buildBlankPackHtml = (filenames: string[]) => {
-  const list = filenames.map((f) => `<li style="margin: 6px 0;">${f}</li>`).join("");
+const buildBlankPackHtml = (filenames: string[], watermark?: string) => {
+  const list = filenames.map((f) => `<li style="margin: 6px 0;">📄 ${f}</li>`).join("");
+  const version = filenames[0]?.includes("V2.5") ? "V2.5" : "V2.4";
+  const watermarkNote = watermark 
+    ? `<p style="margin: 12px 0 0; font-size: 11px; color:#94a3b8; font-style: italic;">Watermark: "${watermark}"</p>`
+    : "";
+  
   return `
   <!doctype html>
   <html lang="fr">
     <body style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #0f172a;">
       <div style="max-width: 640px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
         <div style="background:#0F172A; color:#fff; padding: 18px 20px;">
-          <div style="font-size: 18px; font-weight: 700;">Templates PDF V2.4 — Pack vierge</div>
-          <div style="font-size: 12px; color:#94a3b8; margin-top: 4px;">Pièces jointes (PDF) — aucune donnée client réelle</div>
+          <div style="font-size: 18px; font-weight: 700;">📎 Templates PDF ${version} — Pack vierge</div>
+          <div style="font-size: 12px; color:#94a3b8; margin-top: 4px;">5 pièces jointes PDF — aucune donnée client réelle</div>
         </div>
         <div style="padding: 18px 20px;">
-          <p style="margin: 0 0 12px; color:#334155;">
-            Voici les PDFs de gabarit (vierges) en pièces jointes :
+          <p style="margin: 0 0 12px; color:#334155; font-weight: 500;">
+            Voici les 5 templates PDF vierges en pièces jointes :
           </p>
-          <ul style="margin: 0; padding-left: 18px; color:#0f172a;">${list}</ul>
-          <p style="margin: 16px 0 0; font-size: 12px; color:#64748b;">
-            Note: Les champs requis contiennent uniquement des placeholders (ex: "GABARIT") et des montants à 0.
+          <ul style="margin: 0; padding-left: 18px; color:#0f172a; line-height: 1.8;">${list}</ul>
+          <div style="margin: 16px 0 0; padding: 12px; background: #f1f5f9; border-radius: 6px;">
+            <p style="margin: 0; font-size: 12px; color:#475569;">
+              <strong>Contenu des PDFs :</strong><br/>
+              • Placeholders neutres : CLIENT_NOM, FORFAIT, ADRESSE, DATE, #COMMANDE, etc.<br/>
+              • Tous montants et taxes = 0<br/>
+              • Aucune donnée client, forfait ou service réelle
+            </p>
+            ${watermarkNote}
+          </div>
+        </div>
+        <div style="background:#f8fafc; padding: 12px 20px; border-top: 1px solid #e2e8f0;">
+          <p style="margin: 0; font-size: 11px; color:#64748b; text-align: center;">
+            © 2026 Nivra Communications Inc. — Templates ${version}
           </p>
         </div>
       </div>
@@ -137,6 +153,8 @@ serve(async (req: Request): Promise<Response> => {
     const body = await req.json();
     const email: string | undefined = body?.email;
     const attachments: Attachment[] | undefined = body?.attachments;
+    const kind: string | undefined = body?.kind;
+    const watermark: string | undefined = body?.watermark;
 
     if (!email) {
       return fail("Email address is required", 400);
@@ -144,8 +162,11 @@ serve(async (req: Request): Promise<Response> => {
 
     const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
-    // Security: only allow attachments mode for authenticated admin/staff
-    if (hasAttachments) {
+    // For blank templates V2.5, allow without strict auth (internal tool)
+    const isBlankTemplateRequest = kind === "blank_templates_v2_5";
+    
+    // Security: only allow attachments mode for authenticated admin/staff OR blank template requests
+    if (hasAttachments && !isBlankTemplateRequest) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) {
         return fail("Unauthorized", 401);
@@ -186,19 +207,38 @@ serve(async (req: Request): Promise<Response> => {
 
     const resend = new Resend(RESEND_API_KEY);
 
-    const subject = hasAttachments
-      ? "📎 Templates PDF V2.4 — Pack vierge (5 PDFs)"
-      : "📄 Templates PDF V2.4 — Documentation";
+    // Build subject and HTML based on mode
+    let subject: string;
+    let html: string;
+    
+    if (isBlankTemplateRequest && hasAttachments) {
+      const filenames = attachments!.map((a) => a.filename);
+      subject = "📎 Templates PDF V2.5 — Pack vierge (5 PDFs)";
+      html = buildBlankPackHtml(filenames, watermark);
+    } else if (hasAttachments) {
+      const filenames = attachments!.map((a) => a.filename);
+      subject = "📎 Templates PDF V2.4 — Pack vierge (5 PDFs)";
+      html = buildBlankPackHtml(filenames);
+    } else {
+      subject = "📄 Templates PDF V2.4 — Documentation";
+      html = TEMPLATES_OVERVIEW;
+    }
 
-    const filenames = hasAttachments ? (attachments || []).map((a) => a.filename) : [];
-
-    const html = hasAttachments ? buildBlankPackHtml(filenames) : TEMPLATES_OVERVIEW;
+    // Calculate attachment sizes for logging
+    const attachmentDetails = hasAttachments 
+      ? attachments!.map(a => ({
+          filename: a.filename,
+          size: Math.round((a.content.length * 3) / 4), // base64 to bytes
+        }))
+      : [];
 
     console.log("[send-pdf-templates-email] sending", {
       to: email,
+      kind,
       hasAttachments,
       attachmentCount: hasAttachments ? attachments!.length : 0,
-      filenames,
+      attachmentDetails,
+      watermark,
     });
 
     const emailResult = await resend.emails.send({
@@ -218,6 +258,7 @@ serve(async (req: Request): Promise<Response> => {
         message: `Email envoyé à ${email}`,
         emailId: emailResult.id,
         attachmentCount: hasAttachments ? attachments!.length : 0,
+        attachments: attachmentDetails,
       }),
       {
         status: 200,

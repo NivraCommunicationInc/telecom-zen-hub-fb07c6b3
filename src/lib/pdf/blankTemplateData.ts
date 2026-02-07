@@ -1,53 +1,48 @@
 /**
  * Données « gabarit » (vierges) pour générer les PDFs sans informations réelles.
- * Objectif: permettre l’envoi des templates en pièces jointes sans données client/forfait/taxes.
+ * Objectif: permettre l'envoi des templates en pièces jointes sans données client/forfait/taxes.
+ * 
+ * PLACEHOLDERS NEUTRES:
+ * - CLIENT_NOM, CLIENT_EMAIL, CLIENT_TEL, CLIENT_ADRESSE
+ * - FORFAIT_NOM, SERVICE_TYPE
+ * - #COMMANDE, #FACTURE, #CONTRAT, #COMPTE
+ * - DATE_EMISSION, DATE_ECHEANCE, PERIODE
  */
 
 import type { InvoiceDataV2, OrderSummaryData } from "./types";
 import type { ContractData } from "./contractTemplate";
-import {
-  generateAccountNumber,
-  generateContractNumber,
-  generateInvoiceNumber,
-  generateOrderNumber,
-} from "@/lib/secureIdGenerator";
 
-const isoDate = (d: Date) => d.toISOString().split("T")[0];
+export const TEMPLATE_WATERMARK = "DOCUMENT MODÈLE — TEMPLATE VIERGE";
 
 export const createBlankInvoiceDataV2 = (
   invoiceType: "MONTHLY" | "ONETIME"
 ): InvoiceDataV2 => {
-  const today = new Date();
-  const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
   return {
     invoice_type: invoiceType,
-    invoice_number: generateInvoiceNumber(),
-    invoice_date: isoDate(today),
-    due_date: isoDate(today),
-    account_number: generateAccountNumber(),
-    billing_period_start: invoiceType === "MONTHLY" ? isoDate(today) : undefined,
-    billing_period_end: invoiceType === "MONTHLY" ? isoDate(in30) : undefined,
+    invoice_number: "#FACTURE",
+    invoice_date: "DATE_EMISSION",
+    due_date: "DATE_ECHEANCE",
+    account_number: "#COMPTE",
+    billing_period_start: invoiceType === "MONTHLY" ? "DEBUT_PERIODE" : undefined,
+    billing_period_end: invoiceType === "MONTHLY" ? "FIN_PERIODE" : undefined,
     currency: "CAD",
     status: "Issued",
 
-    // Placeholders non-réels
     customer: {
-      full_name: "GABARIT (VIERGE)",
-      email: "template@example.invalid",
-      phone: "",
-      address_line1: "",
-      city: "",
+      full_name: "CLIENT_NOM",
+      email: "CLIENT_EMAIL",
+      phone: "CLIENT_TEL",
+      address_line1: "CLIENT_ADRESSE",
+      city: "VILLE",
       province: "QC",
-      postal_code: "",
+      postal_code: "CODE_POSTAL",
     },
 
-    // Une ligne vide pour afficher la structure du tableau
     items: [
       {
         category: invoiceType === "MONTHLY" ? "Internet" : "Equipment",
-        description: "________________",
-        period: invoiceType === "MONTHLY" ? "________________" : undefined,
+        description: "FORFAIT_NOM",
+        period: invoiceType === "MONTHLY" ? "PERIODE" : undefined,
         qty: 1,
         unit_price: 0,
         amount: 0,
@@ -57,7 +52,6 @@ export const createBlankInvoiceDataV2 = (
 
     discounts: [],
 
-    // Totaux/taxes à zéro (aucune donnée réelle)
     subtotal: 0,
     taxes: {
       gst_rate: 0,
@@ -74,26 +68,22 @@ export const createBlankInvoiceDataV2 = (
 };
 
 export const createBlankOrderSummaryData = (): OrderSummaryData => {
-  const today = new Date();
-
   return {
-    order_number: generateOrderNumber(),
-    order_date: isoDate(today),
-    account_number: generateAccountNumber(),
+    order_number: "#COMMANDE",
+    order_date: "DATE_EMISSION",
+    account_number: "#COMPTE",
 
-    // Placeholders non-réels
-    client_name: "GABARIT (VIERGE)",
-    client_email: "template@example.invalid",
-    client_phone: "",
-    service_address: "",
-    billing_address: "",
+    client_name: "CLIENT_NOM",
+    client_email: "CLIENT_EMAIL",
+    client_phone: "CLIENT_TEL",
+    service_address: "CLIENT_ADRESSE",
+    billing_address: "ADRESSE_FACTURATION",
 
-    // Une ligne vide pour afficher la structure
     services: [
       {
-        service_type: "Internet",
-        service_description: "________________",
-        service_period: "________________",
+        service_type: "SERVICE_TYPE",
+        service_description: "FORFAIT_NOM",
+        service_period: "PERIODE",
         service_price: 0,
         service_promo: null,
         service_total: 0,
@@ -101,8 +91,8 @@ export const createBlankOrderSummaryData = (): OrderSummaryData => {
     ],
     items: [
       {
-        item_name: "________________",
-        item_description: "",
+        item_name: "EQUIPEMENT_NOM",
+        item_description: "EQUIPEMENT_DESC",
         qty: 1,
         unit_price: 0,
         line_total: 0,
@@ -131,30 +121,26 @@ export const createBlankOrderSummaryData = (): OrderSummaryData => {
 };
 
 export const createBlankContractData = (): ContractData => {
-  const today = new Date();
-
   return {
-    contract_number: generateContractNumber(),
-    contract_date: isoDate(today),
-    contract_version: "GABARIT",
+    contract_number: "#CONTRAT",
+    contract_date: "DATE_EMISSION",
+    contract_version: "V2.5",
 
-    // Placeholders non-réels
-    client_name: "GABARIT (VIERGE)",
-    client_email: "template@example.invalid",
-    client_phone: "",
-    client_dob: "",
-    service_address: "",
-    billing_address: "",
-    account_number: generateAccountNumber(),
+    client_name: "CLIENT_NOM",
+    client_email: "CLIENT_EMAIL",
+    client_phone: "CLIENT_TEL",
+    client_dob: "DATE_NAISSANCE",
+    service_address: "CLIENT_ADRESSE",
+    billing_address: "ADRESSE_FACTURATION",
+    account_number: "#COMPTE",
 
-    order_number: generateOrderNumber(),
-    order_date: isoDate(today),
+    order_number: "#COMMANDE",
+    order_date: "DATE_COMMANDE",
 
-    // Lignes vides pour afficher la structure
     services: [
       {
-        service_type: "Internet",
-        service_description: "________________",
+        service_type: "SERVICE_TYPE",
+        service_description: "FORFAIT_NOM",
         service_period: "/mois",
         service_price: 0,
         service_promo: null,
@@ -163,15 +149,15 @@ export const createBlankContractData = (): ContractData => {
     ],
     equipment: [
       {
-        item_name: "________________",
-        item_description: "",
+        item_name: "EQUIPEMENT_NOM",
+        item_description: "EQUIPEMENT_DESC",
         qty: 1,
         unit_price: 0,
         line_total: 0,
         serial_number: null,
       },
     ],
-    one_time_fees: [{ label: "________________", amount: 0 }],
+    one_time_fees: [{ label: "FRAIS_UNIQUES", amount: 0 }],
 
     subtotal_monthly: 0,
     subtotal_equipment: 0,
