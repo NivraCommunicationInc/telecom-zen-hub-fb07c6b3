@@ -204,6 +204,8 @@ interface TemplateConfig {
 async function getActiveTemplateConfig(invoiceType: InvoiceType): Promise<TemplateConfig | null> {
   const templateType = invoiceType === "MONTHLY" ? "invoice_renewal" : "invoice_initial";
   
+  console.log(`[InvoiceEngine] Recherche template actif pour: ${templateType}`);
+  
   const { data, error } = await supabase
     .from("pdf_template_config")
     .select("*")
@@ -216,17 +218,33 @@ async function getActiveTemplateConfig(invoiceType: InvoiceType): Promise<Templa
     return null;
   }
   
+  console.log(`[InvoiceEngine] Template trouvé: ${data?.template_key} (v${data?.version})`);
   return data as TemplateConfig;
+}
+
+/**
+ * Détermine la clé du template à partir du type de facture
+ */
+function getTemplateKeyFromType(invoiceType: InvoiceType): string {
+  return invoiceType === "MONTHLY" ? "invoice_renewal_v2" : "invoice_initial_v2";
 }
 
 /**
  * Met à jour le timestamp last_used_at après génération
  */
 async function updateTemplateLastUsed(templateKey: string): Promise<void> {
+  console.log(`[InvoiceEngine] Mise à jour last_used_at pour: ${templateKey}`);
+  
   try {
-    await supabase.rpc("update_template_last_used_at", { p_template_key: templateKey });
+    const { error } = await supabase.rpc("update_template_last_used_at", { p_template_key: templateKey });
+    
+    if (error) {
+      console.error(`[InvoiceEngine] Erreur RPC last_used_at:`, error);
+    } else {
+      console.log(`[InvoiceEngine] ✅ last_used_at mis à jour pour ${templateKey}`);
+    }
   } catch (error) {
-    console.warn("[InvoiceEngine] Erreur mise à jour last_used_at:", error);
+    console.error("[InvoiceEngine] Exception mise à jour last_used_at:", error);
   }
 }
 
@@ -283,8 +301,11 @@ export async function generateInvoicePDF(
     // 4. Récupérer la config du template actif
     const templateConfig = await getActiveTemplateConfig(sanitizedData.invoice_type);
     
+    // Déterminer la clé du template (config trouvée ou fallback)
+    const templateKey = templateConfig?.template_key || getTemplateKeyFromType(sanitizedData.invoice_type);
+    
     if (!templateConfig) {
-      console.warn("[InvoiceEngine] Aucun template actif trouvé, utilisation du template par défaut V2.5");
+      console.warn(`[InvoiceEngine] Aucun template actif trouvé, utilisation du template par défaut: ${templateKey}`);
     }
     
     // 5. Générer le PDF avec le template V2.5 approprié
@@ -296,12 +317,12 @@ export async function generateInvoicePDF(
       result = generateInvoiceOneTimeV2PDF(sanitizedData);
     }
     
-    // 6. Mettre à jour last_used_at si succès
-    if (result.success && updateLastUsed && templateConfig) {
-      await updateTemplateLastUsed(templateConfig.template_key);
+    // 6. Mettre à jour last_used_at si succès (TOUJOURS, même sans config)
+    if (result.success && updateLastUsed) {
+      await updateTemplateLastUsed(templateKey);
     }
     
-    console.log(`[InvoiceEngine] Génération ${result.success ? "réussie" : "échouée"}: ${data.invoice_number}`);
+    console.log(`[InvoiceEngine] Génération ${result.success ? "réussie" : "échouée"}: ${data.invoice_number} (template: ${templateKey})`);
     
     return result;
   } catch (error) {
