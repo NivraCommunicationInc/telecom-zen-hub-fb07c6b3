@@ -670,13 +670,13 @@ const ClientMyServices = () => {
             </div>
             
             <div>
-              <p className="text-xs text-muted-foreground">En retard</p>
+              <p className="text-xs text-muted-foreground">Renouvellement requis</p>
               {overdueInvoices.length > 0 ? (
                 <div>
                   <p className="text-sm font-medium text-red-500">
                     {billingTotals.overdue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                   </p>
-                  <p className="text-xs text-red-400">+5% frais appliqué</p>
+                  <p className="text-xs text-red-400">Frais litige si applicable</p>
                 </div>
               ) : (
                 <p className="text-sm font-medium text-emerald-500">0,00 $</p>
@@ -1051,7 +1051,7 @@ const ClientMyServices = () => {
               <CardContent className="p-3 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500" />
                 <p className="text-sm text-red-600">
-                  Paiement streaming en retard - 5% frais de retard appliqué automatiquement
+                  Renouvellement streaming requis - Frais litige appliqué uniquement si contestation
                 </p>
               </CardContent>
             </Card>
@@ -1314,7 +1314,7 @@ const ClientMyServices = () => {
             </Card>
             <Card className={cn("border-border", billingTotals.overdue > 0 ? "bg-red-500/5" : "bg-card")}>
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">En retard</p>
+                <p className="text-xs text-muted-foreground">Renouvellement requis</p>
                 <p className={`text-xl font-bold ${billingTotals.overdue > 0 ? "text-red-500" : "text-foreground"}`}>
                   {billingTotals.overdue.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </p>
@@ -1349,8 +1349,8 @@ const ClientMyServices = () => {
                           "bg-muted text-muted-foreground"
                         }>
                           {invoice.status === "paid" ? "Payée" : 
-                           invoice.status === "overdue" ? "En retard" :
-                           invoice.status === "partial" ? "Partiel" : "En attente"}
+                           invoice.status === "overdue" ? "Renouvellement requis" :
+                           invoice.status === "partial" ? "Paiement partiel" : "En attente"}
                         </Badge>
                       </div>
                     </div>

@@ -199,7 +199,8 @@ export function AccountingExportDialog({ open, onOpenChange, billingData }: Acco
               {[
                 { value: "paid", label: "Payé" },
                 { value: "pending", label: "En attente" },
-                { value: "overdue", label: "En retard" },
+                { value: "overdue", label: "Renouvellement requis" },
+                { value: "void", label: "Annulé (non-renouvellement)" },
                 { value: "refunded", label: "Remboursé" },
               ].map((status) => (
                 <div key={status.value} className="flex items-center space-x-2">

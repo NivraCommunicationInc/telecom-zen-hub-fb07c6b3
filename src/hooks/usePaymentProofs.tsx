@@ -215,7 +215,7 @@ export function useVerifyProof() {
           .single();
 
         if (proof) {
-          // Chercher une facture impayée pour ce client
+          // Chercher une facture en attente pour ce client (prépayé - pas de dette)
           const { data: customer } = await backendClient
             .from('billing_customers')
             .select('id')
@@ -223,7 +223,7 @@ export function useVerifyProof() {
             .maybeSingle();
 
           if (customer) {
-            // Chercher la facture impayée correspondante
+            // Chercher la facture en attente correspondante (non "impayée")
             const { data: unpaidInvoice } = await backendClient
               .from('billing_invoices')
               .select('id')

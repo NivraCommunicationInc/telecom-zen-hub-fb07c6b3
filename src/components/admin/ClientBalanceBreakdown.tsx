@@ -43,11 +43,14 @@ interface UnpaidInvoice {
   description: string | null;
 }
 
+// PREPAID TERMINOLOGY - V2.5 Compliant
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "En attente", color: "bg-amber-500/20 text-amber-500", icon: Clock },
   issued: { label: "Émise", color: "bg-blue-500/20 text-blue-500", icon: FileText },
-  overdue: { label: "En retard", color: "bg-red-500/20 text-red-500", icon: AlertCircle },
-  partial: { label: "Partielle", color: "bg-orange-500/20 text-orange-500", icon: Clock },
+  overdue: { label: "Renouvellement requis", color: "bg-red-500/20 text-red-500", icon: AlertCircle },
+  void: { label: "Annulé (non-renouvellement)", color: "bg-muted text-muted-foreground", icon: FileText },
+  expired: { label: "Expiré", color: "bg-red-600/20 text-red-500", icon: AlertCircle },
+  partial: { label: "Paiement partiel", color: "bg-orange-500/20 text-orange-500", icon: Clock },
   paid: { label: "Payée", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
 };
 
@@ -246,7 +249,7 @@ export const ClientBalanceBreakdown = ({
                         </span>
                         <Badge className={`${statusInfo.color} text-xs`}>
                           <StatusIcon className="w-3 h-3 mr-1" />
-                          {isOverdue && invoice.status !== 'overdue' ? 'En retard' : statusInfo.label}
+                          {isOverdue && invoice.status !== 'overdue' ? 'Renouvellement requis' : statusInfo.label}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
