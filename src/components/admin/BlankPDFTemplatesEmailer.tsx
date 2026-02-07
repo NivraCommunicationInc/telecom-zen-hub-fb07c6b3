@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Mail, Send } from "lucide-react";
+import { Mail, Send, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,7 +14,6 @@ import {
 
 import {
   generateTermsModalitesPDFBlob,
-  getTermsModalitesFilename,
   type TermsModalitesData,
 } from "@/lib/pdfEngine";
 
@@ -25,11 +23,22 @@ import {
   createBlankOrderSummaryData,
 } from "@/lib/pdf/blankTemplateData";
 
+const TEMPLATE_WATERMARK = "DOCUMENT MODÈLE — TEMPLATE VIERGE";
+
 type EmailAttachment = {
   filename: string;
   content: string; // base64
   contentType: string;
 };
+
+type SendResult = {
+  success: boolean;
+  emailId?: string;
+  attachments?: { filename: string; size: number }[];
+  error?: string;
+};
+
+const FIXED_RECIPIENT = "Support@nivra-telecom.ca";
 
 const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -46,8 +55,8 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 
 export function BlankPDFTemplatesEmailer() {
   const { toast } = useToast();
-  const [email, setEmail] = useState("support@nivra-telecom.ca");
   const [isSending, setIsSending] = useState(false);
+  const [lastResult, setLastResult] = useState<SendResult | null>(null);
 
   // Build blank data once per page-load to keep the pack consistent
   const blankPack = useMemo(() => {
@@ -58,24 +67,21 @@ export function BlankPDFTemplatesEmailer() {
 
     const termsData: TermsModalitesData = {
       orderId: crypto.randomUUID(),
-      orderNumber: order.order_number,
-      accountNumber: order.account_number,
+      orderNumber: "#COMMANDE",
+      accountNumber: "#COMPTE",
       issuedDate: new Date(),
-      // IMPORTANT: do NOT include clientName/clientEmail (must stay blank)
+      // NO client name/email - blank template
     };
 
     return { monthlyV2, oneTimeV2, order, contract, termsData };
   }, []);
 
   const handleSend = async () => {
-    if (!email.trim()) {
-      toast({ title: "Erreur", description: "Entrez un email", variant: "destructive" });
-      return;
-    }
-
     setIsSending(true);
+    setLastResult(null);
+    
     try {
-      // 1) Generate PDFs
+      // 1) Generate PDFs with watermark
       const termsBlob = generateTermsModalitesPDFBlob(blankPack.termsData);
 
       const orderRes = generateOrderSummaryPDF(blankPack.order);
@@ -90,55 +96,76 @@ export function BlankPDFTemplatesEmailer() {
       const monthlyRes = generateInvoiceMonthlyV2PDF(blankPack.monthlyV2);
       if (!monthlyRes.success || !monthlyRes.blob) throw new Error(monthlyRes.error || "Erreur génération Facture mensuelle");
 
-      // 2) Convert to base64 for email attachments
+      // 2) Convert to base64 for email attachments with V2.5 filenames
       const attachments: EmailAttachment[] = [
         {
-          filename: `Template-01-${getTermsModalitesFilename(blankPack.order.order_number).replace(/\.pdf$/i, "")}.pdf`,
+          filename: "TEMPLATE-Modalites-V2.5.pdf",
           content: await blobToBase64(termsBlob),
           contentType: "application/pdf",
         },
         {
-          filename: "Template-02-Resume-Commande.pdf",
+          filename: "TEMPLATE-ResumeCommande-V2.5.pdf",
           content: await blobToBase64(orderRes.blob),
           contentType: "application/pdf",
         },
         {
-          filename: "Template-03-Contrat.pdf",
+          filename: "TEMPLATE-Contrat-V2.5.pdf",
           content: await blobToBase64(contractRes.blob),
           contentType: "application/pdf",
         },
         {
-          filename: "Template-04-Facture-Unique-V2.4.pdf",
+          filename: "TEMPLATE-Facture-Unique-V2.5.pdf",
           content: await blobToBase64(oneTimeRes.blob),
           contentType: "application/pdf",
         },
         {
-          filename: "Template-05-Facture-Mensuelle-V2.4.pdf",
+          filename: "TEMPLATE-Facture-Mensuelle-V2.5.pdf",
           content: await blobToBase64(monthlyRes.blob),
           contentType: "application/pdf",
         },
       ];
 
-      // 3) Send via backend function (Resend)
+      // Calculate sizes
+      const attachmentDetails = attachments.map(a => ({
+        filename: a.filename,
+        size: Math.round((a.content.length * 3) / 4), // base64 to bytes approximation
+      }));
+
+      // 3) Send via edge function
       const { data, error } = await supabase.functions.invoke("send-pdf-templates-email", {
         body: {
-          email: email.trim(),
+          email: FIXED_RECIPIENT,
           attachments,
-          kind: "blank_templates_v2_4",
+          kind: "blank_templates_v2_5",
+          watermark: TEMPLATE_WATERMARK,
         },
       });
 
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Échec de l’envoi");
+      if (!data?.success) throw new Error(data?.error || "Échec de l'envoi");
+
+      const result: SendResult = {
+        success: true,
+        emailId: data.emailId,
+        attachments: attachmentDetails,
+      };
+      
+      setLastResult(result);
 
       toast({
-        title: "Envoyé",
-        description: `${attachments.length} PDFs envoyés à ${email.trim()}`,
+        title: "✅ Envoyé avec succès",
+        description: `${attachments.length} PDFs envoyés à ${FIXED_RECIPIENT}`,
       });
     } catch (e: any) {
+      const result: SendResult = {
+        success: false,
+        error: e?.message || "Impossible d'envoyer les PDFs",
+      };
+      setLastResult(result);
+      
       toast({
         title: "Erreur",
-        description: e?.message || "Impossible d’envoyer les PDFs",
+        description: result.error,
         variant: "destructive",
       });
     } finally {
@@ -151,27 +178,53 @@ export function BlankPDFTemplatesEmailer() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Mail className="h-5 w-5 text-primary" />
-          Envoyer les templates PDF (vierges)
+          Envoyer Templates PDF V2.5 (Vierges)
         </CardTitle>
         <CardDescription>
-          Envoie 5 PDFs en pièces jointes (Modalités, Résumé, Contrat, Facture unique, Facture mensuelle) avec données neutres.
+          Envoie 5 PDFs vierges avec placeholders neutres (CLIENT_NOM, FORFAIT, etc.) 
+          et watermark "{TEMPLATE_WATERMARK}" à <strong>{FIXED_RECIPIENT}</strong>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <label className="text-sm text-muted-foreground">Email de destination</label>
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="support@nivra-telecom.ca"
-            inputMode="email"
-            autoComplete="email"
-          />
+      <CardContent className="flex flex-col gap-4">
+        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+          <p className="font-medium mb-2">📎 Fichiers joints :</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>TEMPLATE-Modalites-V2.5.pdf</li>
+            <li>TEMPLATE-ResumeCommande-V2.5.pdf</li>
+            <li>TEMPLATE-Contrat-V2.5.pdf</li>
+            <li>TEMPLATE-Facture-Unique-V2.5.pdf</li>
+            <li>TEMPLATE-Facture-Mensuelle-V2.5.pdf</li>
+          </ul>
         </div>
-        <Button onClick={handleSend} disabled={isSending} className="sm:whitespace-nowrap">
+
+        <Button onClick={handleSend} disabled={isSending} className="w-full sm:w-auto">
           <Send className="h-4 w-4 mr-2" />
-          {isSending ? "Envoi…" : "Envoyer (5 PDFs)"}
+          {isSending ? "Génération et envoi…" : `Envoyer à ${FIXED_RECIPIENT}`}
         </Button>
+
+        {lastResult && (
+          <div className={`p-3 rounded-md text-sm ${lastResult.success ? 'bg-primary/10 border border-primary/20' : 'bg-destructive/10 border border-destructive/20'}`}>
+            {lastResult.success ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-primary font-medium">
+                  <CheckCircle className="h-4 w-4" />
+                  Email envoyé avec succès
+                </div>
+                <p className="text-muted-foreground">ID: {lastResult.emailId}</p>
+                <div className="text-foreground">
+                  <p className="font-medium">Pièces jointes :</p>
+                  <ul className="list-disc list-inside text-muted-foreground">
+                    {lastResult.attachments?.map((a, i) => (
+                      <li key={i}>{a.filename} ({Math.round(a.size / 1024)} KB)</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <p className="text-destructive">❌ Erreur : {lastResult.error}</p>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
