@@ -191,6 +191,8 @@ const navGroups: NavGroup[] = [
       { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
       { icon: Shield, label: "Événements sécurité", href: "/admin/security-events" },
       { icon: Shield, label: "Security Guardian", href: "/admin/security-guardian" },
+      { icon: FileText, label: "QA Audit", href: "/admin/qa" },
+      { icon: Activity, label: "System Audit", href: "/admin/system-audit" },
     ],
   },
   {
