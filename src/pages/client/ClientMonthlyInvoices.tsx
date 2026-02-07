@@ -23,12 +23,15 @@ const statusColors: Record<string, string> = {
   void: "bg-gray-500/20 text-gray-500",
 };
 
+// PREPAID TERMINOLOGY: No debt language
 const statusLabels: Record<string, string> = {
   draft: "Brouillon",
   issued: "Émise",
   paid: "Payée",
-  overdue: "En retard",
-  void: "Annulée",
+  overdue: "Renouvellement requis", // Not "En retard"
+  void: "Annulée (non-renouvellement)",
+  expired: "Expiré (non renouvelé)",
+  not_renewed: "Non renouvelé",
 };
 
 const ClientMonthlyInvoices = () => {
@@ -296,7 +299,7 @@ const ClientMonthlyInvoices = () => {
                           <span>Échéance</span>
                           <span>
                             {format(new Date(invoice.due_date), "d MMMM yyyy", { locale: fr })}
-                            {invoice.status === "overdue" && " (en retard)"}
+                            {invoice.status === "overdue" && " (renouvellement requis)"}
                           </span>
                         </div>
                       )}

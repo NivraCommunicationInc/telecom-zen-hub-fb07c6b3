@@ -103,10 +103,13 @@ const ClientDashboard = () => {
     enabled: !!user?.id,
   });
 
+  // PREPAID TERMINOLOGY - No debt language (impayé/dette/overdue)
   const statusConfig: Record<string, { color: string; label: string }> = {
     pending: { color: "bg-amber-500/20 text-amber-400 border-amber-500/30", label: "En attente" },
     paid: { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Payé" },
-    overdue: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "En retard" },
+    overdue: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Renouvellement requis" },
+    expired: { color: "bg-red-600/20 text-red-400 border-red-600/30", label: "Expiré (non renouvelé)" },
+    not_renewed: { color: "bg-muted text-muted-foreground border-muted", label: "Non renouvelé" },
     open: { color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", label: "Ouvert" },
     closed: { color: "bg-slate-500/20 text-slate-400 border-slate-500/30", label: "Fermé" },
     scheduled: { color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", label: "Planifié" },
@@ -114,7 +117,7 @@ const ClientDashboard = () => {
     cancelled: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Annulé" },
     active: { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Actif" },
     paused: { color: "bg-amber-500/20 text-amber-400 border-amber-500/30", label: "En pause" },
-    suspended: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Suspendu" },
+    suspended: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Suspendu (litige)" },
   };
 
   return (
