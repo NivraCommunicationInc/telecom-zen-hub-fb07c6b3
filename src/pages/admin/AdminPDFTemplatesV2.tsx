@@ -25,6 +25,7 @@ import {
 } from "@/hooks/usePDFTemplates";
 import type { InvoiceDataV2 } from "@/lib/pdf";
 import { generateAccountNumber, generateInvoiceNumber } from "@/lib/secureIdGenerator";
+import { BlankPDFTemplatesEmailer } from "@/components/admin/BlankPDFTemplatesEmailer";
 
 // =============================================================================
 // DATA FETCHING
@@ -261,6 +262,8 @@ const AdminPDFTemplatesV2 = () => {
           </div>
           <Badge variant="secondary" className="text-sm">V2.4 — Règle 2-9</Badge>
         </div>
+
+        <BlankPDFTemplatesEmailer />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-2 w-full max-w-md">
