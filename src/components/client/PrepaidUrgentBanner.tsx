@@ -1,17 +1,19 @@
 /**
- * Prepaid Urgent Banner - Shows when client has overdue invoices
- * Displays prominently in portal layout when payment is late
+ * Prepaid Urgent Banner - Shows when client has pending invoices requiring renewal
+ * Displays prominently in portal layout when payment is needed
  * 
  * CRITICAL: Uses portalClient for authenticated RLS queries
+ * TERMINOLOGY: Uses prepaid-friendly labels (no "impayé", "dette", "overdue")
  */
 
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend/portalClient";
-import { AlertTriangle, CreditCard, Clock } from "lucide-react";
+import { AlertTriangle, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { differenceInDays } from "date-fns";
+import { getPrepaidBannerContent } from "@/lib/constants/billingLabels";
 
 interface PrepaidUrgentBannerProps {
   userId: string;
@@ -21,9 +23,9 @@ export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
   // Use portal client for proper RLS authentication
   const { data: ledger } = useLedgerBalance(userId, portalClient);
   
-  // Check for overdue invoices
-  const { data: overdueData } = useQuery({
-    queryKey: ["overdue-check-v2", userId],
+  // Check for pending invoices requiring renewal
+  const { data: pendingData } = useQuery({
+    queryKey: ["renewal-check-v2", userId],
     queryFn: async () => {
       // Get customer_id first
       const { data: customer } = await portalClient
@@ -32,42 +34,44 @@ export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (!customer) return { count: 0, oldestDueDate: null, daysOverdue: 0 };
+      if (!customer) return { count: 0, oldestDueDate: null, daysPastDue: 0 };
 
-      // Check for overdue invoices
-      const { data: overdueInvoices } = await portalClient
+      // Check for pending invoices past due date (need renewal)
+      const { data: pendingInvoices } = await portalClient
         .from('billing_invoices')
         .select('id, due_date, balance_due')
         .eq('customer_id', customer.id)
-        .eq('status', 'overdue')
+        .in('status', ['pending', 'overdue'])
+        .gt('balance_due', 0)
         .order('due_date', { ascending: true });
 
-      if (!overdueInvoices || overdueInvoices.length === 0) {
-        return { count: 0, oldestDueDate: null, daysOverdue: 0 };
+      if (!pendingInvoices || pendingInvoices.length === 0) {
+        return { count: 0, oldestDueDate: null, daysPastDue: 0 };
       }
 
-      const oldestDueDate = overdueInvoices[0]?.due_date;
-      const daysOverdue = oldestDueDate 
-        ? differenceInDays(new Date(), new Date(oldestDueDate))
+      const oldestDueDate = pendingInvoices[0]?.due_date;
+      const daysPastDue = oldestDueDate 
+        ? Math.max(0, differenceInDays(new Date(), new Date(oldestDueDate)))
         : 0;
 
       return {
-        count: overdueInvoices.length,
+        count: pendingInvoices.length,
         oldestDueDate,
-        daysOverdue,
+        daysPastDue,
       };
     },
     enabled: !!userId,
     staleTime: 60000, // 1 minute
   });
 
-  // Don't show if no overdue invoices or balance is credit/zero
-  if (!overdueData?.count || !ledger || ledger.balance <= 0) {
+  // Don't show if no pending invoices or balance is credit/zero
+  if (!pendingData?.count || !ledger || ledger.balance <= 0) {
     return null;
   }
 
-  const isUrgent = overdueData.daysOverdue > 7;
-  const isCritical = overdueData.daysOverdue > 30;
+  const isUrgent = pendingData.daysPastDue > 7;
+  const isCritical = pendingData.daysPastDue > 30;
+  const bannerContent = getPrepaidBannerContent(pendingData.daysPastDue);
 
   return (
     <div 
@@ -84,15 +88,11 @@ export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
           <AlertTriangle className="w-5 h-5 flex-shrink-0" />
           <div>
             <span className="font-semibold">
-              {isCritical 
-                ? 'Action urgente requise!' 
-                : isUrgent 
-                ? 'Paiement en retard' 
-                : 'Facture(s) impayée(s)'}
+              {bannerContent.title}
             </span>
             <span className="ml-2 text-sm opacity-90">
-              {overdueData.count} facture{overdueData.count > 1 ? 's' : ''} en attente
-              {overdueData.daysOverdue > 0 && ` depuis ${overdueData.daysOverdue} jour${overdueData.daysOverdue > 1 ? 's' : ''}`}
+              {pendingData.count} facture{pendingData.count > 1 ? 's' : ''} en attente de renouvellement
+              {pendingData.daysPastDue > 0 && ` depuis ${pendingData.daysPastDue} jour${pendingData.daysPastDue > 1 ? 's' : ''}`}
             </span>
           </div>
         </div>
@@ -112,7 +112,7 @@ export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
               }
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              Payer maintenant
+              Renouveler maintenant
             </Button>
           </Link>
         </div>

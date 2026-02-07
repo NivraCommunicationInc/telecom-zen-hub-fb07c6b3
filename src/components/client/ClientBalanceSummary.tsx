@@ -3,6 +3,7 @@
  * Uses useLedgerBalance hook as single source of truth
  * 
  * CRITICAL: Uses portalClient for authenticated RLS queries
+ * TERMINOLOGY: Uses prepaid-friendly labels (no "impayé", "dette", "overdue" visible)
  */
 
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
@@ -26,12 +27,19 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+// Import centralized labels for prepaid terminology
+import { 
+  INVOICE_STATUS_LABELS, 
+  INVOICE_STATUS_COLORS,
+  getInvoiceStatusLabel 
+} from "@/lib/constants/billingLabels";
+
 interface ClientBalanceSummaryProps {
   userId: string;
   userEmail?: string;
 }
 
-interface UnpaidInvoice {
+interface PendingInvoice {
   id: string;
   invoice_number: string;
   due_date: string;
@@ -42,22 +50,22 @@ interface UnpaidInvoice {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  pending: { label: "En attente", color: "bg-amber-500/20 text-amber-500", icon: Clock },
-  issued: { label: "Émise", color: "bg-blue-500/20 text-blue-500", icon: FileText },
-  overdue: { label: "En retard", color: "bg-red-500/20 text-red-500", icon: AlertCircle },
-  partial: { label: "Partielle", color: "bg-orange-500/20 text-orange-500", icon: Clock },
-  paid: { label: "Payée", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
+  pending: { label: INVOICE_STATUS_LABELS.pending, color: INVOICE_STATUS_COLORS.pending, icon: Clock },
+  issued: { label: INVOICE_STATUS_LABELS.issued, color: INVOICE_STATUS_COLORS.issued, icon: FileText },
+  overdue: { label: INVOICE_STATUS_LABELS.overdue, color: INVOICE_STATUS_COLORS.overdue, icon: AlertCircle },
+  partial: { label: INVOICE_STATUS_LABELS.partial, color: INVOICE_STATUS_COLORS.partial, icon: Clock },
+  paid: { label: INVOICE_STATUS_LABELS.paid, color: INVOICE_STATUS_COLORS.paid, icon: CheckCircle },
 };
 
 export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   // Use V2 ledger balance hook with portal client for proper RLS
   const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(userId, portalClient);
 
-  // Fetch unpaid invoices from BOTH V2 and legacy systems
-  const { data: unpaidInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["unpaid-invoices-unified", userId],
+  // Fetch pending invoices from BOTH V2 and legacy systems
+  const { data: pendingInvoices, isLoading: invoicesLoading } = useQuery({
+    queryKey: ["pending-invoices-unified", userId],
     queryFn: async () => {
-      const allUnpaid: UnpaidInvoice[] = [];
+      const allPending: PendingInvoice[] = [];
 
       // 1. V2 System: billing_invoices
       const { data: customer } = await portalClient
@@ -77,7 +85,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
         for (const inv of v2Invoices || []) {
           const balanceDue = Number(inv.balance_due) ?? (Number(inv.total) - Number(inv.amount_paid || 0));
           if (balanceDue > 0) {
-            allUnpaid.push({
+            allPending.push({
               id: inv.id,
               invoice_number: inv.invoice_number,
               due_date: inv.due_date,
@@ -103,7 +111,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
         const balanceDue = Number(inv.balance_due) ?? (invoiceAmount - amountPaid);
         
         if (balanceDue > 0) {
-          allUnpaid.push({
+          allPending.push({
             id: inv.id,
             invoice_number: inv.invoice_number || `INV-${inv.id.slice(0, 8)}`,
             due_date: inv.due_date,
@@ -116,13 +124,13 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
       }
 
       // Sort by due date
-      allUnpaid.sort((a, b) => {
+      allPending.sort((a, b) => {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
         return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
       });
 
-      return allUnpaid;
+      return allPending;
     },
     enabled: !!userId,
   });
@@ -152,9 +160,9 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   return (
     <div className="space-y-3 col-span-full sm:col-span-1">
       {/* Prepaid info banner */}
-      <Card className="bg-cyan-500/10 border-cyan-500/30">
+      <Card className="bg-primary/10 border-primary/30">
         <CardContent className="p-2 sm:p-3">
-          <p className="text-xs text-cyan-700 dark:text-cyan-300">
+          <p className="text-xs text-primary">
             <strong>Service prépayé</strong> = renouvellement seulement si paiement confirmé.
           </p>
         </CardContent>
@@ -166,10 +174,10 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-                isCredit ? 'bg-blue-500/20' : balance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
+                isCredit ? 'bg-primary/20' : balance > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
               }`}>
                 {isCredit ? (
-                  <CreditCard className="w-5 h-5 text-blue-500" />
+                  <CreditCard className="w-5 h-5 text-primary" />
                 ) : (
                   <DollarSign className={`w-5 h-5 ${balance > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
                 )}
@@ -179,7 +187,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                   {isCredit ? "Crédit disponible" : "Solde dû"}
                 </p>
                 <p className={`text-lg sm:text-xl font-bold ${
-                  isCredit ? 'text-blue-500' : balance > 0 ? 'text-amber-500' : 'text-emerald-500'
+                  isCredit ? 'text-primary' : balance > 0 ? 'text-amber-500' : 'text-emerald-500'
                 }`}>
                   {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                 </p>
@@ -194,7 +202,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                   size="sm"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Payer
+                  Renouveler
                 </Button>
               </Link>
             )}
@@ -218,22 +226,22 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
             </div>
           )}
 
-          {/* Unpaid Invoices */}
-          {unpaidInvoices && unpaidInvoices.length > 0 ? (
+          {/* Pending Invoices - PREPAID TERMINOLOGY */}
+          {pendingInvoices && pendingInvoices.length > 0 ? (
             <div className="space-y-2 pt-3 border-t border-border">
               <p className="text-xs text-muted-foreground mb-2">
-                Factures en attente ({unpaidInvoices.length})
+                Factures en attente ({pendingInvoices.length})
               </p>
-              {unpaidInvoices.slice(0, 3).map((invoice) => {
+              {pendingInvoices.slice(0, 3).map((invoice) => {
                 const statusInfo = statusConfig[invoice.status] || statusConfig.pending;
-                const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date();
+                const needsRenewal = invoice.due_date && new Date(invoice.due_date) < new Date();
                 const amountDue = invoice.balance_due ?? (invoice.total - (invoice.amount_paid || 0));
 
                   return (
                     <div 
                       key={invoice.id}
                       className={`p-2 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2 ${
-                        isOverdue ? 'bg-red-500/5 border border-red-500/20' : 'bg-muted/30'
+                        needsRenewal ? 'bg-red-500/5 border border-red-500/20' : 'bg-muted/30'
                       }`}
                     >
                       <div className="min-w-0 flex-1">
@@ -241,12 +249,12 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                           <span className="font-mono text-xs font-medium truncate max-w-[100px]">
                             {invoice.invoice_number || '—'}
                           </span>
-                          <Badge className={`${statusInfo.color} text-xs`}>
-                            {isOverdue ? 'En retard' : statusInfo.label}
+                          <Badge className={`${needsRenewal ? INVOICE_STATUS_COLORS.overdue : statusInfo.color} text-xs`}>
+                            {needsRenewal ? INVOICE_STATUS_LABELS.overdue : statusInfo.label}
                           </Badge>
                         </div>
                         {invoice.due_date && (
-                          <p className={`text-xs truncate ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
+                          <p className={`text-xs truncate ${needsRenewal ? 'text-red-500' : 'text-muted-foreground'}`}>
                             Échéance: {format(new Date(invoice.due_date), "d MMM", { locale: fr })}
                           </p>
                         )}
@@ -259,10 +267,10 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
                     </div>
                   );
               })}
-              {unpaidInvoices.length > 3 && (
+              {pendingInvoices.length > 3 && (
                 <Link to="/portal/invoices">
                   <Button variant="link" size="sm" className="p-0 h-auto text-xs">
-                    Voir toutes les factures ({unpaidInvoices.length})
+                    Voir toutes les factures ({pendingInvoices.length})
                     <ExternalLink className="w-3 h-3 ml-1" />
                   </Button>
                 </Link>
@@ -271,7 +279,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
           ) : (
             <div className="pt-3 border-t border-border text-center">
               <CheckCircle className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">Aucune facture impayée</p>
+              <p className="text-xs text-muted-foreground">Aucune facture en attente</p>
             </div>
           )}
         </CardContent>
