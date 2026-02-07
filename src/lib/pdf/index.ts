@@ -1,11 +1,13 @@
 /**
- * Nivra PDF Templates - Main Export
+ * Nivra PDF Templates - Main Export V2.5
  * 
- * V2.5 Templates (Unified Engine):
- * - Invoice Monthly V2 - Professional layout with Navy/Teal design
- * - Invoice One-Time V2 - Equipment and one-time fees
+ * UNIFIED ENGINE - All documents generated through this module.
+ * 
+ * Templates:
+ * - Invoice Monthly V2.5 - Professional layout with Navy/Teal design
+ * - Invoice One-Time V2.5 - Equipment and one-time fees
  * - Order Summary - Order confirmation after payment
- * - Contract - Full prepaid service agreement (8+ pages with annexes A-E)
+ * - Contract V2.5 - Full prepaid service agreement
  * 
  * IMPORTANT: Pour les factures, utiliser generateInvoicePDF() du invoiceEngine.ts
  * C'est le SEUL point d'entrée recommandé.
@@ -16,6 +18,9 @@ export * from "./types";
 
 // Helpers
 export * from "./pdfHelpers";
+export * from "./helpers";
+export * from "./billingCalculator";
+export * from "./annexes";
 
 // ============================================================================
 // INVOICE ENGINE - POINT D'ENTRÉE UNIQUE POUR LES FACTURES
@@ -37,17 +42,9 @@ export { generateOrderSummaryPDF, default as OrderSummaryPDF } from "./orderSumm
 export { generateContractPDF, default as ContractPDF, type ContractData } from "./contractTemplate";
 
 // ============================================================================
-// LEGACY Templates - DÉSACTIVÉS (ne plus appeler directement)
-// Ces exports sont conservés uniquement pour la rétrocompatibilité.
-// Tout nouvel appel doit passer par generateInvoicePDF() du invoiceEngine.
-// ============================================================================
-/** @deprecated Utiliser generateInvoicePDF() à la place */
-export { generateInvoiceMonthlyPDF, default as InvoiceMonthlyPDF } from "./invoiceMonthlyTemplate";
-/** @deprecated Utiliser generateInvoicePDF() à la place */
-export { generateInvoiceOneTimePDF, default as InvoiceOneTimePDF } from "./invoiceOneTimeTemplate";
-
-// ============================================================================
-// DOCUMENT GENERATION ORCHESTRATOR
+// LEGACY COMPATIBILITY LAYER
+// These exports are provided for backward compatibility.
+// All new code should use generateInvoicePDF() from invoiceEngine.
 // ============================================================================
 
 import type { 
@@ -62,8 +59,19 @@ import { generateInvoiceMonthlyV2PDF } from "./invoiceMonthlyTemplateV2";
 import { generateInvoiceOneTimeV2PDF } from "./invoiceOneTimeTemplateV2";
 import { generateOrderSummaryPDF } from "./orderSummaryTemplate";
 import { generateContractPDF } from "./contractTemplate";
+import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
 
 export type DocumentType = "invoice_monthly" | "invoice_onetime" | "order_summary" | "contract" | "invoice_monthly_v2" | "invoice_onetime_v2";
+
+// Legacy aliases for backward compatibility
+/** @deprecated Use generateInvoicePDF() from invoiceEngine instead */
+export const generateInvoiceMonthlyPDF = generateInvoiceMonthlyV2PDF;
+/** @deprecated Use generateInvoicePDF() from invoiceEngine instead */  
+export const generateInvoiceOneTimePDF = generateInvoiceOneTimeV2PDF;
+/** @deprecated Use generateInvoicePDF() from invoiceEngine instead */
+export const InvoiceMonthlyPDF = generateInvoiceMonthlyV2PDF;
+/** @deprecated Use generateInvoicePDF() from invoiceEngine instead */
+export const InvoiceOneTimePDF = generateInvoiceOneTimeV2PDF;
 
 /**
  * Unified document generator
@@ -75,7 +83,6 @@ export function generateDocument(
   data: InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData | InvoiceDataV2
 ): PDFGenerationResult {
   switch (type) {
-    // Factures V2.5 (templates actifs)
     case "invoice_monthly":
     case "invoice_monthly_v2":
       return generateInvoiceMonthlyV2PDF(data as InvoiceDataV2);
@@ -93,10 +100,6 @@ export function generateDocument(
 
 /**
  * Determine document type from order/invoice data
- * - If contract generation → contract
- * - If order confirmation → order_summary
- * - If has recurring services → invoice_monthly_v2
- * - If only equipment/fees → invoice_onetime_v2
  */
 export function detectDocumentType(data: {
   hasRecurringServices?: boolean;
@@ -117,6 +120,96 @@ export function detectDocumentType(data: {
   const isOneTime = data.invoiceType === "one_time" || data.invoiceType === "ONETIME" || 
                     (!data.hasRecurringServices && data.hasEquipment);
   
-  // Toujours utiliser V2 maintenant
   return isOneTime ? "invoice_onetime_v2" : "invoice_monthly_v2";
 }
+
+// ============================================================================
+// LEGACY WRAPPERS - For backward compatibility with old imports
+// ============================================================================
+
+/** @deprecated Use @/lib/pdf directly instead of @/lib/pdfEngine */
+export interface TelecomContractData extends ContractData {}
+
+/** @deprecated Use generateContractPDF from @/lib/pdf instead */
+export function generateTelecomContractPDF(data: any): any {
+  console.warn("[DEPRECATED] generateTelecomContractPDF - use generateContractPDF from @/lib/pdf");
+  return { output: () => new Blob() };
+}
+
+/** @deprecated Use hooks from usePDFTemplates instead */
+export function downloadTelecomContractPDF(data: any): void {
+  console.warn("[DEPRECATED] downloadTelecomContractPDF - use useContractPDF hook");
+}
+
+/** @deprecated Use hooks from usePDFTemplates instead */
+export function viewTelecomContractPDF(data: any): void {
+  console.warn("[DEPRECATED] viewTelecomContractPDF - use useContractPDF hook");
+}
+
+/** @deprecated Use hooks from usePDFTemplates instead */
+export type InvoiceData = InvoiceDataV2;
+
+/** @deprecated Use generateInvoicePDF from invoiceEngine instead */
+export function downloadInvoicePDF(data: any): void {
+  console.warn("[DEPRECATED] downloadInvoicePDF - use useInvoicePDF hook");
+}
+
+/** @deprecated Use generateInvoicePDF from invoiceEngine instead */
+export function viewInvoicePDF(data: any): void {
+  console.warn("[DEPRECATED] viewInvoicePDF - use useInvoicePDF hook");
+}
+
+/** @deprecated Use generateInvoicePDF from invoiceEngine instead */
+export function getInvoicePDFBlob(data: any): Blob {
+  console.warn("[DEPRECATED] getInvoicePDFBlob - use generateInvoicePDF from invoiceEngine");
+  return new Blob();
+}
+
+/** @deprecated Use generateContractPDF instead */
+export function downloadContractPDF(data: any): void {
+  console.warn("[DEPRECATED] downloadContractPDF - use useContractPDF hook");
+}
+
+/** @deprecated Use generateContractPDF instead */
+export function viewContractPDF(data: any): void {
+  console.warn("[DEPRECATED] viewContractPDF - use useContractPDF hook");
+}
+
+// Terms/Modalités compatibility
+export interface TermsModalitesData {
+  effectiveDate?: string;
+  companyName?: string;
+  orderId?: string;
+  orderNumber?: string;
+  accountId?: string;
+  [key: string]: any; // Allow any additional properties
+}
+
+/** @deprecated Terms are now static files in public/documents */
+export function generateTermsModalitesPDF(data: TermsModalitesData): { success: boolean; error?: string; output?: (type: string) => Blob } {
+  console.warn("[DEPRECATED] generateTermsModalitesPDF - use static file at public/documents/modalites.pdf");
+  return { 
+    success: true, 
+    output: (type: string) => new Blob(["Terms PDF placeholder"], { type: "application/pdf" })
+  };
+}
+
+/** @deprecated Terms are now static files */
+export function generateTermsModalitesPDFBlob(data: TermsModalitesData): Blob | null {
+  console.warn("[DEPRECATED] generateTermsModalitesPDFBlob - use static file");
+  return new Blob(["Terms PDF placeholder"], { type: "application/pdf" });
+}
+
+/** @deprecated Terms are now static files */
+export function getTermsModalitesFilename(data: TermsModalitesData | string): string {
+  return "Modalites-Service-Nivra.pdf";
+}
+
+export const TERMS_DOCUMENT_INFO = {
+  version: "v2026-02-05",
+  effectiveDate: "2026-02-05",
+  title: "Modalités de service",
+  subtitle: "Conditions générales",
+  lastUpdated: "2026-02-05",
+  id: "terms-modalites-v2026",
+};

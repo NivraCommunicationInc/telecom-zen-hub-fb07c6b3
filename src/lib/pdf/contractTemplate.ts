@@ -43,7 +43,7 @@ import {
   ANNEXE_E,
   ANNEXE_TITLES,
   type AnnexeSection,
-} from "@/lib/pdfEngine/annexes";
+} from "./annexes";
 import {
   CONTRACT_TERMS,
   BUSINESS_INFO,
@@ -63,70 +63,50 @@ import {
 // ============================================================================
 
 export interface ContractData {
-  // Contract identifiers
-  contract_number: string;
-  contract_date: string;
+  // All fields optional for backward compatibility with legacy code
+  contract_number?: string;
+  contractNumber?: string;
+  contractId?: string;
+  templateId?: string;
+  templateVersion?: string;
+  contract_date?: string;
   contract_version?: string;
-  
-  // Client info
-  client_name: string;
-  client_email: string;
+  client_name?: string;
+  client_email?: string;
   client_phone?: string;
   client_dob?: string;
-  service_address: string;
+  service_address?: string;
   billing_address?: string;
-  account_number: string;
-  
-  // Order info
-  order_number: string;
-  order_date: string;
-  
-  // Services subscribed
-  services: InvoiceLine[];
-  
-  // Equipment and one-time fees
-  equipment: OneTimeItem[];
-  
-  // One-time fees
-  one_time_fees: {
-    label: string;
-    amount: number;
-  }[];
-  
-  // Totals
-  subtotal_monthly: number;
-  subtotal_equipment: number;
-  subtotal_one_time_fees: number;
-  total_discounts: number;
-  subtotal_before_tax: number;
-  tax_gst: number;
-  tax_qst: number;
-  total_due_today: number;
-  monthly_recurring: number;
-  
-  // Promo
+  account_number?: string;
+  order_number?: string;
+  order_date?: string;
+  services?: InvoiceLine[];
+  equipment?: OneTimeItem[];
+  one_time_fees?: { label: string; amount: number; }[];
+  subtotal_monthly?: number;
+  subtotal_equipment?: number;
+  subtotal_one_time_fees?: number;
+  total_discounts?: number;
+  subtotal_before_tax?: number;
+  tax_gst?: number;
+  tax_qst?: number;
+  total_due_today?: number;
+  monthly_recurring?: number;
   promo_code?: string;
   promo_description?: string;
-  
-  // Installation
   installation_date?: string;
   installation_time_slot?: string;
   installation_type?: "standard" | "complex";
-  
-  // Dates
   activation_date?: string;
   first_billing_date?: string;
   bill_cycle_day?: number;
-  
-  // Payment
   payment_method?: string;
   payment_reference?: string;
-  
-  // Signature (typed signature)
   signature_name?: string;
   signature_date?: string;
   signature_ip?: string;
   is_signed?: boolean;
+  [key: string]: any;
 }
 
 // ============================================================================
@@ -510,8 +490,8 @@ export function generateContractPDF(data: ContractData): PDFGenerationResult {
     doc.setFontSize(8);
     doc.setTextColor(...PDF_COLORS.dark);
     
-    for (const annexe of ANNEXE_TITLES) {
-      doc.text(`• ${annexe.title}`, margin + 5, ctx.currentY);
+    for (const [key, title] of Object.entries(ANNEXE_TITLES)) {
+      doc.text(`• Annexe ${key}: ${title}`, margin + 5, ctx.currentY);
       ctx.currentY += 5;
     }
     

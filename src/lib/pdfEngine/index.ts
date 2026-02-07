@@ -1,90 +1,13 @@
 /**
- * Nivra Document Engine
- * 
- * Single source of truth for all PDF document generation:
- * - Contract (Service Agreement)
- * - Invoice (Facture)
- * - Estimate (Estimation)
- * 
- * All documents are generated dynamically based on selected services only.
- * No service that wasn't selected will appear in any document.
+ * @deprecated This folder has been deprecated.
+ * Use imports from @/lib/pdf instead.
  */
 
-export * from "./types";
-export { type PDFState, sanitizeLegalText } from "./helpers";
-export * from "./generator";
+export * from "../pdf";
+export type { ContractData as TelecomContractData } from "../pdf";
+export type { InvoiceDataV2 as InvoiceData } from "../pdf";
 
-// Re-export main functions for convenience
-export { 
-  generateUnifiedPDF,
-  generateContractPDF,
-  generateInvoicePDF,
-  generateEstimatePDF,
-  getUnifiedPDFBlob,
-  downloadUnifiedPDF,
-  viewUnifiedPDF,
-} from "./generator";
-
-// Re-export adapters for data conversion
-export {
-  orderToDocumentData,
-  billingToInvoiceData,
-  getCompanyInfo,
-  calculateQuebecTaxes,
-  type OrderData,
-  type BillingRecord,
-  type ClientProfile,
-} from "./adapters";
-
-// Re-export terms and conditions
-export {
-  PDF_TERMS,
-  getAllTerms,
-  getEssentialTerms,
-} from "./termsAndConditions";
-
-// Re-export billing calculator (single source of truth)
-export {
-  calculateBillingTotals,
-  verifyBillingInvariant,
-  recalculateBilling,
-  TAX_RATES,
-  type BillingInput,
-  type CalculatedBilling,
-} from "./billingCalculator";
-
-// Sample data for testing
-export {
-  sampleMobileOnly,
-  sampleInternetInstall,
-  sampleTVBundle,
-  sampleFullCombo,
-  sampleInvoiceMobile,
-  sampleInvoiceTVBundle,
-  sampleInvoiceFullCombo,
-} from "./sampleData";
-
-// Legacy wrappers for backward compatibility
-export {
-  generateTelecomContractPDF,
-  downloadTelecomContractPDF,
-  viewTelecomContractPDF,
-  getTelecomContractBlob,
-  downloadInvoicePDF,
-  viewInvoicePDF,
-  getInvoicePDFBlob,
-  downloadContractPDF,
-  viewContractPDF,
-  getContractPDFBlob,
-  type TelecomContractData,
-  type InvoiceData,
-} from "./legacyWrappers";
-
-// Terms/Modalités de service PDF generator
-export {
-  generateTermsModalitesPDF,
-  generateTermsModalitesPDFBlob,
-  getTermsModalitesFilename,
-  TERMS_DOCUMENT_INFO,
-  type TermsModalitesData,
-} from "./termsModalitesPdfGenerator";
+export interface UnifiedDocumentData {
+  docType?: "contract" | "invoice" | "estimate";
+  [key: string]: any;
+}
