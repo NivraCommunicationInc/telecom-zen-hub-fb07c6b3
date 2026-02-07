@@ -700,8 +700,10 @@ export function generateInvoicePDFLegacy(data: LegacyInvoiceData): jsPDF {
       total: taxableAmount + (data.tpsAmount ?? taxes.tps) + (data.tvqAmount ?? taxes.tvq),
     },
     payment: {
+      // PREPAID MODEL: Map legacy statuses to new terminology
       status: data.status === "paid" ? "paid" : 
-              data.status === "overdue" ? "overdue" : 
+              data.status === "overdue" ? "renewal_required" : 
+              data.status === "void" ? "void" :
               data.status === "cancelled" ? "cancelled" : "pending",
       reference: data.paymentReference,
       paidAt: data.paidAt,

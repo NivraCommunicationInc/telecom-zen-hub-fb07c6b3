@@ -90,7 +90,8 @@ export interface BillingSummary {
 
 export interface PaymentInfo {
   method?: "credit_card" | "etransfer" | "cash" | "other";
-  status: "pending" | "paid" | "overdue" | "cancelled";
+  // PREPAID MODEL: "renewal_required" replaces "overdue" - no debt terminology
+  status: "pending" | "paid" | "renewal_required" | "void" | "cancelled";
   reference?: string;
   paidAt?: string;
   dueDate?: string;

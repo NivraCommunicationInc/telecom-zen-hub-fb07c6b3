@@ -530,7 +530,7 @@ const AdminReplacements = () => {
                                 <div>
                                   <p className="text-sm font-medium">Facture: {replacementOrder.invoice_number}</p>
                                   <p className="text-xs text-muted-foreground">
-                                    Statut: {replacementOrder.invoice_status === "paid" ? "Payée" : "Impayée"}
+                                    Statut: {replacementOrder.invoice_status === "paid" ? "Payée" : "En attente"}
                                   </p>
                                 </div>
                                 {replacementOrder.invoice_status !== "paid" && (isAdmin || isEmployee) && (
