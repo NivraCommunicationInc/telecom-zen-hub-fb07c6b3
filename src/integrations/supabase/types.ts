@@ -9537,6 +9537,38 @@ export type Database = {
           },
         ]
       }
+      qa_cron_jobs: {
+        Row: {
+          active: boolean | null
+          command: string | null
+          job_id: number | null
+          job_name: string | null
+          last_run_at: string | null
+          last_run_id: number | null
+          last_run_message: string | null
+          last_run_status: string | null
+          schedule: string | null
+        }
+        Relationships: []
+      }
+      qa_document_sources: {
+        Row: {
+          document_type: string | null
+          primary_table: string | null
+          secondary_table: string | null
+        }
+        Relationships: []
+      }
+      qa_pdf_templates_runtime: {
+        Row: {
+          active: boolean | null
+          last_used_at: string | null
+          path: string | null
+          type: string | null
+          version: string | null
+        }
+        Relationships: []
+      }
       services_public: {
         Row: {
           billing_type: string | null

@@ -1,28 +1,28 @@
 /**
- * AdminQA - Page d'audit READ-ONLY (Données réelles uniquement)
+ * AdminQA - Page READ-ONLY (Données brutes uniquement)
  * 
- * Affiche l'état actuel du système basé sur des données runtime.
- * AUCUN test, AUCUNE assertion, AUCUN bouton.
+ * 4 sections en tableaux:
+ * 1. Templates PDF runtime (SELECT qa_pdf_templates_runtime WHERE active = true)
+ * 2. Templates PDF legacy  (SELECT qa_pdf_templates_runtime WHERE active = false)
+ * 3. Sources DB par document (SELECT qa_document_sources)
+ * 4. Jobs automatiques (SELECT qa_cron_jobs)
+ * 
+ * AUCUN bouton, AUCUNE logique de test, AUCUN texte interprétatif.
  */
 
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  FileText, 
-  Database,
-  Clock,
-} from "lucide-react";
+import { FileText, Database, Clock, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 
 // ============================================
-// SECTION 1: Templates PDF (Runtime Config)
+// DATA FETCHING — READ-ONLY VIEWS
 // ============================================
 
-interface TemplateConfig {
+interface PDFTemplateRow {
   type: string;
   path: string;
   version: string;
@@ -30,212 +30,76 @@ interface TemplateConfig {
   last_used_at: string | null;
 }
 
-// ============================================
-// SECTION 3: Sources DB par document
-// ============================================
-
-interface DocumentSource {
+interface DocumentSourceRow {
   document_type: string;
   primary_table: string;
   secondary_table: string | null;
 }
 
-const DOCUMENT_SOURCES: DocumentSource[] = [
-  { document_type: "invoice_monthly", primary_table: "billing_invoices", secondary_table: null },
-  { document_type: "invoice_one_time", primary_table: "billing_invoices", secondary_table: null },
-  { document_type: "contract", primary_table: "contracts", secondary_table: null },
-  { document_type: "order_summary", primary_table: "orders", secondary_table: "equipment_details" },
-  { document_type: "terms", primary_table: "site_settings", secondary_table: null },
-];
+interface CronJobRow {
+  job_id: number;
+  job_name: string;
+  schedule: string;
+  command: string;
+  active: boolean;
+  last_run_id: number | null;
+  last_run_at: string | null;
+  last_run_status: string | null;
+  last_run_message: string | null;
+}
+
+const usePDFTemplates = () =>
+  useQuery<PDFTemplateRow[]>({
+    queryKey: ["qa-pdf-templates"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("qa_pdf_templates_runtime")
+        .select("*");
+      if (error) throw error;
+      return (data as PDFTemplateRow[]) || [];
+    },
+  });
+
+const useDocumentSources = () =>
+  useQuery<DocumentSourceRow[]>({
+    queryKey: ["qa-document-sources"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("qa_document_sources")
+        .select("*");
+      if (error) throw error;
+      return (data as DocumentSourceRow[]) || [];
+    },
+  });
+
+const useCronJobs = () =>
+  useQuery<CronJobRow[]>({
+    queryKey: ["qa-cron-jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("qa_cron_jobs")
+        .select("*");
+      if (error) throw error;
+      return (data as CronJobRow[]) || [];
+    },
+  });
 
 // ============================================
 // MAIN COMPONENT
 // ============================================
 
 const AdminQA = () => {
-  // Query: Last invoice by type (recurring)
-  const { data: lastRecurringInvoice } = useQuery({
-    queryKey: ["qa-last-recurring-invoice"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("billing_invoices")
-        .select("created_at")
-        .eq("type", "recurring")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.created_at || null;
-    },
-  });
+  const { data: templates, isLoading: templatesLoading, error: templatesError } = usePDFTemplates();
+  const { data: sources, isLoading: sourcesLoading, error: sourcesError } = useDocumentSources();
+  const { data: jobs, isLoading: jobsLoading, error: jobsError } = useCronJobs();
 
-  // Query: Last invoice by type (one_time)
-  const { data: lastOneTimeInvoice } = useQuery({
-    queryKey: ["qa-last-onetime-invoice"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("billing_invoices")
-        .select("created_at")
-        .eq("type", "one_time")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.created_at || null;
-    },
-  });
+  const activeTemplates = templates?.filter((t) => t.active) || [];
+  const legacyTemplates = templates?.filter((t) => !t.active) || [];
 
-  // Query: Last contract
-  const { data: lastContract } = useQuery({
-    queryKey: ["qa-last-contract"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("contracts")
-        .select("created_at")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.created_at || null;
-    },
-  });
-
-  // Query: Last order
-  const { data: lastOrder } = useQuery({
-    queryKey: ["qa-last-order"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("created_at")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.created_at || null;
-    },
-  });
-
-  // Query: Email queue stats (last 100)
-  const { data: emailQueueData } = useQuery({
-    queryKey: ["qa-email-queue"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("email_queue")
-        .select("status, sent_at, created_at")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      
-      const lastSent = data?.find(e => e.sent_at)?.sent_at || null;
-      const pending = data?.filter(e => e.status === "pending").length || 0;
-      const sent = data?.filter(e => e.status === "sent").length || 0;
-      const failed = data?.filter(e => e.status === "failed").length || 0;
-      
-      return { last_sent_at: lastSent, pending, sent, failed };
-    },
-  });
-
-  // Query: Last billing subscription check
-  const { data: lastSubscriptionUpdate } = useQuery({
-    queryKey: ["qa-last-subscription"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("billing_subscriptions")
-        .select("updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.updated_at || null;
-    },
-  });
-
-  // Build runtime template data
-  const activeTemplates: TemplateConfig[] = [
-    {
-      type: "invoice_monthly",
-      path: "src/lib/pdf/invoiceMonthlyTemplateV2.ts",
-      version: "V2.4",
-      active: true,
-      last_used_at: lastRecurringInvoice || null,
-    },
-    {
-      type: "invoice_one_time",
-      path: "src/lib/pdf/invoiceOneTimeTemplateV2.ts",
-      version: "V2.4",
-      active: true,
-      last_used_at: lastOneTimeInvoice || null,
-    },
-    {
-      type: "contract",
-      path: "src/lib/pdf/contractTemplate.ts",
-      version: "V2.5",
-      active: true,
-      last_used_at: lastContract || null,
-    },
-    {
-      type: "order_summary",
-      path: "src/lib/pdf/orderSummaryTemplate.ts",
-      version: "V2.4",
-      active: true,
-      last_used_at: lastOrder || null,
-    },
-    {
-      type: "terms",
-      path: "src/lib/pdfEngine/termsModalitesPdfGenerator.ts",
-      version: "V2.5",
-      active: true,
-      last_used_at: null,
-    },
-  ];
-
-  const legacyTemplates: TemplateConfig[] = [
-    {
-      type: "invoice_legacy",
-      path: "src/lib/pdf/invoicePdfGenerator.ts",
-      version: "V1.0",
-      active: false,
-      last_used_at: null,
-    },
-    {
-      type: "contract_legacy",
-      path: "src/lib/pdf/telecomContractGenerator.ts",
-      version: "V1.0",
-      active: false,
-      last_used_at: null,
-    },
-    {
-      type: "invoice_monthly_v1",
-      path: "src/lib/pdf/invoiceMonthlyTemplate.ts",
-      version: "V1.0",
-      active: false,
-      last_used_at: null,
-    },
-    {
-      type: "invoice_one_time_v1",
-      path: "src/lib/pdf/invoiceOneTimeTemplate.ts",
-      version: "V1.0",
-      active: false,
-      last_used_at: null,
-    },
-  ];
-
-  // Build jobs data
-  const jobsData = [
-    {
-      job_name: "process-email-queue",
-      last_run_at: emailQueueData?.last_sent_at || null,
-      status: emailQueueData ? `pending:${emailQueueData.pending} sent:${emailQueueData.sent} failed:${emailQueueData.failed}` : null,
-    },
-    {
-      job_name: "billing-generate-renewals-hourly",
-      last_run_at: lastRecurringInvoice || null,
-      status: lastRecurringInvoice ? "active" : null,
-    },
-    {
-      job_name: "billing-expiration-check",
-      last_run_at: lastSubscriptionUpdate || null,
-      status: lastSubscriptionUpdate ? "active" : null,
-    },
-  ];
-
-  const formatTimestamp = (ts: string | null): string => {
-    if (!ts) return "NULL";
-    return ts;
+  const fmt = (val: string | number | boolean | null | undefined): string => {
+    if (val === null || val === undefined) return "NULL";
+    if (typeof val === "boolean") return val ? "true" : "false";
+    return String(val);
   };
 
   return (
@@ -243,12 +107,8 @@ const AdminQA = () => {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            QA — Données Runtime
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Lecture seule — Données brutes uniquement
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">QA — Données brutes</h1>
+          <p className="text-muted-foreground text-sm">Lecture seule — SELECT uniquement</p>
         </div>
 
         {/* SECTION 1: Templates PDF actifs */}
@@ -256,80 +116,102 @@ const AdminQA = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <FileText className="w-5 h-5" />
-              SECTION 1 — Templates PDF (Runtime)
+              SECTION 1 — Templates PDF (runtime)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[280px]">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-2 pr-4">type</th>
-                    <th className="pb-2 pr-4">path</th>
-                    <th className="pb-2 pr-4">version</th>
-                    <th className="pb-2 pr-4">active</th>
-                    <th className="pb-2">last_used_at</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeTemplates.map((t, idx) => (
-                    <tr key={idx} className="border-b border-border/50">
-                      <td className="py-2 pr-4 font-mono text-xs">{t.type}</td>
-                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{t.path}</td>
-                      <td className="py-2 pr-4">
-                        <Badge variant="outline" className="text-xs">{t.version}</Badge>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <Badge className="bg-emerald-500 text-white text-xs">true</Badge>
-                      </td>
-                      <td className="py-2 font-mono text-xs text-muted-foreground">
-                        {formatTimestamp(t.last_used_at)}
-                      </td>
+            {templatesLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
+            {templatesError && (
+              <p className="text-destructive text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {(templatesError as Error).message}
+              </p>
+            )}
+            {!templatesLoading && !templatesError && (
+              <ScrollArea className="h-[220px]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4">type</th>
+                      <th className="pb-2 pr-4">path</th>
+                      <th className="pb-2 pr-4">version</th>
+                      <th className="pb-2 pr-4">active</th>
+                      <th className="pb-2">last_used_at</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollArea>
+                  </thead>
+                  <tbody>
+                    {activeTemplates.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-4 text-muted-foreground text-center">
+                          NULL
+                        </td>
+                      </tr>
+                    )}
+                    {activeTemplates.map((t, idx) => (
+                      <tr key={idx} className="border-b border-border/50">
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.type)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(t.path)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.version)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.active)}</td>
+                        <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(t.last_used_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollArea>
+            )}
           </CardContent>
         </Card>
 
-        {/* SECTION 2: Templates Legacy */}
+        {/* SECTION 2: Templates legacy */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <FileText className="w-5 h-5 text-muted-foreground" />
-              SECTION 2 — Templates Legacy
+              SECTION 2 — Templates legacy
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[180px]">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-2 pr-4">type</th>
-                    <th className="pb-2 pr-4">path</th>
-                    <th className="pb-2 pr-4">version</th>
-                    <th className="pb-2 pr-4">active</th>
-                    <th className="pb-2">last_used_at</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {legacyTemplates.map((t, idx) => (
-                    <tr key={idx} className="border-b border-border/50 opacity-60">
-                      <td className="py-2 pr-4 font-mono text-xs">{t.type}</td>
-                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{t.path}</td>
-                      <td className="py-2 pr-4">
-                        <Badge variant="secondary" className="text-xs">{t.version}</Badge>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <Badge variant="outline" className="text-destructive border-destructive text-xs">false</Badge>
-                      </td>
-                      <td className="py-2 font-mono text-xs text-muted-foreground">NULL</td>
+            {templatesLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
+            {templatesError && (
+              <p className="text-destructive text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {(templatesError as Error).message}
+              </p>
+            )}
+            {!templatesLoading && !templatesError && (
+              <ScrollArea className="h-[180px]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4">type</th>
+                      <th className="pb-2 pr-4">path</th>
+                      <th className="pb-2 pr-4">version</th>
+                      <th className="pb-2 pr-4">active</th>
+                      <th className="pb-2">last_used_at</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollArea>
+                  </thead>
+                  <tbody>
+                    {legacyTemplates.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-4 text-muted-foreground text-center">
+                          NULL
+                        </td>
+                      </tr>
+                    )}
+                    {legacyTemplates.map((t, idx) => (
+                      <tr key={idx} className="border-b border-border/50 opacity-60">
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.type)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(t.path)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.version)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.active)}</td>
+                        <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(t.last_used_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollArea>
+            )}
           </CardContent>
         </Card>
 
@@ -342,26 +224,40 @@ const AdminQA = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 pr-4">document_type</th>
-                  <th className="pb-2 pr-4">primary_table</th>
-                  <th className="pb-2">secondary_table</th>
-                </tr>
-              </thead>
-              <tbody>
-                {DOCUMENT_SOURCES.map((s, idx) => (
-                  <tr key={idx} className="border-b border-border/50">
-                    <td className="py-2 pr-4 font-mono text-xs">{s.document_type}</td>
-                    <td className="py-2 pr-4 font-mono text-xs">{s.primary_table}</td>
-                    <td className="py-2 font-mono text-xs text-muted-foreground">
-                      {s.secondary_table || "NULL"}
-                    </td>
+            {sourcesLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
+            {sourcesError && (
+              <p className="text-destructive text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {(sourcesError as Error).message}
+              </p>
+            )}
+            {!sourcesLoading && !sourcesError && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 pr-4">document_type</th>
+                    <th className="pb-2 pr-4">primary_table</th>
+                    <th className="pb-2">secondary_table</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sources?.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="py-4 text-muted-foreground text-center">
+                        NULL
+                      </td>
+                    </tr>
+                  )}
+                  {sources?.map((s, idx) => (
+                    <tr key={idx} className="border-b border-border/50">
+                      <td className="py-2 pr-4 font-mono text-xs">{fmt(s.document_type)}</td>
+                      <td className="py-2 pr-4 font-mono text-xs">{fmt(s.primary_table)}</td>
+                      <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(s.secondary_table)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
 
@@ -374,28 +270,46 @@ const AdminQA = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 pr-4">job_name</th>
-                  <th className="pb-2 pr-4">last_run_at</th>
-                  <th className="pb-2">status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobsData.map((j, idx) => (
-                  <tr key={idx} className="border-b border-border/50">
-                    <td className="py-2 pr-4 font-mono text-xs">{j.job_name}</td>
-                    <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
-                      {formatTimestamp(j.last_run_at)}
-                    </td>
-                    <td className="py-2 font-mono text-xs text-muted-foreground">
-                      {j.status || "NULL"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {jobsLoading && <p className="text-muted-foreground text-sm">Chargement...</p>}
+            {jobsError && (
+              <p className="text-destructive text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {(jobsError as Error).message}
+              </p>
+            )}
+            {!jobsLoading && !jobsError && (
+              <ScrollArea className="h-[260px]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4">job_name</th>
+                      <th className="pb-2 pr-4">schedule</th>
+                      <th className="pb-2 pr-4">active</th>
+                      <th className="pb-2 pr-4">last_run_at</th>
+                      <th className="pb-2">last_run_status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobs?.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-4 text-muted-foreground text-center">
+                          NULL
+                        </td>
+                      </tr>
+                    )}
+                    {jobs?.map((j, idx) => (
+                      <tr key={idx} className="border-b border-border/50">
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(j.job_name)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(j.schedule)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(j.active)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(j.last_run_at)}</td>
+                        <td className="py-2 font-mono text-xs">{fmt(j.last_run_status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollArea>
+            )}
           </CardContent>
         </Card>
 
