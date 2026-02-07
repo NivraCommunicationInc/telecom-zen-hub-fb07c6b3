@@ -226,7 +226,7 @@ const AdminBillingV2 = () => {
               disabled={isMigrating}
             >
               <AlertTriangle className="h-4 w-4 mr-2" />
-              Impayés
+              Non-renouvellements
             </Button>
           </div>
         </div>
