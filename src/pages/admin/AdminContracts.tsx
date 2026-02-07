@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, CheckCircle, RotateCw, Wifi, Tv, Smartphone, Shield, Play, Clock } from "lucide-react";
+import { 
+  FileText, Download, Send, Plus, Eye, Trash2, RefreshCw, Package, User, 
+  CheckCircle, RotateCw, Wifi, Tv, Smartphone, Shield, Play, Clock, 
+  MoreHorizontal, Pen, Mail, UserCheck, Settings2 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
@@ -22,6 +26,26 @@ import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+
+// Contract status labels and colors for V2.5 workflow
+const CONTRACT_STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  draft: { label: "Brouillon", color: "bg-muted text-muted-foreground", icon: <FileText className="w-3 h-3" /> },
+  waiting_client_signature: { label: "En attente (client)", color: "bg-amber-500/20 text-amber-500", icon: <Pen className="w-3 h-3" /> },
+  signed_by_client: { label: "Signé par client", color: "bg-blue-500/20 text-blue-500", icon: <UserCheck className="w-3 h-3" /> },
+  signed_by_admin: { label: "Signé par admin", color: "bg-purple-500/20 text-purple-500", icon: <UserCheck className="w-3 h-3" /> },
+  fully_signed: { label: "Complètement signé", color: "bg-emerald-500/20 text-emerald-500", icon: <CheckCircle className="w-3 h-3" /> },
+  sent: { label: "Envoyé", color: "bg-cyan-500/20 text-cyan-500", icon: <Mail className="w-3 h-3" /> },
+  void: { label: "Annulé", color: "bg-destructive/20 text-destructive", icon: <Trash2 className="w-3 h-3" /> },
+  superseded: { label: "Remplacé", color: "bg-muted text-muted-foreground", icon: <RefreshCw className="w-3 h-3" /> },
+};
 
 interface ContractFormData {
   user_id: string;
@@ -520,7 +544,14 @@ const AdminContracts = () => {
       const signedAt = new Date().toISOString();
       const { error } = await supabase
         .from("contracts")
-        .update({ is_signed: true, signed_at: signedAt })
+        .update({ 
+          is_signed: true, 
+          signed_at: signedAt,
+          status: 'fully_signed',
+          admin_signed_at: signedAt,
+          admin_signer_id: user?.id,
+          admin_signer_name: user?.user_metadata?.full_name || user?.email || 'Admin',
+        })
         .eq("id", contract.id);
       if (error) throw error;
       return { contract, signedAt };
@@ -529,7 +560,7 @@ const AdminContracts = () => {
       const { contract, signedAt } = data;
       const client = contract.profiles;
       
-      // Log the signature activity (Admin marking as signed)
+      // Log the signature activity
       await logActivity(
         "Signed",
         "contract",
@@ -550,12 +581,83 @@ const AdminContracts = () => {
         }
       );
       
-      toast.success("Contrat marqué comme signé");
+      toast.success("Contrat signé par l'admin");
       queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
       setIsPreviewDialogOpen(false);
     },
     onError: () => {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error("Erreur lors de la signature");
+    },
+  });
+
+  // Admin sign contract mutation (V2.5 - using RPC)
+  const adminSignContractMutation = useMutation({
+    mutationFn: async (contract: any) => {
+      const { data, error } = await supabase.rpc('admin_sign_contract', {
+        p_contract_id: contract.id,
+        p_admin_user_id: user?.id,
+        p_admin_name: user?.user_metadata?.full_name || user?.email || 'Admin',
+      });
+      if (error) throw error;
+      return { contract, result: data };
+    },
+    onSuccess: async (data) => {
+      const { contract, result } = data;
+      toast.success(`Contrat signé! Nouveau statut: ${CONTRACT_STATUS_CONFIG[result.newStatus]?.label || result.newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
+    },
+    onError: (error: any) => {
+      console.error("Admin sign contract error:", error);
+      toast.error("Erreur lors de la signature admin");
+    },
+  });
+
+  // Send contract to client mutation
+  const sendContractToClientMutation = useMutation({
+    mutationFn: async (contract: any) => {
+      const client = contract.profiles;
+      if (!client?.email) throw new Error("Aucun courriel client");
+      
+      // Generate signature token
+      const { data: token, error: tokenError } = await supabase.rpc('generate_contract_signature_token', {
+        p_contract_id: contract.id,
+      });
+      if (tokenError) throw tokenError;
+      
+      // Update contract sent status
+      const { error: updateError } = await supabase
+        .from("contracts")
+        .update({ 
+          status: 'waiting_client_signature',
+          sent_at: new Date().toISOString(),
+          sent_count: (contract.sent_count || 0) + 1,
+        })
+        .eq("id", contract.id);
+      if (updateError) throw updateError;
+      
+      // Queue email to client
+      const portalUrl = `${window.location.origin}/portal/contracts/${contract.id}/sign`;
+      await supabase.from("email_queue").insert({
+        to_email: client.email,
+        template_type: "contract_ready_for_signature",
+        template_data: {
+          clientName: client.full_name || "Client",
+          contractNumber: contract.contract_number || contract.contract_url,
+          orderNumber: contract.linkedOrder?.order_number || "N/A",
+          signatureUrl: portalUrl,
+        },
+        priority: "high",
+      });
+      
+      return { contract, client, token };
+    },
+    onSuccess: (data) => {
+      toast.success(`Contrat envoyé à ${data.client.email}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-contracts"] });
+    },
+    onError: (error: any) => {
+      console.error("Send contract error:", error);
+      toast.error(error.message || "Erreur lors de l'envoi");
     },
   });
 
@@ -739,27 +841,41 @@ const AdminContracts = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground">Contrats & Documents</h1>
-            <p className="text-muted-foreground mt-1">Gérer les contrats clients signés</p>
+            <p className="text-muted-foreground mt-1">Gestion automatisée des contrats (génération sur paiement confirmé)</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => refetchContracts()}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                refetchActiveServices();
-                setIsRegenerateDialogOpen(true);
-              }}
-              className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
-            >
-              <RotateCw className="w-4 h-4 mr-2" />
-              Régénérer contrats
-            </Button>
+            
+            {/* Advanced Actions Dropdown - Regenerate moved here */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Actions avancées
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Outils administrateur</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => {
+                    refetchActiveServices();
+                    setIsRegenerateDialogOpen(true);
+                  }}
+                  className="text-amber-500"
+                >
+                  <RotateCw className="w-4 h-4 mr-2" />
+                  Régénérer contrats (debug)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-cyan-500 hover:bg-cyan-600">
+                <Button className="bg-primary hover:bg-primary/90">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouveau contrat
                 </Button>
@@ -941,103 +1057,153 @@ const AdminContracts = () => {
               </div>
             ) : contracts && contracts.length > 0 ? (
               <div className="space-y-3">
-                {contracts.map((c: any) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="space-y-1 flex-1">
+                {contracts.map((c: any) => {
+                  const statusConfig = CONTRACT_STATUS_CONFIG[c.status] || CONTRACT_STATUS_CONFIG.draft;
+                  const canSign = !c.is_signed && c.status !== 'fully_signed';
+                  const canSend = !c.is_signed && c.profiles?.email;
+                  
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground">{c.contract_name}</p>
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {c.contract_number || c.contract_url || c.id.slice(0, 8).toUpperCase()}
+                          </Badge>
+                          {c.version > 1 && (
+                            <Badge variant="secondary" className="text-xs">v{c.version}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="w-3 h-3" />
+                          <span>{c.profiles?.full_name || c.profiles?.email || "Client non assigné"}</span>
+                          {c.profiles?.client_number && (
+                            <span className="text-primary">({c.profiles.client_number})</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>Créé le {format(new Date(c.created_at), "d MMM yyyy", { locale: fr })}</span>
+                          {c.sent_at && (
+                            <span className="flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              Envoyé {c.sent_count > 1 ? `(${c.sent_count}x)` : ''}
+                            </span>
+                          )}
+                          {c.client_signed_at && (
+                            <span className="text-blue-500 flex items-center gap-1">
+                              <UserCheck className="w-3 h-3" />
+                              Client signé
+                            </span>
+                          )}
+                          {c.admin_signed_at && (
+                            <span className="text-purple-500 flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Admin signé
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{c.contract_name}</p>
-                        <Badge className="text-xs">
-                          {c.contract_number || c.contract_url || c.id.slice(0, 8).toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <User className="w-3 h-3" />
-                        <span>{c.profiles?.full_name || c.profiles?.email || "Client non assigné"}</span>
-                        {c.profiles?.client_number && (
-                          <span className="text-cyan-500">({c.profiles.client_number})</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Créé le {format(new Date(c.created_at), "d MMM yyyy", { locale: fr })}</span>
-                        {c.signed_at && (
-                          <span className="text-emerald-500">
-                            Signé le {format(new Date(c.signed_at), "d MMM yyyy", { locale: fr })}
+                        {/* Status Badge with V2.5 workflow states */}
+                        <Badge className={statusConfig.color}>
+                          <span className="flex items-center gap-1">
+                            {statusConfig.icon}
+                            {statusConfig.label}
                           </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        className={
-                          c.is_signed
-                            ? "bg-emerald-500/20 text-emerald-500"
-                            : "bg-amber-500/20 text-amber-500"
-                        }
-                      >
-                        {c.is_signed ? "Signé" : "En attente"}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handlePreviewContract(c)}
-                        title="Aperçu"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewContract(c)}
-                        title="Ouvrir PDF"
-                      >
-                        <FileText className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownloadContract(c)}
-                        title="Télécharger PDF"
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleSendContract(c)}
-                        title="Envoyer par courriel"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                      {!c.is_signed && (
+                        </Badge>
+                        
+                        {/* Primary Actions */}
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => markAsSignedMutation.mutate(c)}
-                          className="text-emerald-500 hover:text-emerald-600"
-                          title="Marquer comme signé"
+                          onClick={() => handlePreviewContract(c)}
+                          title="Aperçu"
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          if (confirm("Supprimer ce contrat ?")) {
-                            deleteContractMutation.mutate(c.id);
-                          }
-                        }}
-                        className="text-destructive hover:text-destructive"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewContract(c)}
+                          title="Ouvrir PDF"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                        
+                        {/* Send to Client - Primary action for unsigned contracts */}
+                        {canSend && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => sendContractToClientMutation.mutate(c)}
+                            disabled={sendContractToClientMutation.isPending}
+                            title="Envoyer au client pour signature"
+                          >
+                            <Send className="w-4 h-4 mr-1" />
+                            Envoyer
+                          </Button>
+                        )}
+                        
+                        {/* Admin Sign - if client has signed or to co-sign */}
+                        {canSign && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => adminSignContractMutation.mutate(c)}
+                            disabled={adminSignContractMutation.isPending}
+                            title="Signer (Admin)"
+                          >
+                            <Pen className="w-4 h-4 mr-1" />
+                            Signer
+                          </Button>
+                        )}
+                        
+                        {/* More Actions Dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleDownloadContract(c)}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Télécharger PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSendContract(c)}>
+                              <Mail className="w-4 h-4 mr-2" />
+                              Renvoyer notification
+                            </DropdownMenuItem>
+                            {!c.is_signed && (
+                              <DropdownMenuItem 
+                                onClick={() => markAsSignedMutation.mutate(c)}
+                                className="text-emerald-600"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Marquer comme signé (force)
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                if (confirm("Supprimer ce contrat ?")) {
+                                  deleteContractMutation.mutate(c.id);
+                                }
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12">

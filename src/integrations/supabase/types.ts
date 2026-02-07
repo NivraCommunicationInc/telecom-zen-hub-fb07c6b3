@@ -2357,8 +2357,12 @@ export type Database = {
       }
       contracts: {
         Row: {
+          admin_signed_at: string | null
+          admin_signer_id: string | null
+          admin_signer_name: string | null
           client_signature: string | null
           client_signature_type: string | null
+          client_signed_at: string | null
           contract_name: string
           contract_number: string | null
           contract_url: string
@@ -2369,6 +2373,10 @@ export type Database = {
           owner_user_id: string
           pdf_generated_at: string | null
           pdf_hash: string | null
+          sent_at: string | null
+          sent_count: number | null
+          signature_token: string | null
+          signature_token_expires_at: string | null
           signed_at: string | null
           status: string | null
           template_id: string
@@ -2377,8 +2385,12 @@ export type Database = {
           version: number | null
         }
         Insert: {
+          admin_signed_at?: string | null
+          admin_signer_id?: string | null
+          admin_signer_name?: string | null
           client_signature?: string | null
           client_signature_type?: string | null
+          client_signed_at?: string | null
           contract_name: string
           contract_number?: string | null
           contract_url: string
@@ -2389,6 +2401,10 @@ export type Database = {
           owner_user_id: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          signature_token?: string | null
+          signature_token_expires_at?: string | null
           signed_at?: string | null
           status?: string | null
           template_id?: string
@@ -2397,8 +2413,12 @@ export type Database = {
           version?: number | null
         }
         Update: {
+          admin_signed_at?: string | null
+          admin_signer_id?: string | null
+          admin_signer_name?: string | null
           client_signature?: string | null
           client_signature_type?: string | null
+          client_signed_at?: string | null
           contract_name?: string
           contract_number?: string | null
           contract_url?: string
@@ -2409,6 +2429,10 @@ export type Database = {
           owner_user_id?: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          signature_token?: string | null
+          signature_token_expires_at?: string | null
           signed_at?: string | null
           status?: string | null
           template_id?: string
@@ -9785,6 +9809,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_sign_contract: {
+        Args: {
+          p_admin_name: string
+          p_admin_user_id: string
+          p_contract_id: string
+        }
+        Returns: Json
+      }
       allocate_payment_to_invoice: {
         Args: {
           p_actor_id?: string
@@ -9828,6 +9860,14 @@ export type Database = {
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      client_sign_contract: {
+        Args: {
+          p_contract_id: string
+          p_signature_text: string
+          p_signature_type?: string
+        }
+        Returns: Json
+      }
       create_activity_log: {
         Args: {
           p_action: string
@@ -9880,6 +9920,10 @@ export type Database = {
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
+      generate_contract_signature_token: {
+        Args: { p_contract_id: string }
+        Returns: string
+      }
       generate_dispute_number: { Args: never; Returns: string }
       generate_etransfer_reference: { Args: never; Returns: string }
       generate_internal_ticket_number: { Args: never; Returns: string }
