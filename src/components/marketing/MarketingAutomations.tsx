@@ -39,7 +39,7 @@ const TRIGGER_TYPES = [
   { value: "welcome", label: "Bienvenue", description: "Nouveau client créé", icon: "👋" },
   { value: "anniversary", label: "Anniversaire client", description: "1 an avec Nivra", icon: "🎂" },
   { value: "birthday", label: "Anniversaire", description: "Date de naissance du client", icon: "🎉" },
-  { value: "payment_overdue", label: "Paiement en retard", description: "Facture non payée", icon: "⚠️" },
+  { value: "payment_overdue", label: "Renouvellement non confirmé", description: "Facture en attente", icon: "⚠️" },
   { value: "payment_received", label: "Paiement reçu", description: "Confirmation de paiement", icon: "✅" },
   { value: "service_activated", label: "Service activé", description: "Nouveau service actif", icon: "🚀" },
   { value: "service_cancelled", label: "Service annulé", description: "Annulation de service", icon: "❌" },

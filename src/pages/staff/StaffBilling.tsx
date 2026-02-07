@@ -53,13 +53,16 @@ export default function StaffBilling() {
     );
   });
 
+  // PREPAID TERMINOLOGY - V2.5 Compliant (no debt language)
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { label: string; className: string }> = {
       pending: { label: "En attente", className: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
       paid: { label: "Payé", className: "bg-green-500/20 text-green-400 border-green-500/30" },
-      overdue: { label: "En retard", className: "bg-red-500/20 text-red-400 border-red-500/30" },
+      overdue: { label: "Renouvellement requis", className: "bg-red-500/20 text-red-400 border-red-500/30" },
+      void: { label: "Annulé (non-renouvellement)", className: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
+      expired: { label: "Expiré", className: "bg-red-600/20 text-red-400 border-red-600/30" },
       cancelled: { label: "Annulé", className: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
-      partial: { label: "Partiel", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+      partial: { label: "Paiement partiel", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
     };
     return configs[status] || { label: status, className: "bg-slate-500/20 text-slate-400" };
   };
@@ -119,8 +122,8 @@ export default function StaffBilling() {
                   <SelectItem value="all">Tous les statuts</SelectItem>
                   <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="paid">Payé</SelectItem>
-                  <SelectItem value="overdue">En retard</SelectItem>
-                  <SelectItem value="partial">Partiel</SelectItem>
+                  <SelectItem value="overdue">Renouvellement requis</SelectItem>
+                  <SelectItem value="partial">Paiement partiel</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -161,7 +164,7 @@ export default function StaffBilling() {
                                 {bill.invoice_number || "Facture"}
                               </span>
                               <Badge className={isOverdue ? "bg-red-500/20 text-red-400" : status.className}>
-                                {isOverdue ? "En retard" : status.label}
+                                {isOverdue ? "Renouvellement requis" : status.label}
                               </Badge>
                             </div>
                             {bill.related_order_number && (

@@ -52,7 +52,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   chargeback: { label: "Rétrofacturation", variant: "destructive" },
   pending_dispute: { label: "En attente de contestation", variant: "secondary" },
   under_review: { label: "En révision", variant: "secondary" },
-  overdue: { label: "En retard", variant: "destructive" },
+  overdue: { label: "Renouvellement requis", variant: "destructive" },
 };
 
 export default function AdminContestedInvoices() {

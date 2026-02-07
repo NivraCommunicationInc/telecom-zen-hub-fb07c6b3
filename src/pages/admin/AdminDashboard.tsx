@@ -112,7 +112,7 @@ const AdminDashboard = () => {
       description: "Total des activations clients",
     },
     {
-      title: "Factures en retard",
+      title: "Renouvellements requis",
       value: stats?.overdue || 0,
       icon: AlertTriangle,
       color: "text-red-500",

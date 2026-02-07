@@ -833,7 +833,7 @@ const AdminClients = () => {
   const getSubscriptionStatus = (sub: any) => {
     if (!sub.next_billing_date) return null;
     const daysUntil = differenceInDays(new Date(sub.next_billing_date), new Date());
-    if (daysUntil < 0) return { status: "overdue", color: "bg-red-500", text: "En retard" };
+    if (daysUntil < 0) return { status: "overdue", color: "bg-red-500", text: "Renouvellement requis" };
     if (daysUntil <= 7) return { status: "soon", color: "bg-amber-500", text: `${daysUntil}j` };
     if (daysUntil <= 30) return { status: "upcoming", color: "bg-cyan-500", text: `${daysUntil}j` };
     return { status: "ok", color: "bg-emerald-500", text: `${daysUntil}j` };
@@ -1878,7 +1878,7 @@ const AdminClients = () => {
                                 <div className="flex items-center gap-4">
                                   <span className="font-medium">{Number(bill.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                                   <Badge className={statusColors[bill.status] || statusColors.pending}>
-                                    {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "En retard" : "En attente"}
+                                    {bill.status === "paid" ? "Payé" : bill.status === "overdue" ? "Renouvellement requis" : "En attente"}
                                   </Badge>
                                   <Button size="sm" variant="outline" onClick={() => handleViewInvoice(bill)}>
                                     <Eye className="w-4 h-4" />
@@ -2416,7 +2416,7 @@ const AdminClients = () => {
                   <div>
                     <Label className="text-xs text-muted-foreground">Statut</Label>
                     <Badge className={statusColors[selectedInvoice.status] || statusColors.pending}>
-                      {selectedInvoice.status === "paid" ? "Payé" : selectedInvoice.status === "overdue" ? "En retard" : "En attente"}
+                      {selectedInvoice.status === "paid" ? "Payé" : selectedInvoice.status === "overdue" ? "Renouvellement requis" : "En attente"}
                     </Badge>
                   </div>
                   {selectedInvoice.related_order_number && (

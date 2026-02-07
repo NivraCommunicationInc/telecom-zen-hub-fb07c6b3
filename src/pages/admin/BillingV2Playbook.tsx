@@ -159,8 +159,8 @@ const BillingV2Playbook = () => {
                         </tr>
                         <tr className="border-b">
                           <td className="py-2">J (fin cycle)</td>
-                          <td>Facture en retard</td>
-                          <td><Badge variant="destructive">overdue</Badge></td>
+                          <td>Renouvellement non confirmé</td>
+                          <td><Badge variant="destructive">void / expired</Badge></td>
                         </tr>
                         <tr className="border-b">
                           <td className="py-2">J+2</td>

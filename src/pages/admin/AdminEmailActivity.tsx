@@ -47,7 +47,7 @@ const TEMPLATE_OPTIONS = [
   { key: "order_cancelled", label: "Commande annulée", category: "Commande" },
   { key: "shipping_created", label: "Expédition créée", category: "Commande" },
   { key: "invoice_created", label: "Facture créée", category: "Facture" },
-  { key: "invoice_overdue", label: "Facture en retard", category: "Facture" },
+  { key: "invoice_overdue", label: "Renouvellement non confirmé", category: "Facture" },
   { key: "payment_received", label: "Paiement reçu", category: "Paiement" },
   { key: "payment_status_changed", label: "Statut paiement modifié", category: "Paiement" },
   { key: "payment_failed", label: "Paiement échoué", category: "Paiement" },
