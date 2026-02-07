@@ -1,15 +1,17 @@
 /**
  * Edge Function: Send PDF Templates by Email
- * Sends an overview of all Nivra PDF templates V2.4 to a specified email
+ * - Mode 1 (legacy): envoie la documentation HTML des templates V2.4
+ * - Mode 2 (nouveau): envoie un pack de PDFs en pièces jointes (base64) — réservé admin/staff
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { withSafeErrorHandling } from "../_shared/errorUtils.ts";
+
+type Attachment = { filename: string; content: string; contentType: string };
 
 const TEMPLATES_OVERVIEW = `
 <!DOCTYPE html>
@@ -39,172 +41,91 @@ const TEMPLATES_OVERVIEW = `
     <h1>📄 Templates PDF V2.4 — Nivra Telecom</h1>
     <p>Documentation des templates de facturation et contrats</p>
   </div>
-  
   <div class="content">
     <p>Voici la liste complète des <strong>5 templates PDF V2.4</strong> utilisés dans le système de facturation Nivra :</p>
-    
-    <!-- Template 1: Modalités -->
     <div class="template-card">
       <div class="template-header">📋 1. MODALITÉS DE SERVICE</div>
       <div class="template-body">
         <h4>Document ID: ND-TOS-2026-02-05</h4>
-        <p>Document légal multi-pages (8+ pages) contenant les termes et conditions complets du service Nivra Telecom.</p>
-        <ul>
-          <li>21 sections légales complètes</li>
-          <li>Annexe B: Conditions spécifiques par service</li>
-          <li>Annexe C: Politique d'installation et rendez-vous</li>
-          <li>Annexe D: Modalités de paiement et e-Transfer</li>
-          <li>Annexe E: Support, tickets, SLA Entreprise</li>
-        </ul>
+        <p>Document légal multi-pages (8+ pages) contenant les termes et conditions complets du service.</p>
         <p><strong>Interface:</strong> <code>TermsModalitesData</code></p>
-        <div class="file-path">📁 src/lib/pdfEngine/termsModalitesPdfGenerator.ts (946 lignes)</div>
+        <div class="file-path">📁 src/lib/pdfEngine/termsModalitesPdfGenerator.ts</div>
       </div>
     </div>
-    
-    <!-- Template 2: Résumé de commande -->
     <div class="template-card">
-      <div class="template-header">🛒 2. RÉSUMÉ DE COMMANDE (Order Summary)</div>
+      <div class="template-header">🛒 2. RÉSUMÉ DE COMMANDE</div>
       <div class="template-body">
-        <h4>Envoyé après paiement confirmé</h4>
-        <p>Confirmation de commande avec détails complets des services et équipements achetés.</p>
-        <ul>
-          <li>Bannière statut: "✓ COMMANDE CONFIRMÉE"</li>
-          <li>Info client + adresse de service</li>
-          <li>Tableau des services récurrents (📱 Mobile, 🌐 Internet, 📺 TV, etc.)</li>
-          <li>Tableau des équipements et frais uniques</li>
-          <li>Totaux avec TPS/TVQ</li>
-          <li>Dates clés: activation prévue, première facture</li>
-        </ul>
         <p><strong>Interface:</strong> <code>OrderSummaryData</code></p>
-        <div class="file-path">📁 src/lib/pdf/orderSummaryTemplate.ts (368 lignes)</div>
+        <div class="file-path">📁 src/lib/pdf/orderSummaryTemplate.ts</div>
       </div>
     </div>
-    
-    <!-- Template 3: Contrat -->
     <div class="template-card">
-      <div class="template-header">📝 3. CONTRAT DE SERVICE (8+ pages)</div>
+      <div class="template-header">📝 3. CONTRAT DE SERVICE</div>
       <div class="template-body">
-        <h4>Entente de service de télécommunications prépayé</h4>
-        <p>Contrat complet style Rogers/Telus/Bell avec toutes les annexes légales.</p>
-        <ul>
-          <li>Page 1: Résumé exécutif + parties</li>
-          <li>Services souscrits (récurrents)</li>
-          <li>Équipements (achat)</li>
-          <li>Frais uniques + totaux</li>
-          <li><strong>Annexe A:</strong> Termes et conditions généraux</li>
-          <li><strong>Annexe B:</strong> Conditions spécifiques par service</li>
-          <li><strong>Annexe C:</strong> Installation et rendez-vous</li>
-          <li><strong>Annexe D:</strong> Modalités de paiement</li>
-          <li><strong>Annexe E:</strong> Support, SLA, clauses avancées</li>
-          <li>Bloc de signature électronique</li>
-        </ul>
         <p><strong>Interface:</strong> <code>ContractData</code></p>
-        <div class="file-path">📁 src/lib/pdf/contractTemplate.ts (796 lignes)</div>
+        <div class="file-path">📁 src/lib/pdf/contractTemplate.ts</div>
       </div>
     </div>
-    
-    <!-- Template 4: Facture Unique -->
     <div class="template-card">
-      <div class="template-header">💳 4. FACTURE UNIQUE (One-Time Invoice V2.4)</div>
+      <div class="template-header">💳 4. FACTURE UNIQUE (V2.4)</div>
       <div class="template-body">
-        <h4>Pour équipements, activation, livraison, frais uniques</h4>
-        <p>Design professionnel Navy/Teal avec format standardisé V2.4.</p>
-        <ul>
-          <li>Header: NIVRA COMMUNICATIONS INC. + accent Teal</li>
-          <li>Bloc client + bloc détails facture</li>
-          <li>Badge "Total à payer" Teal</li>
-          <li>Tableau: Description | Qté | Prix | Montant</li>
-          <li>Note encadrée (équipement, SIM/eSIM, etc.)</li>
-          <li>Sous-total, rabais (vert), TPS/TVQ, Total</li>
-          <li>Paiements reçus (si applicable)</li>
-          <li>Instructions Interac e-Transfer</li>
-          <li>Footer: Politique de facturation prépayée</li>
-        </ul>
         <p><strong>Interface:</strong> <code>InvoiceDataV2</code></p>
-        <div class="file-path">📁 src/lib/pdf/invoiceOneTimeTemplateV2.ts (430 lignes)</div>
+        <div class="file-path">📁 src/lib/pdf/invoiceOneTimeTemplateV2.ts</div>
       </div>
     </div>
-    
-    <!-- Template 5: Facture Mensuelle -->
     <div class="template-card">
-      <div class="template-header">📅 5. FACTURE MENSUELLE (Monthly Invoice V2.4)</div>
+      <div class="template-header">📅 5. FACTURE MENSUELLE (V2.4)</div>
       <div class="template-body">
-        <h4>Facturation récurrente pour services mensuels</h4>
-        <p>Design professionnel Navy/Teal avec format standardisé V2.4.</p>
-        <ul>
-          <li>Header: "FACTURE MENSUELLE" + devise CAD</li>
-          <li>Bloc client (nom, courriel, téléphone, adresse)</li>
-          <li>Bloc facture (N° compte, N° facture, période, statut)</li>
-          <li>Badge "Total à payer" Teal</li>
-          <li>Tableau services: Description | Période | Qté | Prix | Montant</li>
-          <li>Note prépayé encadrée (rappel modèle)</li>
-          <li>Sous-total, rabais, TPS(5%), TVQ(9.975%), Total</li>
-          <li>Solde à payer (barre Navy)</li>
-          <li>Instructions de paiement Interac/PayPal/Carte</li>
-          <li>Footer légal complet</li>
-        </ul>
         <p><strong>Interface:</strong> <code>InvoiceDataV2</code></p>
-        <div class="file-path">📁 src/lib/pdf/invoiceMonthlyTemplateV2.ts (460 lignes)</div>
+        <div class="file-path">📁 src/lib/pdf/invoiceMonthlyTemplateV2.ts</div>
       </div>
-    </div>
-    
-    <hr style="margin: 25px 0; border: none; border-top: 1px solid #e2e8f0;">
-    
-    <h3 style="color: #0F172A;">📊 Récapitulatif technique</h3>
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-      <tr style="background: #f8fafc;">
-        <th style="padding: 10px; text-align: left; border: 1px solid #e2e8f0;">Template</th>
-        <th style="padding: 10px; text-align: left; border: 1px solid #e2e8f0;">Interface</th>
-        <th style="padding: 10px; text-align: left; border: 1px solid #e2e8f0;">Fichier</th>
-      </tr>
-      <tr>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">Modalités</td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;"><code>TermsModalitesData</code></td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">pdfEngine/termsModalitesPdfGenerator.ts</td>
-      </tr>
-      <tr style="background: #f8fafc;">
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">Résumé commande</td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;"><code>OrderSummaryData</code></td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">pdf/orderSummaryTemplate.ts</td>
-      </tr>
-      <tr>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">Contrat</td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;"><code>ContractData</code></td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">pdf/contractTemplate.ts</td>
-      </tr>
-      <tr style="background: #f8fafc;">
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">Facture Unique</td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;"><code>InvoiceDataV2</code></td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">pdf/invoiceOneTimeTemplateV2.ts</td>
-      </tr>
-      <tr>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">Facture Mensuelle</td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;"><code>InvoiceDataV2</code></td>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">pdf/invoiceMonthlyTemplateV2.ts</td>
-      </tr>
-    </table>
-    
-    <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">
-      <strong style="color: #166534;">✓ Convention Règle 2-9:</strong>
-      <p style="margin: 5px 0 0 0; color: #166534; font-size: 13px;">
-        Tous les numéros générés (INV-2026-XXXX, CTR-2026-XXXX, ORD-2026-XXXX) commencent par "2" et ont 9 chiffres minimum.
-        Les montants sont extraits du snapshot <code>billing_totals</code> du checkout.
-      </p>
     </div>
   </div>
-  
   <div class="footer">
     <p>© 2026 Nivra Communications Inc. — Templates PDF V2.4</p>
-    <p>Généré automatiquement depuis le système Nivra Telecom</p>
   </div>
 </body>
 </html>
 `;
 
+const buildBlankPackHtml = (filenames: string[]) => {
+  const list = filenames.map((f) => `<li style="margin: 6px 0;">${f}</li>`).join("");
+  return `
+  <!doctype html>
+  <html lang="fr">
+    <body style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #0f172a;">
+      <div style="max-width: 640px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background:#0F172A; color:#fff; padding: 18px 20px;">
+          <div style="font-size: 18px; font-weight: 700;">Templates PDF V2.4 — Pack vierge</div>
+          <div style="font-size: 12px; color:#94a3b8; margin-top: 4px;">Pièces jointes (PDF) — aucune donnée client réelle</div>
+        </div>
+        <div style="padding: 18px 20px;">
+          <p style="margin: 0 0 12px; color:#334155;">
+            Voici les PDFs de gabarit (vierges) en pièces jointes :
+          </p>
+          <ul style="margin: 0; padding-left: 18px; color:#0f172a;">${list}</ul>
+          <p style="margin: 16px 0 0; font-size: 12px; color:#64748b;">
+            Note: Les champs requis contiennent uniquement des placeholders (ex: "GABARIT") et des montants à 0.
+          </p>
+        </div>
+      </div>
+    </body>
+  </html>
+  `;
+};
+
 serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
+
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+  const fail = withSafeErrorHandling("send-pdf-templates-email", corsHeaders);
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ success: false, error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 
   try {
@@ -213,45 +134,97 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("RESEND_API_KEY not configured");
     }
 
-    const { email } = await req.json();
-    
+    const body = await req.json();
+    const email: string | undefined = body?.email;
+    const attachments: Attachment[] | undefined = body?.attachments;
+
     if (!email) {
-      throw new Error("Email address is required");
+      return fail("Email address is required", 400);
+    }
+
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+
+    // Security: only allow attachments mode for authenticated admin/staff
+    if (hasAttachments) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return fail("Unauthorized", 401);
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+      const db = createClient(supabaseUrl, serviceKey);
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: { user }, error: userError } = await userClient.auth.getUser();
+      if (userError || !user) {
+        return fail("Invalid token", 401);
+      }
+
+      const { data: adminUser } = await db
+        .from("admin_users")
+        .select("id, is_active")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      const { data: employee } = await db
+        .from("employees")
+        .select("id, is_active")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!adminUser && !employee) {
+        return fail("Access denied", 403);
+      }
     }
 
     const resend = new Resend(RESEND_API_KEY);
 
+    const subject = hasAttachments
+      ? "📎 Templates PDF V2.4 — Pack vierge (5 PDFs)"
+      : "📄 Templates PDF V2.4 — Documentation";
+
+    const filenames = hasAttachments ? (attachments || []).map((a) => a.filename) : [];
+
+    const html = hasAttachments ? buildBlankPackHtml(filenames) : TEMPLATES_OVERVIEW;
+
+    console.log("[send-pdf-templates-email] sending", {
+      to: email,
+      hasAttachments,
+      attachmentCount: hasAttachments ? attachments!.length : 0,
+      filenames,
+    });
+
     const emailResult = await resend.emails.send({
       from: "Nivra Télécom <Support@nivra-telecom.ca>",
       to: [email],
-      subject: "📄 Templates PDF V2.4 — Documentation Complète",
-      html: TEMPLATES_OVERVIEW,
+      subject,
+      replyTo: "support@nivra-telecom.ca",
+      html,
+      attachments: hasAttachments ? attachments : undefined,
     });
 
     console.log("[send-pdf-templates-email] Email sent:", emailResult);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: `Email envoyé à ${email}`,
-        emailId: emailResult.id 
+        emailId: emailResult.id,
+        attachmentCount: hasAttachments ? attachments!.length : 0,
       }),
-      { 
-        status: 200, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   } catch (error) {
-    console.error("[send-pdf-templates-email] Error:", error);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "Unknown error" 
-      }),
-      { 
-        status: 500, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
-      }
-    );
+    return fail(error);
   }
 });
