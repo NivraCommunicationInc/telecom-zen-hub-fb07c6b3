@@ -69,8 +69,8 @@ const defaultSettings: Omit<NotificationSetting, "id">[] = [
   // Orders
   { setting_key: "new_order", setting_label: "Nouvelle commande", category: "orders", is_enabled: true, email_recipients: null, rate_limit_per_hour: 100, use_digest: false, digest_interval_minutes: null },
   { setting_key: "order_status_change", setting_label: "Changement statut commande", category: "orders", is_enabled: false, email_recipients: null, rate_limit_per_hour: 100, use_digest: true, digest_interval_minutes: 30 },
-  // Billing
-  { setting_key: "invoice_overdue", setting_label: "Facture impayée", category: "billing", is_enabled: true, email_recipients: null, rate_limit_per_hour: 20, use_digest: true, digest_interval_minutes: 60 },
+  // Billing - PREPAID TERMINOLOGY (no debt language)
+  { setting_key: "invoice_overdue", setting_label: "Renouvellement non confirmé", category: "billing", is_enabled: true, email_recipients: null, rate_limit_per_hour: 20, use_digest: true, digest_interval_minutes: 60 },
   { setting_key: "payment_failed", setting_label: "Paiement échoué", category: "billing", is_enabled: true, email_recipients: null, rate_limit_per_hour: 30, use_digest: false, digest_interval_minutes: null },
   { setting_key: "payment_received", setting_label: "Paiement reçu", category: "billing", is_enabled: false, email_recipients: null, rate_limit_per_hour: 100, use_digest: true, digest_interval_minutes: 60 },
   // Channels

@@ -17,12 +17,17 @@ import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
 import { StaffRecordPaymentDialog } from "@/components/staff/StaffRecordPaymentDialog";
 
+// PREPAID TERMINOLOGY - V2.5 Compliant (no debt language: impayé/dette/overdue)
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "En attente", color: "bg-amber-500/20 text-amber-400 border-amber-500/30", icon: Clock },
   paid: { label: "Payé", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", icon: CheckCircle },
-  overdue: { label: "En retard", color: "bg-red-500/20 text-red-400 border-red-500/30", icon: AlertTriangle },
-  partial: { label: "Partiel", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: Clock },
+  overdue: { label: "Renouvellement requis", color: "bg-red-500/20 text-red-400 border-red-500/30", icon: AlertTriangle },
+  expired: { label: "Expiré (non renouvelé)", color: "bg-red-600/20 text-red-400 border-red-600/30", icon: AlertTriangle },
+  void: { label: "Annulé (non-renouvellement)", color: "bg-muted text-muted-foreground border-muted", icon: FileText },
+  not_renewed: { label: "Non renouvelé", color: "bg-muted text-muted-foreground border-muted", icon: FileText },
+  partial: { label: "Paiement partiel", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: Clock },
   cancelled: { label: "Annulé", color: "bg-slate-500/20 text-slate-400 border-slate-500/30", icon: FileText },
+  suspended: { label: "Suspendu (litige)", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: AlertTriangle },
 };
 
 export default function StaffBillingDetail() {
