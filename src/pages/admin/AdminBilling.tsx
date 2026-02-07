@@ -1000,10 +1000,10 @@ const AdminBilling = () => {
     return "";
   };
 
-  // PDF Invoice using jsPDF - no blank tabs
+  // PDF Invoice using unified engine V2.5
   const exportInvoicePDF = async (bill: any) => {
     try {
-      const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
+      const { generateLegacyInvoicePDF } = await import("@/lib/pdf");
       
       // Fetch related order to get line_items and billing_totals snapshot
       const orderData = await fetchRelatedOrderData(bill);
@@ -1017,12 +1017,6 @@ const AdminBilling = () => {
         : "";
       
       const subtotal = Number(bill.amount) || 0;
-      const fees = Number(bill.fees) || 0;
-      const credits = Number(bill.credits) || 0;
-      const deliveryFee = Number(bill.delivery_fee) || 0;
-      const activationFee = Number(bill.activation_fee) || 0;
-      const installationFee = Number(bill.installation_fee) || 0;
-      
       const invoiceNum = bill.invoice_number || `INV-${bill.id.slice(0, 8).toUpperCase()}`;
       const clientName = bill.profiles?.full_name || "Client";
       const clientEmail = bill.profiles?.email || bill.client_email || "";
@@ -1031,12 +1025,6 @@ const AdminBilling = () => {
       // Extract promo code from order or notes
       const promoCode = orderData?.promo_code || bill.notes?.match(/Promo:\s*(\w+)/i)?.[1];
       const promoDiscount = Number(orderData?.promo_discount_amount) || Number(bill.discount_amount) || 0;
-      
-      // Parse payment info from notes
-      const paymentMethodMatch = bill.notes?.match(/\[Paiement reçu via (.*?)\]/);
-      const paymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : null;
-      const cardMatch = paymentMethod?.match(/\*\*\*\*(\d{4})/);
-      const cardLast4 = cardMatch ? cardMatch[1] : undefined;
       
       // Get service plan from line_items or order or notes
       let servicePlan = "Services télécom";
@@ -1053,21 +1041,13 @@ const AdminBilling = () => {
         invoiceNumber: invoiceNum,
         orderNumber: bill.related_order_number || orderData?.order_number,
         paymentReference: bill.payment_reference,
-        clientNumber: clientAccountNumber, // Use fetched account number
+        clientNumber: clientAccountNumber,
         clientName,
         clientEmail,
         clientPhone,
         subtotal,
-        fees,
-        credits,
-        deliveryFee,
-        activationFee,
-        installationFee,
-        discountAmount: promoDiscount,
-        preauthDiscount: Number(bill.preauth_discount) || 0,
         tpsAmount: Number(bill.tps_amount),
         tvqAmount: Number(bill.tvq_amount),
-        lateFeeAmount: Number(bill.late_fee_amount) || 0,
         dueDate: bill.due_date,
         createdAt: bill.created_at,
         status: bill.status,
@@ -1076,36 +1056,27 @@ const AdminBilling = () => {
         servicePlan,
         promoCode,
         promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
-        paymentMethod: paymentMethod?.includes("Interac") ? "etransfer" as const : 
-                       paymentMethod?.includes("Carte") ? "credit_card" as const : undefined,
-        cardLast4,
-        // CRITICAL: Pass order line items for multi-service support
+        discountAmount: promoDiscount,
         orderLineItems: lineItems.length > 0 ? lineItems : undefined,
-        // V2.2: Pass billing_totals snapshot as source of truth from checkout
-        billingTotalsSnapshot: billingTotalsSnapshot || undefined,
       };
       
-      const doc = generateInvoicePDF(invoiceData);
-      const blob = doc.output("blob");
-      
-      safePDFDownload(blob, `Facture_${invoiceNum}.pdf`);
+      const { blob, filename } = await generateLegacyInvoicePDF(invoiceData);
+      safePDFDownload(blob, filename);
       toast({ title: "Facture téléchargée" });
     } catch (error) {
       console.error("Error generating invoice PDF:", error);
       toast({ title: "Erreur lors de la génération", variant: "destructive" });
     }
   };
-  
-  // View invoice PDF in new tab
-  const viewInvoicePDF = async (bill: any) => {
+  // View invoice PDF in new tab using unified engine V2.5
+  const viewInvoicePDFHandler = async (bill: any) => {
     try {
-      const { generateInvoicePDF } = await import("@/lib/invoicePdfGenerator");
+      const { generateLegacyInvoicePDF } = await import("@/lib/pdf");
       
       // Fetch related order to get line_items and billing_totals snapshot
       const orderData = await fetchRelatedOrderData(bill);
       const equipmentDetails = orderData?.equipment_details;
       const lineItems = equipmentDetails?.line_items || [];
-      const billingTotalsSnapshot = equipmentDetails?.billing_totals || null;
       
       // CRITICAL: Fetch account number with robust fallback
       const clientAccountNumber = bill.user_id 
@@ -1113,12 +1084,6 @@ const AdminBilling = () => {
         : "";
       
       const subtotal = Number(bill.amount) || 0;
-      const fees = Number(bill.fees) || 0;
-      const credits = Number(bill.credits) || 0;
-      const deliveryFee = Number(bill.delivery_fee) || 0;
-      const activationFee = Number(bill.activation_fee) || 0;
-      const installationFee = Number(bill.installation_fee) || 0;
-      
       const invoiceNum = bill.invoice_number || `INV-${bill.id.slice(0, 8).toUpperCase()}`;
       const clientName = bill.profiles?.full_name || "Client";
       const clientEmail = bill.profiles?.email || bill.client_email || "";
@@ -1143,18 +1108,13 @@ const AdminBilling = () => {
         invoiceNumber: invoiceNum,
         orderNumber: bill.related_order_number || orderData?.order_number,
         paymentReference: bill.payment_reference,
-        clientNumber: clientAccountNumber, // Use fetched account number
+        clientNumber: clientAccountNumber,
         clientName,
         clientEmail,
         clientPhone,
         subtotal,
-        fees,
-        credits,
-        deliveryFee,
-        activationFee,
-        installationFee,
-        discountAmount: promoDiscount,
-        preauthDiscount: Number(bill.preauth_discount) || 0,
+        tpsAmount: Number(bill.tps_amount),
+        tvqAmount: Number(bill.tvq_amount),
         dueDate: bill.due_date,
         createdAt: bill.created_at,
         status: bill.status,
@@ -1163,16 +1123,12 @@ const AdminBilling = () => {
         servicePlan,
         promoCode,
         promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
-        // CRITICAL: Pass order line items for multi-service support
+        discountAmount: promoDiscount,
         orderLineItems: lineItems.length > 0 ? lineItems : undefined,
-        // V2.2: Pass billing_totals snapshot as source of truth from checkout
-        billingTotalsSnapshot: billingTotalsSnapshot || undefined,
       };
       
-      const doc = generateInvoicePDF(invoiceData);
-      const blob = doc.output("blob");
-      
-      safePDFOpen(blob, `Facture_${invoiceNum}.pdf`);
+      const { blob, filename } = await generateLegacyInvoicePDF(invoiceData);
+      safePDFOpen(blob, filename);
     } catch (error) {
       console.error("Error viewing invoice PDF:", error);
       toast({ title: "Erreur lors de l'ouverture", variant: "destructive" });

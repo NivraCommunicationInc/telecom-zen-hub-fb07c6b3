@@ -82,7 +82,7 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { ensureOrderContractUpToDate } from "@/lib/contractEngine";
+// Contract engine moved to unified PDF engine
 import { AuditNotes } from "@/lib/clientAuditNotes";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
 import { shouldAutoCompleteOrder, shouldAutoSetInstallationScheduled, isInstallationStatus } from "@/lib/installationStatusUtils";
@@ -463,14 +463,7 @@ const AdminOrders = () => {
         order?.payment_status === "captured";
 
       if (shouldGenerate) {
-        try {
-          await ensureOrderContractUpToDate({
-            orderId: order.id,
-            trigger: `admin_order_update:${order.status}`,
-          });
-        } catch (e) {
-          console.error("Failed to generate contract audit for order", order?.id, e);
-        }
+        console.log("[AdminOrders] Order status updated to", order?.status, "- contract generation handled by unified PDF engine");
       }
 
       toast({ title: "Commande mise à jour" });
@@ -652,16 +645,9 @@ const AdminOrders = () => {
       queryClient.invalidateQueries({ queryKey: ["order-billing"] });
       queryClient.invalidateQueries({ queryKey: ["admin-clients"] });
 
-      // Contract regeneration audit when payment becomes captured
+      // Contract generation now handled by unified PDF engine
       if (newStatus === "captured") {
-        try {
-          await ensureOrderContractUpToDate({
-            orderId,
-            trigger: "admin_payment_captured",
-          });
-        } catch (e) {
-          console.error("Failed to generate contract audit on payment capture", orderId, e);
-        }
+        console.log("[AdminOrders] Payment captured - contract generation handled by unified PDF engine");
       }
       
       // Create automatic audit note for payment status change

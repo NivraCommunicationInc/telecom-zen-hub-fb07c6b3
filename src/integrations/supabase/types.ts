@@ -9683,28 +9683,6 @@ export type Database = {
           updated_at: string | null
           version: string | null
         }
-        Insert: {
-          created_at?: string | null
-          generation_count?: never
-          is_active?: boolean | null
-          last_used_at?: never
-          template_key?: string | null
-          template_path?: string | null
-          template_type?: string | null
-          updated_at?: string | null
-          version?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          generation_count?: never
-          is_active?: boolean | null
-          last_used_at?: never
-          template_key?: string | null
-          template_path?: string | null
-          template_type?: string | null
-          updated_at?: string | null
-          version?: string | null
-        }
         Relationships: []
       }
       services_public: {
