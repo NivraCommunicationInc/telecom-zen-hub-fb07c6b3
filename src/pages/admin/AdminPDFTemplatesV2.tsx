@@ -1,7 +1,7 @@
 /**
- * Admin PDF Templates V2 Preview Page
- * Test and preview all V2 PDF templates with REAL order/invoice selection
- * Allows generating PDFs from actual database records
+ * Admin PDF Templates V2.5 Preview Page
+ * Generate PDFs from REAL billing_invoices using invoiceEngine V2.5 ONLY
+ * Logs every generation to pdf_generation_logs with real invoice_number
  */
 
 import { useState, useMemo } from "react";
@@ -12,57 +12,22 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Download, FileText, RefreshCw, Eye, Database, CheckCircle } from "lucide-react";
+import { ArrowLeft, Download, FileText, RefreshCw, Eye, Database, CheckCircle, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { useQuery } from "@tanstack/react-query";
-
-// Import V2.4 generators from the new template system
-import { 
-  useInvoiceMonthlyV2PDF, 
-  useInvoiceOneTimeV2PDF, 
-} from "@/hooks/usePDFTemplates";
-import type { InvoiceDataV2 } from "@/lib/pdf";
-import { generateAccountNumber, generateInvoiceNumber } from "@/lib/secureIdGenerator";
-import { BlankPDFTemplatesEmailer } from "@/components/admin/BlankPDFTemplatesEmailer";
+import { generateInvoicePDF } from "@/lib/pdf/invoiceEngine";
+import type { InvoiceDataV2 } from "@/lib/pdf/types";
+import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
 
 // =============================================================================
-// DATA FETCHING
+// DATA FETCHING - Using adminClient for RLS bypass
 // =============================================================================
-
-const useOrders = () => {
-  return useQuery({
-    queryKey: ["admin-orders-for-pdf"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          confirmation_number,
-          payment_status,
-          total_amount,
-          client_first_name,
-          client_last_name,
-          client_email,
-          client_phone,
-          payment_reference,
-          provider_payment_id,
-          equipment_details,
-          created_at
-        `)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
-};
 
 const useInvoices = () => {
   return useQuery({
-    queryKey: ["admin-invoices-for-pdf"],
+    queryKey: ["admin-invoices-for-pdf-v2"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("billing_invoices")
@@ -81,10 +46,29 @@ const useInvoices = () => {
           due_date,
           amount_paid,
           balance_due,
-          created_at
+          fees,
+          activation_fee,
+          late_fee_amount,
+          notes,
+          created_at,
+          billing_customers (
+            id,
+            first_name,
+            last_name,
+            email,
+            phone
+          ),
+          billing_invoice_lines (
+            id,
+            description,
+            quantity,
+            unit_price,
+            line_total
+          )
         `)
+        .in("status", ["paid", "pending", "overdue"])
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
       
       if (error) throw error;
       return data || [];
@@ -100,76 +84,83 @@ const formatCurrency = (amount: number | null | undefined): string => {
   return (amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 };
 
-// Helper to safely access equipment_details
-const getEquipmentDetails = (order: any): any => {
-  if (!order?.equipment_details) return {};
-  if (typeof order.equipment_details === 'string') {
-    try { return JSON.parse(order.equipment_details); } catch { return {}; }
-  }
-  return order.equipment_details;
-};
-
-// Build InvoiceDataV2 from an order
-const buildInvoiceDataFromOrder = (order: any, isMonthly: boolean): InvoiceDataV2 => {
-  const equipment = getEquipmentDetails(order);
-  const billing = equipment.billing_totals || {};
-  const today = new Date().toISOString().split("T")[0];
+/**
+ * Build InvoiceDataV2 from a billing_invoice record (REAL data)
+ */
+const buildInvoiceDataFromInvoice = (invoice: any): InvoiceDataV2 => {
+  // billing_customers is returned as an object (single record via FK)
+  const customer = Array.isArray(invoice.billing_customers) 
+    ? invoice.billing_customers[0] 
+    : invoice.billing_customers;
+  const lines = invoice.billing_invoice_lines || [];
+  
+  // Determine invoice type from DB type field
+  const invoiceType = invoice.type === "renewal" ? "MONTHLY" : "ONETIME";
+  
+  // Build items from billing_invoice_lines
+  const items = lines.length > 0 
+    ? lines.map((line: any) => ({
+        category: "Service" as const,
+        description: line.description || "Service",
+        qty: line.quantity || 1,
+        unit_price: Number(line.unit_price) || 0,
+        amount: Number(line.line_total) || 0,
+        is_recurring: invoiceType === "MONTHLY",
+      }))
+    : [{
+        category: "Service" as const,
+        description: "Services Nivra",
+        qty: 1,
+        unit_price: Number(invoice.subtotal) || 0,
+        amount: Number(invoice.subtotal) || 0,
+        is_recurring: invoiceType === "MONTHLY",
+      }];
+  
+  const total = Number(invoice.total) || 0;
+  const amountPaid = Number(invoice.amount_paid) || 0;
+  const balanceDue = Math.max(0, total - amountPaid);
   
   return {
-    invoice_type: isMonthly ? "MONTHLY" : "ONETIME",
-    invoice_number: generateInvoiceNumber(),
-    invoice_date: today,
-    due_date: today,
-    account_number: generateAccountNumber(),
-    billing_period_start: isMonthly ? today : undefined,
-    billing_period_end: isMonthly ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0] : undefined,
+    invoice_type: invoiceType,
+    invoice_number: invoice.invoice_number,
+    invoice_date: invoice.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+    due_date: invoice.due_date?.split("T")[0] || new Date().toISOString().split("T")[0],
+    account_number: invoice.customer_id?.substring(0, 8).toUpperCase() || "00000000",
+    billing_period_start: invoiceType === "MONTHLY" ? invoice.cycle_start_date?.split("T")[0] : undefined,
+    billing_period_end: invoiceType === "MONTHLY" ? invoice.cycle_end_date?.split("T")[0] : undefined,
     currency: "CAD",
-    status: order.payment_status === "captured" ? "Paid" : "Pending",
+    status: invoice.status === "paid" ? "Paid" : "Pending",
     
     customer: {
-      full_name: `${order.client_first_name || ""} ${order.client_last_name || ""}`.trim() || "Client",
-      email: order.client_email || "",
-      phone: order.client_phone || "",
-      address_line1: equipment.service_address?.address || "",
-      city: equipment.service_address?.city || "",
-      province: equipment.service_address?.province || "QC",
-      postal_code: equipment.service_address?.postal_code || "",
+      full_name: customer ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() : "Client",
+      email: customer?.email || "",
+      phone: customer?.phone || "",
+      address_line1: "",
+      city: "",
+      province: "QC",
+      postal_code: "",
     },
     
-    items: equipment.line_items?.map((item: any) => ({
-      category: item.category || "Service",
-      description: item.name || item.description || "Service",
-      qty: item.quantity || 1,
-      unit_price: item.price || 0,
-      amount: (item.quantity || 1) * (item.price || 0),
-      is_recurring: item.is_recurring || false,
-    })) || [
-      { category: "Service", description: "Services commandés", qty: 1, unit_price: billing.subtotal || 0, amount: billing.subtotal || 0, is_recurring: false }
-    ],
+    items,
     
-    discounts: billing.discount_amount > 0 ? [
-      { label: billing.promo_name || "Rabais", amount: billing.discount_amount }
-    ] : [],
-    
-    subtotal: billing.subtotal || order.total_amount || 0,
+    subtotal: Number(invoice.subtotal) || 0,
     taxes: {
       gst_rate: 0.05,
-      gst_amount: billing.tps_amount || 0,
+      gst_amount: Number(invoice.tps_amount) || 0,
       qst_rate: 0.09975,
-      qst_amount: billing.tvq_amount || 0,
+      qst_amount: Number(invoice.tvq_amount) || 0,
     },
-    total: billing.total || order.total_amount || 0,
-    balance_due: order.payment_status === "captured" ? 0 : (billing.total || order.total_amount || 0),
+    total,
+    balance_due: balanceDue,
     
-    payments: order.payment_status === "captured" ? [{
-      method: billing.payment_method === "paypal" ? "PayPal" : "Interac",
-      status: "Captured",
-      paid_amount: billing.total || order.total_amount || 0,
-      paid_at: order.created_at,
-      payment_reference: order.payment_reference || "",
-      processor_txn_id: order.provider_payment_id || "",
+    payments: invoice.status === "paid" ? [{
+      method: "Manual" as const,
+      status: "Captured" as const,
+      paid_amount: amountPaid,
+      paid_at: invoice.created_at,
+      payment_reference: "ADMIN-GENERATED",
     }] : [],
-    payments_total: order.payment_status === "captured" ? (billing.total || order.total_amount || 0) : 0,
+    payments_total: amountPaid,
   };
 };
 
@@ -179,63 +170,69 @@ const buildInvoiceDataFromOrder = (order: any, isMonthly: boolean): InvoiceDataV
 
 const AdminPDFTemplatesV2 = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("from-order");
-  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [activeTab, setActiveTab] = useState("from-invoice");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
-  const [invoiceType, setInvoiceType] = useState<"MONTHLY" | "ONETIME">("ONETIME");
   const [jsonPreview, setJsonPreview] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   
-  const { data: orders, isLoading: ordersLoading, refetch: refetchOrders } = useOrders();
   const { data: invoices, isLoading: invoicesLoading, refetch: refetchInvoices } = useInvoices();
 
-  const monthlyV2PDF = useInvoiceMonthlyV2PDF();
-  const oneTimeV2PDF = useInvoiceOneTimeV2PDF();
+  // Get selected invoice
+  const selectedInvoice = useMemo(() => {
+    return invoices?.find(i => i.id === selectedInvoiceId);
+  }, [invoices, selectedInvoiceId]);
 
-  // Get selected order
-  const selectedOrder = useMemo(() => {
-    return orders?.find(o => o.id === selectedOrderId);
-  }, [orders, selectedOrderId]);
-
-  // Build InvoiceDataV2 from selected order
-  const invoiceDataFromOrder = useMemo(() => {
-    if (!selectedOrder) return null;
-    const data = buildInvoiceDataFromOrder(selectedOrder, invoiceType === "MONTHLY");
+  // Build InvoiceDataV2 from selected invoice
+  const invoiceData = useMemo(() => {
+    if (!selectedInvoice) {
+      setJsonPreview("");
+      return null;
+    }
+    const data = buildInvoiceDataFromInvoice(selectedInvoice);
     setJsonPreview(JSON.stringify(data, null, 2));
     return data;
-  }, [selectedOrder, invoiceType]);
+  }, [selectedInvoice]);
 
-  const handleGeneratePDF = async () => {
-    if (!invoiceDataFromOrder) {
-      toast({ title: "Erreur", description: "Sélectionnez une commande", variant: "destructive" });
+  /**
+   * Generate PDF using invoiceEngine V2.5 ONLY
+   * Logs automatically to pdf_generation_logs with real invoice_number
+   */
+  const handleGeneratePDF = async (action: "open" | "download") => {
+    if (!invoiceData || !selectedInvoice) {
+      toast({ title: "Erreur", description: "Sélectionnez une facture", variant: "destructive" });
       return;
     }
 
-    try {
-      if (invoiceType === "MONTHLY") {
-        await monthlyV2PDF.open(invoiceDataFromOrder);
-      } else {
-        await oneTimeV2PDF.open(invoiceDataFromOrder);
-      }
-      toast({ title: "PDF généré!", description: "Aperçu ouvert dans un nouvel onglet" });
-    } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    }
-  };
-
-  const handleDownloadPDF = async () => {
-    if (!invoiceDataFromOrder) {
-      toast({ title: "Erreur", description: "Sélectionnez une commande", variant: "destructive" });
-      return;
-    }
+    setIsGenerating(true);
+    setLastError(null);
 
     try {
-      if (invoiceType === "MONTHLY") {
-        await monthlyV2PDF.download(invoiceDataFromOrder);
+      // Call invoiceEngine V2.5 - this automatically logs to pdf_generation_logs
+      const result = await generateInvoicePDF(invoiceData, {
+        invoice_id: selectedInvoice.id,
+        user_id: selectedInvoice.customer_id,
+      });
+
+      if (!result.success || !result.blob) {
+        throw new Error(result.error || "Échec de la génération PDF");
+      }
+
+      const filename = result.filename || `Facture-${invoiceData.invoice_number}.pdf`;
+
+      if (action === "open") {
+        safePDFOpen(result.blob, filename);
+        toast({ title: "PDF généré!", description: `${filename} ouvert dans un nouvel onglet` });
       } else {
-        await oneTimeV2PDF.download(invoiceDataFromOrder);
+        safePDFDownload(result.blob, filename);
+        toast({ title: "PDF téléchargé!", description: filename });
       }
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      const errorMsg = error.message || "Erreur inconnue";
+      setLastError(errorMsg);
+      toast({ title: "Erreur génération PDF", description: errorMsg, variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -253,132 +250,158 @@ const AdminPDFTemplatesV2 = () => {
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
-                Templates PDF V2.4
+                Templates PDF V2.5
               </h1>
               <p className="text-muted-foreground">
-                Générer des PDFs à partir de commandes/factures réelles
+                Générer des PDFs depuis billing_invoices réelles — invoiceEngine V2.5
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="text-sm">V2.4 — Règle 2-9</Badge>
+          <Badge variant="secondary" className="text-sm">V2.5 — invoiceEngine</Badge>
         </div>
 
-        <BlankPDFTemplatesEmailer />
+        {/* Error Alert */}
+        {lastError && (
+          <Card className="border-destructive bg-destructive/10">
+            <CardContent className="py-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="font-medium text-destructive">Erreur de génération</p>
+                <p className="text-sm text-destructive/80">{lastError}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-2 w-full max-w-md">
-            <TabsTrigger value="from-order" className="gap-2">
-              <Database className="w-4 h-4" />
-              Depuis commande
-            </TabsTrigger>
+          <TabsList className="grid grid-cols-1 w-full max-w-md">
             <TabsTrigger value="from-invoice" className="gap-2">
               <FileText className="w-4 h-4" />
-              Depuis facture
+              Depuis facture (billing_invoices)
             </TabsTrigger>
           </TabsList>
 
-          {/* Tab: From Order */}
-          <TabsContent value="from-order" className="space-y-4">
+          {/* Tab: From Invoice - MAIN FUNCTIONALITY */}
+          <TabsContent value="from-invoice" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left: Selection & Options */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Database className="w-5 h-5" />
-                    Sélectionner une commande
+                    Sélectionner une facture réelle
                   </CardTitle>
                   <CardDescription>
-                    Choisissez une commande pour générer un PDF avec ses données réelles
+                    Choisissez une facture billing_invoices (paid/pending) pour générer son PDF
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                    <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Sélectionner une commande..." />
+                        <SelectValue placeholder="Sélectionner une facture..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {ordersLoading ? (
+                        {invoicesLoading ? (
                           <SelectItem value="loading" disabled>Chargement...</SelectItem>
-                        ) : orders?.map(order => {
-                          const equip = getEquipmentDetails(order);
-                          const total = equip.billing_totals?.total || order.total_amount;
-                          return (
-                            <SelectItem key={order.id} value={order.id}>
-                              #{order.confirmation_number} — {order.client_first_name} {order.client_last_name} — {formatCurrency(total)}
-                            </SelectItem>
-                          );
-                        })}
+                        ) : invoices?.length === 0 ? (
+                          <SelectItem value="empty" disabled>Aucune facture trouvée</SelectItem>
+                        ) : invoices?.map(inv => (
+                          <SelectItem key={inv.id} value={inv.id}>
+                            {inv.invoice_number} — {inv.type} — {formatCurrency(inv.total)} — {inv.status}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" size="icon" onClick={() => refetchOrders()}>
+                    <Button variant="outline" size="icon" onClick={() => refetchInvoices()}>
                       <RefreshCw className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  {selectedOrder && (
+                  {selectedInvoice && (
                     <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Confirmation:</span>
-                        <span className="font-mono">{selectedOrder.confirmation_number}</span>
+                        <span className="text-muted-foreground">Invoice #:</span>
+                        <span className="font-mono font-semibold">{selectedInvoice.invoice_number}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Client:</span>
-                        <span>{selectedOrder.client_first_name} {selectedOrder.client_last_name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Email:</span>
-                        <span>{selectedOrder.client_email}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Statut paiement:</span>
-                        <Badge variant={selectedOrder.payment_status === "captured" ? "default" : "secondary"}>
-                          {selectedOrder.payment_status}
+                        <span className="text-muted-foreground">Type:</span>
+                        <Badge variant={selectedInvoice.type === "renewal" ? "default" : "secondary"}>
+                          {selectedInvoice.type === "renewal" ? "MONTHLY" : "ONETIME"}
                         </Badge>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total (billing_totals):</span>
-                        <span className="font-semibold text-primary">
-                          {formatCurrency(getEquipmentDetails(selectedOrder).billing_totals?.total)}
+                        <span className="text-muted-foreground">Client:</span>
+                        <span>
+                          {(() => {
+                            const cust = (selectedInvoice as any).billing_customers;
+                            if (Array.isArray(cust)) {
+                              return `${cust[0]?.first_name || ""} ${cust[0]?.last_name || ""}`.trim();
+                            }
+                            return `${cust?.first_name || ""} ${cust?.last_name || ""}`.trim();
+                          })() || "—"}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">PayPal/Provider ID:</span>
-                        <span className="font-mono text-xs">{selectedOrder.provider_payment_id || "—"}</span>
+                        <span className="text-muted-foreground">Email:</span>
+                        <span>
+                          {(() => {
+                            const cust = (selectedInvoice as any).billing_customers;
+                            if (Array.isArray(cust)) {
+                              return cust[0]?.email || "—";
+                            }
+                            return cust?.email || "—";
+                          })()}
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Réf. paiement:</span>
-                        <span className="font-mono">{selectedOrder.payment_reference || "—"}</span>
+                        <span className="text-muted-foreground">Statut:</span>
+                        <Badge variant={selectedInvoice.status === "paid" ? "default" : "secondary"}>
+                          {selectedInvoice.status}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span>{formatCurrency(selectedInvoice.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">TPS:</span>
+                        <span>{formatCurrency(selectedInvoice.tps_amount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">TVQ:</span>
+                        <span>{formatCurrency(selectedInvoice.tvq_amount)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-muted-foreground font-semibold">Total:</span>
+                        <span className="font-semibold text-primary">{formatCurrency(selectedInvoice.total)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Montant payé:</span>
+                        <span className="text-green-600">{formatCurrency(selectedInvoice.amount_paid)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Solde dû:</span>
+                        <span className={selectedInvoice.balance_due > 0 ? "text-orange-600" : "text-green-600"}>
+                          {formatCurrency(selectedInvoice.balance_due)}
+                        </span>
                       </div>
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label>Type de facture</Label>
-                    <Select value={invoiceType} onValueChange={(v) => setInvoiceType(v as "MONTHLY" | "ONETIME")}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ONETIME">Facture Unique (équipement/frais)</SelectItem>
-                        <SelectItem value="MONTHLY">Facture Mensuelle (services récurrents)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   <div className="flex gap-2 pt-4">
                     <Button 
-                      onClick={handleGeneratePDF} 
-                      disabled={!selectedOrder || monthlyV2PDF.isGenerating || oneTimeV2PDF.isGenerating}
+                      onClick={() => handleGeneratePDF("open")} 
+                      disabled={!selectedInvoice || isGenerating}
                       className="flex-1"
                     >
                       <Eye className="w-4 h-4 mr-2" />
-                      Aperçu PDF
+                      {isGenerating ? "Génération..." : "Aperçu PDF"}
                     </Button>
                     <Button 
                       variant="outline"
-                      onClick={handleDownloadPDF}
-                      disabled={!selectedOrder || monthlyV2PDF.isGenerating || oneTimeV2PDF.isGenerating}
+                      onClick={() => handleGeneratePDF("download")}
+                      disabled={!selectedInvoice || isGenerating}
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Télécharger
@@ -395,7 +418,7 @@ const AdminPDFTemplatesV2 = () => {
                     InvoiceDataV2 (JSON)
                   </CardTitle>
                   <CardDescription>
-                    Données utilisées pour générer le PDF — vérifiez que tout est correct
+                    Données envoyées à generateInvoicePDF() — vérifiez les champs
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -403,49 +426,11 @@ const AdminPDFTemplatesV2 = () => {
                     value={jsonPreview}
                     readOnly
                     className="font-mono text-xs h-[400px]"
-                    placeholder="Sélectionnez une commande pour voir les données..."
+                    placeholder="Sélectionnez une facture pour voir les données..."
                   />
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          {/* Tab: From Invoice */}
-          <TabsContent value="from-invoice" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Depuis facture existante</CardTitle>
-                <CardDescription>
-                  Sélectionnez une facture billing_invoices pour regénérer son PDF
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Sélectionner une facture..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {invoicesLoading ? (
-                        <SelectItem value="loading" disabled>Chargement...</SelectItem>
-                      ) : invoices?.map(inv => (
-                        <SelectItem key={inv.id} value={inv.id}>
-                          {inv.invoice_number} — {inv.type} — {formatCurrency(inv.total)} — {inv.status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" size="icon" onClick={() => refetchInvoices()}>
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <p className="text-sm text-muted-foreground">
-                  Cette fonctionnalité génère un PDF à partir des données de billing_invoices.
-                  Pour des tests complets avec les nouvelles templates V2.4, utilisez l'onglet "Depuis commande".
-                </p>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
 
@@ -454,10 +439,10 @@ const AdminPDFTemplatesV2 = () => {
           <CardContent className="py-4 flex items-center gap-3">
             <CheckCircle className="h-5 w-5 text-primary" />
             <div>
-              <p className="font-medium">Templates V2.4 — Règle 2-9 Active</p>
+              <p className="font-medium">invoiceEngine V2.5 — Source: billing_invoices</p>
               <p className="text-sm text-muted-foreground">
-                Tous les numéros générés commencent par 2-9. 
-                Montants extraits de billing_totals (snapshot checkout).
+                Chaque génération est loggée dans pdf_generation_logs avec invoice_number réel.
+                Mapping: initial→ONETIME, renewal→MONTHLY.
               </p>
             </div>
           </CardContent>
