@@ -34,9 +34,26 @@ function formatCurrency(amount: number): string {
   return amount.toFixed(2);
 }
 
+/**
+ * Formate une date de manière sécurisée
+ * Gère les placeholders de templates vierges et les dates invalides
+ */
 function formatDate(dateStr: string): string {
   if (!dateStr) return "—";
+  
+  // Placeholder pour template vierge - retourner tel quel
+  if (dateStr.includes("DATE_") || dateStr.includes("PERIODE") || dateStr.includes("DEBUT_") || dateStr.includes("FIN_")) {
+    return dateStr;
+  }
+  
   const date = new Date(dateStr);
+  
+  // Vérifier si la date est valide
+  if (isNaN(date.getTime())) {
+    console.warn(`[InvoiceOneTimeV2] Date invalide ignorée: "${dateStr}"`);
+    return "—";
+  }
+  
   return date.toLocaleDateString("fr-CA", { 
     year: "numeric", 
     month: "long", 

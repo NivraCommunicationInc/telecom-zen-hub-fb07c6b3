@@ -5970,6 +5970,42 @@ export type Database = {
           },
         ]
       }
+      pdf_template_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          template_key: string
+          template_path: string
+          template_type: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          template_key: string
+          template_path: string
+          template_type: string
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          template_key?: string
+          template_path?: string
+          template_type?: string
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       pin_invite_tokens: {
         Row: {
           created_at: string
@@ -9539,14 +9575,9 @@ export type Database = {
       }
       qa_cron_jobs: {
         Row: {
-          active: boolean | null
-          command: string | null
-          job_id: number | null
+          description: string | null
           job_name: string | null
-          last_run_at: string | null
-          last_run_id: number | null
-          last_run_message: string | null
-          last_run_status: string | null
+          last_run_approx: string | null
           schedule: string | null
         }
         Relationships: []
@@ -9554,18 +9585,42 @@ export type Database = {
       qa_document_sources: {
         Row: {
           document_type: string | null
-          primary_table: string | null
-          secondary_table: string | null
+          filter_condition: string | null
+          source_table: string | null
+          template_path: string | null
         }
         Relationships: []
       }
       qa_pdf_templates_runtime: {
         Row: {
-          active: boolean | null
+          created_at: string | null
+          is_active: boolean | null
           last_used_at: string | null
-          path: string | null
-          type: string | null
+          template_key: string | null
+          template_path: string | null
+          template_type: string | null
+          updated_at: string | null
           version: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          is_active?: boolean | null
+          last_used_at?: string | null
+          template_key?: string | null
+          template_path?: string | null
+          template_type?: string | null
+          updated_at?: string | null
+          version?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          is_active?: boolean | null
+          last_used_at?: string | null
+          template_key?: string | null
+          template_path?: string | null
+          template_type?: string | null
+          updated_at?: string | null
+          version?: string | null
         }
         Relationships: []
       }
@@ -10191,6 +10246,10 @@ export type Database = {
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
+      }
+      update_template_last_used_at: {
+        Args: { p_template_key: string }
+        Returns: undefined
       }
       validate_contract_status_transition: {
         Args: { p_new_status: string; p_old_status: string }
