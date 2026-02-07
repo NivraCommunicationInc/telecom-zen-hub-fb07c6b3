@@ -1,11 +1,14 @@
 /**
  * Nivra PDF Templates - Main Export
  * 
- * V2.4 Templates (Standardized Data Contract):
+ * V2.5 Templates (Unified Engine):
  * - Invoice Monthly V2 - Professional layout with Navy/Teal design
  * - Invoice One-Time V2 - Equipment and one-time fees
  * - Order Summary - Order confirmation after payment
  * - Contract - Full prepaid service agreement (8+ pages with annexes A-E)
+ * 
+ * IMPORTANT: Pour les factures, utiliser generateInvoicePDF() du invoiceEngine.ts
+ * C'est le SEUL point d'entrée recommandé.
  */
 
 // Types
@@ -14,15 +17,34 @@ export * from "./types";
 // Helpers
 export * from "./pdfHelpers";
 
-// Legacy Templates (backward compatibility)
-export { generateInvoiceMonthlyPDF, default as InvoiceMonthlyPDF } from "./invoiceMonthlyTemplate";
-export { generateInvoiceOneTimePDF, default as InvoiceOneTimePDF } from "./invoiceOneTimeTemplate";
+// ============================================================================
+// INVOICE ENGINE - POINT D'ENTRÉE UNIQUE POUR LES FACTURES
+// ============================================================================
+export { 
+  generateInvoicePDF, 
+  generateBlankInvoicePDF,
+  safeFormatDate,
+  safeFormatDateShort,
+  sanitizeText,
+} from "./invoiceEngine";
+
+// ============================================================================
+// V2.5 Templates (Active - utilisés par le moteur)
+// ============================================================================
+export { generateInvoiceMonthlyV2PDF, generateInvoiceMonthlyPDFFromLegacy } from "./invoiceMonthlyTemplateV2";
+export { generateInvoiceOneTimeV2PDF, generateInvoiceOneTimePDFFromLegacy } from "./invoiceOneTimeTemplateV2";
 export { generateOrderSummaryPDF, default as OrderSummaryPDF } from "./orderSummaryTemplate";
 export { generateContractPDF, default as ContractPDF, type ContractData } from "./contractTemplate";
 
-// V2.4 Templates (New standardized format)
-export { generateInvoiceMonthlyV2PDF, generateInvoiceMonthlyPDFFromLegacy } from "./invoiceMonthlyTemplateV2";
-export { generateInvoiceOneTimeV2PDF, generateInvoiceOneTimePDFFromLegacy } from "./invoiceOneTimeTemplateV2";
+// ============================================================================
+// LEGACY Templates - DÉSACTIVÉS (ne plus appeler directement)
+// Ces exports sont conservés uniquement pour la rétrocompatibilité.
+// Tout nouvel appel doit passer par generateInvoicePDF() du invoiceEngine.
+// ============================================================================
+/** @deprecated Utiliser generateInvoicePDF() à la place */
+export { generateInvoiceMonthlyPDF, default as InvoiceMonthlyPDF } from "./invoiceMonthlyTemplate";
+/** @deprecated Utiliser generateInvoicePDF() à la place */
+export { generateInvoiceOneTimePDF, default as InvoiceOneTimePDF } from "./invoiceOneTimeTemplate";
 
 // ============================================================================
 // DOCUMENT GENERATION ORCHESTRATOR
@@ -36,30 +58,28 @@ import type {
   InvoiceDataV2,
 } from "./types";
 import type { ContractData } from "./contractTemplate";
-import { generateInvoiceMonthlyPDF } from "./invoiceMonthlyTemplate";
-import { generateInvoiceOneTimePDF } from "./invoiceOneTimeTemplate";
-import { generateOrderSummaryPDF } from "./orderSummaryTemplate";
-import { generateContractPDF } from "./contractTemplate";
 import { generateInvoiceMonthlyV2PDF } from "./invoiceMonthlyTemplateV2";
 import { generateInvoiceOneTimeV2PDF } from "./invoiceOneTimeTemplateV2";
+import { generateOrderSummaryPDF } from "./orderSummaryTemplate";
+import { generateContractPDF } from "./contractTemplate";
 
 export type DocumentType = "invoice_monthly" | "invoice_onetime" | "order_summary" | "contract" | "invoice_monthly_v2" | "invoice_onetime_v2";
 
 /**
  * Unified document generator
- * Automatically selects the correct template based on document type
+ * IMPORTANT: Pour les factures, préférer generateInvoicePDF() du invoiceEngine.ts
+ * qui gère la validation des dates, l'encodage et le tracking des templates.
  */
 export function generateDocument(
   type: DocumentType,
   data: InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData | InvoiceDataV2
 ): PDFGenerationResult {
   switch (type) {
+    // Factures V2.5 (templates actifs)
     case "invoice_monthly":
-      return generateInvoiceMonthlyPDF(data as InvoiceMonthlyData);
-    case "invoice_onetime":
-      return generateInvoiceOneTimePDF(data as InvoiceOneTimeData);
     case "invoice_monthly_v2":
       return generateInvoiceMonthlyV2PDF(data as InvoiceDataV2);
+    case "invoice_onetime":
     case "invoice_onetime_v2":
       return generateInvoiceOneTimeV2PDF(data as InvoiceDataV2);
     case "order_summary":
@@ -75,8 +95,8 @@ export function generateDocument(
  * Determine document type from order/invoice data
  * - If contract generation → contract
  * - If order confirmation → order_summary
- * - If has recurring services → invoice_monthly
- * - If only equipment/fees → invoice_onetime
+ * - If has recurring services → invoice_monthly_v2
+ * - If only equipment/fees → invoice_onetime_v2
  */
 export function detectDocumentType(data: {
   hasRecurringServices?: boolean;
@@ -97,9 +117,6 @@ export function detectDocumentType(data: {
   const isOneTime = data.invoiceType === "one_time" || data.invoiceType === "ONETIME" || 
                     (!data.hasRecurringServices && data.hasEquipment);
   
-  if (data.useV2) {
-    return isOneTime ? "invoice_onetime_v2" : "invoice_monthly_v2";
-  }
-  
-  return isOneTime ? "invoice_onetime" : "invoice_monthly";
+  // Toujours utiliser V2 maintenant
+  return isOneTime ? "invoice_onetime_v2" : "invoice_monthly_v2";
 }

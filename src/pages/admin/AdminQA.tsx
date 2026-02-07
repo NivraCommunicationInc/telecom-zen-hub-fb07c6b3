@@ -23,29 +23,28 @@ import { adminClient as supabase } from "@/integrations/backend";
 // ============================================
 
 interface PDFTemplateRow {
-  type: string;
-  path: string;
+  template_key: string;
+  template_type: string;
+  template_path: string;
   version: string;
-  active: boolean;
+  is_active: boolean;
   last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DocumentSourceRow {
   document_type: string;
-  primary_table: string;
-  secondary_table: string | null;
+  source_table: string;
+  filter_condition: string | null;
+  template_path: string;
 }
 
 interface CronJobRow {
-  job_id: number;
   job_name: string;
   schedule: string;
-  command: string;
-  active: boolean;
-  last_run_id: number | null;
-  last_run_at: string | null;
-  last_run_status: string | null;
-  last_run_message: string | null;
+  description: string;
+  last_run_approx: string | null;
 }
 
 const usePDFTemplates = () =>
@@ -93,8 +92,8 @@ const AdminQA = () => {
   const { data: sources, isLoading: sourcesLoading, error: sourcesError } = useDocumentSources();
   const { data: jobs, isLoading: jobsLoading, error: jobsError } = useCronJobs();
 
-  const activeTemplates = templates?.filter((t) => t.active) || [];
-  const legacyTemplates = templates?.filter((t) => !t.active) || [];
+  const activeTemplates = templates?.filter((t) => t.is_active) || [];
+  const legacyTemplates = templates?.filter((t) => !t.is_active) || [];
 
   const fmt = (val: string | number | boolean | null | undefined): string => {
     if (val === null || val === undefined) return "NULL";
@@ -132,10 +131,10 @@ const AdminQA = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
-                      <th className="pb-2 pr-4">type</th>
-                      <th className="pb-2 pr-4">path</th>
+                      <th className="pb-2 pr-4">template_type</th>
+                      <th className="pb-2 pr-4">template_path</th>
                       <th className="pb-2 pr-4">version</th>
-                      <th className="pb-2 pr-4">active</th>
+                      <th className="pb-2 pr-4">is_active</th>
                       <th className="pb-2">last_used_at</th>
                     </tr>
                   </thead>
@@ -149,10 +148,10 @@ const AdminQA = () => {
                     )}
                     {activeTemplates.map((t, idx) => (
                       <tr key={idx} className="border-b border-border/50">
-                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.type)}</td>
-                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(t.path)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.template_type)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(t.template_path)}</td>
                         <td className="py-2 pr-4 font-mono text-xs">{fmt(t.version)}</td>
-                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.active)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.is_active)}</td>
                         <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(t.last_used_at)}</td>
                       </tr>
                     ))}
@@ -184,10 +183,10 @@ const AdminQA = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
-                      <th className="pb-2 pr-4">type</th>
-                      <th className="pb-2 pr-4">path</th>
+                      <th className="pb-2 pr-4">template_type</th>
+                      <th className="pb-2 pr-4">template_path</th>
                       <th className="pb-2 pr-4">version</th>
-                      <th className="pb-2 pr-4">active</th>
+                      <th className="pb-2 pr-4">is_active</th>
                       <th className="pb-2">last_used_at</th>
                     </tr>
                   </thead>
@@ -201,10 +200,10 @@ const AdminQA = () => {
                     )}
                     {legacyTemplates.map((t, idx) => (
                       <tr key={idx} className="border-b border-border/50 opacity-60">
-                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.type)}</td>
-                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(t.path)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.template_type)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(t.template_path)}</td>
                         <td className="py-2 pr-4 font-mono text-xs">{fmt(t.version)}</td>
-                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.active)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(t.is_active)}</td>
                         <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(t.last_used_at)}</td>
                       </tr>
                     ))}
@@ -236,14 +235,15 @@ const AdminQA = () => {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="pb-2 pr-4">document_type</th>
-                    <th className="pb-2 pr-4">primary_table</th>
-                    <th className="pb-2">secondary_table</th>
+                    <th className="pb-2 pr-4">source_table</th>
+                    <th className="pb-2 pr-4">filter_condition</th>
+                    <th className="pb-2">template_path</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sources?.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="py-4 text-muted-foreground text-center">
+                      <td colSpan={4} className="py-4 text-muted-foreground text-center">
                         NULL
                       </td>
                     </tr>
@@ -251,8 +251,9 @@ const AdminQA = () => {
                   {sources?.map((s, idx) => (
                     <tr key={idx} className="border-b border-border/50">
                       <td className="py-2 pr-4 font-mono text-xs">{fmt(s.document_type)}</td>
-                      <td className="py-2 pr-4 font-mono text-xs">{fmt(s.primary_table)}</td>
-                      <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(s.secondary_table)}</td>
+                      <td className="py-2 pr-4 font-mono text-xs">{fmt(s.source_table)}</td>
+                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(s.filter_condition)}</td>
+                      <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(s.template_path)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -278,21 +279,20 @@ const AdminQA = () => {
               </p>
             )}
             {!jobsLoading && !jobsError && (
-              <ScrollArea className="h-[260px]">
+              <ScrollArea className="h-[200px]">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="pb-2 pr-4">job_name</th>
                       <th className="pb-2 pr-4">schedule</th>
-                      <th className="pb-2 pr-4">active</th>
-                      <th className="pb-2 pr-4">last_run_at</th>
-                      <th className="pb-2">last_run_status</th>
+                      <th className="pb-2 pr-4">description</th>
+                      <th className="pb-2">last_run_approx</th>
                     </tr>
                   </thead>
                   <tbody>
                     {jobs?.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-4 text-muted-foreground text-center">
+                        <td colSpan={4} className="py-4 text-muted-foreground text-center">
                           NULL
                         </td>
                       </tr>
@@ -301,9 +301,8 @@ const AdminQA = () => {
                       <tr key={idx} className="border-b border-border/50">
                         <td className="py-2 pr-4 font-mono text-xs">{fmt(j.job_name)}</td>
                         <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(j.schedule)}</td>
-                        <td className="py-2 pr-4 font-mono text-xs">{fmt(j.active)}</td>
-                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{fmt(j.last_run_at)}</td>
-                        <td className="py-2 font-mono text-xs">{fmt(j.last_run_status)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs">{fmt(j.description)}</td>
+                        <td className="py-2 font-mono text-xs text-muted-foreground">{fmt(j.last_run_approx)}</td>
                       </tr>
                     ))}
                   </tbody>
