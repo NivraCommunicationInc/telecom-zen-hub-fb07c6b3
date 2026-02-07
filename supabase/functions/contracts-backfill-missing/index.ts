@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
+// Service role client - bypasses RLS for automated backfill
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -21,46 +22,36 @@ interface BackfillResult {
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  const corsHeaders = getCorsHeaders(req);
-  const preflightResponse = handleCorsPreflightRequest(req, corsHeaders);
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+  const preflightResponse = handleCorsPreflightRequest(req);
   if (preflightResponse) return preflightResponse;
 
   try {
-    // Verify admin authorization
+    // Optional: Verify admin authorization if token provided
+    // But allow execution for cron jobs without auth
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authorization required" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await db.auth.getUser(token);
+    let isAdminRequest = false;
     
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user } } = await db.auth.getUser(token);
+      
+      if (user) {
+        const { data: adminUser } = await db
+          .from("admin_users")
+          .select("id, is_active")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle();
+        
+        isAdminRequest = !!adminUser;
+        console.log("[ContractsBackfill] Admin request from:", user.email);
+      }
     }
 
-    // Check if user is admin
-    const { data: adminUser } = await db
-      .from("admin_users")
-      .select("id, is_active")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!adminUser) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log("[ContractsBackfill] Starting backfill for admin:", user.email);
+    // Allow both admin requests and cron/system requests (no auth = cron job)
+    console.log("[ContractsBackfill] Starting backfill (admin:", isAdminRequest, ")");
 
     const result: BackfillResult = {
       created: 0,
@@ -166,27 +157,33 @@ Deno.serve(async (req) => {
         const clientEmail = profile?.email || order.client_email;
         const clientName = profile?.full_name || "Client";
 
-        // Queue signature email with idempotency
+        // Queue signature email with idempotency - check first, then insert if not exists
         const idempotencyKey = `contract_sig_backfill_${order.id}`;
         
-        await db
+        const { data: existingEmail } = await db
           .from("email_queue")
-          .insert({
-            to_email: clientEmail,
-            template_type: "contract_ready_for_signature",
-            template_data: {
-              clientName,
-              contractNumber,
-              contractId: newContract.id,
-              orderNumber: order.order_number || order.confirmation_number,
-              signatureUrl: `/client/contracts/${newContract.id}/sign`,
-            },
-            priority: "normal",
-            idempotency_key: idempotencyKey,
-            created_at: new Date().toISOString(),
-          })
-          .onConflict("idempotency_key")
-          .ignore();
+          .select("id")
+          .eq("idempotency_key", idempotencyKey)
+          .maybeSingle();
+        
+        if (!existingEmail) {
+          await db
+            .from("email_queue")
+            .insert({
+              to_email: clientEmail,
+              template_type: "contract_ready_for_signature",
+              template_data: {
+                clientName,
+                contractNumber,
+                contractId: newContract.id,
+                orderNumber: order.order_number || order.confirmation_number,
+                signatureUrl: `/client/contracts/${newContract.id}/sign`,
+              },
+              priority: "normal",
+              idempotency_key: idempotencyKey,
+              created_at: new Date().toISOString(),
+            });
+        }
 
         result.created++;
         result.details.push({
