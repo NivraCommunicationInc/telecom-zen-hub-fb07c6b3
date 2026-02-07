@@ -2377,10 +2377,14 @@ export type Database = {
           sent_count: number | null
           signature_token: string | null
           signature_token_expires_at: string | null
+          signature_token_hash: string | null
+          signature_token_role: string | null
+          signature_token_used_at: string | null
           signed_at: string | null
           status: string | null
           template_id: string
           template_version: string
+          updated_at: string | null
           user_id: string
           version: number | null
         }
@@ -2405,10 +2409,14 @@ export type Database = {
           sent_count?: number | null
           signature_token?: string | null
           signature_token_expires_at?: string | null
+          signature_token_hash?: string | null
+          signature_token_role?: string | null
+          signature_token_used_at?: string | null
           signed_at?: string | null
           status?: string | null
           template_id?: string
           template_version?: string
+          updated_at?: string | null
           user_id: string
           version?: number | null
         }
@@ -2433,10 +2441,14 @@ export type Database = {
           sent_count?: number | null
           signature_token?: string | null
           signature_token_expires_at?: string | null
+          signature_token_hash?: string | null
+          signature_token_role?: string | null
+          signature_token_used_at?: string | null
           signed_at?: string | null
           status?: string | null
           template_id?: string
           template_version?: string
+          updated_at?: string | null
           user_id?: string
           version?: number | null
         }
@@ -3014,15 +3026,19 @@ export type Database = {
           event_key: string
           from_email: string | null
           id: string
+          idempotency_key: string | null
           last_error: string | null
           max_attempts: number
+          max_retries: number | null
           next_retry_at: string | null
           opened_at: string | null
           provider_message_id: string | null
           provider_response: Json | null
           provider_status: string | null
           resend_response: Json | null
+          retry_count: number | null
           sent_at: string | null
+          sent_count: number | null
           status: string
           subject: string | null
           template_key: string
@@ -3039,15 +3055,19 @@ export type Database = {
           event_key: string
           from_email?: string | null
           id?: string
+          idempotency_key?: string | null
           last_error?: string | null
           max_attempts?: number
+          max_retries?: number | null
           next_retry_at?: string | null
           opened_at?: string | null
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
           resend_response?: Json | null
+          retry_count?: number | null
           sent_at?: string | null
+          sent_count?: number | null
           status?: string
           subject?: string | null
           template_key: string
@@ -3064,15 +3084,19 @@ export type Database = {
           event_key?: string
           from_email?: string | null
           id?: string
+          idempotency_key?: string | null
           last_error?: string | null
           max_attempts?: number
+          max_retries?: number | null
           next_retry_at?: string | null
           opened_at?: string | null
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
           resend_response?: Json | null
+          retry_count?: number | null
           sent_at?: string | null
+          sent_count?: number | null
           status?: string
           subject?: string | null
           template_key?: string
@@ -5205,6 +5229,7 @@ export type Database = {
           notes: string | null
           order_number: string | null
           order_type: string | null
+          payment_confirmed_at: string | null
           payment_method: string | null
           payment_reference: string | null
           payment_status: string | null
@@ -5297,6 +5322,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           order_type?: string | null
+          payment_confirmed_at?: string | null
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
@@ -5389,6 +5415,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           order_type?: string | null
+          payment_confirmed_at?: string | null
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
@@ -9868,6 +9895,14 @@ export type Database = {
         }
         Returns: Json
       }
+      client_sign_contract_with_token: {
+        Args: {
+          p_signature_text: string
+          p_signature_type?: string
+          p_token: string
+        }
+        Returns: Json
+      }
       create_activity_log: {
         Args: {
           p_action: string
@@ -9920,10 +9955,9 @@ export type Database = {
       generate_client_number: { Args: never; Returns: string }
       generate_confirmation_number: { Args: never; Returns: string }
       generate_contract_number: { Args: never; Returns: string }
-      generate_contract_signature_token: {
-        Args: { p_contract_id: string }
-        Returns: string
-      }
+      generate_contract_signature_token:
+        | { Args: { p_contract_id: string }; Returns: string }
+        | { Args: { p_contract_id: string; p_role?: string }; Returns: string }
       generate_dispute_number: { Args: never; Returns: string }
       generate_etransfer_reference: { Args: never; Returns: string }
       generate_internal_ticket_number: { Args: never; Returns: string }
@@ -10111,6 +10145,10 @@ export type Database = {
         }
         Returns: Json
       }
+      regenerate_contract_pdf: {
+        Args: { p_contract_id: string; p_create_new_version?: boolean }
+        Returns: Json
+      }
       split_full_name: {
         Args: { full_name_val: string }
         Returns: {
@@ -10122,12 +10160,25 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
+      validate_contract_status_transition: {
+        Args: { p_new_status: string; p_old_status: string }
+        Returns: boolean
+      }
       validate_referral_code: {
         Args: { p_code: string }
         Returns: {
           code_id: string
           discount_percent: number
           is_valid: boolean
+        }[]
+      }
+      validate_signature_token: {
+        Args: { p_token: string }
+        Returns: {
+          contract_id: string
+          error_message: string
+          is_valid: boolean
+          role: string
         }[]
       }
       verify_pin: {
