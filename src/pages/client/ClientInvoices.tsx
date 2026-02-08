@@ -14,8 +14,8 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { downloadInvoicePDF, getInvoicePDFBlob, type InvoiceData } from "@/lib/pdf";
-import { safePDFPrint } from "@/lib/pdfUtils";
+import { generateInvoicePDF, type InvoiceDataV2 } from "@/lib/pdf";
+import { safePDFPrint, safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import ClientBalanceSummary from "@/components/client/ClientBalanceSummary";
 import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
@@ -467,7 +467,7 @@ const ClientInvoices = () => {
   };
 
   // Create invoice data for PDF generation
-  const createInvoiceData = useCallback((inv: any): InvoiceData => {
+  const createInvoiceData = useCallback((inv: any): InvoiceDataV2 => {
     const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
     
     // Extract line items from joined order data
@@ -475,44 +475,66 @@ const ClientInvoices = () => {
     const equipmentDetails = orderData?.equipment_details;
     const lineItems = equipmentDetails?.line_items || [];
     
+    const subtotal = Number(inv.subtotal || inv.amount) || 0;
+    const tps = Number(inv.tps_amount) || 0;
+    const tvq = Number(inv.tvq_amount) || 0;
+    const total = subtotal + tps + tvq;
+
     return {
-      invoiceNumber: inv.invoice_number || `NVR-INV-QC-${new Date().getFullYear()}-${inv.id?.slice(0, 5).toUpperCase()}`,
-      orderNumber: inv.related_order_number || orderData?.order_number,
-      paymentReference: inv.payment_reference,
-      clientNumber: profile?.client_number,
-      clientName: profile?.full_name || "Client",
-      clientEmail: profile?.email || user?.email || "",
-      clientPhone: profile?.phone,
-      clientAddress: profile?.service_address,
-      clientCity: profile?.service_city,
-      subtotal: Number(inv.subtotal || inv.amount) || 0,
-      fees: Number(inv.fees) || 0,
-      credits: Number(inv.credits) || 0,
-      deliveryFee: Number(inv.delivery_fee) || 0,
-      activationFee: Number(inv.activation_fee) || 0,
-      installationFee: Number(inv.installation_fee) || 0,
-      discountAmount: Number(inv.discount_amount) || 0,
-      preauthDiscount: Number(inv.preauth_discount) || 0,
-      tpsAmount: Number(inv.tps_amount) || 0,
-      tvqAmount: Number(inv.tvq_amount) || 0,
-      lateFeeAmount: Number(inv.late_fee_amount) || 0,
-      dueDate: inv.due_date,
-      createdAt: inv.created_at,
+      invoice_type: "ONETIME", // Default to ONETIME, handled by engine
+      invoice_number: inv.invoice_number || `NVR-INV-QC-${new Date().getFullYear()}-${inv.id?.slice(0, 5).toUpperCase()}`,
+      account_number: profile?.account_number || profile?.client_number || "000000",
+      invoice_date: inv.created_at,
+      due_date: inv.due_date,
+      currency: "CAD",
       status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
-      paidAt: inv.paid_at,
-      notes: inv.notes,
-      equipmentId: inv.equipment_id,
-      // CRITICAL: Pass order line items for multi-service support
-      orderLineItems: lineItems.length > 0 ? lineItems : undefined,
-      // Pass site settings for PDF generation
-      siteSettings: siteSettings ? {
-        support_phone: siteSettings.support_phone,
-        support_email: siteSettings.support_email,
-        address: siteSettings.address,
-        business_hours: siteSettings.business_hours,
-      } : undefined,
-    } as any; // Cast to any to allow extended interface
-  }, [profile, user?.email, siteSettings]);
+      
+      customer: {
+        full_name: profile?.full_name || "Client",
+        email: profile?.email || user?.email || "",
+        phone: profile?.phone,
+        address_line1: profile?.service_address || "",
+        city: profile?.service_city || "",
+        province: "QC",
+        postal_code: "",
+      },
+      
+      items: lineItems.length > 0 ? lineItems.map((li: any) => ({
+        category: "Equipment",
+        description: li.name || li.description || "Article",
+        qty: li.qty || 1,
+        unit_price: Number(li.price || li.unit_price) || 0,
+        amount: Number(li.total || li.line_total) || 0,
+        is_recurring: false
+      })) : [{
+        category: "Other",
+        description: inv.notes || "Services télécom",
+        qty: 1,
+        unit_price: subtotal,
+        amount: subtotal,
+        is_recurring: false
+      }],
+      
+      subtotal,
+      taxes: {
+        gst_rate: 0.05,
+        gst_amount: tps,
+        qst_rate: 0.09975,
+        qst_amount: tvq,
+      },
+      total,
+      balance_due: inv.status === "paid" ? 0 : total,
+      
+      payments: inv.paid_at ? [{
+        method: "Manual",
+        status: "Captured",
+        paid_amount: total,
+        paid_at: inv.paid_at,
+        payment_reference: inv.payment_reference,
+      }] : [],
+      payments_total: inv.paid_at ? total : 0,
+    };
+  }, [profile, user?.email]);
 
   // Open PDF in viewer dialog
   const handleViewPDF = useCallback((inv: any) => {
@@ -524,8 +546,13 @@ const ClientInvoices = () => {
       
       // Generate PDF blob
       const invoiceData = createInvoiceData(inv);
-      const blob = getInvoicePDFBlob(invoiceData);
-      setPdfBlob(blob);
+      await generateInvoicePDF(invoiceData).then(result => {
+        if (result.success && result.blob) {
+          setPdfBlob(result.blob);
+        } else {
+          throw new Error(result.error);
+        }
+      });
       setPdfLoading(false);
     } catch (error) {
       console.error("PDF generation error:", error);
@@ -539,7 +566,13 @@ const ClientInvoices = () => {
   const handleDownloadPDF = useCallback((inv: any) => {
     try {
       const invoiceData = createInvoiceData(inv);
-      downloadInvoicePDF(invoiceData);
+      await generateInvoicePDF(invoiceData).then(result => {
+        if (result.success && result.blob && result.filename) {
+          safePDFDownload(result.blob, result.filename);
+        } else {
+          throw new Error(result.error);
+        }
+      });
       toast.success("Facture téléchargée");
     } catch (error) {
       console.error("PDF download error:", error);
@@ -1710,8 +1743,11 @@ const ClientInvoices = () => {
                             notes: previewInvoice.notes,
                             equipmentId: previewInvoice.equipment_id,
                           };
-                          const pdfBlob = getInvoicePDFBlob(invoiceData);
-                          safePDFPrint(pdfBlob);
+                          // Simplified for preview - using V2 engine
+                          const pdfData = createInvoiceData(previewInvoice);
+                          generateInvoicePDF(pdfData).then(res => {
+                            if (res.success && res.blob) safePDFPrint(res.blob);
+                          });
                           toast.success("Ouverture pour impression...");
                         } catch (error) {
                           console.error("Print error:", error);
@@ -1725,24 +1761,15 @@ const ClientInvoices = () => {
                     <Button 
                       variant="hero"
                       onClick={() => {
-                        downloadInvoicePDF({
-                          invoiceNumber: previewInvoice.invoice_number || previewInvoice.id.slice(0, 8).toUpperCase(),
-                          orderNumber: previewInvoice.related_order_number,
-                          clientName: profile?.full_name || "Client",
-                          clientEmail: profile?.email || user?.email || "",
-                          clientPhone: profile?.phone,
-                          subtotal: Number(previewInvoice.subtotal || previewInvoice.amount) || 0,
-                          fees: Number(previewInvoice.fees) || 0,
-                          credits: Number(previewInvoice.credits) || 0,
-                          deliveryFee: Number(previewInvoice.delivery_fee) || 0,
-                          activationFee: Number(previewInvoice.activation_fee) || 0,
-                          installationFee: Number(previewInvoice.installation_fee) || 0,
-                          discountAmount: Number(previewInvoice.discount_amount) || 0,
-                          tpsAmount: Number(previewInvoice.tps_amount) || 0,
-                          tvqAmount: Number(previewInvoice.tvq_amount) || 0,
-                          lateFeeAmount: Number(previewInvoice.late_fee_amount) || 0,
-                          dueDate: previewInvoice.due_date,
-                          createdAt: previewInvoice.created_at,
+                        const pdfData = createInvoiceData(previewInvoice);
+                        generateInvoicePDF(pdfData).then(res => {
+                          if (res.success && res.blob && res.filename) {
+                            safePDFDownload(res.blob, res.filename);
+                            toast.success("Téléchargement lancé");
+                          } else {
+                            toast.error("Erreur lors de la génération");
+                          }
+                        });
                           status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
                           paidAt: previewInvoice.paid_at,
                           notes: previewInvoice.notes,

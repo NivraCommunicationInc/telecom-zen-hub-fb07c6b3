@@ -28,12 +28,19 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { 
-  generateTermsModalitesPDF, 
-  getTermsModalitesFilename,
-  TERMS_DOCUMENT_INFO 
-} from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
+
+// Static terms document info
+const TERMS_DOCUMENT_INFO = {
+  version: "v2026-02-05",
+  effectiveDate: "2026-02-05",
+  title: "Modalités de service",
+  subtitle: "Conditions générales",
+  lastUpdated: "2026-02-05",
+  id: "terms-modalites-v2026",
+};
+
+const STATIC_TERMS_PDF = "/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
 
 const ClientDocuments = () => {
   const { user } = useClientAuth();
@@ -102,20 +109,16 @@ const ClientDocuments = () => {
 
   const handleDownloadTerms = (order: { id: string; order_number: string; created_at: string }) => {
     try {
-      const doc = generateTermsModalitesPDF({
-        orderId: order.id,
-        orderNumber: order.order_number,
-        accountId: account?.id,
-        accountNumber: account?.account_number || profile?.client_number,
-        issuedDate: new Date(order.created_at),
-        clientName: profile?.full_name,
-        clientEmail: profile?.email,
-      });
-      const blob = doc.output("blob");
-      safePDFDownload(blob, getTermsModalitesFilename(order.order_number));
+      // Download static PDF from public folder
+      const link = document.createElement("a");
+      link.href = STATIC_TERMS_PDF;
+      link.download = `Modalites-Service-Nivra-${order.order_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       toast.success("Modalités de service téléchargées");
     } catch (error) {
-      console.error("Error generating terms PDF:", error);
+      console.error("Error downloading terms PDF:", error);
       toast.error("Erreur lors du téléchargement");
     }
   };

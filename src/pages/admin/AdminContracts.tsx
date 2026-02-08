@@ -19,7 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { downloadTelecomContractPDF, viewTelecomContractPDF, type TelecomContractData } from "@/lib/pdf";
+import { generateContractPDF, type ContractData } from "@/lib/pdf";
+import { safePDFOpen, safePDFDownload } from "@/lib/pdfUtils";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 // Checkbox removed - no longer needed for manual selection

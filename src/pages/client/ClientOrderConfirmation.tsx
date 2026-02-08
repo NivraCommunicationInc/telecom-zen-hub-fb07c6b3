@@ -45,8 +45,9 @@ import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
-import { generateTermsModalitesPDF, getTermsModalitesFilename } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
+
+const STATIC_TERMS_PDF = "/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
 
 interface OrderData {
   id: string;
@@ -902,17 +903,13 @@ END:VCALENDAR`;
                       size="sm"
                       className="mt-2 gap-1.5 w-full"
                       onClick={() => {
-                        const doc = generateTermsModalitesPDF({
-                          orderId: order.id,
-                          orderNumber: order.order_number,
-                          accountId: order.account_id,
-                          accountNumber: account?.account_number || profile?.client_number,
-                          issuedDate: new Date(order.created_at),
-                          clientName: profile?.full_name,
-                          clientEmail: profile?.email,
-                        });
-                        const blob = doc.output("blob");
-                        safePDFDownload(blob, getTermsModalitesFilename(order.order_number));
+                        // Download static PDF from public folder
+                        const link = document.createElement("a");
+                        link.href = STATIC_TERMS_PDF;
+                        link.download = `Modalites-Service-Nivra-${order.order_number}.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
                         toast.success("Modalités de service téléchargées");
                       }}
                     >
