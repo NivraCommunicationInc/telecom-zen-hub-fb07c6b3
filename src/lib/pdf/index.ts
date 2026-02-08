@@ -1,5 +1,5 @@
 /**
- * Nivra PDF Templates - V2.5 CLEAN ENGINE
+ * Nivra PDF Templates - V2.5 UNIFIED ENGINE
  * 
  * ZERO LEGACY EXPORTS - All deprecated functions REMOVED.
  * 
@@ -38,6 +38,22 @@ export { formatCurrencyCAD, formatDateFR, formatDateShort, sanitizeLegalText } f
 export * from "./pdfHelpers";
 export * from "./billingCalculator";
 export * from "./annexes";
+
+// ============================================================================
+// TEXT SANITIZATION V2.5 - GLOBAL ENGINE RULE
+// ============================================================================
+export {
+  isPrintableText,
+  sanitizeForPDF,
+  assertPrintableText,
+  sanitizeClientName,
+  sanitizeAddress,
+  sanitizeEmail,
+  sanitizePaymentReference,
+  sanitizeDescription,
+  sanitizeCustomerData,
+  sanitizePaymentData,
+} from "./pdfTextSanitizer";
 
 // ============================================================================
 // INVOICE ENGINE V2.5 - SINGLE ENTRY POINT FOR ALL INVOICES
