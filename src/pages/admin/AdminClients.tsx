@@ -723,35 +723,48 @@ const AdminClients = () => {
   });
 
   // Generate invoice from order
-  const handleGenerateInvoice = (order: any) => {
+  const handleGenerateInvoice = async (order: any) => {
     if (!selectedClient) return;
     
-    const invoiceData = {
-      invoiceNumber: `INV-${Date.now().toString().slice(-8)}`,
-      orderNumber: order.order_number,
-      paymentReference: order.payment_reference,
-      clientNumber: selectedClient.client_number,
-      clientName: selectedClient.full_name || selectedClient.email,
-      clientEmail: selectedClient.email,
-      clientPhone: selectedClient.phone,
-      subtotal: order.subtotal || 0,
-      deliveryFee: order.delivery_fee || 0,
-      activationFee: order.activation_fee || 0,
-      installationFee: order.installation_fee || 0,
-      terminalFee: order.terminal_fee || 0,
-      routerFee: order.router_fee || 0,
-      discountAmount: order.discount_amount || 0,
-      tpsAmount: order.tps_amount || 0,
-      tvqAmount: order.tvq_amount || 0,
-      lateFeeAmount: order.late_fee_amount || 0,
-      credits: order.credits_applied || 0,
-      createdAt: order.created_at,
+    const invoiceData: InvoiceDataV2 = {
+      invoice_type: "ONETIME",
+      invoice_number: `INV-${Date.now().toString().slice(-8)}`,
+      invoice_date: new Date().toISOString().split("T")[0],
+      due_date: new Date().toISOString().split("T")[0],
+      account_number: selectedClient.client_number || "000000",
+      currency: "CAD",
       status: order.payment_status || "pending",
-      serviceDescription: order.service_type,
-      equipmentId: order.equipment_id,
+      customer: {
+        full_name: selectedClient.full_name || selectedClient.email,
+        email: selectedClient.email,
+        phone: selectedClient.phone,
+        address_line1: selectedClient.service_address || "",
+        city: selectedClient.service_city || "",
+        province: selectedClient.service_province || "QC",
+        postal_code: selectedClient.service_postal_code || "",
+      },
+      items: [{
+        category: "Other",
+        description: order.service_type || "Service",
+        qty: 1,
+        unit_price: order.subtotal || 0,
+        amount: order.subtotal || 0,
+      }],
+      subtotal: order.subtotal || 0,
+      taxes: {
+        gst_rate: 0.05,
+        gst_amount: order.tps_amount || 0,
+        qst_rate: 0.09975,
+        qst_amount: order.tvq_amount || 0,
+      },
+      total: order.total_amount || 0,
+      balance_due: order.payment_status === "paid" ? 0 : (order.total_amount || 0),
     };
     
-    viewInvoicePDF(invoiceData);
+    const result = await generateInvoicePDF(invoiceData);
+    if (result.success && result.blob) {
+      safePDFOpen(result.blob, result.filename || "facture.pdf");
+    }
     logActivity("generate_invoice", "order", order.id, { order_number: order.order_number }, {
       changedField: "invoice",
       reason: "Facture PDF générée"
@@ -779,7 +792,10 @@ const AdminClients = () => {
       isSigned: false,
     };
     
-    viewContractPDF(contractData);
+    const result = generateContractPDF(contractData as ContractData);
+    if (result.success && result.blob) {
+      safePDFOpen(result.blob, result.filename || `Contrat_${contractData.contractNumber}.pdf`);
+    }
     logActivity("generate_contract", "order", order.id, { order_number: order.order_number }, {
       changedField: "contract",
       reason: "Contrat PDF généré"
@@ -2135,7 +2151,10 @@ const AdminClients = () => {
                             employeeName: "Nivra Télécom",
                             employeeTitle: "Service Client",
                           };
-                          downloadContractPDF(contractData);
+                          const result = generateContractPDF(contractData as ContractData);
+                          if (result.success && result.blob) {
+                            safePDFDownload(result.blob, result.filename || `Contrat_${contractData.contractNumber}.pdf`);
+                          }
                         } else if (selectedDocument.document_url?.startsWith('http')) {
                           // External URL - fetch and download
                           const response = await fetch(selectedDocument.document_url);
@@ -2182,7 +2201,10 @@ const AdminClients = () => {
                             employeeName: "Nivra Télécom",
                             employeeTitle: "Service Client",
                           };
-                          viewContractPDF(contractData);
+                          const result = generateContractPDF(contractData as ContractData);
+                          if (result.success && result.blob) {
+                            safePDFOpen(result.blob, result.filename || `Contrat_${contractData.contractNumber}.pdf`);
+                          }
                         } else if (selectedDocument.document_url?.startsWith('http')) {
                           // External URL - open safely in new tab
                           window.open(selectedDocument.document_url, "_blank", "noopener,noreferrer");
