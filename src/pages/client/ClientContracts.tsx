@@ -16,11 +16,11 @@ import { portalClient as portalSupabase } from "@/integrations/backend/portalCli
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { generateTelecomContractPDF, type TelecomContractData } from "@/lib/pdf";
+import { generateContractPDF, type ContractData } from "@/lib/pdf";
+import { safePDFOpen, safePDFDownload } from "@/lib/pdfUtils";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
 import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 import { hashBlobSHA256Hex } from "@/lib/pdfHash";
-import { safePDFDownload } from "@/lib/pdfUtils";
 import { calculateLineItemTotals, extractLineItemsFromOrder } from "@/lib/orderLineItems";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";

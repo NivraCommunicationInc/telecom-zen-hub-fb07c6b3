@@ -1003,8 +1003,6 @@ const AdminBilling = () => {
   // PDF Invoice using unified engine V2.5
   const exportInvoicePDF = async (bill: any) => {
     try {
-      const { generateLegacyInvoicePDF } = await import("@/lib/pdf");
-      
       // Fetch related order to get line_items and billing_totals snapshot
       const orderData = await fetchRelatedOrderData(bill);
       const equipmentDetails = orderData?.equipment_details;
@@ -1038,31 +1036,61 @@ const AdminBilling = () => {
       }
       
       const invoiceData = {
-        invoiceNumber: invoiceNum,
-        orderNumber: bill.related_order_number || orderData?.order_number,
-        paymentReference: bill.payment_reference,
-        clientNumber: clientAccountNumber,
-        clientName,
-        clientEmail,
-        clientPhone,
-        subtotal,
-        tpsAmount: Number(bill.tps_amount),
-        tvqAmount: Number(bill.tvq_amount),
-        dueDate: bill.due_date,
-        createdAt: bill.created_at,
-        status: bill.status,
-        paidAt: bill.paid_at,
-        notes: bill.notes,
-        servicePlan,
-        promoCode,
-        promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
-        discountAmount: promoDiscount,
-        orderLineItems: lineItems.length > 0 ? lineItems : undefined,
+        invoice_type: "ONETIME",
+        invoice_number: invoiceNum,
+        account_number: clientAccountNumber,
+        currency: "CAD",
+        status: bill.status === "paid" ? "Paid" : "Pending",
+        invoice_date: bill.created_at,
+        due_date: bill.due_date,
+        customer: {
+          full_name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+          address_line1: "", // Admin billing might not have address, V2 engine handles this
+          city: "",
+          province: "QC",
+          postal_code: "",
+        },
+        items: lineItems.length > 0 ? lineItems.map((li: any) => ({
+          category: "Equipment",
+          description: li.name || li.description || "Article",
+          qty: li.qty || 1,
+          unit_price: Number(li.price || li.unit_price) || 0,
+          amount: Number(li.total || li.line_total) || 0,
+          is_recurring: false
+        })) : [{
+          category: "Other",
+          description: servicePlan,
+          qty: 1,
+          unit_price: subtotal,
+          amount: subtotal,
+          is_recurring: false
+        }],
+        subtotal: subtotal,
+        taxes: {
+          gst_rate: 0.05,
+          gst_amount: Number(bill.tps_amount),
+          qst_rate: 0.09975,
+          qst_amount: Number(bill.tvq_amount),
+        },
+        total: subtotal + Number(bill.tps_amount) + Number(bill.tvq_amount),
+        balance_due: bill.status === "paid" ? 0 : subtotal + Number(bill.tps_amount) + Number(bill.tvq_amount),
+        discounts: promoCode ? [{
+          label: `Rabais promotionnel (${promoCode})`,
+          amount: promoDiscount
+        }] : undefined,
       };
       
-      const { blob, filename } = await generateLegacyInvoicePDF(invoiceData);
-      safePDFDownload(blob, filename);
-      toast({ title: "Facture téléchargée" });
+      const { generateInvoicePDF } = await import("@/lib/pdf");
+      const { blob, filename } = await generateInvoicePDF(invoiceData as any);
+      
+      if (blob && filename) {
+        safePDFDownload(blob, filename);
+        toast({ title: "Facture téléchargée" });
+      } else {
+        throw new Error("Échec de la génération du PDF");
+      }
     } catch (error) {
       console.error("Error generating invoice PDF:", error);
       toast({ title: "Erreur lors de la génération", variant: "destructive" });
@@ -1071,8 +1099,6 @@ const AdminBilling = () => {
   // View invoice PDF in new tab using unified engine V2.5
   const viewInvoicePDFHandler = async (bill: any) => {
     try {
-      const { generateLegacyInvoicePDF } = await import("@/lib/pdf");
-      
       // Fetch related order to get line_items and billing_totals snapshot
       const orderData = await fetchRelatedOrderData(bill);
       const equipmentDetails = orderData?.equipment_details;
@@ -1105,30 +1131,60 @@ const AdminBilling = () => {
       }
       
       const invoiceData = {
-        invoiceNumber: invoiceNum,
-        orderNumber: bill.related_order_number || orderData?.order_number,
-        paymentReference: bill.payment_reference,
-        clientNumber: clientAccountNumber,
-        clientName,
-        clientEmail,
-        clientPhone,
-        subtotal,
-        tpsAmount: Number(bill.tps_amount),
-        tvqAmount: Number(bill.tvq_amount),
-        dueDate: bill.due_date,
-        createdAt: bill.created_at,
-        status: bill.status,
-        paidAt: bill.paid_at,
-        notes: bill.notes,
-        servicePlan,
-        promoCode,
-        promoDescription: promoCode ? `Rabais promotionnel (${promoCode})` : undefined,
-        discountAmount: promoDiscount,
-        orderLineItems: lineItems.length > 0 ? lineItems : undefined,
+        invoice_type: "ONETIME",
+        invoice_number: invoiceNum,
+        account_number: clientAccountNumber,
+        currency: "CAD",
+        status: bill.status === "paid" ? "Paid" : "Pending",
+        invoice_date: bill.created_at,
+        due_date: bill.due_date,
+        customer: {
+          full_name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+          address_line1: "",
+          city: "",
+          province: "QC",
+          postal_code: "",
+        },
+        items: lineItems.length > 0 ? lineItems.map((li: any) => ({
+          category: "Equipment",
+          description: li.name || li.description || "Article",
+          qty: li.qty || 1,
+          unit_price: Number(li.price || li.unit_price) || 0,
+          amount: Number(li.total || li.line_total) || 0,
+          is_recurring: false
+        })) : [{
+          category: "Other",
+          description: servicePlan,
+          qty: 1,
+          unit_price: subtotal,
+          amount: subtotal,
+          is_recurring: false
+        }],
+        subtotal: subtotal,
+        taxes: {
+          gst_rate: 0.05,
+          gst_amount: Number(bill.tps_amount),
+          qst_rate: 0.09975,
+          qst_amount: Number(bill.tvq_amount),
+        },
+        total: subtotal + Number(bill.tps_amount) + Number(bill.tvq_amount),
+        balance_due: bill.status === "paid" ? 0 : subtotal + Number(bill.tps_amount) + Number(bill.tvq_amount),
+        discounts: promoCode ? [{
+          label: `Rabais promotionnel (${promoCode})`,
+          amount: promoDiscount
+        }] : undefined,
       };
       
-      const { blob, filename } = await generateLegacyInvoicePDF(invoiceData);
-      safePDFOpen(blob, filename);
+      const { generateInvoicePDF } = await import("@/lib/pdf");
+      const { blob, filename } = await generateInvoicePDF(invoiceData as any);
+      
+      if (blob && filename) {
+        safePDFOpen(blob, filename);
+      } else {
+        throw new Error("Échec de la génération du PDF");
+      }
     } catch (error) {
       console.error("Error viewing invoice PDF:", error);
       toast({ title: "Erreur lors de l'ouverture", variant: "destructive" });

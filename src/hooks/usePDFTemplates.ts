@@ -1,7 +1,6 @@
 /**
- * Nivra PDF Templates - React Hooks
- * Easy-to-use hooks for generating and downloading billing documents
- * V2.5: Uses unified invoiceEngine for all invoice generation
+ * Nivra PDF Templates - React Hooks V2.5
+ * All hooks use unified invoiceEngine for invoice generation
  */
 
 import { useState, useCallback } from "react";
@@ -12,15 +11,12 @@ import {
   generateBlankInvoicePDF,
   generateOrderSummaryPDF,
   generateContractPDF,
-  generateDocument,
-  detectDocumentType,
-  type DocumentType,
-  type InvoiceMonthlyData,
-  type InvoiceOneTimeData,
   type OrderSummaryData,
   type ContractData,
   type PDFGenerationResult,
   type InvoiceDataV2,
+  type InvoiceMonthlyData,
+  type InvoiceOneTimeData,
 } from "@/lib/pdf";
 
 // ============================================================================
@@ -88,7 +84,6 @@ export function useInvoiceMonthlyPDF() {
   const generate = useCallback(async (data: InvoiceMonthlyData): Promise<PDFGenerationResult> => {
     setIsGenerating(true);
     try {
-      // Convert legacy format and use V2.5 engine
       const v2Data: InvoiceDataV2 = {
         invoice_type: "MONTHLY",
         invoice_number: data.invoice_number,
@@ -169,7 +164,6 @@ export function useInvoiceOneTimePDF() {
   const generate = useCallback(async (data: InvoiceOneTimeData): Promise<PDFGenerationResult> => {
     setIsGenerating(true);
     try {
-      // Convert legacy format and use V2.5 engine
       const v2Data: InvoiceDataV2 = {
         invoice_type: "ONETIME",
         invoice_number: data.invoice_number,
@@ -397,57 +391,4 @@ export function useInvoiceOneTimeV2PDF() {
   }, [generate]);
 
   return { generate, download, open, isGenerating };
-}
-
-// ============================================================================
-// HOOK: useDocumentPDF (Unified)
-// ============================================================================
-
-type AnyDocumentData = InvoiceMonthlyData | InvoiceOneTimeData | OrderSummaryData | ContractData | InvoiceDataV2;
-
-export function useDocumentPDF() {
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const generate = useCallback(async (
-    type: DocumentType,
-    data: AnyDocumentData
-  ): Promise<PDFGenerationResult> => {
-    setIsGenerating(true);
-    try {
-      const result = generateDocument(type, data);
-      if (!result.success) {
-        toast.error(result.error || "Erreur lors de la génération");
-      }
-      return result;
-    } finally {
-      setIsGenerating(false);
-    }
-  }, []);
-
-  const download = useCallback(async (type: DocumentType, data: AnyDocumentData) => {
-    const result = await generate(type, data);
-    if (result.success && result.blob && result.filename) {
-      safePDFDownload(result.blob, result.filename);
-      toast.success("Document téléchargé");
-    }
-    return result;
-  }, [generate]);
-
-  const open = useCallback(async (type: DocumentType, data: AnyDocumentData) => {
-    const result = await generate(type, data);
-    if (result.success && result.blob && result.filename) {
-      safePDFOpen(result.blob, result.filename);
-    }
-    return result;
-  }, [generate]);
-
-  const autoGenerate = useCallback(async (
-    data: AnyDocumentData,
-    hints?: { hasRecurringServices?: boolean; hasEquipment?: boolean; isOrderConfirmation?: boolean; isContract?: boolean; useV2?: boolean }
-  ) => {
-    const type = detectDocumentType(hints || {});
-    return generate(type, data);
-  }, [generate]);
-
-  return { generate, download, open, autoGenerate, isGenerating, detectDocumentType };
 }
