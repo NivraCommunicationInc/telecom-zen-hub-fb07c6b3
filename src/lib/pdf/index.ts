@@ -28,11 +28,6 @@ export type {
   Customer,
   Discount,
   Taxes,
-  // Legacy types for backward-compatible hooks
-  InvoiceMonthlyData,
-  InvoiceOneTimeData,
-  InvoiceLine,
-  OneTimeItem,
 } from "./types";
 export { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER, NIVRA_HEADER } from "./types";
 

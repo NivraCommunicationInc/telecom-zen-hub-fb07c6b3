@@ -46,11 +46,16 @@ const useInvoices = () => {
           due_date,
           amount_paid,
           balance_due,
+          paid_at,
+          payment_method,
           fees,
           activation_fee,
           late_fee_amount,
           notes,
           created_at,
+          billing_snapshot_client,
+          billing_snapshot_account_number,
+          billing_snapshot_payment,
           billing_customers (
             id,
             first_name,
@@ -88,10 +93,16 @@ const formatCurrency = (amount: number | null | undefined): string => {
  * Build InvoiceDataV2 from a billing_invoice record (REAL data)
  */
 const buildInvoiceDataFromInvoice = (invoice: any): InvoiceDataV2 => {
-  // billing_customers is returned as an object (single record via FK)
-  const customer = Array.isArray(invoice.billing_customers) 
+  // PRIORITY: Use billing snapshots first, then fallback to billing_customers
+  const snapshotClient = invoice.billing_snapshot_client as Record<string, any> | null;
+  const snapshotPayment = invoice.billing_snapshot_payment as Record<string, any> | null;
+  const snapshotAccountNumber = invoice.billing_snapshot_account_number as string | null;
+  
+  // Fallback: billing_customers (for legacy invoices without snapshots)
+  const customerRecord = Array.isArray(invoice.billing_customers) 
     ? invoice.billing_customers[0] 
     : invoice.billing_customers;
+    
   const lines = invoice.billing_invoice_lines || [];
   
   // Determine invoice type from DB type field
@@ -120,27 +131,56 @@ const buildInvoiceDataFromInvoice = (invoice: any): InvoiceDataV2 => {
   const amountPaid = Number(invoice.amount_paid) || 0;
   const balanceDue = Math.max(0, total - amountPaid);
   
+  // Use snapshot account_number (6-digit) OR fallback to customer_id prefix
+  const accountNumber = snapshotAccountNumber 
+    || invoice.customer_id?.substring(0, 8).toUpperCase() 
+    || "000000";
+  
+  // Build customer data from snapshot OR fallback
+  const customerData = snapshotClient 
+    ? {
+        full_name: snapshotClient.full_name || "Client",
+        email: snapshotClient.email || "",
+        phone: snapshotClient.phone || "",
+        address_line1: snapshotClient.address_line1 || "",
+        city: snapshotClient.city || "",
+        province: snapshotClient.province || "QC",
+        postal_code: snapshotClient.postal_code || "",
+      }
+    : {
+        full_name: customerRecord ? `${customerRecord.first_name || ""} ${customerRecord.last_name || ""}`.trim() : "Client",
+        email: customerRecord?.email || "",
+        phone: customerRecord?.phone || "",
+        address_line1: "",
+        city: "",
+        province: "QC",
+        postal_code: "",
+      };
+  
+  // Build payments array - use snapshot OR construct from invoice fields
+  const payments = invoice.status === "paid" 
+    ? [{
+        method: (snapshotPayment?.method || invoice.payment_method || "Manual") as "PayPal" | "Interac" | "card" | string,
+        status: "Captured" as const,
+        paid_amount: snapshotPayment?.paid_amount || amountPaid,
+        paid_at: snapshotPayment?.paid_at || invoice.paid_at || invoice.created_at,
+        payment_reference: snapshotPayment?.reference || "—",
+        processor_txn_id: snapshotPayment?.transaction_id || snapshotPayment?.capture_id,
+      }]
+    : [];
+  
   return {
     invoice_type: invoiceType,
     invoice_number: invoice.invoice_number,
     invoice_date: invoice.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
     due_date: invoice.due_date?.split("T")[0] || new Date().toISOString().split("T")[0],
-    account_number: invoice.customer_id?.substring(0, 8).toUpperCase() || "00000000",
+    account_number: accountNumber,
     billing_period_start: invoiceType === "MONTHLY" ? invoice.cycle_start_date?.split("T")[0] : undefined,
     billing_period_end: invoiceType === "MONTHLY" ? invoice.cycle_end_date?.split("T")[0] : undefined,
     currency: "CAD",
     status: invoice.status === "paid" ? "Paid" : "Pending",
     
-    customer: {
-      full_name: customer ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() : "Client",
-      email: customer?.email || "",
-      phone: customer?.phone || "",
-      address_line1: "",
-      city: "",
-      province: "QC",
-      postal_code: "",
-    },
-    
+    customer: customerData,
     items,
     
     subtotal: Number(invoice.subtotal) || 0,
@@ -153,13 +193,7 @@ const buildInvoiceDataFromInvoice = (invoice: any): InvoiceDataV2 => {
     total,
     balance_due: balanceDue,
     
-    payments: invoice.status === "paid" ? [{
-      method: "Manual" as const,
-      status: "Captured" as const,
-      paid_amount: amountPaid,
-      paid_at: invoice.created_at,
-      payment_reference: "ADMIN-GENERATED",
-    }] : [],
+    payments,
     payments_total: amountPaid,
   };
 };

@@ -65,6 +65,24 @@ function formatPercentage(rate: number): string {
   return (rate * 100).toFixed(rate === 0.05 ? 0 : 3) + "%";
 }
 
+/**
+ * Formate la méthode de paiement pour affichage
+ */
+function formatPaymentMethod(method: string): string {
+  const methods: Record<string, string> = {
+    "PayPal": "PayPal",
+    "paypal": "PayPal",
+    "Interac": "Virement Interac",
+    "interac": "Virement Interac",
+    "e_transfer": "Virement Interac",
+    "Credit Card": "Carte de crédit",
+    "card": "Carte de crédit",
+    "Manual": "Manuel",
+    "cash": "Comptant",
+  };
+  return methods[method] || method;
+}
+
 // ============================================================================
 // MAIN GENERATOR
 // ============================================================================
@@ -369,27 +387,80 @@ export function generateInvoiceOneTimeV2PDF(data: InvoiceDataV2): PDFGenerationR
     y += 15;
 
     // ========================================================================
-    // PAYMENT INSTRUCTIONS
+    // PAYMENT SECTION - Conditional: Instructions OR Confirmation
     // ========================================================================
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
-    doc.text("Instructions de paiement Interac • PayPal • Carte", margin, y);
+    const isPaid = data.status === "Paid" || data.status === "paid" || data.balance_due === 0;
     
-    y += 5;
-    
-    doc.setFillColor(COLORS.lightGray.r, COLORS.lightGray.g, COLORS.lightGray.b);
-    doc.rect(margin, y, contentWidth, 22, "F");
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("Virement Interac (e-Transfer)", margin + 5, y + 7);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("Courriel: Support@nivra-telecom.ca", margin + 5, y + 12);
-    doc.text("Question secrète: Numéro de facture", margin + 5, y + 16);
-    doc.text(`Réponse: ${data.invoice_number}`, margin + 5, y + 20);
+    if (isPaid && data.payments && data.payments.length > 0) {
+      // ====== PAYMENT CONFIRMED BLOCK ======
+      const payment = data.payments[0]; // Primary payment
+      
+      doc.setFillColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
+      doc.rect(margin, y - 5, contentWidth, 8, "F");
+      
+      doc.setTextColor(COLORS.white.r, COLORS.white.g, COLORS.white.b);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("✓ PAIEMENT CONFIRMÉ", margin + 5, y);
+      
+      y += 8;
+      
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, contentWidth, 26, "F");
+      doc.setDrawColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
+      doc.rect(margin, y, contentWidth, 26, "S");
+      
+      doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      
+      // Payment method
+      const methodLabel = formatPaymentMethod(payment.method);
+      doc.text(`Méthode: ${methodLabel}`, margin + 5, y + 6);
+      
+      // Payment date
+      const paidDate = payment.paid_at ? formatDate(payment.paid_at) : "—";
+      doc.text(`Date: ${paidDate}`, margin + 5, y + 12);
+      
+      // Transaction ID / Reference
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      if (payment.processor_txn_id) {
+        doc.text(`ID Transaction: ${payment.processor_txn_id}`, margin + 5, y + 18);
+      } else if (payment.payment_reference) {
+        doc.text(`Référence: ${payment.payment_reference}`, margin + 5, y + 18);
+      }
+      
+      // Amount confirmed
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
+      doc.text(`Montant confirmé: ${formatCurrency(payment.paid_amount)} $`, margin + contentWidth - 60, y + 12);
+      
+      y += 31;
+    } else {
+      // ====== PAYMENT INSTRUCTIONS BLOCK ======
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
+      doc.text("Instructions de paiement Interac • PayPal • Carte", margin, y);
+      
+      y += 5;
+      
+      doc.setFillColor(COLORS.lightGray.r, COLORS.lightGray.g, COLORS.lightGray.b);
+      doc.rect(margin, y, contentWidth, 22, "F");
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("Virement Interac (e-Transfer)", margin + 5, y + 7);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Courriel: Support@nivra-telecom.ca", margin + 5, y + 12);
+      doc.text("Question secrète: Numéro de facture", margin + 5, y + 16);
+      doc.text(`Réponse: ${data.invoice_number}`, margin + 5, y + 20);
+
+      y += 27;
+    }
 
     // ========================================================================
     // LEGAL FOOTER
