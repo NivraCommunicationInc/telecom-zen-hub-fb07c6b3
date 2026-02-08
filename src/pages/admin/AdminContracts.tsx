@@ -706,7 +706,7 @@ const AdminContracts = () => {
     });
   };
 
-  const buildContractData = (contract: any): TelecomContractData => {
+  const buildContractData = (contract: any): ContractData => {
     const client = contract.profiles;
     const linkedOrder = contract.linkedOrder;
     const fullName = client?.full_name || "Client";
@@ -723,60 +723,53 @@ const AdminContracts = () => {
       templateVersion: (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version,
 
       contractNumber: contract.contract_number || contract.contract_url || `NVR-CSA-QC-2026-${contract.id.slice(0, 5).toUpperCase()}`,
-      clientFirstName: firstName,
-      clientLastName: lastName,
-      clientName: fullName,
-      clientEmail: client?.email || "",
-      clientPhone: client?.phone,
-      clientAccountNumber: client?.client_number,
-      serviceAddress: client?.service_address,
-      serviceCity: client?.service_city,
-      serviceProvince: client?.service_province || "QC",
-      servicePostalCode: client?.service_postal_code,
-      idType: client?.id_type,
-      idNumber: client?.id_number,
-      idProvince: client?.id_province,
-      idExpiration: client?.id_expiration,
-      orderDate: linkedOrder?.created_at || contract.created_at,
-      orderReference: linkedOrder?.order_number,
-      servicePlan: contract.contract_name,
+      client_name: fullName,
+      client_email: client?.email || "",
+      client_phone: client?.phone,
+      account_number: client?.client_number,
+      service_address: client?.service_address,
+      order_date: linkedOrder?.created_at || contract.created_at,
+      order_number: linkedOrder?.order_number,
+      service_plan: contract.contract_name,
       
       // Fees from linked order
-      activationFee: Number(linkedOrder?.activation_fee ?? 0),
-      deliveryFee: Number(linkedOrder?.delivery_fee ?? 0),
-      installationFee: Number(linkedOrder?.installation_fee ?? 0),
-      terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
-      terminalCount: Number(linkedOrder?.terminal_count ?? 0),
-      routerFee: Number(linkedOrder?.router_fee ?? 0),
+      activation_fee: Number(linkedOrder?.activation_fee ?? 0),
+      delivery_fee: Number(linkedOrder?.delivery_fee ?? 0),
+      installation_fee: Number(linkedOrder?.installation_fee ?? 0),
       
       // Billing from linked order
-      subtotal: Number(linkedOrder?.subtotal ?? 0),
-      tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
-      tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
-      totalAmount: Number(linkedOrder?.total_amount ?? 0),
+      subtotal_before_tax: Number(linkedOrder?.subtotal ?? 0),
+      tax_gst: Number(linkedOrder?.tps_amount ?? 0),
+      tax_qst: Number(linkedOrder?.tvq_amount ?? 0),
+      total_due_today: Number(linkedOrder?.total_amount ?? 0),
       
       // Promo/discounts from linked order
-      promoCode: linkedOrder?.promo_code || undefined,
-      promoDiscount: Number(linkedOrder?.discount_amount ?? 0),
-      preauthDiscount: Number(linkedOrder?.preauth_discount ?? 0),
+      promo_code: linkedOrder?.promo_code || undefined,
+      total_discounts: Number(linkedOrder?.discount_amount ?? 0),
       
       isSigned: contract.is_signed || false,
       signedAt: contract.signed_at,
       
       // CRITICAL: Pass structured line_items for dynamic PDF generation
-      equipmentDetails: equipmentDetails as { [key: string]: any; line_items?: any[] } | undefined,
+      equipment: equipmentDetails as any,
     };
   };
 
   const handleDownloadContract = (contract: any) => {
     const data = buildContractData(contract);
-    downloadTelecomContractPDF(data);
-    toast.success("Contrat téléchargé");
+    const result = generateContractPDF(data);
+    if (result.success && result.blob) {
+      safePDFDownload(result.blob, result.filename || `Contrat_${data.contractNumber}.pdf`);
+      toast.success("Contrat téléchargé");
+    }
   };
 
   const handleViewContract = (contract: any) => {
     const data = buildContractData(contract);
-    viewTelecomContractPDF(data);
+    const result = generateContractPDF(data);
+    if (result.success && result.blob) {
+      safePDFOpen(result.blob, result.filename || `Contrat_${data.contractNumber}.pdf`);
+    }
   };
 
   const handlePreviewContract = (contract: any) => {

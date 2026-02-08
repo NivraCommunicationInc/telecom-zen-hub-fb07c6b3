@@ -537,7 +537,7 @@ const ClientInvoices = () => {
   }, [profile, user?.email]);
 
   // Open PDF in viewer dialog
-  const handleViewPDF = useCallback((inv: any) => {
+  const handleViewPDF = useCallback(async (inv: any) => {
     try {
       setPdfLoading(true);
       setPdfViewerOpen(true);
@@ -546,13 +546,12 @@ const ClientInvoices = () => {
       
       // Generate PDF blob
       const invoiceData = createInvoiceData(inv);
-      await generateInvoicePDF(invoiceData).then(result => {
-        if (result.success && result.blob) {
-          setPdfBlob(result.blob);
-        } else {
-          throw new Error(result.error);
-        }
-      });
+      const result = await generateInvoicePDF(invoiceData);
+      if (result.success && result.blob) {
+        setPdfBlob(result.blob);
+      } else {
+        throw new Error(result.error);
+      }
       setPdfLoading(false);
     } catch (error) {
       console.error("PDF generation error:", error);
@@ -563,16 +562,15 @@ const ClientInvoices = () => {
   }, [createInvoiceData]);
 
   // Download PDF directly (no popup, no new tab)
-  const handleDownloadPDF = useCallback((inv: any) => {
+  const handleDownloadPDF = useCallback(async (inv: any) => {
     try {
       const invoiceData = createInvoiceData(inv);
-      await generateInvoicePDF(invoiceData).then(result => {
-        if (result.success && result.blob && result.filename) {
-          safePDFDownload(result.blob, result.filename);
-        } else {
-          throw new Error(result.error);
-        }
-      });
+      const result = await generateInvoicePDF(invoiceData);
+      if (result.success && result.blob && result.filename) {
+        safePDFDownload(result.blob, result.filename);
+      } else {
+        throw new Error(result.error);
+      }
       toast.success("Facture téléchargée");
     } catch (error) {
       console.error("PDF download error:", error);
@@ -1770,12 +1768,6 @@ const ClientInvoices = () => {
                             toast.error("Erreur lors de la génération");
                           }
                         });
-                          status: isOverdue && previewInvoice.status !== "paid" ? "overdue" : previewInvoice.status,
-                          paidAt: previewInvoice.paid_at,
-                          notes: previewInvoice.notes,
-                          equipmentId: previewInvoice.equipment_id,
-                        });
-                        toast.success("Facture téléchargée");
                       }}
                     >
                       <Download className="w-4 h-4 mr-2" />

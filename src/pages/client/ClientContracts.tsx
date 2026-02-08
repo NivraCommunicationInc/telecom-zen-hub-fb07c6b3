@@ -256,7 +256,7 @@ const ClientContracts = () => {
       const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
       const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
 
-      const contractData: TelecomContractData = {
+      const contractData: ContractData = {
         contractId: contract.id,
         templateId,
         templateVersion,
@@ -265,50 +265,31 @@ const ClientContracts = () => {
           contract.contract_number ||
           contract.contract_url ||
           `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
-        orderReference: linkedOrder?.order_number || undefined,
-        orderDate: linkedOrder?.created_at || contract.created_at,
+        order_number: linkedOrder?.order_number || undefined,
+        order_date: linkedOrder?.created_at || contract.created_at,
 
-        clientName: profile?.full_name || "Client",
-        clientFirstName: (profile?.full_name || "Client").split(" ")[0] || "",
-        clientLastName: (profile?.full_name || "Client").split(" ").slice(1).join(" ") || "",
-        clientEmail: profile?.email || user?.email || "",
-        clientPhone: profile?.phone || "",
-        clientAccountNumber: clientAccountNumber,
-        billingAddress: profile?.service_address || "",
-        serviceAddress: profile?.service_address || "",
-        serviceCity: profile?.service_city || "",
-        serviceProvince: profile?.service_province || "QC",
-        servicePostalCode: profile?.service_postal_code || "",
+        client_name: profile?.full_name || "Client",
+        client_email: profile?.email || user?.email || "",
+        client_phone: profile?.phone || "",
+        account_number: clientAccountNumber,
+        billing_address: profile?.service_address || "",
+        service_address: profile?.service_address || "",
 
-        // Individual service plans with prices
-        internetPlan: internetPlan,
-        internetPrice: internetPrice,
-        tvBundle: tvBundle,
-        tvPrice: tvPrice,
-        mobilePlan: mobilePlan,
-        mobilePrice: mobilePrice,
-        streamingPlan: streamingPlan,
-        streamingPrice: streamingPrice,
-        
-        // Fallback service plan only if no specific services detected
-        servicePlan: hasSpecificServices ? undefined : (contract.contract_name || "Services"),
+        // Fallback service plan
+        service_plan: contract.contract_name || "Services",
 
-        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
-        deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
-        installationFee: Number(linkedOrder?.installation_fee ?? 0),
-        terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
-        terminalCount: Number(linkedOrder?.terminal_count ?? 0),
-        routerFee: Number(linkedOrder?.router_fee ?? 0),
+        activation_fee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
+        delivery_fee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
+        installation_fee: Number(linkedOrder?.installation_fee ?? 0),
 
-        subtotal: subtotal,
-        tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
-        tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
-        totalAmount: Number(linkedOrder?.total_amount ?? 0),
+        subtotal_before_tax: subtotal,
+        tax_gst: Number(linkedOrder?.tps_amount ?? 0),
+        tax_qst: Number(linkedOrder?.tvq_amount ?? 0),
+        total_due_today: Number(linkedOrder?.total_amount ?? 0),
         
         // Promo/discounts
-        promoCode: linkedOrder?.promo_code || undefined,
-        promoDiscount: Number(linkedOrder?.discount_amount ?? 0),
-        preauthDiscount: Number(linkedOrder?.preauth_discount ?? 0),
+        promo_code: linkedOrder?.promo_code || undefined,
+        total_discounts: Number(linkedOrder?.discount_amount ?? 0),
 
         isSigned: Boolean(contract.is_signed),
         signedAt: contract.signed_at || undefined,
@@ -316,11 +297,14 @@ const ClientContracts = () => {
         clientSignatureType: contract.client_signature_type || undefined,
         
         // CRITICAL: Pass structured line_items for dynamic PDF generation
-        equipmentDetails: equipmentDetails as { [key: string]: any; line_items?: any[] } | undefined,
+        equipment: equipmentDetails as any,
       };
 
-      const doc = generateTelecomContractPDF(contractData);
-      const blob = doc.output("blob");
+      const result = generateContractPDF(contractData);
+      if (!result.success || !result.blob) {
+        throw new Error(result.error || "Erreur de génération");
+      }
+      const blob = result.blob;
       const pdfHash = await hashBlobSHA256Hex(blob);
       const generatedAt = new Date().toISOString();
 
@@ -450,7 +434,7 @@ const ClientContracts = () => {
       const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
       const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
 
-      const contractData: TelecomContractData = {
+      const contractData: ContractData = {
         contractId: contract.id,
         templateId,
         templateVersion,
@@ -459,45 +443,27 @@ const ClientContracts = () => {
           contract.contract_number ||
           contract.contract_url ||
           `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
-        orderReference: linkedOrder?.order_number || undefined,
-        orderDate: linkedOrder?.created_at || contract.created_at,
+        order_number: linkedOrder?.order_number || undefined,
+        order_date: linkedOrder?.created_at || contract.created_at,
 
-        clientName: profile?.full_name || "Client",
-        clientFirstName: (profile?.full_name || "Client").split(" ")[0] || "",
-        clientLastName: (profile?.full_name || "Client").split(" ").slice(1).join(" ") || "",
-        clientEmail: profile?.email || user?.email || "",
-        clientPhone: profile?.phone || "",
-        clientAccountNumber: clientAccountNumber,
-        billingAddress: profile?.service_address || "",
-        serviceAddress: profile?.service_address || "",
-        serviceCity: profile?.service_city || "",
-        serviceProvince: profile?.service_province || "QC",
-        servicePostalCode: profile?.service_postal_code || "",
+        client_name: profile?.full_name || "Client",
+        client_email: profile?.email || user?.email || "",
+        client_phone: profile?.phone || "",
+        account_number: clientAccountNumber,
+        billing_address: profile?.service_address || "",
+        service_address: profile?.service_address || "",
 
-        // Individual service plans with prices
-        internetPlan: internetPlan,
-        internetPrice: internetPrice,
-        tvBundle: tvBundle,
-        tvPrice: tvPrice,
-        mobilePlan: mobilePlan,
-        mobilePrice: mobilePrice,
-        streamingPlan: streamingPlan,
-        streamingPrice: streamingPrice,
-        
-        // Fallback service plan only if no specific services detected
-        servicePlan: hasSpecificServices ? undefined : (contract.contract_name || "Services"),
+        // Fallback service plan
+        service_plan: contract.contract_name || "Services",
 
-        activationFee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
-        deliveryFee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
-        installationFee: Number(linkedOrder?.installation_fee ?? 0),
-        terminalFee: Number(linkedOrder?.terminal_fee ?? 0),
-        terminalCount: Number(linkedOrder?.terminal_count ?? 0),
-        routerFee: Number(linkedOrder?.router_fee ?? 0),
+        activation_fee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
+        delivery_fee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
+        installation_fee: Number(linkedOrder?.installation_fee ?? 0),
 
-        subtotal: subtotal,
-        tpsAmount: Number(linkedOrder?.tps_amount ?? 0),
-        tvqAmount: Number(linkedOrder?.tvq_amount ?? 0),
-        totalAmount: Number(linkedOrder?.total_amount ?? 0),
+        subtotal_before_tax: subtotal,
+        tax_gst: Number(linkedOrder?.tps_amount ?? 0),
+        tax_qst: Number(linkedOrder?.tvq_amount ?? 0),
+        total_due_today: Number(linkedOrder?.total_amount ?? 0),
 
         isSigned: Boolean(contract.is_signed),
         signedAt: contract.signed_at || undefined,
@@ -509,8 +475,11 @@ const ClientContracts = () => {
 
       await pdfViewer.openWithGenerator(
         async () => {
-          const doc = generateTelecomContractPDF(contractData);
-          const blob = doc.output("blob");
+          const result = generateContractPDF(contractData);
+          if (!result.success || !result.blob) {
+            throw new Error(result.error || "Erreur de génération");
+          }
+          const blob = result.blob;
           const pdfHash = await hashBlobSHA256Hex(blob);
           const generatedAt = new Date().toISOString();
 

@@ -176,8 +176,11 @@ export default function StaffOrderDetail() {
         },
       };
       
-      viewContractPDF(contractData as any);
-      toast.success("Contrat ouvert");
+      const result = generateContractPDF(contractData as ContractData);
+      if (result.success && result.blob) {
+        safePDFOpen(result.blob, result.filename || `Contrat_${order.order_number}.pdf`);
+        toast.success("Contrat ouvert");
+      }
     } catch (error) {
       console.error("Contract PDF error:", error);
       toast.error("Impossible de générer le contrat");
@@ -216,8 +219,11 @@ export default function StaffOrderDetail() {
         status: order.payment_status || order.status,
       };
       
-      viewInvoicePDF(invoiceData as any);
-      toast.success("Facture ouverte");
+      const result = await generateInvoicePDF(invoiceData as unknown as InvoiceDataV2);
+      if (result.success && result.blob) {
+        safePDFOpen(result.blob, result.filename || "facture.pdf");
+        toast.success("Facture ouverte");
+      }
     } catch (error) {
       console.error("Invoice PDF error:", error);
       toast.error("Impossible de générer la facture");
