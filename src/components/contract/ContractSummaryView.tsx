@@ -90,10 +90,12 @@ export interface ContractSummaryData {
   
   // Payment
   payment: {
-    method: "card" | "etransfer" | "other" | string;
+    method: "card" | "etransfer" | "paypal" | "other" | string;
     etransferRule?: "after_receipt" | "after_verification";
     deposit?: number;
     depositConditions?: string;
+    paypalCaptureId?: string;
+    reference?: string;
   };
   
   // Snapshot metadata
@@ -374,7 +376,7 @@ export function ContractSummaryView({ data, showSignatures = false }: ContractSu
         </CardContent>
       </Card>
 
-      {/* Payment Section */}
+      {/* Payment Section - CONDITIONAL: Show correct method based on snapshot */}
       <Card className="bg-card border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -384,24 +386,60 @@ export function ContractSummaryView({ data, showSignatures = false }: ContractSu
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
+            {/* Payment method display - strict conditional logic */}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Mode :</span>
               <span className="font-medium">
-                {data.payment.method === "card" ? "☐ Carte" : 
-                 data.payment.method === "etransfer" ? "☐ e-Transfer" : 
-                 `☐ Autre : ${data.payment.method}`}
+                {data.payment.method?.toLowerCase() === "paypal" ? (
+                  <span className="flex items-center gap-1">
+                    <span className="text-blue-600">PayPal</span>
+                    {data.payment.paypalCaptureId && (
+                      <Badge variant="outline" className="text-xs ml-1">
+                        {data.payment.paypalCaptureId.slice(0, 8)}...
+                      </Badge>
+                    )}
+                  </span>
+                ) : data.payment.method?.toLowerCase() === "card" ? (
+                  "Carte de crédit"
+                ) : data.payment.method?.toLowerCase() === "etransfer" || data.payment.method?.toLowerCase() === "interac" ? (
+                  "Interac e-Transfer"
+                ) : (
+                  data.payment.method || "À confirmer"
+                )}
               </span>
             </div>
-            {data.payment.method === "etransfer" && data.payment.etransferRule && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Règle activation :</span>
-                <span className="font-medium">
-                  {data.payment.etransferRule === "after_receipt" 
-                    ? "☐ Après réception" 
-                    : "☐ Après réception et vérification"}
-                </span>
+
+            {/* ONLY show Interac rules if method is actually etransfer/interac */}
+            {(data.payment.method?.toLowerCase() === "etransfer" || data.payment.method?.toLowerCase() === "interac") && (
+              <>
+                {data.payment.etransferRule && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Règle activation :</span>
+                    <span className="font-medium">
+                      {data.payment.etransferRule === "after_receipt" 
+                        ? "Après réception" 
+                        : "Après réception et vérification"}
+                    </span>
+                  </div>
+                )}
+                <div className="p-2 bg-amber-500/10 rounded-lg text-xs">
+                  <p className="font-medium text-amber-600">Instructions Interac e-Transfer :</p>
+                  <p>nvrpay@nivra-telecom.ca • Q: nivra R: nivra2024</p>
+                </div>
+              </>
+            )}
+
+            {/* Show PayPal confirmation if paid via PayPal */}
+            {data.payment.method?.toLowerCase() === "paypal" && data.payment.paypalCaptureId && (
+              <div className="p-2 bg-blue-500/10 rounded-lg text-xs">
+                <p className="font-medium text-blue-600 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Paiement PayPal confirmé
+                </p>
+                <p className="text-muted-foreground">Réf: {data.payment.paypalCaptureId}</p>
               </div>
             )}
+
+            {/* Deposit section */}
             {data.payment.deposit !== undefined && data.payment.deposit > 0 && (
               <>
                 <div className="flex justify-between">

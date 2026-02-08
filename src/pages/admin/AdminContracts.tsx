@@ -97,7 +97,7 @@ const AdminContracts = () => {
     employee_title: "Conseiller Télécom",
   });
 
-  // Fetch ALL contracts with client profile data
+  // Fetch ALL contracts with client profile data + order snapshots for billing-only clients
   const { data: contracts, isLoading, refetch: refetchContracts } = useQuery({
     queryKey: ["admin-contracts"],
     queryFn: async () => {
@@ -107,25 +107,46 @@ const AdminContracts = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       
-      // Fetch profiles and linked orders separately for each contract
+      // Fetch profiles, linked orders, and order snapshots for each contract
       const contractsWithProfiles = await Promise.all(
         (data || []).map(async (contract) => {
-          const [profileResult, orderResult] = await Promise.all([
-            supabase
-              .from("profiles")
+          // First get the order linked to this contract
+          const { data: linkedOrder } = await supabase
+            .from("orders")
+            .select("*, equipment_details, promo_code, discount_amount, preauth_discount")
+            .eq("related_contract_id", contract.id)
+            .maybeSingle();
+          
+          // Try to get order via order_id if no related_contract_id match
+          const orderForSnapshot = linkedOrder || (contract.order_id ? 
+            (await supabase.from("orders").select("*").eq("id", contract.order_id).maybeSingle()).data 
+            : null);
+          
+          // Get profile
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("user_id", contract.user_id)
+            .maybeSingle();
+          
+          // Get order snapshot (for clients without profiles)
+          let orderSnapshot = null;
+          if (orderForSnapshot?.id) {
+            const { data: snapshot } = await supabase
+              .from("order_snapshots")
               .select("*")
-              .eq("user_id", contract.user_id)
-              .maybeSingle(),
-            supabase
-              .from("orders")
-              .select("*, equipment_details, promo_code, discount_amount, preauth_discount")
-              .eq("related_contract_id", contract.id)
-              .maybeSingle(),
-          ]);
+              .eq("order_id", orderForSnapshot.id)
+              .order("version", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            orderSnapshot = snapshot;
+          }
+          
           return { 
             ...contract, 
-            profiles: profileResult.data,
-            linkedOrder: orderResult.data,
+            profiles: profile,
+            linkedOrder: linkedOrder || orderForSnapshot,
+            orderSnapshot,
           };
         })
       );
@@ -709,7 +730,22 @@ const AdminContracts = () => {
   const buildContractData = (contract: any): ContractData => {
     const client = contract.profiles;
     const linkedOrder = contract.linkedOrder;
-    const fullName = client?.full_name || "Client";
+    const orderSnapshot = contract.orderSnapshot;
+    
+    // PRIORITY: Use order snapshot > profile > fallback
+    // This ensures billing-only clients (no portal profile) still have their data
+    const clientSnapshot = orderSnapshot?.client_snapshot as Record<string, any> | null;
+    
+    // Resolve client name: snapshot > profile > order > fallback
+    const fullName = clientSnapshot?.full_name || 
+      clientSnapshot?.legalName ||
+      (clientSnapshot?.first_name && clientSnapshot?.last_name 
+        ? `${clientSnapshot.first_name} ${clientSnapshot.last_name}` 
+        : null) ||
+      client?.full_name || 
+      linkedOrder?.client_name ||
+      "Client non assigné";
+    
     const nameParts = fullName.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
@@ -723,11 +759,19 @@ const AdminContracts = () => {
       templateVersion: (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version,
 
       contractNumber: contract.contract_number || contract.contract_url || `NVR-CSA-QC-2026-${contract.id.slice(0, 5).toUpperCase()}`,
+      
+      // Client info: snapshot > profile > order > fallback
       client_name: fullName,
-      client_email: client?.email || "",
-      client_phone: client?.phone,
+      client_email: clientSnapshot?.email || client?.email || linkedOrder?.client_email || "",
+      client_phone: clientSnapshot?.phone || client?.phone || linkedOrder?.shipping_phone,
+      client_dob: clientSnapshot?.date_of_birth || client?.date_of_birth,
       account_number: client?.client_number,
-      service_address: client?.service_address,
+      service_address: clientSnapshot?.service_address || 
+        clientSnapshot?.full_service_address ||
+        client?.service_address || 
+        linkedOrder?.shipping_address,
+      billing_address: clientSnapshot?.billing_address || client?.billing_address,
+      
       order_date: linkedOrder?.created_at || contract.created_at,
       order_number: linkedOrder?.order_number,
       service_plan: contract.contract_name,

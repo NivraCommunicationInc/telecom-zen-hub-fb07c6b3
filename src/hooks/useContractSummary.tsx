@@ -91,15 +91,23 @@ export function buildContractSummaryFromOrder(
     deliveryFee: feesSnapshot?.deliveryFee ?? order?.delivery_fee ?? 0,
   };
 
-  // Build payment info
+  // Build payment info from snapshot
   const paymentMethod = paymentSnapshot?.method || order?.payment_method || 
     (order?.payment_reference?.toLowerCase().includes("etransfer") ? "etransfer" : "card");
+  
+  // Extract PayPal capture ID if present
+  const paypalCaptureId = paymentSnapshot?.paypal_capture_id || 
+    paymentSnapshot?.paypalCaptureId ||
+    paymentSnapshot?.reference ||
+    (paymentMethod === "paypal" ? order?.payment_reference : undefined);
   
   const payment = {
     method: paymentMethod,
     etransferRule: paymentSnapshot?.etransferRule,
     deposit: paymentSnapshot?.deposit,
     depositConditions: paymentSnapshot?.depositConditions,
+    paypalCaptureId: paypalCaptureId,
+    reference: paymentSnapshot?.reference || order?.payment_reference,
   };
 
   return {
@@ -202,6 +210,10 @@ export function useContractSummary({ orderId, usePortalClient = false }: UseCont
             etransferRule: contractSummarySnapshot.paymentMethod?.etransferRule,
             deposit: contractSummarySnapshot.paymentMethod?.deposit,
             depositConditions: contractSummarySnapshot.paymentMethod?.depositConditions,
+            paypalCaptureId: contractSummarySnapshot.paymentMethod?.paypalCaptureId || 
+              contractSummarySnapshot.paymentMethod?.reference ||
+              (snapshot?.payment_method_snapshot as any)?.paypal_capture_id,
+            reference: contractSummarySnapshot.paymentMethod?.reference,
           },
           snapshotCreatedAt: contractSummarySnapshot.snapshotCreatedAt || snapshot?.created_at,
           agreementVersion: snapshot?.version || order?.agreement_version || 1,

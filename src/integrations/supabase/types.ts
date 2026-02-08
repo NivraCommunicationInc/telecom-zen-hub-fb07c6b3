@@ -2409,6 +2409,8 @@ export type Database = {
           client_signed_at: string | null
           contract_name: string
           contract_number: string | null
+          contract_pdf_stored_at: string | null
+          contract_pdf_url: string | null
           contract_url: string
           created_at: string
           id: string
@@ -2441,6 +2443,8 @@ export type Database = {
           client_signed_at?: string | null
           contract_name: string
           contract_number?: string | null
+          contract_pdf_stored_at?: string | null
+          contract_pdf_url?: string | null
           contract_url: string
           created_at?: string
           id?: string
@@ -2473,6 +2477,8 @@ export type Database = {
           client_signed_at?: string | null
           contract_name?: string
           contract_number?: string | null
+          contract_pdf_stored_at?: string | null
+          contract_pdf_url?: string | null
           contract_url?: string
           created_at?: string
           id?: string
@@ -10055,6 +10061,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      unified_clients: {
+        Row: {
+          account_number: string | null
+          account_status: string | null
+          client_number: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string | null
+          full_name: string | null
+          has_billing_customer: boolean | null
+          has_profile: boolean | null
+          id: string | null
+          last_name: string | null
+          phone: string | null
+          sector_tags: string[] | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          service_province: string | null
+          source: string | null
+          user_id: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
