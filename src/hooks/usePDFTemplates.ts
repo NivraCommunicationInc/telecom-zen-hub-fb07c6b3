@@ -15,9 +15,65 @@ import {
   type ContractData,
   type PDFGenerationResult,
   type InvoiceDataV2,
-  type InvoiceMonthlyData,
-  type InvoiceOneTimeData,
 } from "@/lib/pdf";
+
+// ============================================================================
+// LOCAL TYPES FOR DEPRECATED HOOKS (V2.5 - Internal use only)
+// ============================================================================
+
+interface InvoiceLine {
+  service_type: string;
+  service_description: string;
+  service_period: string;
+  service_price: number;
+  service_promo?: string | null;
+  service_total: number;
+}
+
+interface OneTimeItem {
+  item_name: string;
+  item_description?: string;
+  qty: number;
+  unit_price: number;
+  line_total: number;
+  serial_number?: string | null;
+}
+
+interface InvoiceMonthlyData {
+  account_number: string;
+  invoice_number: string;
+  invoice_date: string;
+  cycle_start: string;
+  cycle_end: string;
+  status: "pending" | "paid" | "overdue" | "cancelled";
+  subtotal_after_discounts: number;
+  tax_gst: number;
+  tax_qst: number;
+  total_due: number;
+  client_name: string;
+  client_email: string;
+  client_phone?: string;
+  client_address: string;
+  invoice_lines: InvoiceLine[];
+}
+
+interface InvoiceOneTimeData {
+  account_number: string;
+  invoice_number: string;
+  invoice_date: string;
+  cycle_start: string;
+  cycle_end: string;
+  status: "pending" | "paid" | "overdue" | "cancelled";
+  subtotal_after_discounts: number;
+  tax_gst: number;
+  tax_qst: number;
+  total_due: number;
+  client_name: string;
+  client_email: string;
+  client_phone?: string;
+  client_address: string;
+  items: OneTimeItem[];
+}
 
 // ============================================================================
 // HOOK: useInvoicePDF (Unified V2.5)

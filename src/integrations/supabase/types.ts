@@ -1083,6 +1083,9 @@ export type Database = {
           activation_fee: number | null
           amount_paid: number | null
           balance_due: number | null
+          billing_snapshot_account_number: string | null
+          billing_snapshot_client: Json | null
+          billing_snapshot_payment: Json | null
           created_at: string | null
           currency: string | null
           customer_id: string
@@ -1111,6 +1114,9 @@ export type Database = {
           activation_fee?: number | null
           amount_paid?: number | null
           balance_due?: number | null
+          billing_snapshot_account_number?: string | null
+          billing_snapshot_client?: Json | null
+          billing_snapshot_payment?: Json | null
           created_at?: string | null
           currency?: string | null
           customer_id: string
@@ -1139,6 +1145,9 @@ export type Database = {
           activation_fee?: number | null
           amount_paid?: number | null
           balance_due?: number | null
+          billing_snapshot_account_number?: string | null
+          billing_snapshot_client?: Json | null
+          billing_snapshot_payment?: Json | null
           created_at?: string | null
           currency?: string | null
           customer_id?: string
