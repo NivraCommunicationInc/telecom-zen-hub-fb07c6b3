@@ -58,6 +58,9 @@ import ClientPhoneActions from "@/components/admin/ClientPhoneActions";
 import ClientCommunicationsPanel from "@/components/admin/ClientCommunicationsPanel";
 import { ClientsTable } from "@/components/admin/ClientsTable";
 import { ClientSearchBar, type SearchFilter } from "@/components/admin/ClientSearchBar";
+import UnifiedClientSearchPanel from "@/components/admin/UnifiedClientSearchPanel";
+import QAOrphanedPaymentsPanel from "@/components/admin/QAOrphanedPaymentsPanel";
+import { useUnifiedClientSearch, type UnifiedClientResult } from "@/hooks/useUnifiedClientSearch";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -95,6 +98,8 @@ const AdminClients = () => {
   const { logClientActivity } = useClientActivityLog();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState<SearchFilter>("all");
+  const [showUnifiedSearch, setShowUnifiedSearch] = useState(false);
+  const [showQAPanel, setShowQAPanel] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
@@ -914,20 +919,83 @@ const AdminClients = () => {
           />
         </div>
 
-        {/* Enhanced Search bar */}
-        <ClientSearchBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchFilter={searchFilter}
-          onFilterChange={setSearchFilter}
-        />
+        {/* Search Mode Toggle */}
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant={!showUnifiedSearch ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowUnifiedSearch(false)}
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Recherche profils
+          </Button>
+          <Button 
+            variant={showUnifiedSearch ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowUnifiedSearch(true)}
+          >
+            <Users className="w-4 h-4 mr-2" />
+            Recherche unifiée
+          </Button>
+          <Button 
+            variant={showQAPanel ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowQAPanel(!showQAPanel)}
+          >
+            <AlertCircle className="w-4 h-4 mr-2" />
+            QA Paiements orphelins
+          </Button>
+        </div>
 
-        <ClientsTable
-          clients={filteredClients}
-          isLoading={isLoading}
-          searchQuery={searchQuery}
-          onViewDetails={handleViewDetails}
-        />
+        {/* QA Panel (conditional) */}
+        {showQAPanel && (
+          <QAOrphanedPaymentsPanel 
+            onCreateProfile={(email, fullName) => {
+              // Open create dialog pre-filled
+              setNewClient({
+                ...newClient,
+                email,
+                first_name: fullName.split(" ")[0] || "",
+                last_name: fullName.split(" ").slice(1).join(" ") || "",
+              });
+              setCreateDialogOpen(true);
+            }}
+          />
+        )}
+
+        {/* Unified Search Panel (conditional) */}
+        {showUnifiedSearch ? (
+          <UnifiedClientSearchPanel
+            onSelectClient={(result: UnifiedClientResult) => {
+              // If has profile, try to find and select it
+              if (result.has_profile && result.email) {
+                const matchingClient = clients?.find((c: any) => 
+                  c.email?.toLowerCase().trim() === result.email?.toLowerCase().trim()
+                );
+                if (matchingClient) {
+                  handleViewDetails(matchingClient);
+                }
+              }
+            }}
+          />
+        ) : (
+          <>
+            {/* Standard Search bar */}
+            <ClientSearchBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchFilter={searchFilter}
+              onFilterChange={setSearchFilter}
+            />
+
+            <ClientsTable
+              clients={filteredClients}
+              isLoading={isLoading}
+              searchQuery={searchQuery}
+              onViewDetails={handleViewDetails}
+            />
+          </>
+        )}
 
         {/* Client Management Dialog */}
         <Dialog 

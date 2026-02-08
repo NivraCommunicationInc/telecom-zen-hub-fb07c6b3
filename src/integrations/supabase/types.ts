@@ -1076,6 +1076,13 @@ export type Database = {
             referencedRelation: "billing_invoices"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "billing_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["invoice_id"]
+          },
         ]
       }
       billing_invoices: {
@@ -1181,6 +1188,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "billing_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
+          },
+          {
             foreignKeyName: "billing_invoices_subscription_id_fkey"
             columns: ["subscription_id"]
             isOneToOne: false
@@ -1256,11 +1270,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "billing_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
+          },
+          {
             foreignKeyName: "billing_payments_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "billing_invoices"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["invoice_id"]
           },
         ]
       }
@@ -1329,6 +1357,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing_customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
           },
         ]
       }
@@ -9663,6 +9698,36 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_orphaned_payments: {
+        Row: {
+          bc_email: string | null
+          billing_customer_id: string | null
+          customer_email: string | null
+          customer_name: string | null
+          invoice_created_at: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_status:
+            | Database["public"]["Enums"]["billing_invoice_status"]
+            | null
+          invoice_total: number | null
+          link_status: string | null
+          profile_email: string | null
+          profile_user_id: string | null
+        }
+        Relationships: []
+      }
+      qa_payments_without_client: {
+        Row: {
+          email: string | null
+          full_name: string | null
+          invoice_count: number | null
+          last_invoice_at: string | null
+          total_invoiced: number | null
+          total_paid: number | null
+        }
+        Relationships: []
+      }
       qa_pdf_generation_logs: {
         Row: {
           customer_email: string | null
@@ -10325,6 +10390,26 @@ export type Database = {
       regenerate_contract_pdf: {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
         Returns: Json
+      }
+      search_clients_unified: {
+        Args: {
+          search_email?: string
+          search_name?: string
+          search_phone?: string
+        }
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          has_account: boolean
+          has_billing_customer: boolean
+          has_invoices: boolean
+          has_orders: boolean
+          has_profile: boolean
+          phone: string
+          source: string
+          source_id: string
+        }[]
       }
       split_full_name: {
         Args: { full_name_val: string }

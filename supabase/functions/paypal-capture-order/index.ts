@@ -10,8 +10,63 @@ const corsHeaders = {
 interface CapturePayPalOrderRequest {
   paypal_order_id: string;
   invoice_id?: string;
-  order_id?: string; // Add support for updating orders table
+  order_id?: string;
   customer_id?: string;
+}
+
+/**
+ * Normalize email: trim + lowercase
+ */
+function normalizeEmail(email: string | undefined | null): string {
+  return (email || "").trim().toLowerCase();
+}
+
+/**
+ * Ensure a billing_customer exists for this email.
+ * Creates one if missing, returns the customer_id.
+ */
+async function ensureBillingCustomer(
+  supabase: ReturnType<typeof createClient>,
+  email: string,
+  firstName: string,
+  lastName: string,
+  phone?: string
+): Promise<string | null> {
+  const normEmail = normalizeEmail(email);
+  if (!normEmail) return null;
+
+  // Check if customer exists
+  const { data: existing } = await supabase
+    .from("billing_customers")
+    .select("id")
+    .eq("email", normEmail)
+    .maybeSingle();
+
+  if (existing?.id) {
+    console.log("[PayPal] Existing billing_customer found:", existing.id);
+    return existing.id;
+  }
+
+  // Create new billing_customer
+  const { data: newCustomer, error } = await supabase
+    .from("billing_customers")
+    .insert({
+      email: normEmail,
+      first_name: firstName || "Client",
+      last_name: lastName || "PayPal",
+      phone: phone || "",
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[PayPal] Failed to create billing_customer:", error);
+    return null;
+  }
+
+  console.log("[PayPal] Created billing_customer:", newCustomer.id);
+  return newCustomer.id;
 }
 
 async function getPayPalAccessToken(): Promise<string> {
@@ -89,11 +144,28 @@ serve(async (req) => {
     const captureId = capture?.id;
     const amount = parseFloat(capture?.amount?.value || "0");
     const customId = captureData.purchase_units?.[0]?.custom_id;
+    
+    // Extract payer info for auto-creation
+    const payerEmail = normalizeEmail(captureData.payer?.email_address);
+    const payerFirstName = captureData.payer?.name?.given_name || "";
+    const payerLastName = captureData.payer?.name?.surname || "";
+    const payerPhone = captureData.payer?.phone?.phone_number?.national_number || "";
 
-    console.log("[PayPal] Capture ID:", captureId, "Amount:", amount, "CustomId:", customId);
+    console.log("[PayPal] Capture ID:", captureId, "Amount:", amount, "Payer:", payerEmail);
+
+    // AUTO-CREATE: Ensure billing_customer exists for this payer
+    let linkedCustomerId: string | null = body.customer_id || null;
+    if (payerEmail && !linkedCustomerId) {
+      linkedCustomerId = await ensureBillingCustomer(
+        supabase,
+        payerEmail,
+        payerFirstName,
+        payerLastName,
+        payerPhone
+      );
+    }
 
     // If we have an invoice_id, update the billing system
-    // Support both legacy "billing" table and new "billing_invoices" table
     if (body.invoice_id) {
       let invoiceUpdated = false;
       let customerEmail = "";
@@ -138,7 +210,6 @@ serve(async (req) => {
           invoiceUpdated = true;
           invoiceNumber = legacyInvoice.invoice_number || body.invoice_id.slice(0, 8);
           
-          // Get user info for email
           if (legacyInvoice.profile) {
             customerEmail = legacyInvoice.profile.email || legacyInvoice.client_email || "";
             customerName = legacyInvoice.profile.full_name || "";
@@ -146,8 +217,8 @@ serve(async (req) => {
             customerEmail = legacyInvoice.client_email || "";
           }
 
-          // Also insert into payments table for history
-          const { error: paymentHistoryError } = await supabase
+          // Insert into payments table for history
+          await supabase
             .from("payments")
             .insert({
               user_id: legacyInvoice.user_id,
@@ -160,15 +231,7 @@ serve(async (req) => {
               status: "completed",
               source: "portal",
             });
-
-          if (paymentHistoryError) {
-            console.error("[PayPal] Payment history insert error:", paymentHistoryError);
-          } else {
-            console.log("[PayPal] Payment history recorded successfully");
-          }
         }
-      } else {
-        console.log("[PayPal] Invoice not found in legacy billing, trying billing_invoices...");
       }
 
       // If not found in legacy table, try billing_invoices (V2 system)
@@ -184,7 +247,7 @@ serve(async (req) => {
         } else if (invoice) {
           console.log("[PayPal] Found invoice in billing_invoices:", invoice.id);
           
-        // Create payment record in billing_payments
+          // Create payment record in billing_payments
           const { data: paymentData, error: paymentError } = await supabase
             .from("billing_payments")
             .insert({
@@ -197,36 +260,43 @@ serve(async (req) => {
               status: "confirmed",
               received_at: new Date().toISOString(),
               source: "portal",
+              created_by_name: "PayPal Auto-Capture",
+              created_by_role: "system",
             })
             .select()
             .single();
           
-          console.log("[PayPal] Payment record created:", paymentData?.id || "success");
-
           if (paymentError) {
             console.error("[PayPal] Payment record error:", paymentError);
           } else {
-            console.log("[PayPal] Payment recorded for invoice:", invoice.id);
+            console.log("[PayPal] Payment recorded:", paymentData?.id);
 
-            // Update invoice status (trigger will handle balance calculation)
+            // Update invoice with payment snapshot
             const newAmountPaid = (invoice.amount_paid || 0) + amount;
             const newBalanceDue = invoice.total - newAmountPaid;
+            const isPaid = newBalanceDue <= 0;
             
             await supabase
               .from("billing_invoices")
               .update({
                 amount_paid: newAmountPaid,
                 balance_due: newBalanceDue,
-                status: newBalanceDue <= 0 ? "paid" : "pending",
-                paid_at: newBalanceDue <= 0 ? new Date().toISOString() : null,
+                status: isPaid ? "paid" : "pending",
+                paid_at: isPaid ? new Date().toISOString() : null,
+                billing_snapshot_payment: isPaid ? {
+                  method: "paypal",
+                  paid_at: new Date().toISOString(),
+                  transaction_id: captureId,
+                  amount: amount,
+                } : null,
               })
               .eq("id", invoice.id);
 
             invoiceUpdated = true;
             invoiceNumber = invoice.invoice_number;
 
-            // If fully paid, activate subscription and enable auto-billing
-            if (newBalanceDue <= 0 && invoice.subscription_id) {
+            // If fully paid, activate subscription
+            if (isPaid && invoice.subscription_id) {
               await supabase
                 .from("billing_subscriptions")
                 .update({ 
@@ -236,7 +306,6 @@ serve(async (req) => {
                 .eq("id", invoice.subscription_id);
             }
 
-            // Get customer info for email
             if (invoice.customer) {
               customerEmail = invoice.customer.email;
               customerName = `${invoice.customer.first_name} ${invoice.customer.last_name}`;
@@ -249,7 +318,7 @@ serve(async (req) => {
       if (invoiceUpdated && customerEmail) {
         await supabase.from("email_queue").insert({
           event_key: `paypal_payment_${captureId}`,
-          to_email: customerEmail,
+          to_email: normalizeEmail(customerEmail),
           template_key: "payment_confirmed",
           template_vars: {
             client_name: customerName || "Client",
@@ -281,7 +350,7 @@ serve(async (req) => {
       if (orderUpdateError) {
         console.error("[PayPal] Order update error:", orderUpdateError);
       } else {
-        console.log("[PayPal] Order updated successfully with payment reference:", captureId);
+        console.log("[PayPal] Order updated with payment reference:", captureId);
       }
 
       // Also append to notes
@@ -301,11 +370,11 @@ serve(async (req) => {
       }
     }
 
-    // Log the successful capture (entity_id must be UUID or null, so we store capture_id in details)
+    // Log the successful capture
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_capture",
-      entity_id: body.order_id || body.invoice_id || null, // Use Nivra order/invoice ID if provided
+      entity_id: body.order_id || body.invoice_id || null,
       action: "completed",
       details: {
         capture_id: captureId,
@@ -313,7 +382,8 @@ serve(async (req) => {
         invoice_id: body.invoice_id,
         order_id: body.order_id,
         amount,
-        payer_email: captureData.payer?.email_address,
+        payer_email: payerEmail,
+        linked_customer_id: linkedCustomerId,
       },
     });
 
@@ -323,7 +393,8 @@ serve(async (req) => {
         capture_id: captureId,
         amount,
         status: captureData.status,
-        payer_email: captureData.payer?.email_address,
+        payer_email: payerEmail,
+        linked_customer_id: linkedCustomerId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
