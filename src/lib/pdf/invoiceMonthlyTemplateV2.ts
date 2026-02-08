@@ -1,6 +1,11 @@
 /**
- * Nivra Invoice Monthly Template V2.4
+ * Nivra Invoice Monthly Template V2.5
  * Template professionnel style opérateur (Rogers/Telus/Bell)
+ * 
+ * V2.5 CHANGES:
+ * - Layout: Invoice details now uses proper 2-column table (no overlay)
+ * - Sanitization: All text fields pass through assertPrintableText
+ * - Payment: Global conditional logic for paid vs unpaid
  * 
  * Layout: A4/Letter printable
  * Design: Navy header (#0F172A), Teal accent (#14B8A6), clean grid layout
@@ -8,7 +13,13 @@
 
 import jsPDF from "jspdf";
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceMonthlyData } from "./types";
-import { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER, convertToV2Invoice } from "./types";
+import { NIVRA_COMPANY, convertToV2Invoice } from "./types";
+import { 
+  assertPrintableText, 
+  sanitizeCustomerData, 
+  sanitizePaymentData,
+  sanitizeDescription 
+} from "./pdfTextSanitizer";
 
 // ============================================================================
 // COLORS
@@ -30,14 +41,14 @@ const COLORS = {
 // ============================================================================
 
 function formatCurrency(amount: number): string {
-  return amount.toFixed(2);
+  return (amount || 0).toFixed(2);
 }
 
 /**
  * Formate une date de manière sécurisée
  * Gère les placeholders de templates vierges et les dates invalides
  */
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "—";
   
   // Placeholder pour template vierge - retourner tel quel
@@ -79,7 +90,27 @@ function formatPaymentMethod(method: string): string {
     "Manual": "Manuel",
     "cash": "Comptant",
   };
-  return methods[method] || method;
+  return methods[method] || assertPrintableText(method, "payment_method");
+}
+
+/**
+ * Formate le statut pour affichage
+ */
+function formatStatus(status: string): string {
+  const statuses: Record<string, string> = {
+    "Paid": "Payé",
+    "paid": "Payé",
+    "Pending": "En attente",
+    "pending": "En attente",
+    "Issued": "Émise",
+    "issued": "Émise",
+    "Cancelled": "Annulée",
+    "cancelled": "Annulée",
+    "Expired": "Expirée",
+    "expired": "Expirée",
+    "overdue": "En retard",
+  };
+  return statuses[status] || status;
 }
 
 // ============================================================================
@@ -88,6 +119,7 @@ function formatPaymentMethod(method: string): string {
 
 export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationResult {
   try {
+    // Validate required fields
     if (!data.invoice_number) {
       return { success: false, error: "Numéro de facture manquant" };
     }
@@ -95,6 +127,9 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
       return { success: false, error: "Informations client incomplètes" };
     }
 
+    // Sanitize all customer data globally
+    const customer = sanitizeCustomerData(data.customer);
+    
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -141,106 +176,119 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     y = 55;
 
     // ========================================================================
-    // CLIENT INFO + INVOICE DETAILS (Two columns)
+    // CLIENT INFO + INVOICE DETAILS (Two columns - FIXED LAYOUT)
     // ========================================================================
     const colWidth = contentWidth / 2 - 5;
+    const boxHeight = 58; // Fixed height for both boxes
     
     // Left column: Client info
     doc.setFillColor(COLORS.lightGray.r, COLORS.lightGray.g, COLORS.lightGray.b);
-    doc.rect(margin, y, colWidth, 55, "F");
+    doc.rect(margin, y, colWidth, boxHeight, "F");
     
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
     doc.text("Informations client", margin + 5, y + 8);
     
-    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
     
-    const clientLabels = ["Nom", "Courriel", "Téléphone", "Adresse"];
-    const clientValues = [
-      data.customer.full_name,
-      data.customer.email,
-      data.customer.phone || "—",
-      `${data.customer.address_line1}${data.customer.address_line2 ? "\n" + data.customer.address_line2 : ""}\n${data.customer.city}, ${data.customer.province} ${data.customer.postal_code}`
-    ];
-    
+    const clientLabelX = margin + 5;
+    const clientValueX = margin + 32;
     let clientY = y + 16;
-    clientLabels.forEach((label, i) => {
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-      doc.text(label, margin + 5, clientY);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
-      
-      if (label === "Adresse") {
-        const lines = clientValues[i].split("\n");
-        lines.forEach((line, li) => {
-          doc.text(line, margin + 30, clientY + (li * 4));
-        });
-        clientY += lines.length * 4;
-      } else {
-        doc.text(clientValues[i], margin + 30, clientY);
-        clientY += 7;
-      }
-    });
+    
+    // Nom
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
+    doc.text("Nom", clientLabelX, clientY);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
+    doc.text(customer.full_name, clientValueX, clientY);
+    clientY += 6;
+    
+    // Email
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
+    doc.text("Courriel", clientLabelX, clientY);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
+    doc.text(customer.email.substring(0, 30), clientValueX, clientY);
+    clientY += 6;
+    
+    // Phone
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
+    doc.text("Téléphone", clientLabelX, clientY);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
+    doc.text(customer.phone || "—", clientValueX, clientY);
+    clientY += 6;
+    
+    // Address
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
+    doc.text("Adresse", clientLabelX, clientY);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
+    doc.text(customer.address_line1.substring(0, 30), clientValueX, clientY);
+    clientY += 4;
+    if (customer.address_line2) {
+      doc.text(customer.address_line2.substring(0, 30), clientValueX, clientY);
+      clientY += 4;
+    }
+    doc.text(`${customer.city}, ${customer.province} ${customer.postal_code}`, clientValueX, clientY);
 
-    // Right column: Invoice details
+    // Right column: Invoice details - PROPER TABLE LAYOUT (no overlay)
     const rightColX = margin + colWidth + 10;
     doc.setFillColor(COLORS.lightGray.r, COLORS.lightGray.g, COLORS.lightGray.b);
-    doc.rect(rightColX, y, colWidth, 55, "F");
+    doc.rect(rightColX, y, colWidth, boxHeight, "F");
     
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
     doc.text("Détails facture", rightColX + 5, y + 8);
     
-    const invoiceLabels = ["N° compte", "N° facture", "Date d'émission", "Échéance", "Période", "Statut"];
-    const invoiceValues = [
-      data.account_number,
-      data.invoice_number,
-      formatDate(data.invoice_date),
-      formatDate(data.due_date),
-      data.billing_period_start && data.billing_period_end 
-        ? `${formatDate(data.billing_period_start)} → ${formatDate(data.billing_period_end)}`
-        : "—",
-      data.status
+    doc.setFontSize(8);
+    
+    const invLabelX = rightColX + 5;
+    const invValueX = rightColX + 40;
+    let invoiceY = y + 16;
+    
+    // All invoice fields in proper 2-column table layout
+    const invoiceFields = [
+      { label: "N° compte", value: assertPrintableText(data.account_number, "account_number") },
+      { label: "N° facture", value: assertPrintableText(data.invoice_number, "invoice_number") },
+      { label: "Date d'émission", value: formatDate(data.invoice_date) },
+      { label: "Échéance", value: formatDate(data.due_date) },
+      { label: "Période", value: data.billing_period_start && data.billing_period_end 
+        ? `${formatDate(data.billing_period_start).substring(0, 12)} → ${formatDate(data.billing_period_end).substring(0, 12)}`
+        : "—" },
+      { label: "Statut", value: formatStatus(data.status) },
     ];
     
-    let invoiceY = y + 16;
-    invoiceLabels.forEach((label, i) => {
+    invoiceFields.forEach(({ label, value }) => {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-      doc.text(label, rightColX + 5, invoiceY);
+      doc.text(label, invLabelX, invoiceY);
       
       doc.setFont("helvetica", "normal");
       doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
-      doc.text(invoiceValues[i], rightColX + 40, invoiceY);
-      invoiceY += 7;
+      doc.text(value.substring(0, 25), invValueX, invoiceY);
+      invoiceY += 6;
     });
-
-    // Total box (bottom right of right column)
-    const totalBoxY = y + 30;
-    doc.setFillColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
-    doc.rect(rightColX + colWidth - 50, totalBoxY, 45, 20, "F");
     
-    doc.setTextColor(COLORS.white.r, COLORS.white.g, COLORS.white.b);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text("Total à payer", rightColX + colWidth - 27.5, totalBoxY + 6, { align: "center" });
-    
+    // Total à payer - as separate row in table (NOT overlay)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(`${formatCurrency(data.balance_due)} $`, rightColX + colWidth - 27.5, totalBoxY + 15, { align: "center" });
+    doc.setTextColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
+    doc.text("Total à payer", invLabelX, invoiceY);
+    doc.setFontSize(11);
+    doc.text(`${formatCurrency(data.balance_due)} $`, invValueX, invoiceY);
 
-    y = y + 60;
+    y = y + boxHeight + 5;
 
     // ========================================================================
     // SERVICES TABLE
     // ========================================================================
-    y += 5;
+    y += 3;
     
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -284,16 +332,16 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
         doc.rect(margin, y, contentWidth, rowH, "F");
       }
       
-      // Description
-      const desc = item.description;
+      // Description - sanitized
+      const desc = sanitizeDescription(item.description);
       doc.setFont("helvetica", "normal");
       doc.text(desc.substring(0, 45), cols[0].x, y + 5);
       
-      // Reference if exists
+      // Reference if exists - sanitized
       if (item.reference) {
         doc.setFontSize(6);
         doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-        doc.text(`Réf.: ${item.reference}`, cols[0].x, y + 9);
+        doc.text(`Réf.: ${assertPrintableText(item.reference, "reference")}`, cols[0].x, y + 9);
         doc.setFontSize(8);
         doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
       }
@@ -361,7 +409,8 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     if (data.discounts && data.discounts.length > 0) {
       doc.setTextColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
       data.discounts.forEach(discount => {
-        doc.text(discount.label, totalsX, y);
+        const discountLabel = assertPrintableText(discount.label, "discount_label");
+        doc.text(discountLabel, totalsX, y);
         doc.text(`-${formatCurrency(discount.amount)} $`, totalsX + 65, y, { align: "right" });
         y += 5;
       });
@@ -403,13 +452,19 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     y += 15;
 
     // ========================================================================
-    // PAYMENT SECTION - Conditional: Instructions OR Confirmation
+    // PAYMENT SECTION - GLOBAL CONDITIONAL LOGIC
+    // Rule: if status === "paid" OR balance_due === 0 → show confirmation
+    //       else → show payment instructions
     // ========================================================================
-    const isPaid = data.status === "Paid" || data.status === "paid" || data.balance_due === 0;
+    const isPaid = 
+      data.status?.toLowerCase() === "paid" || 
+      data.status?.toLowerCase() === "payé" ||
+      data.balance_due === 0;
     
     if (isPaid && data.payments && data.payments.length > 0) {
       // ====== PAYMENT CONFIRMED BLOCK ======
       const payment = data.payments[0]; // Primary payment
+      const sanitizedPayment = sanitizePaymentData(payment);
       
       doc.setFillColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
       doc.rect(margin, y - 5, contentWidth, 8, "F");
@@ -431,30 +486,31 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
       doc.setFontSize(9);
       
       // Payment method
-      const methodLabel = formatPaymentMethod(payment.method);
+      const methodLabel = formatPaymentMethod(sanitizedPayment.method);
       doc.text(`Méthode: ${methodLabel}`, margin + 5, y + 6);
       
       // Payment date
-      const paidDate = payment.paid_at ? formatDate(payment.paid_at) : "—";
+      const paidDate = formatDate(sanitizedPayment.paid_at);
       doc.text(`Date: ${paidDate}`, margin + 5, y + 12);
       
-      // Transaction ID / Reference
+      // Transaction ID / Reference - from billing_payments
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      if (payment.processor_txn_id) {
-        doc.text(`ID Transaction: ${payment.processor_txn_id}`, margin + 5, y + 18);
-      } else if (payment.payment_reference) {
-        doc.text(`Référence: ${payment.payment_reference}`, margin + 5, y + 18);
+      const txnId = sanitizedPayment.processor_txn_id !== "—" 
+        ? sanitizedPayment.processor_txn_id 
+        : sanitizedPayment.payment_reference;
+      if (txnId && txnId !== "—") {
+        doc.text(`Référence paiement: ${txnId}`, margin + 5, y + 18);
       }
       
       // Amount confirmed
       doc.setFont("helvetica", "bold");
       doc.setTextColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
-      doc.text(`Montant confirmé: ${formatCurrency(payment.paid_amount)} $`, margin + contentWidth - 60, y + 12);
+      doc.text(`Montant confirmé: ${formatCurrency(sanitizedPayment.paid_amount)} $`, margin + contentWidth - 60, y + 12);
       
       y += 31;
     } else {
-      // ====== PAYMENT INSTRUCTIONS BLOCK ======
+      // ====== PAYMENT INSTRUCTIONS BLOCK (only if NOT paid) ======
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(COLORS.dark.r, COLORS.dark.g, COLORS.dark.b);
@@ -473,7 +529,7 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
       doc.setFontSize(8);
       doc.text("Courriel: Support@nivra-telecom.ca", margin + 5, y + 13);
       doc.text("Question secrète: Numéro de facture", margin + 5, y + 18);
-      doc.text(`Réponse: ${data.invoice_number}`, margin + 5, y + 23);
+      doc.text(`Réponse: ${assertPrintableText(data.invoice_number, "invoice_number")}`, margin + 5, y + 23);
       
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7);
@@ -489,7 +545,6 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     // Ensure we have space for footer
     if (y > pageHeight - 40) {
       doc.addPage();
-      y = margin;
     }
     
     doc.setFillColor(COLORS.navy.r, COLORS.navy.g, COLORS.navy.b);
@@ -522,7 +577,8 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     // GENERATE BLOB
     // ========================================================================
     const blob = doc.output("blob");
-    const filename = `Facture_Mensuelle_${data.invoice_number}_${data.invoice_date.replace(/-/g, "")}.pdf`;
+    const invoiceDate = data.invoice_date?.replace(/-/g, "") || "unknown";
+    const filename = `Facture_Mensuelle_${data.invoice_number}_${invoiceDate}.pdf`;
 
     return { success: true, blob, filename };
   } catch (error) {
