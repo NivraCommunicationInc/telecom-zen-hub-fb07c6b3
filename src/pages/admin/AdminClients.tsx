@@ -58,9 +58,7 @@ import ClientPhoneActions from "@/components/admin/ClientPhoneActions";
 import ClientCommunicationsPanel from "@/components/admin/ClientCommunicationsPanel";
 import { ClientsTable } from "@/components/admin/ClientsTable";
 import { ClientSearchBar, type SearchFilter } from "@/components/admin/ClientSearchBar";
-import UnifiedClientSearchPanel from "@/components/admin/UnifiedClientSearchPanel";
 import QAOrphanedPaymentsPanel from "@/components/admin/QAOrphanedPaymentsPanel";
-import { useUnifiedClientSearch, type UnifiedClientResult } from "@/hooks/useUnifiedClientSearch";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -98,7 +96,6 @@ const AdminClients = () => {
   const { logClientActivity } = useClientActivityLog();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState<SearchFilter>("all");
-  const [showUnifiedSearch, setShowUnifiedSearch] = useState(false);
   const [showQAPanel, setShowQAPanel] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -136,16 +133,33 @@ const AdminClients = () => {
     isDefault: false,
   });
 
-  // Fetch all clients - show ALL profiles regardless of role
+  // Fetch all clients - UNIFIED: profiles + billing_customers without profiles
   const { data: clients, isLoading, refetch: refetchClients } = useQuery({
-    queryKey: ["admin-clients"],
+    queryKey: ["admin-clients-unified"],
     queryFn: async () => {
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
+      // Use unified_clients view that includes both profiles and billing-only customers
+      const { data: unifiedData, error: unifiedError } = await supabase
+        .from("unified_clients" as any)
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (profilesError) throw profilesError;
+      if (unifiedError) {
+        console.error("Failed to fetch unified_clients:", unifiedError);
+        // Fallback to profiles only
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (profilesError) throw profilesError;
+        return profilesData?.map(profile => ({
+          ...profile,
+          role: 'client',
+          user_roles: [{ role: 'client' }],
+          source: 'profile',
+          has_profile: true,
+          has_billing_customer: false,
+        })) || [];
+      }
 
       const { data: rolesData } = await supabase
         .from("user_roles")
@@ -153,10 +167,10 @@ const AdminClients = () => {
 
       const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
       
-      return profilesData?.map(profile => ({
-        ...profile,
-        role: rolesMap.get(profile.user_id) || 'client',
-        user_roles: [{ role: rolesMap.get(profile.user_id) || 'client' }]
+      return unifiedData?.map((client: any) => ({
+        ...client,
+        role: rolesMap.get(client.user_id) || 'client',
+        user_roles: [{ role: rolesMap.get(client.user_id) || 'client' }]
       })) || [];
     },
     refetchOnWindowFocus: true,
@@ -919,24 +933,8 @@ const AdminClients = () => {
           />
         </div>
 
-        {/* Search Mode Toggle */}
+        {/* QA Tools Toggle */}
         <div className="flex flex-wrap gap-2">
-          <Button 
-            variant={!showUnifiedSearch ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setShowUnifiedSearch(false)}
-          >
-            <Search className="w-4 h-4 mr-2" />
-            Recherche profils
-          </Button>
-          <Button 
-            variant={showUnifiedSearch ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setShowUnifiedSearch(true)}
-          >
-            <Users className="w-4 h-4 mr-2" />
-            Recherche unifiée
-          </Button>
           <Button 
             variant={showQAPanel ? "default" : "outline"} 
             size="sm"
@@ -963,39 +961,20 @@ const AdminClients = () => {
           />
         )}
 
-        {/* Unified Search Panel (conditional) */}
-        {showUnifiedSearch ? (
-          <UnifiedClientSearchPanel
-            onSelectClient={(result: UnifiedClientResult) => {
-              // If has profile, try to find and select it
-              if (result.has_profile && result.email) {
-                const matchingClient = clients?.find((c: any) => 
-                  c.email?.toLowerCase().trim() === result.email?.toLowerCase().trim()
-                );
-                if (matchingClient) {
-                  handleViewDetails(matchingClient);
-                }
-              }
-            }}
-          />
-        ) : (
-          <>
-            {/* Standard Search bar */}
-            <ClientSearchBar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchFilter={searchFilter}
-              onFilterChange={setSearchFilter}
-            />
+        {/* Standard Search bar - now searching unified_clients (profiles + billing-only) */}
+        <ClientSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchFilter={searchFilter}
+          onFilterChange={setSearchFilter}
+        />
 
-            <ClientsTable
-              clients={filteredClients}
-              isLoading={isLoading}
-              searchQuery={searchQuery}
-              onViewDetails={handleViewDetails}
-            />
-          </>
-        )}
+        <ClientsTable
+          clients={filteredClients}
+          isLoading={isLoading}
+          searchQuery={searchQuery}
+          onViewDetails={handleViewDetails}
+        />
 
         {/* Client Management Dialog */}
         <Dialog 
