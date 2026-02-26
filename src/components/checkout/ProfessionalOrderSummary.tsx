@@ -81,6 +81,13 @@ interface ProfessionalOrderSummaryProps {
   continueDisabled?: boolean;
   showBillPreview?: boolean;
   isMobile?: boolean;
+  // Welcome discount for new customers
+  welcomeDiscount?: {
+    isNewCustomer: boolean;
+    discountPercent: number;
+    discountAmount: number;
+    label: string;
+  };
 }
 
 const categoryIcons: Record<string, any> = {
@@ -130,6 +137,7 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
   continueDisabled = false,
   showBillPreview = false,
   isMobile = false,
+  welcomeDiscount,
 }) => {
   const [showOneTimeFeeDetails, setShowOneTimeFeeDetails] = useState(false);
   const [showTaxDetails, setShowTaxDetails] = useState(false);
@@ -244,6 +252,18 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
             <span className="text-foreground">Total mensuel estimé</span>
             <span className="text-cyan-500">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
           </div>
+          {/* Welcome discount for new customers - first month only */}
+          {welcomeDiscount && welcomeDiscount.isNewCustomer && welcomeDiscount.discountAmount > 0 && (
+            <div className="mt-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+              <div className="flex justify-between items-center text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="flex items-center gap-1.5">
+                  🎉 {welcomeDiscount.label}
+                </span>
+                <span>-{welcomeDiscount.discountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+              </div>
+              <p className="text-[10px] text-emerald-500 dark:text-emerald-500 mt-0.5">Appliqué automatiquement sur votre 1ère facture</p>
+            </div>
+          )}
         </div>
       </div>
 

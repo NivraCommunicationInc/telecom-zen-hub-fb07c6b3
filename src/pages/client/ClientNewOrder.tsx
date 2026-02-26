@@ -67,6 +67,7 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
+import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 
 interface Service {
@@ -481,6 +482,7 @@ const ClientNewOrder = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAccountBlocked } = useClientBlockStatus();
+  const welcomeDiscountHook = useWelcomeDiscount(user?.id);
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
@@ -1518,6 +1520,11 @@ const ClientNewOrder = () => {
           amount: appliedPromo.discount_amount,
           description: appliedPromo.name,
         }] : []),
+        ...(welcomeDiscountAmount > 0 ? [{
+          name: "Rabais nouveau client (50% — 1er mois)",
+          amount: welcomeDiscountAmount,
+          description: "50% de rabais sur les services — première facture uniquement",
+        }] : []),
         ...(acceptPreauthorized ? [{
           name: "Rabais paiement préautorisé",
           amount: PREAUTH_MONTHLY_DISCOUNT,
@@ -1538,7 +1545,7 @@ const ClientNewOrder = () => {
       const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
       
       // Cap discount to never exceed gross total (prevents negative amounts)
-      const cappedDiscount = Math.min(appliedPromo?.discount_amount || 0, grossTotal);
+      const cappedDiscount = Math.min((appliedPromo?.discount_amount || 0) + welcomeDiscountAmount, grossTotal);
       
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
@@ -1591,7 +1598,8 @@ const ClientNewOrder = () => {
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
           (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : '') +
-          (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${cappedDiscount.toFixed(2)}$` : ''),
+          (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${cappedDiscount.toFixed(2)}$` : '') +
+          (welcomeDiscountAmount > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${welcomeDiscountAmount.toFixed(2)}$` : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
@@ -1712,6 +1720,7 @@ const ClientNewOrder = () => {
           const billingTotalsSnapshot = {
             subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
             discount_amount: cappedDiscount,
+            welcome_discount_amount: welcomeDiscountAmount,
             base_amount: baseAmount,
             tps_amount: tpsAmount,
             tvq_amount: tvqAmount,
@@ -2357,12 +2366,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
   const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
+  
+  // Welcome discount: 50% off services for new customers (first bill only)
+  const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
+  
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
   // Cap discount to never exceed the cart total (prevents negative amounts)
   const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
+  
+  // Total discount = promo + welcome (capped to gross total)
+  const totalDiscount = Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
 
-  const baseAmount = round2(Math.max(0, grossTotal - promoDiscount));
+  const baseAmount = round2(Math.max(0, grossTotal - totalDiscount));
   const tpsAmount = round2(baseAmount * 0.05);
   const tvqAmount = round2(baseAmount * 0.09975);
   const totalAmount = round2(baseAmount + tpsAmount + tvqAmount);
@@ -2894,6 +2910,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   installationChoice={installationChoice}
                   onContinue={() => setStep(2)}
                   continueDisabled={selectedServices.length === 0}
+                  welcomeDiscount={{
+                    isNewCustomer: welcomeDiscountHook.isNewCustomer,
+                    discountPercent: welcomeDiscountHook.discountPercent,
+                    discountAmount: welcomeDiscountAmount,
+                    label: welcomeDiscountHook.label,
+                  }}
                 />
               </div>
               
@@ -2937,6 +2959,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     onContinue={() => setStep(2)}
                     continueDisabled={selectedServices.length === 0}
                     isMobile={true}
+                    welcomeDiscount={{
+                      isNewCustomer: welcomeDiscountHook.isNewCustomer,
+                      discountPercent: welcomeDiscountHook.discountPercent,
+                      discountAmount: welcomeDiscountAmount,
+                      label: welcomeDiscountHook.label,
+                    }}
                   />
                 )}
               </div>

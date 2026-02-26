@@ -43,6 +43,7 @@ interface ServiceItem {
 interface BillingTotals {
   subtotal: number;           // Gross subtotal before taxes and discounts
   discount_amount: number;    // Applied promo/preauth discount
+  welcome_discount_amount?: number; // Welcome discount for new customers (50% on services)
   base_amount: number;        // Taxable amount (subtotal - discount)
   tps_amount: number;         // TPS (5%)
   tvq_amount: number;         // TVQ (9.975%)
@@ -318,6 +319,19 @@ serve(async (req) => {
           quantity: 1,
           line_total: invoiceActivationFee
         });
+      }
+      
+      // Welcome discount line (50% on services for new customers - first invoice only)
+      const welcomeDiscountAmt = hasBillingTotals && i === 0 ? (body.billing_totals!.welcome_discount_amount || 0) : 0;
+      if (welcomeDiscountAmt > 0) {
+        lines.push({
+          invoice_id: invoice.id,
+          description: "Rabais nouveau client (50% — 1er mois)",
+          unit_price: -welcomeDiscountAmt,
+          quantity: 1,
+          line_total: -welcomeDiscountAmt
+        });
+        console.log(`[billing-create-order] Added welcome discount line: -${welcomeDiscountAmt}`);
       }
       
       await supabase.from("billing_invoice_lines").insert(lines);
