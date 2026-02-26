@@ -46,6 +46,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
+import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { 
   CheckoutLayout, 
   CheckoutProgress, 
@@ -177,6 +178,7 @@ const ClientInternetOrder = () => {
   const { language } = useLanguage();
   const isFrench = language === 'fr';
   const { isAccountBlocked } = useClientBlockStatus();
+  const welcomeDiscountHook = useWelcomeDiscount(user?.id);
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
@@ -751,11 +753,21 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
   // Build order summary items
   const getMonthlyItems = () => {
     if (!selectedPlan) return [];
-    return [{
+    const items: Array<{label: string; amount: number; description?: string; isDiscount?: boolean}> = [{
       label: selectedPlan.name,
       amount: selectedPlan.price,
       description: `${selectedPlan.speed} - ${isFrench ? "Internet haute vitesse" : "High-speed Internet"}`,
     }];
+    const wdAmount = welcomeDiscountHook.getDiscountAmount(selectedPlan.price);
+    if (wdAmount > 0) {
+      items.push({
+        label: isFrench ? "Rabais nouveau client (50% — 1er mois)" : "New customer discount (50% — 1st month)",
+        amount: wdAmount,
+        isDiscount: true,
+        description: isFrench ? "Appliqué automatiquement sur votre 1ère facture" : "Automatically applied on your 1st bill",
+      });
+    }
+    return items;
   };
 
   const getOneTimeItems = () => {
