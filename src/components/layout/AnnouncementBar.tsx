@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -117,9 +117,6 @@ const AnnouncementBar = () => {
     return null;
   }
 
-  const announcementText =
-    "50% de rabais sur ton 1er mois — code: BIENVENUE — + Tirage 500$ cash le 15 février 2026";
-
   return (
     <div
       id="announcement-bar"
@@ -128,7 +125,7 @@ const AnnouncementBar = () => {
       aria-label="Annonce promotionnelle"
     >
       <div className="relative flex items-center h-10 px-2 sm:px-4">
-        {/* Scrolling content container - fixed width to prevent overflow */}
+        {/* Scrolling content container */}
         <div className="flex-1 overflow-hidden mr-2 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-180px)]">
           <div
             className={`flex items-center gap-8 whitespace-nowrap ${
@@ -136,19 +133,11 @@ const AnnouncementBar = () => {
             }`}
             aria-hidden="true"
           >
-            {/* Repeat content for seamless loop */}
             {[0, 1].map((i) => (
               <div key={i} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium">
-                <span>50% de rabais sur ton 1er mois</span>
-                <span className="text-accent-foreground/70 hidden sm:inline">—</span>
-                <span className="flex items-center gap-1.5">
-                  code:{" "}
-                  <span className="inline-flex items-center px-2 py-0.5 bg-white/20 rounded font-bold tracking-wide">
-                    BIENVENUE
-                  </span>
-                </span>
-                <span className="text-accent-foreground/70 hidden sm:inline">—</span>
-                <span className="hidden sm:inline">+ Tirage 500$ cash le 15 février 2026</span>
+                <span>Nouveau client? Obtenez 50% de rabais sur votre première facture</span>
+                <span className="text-accent-foreground/40 mx-2 sm:mx-4">•</span>
+                <span>Offre exclusive — Aucun contrat requis</span>
                 <span className="text-accent-foreground/40 mx-2 sm:mx-4">•</span>
               </div>
             ))}
@@ -161,21 +150,11 @@ const AnnouncementBar = () => {
             variant="ghost"
             size="sm"
             className="h-7 px-2 sm:px-2.5 text-xs font-medium bg-white/15 hover:bg-white/25 text-accent-foreground border-0"
-            asChild
-          >
-            <Link to="/concours" aria-label="Voir les détails du concours et de la promotion">
-              <span className="hidden sm:inline">Voir les détails</span>
-              <span className="sm:hidden">Détails</span>
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="hidden sm:inline-flex h-7 px-2.5 text-xs font-medium bg-white/25 hover:bg-white/35 text-accent-foreground border-0"
             onClick={handlePlansClick}
             aria-label="Voir nos forfaits disponibles"
           >
-            Plans
+            <span className="hidden sm:inline">Voir nos forfaits</span>
+            <span className="sm:hidden">Forfaits</span>
           </Button>
 
           {/* Close button */}
