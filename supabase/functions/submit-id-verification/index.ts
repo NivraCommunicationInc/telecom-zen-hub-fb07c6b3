@@ -46,6 +46,23 @@ Deno.serve(async (req) => {
     const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
     const clientUa = req.headers.get("user-agent") || "unknown";
 
+    // IP throttle: max 10 submissions per IP per hour
+    if (clientIp !== "unknown") {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: ipCount } = await supabase
+        .from("identity_verification_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("client_ip", clientIp)
+        .gte("submitted_at", oneHourAgo);
+
+      if ((ipCount || 0) >= 10) {
+        return new Response(
+          JSON.stringify({ error: "Too many submissions from this device. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (!publicToken) {
       return new Response(
         JSON.stringify({ error: "Missing public_token" }),

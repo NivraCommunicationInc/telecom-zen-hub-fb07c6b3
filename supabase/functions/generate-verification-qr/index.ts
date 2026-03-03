@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
     }
 
     // If regenerating, expire the old session
+    const MAX_REGEN = 3;
+    let newRegenCount = 0;
     if (regenerate_session_id) {
       const { data: oldSession } = await supabase
         .from("identity_verification_sessions")
@@ -107,13 +109,15 @@ Deno.serve(async (req) => {
         .single();
 
       if (oldSession) {
-        if (oldSession.qr_regeneration_count >= 3) {
-          log("REGEN_LIMIT", "max 3 reached");
+        if (oldSession.qr_regeneration_count >= MAX_REGEN) {
+          log("REGEN_LIMIT", `max ${MAX_REGEN} reached`);
           return new Response(
-            JSON.stringify({ error: "Maximum QR regenerations reached (3). Please restart checkout." }),
+            JSON.stringify({ error: `Maximum QR regenerations reached (${MAX_REGEN}). Please restart checkout.`, max_regen_allowed: MAX_REGEN }),
             { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+
+        newRegenCount = (oldSession.qr_regeneration_count || 0) + 1;
 
         await supabase
           .from("identity_verification_sessions")
@@ -125,9 +129,10 @@ Deno.serve(async (req) => {
           event_type: "expired_by_regeneration",
           actor_id: userId,
           actor_role: "client",
+          details: { regen_count: newRegenCount, max_allowed: MAX_REGEN },
         });
 
-        log("REGEN_OK", `expired old=${regenerate_session_id.slice(0, 8)}`);
+        log("REGEN_OK", `expired old=${regenerate_session_id.slice(0, 8)}, count=${newRegenCount}/${MAX_REGEN}`);
       }
     }
 
@@ -150,7 +155,7 @@ Deno.serve(async (req) => {
         checkout_fields: checkout_fields || null,
         status: "created",
         expires_at: expiresAt.toISOString(),
-        qr_regeneration_count: regenerate_session_id ? 1 : 0,
+        qr_regeneration_count: newRegenCount,
       })
       .select()
       .single();
