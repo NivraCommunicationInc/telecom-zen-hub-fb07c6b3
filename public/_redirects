@@ -39,6 +39,9 @@
 /client/access-blocked /portal/access-blocked 301
 /client/* /portal/:splat 301
 
+# Public KYC health endpoint proxy
+/api/kyc-health https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-health 200
+
 # SPA catch-all - must be LAST
 /* /index.html 200
 
