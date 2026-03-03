@@ -352,10 +352,11 @@ Deno.serve(async (req) => {
     const checkoutFields = session.checkout_fields || {};
     const matchResult = computeMatch(extractedFields, checkoutFields);
 
-    // Update session with results
+    // Update session with OCR results AND transition to manual_review
     await supabase.from("identity_verification_sessions").update({
       extracted_fields: extractedFields,
       match_result: matchResult,
+      status: "manual_review",
     }).eq("id", session_id);
 
     // Log OCR event
@@ -367,7 +368,14 @@ Deno.serve(async (req) => {
       details: { match_score: matchResult.match_score, status: matchResult.status },
     });
 
-    // If mismatch, create admin notification
+    // Create admin notification for manual review (always required)
+    await supabase.from("admin_notification_logs").insert({
+      event_type: "kyc_manual_review_required",
+      event_id: session_id,
+      priority: "high",
+    });
+
+    // If mismatch, create ADDITIONAL urgent admin notification
     if (matchResult.status === "mismatch" || matchResult.status === "partial_match") {
       await supabase.from("admin_notification_logs").insert({
         event_type: "kyc_mismatch_detected",

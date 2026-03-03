@@ -1087,6 +1087,15 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
                 setIdVerificationApproved(true);
               }}
               orderContext={{ plan: selectedPlan?.id, address }}
+              checkoutFields={{
+                first_name: clientIdData.firstName || "",
+                last_name: clientIdData.lastName || "",
+                date_of_birth: clientIdData.dateOfBirth || "",
+                document_number: clientIdData.idNumber || "",
+                expiry_date: clientIdData.idExpiration || "",
+                document_type: clientIdData.idType || "",
+                issuing_region: clientIdData.idProvince || "",
+              }}
             />
 
             {/* Navigation */}

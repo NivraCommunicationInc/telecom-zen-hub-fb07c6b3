@@ -4290,6 +4290,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             setIdVerificationApproved(true);
                           }}
                           orderContext={{ services: selectedServices.map(s => s.id) }}
+                          checkoutFields={{
+                            first_name: firstName || "",
+                            last_name: lastName || "",
+                            date_of_birth: dateOfBirth || "",
+                            document_number: idNumber || "",
+                            expiry_date: idExpiration || "",
+                            document_type: idType || "",
+                            issuing_region: idProvince || "",
+                          }}
                         />
                       </div>
                     )}
