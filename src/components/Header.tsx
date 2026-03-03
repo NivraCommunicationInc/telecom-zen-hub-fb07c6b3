@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, Search, ShoppingCart, ChevronDown } from "lucide-react";
+import { Menu, X, User, Search, ChevronDown } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -68,36 +68,42 @@ const Header = () => {
     <>
       <PublicSystemStatusBanner />
       
-      {/* Top utility bar - like Bell's gray bar */}
+      {/* Top utility bar — Bell-style: Personal | Business | Find a store | FR */}
       <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
-        <div className="container mx-auto px-4 max-w-7xl flex items-center justify-end gap-6 h-8 text-xs text-slate-600">
-          <Link to="/aide" className="hover:text-blue-700 transition-colors">
-            {isFr ? "Support" : "Support"}
-          </Link>
-          <Link to="/a-propos" className="hover:text-blue-700 transition-colors">
-            {isFr ? "À propos" : "About"}
-          </Link>
-          <Link to="/contact" className="hover:text-blue-700 transition-colors">
-            {isFr ? "Nous joindre" : "Contact Us"}
-          </Link>
-          <LanguageSelector />
+        <div className="container mx-auto px-4 max-w-7xl flex items-center justify-between h-9">
+          <div className="flex items-center gap-5 text-xs font-medium text-slate-700">
+            <Link to="/" className="hover:underline underline-offset-2">{isFr ? "Personnel" : "Personal"}</Link>
+            <Link to="/contact" className="text-slate-500 hover:underline underline-offset-2">{isFr ? "Entreprise" : "Business"}</Link>
+          </div>
+          <div className="flex items-center gap-5 text-xs text-slate-500">
+            <Link to="/aide" className="hover:text-slate-800 transition-colors">
+              {isFr ? "Trouver un point de vente" : "Find a store"}
+            </Link>
+            <Link to="/a-propos" className="hover:text-slate-800 transition-colors">
+              {isFr ? "À propos" : "About"}
+            </Link>
+            <Link to="/contact" className="hover:text-slate-800 transition-colors">
+              {isFr ? "Nous joindre" : "Contact Us"}
+            </Link>
+            <LanguageSelector />
+          </div>
         </div>
       </div>
 
-      {/* Main navigation - Bell blue style */}
-      <header className={`sticky top-0 z-50 bg-[#003366] text-white shadow-md transition-all duration-200`}>
+      {/* Main navigation — Bell-style: WHITE background, dark text */}
+      <header className={`sticky top-0 z-50 bg-white border-b border-slate-200 transition-all duration-200 ${isScrolled ? 'shadow-sm' : ''}`}>
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="flex items-center justify-between h-16 lg:h-[68px]">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[#003366] flex items-center justify-center">
                 <span className="font-bold text-white text-xl">N</span>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight hidden sm:block">Nivra</span>
+              <span className="font-bold text-xl text-[#003366] tracking-tight hidden sm:block">Nivra</span>
             </Link>
 
-            {/* Desktop Navigation - Bell-style categories */}
-            <nav className="hidden lg:flex items-center gap-0.5 ml-10">
+            {/* Desktop Navigation — dark text on white */}
+            <nav className="hidden lg:flex items-center gap-1 ml-10">
               {NAV_TARGETS.map((target) => {
                 const isActive = target.type === 'route' 
                   ? location.pathname === target.target 
@@ -109,8 +115,8 @@ const Header = () => {
                     to={target.target}
                     className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
                       isActive
-                        ? 'text-white bg-white/15 underline underline-offset-[22px] decoration-2 decoration-white'
-                        : 'text-white/90 hover:text-white hover:bg-white/10'
+                        ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
+                        : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
                     }`}
                   >
                     {getLabel(target)}
@@ -119,7 +125,7 @@ const Header = () => {
                   <button
                     key={target.id}
                     onClick={() => handleNavClick(target)}
-                    className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 transition-colors rounded-md"
+                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-[#003366] hover:bg-slate-50 transition-colors rounded-md"
                     type="button"
                   >
                     {getLabel(target)}
@@ -128,14 +134,14 @@ const Header = () => {
               })}
             </nav>
 
-            {/* Right side - Bell style */}
+            {/* Right side — Bell style: search + blue login */}
             <div className="hidden lg:flex items-center gap-3">
-              <button className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+              <button className="p-2 text-slate-500 hover:text-[#003366] hover:bg-slate-50 rounded-lg transition-colors">
                 <Search className="w-5 h-5" />
               </button>
               <Link 
                 to={portalLink}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-white text-[#003366] rounded-full hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-[#003366] text-white rounded-full hover:bg-[#002244] transition-colors"
               >
                 {isFr ? "Connexion" : "Log in"}
               </Link>
@@ -143,7 +149,7 @@ const Header = () => {
 
             {/* Mobile Menu Button */}
             <button
-              className="lg:hidden p-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg"
+              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
               type="button"
@@ -159,9 +165,14 @@ const Header = () => {
         <>
           <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setIsMenuOpen(false)} />
           <div className="fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-[#003366]">
-              <span className="font-bold text-white text-lg">Nivra</span>
-              <button onClick={() => setIsMenuOpen(false)} className="p-1 text-white/80 hover:text-white">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#003366] flex items-center justify-center">
+                  <span className="font-bold text-white text-sm">N</span>
+                </div>
+                <span className="font-bold text-[#003366] text-lg">Nivra</span>
+              </div>
+              <button onClick={() => setIsMenuOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -175,7 +186,7 @@ const Header = () => {
                     onClick={() => setIsMenuOpen(false)}
                     className={`block px-4 py-3 text-sm font-medium rounded-lg mb-0.5 ${
                       location.pathname === target.target
-                        ? 'bg-blue-50 text-blue-700'
+                        ? 'bg-blue-50 text-[#003366]'
                         : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >

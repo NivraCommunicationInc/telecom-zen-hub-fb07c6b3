@@ -5,6 +5,7 @@ import NetworkTrust from "@/components/NetworkTrust";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 import { FeaturedOffers } from "@/components/FeaturedOffers";
+import ShopServices from "@/components/ShopServices";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import HomeStatusBanner from "@/components/HomeStatusBanner";
@@ -21,6 +22,7 @@ const Index = () => {
         <FeaturedOffers />
         <ServiceShowcase />
         <NetworkTrust />
+        <ShopServices />
         <CTA />
       </main>
       <Footer />
