@@ -61,22 +61,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify the caller has admin role
-    const { data: roleData, error: roleError } = await supabaseAdmin
+    // Verify the caller has staff access (admin OR employee)
+    const { data: allowedRoles, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", callingUser.id)
-      .single();
+      .in("role", ["admin", "employee"])
+      .limit(1);
 
-    if (roleError || roleData?.role !== "admin") {
-      console.error("User is not admin:", callingUser.email, roleData?.role);
+    if (roleError) {
+      console.error("Role check error:", roleError);
+    }
+
+    let callerRole = allowedRoles?.[0]?.role ?? null;
+    let hasStaffAccess = Array.isArray(allowedRoles) && allowedRoles.length > 0;
+
+    // Fallback for projects using admin_users as staff source
+    if (!hasStaffAccess) {
+      const { data: activeAdminRows, error: adminAccessError } = await supabaseAdmin
+        .from("admin_users")
+        .select("id")
+        .eq("user_id", callingUser.id)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (adminAccessError) {
+        console.error("admin_users fallback check error:", adminAccessError);
+      }
+
+      if (Array.isArray(activeAdminRows) && activeAdminRows.length > 0) {
+        hasStaffAccess = true;
+        callerRole = "admin";
+      }
+    }
+
+    if (!hasStaffAccess) {
+      console.error("User is not authorized staff:", callingUser.email);
       return new Response(
-        JSON.stringify({ error: "Accès refusé - Rôle administrateur requis" }),
+        JSON.stringify({ error: "Accès refusé - rôle staff requis" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Admin ${callingUser.email} creating new user`);
+    console.log(`Staff ${callingUser.email} creating new user (role: ${callerRole})`);
 
     // Parse request body
     const body: CreateUserRequest = await req.json();
@@ -191,7 +218,7 @@ Deno.serve(async (req) => {
       }),
       reason: "Nouveau client créé par admin (server-side)",
       actor_email: callingUser.email,
-      actor_role: "admin",
+      actor_role: callerRole || "admin",
     });
 
     console.log(`User creation completed successfully for ${body.email}`);
