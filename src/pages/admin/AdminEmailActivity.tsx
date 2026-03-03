@@ -68,6 +68,8 @@ const AdminEmailActivity = () => {
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [testRecipient, setTestRecipient] = useState("nivratelecom@gmail.com");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isRetrying, setIsRetrying] = useState<string | null>(null);
 
   // Template test modal state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -90,11 +92,17 @@ const AdminEmailActivity = () => {
 
   const fetchEmails = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("email_queue")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
+      
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setEmails((data as EmailQueueItem[]) || []);
@@ -108,7 +116,40 @@ const AdminEmailActivity = () => {
 
   useEffect(() => {
     fetchEmails();
-  }, []);
+  }, [statusFilter]);
+
+  const handleRetryEmail = async (emailId: string) => {
+    setIsRetrying(emailId);
+    try {
+      const { error } = await supabase
+        .from("email_queue")
+        .update({ status: "queued", attempts: 0, last_error: null, next_retry_at: null })
+        .eq("id", emailId);
+      
+      if (error) throw error;
+      toast.success("Email remis en queue pour réessai");
+      fetchEmails();
+    } catch (err) {
+      toast.error("Erreur lors du réessai");
+    } finally {
+      setIsRetrying(null);
+    }
+  };
+
+  const handleRetryAllFailed = async () => {
+    try {
+      const { error } = await supabase
+        .from("email_queue")
+        .update({ status: "queued", attempts: 0, last_error: null, next_retry_at: null })
+        .eq("status", "failed");
+      
+      if (error) throw error;
+      toast.success("Tous les emails échoués remis en queue");
+      fetchEmails();
+    } catch (err) {
+      toast.error("Erreur lors du réessai en masse");
+    }
+  };
 
   const openTestModal = () => {
     setShowTestModal(true);
@@ -494,32 +535,33 @@ const AdminEmailActivity = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">Total (derniers 50)</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-500">{stats.sent}</div>
-              <p className="text-xs text-muted-foreground">Envoyés</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-red-500">{stats.failed}</div>
-              <p className="text-xs text-muted-foreground">Échoués</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-yellow-500">{stats.queued}</div>
-              <p className="text-xs text-muted-foreground">En attente</p>
-            </CardContent>
-          </Card>
+        {/* Filter Bar + Stats */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filtrer par statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="sent">Envoyés</SelectItem>
+              <SelectItem value="failed">Échoués</SelectItem>
+              <SelectItem value="queued">En attente</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {stats.failed > 0 && (
+            <Button variant="destructive" size="sm" onClick={handleRetryAllFailed}>
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Réessayer tous les échoués ({stats.failed})
+            </Button>
+          )}
+          
+          <div className="flex gap-3 ml-auto text-sm">
+            <span className="text-muted-foreground">Total: <strong>{stats.total}</strong></span>
+            <span className="text-green-600">Envoyés: <strong>{stats.sent}</strong></span>
+            <span className="text-destructive">Échoués: <strong>{stats.failed}</strong></span>
+            <span className="text-yellow-600">Queue: <strong>{stats.queued}</strong></span>
+          </div>
         </div>
 
         {/* Email Table */}
@@ -551,6 +593,7 @@ const AdminEmailActivity = () => {
                     <TableHead>Provider ID</TableHead>
                     <TableHead>Erreur</TableHead>
                     <TableHead>Envoyé le</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -577,13 +620,26 @@ const AdminEmailActivity = () => {
                       <TableCell className="font-mono text-xs text-muted-foreground max-w-[120px] truncate">
                         {email.provider_message_id || "-"}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-red-500 text-sm">
+                      <TableCell className="max-w-[200px] truncate text-destructive text-sm">
                         {email.last_error || "-"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {email.sent_at
                           ? format(new Date(email.sent_at), "dd MMM HH:mm", { locale: fr })
                           : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {email.status === "failed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRetryEmail(email.id)}
+                            disabled={isRetrying === email.id}
+                          >
+                            <RefreshCw className={`w-3 h-3 mr-1 ${isRetrying === email.id ? "animate-spin" : ""}`} />
+                            Réessayer
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
