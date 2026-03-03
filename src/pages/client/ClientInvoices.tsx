@@ -20,6 +20,7 @@ import PaymentDisputeDialog from "@/components/client/PaymentDisputeDialog";
 import PaymentDisputeTimeline from "@/components/client/PaymentDisputeTimeline";
 import PaymentHistoryV2 from "@/components/client/PaymentHistoryV2";
 import MobileInvoiceCard from "@/components/client/MobileInvoiceCard";
+import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -42,6 +43,10 @@ const ClientInvoices = () => {
   // Dispute state
   const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
   const [disputePayment, setDisputePayment] = useState<any>(null);
+
+  // Pay invoice dialog state
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payingInvoice, setPayingInvoice] = useState<any>(null);
 
   // Fetch client profile
   const { data: profile } = useQuery({
@@ -246,9 +251,25 @@ const ClientInvoices = () => {
     }
   }, [createInvoiceData]);
 
-  // Navigate to payment methods page
+  // Open pay dialog for a specific invoice
+  const handlePayInvoice = (inv: any) => {
+    setPayingInvoice(inv);
+    setPayDialogOpen(true);
+  };
+
+  // Pay the first pending invoice (header button)
   const handlePayClick = () => {
-    navigate("/portal/payments");
+    const firstPending = pendingInvoices[0];
+    if (firstPending) {
+      handlePayInvoice(firstPending);
+    } else {
+      navigate("/portal/payments");
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+    queryClient.invalidateQueries({ queryKey: ["client-profile"] });
   };
 
   // Pending invoices for summary section
@@ -464,7 +485,7 @@ const ClientInvoices = () => {
                           onViewPDF={handleViewPDF}
                           onDownloadPDF={handleDownloadPDF}
                           onPreview={handleViewPDF}
-                          onPay={handlePayClick}
+                          onPay={(inv) => handlePayInvoice(inv)}
                           onDispute={(inv) => {
                             setDisputePayment(inv);
                             setDisputeDialogOpen(true);
@@ -558,6 +579,18 @@ const ClientInvoices = () => {
                                 </td>
                                 <td className="py-3 px-4">
                                   <div className="flex gap-1.5">
+                                    {/* Pay — only for unpaid invoices */}
+                                    {inv.status !== "paid" && inv.status !== "void" && (
+                                      <Button
+                                        size="sm"
+                                        className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
+                                        onClick={() => handlePayInvoice(inv)}
+                                        title="Payer cette facture"
+                                      >
+                                        <DollarSign className="w-3.5 h-3.5 mr-1" />
+                                        Payer
+                                      </Button>
+                                    )}
                                     {/* View PDF */}
                                     <Button
                                       size="sm"
@@ -635,6 +668,16 @@ const ClientInvoices = () => {
           title={pdfTitle}
           filename={pdfFilename}
           isLoading={pdfLoading}
+        />
+
+        {/* Pay Invoice Dialog */}
+        <PayInvoiceDialog
+          open={payDialogOpen}
+          onOpenChange={setPayDialogOpen}
+          invoice={payingInvoice}
+          totalDue={payingInvoice ? calculateTotal(payingInvoice) : 0}
+          profile={profile}
+          onPaymentSuccess={handlePaymentSuccess}
         />
       </div>
     </ClientLayout>
