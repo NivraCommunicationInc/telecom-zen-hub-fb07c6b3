@@ -31,11 +31,11 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   // DEBUG: Only log on first render or significant changes
   // (removed per-render logging to reduce noise)
 
-  // Handle idle timeout - auto logout after 5 minutes of inactivity
+  // Handle idle timeout - auto logout after 30 minutes of inactivity
   const handleIdleLogout = useCallback(async () => {
     console.log("[ProtectedRoute] Idle timeout - logging out admin");
     toast.info("Session expirée pour inactivité", {
-      description: "Vous avez été déconnecté après 5 minutes d'inactivité.",
+      description: "Vous avez été déconnecté après 30 minutes d'inactivité.",
     });
     sessionStorage.removeItem("admin_last_auth_check");
     clearSession(); // Clear secret-code session
@@ -223,8 +223,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  // SECURITY: Show nothing while verifying - prevent any admin UI flash
-  if (isLoading || isVerifying || isCheckingSecret) {
+  // SECURITY: Show nothing while verifying initial access only - avoid UI flash without blocking during background checks
+  const shouldShowLoading = isLoading || isVerifying || (isCheckingSecret && !isAdminVerified);
+
+  if (shouldShowLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">

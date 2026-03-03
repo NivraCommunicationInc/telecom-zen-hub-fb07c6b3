@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ClientAuthProvider } from "@/hooks/useClientAuth";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
@@ -195,6 +195,14 @@ const AdminQABlockStatus = lazy(() => import("@/pages/admin/AdminQABlockStatus")
  * - Admin routes: NEVER wrapped with MaintenanceGuard (admins always have access)
  * - Portal routes: Wrapped with MaintenanceGuard
  */
+const AdminProtectedOutlet = () => (
+  <AuthProvider>
+    <ProtectedRoute requireAdmin>
+      <Outlet />
+    </ProtectedRoute>
+  </AuthProvider>
+);
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -245,77 +253,85 @@ const AppRoutes = () => {
       {/* ============================================ */}
       <Route path="/admin/login" element={<AuthProvider><AdminLogin /></AuthProvider>} />
       <Route path="/admin/reset-password" element={<AuthProvider><AdminResetPassword /></AuthProvider>} />
-      <Route path="/admin/change-credentials" element={<AuthProvider><ProtectedRoute requireAdmin><AdminChangeCredentials /></ProtectedRoute></AuthProvider>} />
       <Route path="/admin/bootstrap" element={<AuthProvider><AdminBootstrap /></AuthProvider>} />
-      <Route path="/admin" element={<AuthProvider><ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/orders" element={<AuthProvider><ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/clients" element={<AuthProvider><ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/services" element={<AuthProvider><ProtectedRoute requireAdmin><AdminServices /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/billing" element={<AuthProvider><ProtectedRoute requireAdmin><AdminBilling /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/requests" element={<AuthProvider><ProtectedRoute requireAdmin><AdminRequests /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/billing-playbook" element={<AuthProvider><ProtectedRoute requireAdmin><BillingV2Playbook /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/contracts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContracts /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/activity" element={<AuthProvider><ProtectedRoute requireAdmin><AdminActivityLogs /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/appointments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAppointments /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/careers" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCareers /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/applications" element={<AuthProvider><ProtectedRoute requireAdmin><AdminApplications /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/tickets" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTickets /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/channels" element={<AuthProvider><ProtectedRoute requireAdmin><AdminChannels /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/technicians" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTechnicians /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/replacements" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReplacements /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/cancellations" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCancellations /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/employees" element={<AuthProvider><ProtectedRoute requireAdmin><AdminEmployees /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/promotions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPromotions /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/accounts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAccounts /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/recouvrement" element={<AuthProvider><ProtectedRoute requireAdmin><AdminRecouvrement /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/streaming" element={<AuthProvider><ProtectedRoute requireAdmin><AdminStreaming /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/streaming-catalog" element={<AuthProvider><ProtectedRoute requireAdmin><AdminStreamingCatalog /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/system-status" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSystemStatus /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/internal-tickets" element={<AuthProvider><ProtectedRoute requireAdmin><AdminInternalTickets /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/email-activity" element={<AuthProvider><ProtectedRoute requireAdmin><AdminEmailActivity /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/email-deliverability" element={<AuthProvider><ProtectedRoute requireAdmin><AdminEmailDeliverability /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/account" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAccount /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/users" element={<AuthProvider><ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/users-access" element={<AuthProvider><ProtectedRoute requireAdmin><AdminUsersAccess /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/live-activity" element={<AuthProvider><ProtectedRoute requireAdmin><LiveActivityPage /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/audit-log" element={<AuthProvider><ProtectedRoute requireAdmin><AdminAuditLog /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/pdf-templates-v2" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPDFTemplatesV2 /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/qa" element={<AuthProvider><ProtectedRoute requireAdmin><AdminQA /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/payment-disputes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPaymentDisputes /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/contested-invoices" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContestedInvoices /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/contested-payments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContestedPayments /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/site" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSite /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/security-events" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityEvents /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/maintenance" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMaintenance /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/security-guardian" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSecurityGuardian /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/concours" element={<AuthProvider><ProtectedRoute requireAdmin><AdminContests /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/formulaire-web" element={<AuthProvider><ProtectedRoute requireAdmin><AdminWebForms /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/telephony" element={<AuthProvider><ProtectedRoute requireAdmin><AdminTelephony /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/marketing" element={<AuthProvider><ProtectedRoute requireAdmin><AdminMarketing /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/communication-email" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCommunicationEmail /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/communication-sms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminCommunicationSMS /></ProtectedRoute></AuthProvider>} />
-      {/* Admin Referral Program */}
-      <Route path="/admin/referrals" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferrals /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/influencers" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencers /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/influencers/:id" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralInfluencerDetail /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/codes" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCodes /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/attributions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralAttributions /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/parrainages" element={<Navigate to="/admin/referrals/attributions" replace />} />
-      <Route path="/admin/referrals/commissions" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCommissions /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/cashouts" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralCashouts /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminReferralSettings /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/referrals/terms" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPartnerTerms /></ProtectedRoute></AuthProvider>} />
-      {/* Document Requests */}
-      <Route path="/admin/document-requests" element={<AuthProvider><ProtectedRoute requireAdmin><AdminDocumentRequests /></ProtectedRoute></AuthProvider>} />
-      {/* Notifications */}
-      <Route path="/admin/notifications-settings" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotificationsSettings /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/notifications" element={<AuthProvider><ProtectedRoute requireAdmin><AdminNotifications /></ProtectedRoute></AuthProvider>} />
-      {/* Field Sales Admin - Redirect to POS */}
-      <Route path="/admin/field-sales" element={<Navigate to="/admin/pos" replace />} />
-      <Route path="/admin/pos" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPOS /></ProtectedRoute></AuthProvider>} />
-      <Route path="/admin/payments" element={<AuthProvider><ProtectedRoute requireAdmin><AdminPayments /></ProtectedRoute></AuthProvider>} />
-      {/* System Audit - READ-ONLY */}
-      <Route path="/admin/system-audit" element={<AuthProvider><ProtectedRoute requireAdmin><AdminSystemAudit /></ProtectedRoute></AuthProvider>} />
+
+      <Route path="/admin" element={<AdminProtectedOutlet />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="change-credentials" element={<AdminChangeCredentials />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="clients" element={<AdminClients />} />
+        <Route path="services" element={<AdminServices />} />
+        <Route path="billing" element={<AdminBilling />} />
+        <Route path="requests" element={<AdminRequests />} />
+        <Route path="billing-playbook" element={<BillingV2Playbook />} />
+        <Route path="contracts" element={<AdminContracts />} />
+        <Route path="activity" element={<AdminActivityLogs />} />
+        <Route path="appointments" element={<AdminAppointments />} />
+        <Route path="careers" element={<AdminCareers />} />
+        <Route path="applications" element={<AdminApplications />} />
+        <Route path="tickets" element={<AdminTickets />} />
+        <Route path="channels" element={<AdminChannels />} />
+        <Route path="technicians" element={<AdminTechnicians />} />
+        <Route path="replacements" element={<AdminReplacements />} />
+        <Route path="cancellations" element={<AdminCancellations />} />
+        <Route path="employees" element={<AdminEmployees />} />
+        <Route path="promotions" element={<AdminPromotions />} />
+        <Route path="accounts" element={<AdminAccounts />} />
+        <Route path="recouvrement" element={<AdminRecouvrement />} />
+        <Route path="streaming" element={<AdminStreaming />} />
+        <Route path="streaming-catalog" element={<AdminStreamingCatalog />} />
+        <Route path="system-status" element={<AdminSystemStatus />} />
+        <Route path="internal-tickets" element={<AdminInternalTickets />} />
+        <Route path="email-activity" element={<AdminEmailActivity />} />
+        <Route path="email-deliverability" element={<AdminEmailDeliverability />} />
+        <Route path="account" element={<AdminAccount />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="users-access" element={<AdminUsersAccess />} />
+        <Route path="live-activity" element={<LiveActivityPage />} />
+        <Route path="audit-log" element={<AdminAuditLog />} />
+        <Route path="pdf-templates-v2" element={<AdminPDFTemplatesV2 />} />
+        <Route path="qa" element={<AdminQA />} />
+        <Route path="payment-disputes" element={<AdminPaymentDisputes />} />
+        <Route path="contested-invoices" element={<AdminContestedInvoices />} />
+        <Route path="contested-payments" element={<AdminContestedPayments />} />
+        <Route path="site" element={<AdminSite />} />
+        <Route path="security-events" element={<AdminSecurityEvents />} />
+        <Route path="maintenance" element={<AdminMaintenance />} />
+        <Route path="security-guardian" element={<AdminSecurityGuardian />} />
+        <Route path="concours" element={<AdminContests />} />
+        <Route path="formulaire-web" element={<AdminWebForms />} />
+        <Route path="telephony" element={<AdminTelephony />} />
+        <Route path="marketing" element={<AdminMarketing />} />
+        <Route path="communication-email" element={<AdminCommunicationEmail />} />
+        <Route path="communication-sms" element={<AdminCommunicationSMS />} />
+
+        {/* Admin Referral Program */}
+        <Route path="referrals" element={<AdminReferrals />} />
+        <Route path="referrals/influencers" element={<AdminReferralInfluencers />} />
+        <Route path="referrals/influencers/:id" element={<AdminReferralInfluencerDetail />} />
+        <Route path="referrals/codes" element={<AdminReferralCodes />} />
+        <Route path="referrals/attributions" element={<AdminReferralAttributions />} />
+        <Route path="referrals/parrainages" element={<Navigate to="/admin/referrals/attributions" replace />} />
+        <Route path="referrals/commissions" element={<AdminReferralCommissions />} />
+        <Route path="referrals/cashouts" element={<AdminReferralCashouts />} />
+        <Route path="referrals/settings" element={<AdminReferralSettings />} />
+        <Route path="referrals/terms" element={<AdminPartnerTerms />} />
+
+        {/* Document Requests */}
+        <Route path="document-requests" element={<AdminDocumentRequests />} />
+
+        {/* Notifications */}
+        <Route path="notifications-settings" element={<AdminNotificationsSettings />} />
+        <Route path="notifications" element={<AdminNotifications />} />
+
+        {/* Field Sales Admin - Redirect to POS */}
+        <Route path="field-sales" element={<Navigate to="/admin/pos" replace />} />
+        <Route path="pos" element={<AdminPOS />} />
+        <Route path="payments" element={<AdminPayments />} />
+
+        {/* System Audit - READ-ONLY */}
+        <Route path="system-audit" element={<AdminSystemAudit />} />
+      </Route>
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
