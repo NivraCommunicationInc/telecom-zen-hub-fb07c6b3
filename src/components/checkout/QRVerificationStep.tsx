@@ -4,6 +4,7 @@
  * Used in both ClientNewOrder and ClientInternetOrder checkouts.
  * 
  * Includes client-side QR fallback if edge function QR PNG generation fails.
+ * Full error instrumentation: logs endpoint, payload, HTTP status, and error messages.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,7 @@ type SessionStatus = "created" | "submitted" | "approved" | "rejected" | "manual
 
 const STATUS_CONFIG: Record<SessionStatus, { icon: typeof CheckCircle2; color: string; labelFr: string; labelEn: string }> = {
   created: { icon: QrCode, color: "text-blue-500", labelFr: "En attente de soumission", labelEn: "Awaiting submission" },
-  submitted: { icon: Loader2, color: "text-amber-500", labelFr: "Documents soumis — en révision", labelEn: "Documents submitted — under review" },
+  submitted: { icon: Loader2, color: "text-amber-500", labelFr: "Documents soumis — analyse en cours", labelEn: "Documents submitted — analysis in progress" },
   approved: { icon: CheckCircle2, color: "text-emerald-600", labelFr: "Identité vérifiée ✓", labelEn: "Identity verified ✓" },
   rejected: { icon: XCircle, color: "text-red-500", labelFr: "Vérification refusée", labelEn: "Verification rejected" },
   manual_review: { icon: AlertCircle, color: "text-amber-600", labelFr: "Révision manuelle en cours", labelEn: "Manual review in progress" },
@@ -48,12 +49,17 @@ export const QRVerificationStep = ({
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [regenCount, setRegenCount] = useState(0);
+  const [maxRegen, setMaxRegen] = useState(3);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const generateQR = useCallback(async (regenerateSessionId?: string) => {
     setLoading(true);
     setError(null);
+    setErrorDetail(null);
+    
     // Clear old QR immediately on regenerate for visual feedback
     if (regenerateSessionId) {
       setQrDataUrl(null);
@@ -61,29 +67,58 @@ export const QRVerificationStep = ({
       setExpiresAt(null);
       setTimeLeft("");
     }
+
+    const payload = {
+      checkout_type: checkoutType,
+      order_context: orderContext || {},
+      checkout_fields: checkoutFields || {},
+      regenerate_session_id: regenerateSessionId,
+      _cache_bust: Date.now(),
+    };
+
+    console.log(`[QR] Calling generate-verification-qr`, {
+      endpoint: "generate-verification-qr",
+      payload: { ...payload, checkout_fields: "..." },
+      regenerateFrom: regenerateSessionId || "none",
+    });
+
     try {
-      // Cache-busting: use fetch with no-store to avoid stale responses
       const { data, error: fnError } = await dbClient.functions.invoke("generate-verification-qr", {
-        body: {
-          checkout_type: checkoutType,
-          order_context: orderContext || {},
-          checkout_fields: checkoutFields || {},
-          regenerate_session_id: regenerateSessionId,
-          _cache_bust: Date.now(), // Force unique request body
-        },
+        body: payload,
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
           "Pragma": "no-cache",
         },
       });
 
-      if (fnError) throw new Error(fnError.message || "Failed to generate QR");
-      if (data?.error) throw new Error(data.error);
+      // Log full response for debugging
+      console.log(`[QR] Response received:`, {
+        hasData: !!data,
+        hasError: !!fnError,
+        errorMessage: fnError?.message,
+        dataKeys: data ? Object.keys(data) : [],
+        requestId: data?.request_id,
+        errorCode: data?.error_code,
+      });
+
+      if (fnError) {
+        console.error(`[QR] Function invoke error:`, fnError);
+        throw new Error(fnError.message || "Failed to call verification service");
+      }
+      
+      if (data?.error) {
+        console.error(`[QR] Server error response:`, {
+          error_code: data.error_code,
+          error: data.error,
+          request_id: data.request_id,
+        });
+        throw new Error(data.error);
+      }
 
       // Use server-side QR PNG if available, otherwise generate client-side
-      // Append cache-bust param to verify_url for client-side QR
       const verifyUrl = data.verify_url;
       let qrImage = data.qr_data_url;
+      
       if (!qrImage && verifyUrl) {
         console.warn("[QR] Server QR PNG failed, generating client-side fallback");
         try {
@@ -93,6 +128,7 @@ export const QRVerificationStep = ({
             color: { dark: "#000000", light: "#FFFFFF" },
             errorCorrectionLevel: "H",
           });
+          console.log("[QR] Client-side QR generated successfully");
         } catch (qrErr) {
           console.error("[QR] Client-side QR fallback also failed:", qrErr);
         }
@@ -102,13 +138,27 @@ export const QRVerificationStep = ({
       setSessionId(data.session_id);
       setStatus("created");
       setExpiresAt(new Date(data.expires_at));
+      setRegenCount(data.qr_regeneration_count || 0);
+      setMaxRegen(data.max_regen_allowed || 3);
 
-      if (data.request_id) {
-        console.log(`[QR] NEW session created. request_id=${data.request_id}, session=${data.session_id}, regenerated_from=${regenerateSessionId || 'none'}`);
-      }
+      console.log(`[QR] ✅ Session created successfully`, {
+        request_id: data.request_id,
+        session_id: data.session_id,
+        expires_at: data.expires_at,
+        has_qr_png: !!data.qr_data_url,
+        regen_count: `${data.qr_regeneration_count || 0}/${data.max_regen_allowed || 3}`,
+        regenerated_from: regenerateSessionId || "none",
+      });
     } catch (err: any) {
-      console.error("QR generation error:", err);
-      setError(err.message || "Erreur lors de la génération du QR");
+      console.error("[QR] ❌ Generation failed:", {
+        message: err.message,
+        name: err.name,
+        stack: err.stack?.slice(0, 200),
+      });
+      
+      const userMessage = err.message || (isFrench ? "Erreur lors de la génération du QR" : "Error generating QR code");
+      setError(userMessage);
+      setErrorDetail(err.message);
       toast.error(isFrench ? "Erreur lors de la génération du code QR" : "Error generating QR code");
     } finally {
       setLoading(false);
@@ -120,8 +170,8 @@ export const QRVerificationStep = ({
     generateQR();
   }, [generateQR]);
 
-   // Poll session status every 3 seconds
-    useEffect(() => {
+  // Poll session status every 3 seconds
+  useEffect(() => {
     if (!sessionId) return;
     
     const poll = async () => {
@@ -136,24 +186,19 @@ export const QRVerificationStep = ({
           const newStatus = data.status as SessionStatus;
           setStatus(newStatus);
           
-          // "submitted" = intermediate state (OCR running), show progress but don't unlock checkout yet
           if (newStatus === "submitted") {
             toast.info(isFrench 
               ? "Documents reçus — analyse en cours..." 
               : "Documents received — analysis in progress...");
-          }
-          // "manual_review" = OCR done, admin must review. Allow checkout to proceed (order will be pending_verification)
-          else if (newStatus === "manual_review") {
+          } else if (newStatus === "manual_review") {
             onVerified(sessionId);
             toast.success(isFrench 
               ? "Documents soumis! Un agent vérifiera votre identité sous peu." 
               : "Documents submitted! An agent will verify your identity shortly.");
-          } 
-          else if (newStatus === "approved") {
+          } else if (newStatus === "approved") {
             onVerified(sessionId);
             toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
-          } 
-          else if (newStatus === "rejected") {
+          } else if (newStatus === "rejected") {
             toast.error(isFrench ? "Vérification refusée. Veuillez réessayer." : "Verification rejected. Please try again.");
           }
         }
@@ -197,10 +242,8 @@ export const QRVerificationStep = ({
   }, []);
 
   const handleRegenerate = () => {
-    // Stop all timers before regenerating
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    // MUST pass current sessionId so edge function creates a NEW row and expires the old one
     const oldSessionId = sessionId;
     console.log(`[QR] Regenerating. Old session=${oldSessionId} will be expired, new session will be created.`);
     generateQR(oldSessionId || undefined);
@@ -210,6 +253,7 @@ export const QRVerificationStep = ({
   const StatusIcon = statusConfig.icon;
   const isTerminal = status === "approved" || status === "rejected";
   const isExpired = status === "expired";
+  const canRegenerate = regenCount < maxRegen;
 
   return (
     <div className="space-y-6">
@@ -265,7 +309,10 @@ export const QRVerificationStep = ({
               ) : error ? (
                 <div className="w-[200px] h-[200px] flex flex-col items-center justify-center bg-red-50 rounded-lg border border-red-200 p-4 text-center">
                   <XCircle className="w-8 h-8 text-red-400 mb-2" />
-                  <p className="text-xs text-red-600">{error}</p>
+                  <p className="text-xs text-red-600 mb-1">{error}</p>
+                  {errorDetail && (
+                    <p className="text-[10px] text-red-400 font-mono break-all">{errorDetail}</p>
+                  )}
                   <Button onClick={() => generateQR()} variant="outline" size="sm" className="mt-2">
                     <RefreshCw className="w-3 h-3 mr-1" />
                     {isFrench ? "Réessayer" : "Retry"}
@@ -286,6 +333,13 @@ export const QRVerificationStep = ({
                   </span>
                 </div>
               )}
+
+              {/* Regen count indicator */}
+              {!isTerminal && sessionId && (
+                <p className="text-[10px] text-slate-400 font-mono">
+                  {isFrench ? `Régénérations: ${regenCount}/${maxRegen}` : `Regenerations: ${regenCount}/${maxRegen}`}
+                </p>
+              )}
             </div>
           </div>
 
@@ -294,6 +348,7 @@ export const QRVerificationStep = ({
             status === "approved" ? "bg-emerald-50 border border-emerald-200" :
             status === "rejected" ? "bg-red-50 border border-red-200" :
             status === "submitted" ? "bg-amber-50 border border-amber-200" :
+            status === "manual_review" ? "bg-purple-50 border border-purple-200" :
             "bg-slate-50 border border-slate-200"
           }`}>
             <StatusIcon className={`w-5 h-5 ${statusConfig.color} ${status === "submitted" ? "animate-spin" : ""}`} />
@@ -308,10 +363,12 @@ export const QRVerificationStep = ({
               onClick={handleRegenerate}
               variant="outline"
               className="w-full border-slate-300"
-              disabled={loading}
+              disabled={loading || !canRegenerate}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              {isFrench ? "Régénérer le code QR" : "Regenerate QR Code"}
+              {!canRegenerate
+                ? (isFrench ? `Limite atteinte (${maxRegen}/${maxRegen})` : `Limit reached (${maxRegen}/${maxRegen})`)
+                : (isFrench ? "Régénérer le code QR" : "Regenerate QR Code")}
             </Button>
           )}
 
