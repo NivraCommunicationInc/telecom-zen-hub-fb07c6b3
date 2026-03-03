@@ -61,11 +61,11 @@ const reasonCodeLabels: Record<ReasonCode, string> = {
 const statusConfig: Record<CancellationStatus, { label: string; color: string; icon: any }> = {
   requested: { label: "Demandé", color: "bg-amber-500/20 text-amber-500", icon: Clock },
   under_review: { label: "En révision", color: "bg-blue-500/20 text-blue-500", icon: Clock },
-  awaiting_client: { label: "Information requise", color: "bg-purple-500/20 text-purple-500", icon: AlertTriangle },
-  approved: { label: "Approuvé", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
-  scheduled: { label: "Planifié", color: "bg-cyan-500/20 text-cyan-500", icon: Calendar },
+  awaiting_client: { label: "Information requise", color: "bg-purple-100 text-purple-700", icon: AlertTriangle },
+  approved: { label: "Approuvé", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
+  scheduled: { label: "Planifié", color: "bg-teal-100 text-teal-700", icon: Calendar },
   completed: { label: "Complété", color: "bg-muted text-muted-foreground", icon: CheckCircle },
-  declined: { label: "Refusé", color: "bg-red-500/20 text-red-500", icon: XCircle },
+  declined: { label: "Refusé", color: "bg-red-100 text-red-700", icon: XCircle },
 };
 
 const ClientCancellations = () => {
@@ -236,7 +236,7 @@ const ClientCancellations = () => {
 
               {/* Public message from staff */}
               {selectedRequest.public_message && (
-                <div className="p-4 bg-accent/50 rounded-lg">
+                <div className="p-4 bg-secondary rounded-lg">
                   <Label className="text-muted-foreground text-xs">Message de Nivra</Label>
                   <p className="mt-1">{selectedRequest.public_message}</p>
                 </div>

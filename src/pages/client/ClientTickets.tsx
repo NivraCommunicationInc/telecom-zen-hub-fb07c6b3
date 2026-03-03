@@ -371,10 +371,10 @@ const ClientTickets = () => {
   };
 
   const statusColors: Record<string, string> = {
-    open: "bg-cyan-500/20 text-cyan-500",
-    pending: "bg-slate-500/20 text-slate-400",
-    in_progress: "bg-amber-500/20 text-amber-500",
-    resolved: "bg-emerald-500/20 text-emerald-500",
+    open: "bg-teal-100 text-teal-700",
+    pending: "bg-slate-100 text-slate-600",
+    in_progress: "bg-amber-100 text-amber-700",
+    resolved: "bg-emerald-100 text-emerald-700",
     closed: "bg-muted text-muted-foreground",
   };
 
@@ -393,10 +393,10 @@ const ClientTickets = () => {
   };
 
   const idVerificationStatusConfig: Record<string, { label: string; color: string; icon: any }> = {
-    not_received: { label: "Non reçu", color: "bg-slate-500/20 text-slate-400", icon: Clock },
-    received: { label: "Reçu", color: "bg-amber-500/20 text-amber-500", icon: FileText },
-    verified: { label: "Vérifié", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
-    rejected: { label: "Refusé", color: "bg-red-500/20 text-red-500", icon: XCircle },
+    not_received: { label: "Non reçu", color: "bg-slate-100 text-slate-600", icon: Clock },
+    received: { label: "Reçu", color: "bg-amber-100 text-amber-700", icon: FileText },
+    verified: { label: "Vérifié", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
+    rejected: { label: "Refusé", color: "bg-red-100 text-red-700", icon: XCircle },
   };
 
   if (selectedTicket) {
@@ -447,14 +447,14 @@ const ClientTickets = () => {
               )}
 
               {/* Original Description */}
-              <div className="p-4 bg-accent/50 rounded-lg">
+              <div className="p-4 bg-secondary rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Description initiale</p>
                 <p className="text-foreground whitespace-pre-wrap">{selectedTicket.description}</p>
               </div>
 
               {/* ID Upload Section - Only show if ticket requires ID upload */}
               {selectedTicket.requires_id_upload && (
-                <Card className="bg-accent/30 border-amber-500/30">
+                <Card className="bg-amber-50 border-amber-200">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center justify-between text-lg">
                       <div className="flex items-center gap-2">
@@ -543,7 +543,7 @@ const ClientTickets = () => {
                   <div
                     key={reply.id}
                     className={`p-4 rounded-lg ${
-                      reply.is_admin ? "bg-cyan-500/10 ml-4" : "bg-accent/50 mr-4"
+                      reply.is_admin ? "bg-primary/5 ml-4 border border-primary/10" : "bg-secondary mr-4"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -787,7 +787,7 @@ const ClientTickets = () => {
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-cyan-400" />
+              <MessageSquare className="w-5 h-5 text-primary" />
               Mes tickets
             </CardTitle>
           </CardHeader>
@@ -803,7 +803,7 @@ const ClientTickets = () => {
                 {tickets.map((ticket: any) => (
                   <div
                     key={ticket.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-accent/50 rounded-lg cursor-pointer hover:bg-accent/70 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-secondary rounded-lg cursor-pointer hover:bg-secondary/80 transition-colors border border-border"
                     onClick={() => setSelectedTicket(ticket)}
                   >
                     <div className="flex-1">

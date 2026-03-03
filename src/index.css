@@ -180,52 +180,51 @@
 
   /* Client Portal Light Theme - Professional Clean ISP */
   .client-portal-dark {
-    /* Clean white background */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    /* Pure white background */
+    --background: 0 0% 100%;
+    --foreground: 220 30% 12%;
 
-    /* Cards - pure white with subtle depth */
+    /* Cards - white with clean borders */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 30% 12%;
 
-    /* Primary - Professional Teal (brand color) */
-    --primary: 168 76% 36%;
+    /* Primary - Professional Teal */
+    --primary: 168 76% 32%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Light Gray */
+    /* Secondary - Very light gray */
     --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary-foreground: 220 30% 12%;
 
-    /* Muted - Soft Gray */
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 9% 40%;
+    /* Muted */
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 10% 38%;
 
-    /* Accent - Teal for highlights */
-    --accent: 168 76% 42%;
+    /* Accent */
+    --accent: 168 76% 32%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders - Visible for structure */
-    --border: 220 13% 87%;
-    --input: 220 13% 87%;
-    --ring: 168 76% 42%;
+    /* Borders */
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 168 76% 32%;
     
-    /* Sidebar - Soft white/gray for navigation */
+    /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 168 76% 36%;
+    --sidebar-foreground: 220 30% 12%;
+    --sidebar-primary: 168 76% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-accent-foreground: 220 30% 12%;
     --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 168 76% 42%;
+    --sidebar-ring: 168 76% 32%;
 
-    /* Ensure readable inherited text on client portal containers */
     color: hsl(var(--foreground));
   }
 
@@ -240,12 +239,29 @@
   }
 
   .client-portal-dark .text-muted-foreground,
-  .client-portal-dark .text-slate-400 {
-    color: hsl(220 10% 34%);
+  .client-portal-dark .text-slate-400,
+  .client-portal-dark .text-slate-500 {
+    color: hsl(220 10% 38%);
   }
 
-  .client-portal-dark .text-slate-500 {
-    color: hsl(220 10% 30%);
+  .client-portal-dark .text-slate-300,
+  .client-portal-dark .text-slate-600 {
+    color: hsl(220 12% 28%);
+  }
+
+  /* Force dark text on all client portal text elements */
+  .client-portal-dark .text-foreground,
+  .client-portal-dark h1,
+  .client-portal-dark h2,
+  .client-portal-dark h3,
+  .client-portal-dark h4 {
+    color: hsl(220 30% 12%);
+  }
+
+  /* Fix cyan text to teal for better contrast on white */
+  .client-portal-dark .text-cyan-400,
+  .client-portal-dark .text-cyan-500 {
+    color: hsl(168 76% 28%);
   }
 
   /* Dark hero surfaces should default to light text when no explicit class is set */

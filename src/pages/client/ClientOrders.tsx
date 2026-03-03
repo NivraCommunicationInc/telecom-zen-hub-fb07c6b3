@@ -67,17 +67,17 @@ const ClientOrders = () => {
   }, [queryClient, user?.id]);
 
   const statusColors: Record<string, string> = {
-    pending: "bg-amber-500/20 text-amber-500",
-    payment_pending: "bg-amber-500/20 text-amber-500",
-    verification: "bg-blue-500/20 text-blue-500",
-    hold: "bg-purple-500/20 text-purple-500",
-    backorder: "bg-orange-500/20 text-orange-500",
-    cancel: "bg-red-500/20 text-red-500",
-    cancelled: "bg-red-500/20 text-red-500",
-    shipped: "bg-cyan-500/20 text-cyan-500",
-    completed: "bg-emerald-500/20 text-emerald-500",
-    paid: "bg-blue-500/20 text-blue-500",
-    ready_to_ship: "bg-cyan-500/20 text-cyan-500",
+    pending: "bg-amber-100 text-amber-700",
+    payment_pending: "bg-amber-100 text-amber-700",
+    verification: "bg-blue-100 text-blue-700",
+    hold: "bg-purple-100 text-purple-700",
+    backorder: "bg-orange-100 text-orange-700",
+    cancel: "bg-red-100 text-red-700",
+    cancelled: "bg-red-100 text-red-700",
+    shipped: "bg-teal-100 text-teal-700",
+    completed: "bg-emerald-100 text-emerald-700",
+    paid: "bg-blue-100 text-blue-700",
+    ready_to_ship: "bg-teal-100 text-teal-700",
   };
 
   const statusLabels: Record<string, string> = {
@@ -151,8 +151,8 @@ const ClientOrders = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-cyan-500" />
+              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{activeOrders}</p>
@@ -189,7 +189,7 @@ const ClientOrders = () => {
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-cyan-400" />
+              <Package className="w-5 h-5 text-primary" />
               Historique des commandes
             </CardTitle>
           </CardHeader>
@@ -209,24 +209,24 @@ const ClientOrders = () => {
                   return (
                     <div
                       key={order.id}
-                      className={`p-4 bg-accent/50 rounded-lg border transition-colors ${
-                        showPaymentBadge ? "border-amber-500/50 hover:border-amber-500" : "border-border hover:border-cyan-500/30"
+                      className={`p-4 bg-secondary/50 rounded-lg border transition-colors ${
+                        showPaymentBadge ? "border-amber-500/50 hover:border-amber-500" : "border-border hover:border-primary/40"
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              order.status === "completed" ? "bg-emerald-500/20" :
-                              order.status === "shipped" ? "bg-cyan-500/20" :
-                              order.status === "cancel" || order.status === "cancelled" ? "bg-red-500/20" : 
-                              order.status === "paid" ? "bg-blue-500/20" : "bg-amber-500/20"
+                              order.status === "completed" ? "bg-emerald-500/15" :
+                              order.status === "shipped" ? "bg-primary/15" :
+                              order.status === "cancel" || order.status === "cancelled" ? "bg-red-500/15" : 
+                              order.status === "paid" ? "bg-blue-500/15" : "bg-amber-500/15"
                             }`}>
                               <StatusIcon className={`w-4 h-4 ${
-                                order.status === "completed" ? "text-emerald-500" :
-                                order.status === "shipped" ? "text-cyan-500" :
-                                order.status === "cancel" || order.status === "cancelled" ? "text-red-500" : 
-                                order.status === "paid" ? "text-blue-500" : "text-amber-500"
+                                order.status === "completed" ? "text-emerald-600" :
+                                order.status === "shipped" ? "text-primary" :
+                                order.status === "cancel" || order.status === "cancelled" ? "text-red-600" : 
+                                order.status === "paid" ? "text-blue-600" : "text-amber-600"
                               }`} />
                             </div>
                             <div>
@@ -271,7 +271,7 @@ const ClientOrders = () => {
                             {order.tracking_number && (
                               <div className="col-span-2">
                                 <p className="text-muted-foreground">Suivi</p>
-                                <p className="text-cyan-500 font-mono text-sm flex items-center gap-2">
+                                <p className="text-primary font-mono text-sm flex items-center gap-2">
                                   {order.tracking_number}
                                   <Button
                                     variant="ghost"
@@ -367,10 +367,10 @@ const ClientOrders = () => {
               {selectedOrder.port_request && (selectedOrder.port_request as any)?.port_in && (
                 <div className="pt-4 border-t border-border">
                   <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-cyan-500" />
+                    <Phone className="w-4 h-4 text-primary" />
                     Transfert de numéro
                   </h4>
-                  <div className="space-y-2 bg-cyan-500/10 p-3 rounded-lg">
+                  <div className="space-y-2 bg-primary/10 p-3 rounded-lg">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Numéro à transférer</span>
                       <span className="font-mono text-foreground">{(selectedOrder.port_request as any)?.phone_number || "—"}</span>
@@ -379,7 +379,7 @@ const ClientOrders = () => {
                       <span className="text-muted-foreground">Fournisseur actuel</span>
                       <span className="text-foreground">{(selectedOrder.port_request as any)?.carrier || "Non spécifié"}</span>
                     </div>
-                    <Badge className="bg-emerald-500/20 text-emerald-500 mt-2">En traitement</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 mt-2">En traitement</Badge>
                   </div>
                 </div>
               )}
