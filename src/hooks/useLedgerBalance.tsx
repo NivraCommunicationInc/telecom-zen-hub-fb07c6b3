@@ -185,7 +185,10 @@ async function fetchLedgerBalance(
       }
     } else {
       // Count unpaid legacy invoices
-      const balanceDue = Number(inv.balance_due) ?? (invoiceAmount - amountPaid);
+      const rawBalanceDue = inv.balance_due;
+      const balanceDue = rawBalanceDue === null || rawBalanceDue === undefined
+        ? (invoiceAmount - amountPaid)
+        : (Number(rawBalanceDue) || 0);
       if (balanceDue > 0) {
         unpaidInvoiceCount++;
       }
