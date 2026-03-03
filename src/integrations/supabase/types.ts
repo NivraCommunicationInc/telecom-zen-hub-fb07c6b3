@@ -10505,6 +10505,11 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: undefined
       }
+      reconcile_all_invoices: { Args: never; Returns: Json }
+      reconcile_invoice_from_payments: {
+        Args: { p_invoice_id: string }
+        Returns: Json
+      }
       record_payment_error_captured: {
         Args: {
           p_error_reason: string
